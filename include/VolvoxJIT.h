@@ -1,3 +1,5 @@
+#pragma once
+
 //===- VolvoxJIT.h - A simple JIT for Volvox --------*- C++ -*-===//
 //
 // Part of the Volvox Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -9,9 +11,6 @@
 // Contains a simple JIT definition derived from the LLVM kaleidoscope tutorials.
 //
 //===----------------------------------------------------------------------===//
-
-#ifndef LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H
-#define LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
@@ -99,5 +98,3 @@ public:
 
 } // end namespace orc
 } // end namespace llvm
-
-#endif // LLVM_EXECUTIONENGINE_ORC_KALEIDOSCOPEJIT_H

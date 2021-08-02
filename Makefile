@@ -10,3 +10,7 @@ srcdir:
 clean:
 	rm -f volvox
 	cd src && $(MAKE) clean
+
+.PHONY: depend
+depend:
+	cd src && $(MAKE) depend

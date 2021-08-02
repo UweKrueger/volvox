@@ -9,7 +9,7 @@ PCH = $(PRJH:%.hh=%.hh.gch)
 
 PROG = ../volvox
 
-OBJS := main.o lexer.o
+OBJS := main.o lexer.o parser.o
 
 SRCS := $(OBJS:%.o=%.cc)
 

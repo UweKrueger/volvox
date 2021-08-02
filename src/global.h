@@ -1,6 +1,15 @@
+#pragma once
 
 class PrototypeAST;
 class ExprAST;
+class FunctionAST;
+class NumberExprAST;
+class VariableExprAST;
+class CallExprAST;
+class IfExprAST;
+class ForExprAST;
+class VarExprAST;
+class UnaryExprAST;
 
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things.
@@ -60,3 +69,16 @@ extern int advance();
 extern std::string IdentifierStr; // Filled in if tok_identifier
 extern double NumVal;             // Filled in if tok_number
 extern int gettok();
+
+// AST
+
+llvm::raw_ostream &indent(llvm::raw_ostream &O, int size);
+// Parser
+
+extern int CurTok;
+extern int getNextToken();
+extern std::map<char, int> BinopPrecedence;
+extern std::unique_ptr<ExprAST> LogError(const char *Str);
+extern std::unique_ptr<FunctionAST> ParseDefinition();
+extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
+extern std::unique_ptr<PrototypeAST> ParseExtern();

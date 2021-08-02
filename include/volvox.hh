@@ -1,3 +1,4 @@
+#pragma once
 #include "VolvoxJIT.h"
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/Optional.h>
