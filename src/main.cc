@@ -1395,8 +1395,8 @@ static void HandleExtern() {
 				fprintf(stderr, "Read extern: ");
 				FnIR->print(errs());
 				fprintf(stderr, "\n");
-				FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
 			}
+			FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
 		} else {
 			fprintf(stderr, "Error reading extern");
 		}
@@ -1504,7 +1504,7 @@ int main(int argc, char* argv[]) {
 			output_file = argv[1];
 		}
 	}
-	if (comp_mode == comp_jit) {
+	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		InitializeNativeTarget();
 		InitializeNativeTargetAsmPrinter();
 		InitializeNativeTargetAsmParser();
