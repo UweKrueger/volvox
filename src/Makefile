@@ -9,12 +9,12 @@ PCH = $(PRJH:%.hh=%.hh.gch)
 
 PROG = ../volvox
 
-OBJS := main.o
+OBJS := main.o lexer.o
 
 SRCS := $(OBJS:%.o=%.cc)
 
-%.o: $(PCH) %.cc
-	$(CXX) -c $(CXXFLAGS) $(OPT) -include-pch $+
+%.o: %.cc $(PCH)
+	$(CXX) -c $(CXXFLAGS) $(OPT) -include-pch $(PCH) $<
 
 all: $(PROG)
 
@@ -27,3 +27,11 @@ $(PROG): $(OBJS)
 .PHONY: clean
 clean:
 	rm -f $(OBJS) $(PCH)
+
+.PHONY: depend
+depend:
+	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
+
+.depend: depend
+
+-include .depend
