@@ -1,12 +1,12 @@
-//===- KaleidoscopeJIT.h - A simple JIT for Kaleidoscope --------*- C++ -*-===//
+//===- VolvoxJIT.h - A simple JIT for Volvox --------*- C++ -*-===//
 //
-// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// Part of the Volvox Project, under the Apache License v2.0 with LLVM Exceptions.
 // See https://llvm.org/LICENSE.txt for license information.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 //
 //===----------------------------------------------------------------------===//
 //
-// Contains a simple JIT definition for use in the kaleidoscope tutorials.
+// Contains a simple JIT definition derived from the LLVM kaleidoscope tutorials.
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,7 +30,7 @@
 namespace llvm {
 namespace orc {
 
-class KaleidoscopeJIT {
+class VolvoxJIT {
 private:
   std::unique_ptr<TargetProcessControl> TPC;
   std::unique_ptr<ExecutionSession> ES;
@@ -44,7 +44,7 @@ private:
   JITDylib &MainJD;
 
 public:
-  KaleidoscopeJIT(std::unique_ptr<TargetProcessControl> TPC,
+  VolvoxJIT(std::unique_ptr<TargetProcessControl> TPC,
                   std::unique_ptr<ExecutionSession> ES,
                   JITTargetMachineBuilder JTMB, DataLayout DL)
       : TPC(std::move(TPC)), ES(std::move(ES)), DL(std::move(DL)),
@@ -59,12 +59,12 @@ public:
             DL.getGlobalPrefix())));
   }
 
-  ~KaleidoscopeJIT() {
+  ~VolvoxJIT() {
     if (auto Err = ES->endSession())
       ES->reportError(std::move(Err));
   }
 
-  static Expected<std::unique_ptr<KaleidoscopeJIT>> Create() {
+  static Expected<std::unique_ptr<VolvoxJIT>> Create() {
     auto SSP = std::make_shared<SymbolStringPool>();
     auto TPC = SelfTargetProcessControl::Create(SSP);
     if (!TPC)
@@ -78,7 +78,7 @@ public:
     if (!DL)
       return DL.takeError();
 
-    return std::make_unique<KaleidoscopeJIT>(std::move(*TPC), std::move(ES),
+    return std::make_unique<VolvoxJIT>(std::move(*TPC), std::move(ES),
                                              std::move(JTMB), std::move(*DL));
   }
 

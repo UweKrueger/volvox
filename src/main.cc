@@ -1,8 +1,8 @@
 #include "../include/volvox.hh"
 
 using namespace llvm;
-using namespace llvm::sys;
-using namespace llvm::orc;
+// using namespace llvm::sys;
+// using namespace llvm::orc;
 
 //===----------------------------------------------------------------------===//
 // Lexer
@@ -818,7 +818,7 @@ static ExitOnError ExitOnErr;
 
 static std::map<std::string, AllocaInst *> NamedValues;
 static std::unique_ptr<legacy::FunctionPassManager> TheFPM;
-static std::unique_ptr<KaleidoscopeJIT> TheJIT;
+static std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 static std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 //===----------------------------------------------------------------------===//
@@ -1375,7 +1375,7 @@ static void HandleDefinition() {
 				fprintf(stderr, "\n");
 				if (comp_mode == comp_jit) {
 					ExitOnErr(TheJIT->addModule(
-								  ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
+								  llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
 					InitializeModuleAndPassManager();
 				}
 			} else {
@@ -1415,7 +1415,7 @@ static void HandleTopLevelExpression() {
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 			  
-				auto TSM = ThreadSafeModule(std::move(TheModule), std::move(TheContext));
+				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext));
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 				InitializeModuleAndPassManager();
 			  
@@ -1525,7 +1525,7 @@ int main(int argc, char* argv[]) {
 	getNextToken();
 
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		TheJIT = ExitOnErr(KaleidoscopeJIT::Create());
+		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
 	}
 
 	InitializeModuleAndPassManager();
