@@ -1378,9 +1378,9 @@ static void HandleDefinition() {
 								  llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
 					InitializeModuleAndPassManager();
 				}
-			} else {
-				fprintf(stderr, "Error reading function definition:");
 			}
+		} else {
+			fprintf(stderr, "Error reading function definition:");
 		}
 	} else {
 		// Skip token for error recovery.
