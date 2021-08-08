@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
     LLVMSUFFIX :=
 else
@@ -11,7 +12,7 @@ endif
 endif
 CXX := clang++$(LLVMSUFFIX)
 LLVMCONFIG := llvm-config$(LLVMSUFFIX)
-LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d' ' -f3 | cut -d. -f1)
+LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
 OPT := -O0
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) $(OPTF)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all)
