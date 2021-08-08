@@ -1,10 +1,21 @@
-LLVMVERSION = -12
-CXX = clang++$(LLVMVERSION)
-LLVMCONFIG = llvm-config$(LLVMVERSION)
+ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
+    LLVMSUFFIX :=
+else
+ifeq ($(shell test -x /usr/bin/clang++-12 && echo -n true),true)
+    LLVMSUFFIX := -12
+else
+ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
+    LLVMSUFFIX := -13
+endif
+endif
+endif
+CXX := clang++$(LLVMSUFFIX)
+LLVMCONFIG := llvm-config$(LLVMSUFFIX)
+LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d' ' -f3 | cut -d. -f1)
 OPT := -O0
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) $(OPTF)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all)
-PRJH = ../include/volvox.hh
+PRJH = ../include/volvox-$(LLVMVERSION).hh
 PCH = $(PRJH:%.hh=%.hh.gch)
 
 PROG = ../volvox
@@ -18,7 +29,7 @@ SRCS := $(OBJS:%.o=%.cc)
 
 all: $(PROG)
 
-$(PCH): $(PRJH) ../include/VolvoxJIT.h
+$(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h
 	$(CXX) $(CXXFLAGS) $(OPT) $<
 
 $(PROG): $(OBJS)

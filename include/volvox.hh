@@ -1,5 +1,4 @@
 #pragma once
-#include "VolvoxJIT.h"
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/Optional.h>
 #include <llvm/ADT/STLExtras.h>
@@ -40,4 +39,3 @@
 #include <system_error>
 #include <utility>
 #include <vector>
-#pragma hdrstop
