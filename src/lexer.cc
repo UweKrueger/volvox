@@ -9,8 +9,8 @@ std::string getTokName(int Tok) {
 	switch (Tok) {
 	case tok_eof:
 		return "eof";
-	case tok_def:
-		return "def";
+	case tok_fn:
+		return "fn";
 	case tok_extern:
 		return "extern";
 	case tok_identifier:
@@ -33,6 +33,62 @@ std::string getTokName(int Tok) {
 		return "unary";
 	case tok_var:
 		return "var";
+	case tok_u8:
+		return "u8";
+	case tok_u16:
+		return "u16";
+	case tok_u32:
+		return "u32";
+	case tok_u64:
+		return "u64";
+	case tok_i8:
+		return "i8";
+	case tok_i16:
+		return "i16";
+	case tok_i32:
+		return "i32";
+	case tok_i64:
+		return "i64";
+	case tok_bool:
+		return "bool";
+	case tok_int:
+		return "int";
+	case tok_uint:
+		return "uint";
+	case tok_usize:
+		return "usize";
+	case tok_ssize:
+		return "ssize";
+	case tok_voidptr:
+		return "voidptr";
+	case tok_string:
+		return "string";
+	case tok_self:
+		return "self";
+	case tok_lparen:
+		return "(";
+	case tok_rparen:
+		return ")";
+	case tok_lbrack:
+		return "[";
+	case tok_rbrack:
+		return "]";
+	case tok_lbrace:
+		return "{";
+	case tok_rbrace:
+		return "}";
+	case tok_colon:
+		return ":";
+	case tok_semicolon:
+		return ";";
+	case tok_comma:
+		return ",";
+	case tok_dot:
+		return ".";
+	case tok_space:
+		return " ";
+	case tok_newline:
+		return "\n";
 	}
 	return std::string(1, (char)Tok);
 }
@@ -69,8 +125,8 @@ int gettok() {
 		while (isalnum((LastChar = advance())))
 			IdentifierStr += LastChar;
 
-		if (IdentifierStr == "def")
-			return tok_def;
+		if (IdentifierStr == "fn")
+			return tok_fn;
 		if (IdentifierStr == "extern")
 			return tok_extern;
 		if (IdentifierStr == "if")

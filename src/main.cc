@@ -654,7 +654,7 @@ static void MainLoop() {
 		case ';': // ignore top-level semicolons.
 			getNextToken();
 			break;
-		case tok_def:
+		case tok_fn:
 			HandleDefinition();
 			break;
 		case tok_extern:

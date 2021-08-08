@@ -17,7 +17,7 @@ enum Token {
 	tok_eof = -1,
 
 	// commands
-	tok_def = -2,
+	tok_fn = -2,
 	tok_extern = -3,
 
 	// primary
@@ -36,7 +36,41 @@ enum Token {
 	tok_unary = -12,
 
 	// var definition
-	tok_var = -13
+	tok_var = -13,
+
+	// built-in types
+	tok_u8 = -14,
+	tok_u16 = -15,
+	tok_u32 = -16,
+	tok_u64 = -17,
+	tok_i8 = -18,
+	tok_i16 = -19,
+	tok_i32 = -20,
+	tok_i64 = -21,
+	tok_bool = -22,
+	tok_uint = -23,
+	tok_int = -24,
+	tok_usize = -25,
+	tok_ssize = -26,
+	tok_voidptr = -27,
+	tok_string = -28,
+	tok_self = -29,
+
+	// braces
+	tok_lparen = -64,
+	tok_rparen = -65,
+	tok_lbrack = -66,
+	tok_rbrack = -67,
+	tok_lbrace = -68,
+	tok_rbrace = -69,
+
+	tok_colon = -72,
+	tok_semicolon = -73,
+	tok_comma = -74,
+	tok_dot = -75,
+
+	tok_space = -80,
+	tok_newline = -81
 };
 
 struct DebugInfo {
