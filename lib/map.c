@@ -498,30 +498,8 @@ static bool map_delete_priv(MapNode** root_ptr, MapNode* curr) {
 }
 
 bool map_string_delete(MapNode** root_ptr, char* key) {
-	MapNode* curr = *root_ptr;
-	for(;;) {
-		if (!curr) return false;
-		char* k = key;
-		for (char* c = curr->key.string; ; c++, k++) {
-			if (!*c) {
-				if(!*k) {
-					goto found_node;
-				} else {
-					curr = curr->rightChild;
-					break;
-				}
-			}
-			if (*k < *c) {
-				curr = curr->leftChild;
-				break;
-			} else if (*k > *c) {
-				curr = curr->rightChild;
-				break;
-			}
-		}
-	}
-found_node:
-	return map_delete_priv(root_ptr, curr);
+	NodePosition pos = map_string_find(root_ptr, key);
+	return pos.is_parent ? false : map_delete_priv(root_ptr, pos.node);
 }
 
 static void map_destroy_priv(MapNode* node) {
