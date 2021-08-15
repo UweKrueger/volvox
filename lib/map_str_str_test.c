@@ -26,7 +26,7 @@ int main(int argc, char* argv[]) {
 		MAP_INSERT_STRING(map, "u8", "eof");
 		MAP_INSERT_STRING(map, "uint", "i64");
 		MAP_INSERT_STRING(map, "}", "identifier");
-		map_string_dump(map, true);
+		map_dump(map, map_prt_str_str);
 	}
 	char* v[11] = {
 		"eof", "fn", "extern", "number", "then", "for", ":", ";", "u8", "uint", "}"
@@ -41,7 +41,7 @@ int main(int argc, char* argv[]) {
 	}
 	int height = map_check_avl_get_depth(map);
 	printf("Height: %d\n", height);
-	map_string_dump(map, true);
+	map_dump(map, map_prt_str_str);
 	height = map_check_avl_get_depth(map);
 	printf("Height: %d\n", height);
 	char* key;
@@ -55,7 +55,7 @@ int main(int argc, char* argv[]) {
 	if (map_string_delete(&map, key)) {
 		printf("deleted \"%s\"\n", key);
 	}
-	map_string_dump(map, true);
+	map_dump(map, map_prt_str_str);
 	for (MapNode* elem = map_max(map); elem; elem = map_iter_down(elem)) {
 		printf("\"%s\"\n", (char*)elem->key.string);
 	}
@@ -66,7 +66,7 @@ int main(int argc, char* argv[]) {
 		if (delta_ptr) {
 			if (map_string_delete(&map, key)) {
 				printf("deleted \"%s\"\n", key);
-				map_string_dump(map, true);
+				map_dump(map, map_prt_str_str);
 				height = map_check_avl_get_depth(map);
 				printf("Height: %d\n", height);
 			} else {

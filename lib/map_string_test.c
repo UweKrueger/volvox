@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
 		exit(0);
 	int height = map_check_avl_get_depth(map);
 	printf("Height: %d\n", height);
-	map_string_dump(map, 0);
+	map_dump(map, map_prt_str_int);
 	height = map_check_avl_get_depth(map);
 	printf("Height: %d\n", height);
 	char* key;
@@ -183,7 +183,7 @@ int main(int argc, char* argv[]) {
 	} else {
 		fprintf(stderr, "not found\n");
 	}
-	map_string_dump(map, 0);
+	map_dump(map, map_prt_str_int);
 	for (MapNode* elem = map_max(map); elem; elem = map_iter_down(elem)) {
 		printf("\"%s\"\n", (char*)elem->key.string);
 	}
@@ -194,7 +194,7 @@ int main(int argc, char* argv[]) {
 		if (delta_ptr) {
 			if (map_string_delete(&map, key)) {
 				printf("deleted \"%s\"\n", key);
-				map_string_dump(map, 0);
+				map_dump(map, map_prt_str_int);
 				height = map_check_avl_get_depth(map);
 				printf("Height: %d\n", height);
 			} else {

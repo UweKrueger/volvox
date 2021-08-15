@@ -53,12 +53,14 @@ typedef struct NodePosition {
 	MapNode** parent_ptr;
 } NodePosition;
 
+typedef void (map_node_printer)(int bf, MapKey* key, MapValue* value); 
+
 extern MapNode* map_string_new_map();
 extern MapNode* map_num_new_map();
 
 // value_size: size of generic value (including 0 for strings)
 extern void map_string_insert(MapNode** root_ptr, char* key, MapValue value, int value_size);
-extern void map_string_dump(MapNode* root, bool str_value);
+extern void map_dump(MapNode* root, map_node_printer* prt);
 extern bool map_string_delete(MapNode** root_ptr, char* key);
 extern void map_destroy(MapNode* root);
 extern int map_check_avl_get_depth(MapNode* node);
@@ -67,3 +69,6 @@ extern MapNode* map_max(MapNode* node);
 extern MapNode* map_iter_up(MapNode* elem);
 extern MapNode* map_iter_down(MapNode* elem);
 extern MapValue* map_string_get(MapNode* root, char* key);
+
+extern void map_prt_str_int(int bf, MapKey* key, MapValue* value);
+extern void map_prt_str_str(int bf, MapKey* key, MapValue* value);

@@ -335,7 +335,7 @@ DEFINE_MAP_INSERT_FOR(i32)
 DEFINE_MAP_INSERT_FOR(f32)
 DEFINE_MAP_INSERT_FOR(f64)
 
-void map_string_dump_priv(MapNode* curr, char* indent, bool is_right, bool str_value) {
+void map_dump_priv(MapNode* curr, char* indent, bool is_right, map_node_printer* prt) {
 	if (!curr) return;
 	int cur_len = strlen(indent);
 	if (curr->leftChild) {
@@ -344,7 +344,7 @@ void map_string_dump_priv(MapNode* curr, char* indent, bool is_right, bool str_v
 		} else {
 			strncat(indent, " ", 255-cur_len);
 		}
-		map_string_dump_priv(curr->leftChild, indent, false, str_value);
+		map_dump_priv(curr->leftChild, indent, false, prt);
 	}
 	indent[cur_len] = '\0';
 	fputs(indent, stdout);
@@ -366,25 +366,32 @@ void map_string_dump_priv(MapNode* curr, char* indent, bool is_right, bool str_v
 			fputs("━", stdout);
 		}
 	}
-	fputs(" \"", stdout);
-	fputs(curr->key.string, stdout);
-	if (str_value)
-		printf("\": %d %s\n", curr->bf, (char*)&curr->value + curr->value.offset);
-	else
-		printf("\": %d %d\n", curr->bf, curr->value.i32);
+	prt(curr->bf, &curr->key, &curr->value);
 	if (curr->rightChild) {
 		if (is_right) {
 			strncat(indent, " ", 255-cur_len);
 		} else {
 			strncat(indent, "┃", 255-cur_len);
 		}
-		map_string_dump_priv(curr->rightChild, indent, true, str_value);
+		map_dump_priv(curr->rightChild, indent, true, prt);
 	}
 }
 
-void map_string_dump(MapNode* root, bool str_value) {
+void map_dump(MapNode* root, map_node_printer* prt) {
 	char buf[256] = "";
-	map_string_dump_priv(root, buf, false, str_value);
+	map_dump_priv(root, buf, false, prt);
+}
+
+void map_prt_str_int(int bf, MapKey* key, MapValue* value) {
+	fputs(" \"", stdout);
+	fputs(key->string, stdout);
+	printf("\": %d %d\n", bf, value->i32);
+}
+
+void map_prt_str_str(int bf, MapKey* key, MapValue* value) {
+	fputs(" \"", stdout);
+	fputs(key->string, stdout);
+	printf("\": %d \"%s\"\n", bf, (char*)value + value->offset);
 }
 
 static bool map_delete_priv(MapNode** root_ptr, MapNode* curr) {
