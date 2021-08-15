@@ -3,7 +3,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdbool.h>
-#include <time.h>
 #include "map.h"
 
 /* balace factor of nodes require only 2 bits and parent pointer is
@@ -15,14 +14,16 @@
 MapNode* map_string_new_map() { return NULL; }
 MapNode* map_num_new_map() { return NULL; }
 
-// val_str_len: length including 0 when string values
-static MapNode* map_string_new_node(char* key, MapValue value, unsigned int val_str_len) {
+// val_str_size: length including 0 when string values
+static MapNode* map_string_new_node(char* key, MapValue value, unsigned int val_str_size) {
 	size_t keylen = strlen(key);
-	size_t nodesz = keylen+val_str_len<8 ? sizeof(MapNode) : sizeof(MapNode)+keylen-7+val_str_len;
+	size_t nodesz = keylen+val_str_size<8 ? sizeof(MapNode) : sizeof(MapNode)+keylen-7+val_str_size;
 	MapNode* node = malloc(nodesz);
 	strcpy(&node->key.string[0], key);
-	if (val_str_len) {
-		memcpy(&node->key + keylen + 1, value.c_str, val_str_len);
+	if (val_str_size) {
+		memcpy(&node->key.string[0] + keylen + 1, value.src_ptr, val_str_size);
+		node->value.offset = keylen + sizeof(MapValue) + 1;
+		node->value.size = val_str_size;
 	} else {
 		node->value = value;
 	}
@@ -242,8 +243,8 @@ pos_found:
 	return pos;
 }	
 
-void map_string_insert(MapNode** root_ptr, char* key, MapValue value, bool value_is_string) {
-	MapNode* node = map_string_new_node(key, value, value_is_string);
+void map_string_insert(MapNode** root_ptr, char* key, MapValue value, int val_str_size) {
+	MapNode* node = map_string_new_node(key, value, val_str_size);
 	NodePosition insert_pos = map_string_find(root_ptr, key);
 	if(insert_pos.is_parent) {
 		map_insert_priv(root_ptr, node, (MapNode*)((uintptr_t)insert_pos.node & ~0x01), insert_pos.parent_ptr);
@@ -257,7 +258,7 @@ void map_string_insert(MapNode** root_ptr, char* key, MapValue value, bool value
 	return;
 }
 
-void map_string_dump_priv(MapNode* curr, char* indent, bool is_right) {
+void map_string_dump_priv(MapNode* curr, char* indent, bool is_right, bool str_value) {
 	if (!curr) return;
 	int cur_len = strlen(indent);
 	if (curr->leftChild) {
@@ -266,7 +267,7 @@ void map_string_dump_priv(MapNode* curr, char* indent, bool is_right) {
 		} else {
 			strncat(indent, " ", 255-cur_len);
 		}
-		map_string_dump_priv(curr->leftChild, indent, false);
+		map_string_dump_priv(curr->leftChild, indent, false, str_value);
 	}
 	indent[cur_len] = '\0';
 	fputs(indent, stdout);
@@ -290,20 +291,23 @@ void map_string_dump_priv(MapNode* curr, char* indent, bool is_right) {
 	}
 	fputs(" \"", stdout);
 	fputs(curr->key.string, stdout);
-	printf("\": %d %d\n", curr->bf, curr->value.i32);
+	if (str_value)
+		printf("\": %d %s\n", curr->bf, (char*)&curr->value + curr->value.offset);
+	else
+		printf("\": %d %d\n", curr->bf, curr->value.i32);
 	if (curr->rightChild) {
 		if (is_right) {
 			strncat(indent, " ", 255-cur_len);
 		} else {
 			strncat(indent, "┃", 255-cur_len);
 		}
-		map_string_dump_priv(curr->rightChild, indent, true);
+		map_string_dump_priv(curr->rightChild, indent, true, str_value);
 	}
 }
 
-void map_string_dump(MapNode* root) {
+void map_string_dump(MapNode* root, bool str_value) {
 	char buf[256] = "";
-	map_string_dump_priv(root, buf, false);
+	map_string_dump_priv(root, buf, false, str_value);
 }
 
 static bool map_delete_priv(MapNode** root_ptr, MapNode* curr) {
