@@ -1,5 +1,12 @@
 #pragma once
 
+typedef unsigned long long int u64;
+typedef long long int i64;
+typedef unsigned int u32;
+typedef int i32;
+typedef float f32;
+typedef double f64;
+
 typedef union MapValue {
 	unsigned long long int u64;
 	long long int i64;

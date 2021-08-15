@@ -14,16 +14,16 @@
 MapNode* map_string_new_map() { return NULL; }
 MapNode* map_num_new_map() { return NULL; }
 
-// val_str_size: length including 0 when string values
-static MapNode* map_string_new_node(char* key, MapValue value, unsigned int val_str_size) {
+// value_size: length including 0 when string values
+static MapNode* map_string_new_node(char* key, MapValue value, unsigned int value_size) {
 	size_t keylen = strlen(key);
-	size_t nodesz = keylen+val_str_size<8 ? sizeof(MapNode) : sizeof(MapNode)+keylen-7+val_str_size;
+	size_t nodesz = keylen + value_size < 8 ? sizeof(MapNode) : sizeof(MapNode) + keylen - 7 + value_size;
 	MapNode* node = malloc(nodesz);
 	strcpy(&node->key.string[0], key);
-	if (val_str_size) {
-		memcpy(&node->key.string[0] + keylen + 1, value.src_ptr, val_str_size);
-		node->value.offset = keylen + sizeof(MapValue) + 1;
-		node->value.size = val_str_size;
+	if (value_size) {
+		memcpy(&node->key.string[0] + keylen + 1, value.src_ptr, value_size);
+		node->value.offset = sizeof(MapValue) + keylen + 1;
+		node->value.size = value_size;
 	} else {
 		node->value = value;
 	}
@@ -31,8 +31,31 @@ static MapNode* map_string_new_node(char* key, MapValue value, unsigned int val_
 	return node;
 }
 
+#define DEFINE_MAP_NEW_NODE_FOR(typ) static MapNode* map_ ## typ ## _new_node(typ key, MapValue value, unsigned int value_size) { \
+	size_t nodesz = sizeof(MapNode) + value_size; \
+	MapNode* node = malloc(nodesz); \
+	node->key.typ = key; \
+	if (value_size) { \
+		memcpy((char*)node + sizeof(MapNode), value.src_ptr, value_size); \
+		node->value.offset = sizeof(MapKey) + sizeof(MapValue); \
+		node->value.size = value_size; \
+	} else { \
+		node->value = value; \
+	} \
+	node->parent = node->leftChild = node->rightChild = NULL; \
+	return node; \
+}
+
+DEFINE_MAP_NEW_NODE_FOR(u64)
+DEFINE_MAP_NEW_NODE_FOR(i64)
+DEFINE_MAP_NEW_NODE_FOR(u32)
+DEFINE_MAP_NEW_NODE_FOR(i32)
+DEFINE_MAP_NEW_NODE_FOR(f32)
+DEFINE_MAP_NEW_NODE_FOR(f64)
+
 static MapNode* rotLeft(MapNode* a, MapNode* b) {
-	/*      a                   b
+	/*
+	 *      a                   b
 	 *     / \                 / \
 	 *    X   b      =>       a   Y
 	 *       / \             / \
@@ -55,7 +78,8 @@ static MapNode* rotLeft(MapNode* a, MapNode* b) {
 }
 
 static MapNode* rotRight(MapNode* a, MapNode* b) {
-	/*        a              b
+	/*
+	 *        a              b
 	 *       / \            / \
 	 *      b   Y    =>    X   a
 	 *     / \                / \
@@ -78,7 +102,8 @@ static MapNode* rotRight(MapNode* a, MapNode* b) {
 }
 
 static MapNode* rotRightLeft(MapNode* a, MapNode* b) {
-	/*      a                   c
+	/*
+	 *      a                   c
 	 *     / \                 / \
 	 *    X   b               /   \
 	 *       / \     =>      /     \
@@ -116,7 +141,8 @@ static MapNode* rotRightLeft(MapNode* a, MapNode* b) {
 }
 
 static MapNode* rotLeftRight(MapNode* a, MapNode* b) {
-	/*          a                   c
+	/*
+	 *          a                   c
 	 *         / \                 / \
 	 *        b   Y               /   \
 	 *       / \         =>      /     \
@@ -241,10 +267,40 @@ pos_found:
 	if (!curr)
 		pos.is_parent = true;
 	return pos;
+}
+
+#define DEFINE_MAP_FIND_FOR(typ) static NodePosition map_ ## typ ## _find(MapNode** parent_ptr, typ key) { \
+	NodePosition pos; \
+	MapNode* curr; \
+	MapNode* parent = *parent_ptr ? (*parent_ptr)->parent : NULL; \
+	for(;;) { \
+		curr = *parent_ptr; \
+		if (!curr) break; \
+		if (key == curr->value.typ) { \
+				goto pos_found; \
+		} else if (key > curr->value.typ) { \
+			parent_ptr = &curr->rightChild; \
+		} else { \
+			parent_ptr = &curr->leftChild; \
+		} \
+		parent = curr; \
+	} \
+pos_found: \
+	pos = (NodePosition){ .node = curr ? curr : parent, .parent_ptr = parent_ptr }; \
+	if (!curr) \
+		pos.is_parent = true; \
+	return pos; \
 }	
 
-void map_string_insert(MapNode** root_ptr, char* key, MapValue value, int val_str_size) {
-	MapNode* node = map_string_new_node(key, value, val_str_size);
+DEFINE_MAP_FIND_FOR(u64)
+DEFINE_MAP_FIND_FOR(i64)
+DEFINE_MAP_FIND_FOR(u32)
+DEFINE_MAP_FIND_FOR(i32)
+DEFINE_MAP_FIND_FOR(f32)
+DEFINE_MAP_FIND_FOR(f64)
+
+void map_string_insert(MapNode** root_ptr, char* key, MapValue value, int value_size) {
+	MapNode* node = map_string_new_node(key, value, value_size);
 	NodePosition insert_pos = map_string_find(root_ptr, key);
 	if(insert_pos.is_parent) {
 		map_insert_priv(root_ptr, node, (MapNode*)((uintptr_t)insert_pos.node & ~0x01), insert_pos.parent_ptr);
@@ -257,6 +313,27 @@ void map_string_insert(MapNode** root_ptr, char* key, MapValue value, int val_st
 	}
 	return;
 }
+
+#define DEFINE_MAP_INSERT_FOR(typ) void map_ ## typ ## _insert(MapNode** root_ptr, typ key, MapValue value, int value_size) { \
+	MapNode* node = map_ ## typ ## _new_node(key, value, value_size); \
+	NodePosition insert_pos = map_ ## typ ## _find(root_ptr, key); \
+	if(insert_pos.is_parent) { \
+		map_insert_priv(root_ptr, node, (MapNode*)((uintptr_t)insert_pos.node & ~0x01), insert_pos.parent_ptr); \
+	} else { \
+		node->parent = insert_pos.node->parent; \
+		node->leftChild = insert_pos.node->leftChild; \
+		node->rightChild = insert_pos.node->rightChild; \
+		free(insert_pos.node); \
+	} \
+	return; \
+}
+
+DEFINE_MAP_INSERT_FOR(u64)
+DEFINE_MAP_INSERT_FOR(i64)
+DEFINE_MAP_INSERT_FOR(u32)
+DEFINE_MAP_INSERT_FOR(i32)
+DEFINE_MAP_INSERT_FOR(f32)
+DEFINE_MAP_INSERT_FOR(f64)
 
 void map_string_dump_priv(MapNode* curr, char* indent, bool is_right, bool str_value) {
 	if (!curr) return;
@@ -468,6 +545,18 @@ bool map_string_delete(MapNode** root_ptr, char* key) {
 	NodePosition pos = map_string_find(root_ptr, key);
 	return pos.is_parent ? false : map_delete_priv(root_ptr, pos.node);
 }
+
+#define DEFINE_MAP_DELETE_FOR(typ) bool map_ ## typ ## _delete(MapNode** root_ptr, typ key) { \
+	NodePosition pos = map_ ## typ ## _find(root_ptr, key); \
+	return pos.is_parent ? false : map_delete_priv(root_ptr, pos.node); \
+}
+
+DEFINE_MAP_DELETE_FOR(u64)
+DEFINE_MAP_DELETE_FOR(i64)
+DEFINE_MAP_DELETE_FOR(u32)
+DEFINE_MAP_DELETE_FOR(i32)
+DEFINE_MAP_DELETE_FOR(f32)
+DEFINE_MAP_DELETE_FOR(f64)
 
 static void map_destroy_priv(MapNode* node) {
 	MapNode* leftChild = node->leftChild;
