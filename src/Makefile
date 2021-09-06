@@ -1,12 +1,12 @@
 SHELL := /bin/bash
-ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
-    LLVMSUFFIX :=
+ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
+    LLVMSUFFIX := -13
 else
 ifeq ($(shell test -x /usr/bin/clang++-12 && echo -n true),true)
     LLVMSUFFIX := -12
 else
-ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
-    LLVMSUFFIX := -13
+ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
+    LLVMSUFFIX :=
 endif
 endif
 endif
