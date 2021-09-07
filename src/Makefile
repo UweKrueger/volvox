@@ -21,7 +21,7 @@ PCH = $(PRJH:%.hh=%.hh.gch)
 
 PROG = ../volvox
 
-OBJS := main.o lexer.o parser.o
+OBJS := main.o lexer.o parser.o token.o
 
 SRCS := $(OBJS:%.o=%.cc)
 
