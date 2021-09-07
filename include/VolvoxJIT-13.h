@@ -24,6 +24,7 @@
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/LLVMContext.h"
+#include <ctype.h>
 #include <memory>
 
 namespace llvm {
