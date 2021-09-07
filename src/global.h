@@ -13,7 +13,7 @@ class UnaryExprAST;
 
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things.
-enum Token {
+enum TokenType {
 	tok_eof = -1,
 
 	// commands
@@ -116,3 +116,45 @@ extern std::unique_ptr<ExprAST> LogError(const char *Str);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
+
+// Token
+
+class Token {
+public:
+	TokenType type;
+	Token(TokenType type) : type(type) {}
+	virtual ~Token() = default;
+	virtual std::string tokName() const;
+	virtual std::string str() const { return this->tokName(); }
+};
+
+enum num_type_t {
+	num_u8,
+	num_u16,
+	num_u32,
+	num_u64,
+	num_uint,
+	num_i8,
+	num_i16,
+	num_i32,
+	num_i64,
+	num_int,
+	num_f32,
+	num_f64,
+	num_invalid,
+};
+
+class NumToken : public Token {
+public:
+	NumToken(char** s_ptr);
+	~NumToken() = default;
+	num_type_t num_type;
+	union {
+		uint64_t uint_val;
+		int64_t int_val;
+		double float_val;
+	};
+	// std::string str() const;
+};
+	
+	
