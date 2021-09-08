@@ -96,7 +96,6 @@ enum CompModes {
 };
 
 extern CompModes comp_mode;
-extern std::string getTokName(int Tok);
 extern SourceLocation CurLoc;
 extern SourceLocation LexLoc;
 extern int advance();
