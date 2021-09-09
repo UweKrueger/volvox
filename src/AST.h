@@ -34,6 +34,19 @@ public:
 	llvm::Value *codegen() override;
 };
 
+/// StringExprAST - Expression class for string literals like "abc".
+class StringExprAST : public ExprAST {
+	char* Val;
+
+public:
+	StringExprAST(const Token& tok) : Val(tok.str_val) {
+	}
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		return ExprAST::dump(out << Val, ind);
+	}
+	llvm::Value *codegen() override;
+};
+
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
 	std::string Name;

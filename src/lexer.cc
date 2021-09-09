@@ -76,6 +76,7 @@ Token Lexer::gettok() {
 				CurChar = advance();
 				goto add_letter;
 			case '"':
+				CurChar = advance();
 				return Token(StrLit);
 			case EOF:
 				fprintf(stderr, "unexpected EOF in string literal\n");

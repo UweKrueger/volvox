@@ -103,6 +103,13 @@ llvm::Value *NumberExprAST::codegen() {
 	return llvm::ConstantFP::get(*TheContext, llvm::APFloat(Val));
 }
 
+llvm::Value *StringExprAST::codegen() {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
+	return llvm::ConstantDataArray::getString(*TheContext, Val);
+}
+
 llvm::Value *VariableExprAST::codegen() {
 	// Look this variable up in the function.
 	llvm::Value *V = NamedValues[Name];
@@ -629,7 +636,9 @@ static void HandleTopLevelExpression() {
 				// arguments, returns a double) so we can call it as a native function.
 				double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
 				fprintf(stderr, "Evaluated to %f\n", FP());
-			  
+				//char* (*SP)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
+				//fprintf(stderr, "Evaluated to %s\n", SP());
+
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
 			}

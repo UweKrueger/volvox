@@ -49,6 +49,12 @@ static std::unique_ptr<ExprAST> ParseNumberExpr() {
 	return std::move(Result);
 }
 
+static std::unique_ptr<ExprAST> ParseStringExpr() {
+	auto Result = std::make_unique<StringExprAST>(CurTok);
+	getNextToken(); // consume the string
+	return std::move(Result);
+}
+
 /// parenexpr ::= '(' expression ')'
 static std::unique_ptr<ExprAST> ParseParenExpr() {
 	getNextToken(); // eat (.
@@ -241,6 +247,8 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 		return ParseIdentifierExpr();
 	case tok_number:
 		return ParseNumberExpr();
+	case tok_str_lit:
+		return ParseStringExpr();
 	case '(':
 		return ParseParenExpr();
 	case tok_if:
