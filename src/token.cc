@@ -89,7 +89,7 @@ std::string Token::tokName() const {
 	return std::string(1, (char)this->type);
 }
 
-NumToken::NumToken(char** s_ptr) : Token(tok_number) {
+Token::Token(char** s_ptr) : type(tok_number) {
 	while (isspace(**s_ptr))
 		++(*s_ptr);
 	bool sign = **s_ptr == '-';
@@ -102,7 +102,7 @@ NumToken::NumToken(char** s_ptr) : Token(tok_number) {
 	}
 	if (errno != 0) {
 		int_val = errno;
-		num_type = num_invalid;
+		val_type = val_invalid;
 		*s_ptr = endptr;
 		return;
 	}
@@ -114,15 +114,15 @@ NumToken::NumToken(char** s_ptr) : Token(tok_number) {
 			if (isalpha(*endptr_f) && (*(endptr_f + 1) == '(' || isalnum(*(endptr_f + 1)))) {
 				// method call on integer literal
 				*s_ptr = endptr;
-				num_type = (sign || this->uint_val <= INT_MAX) ? num_int : num_invalid;
+				val_type = (sign || this->uint_val <= INT_MAX) ? val_int : val_invalid;
 				return;
 			}
 		}
 		if (*endptr_f == 'f' || *endptr_f == 'F') {
 			endptr++;
-			num_type = num_f32;
+			val_type = val_f32;
 		} else {
-			num_type = num_f64;
+			val_type = val_f64;
 		}
 		float_val = f;
 		return;

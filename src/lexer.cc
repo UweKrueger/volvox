@@ -23,7 +23,7 @@ int Lexer::advance() {
 std::string IdentifierStr; // Filled in if tok_identifier
 double NumVal;             // Filled in if tok_number
 
-int Lexer::gettok() {
+Token Lexer::gettok() {
 	static int CurChar = ' ';
 
 	// Skip any whitespace.
@@ -37,26 +37,26 @@ int Lexer::gettok() {
 			IdentifierStr += CurChar;
 
 		if (IdentifierStr == "fn")
-			return tok_fn;
+			return Token(tok_fn);
 		if (IdentifierStr == "extern")
-			return tok_extern;
+			return Token(tok_extern);
 		if (IdentifierStr == "if")
-			return tok_if;
+			return Token(tok_if);
 		if (IdentifierStr == "then")
-			return tok_then;
+			return Token(tok_then);
 		if (IdentifierStr == "else")
-			return tok_else;
+			return Token(tok_else);
 		if (IdentifierStr == "for")
-			return tok_for;
+			return Token(tok_for);
 		if (IdentifierStr == "in")
-			return tok_in;
+			return Token(tok_in);
 		if (IdentifierStr == "binary")
-			return tok_binary;
+			return Token(tok_binary);
 		if (IdentifierStr == "unary")
-			return tok_unary;
+			return Token(tok_unary);
 		if (IdentifierStr == "var")
-			return tok_var;
-		return tok_identifier;
+			return Token(tok_var);
+		return Token(tok_identifier);
 	}
 
 	if (isdigit(CurChar) || CurChar == '.') { // Number: [0-9.]+
@@ -66,7 +66,7 @@ int Lexer::gettok() {
 			CurChar = advance();
 		} while (isdigit(CurChar) || CurChar == '.');
 		NumVal = strtod(NumStr.c_str(), nullptr);
-		return tok_number;
+		return Token(tok_number);
 	}
 
 	if (CurChar == '#') {
@@ -81,10 +81,10 @@ int Lexer::gettok() {
 
 	// Check for end of file.  Don't eat the EOF.
 	if (CurChar == EOF)
-		return tok_eof;
+		return Token(tok_eof);
 
 	// Otherwise, just return the character as its ascii value.
 	int ThisChar = CurChar;
 	CurChar = advance();
-	return ThisChar;
+	return Token(ThisChar);
 }

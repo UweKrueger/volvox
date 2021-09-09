@@ -648,7 +648,7 @@ static void MainLoop() {
 		if (comp_mode == comp_jit) {
 			fprintf(stderr, "ready> ");
 		}
-		switch (CurTok) {
+		switch (CurTok.type) {
 		case tok_eof:
 			return;
 		case ';': // ignore top-level semicolons.

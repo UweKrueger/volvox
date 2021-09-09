@@ -106,8 +106,6 @@ extern double NumVal;             // Filled in if tok_number
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size);
 // Parser
 
-extern int CurTok;
-extern int getNextToken();
 extern std::map<char, int> BinopPrecedence;
 extern std::unique_ptr<ExprAST> LogError(const char *Str);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
@@ -116,51 +114,48 @@ extern std::unique_ptr<PrototypeAST> ParseExtern();
 
 // Token
 
+enum val_type_t {
+	val_u8,
+	val_u16,
+	val_u32,
+	val_u64,
+	val_uint,
+	val_i8,
+	val_i16,
+	val_i32,
+	val_i64,
+	val_int,
+	val_f32,
+	val_f64,
+	val_invalid,
+};
+
 class Token {
 public:
-	TokenType type;
-	Token(TokenType type) : type(type) {}
-	virtual ~Token() = default;
-	virtual std::string tokName() const;
-	virtual std::string str() const { return this->tokName(); }
-};
-
-enum num_type_t {
-	num_u8,
-	num_u16,
-	num_u32,
-	num_u64,
-	num_uint,
-	num_i8,
-	num_i16,
-	num_i32,
-	num_i64,
-	num_int,
-	num_f32,
-	num_f64,
-	num_invalid,
-};
-
-class NumToken : public Token {
-public:
-	NumToken(char** s_ptr);
-	~NumToken() = default;
-	num_type_t num_type;
+	int type;
+	Token(int type = 0) : type(type) {}
+	Token(char** s_ptr);
+	std::string tokName() const;
+	val_type_t val_type;
 	union {
 		uint64_t uint_val;
 		int64_t int_val;
 		double float_val;
+		char* str_val;
 	};
-	// std::string str() const;
+	std::string str() const { return this->tokName(); }
 };
 	
+extern Token CurTok;
+extern Token getNextToken();
+
 class Lexer {
 public:
 	Lexer(FILE* input = stdin, size_t bufsize=100)
 		: input(input), bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
 	~Lexer() { free(linebuf); }
 	int advance();
-	int gettok();
+	Token gettok();
 	FILE* input;
 	ssize_t linelen;
 	size_t bufsize;
