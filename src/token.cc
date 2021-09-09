@@ -131,5 +131,8 @@ Token::Token(char** s_ptr) : type(tok_number) {
 	}
 }
 				
-						
-			
+Token::Token(const std::string& str) : type(tok_str_lit) {						
+	val_type = val_string;
+	str_val = strdup(str.c_str());
+}
+

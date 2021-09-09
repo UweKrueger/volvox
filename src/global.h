@@ -23,6 +23,7 @@ enum TokenType {
 	// primary
 	tok_identifier = -4,
 	tok_number = -5,
+	tok_str_lit = -30,
 
 	// control
 	tok_if = -6,
@@ -127,6 +128,8 @@ enum val_type_t {
 	val_int,
 	val_f32,
 	val_f64,
+	val_string,
+	val_string_part,
 	val_invalid,
 };
 
@@ -135,6 +138,7 @@ public:
 	int type;
 	Token(int type = 0) : type(type) {}
 	Token(char** s_ptr);
+	Token(const std::string& str);
 	std::string tokName() const;
 	val_type_t val_type;
 	union {

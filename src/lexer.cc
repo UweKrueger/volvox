@@ -67,6 +67,25 @@ Token Lexer::gettok() {
 		return tok;
 	}
 
+	if (CurChar == '"') {
+		std::string StrLit = "";
+		for (;;) {
+			CurChar = advance();
+			switch (CurChar) {
+			case '\\':
+				CurChar = advance();
+				goto add_letter;
+			case '"':
+				return Token(StrLit);
+			case EOF:
+				fprintf(stderr, "unexpected EOF in string literal\n");
+				return EOF;
+			default:
+			add_letter:
+				StrLit += CurChar;
+			}
+		}
+	}
 	if (CurChar == '#') {
 		// Comment until end of line.
 		do
