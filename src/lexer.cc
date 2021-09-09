@@ -60,13 +60,10 @@ Token Lexer::gettok() {
 	}
 
 	if (isdigit(CurChar) || CurChar == '.') { // Number: [0-9.]+
-		std::string NumStr;
-		do {
-			NumStr += CurChar;
-			CurChar = advance();
-		} while (isdigit(CurChar) || CurChar == '.');
-		NumVal = strtod(NumStr.c_str(), nullptr);
-		return Token(tok_number);
+		char* n_ptr = linebuf + CurLoc.Col - 1;
+		Token tok(&n_ptr);
+		CurLoc.Col = (n_ptr - linebuf) + 1;
+		return tok;
 	}
 
 	if (CurChar == '#') {
