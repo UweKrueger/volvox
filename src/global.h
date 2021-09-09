@@ -98,10 +98,8 @@ enum CompModes {
 extern CompModes comp_mode;
 extern SourceLocation CurLoc;
 extern SourceLocation LexLoc;
-extern int advance();
 extern std::string IdentifierStr; // Filled in if tok_identifier
 extern double NumVal;             // Filled in if tok_number
-extern int gettok();
 
 // AST
 
@@ -156,4 +154,20 @@ public:
 	// std::string str() const;
 };
 	
-	
+class Lexer {
+public:
+	Lexer(FILE* input = stdin, size_t bufsize=100) : input(input), bufsize(bufsize), linebuf((char*)malloc(bufsize)),
+											 LastChar('\n'), linelen(0) {
+		linebuf[0] = '\n';
+	}
+	~Lexer() { free(linebuf); }
+	int advance();
+	int gettok();
+	FILE* input;
+	int LastChar;
+	size_t linelen;
+	size_t bufsize;
+	char* linebuf;
+	std::string IdentifierStr; // Filled in if tok_identifier
+	double NumVal;             // Filled in if tok_number
+};
