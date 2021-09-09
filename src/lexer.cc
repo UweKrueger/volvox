@@ -8,10 +8,13 @@
 SourceLocation CurLoc = {0, 0};
 SourceLocation LexLoc = {1, 0};
 
-int advance() {
-	int LastChar = getchar();
-
+int Lexer::advance() {
+	static int LastChar = '\n';
+	LastChar = linebuf[LexLoc.Col];
+	if (!LastChar) return EOF;
 	if (LastChar == '\n' || LastChar == '\r') {
+		linelen = getline(&linebuf, &bufsize, input);
+		if (linelen <= 0) linebuf[0] = '\0';
 		LexLoc.Line++;
 		LexLoc.Col = 0;
 	} else {
@@ -21,22 +24,21 @@ int advance() {
 }
 
 std::string IdentifierStr; // Filled in if tok_identifier
-double NumVal;             // Filled in if tok_number
+double NumVal;             // Filled in if tok_number/// gettok - Return the next token from standard input.
 
-/// gettok - Return the next token from standard input.
-int gettok() {
-	static int LastChar = ' ';
+int Lexer::gettok() {
+	static int CurChar = ' ';
 
 	// Skip any whitespace.
-	while (isspace(LastChar))
-		LastChar = advance();
+	while (isspace(CurChar))
+		CurChar = advance();
 
 	CurLoc = LexLoc;
 
-	if (isalpha(LastChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
-		IdentifierStr = LastChar;
-		while (isalnum((LastChar = advance())))
-			IdentifierStr += LastChar;
+	if (isalpha(CurChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
+		IdentifierStr = CurChar;
+		while (isalnum((CurChar = advance())))
+			IdentifierStr += CurChar;
 
 		if (IdentifierStr == "fn")
 			return tok_fn;
@@ -61,33 +63,33 @@ int gettok() {
 		return tok_identifier;
 	}
 
-	if (isdigit(LastChar) || LastChar == '.') { // Number: [0-9.]+
+	if (isdigit(CurChar) || CurChar == '.') { // Number: [0-9.]+
 		std::string NumStr;
 		do {
-			NumStr += LastChar;
-			LastChar = advance();
-		} while (isdigit(LastChar) || LastChar == '.');
+			NumStr += CurChar;
+			CurChar = advance();
+		} while (isdigit(CurChar) || CurChar == '.');
 
 		NumVal = strtod(NumStr.c_str(), nullptr);
 		return tok_number;
 	}
 
-	if (LastChar == '#') {
+	if (CurChar == '#') {
 		// Comment until end of line.
 		do
-			LastChar = advance();
-		while (LastChar != EOF && LastChar != '\n' && LastChar != '\r');
+			CurChar = advance();
+		while (CurChar != EOF && CurChar != '\n' && CurChar != '\r');
 
-		if (LastChar != EOF)
+		if (CurChar != EOF)
 			return gettok();
 	}
 
 	// Check for end of file.  Don't eat the EOF.
-	if (LastChar == EOF)
+	if (CurChar == EOF)
 		return tok_eof;
 
 	// Otherwise, just return the character as its ascii value.
-	int ThisChar = LastChar;
-	LastChar = advance();
+	int ThisChar = CurChar;
+	CurChar = advance();
 	return ThisChar;
 }
