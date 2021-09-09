@@ -6,25 +6,22 @@
 //===----------------------------------------------------------------------===//
 
 SourceLocation CurLoc = {0, 0};
-SourceLocation LexLoc = {1, 0};
+SourceLocation LexLoc = {0, 0};
 
 int Lexer::advance() {
-	static int LastChar = '\n';
-	LastChar = linebuf[LexLoc.Col];
-	if (!LastChar) return EOF;
-	if (LastChar == '\n' || LastChar == '\r') {
+	if (LexLoc.Col >= linelen) {
 		linelen = getline(&linebuf, &bufsize, input);
-		if (linelen <= 0) linebuf[0] = '\0';
+		if (linelen <= 0) {
+			return EOF;
+		}
 		LexLoc.Line++;
 		LexLoc.Col = 0;
-	} else {
-		LexLoc.Col++;
 	}
-	return LastChar;
+	return linebuf[LexLoc.Col++];
 }
 
 std::string IdentifierStr; // Filled in if tok_identifier
-double NumVal;             // Filled in if tok_number/// gettok - Return the next token from standard input.
+double NumVal;             // Filled in if tok_number
 
 int Lexer::gettok() {
 	static int CurChar = ' ';
@@ -32,7 +29,6 @@ int Lexer::gettok() {
 	// Skip any whitespace.
 	while (isspace(CurChar))
 		CurChar = advance();
-
 	CurLoc = LexLoc;
 
 	if (isalpha(CurChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
@@ -69,7 +65,6 @@ int Lexer::gettok() {
 			NumStr += CurChar;
 			CurChar = advance();
 		} while (isdigit(CurChar) || CurChar == '.');
-
 		NumVal = strtod(NumStr.c_str(), nullptr);
 		return tok_number;
 	}

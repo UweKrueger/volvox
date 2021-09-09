@@ -156,18 +156,14 @@ public:
 	
 class Lexer {
 public:
-	Lexer(FILE* input = stdin, size_t bufsize=100) : input(input), bufsize(bufsize), linebuf((char*)malloc(bufsize)),
-											 LastChar('\n'), linelen(0) {
-		linebuf[0] = '\n';
-	}
+	Lexer(FILE* input = stdin, size_t bufsize=100)
+		: input(input), bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
 	~Lexer() { free(linebuf); }
 	int advance();
 	int gettok();
 	FILE* input;
-	int LastChar;
-	size_t linelen;
+	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;
 	std::string IdentifierStr; // Filled in if tok_identifier
-	double NumVal;             // Filled in if tok_number
 };
