@@ -44,7 +44,7 @@ static std::unique_ptr<ExprAST> ParseExpression();
 
 /// numberexpr ::= number
 static std::unique_ptr<ExprAST> ParseNumberExpr() {
-	auto Result = std::make_unique<NumberExprAST>(NumVal);
+	auto Result = std::make_unique<NumberExprAST>(CurTok);
 	getNextToken(); // consume the number
 	return std::move(Result);
 }

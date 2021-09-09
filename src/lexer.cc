@@ -62,7 +62,8 @@ Token Lexer::gettok() {
 	if (isdigit(CurChar) || CurChar == '.') { // Number: [0-9.]+
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
-		CurLoc.Col = (n_ptr - linebuf) + 1;
+		LexLoc.Col = (n_ptr - linebuf);
+		CurChar = advance();
 		return tok;
 	}
 

@@ -125,7 +125,9 @@ Token::Token(char** s_ptr) : type(tok_number) {
 			val_type = val_f64;
 		}
 		float_val = f;
-		return;
+		*s_ptr = endptr_f;
+	} else {
+		*s_ptr = endptr;
 	}
 }
 				

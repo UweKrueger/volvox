@@ -26,7 +26,9 @@ class NumberExprAST : public ExprAST {
 	double Val;
 
 public:
-	NumberExprAST(double Val) : Val(Val) {}
+	NumberExprAST(const Token& tok) : Val(tok.float_val) {
+		fprintf(stderr, "got number %g\n", Val);
+	}
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Val, ind);
 	}
