@@ -431,6 +431,7 @@ llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
 	std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(*TheContext));
 	llvm::FunctionType *FT =
+		// llvm::FunctionType::get(llvm::ArrayType::get(llvm::Type::getInt8Ty(*TheContext), 15360), Doubles, false);
 		llvm::FunctionType::get(llvm::Type::getDoubleTy(*TheContext), Doubles, false);
 
 	llvm::Function *F =
@@ -637,7 +638,7 @@ static void HandleTopLevelExpression() {
 				double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
 				fprintf(stderr, "Evaluated to %f\n", FP());
 				//char* (*SP)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
-				//fprintf(stderr, "Evaluated to %s\n", SP());
+				//fprintf(stderr, "Evaluated to >%s<\n", SP());
 
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
