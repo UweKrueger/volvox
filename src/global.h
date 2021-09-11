@@ -108,7 +108,8 @@ llvm::raw_ostream &indent(llvm::raw_ostream &O, int size);
 // Parser
 
 extern std::map<char, int> BinopPrecedence;
-extern std::unique_ptr<ExprAST> LogError(const char *Str);
+extern std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap);
+extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
@@ -184,7 +185,6 @@ public:
 	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;
-	std::string IdentifierStr; // Filled in if tok_identifier
 };
 
 // Types

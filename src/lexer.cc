@@ -35,7 +35,7 @@ Token Lexer::gettok() {
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())))
 			IdentifierStr += CurChar;
-
+		fprintf(stderr, "got identifier %s\n", IdentifierStr.c_str());
 		if (IdentifierStr == "fn")
 			return Token(tok_fn);
 		if (IdentifierStr == "extern")

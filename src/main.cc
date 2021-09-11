@@ -81,8 +81,11 @@ static llvm::DISubroutineType *CreateFunctionType(unsigned NumArgs, llvm::DIFile
 // Code Generation
 //===----------------------------------------------------------------------===//
 
-llvm::Value *LogErrorV(const char *Str) {
-	LogError(Str);
+llvm::Value *LogErrorV(const char *Str, ...) {
+	va_list ap;
+    va_start(ap, Str);
+    LogErrorGen(Str, ap);
+    va_end(ap);
 	return nullptr;
 }
 
@@ -128,7 +131,7 @@ llvm::Value *VariableExprAST::codegen() {
 	// Look this variable up in the function.
 	llvm::Value *V = NamedValues[Name];
 	if (!V)
-		return LogErrorV("Unknown variable name");
+		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -173,7 +176,7 @@ llvm::Value *BinaryExprAST::codegen() {
 		// Look up the name.
 		llvm::Value *Variable = NamedValues[LHSE->getName()];
 		if (!Variable)
-			return LogErrorV("Unknown variable name");
+			return LogErrorV("Unknown variable name2 %s", LHSE->getName().c_str());
 
 		Builder->CreateStore(Val, Variable);
 		return Val;

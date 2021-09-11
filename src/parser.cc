@@ -30,13 +30,26 @@ static int GetTokPrecedence() {
 }
 
 /// LogError* - These are little helper functions for error handling.
-std::unique_ptr<ExprAST> LogError(const char *Str) {
-	fprintf(stderr, "Error: %s\n", Str);
+std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap) {
+	fprintf(stderr, "Error: ");
+	vfprintf(stderr, Str, ap);
+	fprintf(stderr, "\n");
 	return nullptr;
 }
 
-static std::unique_ptr<PrototypeAST> LogErrorP(const char *Str) {
-	LogError(Str);
+std::unique_ptr<ExprAST> LogError(const char *Str, ...) {
+	va_list ap;
+    va_start(ap, Str);
+    LogErrorGen(Str, ap);
+    va_end(ap);
+	return nullptr;
+}
+
+static std::unique_ptr<PrototypeAST> LogErrorP(const char *Str, ...) {
+	va_list ap;
+    va_start(ap, Str);
+    LogErrorGen(Str, ap);
+    va_end(ap);
 	return nullptr;
 }
 
@@ -244,6 +257,7 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 	default:
 		return LogError("unknown token when expecting an expression");
 	case tok_identifier:
+		printf("parsing identifier %s\n", IdentifierStr.c_str());
 		return ParseIdentifierExpr();
 	case tok_number:
 		return ParseNumberExpr();
