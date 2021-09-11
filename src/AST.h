@@ -27,7 +27,7 @@ class NumberExprAST : public ExprAST {
 	double Val;
 
 public:
-	NumberExprAST(const Token& tok) : Val(tok.float_val) {
+	NumberExprAST(const Token& tok) : ExprAST(_f64), Val(tok.float_val) {
 	}
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Val, ind);
@@ -40,7 +40,7 @@ class StringExprAST : public ExprAST {
 	char* Val;
 
 public:
-	StringExprAST(const Token& tok) : Val(tok.str_val) {
+	StringExprAST(const Token& tok) : ExprAST(_string), Val(tok.str_val) {
 	}
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Val, ind);
@@ -179,15 +179,15 @@ public:
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes), as well as if it is an operator.
 class PrototypeAST {
-	std::string Name;
 	std::vector<std::string> Args;
-	std::vector<llvm::Type*> ArgTypes;
-	llvm::Type* RetType;
 	bool IsOperator;
 	unsigned Precedence; // Precedence if a binary op.
 	int Line;
 
 public:
+	std::string Name;
+	std::vector<llvm::Type*> ArgTypes;
+	llvm::Type* RetType;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 				 std::vector<std::string> Args, bool IsOperator = false,
 				 unsigned Prec = 0, llvm::Type* RetType = _f64, std::vector<llvm::Type*> ArgTypes = {})
@@ -210,10 +210,10 @@ public:
 
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
+public:
 	std::unique_ptr<PrototypeAST> Proto;
 	std::unique_ptr<ExprAST> Body;
 
-public:
 	FunctionAST(std::unique_ptr<PrototypeAST> Proto,
 				std::unique_ptr<ExprAST> Body)
 		: Proto(std::move(Proto)), Body(std::move(Body)) {}

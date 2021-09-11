@@ -30,8 +30,13 @@ llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 // Built-in Types
 //===----------------------------------------------------------------------===//
 
-llvm::Type* _f64 = llvm::Type::getDoubleTy(*TheContext);
-llvm::Type* _string = llvm::PointerType::get(llvm::Type::getInt8Ty(*TheContext), 0);
+llvm::Type* _f64;
+llvm::Type* _string;
+
+void init() {
+	_f64 = llvm::Type::getDoubleTy(*TheContext);
+	_string = llvm::PointerType::get(llvm::Type::getInt8Ty(*TheContext), 0);
+}
 
 //===----------------------------------------------------------------------===//
 // Debug Info Support
@@ -441,7 +446,8 @@ llvm::Function *PrototypeAST::codegen() {
 	std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(*TheContext));
 	llvm::FunctionType *FT =
 		// llvm::FunctionType::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*TheContext), 0), Doubles, false);
-		llvm::FunctionType::get(llvm::Type::getDoubleTy(*TheContext), Doubles, false);
+		// llvm::FunctionType::get(llvm::Type::getDoubleTy(*TheContext), Doubles, false);
+		llvm::FunctionType::get(RetType, Doubles, false);
 
 	llvm::Function *F =
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
@@ -563,7 +569,7 @@ static void InitializeModuleAndPassManager() {
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
-
+	init();
 	// Create a new builder for the module.
 	Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
 
@@ -629,6 +635,8 @@ static void HandleExtern() {
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
+		auto RetType = FnAST->Proto->RetType->getTypeID();
+		// fprintf(stderr, "Handling expression of type %d\n", RetType);
 		if (FnAST->codegen()) {
 			if (comp_mode == comp_jit) {
 				// Create a ResourceTracker to track JIT'd memory allocated to our
@@ -644,10 +652,22 @@ static void HandleTopLevelExpression() {
 			  
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a double) so we can call it as a native function.
-				double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
-				fprintf(stderr, "Evaluated to %f\n", FP());
-				//char* (*SP)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
-				//fprintf(stderr, "Evaluated to >%s<\n", SP());
+				switch (RetType) {
+				case llvm::Type::DoubleTyID:
+				{
+					double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
+					fprintf(stderr, "Evaluated to %f\n", FP());
+				}
+					break;
+				case llvm::Type::PointerTyID: // should be more sophisticated
+				{
+					char* (*SP)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
+					fprintf(stderr, "Evaluated to >%s<\n", SP());
+				}
+					break;
+				default:
+					fprintf(stderr, "unknown expression type %d\n", RetType);
+				}
 
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
@@ -713,7 +733,6 @@ extern "C" DLLEXPORT double printd(double X) {
 //===----------------------------------------------------------------------===//
 
 int main(int argc, char* argv[]) {
-
 	auto output_file = "";
 	
 	if (argc == 1) {
