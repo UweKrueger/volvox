@@ -379,9 +379,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 
 		// Read the precedence if present.
 		if (CurTok.type == tok_number) {
-			if (NumVal < 1 || NumVal > 100)
+			if (CurTok.int_val < 1 || CurTok.int_val > 100)
 				return LogErrorP("Invalid precedence: must be 1..100");
-			BinaryPrecedence = (unsigned)NumVal;
+			BinaryPrecedence = (unsigned)CurTok.int_val;
 			getNextToken();
 		}
 		break;
