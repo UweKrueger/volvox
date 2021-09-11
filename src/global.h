@@ -113,6 +113,26 @@ extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 
+class TypeTable {
+public:
+	bool add(char* name, llvm::Type* type) {
+		auto it = table.insert({name, type});
+		return it.second;
+	}
+	llvm::Type* find(char* name) {
+		auto it = table.find(name);
+		return it == table.end() ? nullptr : it->second;
+	}
+	~TypeTable() {
+		for (auto it = table.begin(); it != table.end(); it = table.erase(it))
+			free(it->second);
+	}
+protected:
+	std::map<char*, llvm::Type*> table;
+};
+
+extern TypeTable type_table;
+
 // Token
 
 enum val_type_t {

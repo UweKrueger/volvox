@@ -6,6 +6,8 @@ CompModes comp_mode = comp_jit;
 
 DebugInfo KSDbgInfo;
 
+TypeTable type_table;
+
 //===----------------------------------------------------------------------===//
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
