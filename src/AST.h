@@ -11,7 +11,8 @@ class ExprAST {
 	SourceLocation Loc;
 
 public:
-	ExprAST(SourceLocation Loc = CurLoc) : Loc(Loc) {}
+	llvm::Type* type;
+	ExprAST(llvm::Type* type = _f64, SourceLocation Loc = CurLoc) : Loc(Loc), type(type) {}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen() = 0;
 	int getLine() const { return Loc.Line; }
@@ -53,7 +54,7 @@ class VariableExprAST : public ExprAST {
 
 public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: ExprAST(Loc), Name(Name) {}
+		: ExprAST(_f64, Loc), Name(Name) {}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -85,7 +86,7 @@ class BinaryExprAST : public ExprAST {
 public:
 	BinaryExprAST(SourceLocation Loc, char Op, std::unique_ptr<ExprAST> LHS,
 				  std::unique_ptr<ExprAST> RHS)
-		: ExprAST(Loc), Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
+		: ExprAST(_f64, Loc), Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "binary" << Op, ind);
@@ -103,7 +104,7 @@ class CallExprAST : public ExprAST {
 public:
 	CallExprAST(SourceLocation Loc, const std::string &Callee,
 				std::vector<std::unique_ptr<ExprAST>> Args)
-		: ExprAST(Loc), Callee(Callee), Args(std::move(Args)) {}
+		: ExprAST(_f64, Loc), Callee(Callee), Args(std::move(Args)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call " << Callee, ind);
@@ -120,7 +121,7 @@ class IfExprAST : public ExprAST {
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 			  std::unique_ptr<ExprAST> Then, std::unique_ptr<ExprAST> Else)
-		: ExprAST(Loc), Cond(std::move(Cond)), Then(std::move(Then)),
+		: ExprAST(_f64, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
 		  Else(std::move(Else)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -180,6 +181,8 @@ public:
 class PrototypeAST {
 	std::string Name;
 	std::vector<std::string> Args;
+	std::vector<llvm::Type*> ArgTypes;
+	llvm::Type* RetType;
 	bool IsOperator;
 	unsigned Precedence; // Precedence if a binary op.
 	int Line;
@@ -187,9 +190,9 @@ class PrototypeAST {
 public:
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 				 std::vector<std::string> Args, bool IsOperator = false,
-				 unsigned Prec = 0)
+				 unsigned Prec = 0, llvm::Type* RetType = _f64, std::vector<llvm::Type*> ArgTypes = {})
 		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
-		  Precedence(Prec), Line(Loc.Line) {}
+		  Precedence(Prec), Line(Loc.Line), RetType(RetType), ArgTypes(ArgTypes) {}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 

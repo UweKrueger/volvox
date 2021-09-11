@@ -186,3 +186,7 @@ public:
 	char* linebuf;
 	std::string IdentifierStr; // Filled in if tok_identifier
 };
+
+// Types
+extern llvm::Type* _f64;
+extern llvm::Type* _string;
