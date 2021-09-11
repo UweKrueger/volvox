@@ -109,7 +109,7 @@ llvm::Value *StringExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	return llvm::ConstantDataArray::getString(*TheContext, Val);
+	return Builder->CreateGlobalStringPtr(Val, Val);
 }
 
 llvm::Value *VariableExprAST::codegen() {
@@ -433,7 +433,7 @@ llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
 	std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(*TheContext));
 	llvm::FunctionType *FT =
-		// llvm::FunctionType::get(llvm::ArrayType::get(llvm::Type::getInt8Ty(*TheContext), 15360), Doubles, false);
+		// llvm::FunctionType::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*TheContext), 0), Doubles, false);
 		llvm::FunctionType::get(llvm::Type::getDoubleTy(*TheContext), Doubles, false);
 
 	llvm::Function *F =
