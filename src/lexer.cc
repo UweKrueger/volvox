@@ -21,7 +21,6 @@ int Lexer::advance() {
 }
 
 std::string IdentifierStr; // Filled in if tok_identifier
-double NumVal;             // Filled in if tok_number
 
 Token Lexer::gettok() {
 	static int CurChar = ' ';

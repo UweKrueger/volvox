@@ -100,7 +100,6 @@ extern CompModes comp_mode;
 extern SourceLocation CurLoc;
 extern SourceLocation LexLoc;
 extern std::string IdentifierStr; // Filled in if tok_identifier
-extern double NumVal;             // Filled in if tok_number
 
 // AST
 
