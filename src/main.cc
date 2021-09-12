@@ -171,7 +171,7 @@ llvm::Value *VariableExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Load the value.
-	return Builder->CreateLoad(llvm::Type::getDoubleTy(*TheContext), V, Name.c_str());
+	return Builder->CreateLoad(_f64, V, Name.c_str());
 }
 
 llvm::Value *UnaryExprAST::codegen() {
@@ -480,11 +480,11 @@ llvm::Value *VarExprAST::codegen() {
 
 llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
-	std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(*TheContext));
+	std::vector<llvm::Type *> Doubles(Args.size(), _f64);
 	llvm::FunctionType *FT =
 		// llvm::FunctionType::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*TheContext), 0), Doubles, false);
-		// llvm::FunctionType::get(llvm::Type::getDoubleTy(*TheContext), Doubles, false);
-		llvm::FunctionType::get(RetType, Doubles, false);
+		llvm::FunctionType::get(_f64, Doubles, false);
+	    // llvm::FunctionType::get(RetType, Doubles, false);
 
 	llvm::Function *F =
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
