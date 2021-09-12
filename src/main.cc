@@ -115,6 +115,9 @@ static llvm::DISubroutineType *CreateFunctionType(unsigned NumArgs, llvm::DIFile
 // Code Generation
 //===----------------------------------------------------------------------===//
 
+static llvm::DISubprogram *SP;
+static llvm::DIFile *Unit;
+
 llvm::Value *LogErrorV(const char *Str, ...) {
 	va_list ap;
     va_start(ap, Str);
@@ -433,6 +436,8 @@ llvm::Value *VarExprAST::codegen() {
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Register all variables and emit their initializer.
+
+	unsigned LineNo = CurLoc.Line;
 	for (unsigned i = 0, e = VarNames.size(); i != e; ++i) {
 		const std::string &VarName = VarNames[i].first;
 		ExprAST *Init = VarNames[i].second.get();
@@ -452,6 +457,16 @@ llvm::Value *VarExprAST::codegen() {
 		}
 
 		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName);
+		if (comp_mode == comp_dbg) {
+			// Create a debug descriptor for the variable.
+			llvm::DILocalVariable *D = DBuilder->createAutoVariable(
+				SP, VarName, Unit, LineNo, KSDbgInfo.getDoubleTy(),
+				true);
+
+			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+									llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
+									Builder->GetInsertBlock());
+		}
 		Builder->CreateStore(InitVal, Alloca);
 
 		// Remember the old variable binding so that we can restore the binding when
@@ -513,8 +528,8 @@ llvm::Function *FunctionAST::codegen() {
 	// Create a new basic block to start insertion into.
 	llvm::BasicBlock *BB = llvm::BasicBlock::Create(*TheContext, "entry", TheFunction);
 	Builder->SetInsertPoint(BB);
-	llvm::DISubprogram *SP;
-	llvm::DIFile *Unit;
+	// llvm::DISubprogram *SP; - make static
+	// llvm::DIFile *Unit;
 	unsigned LineNo;
 	if (comp_mode == comp_dbg) {
 		// Create a subprogram DIE for this function.
