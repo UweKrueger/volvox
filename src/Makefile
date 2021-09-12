@@ -30,7 +30,7 @@ SRCS := $(OBJS:%.o=%.cc)
 
 all: $(PROG)
 
-$(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h
+$(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh
 	$(CXX) $(CXXFLAGS) $(OPT) $<
 
 $(PROG): $(OBJS)
