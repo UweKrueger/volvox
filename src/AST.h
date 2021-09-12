@@ -7,21 +7,6 @@
 //===----------------------------------------------------------------------===//
 
 /// ExprAST - Base class for all expression nodes.
-class ExprAST {
-	SourceLocation Loc;
-
-public:
-	llvm::Type* type;
-	ExprAST(llvm::Type* type = _f64, SourceLocation Loc = CurLoc) : Loc(Loc), type(type) {}
-	virtual ~ExprAST() {}
-	virtual llvm::Value *codegen() = 0;
-	int getLine() const { return Loc.Line; }
-	int getCol() const { return Loc.Col; }
-	virtual llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
-		return out << ':' << getLine() << ':' << getCol() << '\n';
-	}
-};
-
 /// NumberExprAST - Expression class for numeric literals like "1.0".
 class NumberExprAST : public ExprAST {
 	double Val;

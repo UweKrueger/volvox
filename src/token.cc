@@ -98,14 +98,12 @@ Token::Token(char** s_ptr) : type(tok_number) {
 	errno = 0;
 	if (sign) {
 		int_val = strtoll(*s_ptr, &endptr, 0);
-		val_type = { .ID = llvm::Type::IntegerTyID, .is_signed = true };
 	} else {
 		uint_val = strtoull(*s_ptr, &endptr, 0);
-		val_type = { .ID = llvm::Type::IntegerTyID, .is_signed = false };
 	}
+	int_type = { .ID = llvm::Type::IntegerTyID, .is_signed = true };
 	if (errno != 0) {
 		int_val = errno;
-		val_type = { .ID = llvm::Type::IntegerTyID, .is_signed = true };
 		*s_ptr = endptr;
 		LogError("cannot parse numeric token: %s", strerror(int_val));
 		return;
@@ -126,7 +124,7 @@ Token::Token(char** s_ptr) : type(tok_number) {
 				}
 			}
 		}
-		val_type = { .ID = llvm::Type::DoubleTyID };
+		gen_type = { .ID = llvm::Type::DoubleTyID };
 		float_val = f;
 		*s_ptr = endptr_f;
 	} else {
@@ -146,13 +144,13 @@ Token::Token(char** s_ptr) : type(tok_number) {
 		case 'f':
 			switch (bits) {
 			case 16: // not really supported, yet
-				val_type = { .ID = llvm::Type::HalfTyID };
+				gen_type = { .ID = llvm::Type::HalfTyID };
 				break;
 			case 32:
-				val_type = { .ID = llvm::Type::FloatTyID };
+				gen_type = { .ID = llvm::Type::FloatTyID };
 				break;
 			case 64:
-				val_type = { .ID = llvm::Type::DoubleTyID };
+				gen_type = { .ID = llvm::Type::DoubleTyID };
 				break;
 			default:
 				LogError("unsupported bit size %lu for float literal", bits);
@@ -162,14 +160,14 @@ Token::Token(char** s_ptr) : type(tok_number) {
 		case 'u':
 			if (bits != 8 && bits != 16 && bits != 32 && bits != 64)
 				LogError("unsupported bit size %lu for integer literal", bits);
-			val_type = { .ID = llvm::Type::IntegerTyID, .SubclassData = (unsigned)bits, .is_signed = (t == 'i') };
+			int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = (unsigned)bits, .is_signed = (t == 'i') };
 			break;
 		}
 	}
 }
 				
 Token::Token(const std::string& str) : type(tok_str_lit) {						
-	val_type = { .ID = llvm::Type::PointerTyID };
+	gen_type = { .ID = llvm::Type::PointerTyID };
 	str_val = strdup(str.c_str());
 }
 

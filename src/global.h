@@ -1,7 +1,6 @@
 #pragma once
 
 class PrototypeAST;
-class ExprAST;
 class FunctionAST;
 class NumberExprAST;
 class VariableExprAST;
@@ -74,6 +73,30 @@ enum TokenType {
 	tok_newline = -81
 };
 
+struct SourceLocation {
+	int Line;
+	int Col;
+};
+
+extern llvm::Type* _f64;
+extern SourceLocation CurLoc;
+
+/// ExprAST - Base class for all expression nodes.
+class ExprAST {
+	SourceLocation Loc;
+
+public:
+	llvm::Type* type;
+	ExprAST(llvm::Type* type = _f64, SourceLocation Loc = CurLoc) : Loc(Loc), type(type) {}
+	virtual ~ExprAST() {}
+	virtual llvm::Value *codegen() = 0;
+	int getLine() const { return Loc.Line; }
+	int getCol() const { return Loc.Col; }
+	virtual llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
+		return out << ':' << getLine() << ':' << getCol() << '\n';
+	}
+};
+
 struct DebugInfo {
 	llvm::DICompileUnit *TheCU;
 	llvm::DIType *DblTy;
@@ -85,11 +108,6 @@ struct DebugInfo {
 
 extern DebugInfo KSDbgInfo;
 
-struct SourceLocation {
-	int Line;
-	int Col;
-};
-
 enum CompModes {
 	comp_jit,
 	comp_obj,
@@ -97,7 +115,6 @@ enum CompModes {
 };
 
 extern CompModes comp_mode;
-extern SourceLocation CurLoc;
 extern SourceLocation LexLoc;
 extern std::string IdentifierStr; // Filled in if tok_identifier
 
@@ -113,33 +130,68 @@ extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 
+struct int_val_type_t {
+	llvm::Type::TypeID ID : 8; // base type
+	unsigned BitWidth : 23; // #bits for int types, 0 for default
+	bool is_signed : 1; // signed int?
+};
+
+struct gen_val_type_t {
+	llvm::Type::TypeID ID : 8; // base type
+	unsigned SubclassData : 24;
+};
+
+class genType : protected llvm::Type {
+public:
+	unsigned SubClassData() const { return getSubclassData(); }
+};
+
 class TypeTable {
 public:
-	bool add(char* name, llvm::Type* type) {
-		auto it = table.insert({name, type});
+	bool add(char* name, llvm::Type* type, bool is_signed = false) {
+		bool is_int = type->isIntegerTy();
+		if (is_signed && !is_int)
+			LogError("non-int type %s cannot be signed", name);
+		unsigned char sign = (is_int && is_signed) ? 0x01 : 0x00;
+		auto it = name_table.insert({name, (llvm::Type*)((uintptr_t)type | sign)});
+		if (it.second) {
+			union {
+				int_val_type_t int_type;
+				gen_val_type_t gen_type;
+				unsigned key;
+			};
+			if (is_int) {
+				int_type = { .ID = type->getTypeID(), .BitWidth = type->getIntegerBitWidth(), .is_signed = is_signed };
+			} else {
+				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
+			}
+		}
 		return it.second;
 	}
-	llvm::Type* find(char* name) {
-		auto it = table.find(name);
-		return it == table.end() ? nullptr : it->second;
+	llvm::Type* get(char* name) {
+		auto it = name_table.find(name);
+		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL);
+	}
+	bool is_signed(char* name) {
+		auto it = name_table.find(name);
+		return ((uintptr_t)it->second & 0x01ULL) != 0;
+	}
+	std::pair<bool, llvm::Type*> getfull(char* name) {
+		auto it = name_table.find(name);
+		return { ((uintptr_t)it->second & 0x01ULL) != 0, it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL) };
 	}
 	~TypeTable() {
-		for (auto it = table.begin(); it != table.end(); it = table.erase(it))
+		for (auto it = name_table.begin(); it != name_table.end(); it = name_table.erase(it))
 			free(it->second);
 	}
 protected:
-	std::map<char*, llvm::Type*> table;
+	std::map<char*, llvm::Type*> name_table;
+	std::map<unsigned, llvm::Type*> key32_table;
 };
 
 extern TypeTable type_table;
 
 // Token
-
-struct val_type_t {
-	llvm::Type::TypeID ID : 8; // base type
-	unsigned SubclassData : 23; // #bits for int types, 0 for default
-	bool is_signed : 1; // signed int?
-};
 
 class Token {
 public:
@@ -148,7 +200,11 @@ public:
 	Token(char** s_ptr);
 	Token(const std::string& str);
 	std::string tokName() const;
-	val_type_t val_type;
+	union {
+		int_val_type_t int_type;
+		gen_val_type_t gen_type;
+		unsigned key;
+	};
 	union {
 		uint64_t uint_val;
 		int64_t int_val;
