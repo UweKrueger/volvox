@@ -30,12 +30,46 @@ llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 // Built-in Types
 //===----------------------------------------------------------------------===//
 
+llvm::Type* _void;
+llvm::Type* _bool;
+llvm::Type* _u8;
+llvm::Type* _u16;
+llvm::Type* _u32;
+llvm::Type* _u64;
+llvm::Type* _i8;
+llvm::Type* _i16;
+llvm::Type* _i32;
+llvm::Type* _i64;
+llvm::Type* _f16;
+llvm::Type* _f32;
 llvm::Type* _f64;
 llvm::Type* _string;
 
 void init() {
+	_void = llvm::Type::getVoidTy(*TheContext);
+	type_table.add("void", _void);
+	_bool = llvm::Type::getInt1Ty(*TheContext);
+	type_table.add("bool", _bool);
+	_i8 = llvm::Type::getInt8Ty(*TheContext);
+	type_table.add("i8", _i8, true);
+	_i16 = llvm::Type::getInt16Ty(*TheContext);
+	type_table.add("i16", _i16, true);
+	_i32 = llvm::Type::getInt32Ty(*TheContext);
+	type_table.add("i32", _i32, true);
+	_i64 = llvm::Type::getInt64Ty(*TheContext);
+	type_table.add("i64", _i64, true);
+	_u8 = llvm::Type::getInt8Ty(*TheContext);
+	type_table.add("u8", _u8);
+	_u16 = llvm::Type::getInt16Ty(*TheContext);
+	type_table.add("u16", _u16);
+	_u32 = llvm::Type::getInt32Ty(*TheContext);
+	type_table.add("u32", _u32);
+	_u64 = llvm::Type::getInt64Ty(*TheContext);
+	type_table.add("u64", _u64);
 	_f64 = llvm::Type::getDoubleTy(*TheContext);
-	_string = llvm::PointerType::get(llvm::Type::getInt8Ty(*TheContext), 0);
+	type_table.add("f64", _f64);
+	_string = llvm::PointerType::get(_u8, 0);
+	type_table.add("string", _string);
 }
 
 //===----------------------------------------------------------------------===//

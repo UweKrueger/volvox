@@ -148,7 +148,7 @@ public:
 
 class TypeTable {
 public:
-	bool add(char* name, llvm::Type* type, bool is_signed = false) {
+	bool add(const char* name, llvm::Type* type, bool is_signed = false) {
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
@@ -180,12 +180,9 @@ public:
 		auto it = name_table.find(name);
 		return { ((uintptr_t)it->second & 0x01ULL) != 0, it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL) };
 	}
-	~TypeTable() {
-		for (auto it = name_table.begin(); it != name_table.end(); it = name_table.erase(it))
-			free(it->second);
-	}
+	~TypeTable() = default;
 protected:
-	std::map<char*, llvm::Type*> name_table;
+	std::map<const char*, llvm::Type*> name_table;
 	std::map<unsigned, llvm::Type*> key32_table;
 };
 
