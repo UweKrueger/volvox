@@ -135,22 +135,10 @@ extern TypeTable type_table;
 
 // Token
 
-enum val_type_t {
-	val_u8,
-	val_u16,
-	val_u32,
-	val_u64,
-	val_uint,
-	val_i8,
-	val_i16,
-	val_i32,
-	val_i64,
-	val_int,
-	val_f32,
-	val_f64,
-	val_string,
-	val_string_part,
-	val_invalid,
+struct val_type_t {
+	llvm::Type::TypeID ID : 8; // base type
+	unsigned SubclassData : 23; // #bits for int types, 0 for default
+	bool is_signed : 1; // signed int?
 };
 
 class Token {
