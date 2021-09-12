@@ -2,7 +2,7 @@
 #include "global.h"
 #include "AST.h"
 
-CompModes comp_mode = comp_jit;
+CompModes comp_mode = comp_obj;
 
 DebugInfo KSDbgInfo;
 

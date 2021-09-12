@@ -257,7 +257,6 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 	default:
 		return LogError("unknown token when expecting an expression");
 	case tok_identifier:
-		printf("parsing identifier %s\n", IdentifierStr.c_str());
 		return ParseIdentifierExpr();
 	case tok_number:
 		return ParseNumberExpr();
