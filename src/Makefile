@@ -44,6 +44,7 @@ clean:
 depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
 
-.depend: depend
+.depend:
+	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
 
 -include .depend
