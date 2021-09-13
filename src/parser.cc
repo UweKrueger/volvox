@@ -58,6 +58,43 @@ void Expect(int tok) {
 		LogErrorP("unexpected `%s` - expected `%s`", CurTok.str().c_str(), Token::tokName(tok).c_str());
 }
 
+std::pair<llvm::Type*, unsigned> ParseType() {
+	unsigned attribs = 0;
+	while (CurTok.type != tok_identifier) {
+		switch (CurTok.type) {
+		case tok_atomic:
+			attribs |= A_atomic;
+			break;
+		case tok_shared:
+			attribs |= A_shared;
+			break;
+		case tok_iso:
+			attribs |= A_iso;
+			break;
+		case tok_const:
+			attribs |= A_const;
+			break;
+		case '&':
+			do {
+				attribs = (attribs & 0xffff) | ((attribs & 0xffff0000) + 0x10000);
+				getNextToken();
+			} while (CurTok.type == '&');
+			if (CurTok.type == tok_identifier)
+				break;
+			// else fallthough to error
+		default:
+			LogErrorP("Unexpected `%s` after `&` - type name expected", CurTok.str().c_str());
+			return { nullptr, 0 };
+		}
+	}
+	auto type = type_table.get_raw(IdentifierStr.c_str());
+	if (!type) {
+		LogErrorP("Unknown type `%s`", CurTok.str().c_str());
+		return { nullptr, 0 };
+	}
+	return { type, attribs };
+}
+
 static std::unique_ptr<ExprAST> ParseExpression();
 
 /// numberexpr ::= number
@@ -369,39 +406,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
-		while (CurTok.type != tok_identifier) {
-			switch (CurTok.type) {
-			case tok_atomic:
-				attribs |= A_atomic;
-				break;
-			case tok_shared:
-				attribs |= A_shared;
-				break;
-			case tok_iso:
-				attribs |= A_iso;
-				break;
-			case tok_const:
-				attribs |= A_const;
-				break;
-			case '&':
-				do {
-					attribs = (attribs & 0xffff) | ((attribs & 0xffff0000) + 0x10000);
-					getNextToken();
-				} while (CurTok.type == '&');
-				if (CurTok.type == tok_identifier)
-					break;
-				// else fallthough to error
-			default:
-				return LogErrorP("Unexpected `%s` after `&` - type name expected", CurTok.str().c_str());
-
-			}
-		}
-		ArgAttribs.push_back(attribs);
-		auto type = type_table.get_raw(IdentifierStr.c_str());
-		if (!type) {
-			return LogErrorP("Unknown type `%s`", CurTok.str().c_str());
-		}
-		break;
+		auto type = ParseType();
+		if (!type.first)
+			return nullptr;
+		ArgTypes.push_back(type.first);
+		ArgAttribs.push_back(type.second);
 	}
 	default:
 		is_method = false;
