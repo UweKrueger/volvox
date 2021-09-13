@@ -53,6 +53,11 @@ static std::unique_ptr<PrototypeAST> LogErrorP(const char *Str, ...) {
 	return nullptr;
 }
 
+void Expect(int tok) {
+	if (CurTok.type != tok)
+		LogErrorP("unexpected `%s` - expected `%s`", CurTok.str().c_str(), Token::tokName(tok).c_str());
+}
+
 static std::unique_ptr<ExprAST> ParseExpression();
 
 /// numberexpr ::= number
