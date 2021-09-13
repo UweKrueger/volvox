@@ -349,7 +349,58 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 
 	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary.
 	unsigned BinaryPrecedence = 30;
+	std::vector<std::string> ArgNames;
+	std::vector<llvm::Type*> ArgTypes;
+	std::vector<unsigned> ArgAttribs;
+	bool is_method;
 
+	switch (CurTok.type) {
+	case '(': {
+		is_method = true;
+		unsigned attribs = 0;
+		getNextToken();
+		if (CurTok.type != tok_identifier) {
+			return LogErrorP("Unexpected `%s` in method prototype - receiver name expected", CurTok.str().c_str());
+		}
+		ArgNames.push_back(IdentifierStr);
+		getNextToken();
+		while (CurTok.type != tok_identifier) {
+			switch (CurTok.type) {
+			case tok_atomic:
+				attribs |= A_atomic;
+				break;
+			case tok_shared:
+				attribs |= A_shared;
+				break;
+			case tok_iso:
+				attribs |= A_iso;
+				break;
+			case tok_const:
+				attribs |= A_const;
+				break;
+			case '&':
+				do {
+					attribs = (attribs & 0xffff) | ((attribs & 0xffff0000) + 0x10000);
+					getNextToken();
+				} while (CurTok.type == '&');
+				if (CurTok.type == tok_identifier)
+					break;
+				// else fallthough to error
+			default:
+				return LogErrorP("Unexpected `%s` after `&` - type name expected", CurTok.str().c_str());
+
+			}
+		}
+		ArgAttribs.push_back(attribs);
+		auto type = type_table.get_raw(IdentifierStr.c_str());
+		if (!type) {
+			return LogErrorP("Unknown type `%s`", CurTok.str().c_str());
+		}
+		break;
+	}
+	default:
+		is_method = false;
+	}
 	switch (CurTok.type) {
 	default:
 		return LogErrorP("Expected function name in prototype");
@@ -389,7 +440,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	if (CurTok.type != '(')
 		return LogErrorP("Expected '(' in prototype");
 
-	std::vector<std::string> ArgNames;
 	while (getNextToken().type == tok_identifier)
 		ArgNames.push_back(IdentifierStr);
 	if (CurTok.type != ')')
@@ -408,7 +458,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 
 /// definition ::= 'def' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition() {
-	getNextToken(); // eat def.
+	getNextToken(); // eat fn.
 	auto Proto = ParsePrototype();
 	if (!Proto)
 		return nullptr;

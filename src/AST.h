@@ -6,6 +6,12 @@
 // Abstract Syntax Tree (aka Parse Tree)
 //===----------------------------------------------------------------------===//
 
+// Type Attributes
+#define A_const  (1U<<0)
+#define A_shared (1U<<1)
+#define A_iso    (1U<<2)
+#define A_atomic (1U<<3)
+
 /// ExprAST - Base class for all expression nodes.
 /// NumberExprAST - Expression class for numeric literals like "1.0".
 class NumberExprAST : public ExprAST {
@@ -165,13 +171,14 @@ public:
 /// of arguments the function takes), as well as if it is an operator.
 class PrototypeAST {
 	std::vector<std::string> Args;
+	std::vector<llvm::Type*> ArgTypes;
+	std::vector<unsigned> ArgAttribs;
 	bool IsOperator;
 	unsigned Precedence; // Precedence if a binary op.
 	int Line;
 
 public:
 	std::string Name;
-	std::vector<llvm::Type*> ArgTypes;
 	llvm::Type* RetType;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 				 std::vector<std::string> Args, bool IsOperator = false,

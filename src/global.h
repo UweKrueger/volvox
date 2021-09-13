@@ -131,6 +131,8 @@ struct gen_val_type_t {
 	unsigned SubclassData : 24;
 };
 
+
+// small hack to access protected method
 class genType : protected llvm::Type {
 public:
 	unsigned SubClassData() const { return getSubclassData(); }
@@ -158,15 +160,19 @@ public:
 		}
 		return it.second;
 	}
-	llvm::Type* get(char* name) {
+	llvm::Type* get_raw(const char* name) {
+		auto it = name_table.find(name);
+		return it == name_table.end() ? nullptr : it->second;
+	}
+	llvm::Type* get(const char* name) {
 		auto it = name_table.find(name);
 		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL);
 	}
-	bool is_signed(char* name) {
+	bool is_signed(const char* name) {
 		auto it = name_table.find(name);
 		return ((uintptr_t)it->second & 0x01ULL) != 0;
 	}
-	std::pair<bool, llvm::Type*> getfull(char* name) {
+	std::pair<bool, llvm::Type*> get_full(char* name) {
 		auto it = name_table.find(name);
 		return { ((uintptr_t)it->second & 0x01ULL) != 0, it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL) };
 	}
@@ -186,7 +192,8 @@ public:
 	Token(int type = 0) : type(type) {}
 	Token(char** s_ptr);
 	Token(const std::string& str);
-	std::string tokName() const;
+	static std::string tokName(int type);
+	std::string tokName() const { return tokName(type); }
 	union {
 		int_val_type_t int_type;
 		gen_val_type_t gen_type;

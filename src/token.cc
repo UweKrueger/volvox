@@ -2,8 +2,8 @@
 #include "global.h"
 #include "AST.h"
 
-std::string Token::tokName() const {
-	switch (this->type) {
+std::string Token::tokName(int type) {
+	switch (type) {
 	case tok_eof:
 		return "eof";
 	case tok_fn:
@@ -65,7 +65,7 @@ std::string Token::tokName() const {
 	case tok_newline:
 		return "\n";
 	}
-	return std::string(1, (char)this->type);
+	return std::string(1, (char)type);
 }
 
 Token::Token(char** s_ptr) : type(tok_number) {
