@@ -38,22 +38,12 @@ enum TokenType {
 	// var definition
 	tok_var = -13,
 
-	// built-in types
-	tok_u8 = -14,
-	tok_u16 = -15,
-	tok_u32 = -16,
-	tok_u64 = -17,
-	tok_i8 = -18,
-	tok_i16 = -19,
-	tok_i32 = -20,
-	tok_i64 = -21,
-	tok_bool = -22,
-	tok_uint = -23,
-	tok_int = -24,
-	tok_usize = -25,
-	tok_ssize = -26,
-	tok_voidptr = -27,
-	tok_string = -28,
+	// built-in type attributes
+	tok_atomic = -20,
+	tok_shared = -21,
+	tok_iso = -22,
+	tok_const = -23,
+	
 	tok_self = -29,
 
 	// braces
