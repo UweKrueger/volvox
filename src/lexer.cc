@@ -52,8 +52,12 @@ Token Lexer::gettok() {
 			return Token(tok_var);
 		return Token(tok_identifier);
 	}
-	
-	if (isdigit(CurChar) || (CurChar == '.' && isdigit(linebuf[LexLoc.Col]))) { // Number: [0-9.]+
+	// Number Literal
+	if (isdigit(CurChar) || // [0-9]*
+		CurChar == '.' && isdigit(linebuf[LexLoc.Col]) || // .[0-9]*
+		(CurChar == '+' || CurChar == '-') &&
+		(isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
+		 linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
 		LexLoc.Col = (n_ptr - linebuf);
