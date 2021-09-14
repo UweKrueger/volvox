@@ -48,16 +48,12 @@ Token Lexer::gettok() {
 			return Token(tok_for);
 		if (IdentifierStr == "in")
 			return Token(tok_in);
-		if (IdentifierStr == "binary")
-			return Token(tok_binary);
-		if (IdentifierStr == "unary")
-			return Token(tok_unary);
 		if (IdentifierStr == "var")
 			return Token(tok_var);
 		return Token(tok_identifier);
 	}
-
-	if (isdigit(CurChar) || CurChar == '.') { // Number: [0-9.]+
+	
+	if (isdigit(CurChar) || (CurChar == '.' && isdigit(linebuf[LexLoc.Col]))) { // Number: [0-9.]+
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
 		LexLoc.Col = (n_ptr - linebuf);

@@ -416,8 +416,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		is_method = false;
 	}
 	switch (CurTok.type) {
-	default:
-		return LogErrorP("Expected function name in prototype");
 	case tok_identifier:
 		FnName = IdentifierStr;
 		Kind = 0;
@@ -449,6 +447,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			getNextToken();
 		}
 		break;
+	default:
+		return LogErrorP("Expected function name in prototype");
 	}
 
 	if (CurTok.type != '(')

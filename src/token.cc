@@ -40,30 +40,6 @@ std::string Token::tokName(int type) {
 		return "const";
 	case tok_self:
 		return "self";
-	case tok_lparen:
-		return "(";
-	case tok_rparen:
-		return ")";
-	case tok_lbrack:
-		return "[";
-	case tok_rbrack:
-		return "]";
-	case tok_lbrace:
-		return "{";
-	case tok_rbrace:
-		return "}";
-	case tok_colon:
-		return ":";
-	case tok_semicolon:
-		return ";";
-	case tok_comma:
-		return ",";
-	case tok_dot:
-		return ".";
-	case tok_space:
-		return " ";
-	case tok_newline:
-		return "\n";
 	}
 	return std::string(1, (char)type);
 }

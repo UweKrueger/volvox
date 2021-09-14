@@ -13,54 +13,47 @@ class UnaryExprAST;
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things.
 enum TokenType {
-	tok_eof = -1,
-
-	// commands
-	tok_fn = -2,
-	tok_extern = -3,
-
-	// primary
-	tok_identifier = -4,
-	tok_number = -5,
-	tok_str_lit = -30,
-
-	// control
-	tok_if = -6,
-	tok_then = -7,
-	tok_else = -8,
-	tok_for = -9,
-	tok_in = -10,
 
 	// operators
-	tok_binary = -11,
-	tok_unary = -12,
+	tok_decl_assign = -1, // := (possibly multiple assignees, no result of assignment)
+	tok_assign = -2, // = (possibly multiple assignees, result(s): old value(s), right binding)
+	tok_mut_assign = -3, // +=, <<=, ... (result: old value)
+	tok_or = -4, // || (between bool, result: bool)
+	tok_and = -5, // && (between bool, result: bool)
+	tok_cmp = -6, // >=, >, ==, !=, <, <=
+	tok_add = -7, // +, -, |, ^
+	tok_mult = -8, // *, /, %, <<, >>, &
+	tok_exp = -9, // **
+	tok_unary = -10, // +, -, !, ~, &
+	tok_postfix = -11, // ++, -- (return old result)
 
+	tok_eof = -20,
+
+	// commands
+	tok_fn = -30,
+	tok_extern = -31,
+
+	// primary
+	tok_identifier = -40,
+	tok_number = -41,
+	tok_str_lit = -42,
+
+	// control
+	tok_if = -50,
+	tok_then = -51,
+	tok_else = -52,
+	tok_for = -53,
+	tok_in = -54,
 	// var definition
-	tok_var = -13,
+	tok_var = -55,
 
 	// built-in type attributes
-	tok_atomic = -20,
-	tok_shared = -21,
-	tok_iso = -22,
-	tok_const = -23,
+	tok_atomic = -60,
+	tok_shared = -61,
+	tok_iso = -62,
+	tok_const = -63,
 	
-	tok_self = -29,
-
-	// braces
-	tok_lparen = -64,
-	tok_rparen = -65,
-	tok_lbrack = -66,
-	tok_rbrack = -67,
-	tok_lbrace = -68,
-	tok_rbrace = -69,
-
-	tok_colon = -72,
-	tok_semicolon = -73,
-	tok_comma = -74,
-	tok_dot = -75,
-
-	tok_space = -80,
-	tok_newline = -81
+	tok_self = -70,
 };
 
 struct SourceLocation {
