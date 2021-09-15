@@ -204,7 +204,7 @@ public:
 };
 	
 extern Token CurTok;
-extern Token getNextToken();
+extern Token getNextToken(bool expectBinary = false);
 
 class Lexer {
 public:

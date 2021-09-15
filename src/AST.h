@@ -55,12 +55,14 @@ public:
 
 /// UnaryExprAST - Expression class for a unary operator.
 class UnaryExprAST : public ExprAST {
-	char Opcode;
+	char Opcode[4];
 	std::unique_ptr<ExprAST> Operand;
 
 public:
-	UnaryExprAST(char Opcode, std::unique_ptr<ExprAST> Operand)
-		: Opcode(Opcode), Operand(std::move(Operand)) {}
+	UnaryExprAST(const char* Op, std::unique_ptr<ExprAST> Operand)
+		: Operand(std::move(Operand)) {
+		strcpy(Opcode, Op); 
+	}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "unary" << Opcode, ind);

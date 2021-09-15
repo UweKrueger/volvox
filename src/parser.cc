@@ -11,7 +11,7 @@
 /// lexer and updates CurTok with its results.
 Lexer lex;
 Token CurTok;
-Token getNextToken() { return CurTok = lex.gettok(); }
+Token getNextToken(bool expectBinary) { return CurTok = lex.gettok(expectBinary); }
 
 /// BinopPrecedence - This holds the precedence for each binary operator that is
 /// defined.
@@ -131,7 +131,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 
 	SourceLocation LitLoc = CurLoc;
 
-	getNextToken(); // eat identifier.
+	getNextToken(true); // eat identifier.
 
 	if (CurTok.type != '(') // Simple variable ref.
 		return std::make_unique<VariableExprAST>(LitLoc, IdName);
@@ -156,7 +156,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	}
 
 	// Eat the ')'.
-	getNextToken();
+	getNextToken(true);
 
 	return std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
 }
@@ -320,14 +320,14 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 ///   ::= '!' unary
 static std::unique_ptr<ExprAST> ParseUnary() {
 	// If the current token is not an operator, it must be a primary expr.
-	if (!isascii(CurTok.type) || CurTok.type == '(' || CurTok.type == ',')
+	if (CurTok.type != tok_unary || CurTok.type == '(' || CurTok.type == ',')
 		return ParsePrimary();
-
+	
 	// If this is a unary operator, read it.
-	int Opc = CurTok.type;
+	std::string Op = IdentifierStr;
 	getNextToken();
 	if (auto Operand = ParseUnary())
-		return std::make_unique<UnaryExprAST>(Opc, std::move(Operand));
+		return std::make_unique<UnaryExprAST>(Op.c_str(), std::move(Operand));
 	return nullptr;
 }
 
