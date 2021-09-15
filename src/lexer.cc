@@ -22,7 +22,7 @@ int Lexer::advance() {
 
 std::string IdentifierStr; // Filled in if tok_identifier
 
-Token Lexer::gettok() {
+Token Lexer::gettok(bool expectBinary) {
 	static int CurChar = ' ';
 
 	// Skip any whitespace.
@@ -52,50 +52,8 @@ Token Lexer::gettok() {
 			return Token(tok_var);
 		return Token(tok_identifier);
 	}
-	// Number Literal
-	if (isdigit(CurChar) || // [0-9]*
-		CurChar == '.' && isdigit(linebuf[LexLoc.Col]) || // .[0-9]*
-		(CurChar == '+' || CurChar == '-') &&
-		(isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
-		 linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
-		char* n_ptr = linebuf + CurLoc.Col - 1;
-		Token tok(&n_ptr);
-		LexLoc.Col = (n_ptr - linebuf);
-		CurChar = advance();
-		return tok;
-	}
-
-	if (CurChar == '"') {
-		std::string StrLit = "";
-		for (;;) {
-			CurChar = advance();
-			switch (CurChar) {
-			case '\\':
-				CurChar = advance();
-				goto add_letter;
-			case '"':
-				CurChar = advance();
-				return Token(StrLit);
-			case EOF:
-				fprintf(stderr, "unexpected EOF in string literal\n");
-				return EOF;
-			default:
-			add_letter:
-				StrLit += CurChar;
-			}
-		}
-	}
-	if (CurChar == '#') {
-		// Comment until end of line.
-		do
-			CurChar = advance();
-		while (CurChar != EOF && CurChar != '\n' && CurChar != '\r');
-
-		if (CurChar != EOF)
-			return gettok();
-	}
 	// Binary Operators
-	if (lex.expectBinary) {
+	if (expectBinary) {
 		switch(CurChar) {
 		case ':':
 			advance();
@@ -106,6 +64,9 @@ Token Lexer::gettok() {
 			} else {
 				return tok_colon;
 			}
+		case ',':
+			advance();
+			return tok_comma;
 		case '=':
 			advance();
 			if (CurChar == '=') {
@@ -184,8 +145,7 @@ Token Lexer::gettok() {
 		case '/':
 		case '%':
 		case '&':
-			// <<, >> already handled in <, > case	
-		{
+		{ // <<, >> already handled in <, > case	
 			auto c0 = CurChar;
 			IdentifierStr = c0;
 			advance();
@@ -206,13 +166,74 @@ Token Lexer::gettok() {
 			}
 		}
 		}
-	}	
-	// Check for end of file.  Don't eat the EOF.
-	if (CurChar == EOF)
-		return Token(tok_eof);
+	}
+	// Number Literal
+	if (isdigit(CurChar) || // [0-9]*
+		CurChar == '.' && isdigit(linebuf[LexLoc.Col]) || // .[0-9]*
+		(CurChar == '+' || CurChar == '-') &&
+		(isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
+		 linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
+		char* n_ptr = linebuf + CurLoc.Col - 1;
+		Token tok(&n_ptr);
+		LexLoc.Col = (n_ptr - linebuf);
+		CurChar = advance();
+		return tok;
+	}
 
-	// Otherwise, just return the character as its ascii value.
-	int ThisChar = CurChar;
-	CurChar = advance();
-	return Token(ThisChar);
+	switch (CurChar) {
+	case '"': {
+		std::string StrLit = "";
+		for (;;) {
+			CurChar = advance();
+			switch (CurChar) {
+			case '\\':
+				CurChar = advance();
+				goto add_letter;
+			case '"':
+				CurChar = advance();
+				return Token(StrLit);
+			case EOF:
+				fprintf(stderr, "unexpected EOF in string literal\n");
+				return EOF;
+			default:
+			add_letter:
+				StrLit += CurChar;
+			}
+		}
+	}
+	case '#': {
+		// Comment until end of line.
+		do
+			CurChar = advance();
+		while (CurChar != EOF && CurChar != '\n' && CurChar != '\r');
+
+		if (CurChar != EOF)
+			return gettok();
+		// passthough
+	}
+	// Check for end of file.  Don't eat the EOF.
+	case EOF:
+		return tok_eof;
+	// unary operators
+	case '+':
+	case '-':
+	case '!':
+	case '~':
+	case '&':
+		IdentifierStr = CurChar;
+		advance();
+		return tok_unary;
+	case '<':
+		if (linebuf[LexLoc.Col] == '-') {
+			IdentifierStr = "<-";
+			advance();
+			return tok_unary;
+		}
+		// else passthrough
+	default:
+		// Otherwise, just return the character as its ascii value.
+		int ThisChar = CurChar;
+		CurChar = advance();
+		return Token(ThisChar);
+	}
 }

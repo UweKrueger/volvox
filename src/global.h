@@ -212,12 +212,11 @@ public:
 		: input(input), bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
 	~Lexer() { free(linebuf); }
 	int advance();
-	Token gettok();
+	Token gettok(bool expectBinary = false);
 	FILE* input;
 	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;
-	bool expectBinary; // binary op, '\n' or ','
 };
 
 extern Lexer lex;
