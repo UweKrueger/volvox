@@ -73,13 +73,15 @@ public:
 
 /// BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
-	char Op;
+	char Op[4];
 	std::unique_ptr<ExprAST> LHS, RHS;
 
 public:
-	BinaryExprAST(SourceLocation Loc, char Op, std::unique_ptr<ExprAST> LHS,
+	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
 				  std::unique_ptr<ExprAST> RHS)
-		: ExprAST(_f64, Loc), Op(Op), LHS(std::move(LHS)), RHS(std::move(RHS)) {}
+		: ExprAST(_f64, Loc), LHS(std::move(LHS)), RHS(std::move(RHS)) {
+		strcpy(Op, _Op);
+	}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "binary" << Op, ind);

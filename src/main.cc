@@ -197,7 +197,7 @@ llvm::Value *BinaryExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Special case '=' because we don't want to emit the LHS as an expression.
-	if (Op == '=') {
+	if (!strcmp(Op, "=")) {
 		// Assignment requires the LHS to be an identifier.
 		// This assume we're building without RTTI because LLVM builds that way by
 		// default.  If you build LLVM with RTTI this can be changed to a
@@ -224,21 +224,17 @@ llvm::Value *BinaryExprAST::codegen() {
 	if (!L || !R)
 		return nullptr;
 
-	switch (Op) {
-	case '+':
+	if (!strcmp(Op, "+")) {
 		return Builder->CreateFAdd(L, R, "addtmp");
-	case '-':
+	} else if (!strcmp(Op, "-")) {
 		return Builder->CreateFSub(L, R, "subtmp");
-	case '*':
+	} else if (!strcmp(Op, "*")) {
 		return Builder->CreateFMul(L, R, "multmp");
-	case '<':
+	} else if (!strcmp(Op, "<")) {
 		L = Builder->CreateFCmpULT(L, R, "cmptmp");
 		// Convert bool 0/1 to double 0.0 or 1.0
 		return Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*TheContext), "booltmp");
-	default:
-		break;
 	}
-
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
 	llvm::Function *F = getFunction(std::string("binary") + Op);

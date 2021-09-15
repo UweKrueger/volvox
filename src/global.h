@@ -28,6 +28,7 @@ enum TokenType {
 	tok_pow = -11, // **
 	tok_postfix = -12, // ++, -- (return old result)
 	tok_colon = -13,
+	tok_last_op = -14, // only used for comparisons to identify operators
 
 	tok_eof = -20,
 

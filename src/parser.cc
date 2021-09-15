@@ -18,15 +18,8 @@ Token getNextToken(bool expectBinary) { return CurTok = lex.gettok(expectBinary)
 std::map<char, int> BinopPrecedence;
 
 /// GetTokPrecedence - Get the precedence of the pending binary operator token.
-static int GetTokPrecedence() {
-	if (!isascii(CurTok.type))
-		return -1;
-
-	// Make sure it's a declared binop.
-	int TokPrec = BinopPrecedence[CurTok.type];
-	if (TokPrec <= 0)
-		return -1;
-	return TokPrec;
+static inline int GetTokPrecedence() {
+	return (CurTok.type < 0 && CurTok.type > tok_last_op) ? (-CurTok.type) << 8 : -256;
 }
 
 /// LogError* - These are little helper functions for error handling.
@@ -345,7 +338,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 			return LHS;
 
 		// Okay, we know this is a binop.
-		int BinOp = CurTok.type;
+		std::string BinOp = IdentifierStr;
 		SourceLocation BinLoc = CurLoc;
 		getNextToken(); // eat binop
 
@@ -357,14 +350,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		// If BinOp binds less tightly with RHS than the operator after RHS, let
 		// the pending operator take RHS as its LHS.
 		int NextPrec = GetTokPrecedence();
-		if (TokPrec < NextPrec) {
-			RHS = ParseBinOpRHS(TokPrec + 1, std::move(RHS));
+		if (TokPrec > NextPrec) {
+			RHS = ParseBinOpRHS(TokPrec + ((CurTok.type == tok_assign) ? -1 : 1), std::move(RHS));
 			if (!RHS)
 				return nullptr;
 		}
-
 		// Merge LHS/RHS.
-		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp, std::move(LHS),
+		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS),
 											  std::move(RHS));
 	}
 }
