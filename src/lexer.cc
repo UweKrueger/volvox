@@ -56,22 +56,22 @@ Token Lexer::gettok(bool expectBinary) {
 	if (expectBinary) {
 		switch(CurChar) {
 		case ':':
-			advance();
+			CurChar = advance();
 			if (CurChar == '=') {
 				IdentifierStr = ":=";
-				advance();
+				CurChar = advance();
 				return tok_assign;
 			} else {
 				return tok_colon;
 			}
 		case ',':
-			advance();
+			CurChar = advance();
 			return tok_comma;
 		case '=':
-			advance();
+			CurChar = advance();
 			if (CurChar == '=') {
 				IdentifierStr = "==";
-				advance();
+				CurChar = advance();
 				return tok_cmp;
 			} else {
 				IdentifierStr = "=";
@@ -82,28 +82,28 @@ Token Lexer::gettok(bool expectBinary) {
 		{
 			auto c0 = CurChar;
 			IdentifierStr = c0;
-			advance();
+			CurChar = advance();
 			if (CurChar == c0) { // <<, >>
 				IdentifierStr += CurChar;
-				advance();
+				CurChar = advance();
 				if (CurChar == '=') { // <<=, >>=
 					IdentifierStr += CurChar;
-					advance();
+					CurChar = advance();
 					return tok_assign;
 				} else {
 					return tok_mult;
 				}
 			} else if (CurChar == '=') { // <=, >=
 				IdentifierStr += CurChar;
-				advance();
+				CurChar = advance();
 				if (c0 == '<' && CurChar == '>') { // <=>
 					IdentifierStr += CurChar;
-					advance();
+					CurChar = advance();
 				}
 				return tok_cmp;
 			} else if (CurChar == '-' && c0 == '<') { // <-
 				IdentifierStr += CurChar;
-				advance();
+				CurChar = advance();
 				return tok_arrow;
 			} else {
 				return tok_cmp;
@@ -118,10 +118,10 @@ Token Lexer::gettok(bool expectBinary) {
 		{
 			auto c0 = CurChar;
 			IdentifierStr = c0;
-			advance();
+			CurChar = advance();
 			if (CurChar == c0) {
 				IdentifierStr += CurChar;
-				advance();
+				CurChar = advance();
 				if (c0 == '|')  { // ||
 					return tok_or;
 				} else { // postfix ++, --, !!, ~~, ^^
@@ -130,7 +130,7 @@ Token Lexer::gettok(bool expectBinary) {
 			} else {
 				if (CurChar == '=') {
 					IdentifierStr += CurChar;
-					advance();
+					CurChar = advance();
 					if (c0 == '!') { // !=
 						return tok_cmp;
 					} else { // +=, -=, |=, ^=, ~=
@@ -148,9 +148,9 @@ Token Lexer::gettok(bool expectBinary) {
 		{ // <<, >> already handled in <, > case	
 			auto c0 = CurChar;
 			IdentifierStr = c0;
-			advance();
-			int tok;
+			CurChar = advance();
 			if (CurChar == c0) {
+				int tok;
 				if (c0 == '&') { // &&
 					tok = tok_and;
 				} else if (c0 == '*') { // **
@@ -159,7 +159,7 @@ Token Lexer::gettok(bool expectBinary) {
 					return tok_mult;
 				}
 				IdentifierStr += CurChar;
-				advance();
+				CurChar = advance();
 				return tok;
 			} else {
 				return tok_mult;

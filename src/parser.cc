@@ -93,13 +93,13 @@ static std::unique_ptr<ExprAST> ParseExpression();
 /// numberexpr ::= number
 static std::unique_ptr<ExprAST> ParseNumberExpr() {
 	auto Result = std::make_unique<NumberExprAST>(CurTok);
-	getNextToken(); // consume the number
+	getNextToken(true); // consume the number
 	return std::move(Result);
 }
 
 static std::unique_ptr<ExprAST> ParseStringExpr() {
 	auto Result = std::make_unique<StringExprAST>(CurTok);
-	getNextToken(); // consume the string
+	getNextToken(true); // consume the string
 	return std::move(Result);
 }
 
@@ -112,7 +112,7 @@ static std::unique_ptr<ExprAST> ParseParenExpr() {
 
 	if (CurTok.type != ')')
 		return LogError("expected ')'");
-	getNextToken(); // eat ).
+	getNextToken(true); // eat ).
 	return V;
 }
 
@@ -194,9 +194,9 @@ static std::unique_ptr<ExprAST> ParseForExpr() {
 		return LogError("expected identifier after for");
 
 	std::string IdName = IdentifierStr;
-	getNextToken(); // eat identifier.
+	getNextToken(true); // eat identifier.
 
-	if (CurTok.type != '=')
+	if (CurTok.type != tok_assign)
 		return LogError("expected '=' after for");
 	getNextToken(); // eat '='.
 
@@ -245,11 +245,11 @@ static std::unique_ptr<ExprAST> ParseVarExpr() {
 
 	while (true) {
 		std::string Name = IdentifierStr;
-		getNextToken(); // eat identifier.
+		getNextToken(true); // eat identifier.
 
 		// Read the optional initializer.
 		std::unique_ptr<ExprAST> Init = nullptr;
-		if (CurTok.type == '=') {
+		if (CurTok.type == tok_assign) {
 			getNextToken(); // eat the '='.
 
 			Init = ParseExpression();
@@ -290,7 +290,7 @@ static std::unique_ptr<ExprAST> ParseVarExpr() {
 static std::unique_ptr<ExprAST> ParsePrimary() {
 	switch (CurTok.type) {
 	default:
-		return LogError("unknown token when expecting an expression");
+		return LogError("unknown token %d '%s' when expecting an expression", CurTok.type, CurTok.str().c_str());
 	case tok_identifier:
 		return ParseIdentifierExpr();
 	case tok_number:
@@ -341,7 +341,6 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		std::string BinOp = IdentifierStr;
 		SourceLocation BinLoc = CurLoc;
 		getNextToken(); // eat binop
-
 		// Parse the unary expression after the binary operator.
 		auto RHS = ParseUnary();
 		if (!RHS)
@@ -350,7 +349,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		// If BinOp binds less tightly with RHS than the operator after RHS, let
 		// the pending operator take RHS as its LHS.
 		int NextPrec = GetTokPrecedence();
-		if (TokPrec > NextPrec) {
+		if (TokPrec < NextPrec) {
 			RHS = ParseBinOpRHS(TokPrec + ((CurTok.type == tok_assign) ? -1 : 1), std::move(RHS));
 			if (!RHS)
 				return nullptr;

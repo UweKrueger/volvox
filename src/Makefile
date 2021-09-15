@@ -13,7 +13,7 @@ endif
 CXX := clang++$(LLVMSUFFIX)
 LLVMCONFIG := llvm-config$(LLVMSUFFIX)
 LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
-OPT := -O0
+OPT := -O0 -g
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) $(OPTF)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all)
 PRJH = ../include/volvox-$(LLVMVERSION).hh
