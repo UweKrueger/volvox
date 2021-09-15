@@ -517,10 +517,6 @@ llvm::Function *FunctionAST::codegen() {
 	if (!TheFunction)
 		return nullptr;
 
-	// If this is an operator, install it.
-	if (P.isBinaryOp())
-		BinopPrecedence[P.getOperatorName()] = P.getBinaryPrecedence();
-
 	// Create a new basic block to start insertion into.
 	llvm::BasicBlock *BB = llvm::BasicBlock::Create(*TheContext, "entry", TheFunction);
 	Builder->SetInsertPoint(BB);
@@ -594,9 +590,6 @@ llvm::Function *FunctionAST::codegen() {
 
 	// Error reading body, remove function.
 	TheFunction->eraseFromParent();
-
-	if (P.isBinaryOp())
-		BinopPrecedence.erase(P.getOperatorName());
 
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function since we added it
@@ -798,14 +791,6 @@ int main(int argc, char* argv[]) {
 		llvm::InitializeNativeTargetAsmPrinter();
 		llvm::InitializeNativeTargetAsmParser();
 	}
-
-	// Install standard binary operators.
-	// 1 is lowest precedence.
-	BinopPrecedence['='] = 2;
-	BinopPrecedence['<'] = 10;
-	BinopPrecedence['+'] = 20;
-	BinopPrecedence['-'] = 20;
-	BinopPrecedence['*'] = 40; // highest.
 
 	// Prime the first token.
 	if (comp_mode == comp_jit) {

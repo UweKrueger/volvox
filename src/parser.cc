@@ -13,10 +13,6 @@ Lexer lex;
 Token CurTok;
 Token getNextToken(bool expectBinary) { return CurTok = lex.gettok(expectBinary); }
 
-/// BinopPrecedence - This holds the precedence for each binary operator that is
-/// defined.
-std::map<char, int> BinopPrecedence;
-
 /// GetTokPrecedence - Get the precedence of the pending binary operator token.
 static inline int GetTokPrecedence() {
 	return (CurTok.type < 0 && CurTok.type > tok_last_op) ? (-CurTok.type) << 8 : -256;
@@ -457,8 +453,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0,
-										  BinaryPrecedence);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0);
 }
 
 /// definition ::= 'def' prototype expression
@@ -480,7 +475,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		// Make an anonymous proto.
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 													std::vector<std::string>(),
-													false, 0, E->type);
+													false, E->type);
 		// fprintf(stderr, "got expression of type %d\n", E->type->getTypeID());
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	}

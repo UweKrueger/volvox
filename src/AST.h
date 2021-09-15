@@ -178,7 +178,6 @@ class PrototypeAST {
 	std::vector<llvm::Type*> ArgTypes;
 	std::vector<unsigned> ArgAttribs;
 	bool IsOperator;
-	unsigned Precedence; // Precedence if a binary op.
 	int Line;
 
 public:
@@ -186,9 +185,9 @@ public:
 	llvm::Type* RetType;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 				 std::vector<std::string> Args, bool IsOperator = false,
-				 unsigned Prec = 0, llvm::Type* RetType = _f64, std::vector<llvm::Type*> ArgTypes = {})
+				 llvm::Type* RetType = _f64, std::vector<llvm::Type*> ArgTypes = {})
 		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
-		  Precedence(Prec), Line(Loc.Line), RetType(RetType), ArgTypes(ArgTypes) {}
+		  Line(Loc.Line), RetType(RetType), ArgTypes(ArgTypes) {}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
@@ -200,7 +199,6 @@ public:
 		return Name[Name.size() - 1];
 	}
 
-	unsigned getBinaryPrecedence() const { return Precedence; }
 	int getLine() const { return Line; }
 };
 

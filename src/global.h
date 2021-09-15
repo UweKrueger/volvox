@@ -109,7 +109,6 @@ extern std::string IdentifierStr; // Filled in if tok_identifier
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size);
 // Parser
 
-extern std::map<char, int> BinopPrecedence;
 extern std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap);
 extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
