@@ -15,18 +15,19 @@ class UnaryExprAST;
 enum TokenType {
 
 	// operators - ordered by priority
-	tok_decl_assign = -1, // := (possibly multiple assignees, no result of assignment)
-	tok_assign = -2, // = (possibly multiple assignees, result(s): old value(s), right binding)
-	tok_mut_assign = -3, // +=, <<=, ... (result: old value)
-	tok_or = -4, // || (between bool, result: bool)
-	tok_and = -5, // && (between bool, result: bool)
+	tok_assign = -1, // = (possibly multiple assignees, result(s): old value(s), right binding)
+	tok_comma = -2,
+	tok_arrow = -3, // <-
+	tok_or = -5, // || (between bool, result: bool)
+	tok_and = -6, // && (between bool, result: bool)
 	// the following operators can be redfined for user types
-	tok_cmp = -6, // >=, >, ==, !=, <, <=
-	tok_add = -7, // +, -, |, ^
-	tok_mult = -8, // *, /, %, <<, >>, &
-	tok_unary = -9, // +, -, !, ~, &
-	tok_exp = -10, // **
-	tok_postfix = -11, // ++, -- (return old result)
+	tok_cmp = -7, // >=, >, ==, !=, <, <=, <=>
+	tok_add = -8, // +, -, |, ^, !, ~
+	tok_mult = -9, // *, /, %, <<, >>, &
+	tok_unary = -10, // +, -, !, ~, &, <-
+	tok_pow = -11, // **
+	tok_postfix = -12, // ++, -- (return old result)
+	tok_colon = -13,
 
 	tok_eof = -20,
 
@@ -216,8 +217,10 @@ public:
 	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;
-	bool expectOp; // binary op, '\n' or ','
+	bool expectBinary; // binary op, '\n' or ','
 };
+
+extern Lexer lex;
 
 // Types
 extern llvm::Type* _f64;

@@ -430,7 +430,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		Kind = 1;
 		getNextToken();
 		break;
-	case tok_binary:
+	case tok_colon: // ... not really
 		getNextToken();
 		if (!isascii(CurTok.type))
 			return LogErrorP("Expected binary operator");

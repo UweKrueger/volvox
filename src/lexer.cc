@@ -94,7 +94,119 @@ Token Lexer::gettok() {
 		if (CurChar != EOF)
 			return gettok();
 	}
-
+	// Binary Operators
+	if (lex.expectBinary) {
+		switch(CurChar) {
+		case ':':
+			advance();
+			if (CurChar == '=') {
+				IdentifierStr = ":=";
+				advance();
+				return tok_assign;
+			} else {
+				return tok_colon;
+			}
+		case '=':
+			advance();
+			if (CurChar == '=') {
+				IdentifierStr = "==";
+				advance();
+				return tok_cmp;
+			} else {
+				IdentifierStr = "=";
+				return tok_assign;
+			}
+		case '>':
+		case '<':
+		{
+			auto c0 = CurChar;
+			IdentifierStr = c0;
+			advance();
+			if (CurChar == c0) { // <<, >>
+				IdentifierStr += CurChar;
+				advance();
+				if (CurChar == '=') { // <<=, >>=
+					IdentifierStr += CurChar;
+					advance();
+					return tok_assign;
+				} else {
+					return tok_mult;
+				}
+			} else if (CurChar == '=') { // <=, >=
+				IdentifierStr += CurChar;
+				advance();
+				if (c0 == '<' && CurChar == '>') { // <=>
+					IdentifierStr += CurChar;
+					advance();
+				}
+				return tok_cmp;
+			} else if (CurChar == '-' && c0 == '<') { // <-
+				IdentifierStr += CurChar;
+				advance();
+				return tok_arrow;
+			} else {
+				return tok_cmp;
+			}
+		}
+		case '+':
+		case '-':
+		case '|':
+		case '^':
+		case '!':
+		case '~':
+		{
+			auto c0 = CurChar;
+			IdentifierStr = c0;
+			advance();
+			if (CurChar == c0) {
+				IdentifierStr += CurChar;
+				advance();
+				if (c0 == '|')  { // ||
+					return tok_or;
+				} else { // postfix ++, --, !!, ~~, ^^
+					return tok_postfix;
+				}
+			} else {
+				if (CurChar == '=') {
+					IdentifierStr += CurChar;
+					advance();
+					if (c0 == '!') { // !=
+						return tok_cmp;
+					} else { // +=, -=, |=, ^=, ~=
+						return tok_assign;
+					}
+				} else { // +, -, |, ^, !, ~
+					return tok_add;
+				}
+			}
+		}
+		case '*':
+		case '/':
+		case '%':
+		case '&':
+			// <<, >> already handled in <, > case	
+		{
+			auto c0 = CurChar;
+			IdentifierStr = c0;
+			advance();
+			int tok;
+			if (CurChar == c0) {
+				if (c0 == '&') { // &&
+					tok = tok_and;
+				} else if (c0 == '*') { // **
+					tok = tok_pow;
+				} else { // error - catch in parser
+					return tok_mult;
+				}
+				IdentifierStr += CurChar;
+				advance();
+				return tok;
+			} else {
+				return tok_mult;
+			}
+		}
+		}
+	}	
 	// Check for end of file.  Don't eat the EOF.
 	if (CurChar == EOF)
 		return Token(tok_eof);
