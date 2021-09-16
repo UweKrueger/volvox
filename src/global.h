@@ -65,20 +65,6 @@ struct SourceLocation {
 };
 
 // Types
-extern llvm::Type* _void;
-extern llvm::Type* _bool;
-extern llvm::Type* _u8;
-extern llvm::Type* _u16;
-extern llvm::Type* _u32;
-extern llvm::Type* _u64;
-extern llvm::Type* _i8;
-extern llvm::Type* _i16;
-extern llvm::Type* _i32;
-extern llvm::Type* _i64;
-extern llvm::Type* _f16;
-extern llvm::Type* _f32;
-extern llvm::Type* _f64;
-extern llvm::Type* _string;
 extern unsigned stringkey;
 
 extern std::unique_ptr<llvm::LLVMContext> TheContext;
@@ -117,14 +103,15 @@ public:
 	unsigned SubClassData() const { return getSubclassData(); }
 };
 
+typedef llvm::Type* (typegetter) (llvm::LLVMContext&);
 class TypeTable {
 public:
-	unsigned add(const char* name, llvm::Type* type, bool is_signed = false) {
+	unsigned add(const char* name, typegetter* typeg, bool is_signed = false) {
+		llvm::Type* type = typeg(*TheContext);
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
-		unsigned char sign = (is_int && is_signed) ? 0x01 : 0x00;
-		auto it = name_table.insert({name, (llvm::Type*)((uintptr_t)type | sign)});
+		auto it = name_table.insert({name, typeg});
 		if (it.second) {
 			union {
 				int_val_type_t int_type;
@@ -136,7 +123,7 @@ public:
 			} else {
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
-			key32_table[key] = type;
+			key32_table[key] = typeg;
 			fprintf(stderr, "defined key %u as \"%s\"\n", key, name);
 			return key;
 		} else {
@@ -145,19 +132,19 @@ public:
 	}
 	llvm::Type* get_raw(const char* name) {
 		auto it = name_table.find(name);
-		return it == name_table.end() ? nullptr : it->second;
+		return it == name_table.end() ? nullptr : it->second(*TheContext);
 	}
 	llvm::Type* get(const char* name) {
 		auto it = name_table.find(name);
-		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL);
+		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second(*TheContext) & ~0x01ULL);
 	}
 	bool is_signed(const char* name) {
 		auto it = name_table.find(name);
-		return ((uintptr_t)it->second & 0x01ULL) != 0;
+		return ((uintptr_t)it->second(*TheContext) & 0x01ULL) != 0;
 	}
 	std::pair<llvm::Type*, bool> get_full(const char* name) {
 		auto it = name_table.find(name);
-		return { it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL), ((uintptr_t)it->second & 0x01ULL) != 0 };
+		return { it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second(*TheContext) & ~0x01ULL), ((uintptr_t)it->second(*TheContext) & 0x01ULL) != 0 };
 	}
 	std::pair<llvm::Type*, bool> get_full(unsigned _key) {
 		union {
@@ -168,13 +155,13 @@ public:
 		key = _key;
 		auto it = key32_table.find(key);
 		bool is_signed = (int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed);
-		return { it == key32_table.end() ? nullptr : it->second, is_signed };
+		return { it == key32_table.end() ? nullptr : it->second(*TheContext), is_signed };
 	}
 	
 	~TypeTable() = default;
-
-	std::map<const char*, llvm::Type*> name_table;
-	std::map<unsigned, llvm::Type*> key32_table;
+protected:
+	std::map<const char*, typegetter*> name_table;
+	std::map<unsigned, typegetter*> key32_table;
 };
 
 extern TypeTable type_table;
@@ -186,7 +173,7 @@ public:
 	llvm::Type* type;
 	unsigned type_attr;
 	// construct from type and attributes
-	ExprAST(llvm::Type* type = _f64, unsigned type_attr = 0, SourceLocation Loc = CurLoc) : Loc(Loc), type(type), type_attr(type_attr) {}
+	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*TheContext), unsigned type_attr = 0, SourceLocation Loc = CurLoc) : Loc(Loc), type(type), type_attr(type_attr) {}
 	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc) : Loc(Loc), type(p.first), type_attr(p.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched

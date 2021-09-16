@@ -30,47 +30,29 @@ llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 // Built-in Types
 //===----------------------------------------------------------------------===//
 
-llvm::Type* _void;
-llvm::Type* _bool;
-llvm::Type* _u8;
-llvm::Type* _u16;
-llvm::Type* _u32;
-llvm::Type* _u64;
-llvm::Type* _i8;
-llvm::Type* _i16;
-llvm::Type* _i32;
-llvm::Type* _i64;
-llvm::Type* _f16;
-llvm::Type* _f32;
-llvm::Type* _f64;
-llvm::Type* _string;
+static llvm::Type* getInt1Ty(llvm::LLVMContext &C) { return llvm::Type::getInt1Ty(C); }
+static llvm::Type* getInt8Ty(llvm::LLVMContext &C) { return llvm::Type::getInt8Ty(C); }
+static llvm::Type* getInt16Ty(llvm::LLVMContext &C) { return llvm::Type::getInt16Ty(C); }
+static llvm::Type* getInt32Ty(llvm::LLVMContext &C) { return llvm::Type::getInt32Ty(C); }
+static llvm::Type* getInt64Ty(llvm::LLVMContext &C) { return llvm::Type::getInt64Ty(C); }
+static llvm::Type* getInt8PtrTy(llvm::LLVMContext &C) { return llvm::Type::getInt8PtrTy(C); }
+
 unsigned stringkey;
 
 void init() {
-	_void = llvm::Type::getVoidTy(*TheContext);
-	type_table.add("void", _void);
-	_bool = llvm::Type::getInt1Ty(*TheContext);
-	type_table.add("bool", _bool);
-	_i8 = llvm::Type::getInt8Ty(*TheContext);
-	type_table.add("i8", _i8, true);
-	_i16 = llvm::Type::getInt16Ty(*TheContext);
-	type_table.add("i16", _i16, true);
-	_i32 = llvm::Type::getInt32Ty(*TheContext);
-	type_table.add("i32", _i32, true);
-	_i64 = llvm::Type::getInt64Ty(*TheContext);
-	type_table.add("i64", _i64, true);
-	_u8 = llvm::Type::getInt8Ty(*TheContext);
-	type_table.add("u8", _u8);
-	_u16 = llvm::Type::getInt16Ty(*TheContext);
-	type_table.add("u16", _u16);
-	_u32 = llvm::Type::getInt32Ty(*TheContext);
-	type_table.add("u32", _u32);
-	_u64 = llvm::Type::getInt64Ty(*TheContext);
-	type_table.add("u64", _u64);
-	_f64 = llvm::Type::getDoubleTy(*TheContext);
-	type_table.add("f64", _f64);
-	_string = llvm::Type::getInt8PtrTy(*TheContext);
-	stringkey = type_table.add("string", _string);
+	type_table.add("void", llvm::Type::getVoidTy);
+	type_table.add("bool", getInt1Ty);
+	type_table.add("i8", getInt8Ty, true);
+	type_table.add("i16", getInt16Ty, true);
+	type_table.add("i32", getInt32Ty, true);
+	type_table.add("i64", getInt64Ty, true);
+	type_table.add("u8", getInt8Ty);
+	type_table.add("u16", getInt16Ty);
+	type_table.add("u32", getInt32Ty);
+	type_table.add("u64", getInt64Ty);
+	type_table.add("f32", llvm::Type::getFloatTy);
+	type_table.add("f64", llvm::Type::getDoubleTy);
+	stringkey = type_table.add("string", getInt8PtrTy);
 }
 
 //===----------------------------------------------------------------------===//
@@ -181,7 +163,7 @@ llvm::Value *VariableExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Load the value.
-	return Builder->CreateLoad(_f64, V, Name.c_str());
+	return Builder->CreateLoad(llvm::Type::getDoubleTy(*TheContext), V, Name.c_str());
 }
 
 llvm::Value *UnaryExprAST::codegen() {
@@ -498,10 +480,10 @@ llvm::Value *VarExprAST::codegen() {
 
 llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
-	std::vector<llvm::Type *> Doubles(Args.size(), _f64);
+	std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(*TheContext));
 	llvm::FunctionType *FT =
 		// llvm::FunctionType::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*TheContext), 0), Doubles, false);
-		llvm::FunctionType::get(_f64, Doubles, false);
+		llvm::FunctionType::get(llvm::Type::getDoubleTy(*TheContext), Doubles, false);
 	    // llvm::FunctionType::get(RetType, Doubles, false);
 
 	llvm::Function *F =
@@ -613,11 +595,15 @@ llvm::Function *FunctionAST::codegen() {
 static void InitializeModuleAndPassManager() {
 	// Open a new module.
 	TheContext = std::make_unique<llvm::LLVMContext>();
+	static bool has_run = false;
+	if (!has_run) {
+		init();
+		has_run = true;
+	}
 	TheModule = std::make_unique<llvm::Module>("my cool jit", *TheContext);
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
-	init();
 	// Create a new builder for the module.
 	Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
 
