@@ -139,7 +139,7 @@ llvm::Value *LiteralExprAST::codegen() {
 	}
 	switch (type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		return llvm::ConstantInt::get(type, Val.Uint, type_attr | A_signed);
+		return llvm::ConstantInt::get(*TheContext, llvm::APInt(64, Val.Uint, type_attr | A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
 	case llvm::Type::FloatTyID:
@@ -691,6 +691,12 @@ static void HandleTopLevelExpression() {
 				{
 					double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
 					fprintf(stderr, "Evaluated to %f\n", FP());
+				}
+					break;
+				case llvm::Type::IntegerTyID:
+				{
+					uint64_t (*INT)() = (uint64_t (*)())(intptr_t)ExprSymbol.getAddress();
+					fprintf(stderr, "Evaluated to %lu\n", INT());
 				}
 					break;
 				case llvm::Type::PointerTyID: // should be more sophisticated

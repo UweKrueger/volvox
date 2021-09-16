@@ -41,3 +41,4 @@
 #include <vector>
 #include <stdarg.h>
 #include <string.h>
+#include <inttypes.h>

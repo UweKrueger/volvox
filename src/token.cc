@@ -53,7 +53,7 @@ Token::Token(char** s_ptr) : type(tok_number) {
 	} else {
 		Val.Uint = strtoull(*s_ptr, &endptr, 0);
 	}
-	int_type = { .ID = llvm::Type::IntegerTyID, .is_signed = true };
+	int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = sign };
 	if (errno != 0) {
 		Val.Int = errno;
 		*s_ptr = endptr;
@@ -83,12 +83,12 @@ Token::Token(char** s_ptr) : type(tok_number) {
 		*s_ptr = endptr;
 	}
 	// handle explicit typed numeric tokens
-	char t = tolower(*endptr);
+	char t = tolower(**s_ptr);
 	unsigned long bits;
-	if (t == 'f' || t == 'i' || f == 'u') {
-		endptr++;
-		if (isdigit(*endptr)) {
-			bits = strtoul(*s_ptr, &endptr, 10);
+	if (t == 'f' || t == 'i' || t == 'u') {
+		++*s_ptr;
+		if (isdigit(**s_ptr)) {
+			bits = strtoul(*s_ptr, s_ptr, 10);
 		} else {
 			bits = 32; // default for int, uint, float
 		}
