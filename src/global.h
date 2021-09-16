@@ -124,7 +124,6 @@ public:
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
 			key32_table[key] = typeg;
-			fprintf(stderr, "defined key %u as \"%s\"\n", key, name);
 			return key;
 		} else {
 			return 0;

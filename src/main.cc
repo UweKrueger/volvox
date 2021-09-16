@@ -695,7 +695,6 @@ static void HandleTopLevelExpression() {
 					break;
 				case llvm::Type::PointerTyID: // should be more sophisticated
 				{
-					fprintf(stderr, "String result\n");
 					char* (*SP)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
 					fprintf(stderr, "Evaluated to >%s<\n", SP());
 				}
