@@ -150,20 +150,26 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
 	return TmpB.CreateAlloca(llvm::Type::getDoubleTy(*TheContext), nullptr, VarName);
 }
 
-llvm::Value *NumberExprAST::codegen() {
+llvm::Value *LiteralExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	return llvm::ConstantFP::get(*TheContext, llvm::APFloat(Val));
-}
-
-llvm::Value *StringExprAST::codegen() {
-	if (comp_mode == comp_dbg) {
-		KSDbgInfo.emitLocation(this);
+	switch (type->getTypeID()) {
+	case llvm::Type::IntegerTyID:
+		return llvm::ConstantInt::get(type, Val.Uint, type_attr | A_signed);
+	case llvm::Type::HalfTyID:
+	case llvm::Type::BFloatTyID:
+	case llvm::Type::FloatTyID:
+	case llvm::Type::DoubleTyID:
+		return llvm::ConstantFP::get(*TheContext, llvm::APFloat(Val.Float));
+	case llvm::Type::PointerTyID:
+		return Builder->CreateGlobalStringPtr(Val.Str);
+	default:
+		fprintf(stderr, "internal compiler error: unhandled literal type %d\n", type->getTypeID());
+		return nullptr;
 	}
-	return Builder->CreateGlobalStringPtr(Val, Val);
 }
-
+	
 llvm::Value *VariableExprAST::codegen() {
 	// Look this variable up in the function.
 	llvm::Value *V = NamedValues[Name];

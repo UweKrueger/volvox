@@ -2,9 +2,9 @@
 
 class PrototypeAST;
 class FunctionAST;
-class NumberExprAST;
 class VariableExprAST;
 class CallExprAST;
+class ExprAST;
 class IfExprAST;
 class ForExprAST;
 class VarExprAST;
@@ -68,46 +68,13 @@ extern llvm::Type* _f64;
 extern SourceLocation CurLoc;
 
 /// ExprAST - Base class for all expression nodes.
-class ExprAST {
-	SourceLocation Loc;
 
-public:
-	llvm::Type* type;
-	ExprAST(llvm::Type* type = _f64, SourceLocation Loc = CurLoc) : Loc(Loc), type(type) {}
-	virtual ~ExprAST() {}
-	virtual llvm::Value *codegen() = 0;
-	int getLine() const { return Loc.Line; }
-	int getCol() const { return Loc.Col; }
-	virtual llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
-		return out << ':' << getLine() << ':' << getCol() << '\n';
-	}
-};
-
-struct DebugInfo {
-	llvm::DICompileUnit *TheCU;
-	llvm::DIType *DblTy;
-	std::vector<llvm::DIScope *> LexicalBlocks;
-
-	void emitLocation(ExprAST *AST);
-	llvm::DIType *getDoubleTy();
-};
-
-extern DebugInfo KSDbgInfo;
-
-enum CompModes {
-	comp_jit,
-	comp_obj,
-	comp_dbg
-};
-
-extern CompModes comp_mode;
-extern SourceLocation LexLoc;
-extern std::string IdentifierStr; // Filled in if tok_identifier
-
-// AST
-
-llvm::raw_ostream &indent(llvm::raw_ostream &O, int size);
-// Parser
+// Type Attributes
+#define A_signed (1U<<0)
+#define A_const  (1U<<1)
+#define A_shared (1U<<2)
+#define A_iso    (1U<<3)
+#define A_atomic (1U<<4)
 
 extern std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap);
 extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
@@ -152,6 +119,7 @@ public:
 			} else {
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
+			key32_table[key] = type;
 		}
 		return it.second;
 	}
@@ -167,10 +135,22 @@ public:
 		auto it = name_table.find(name);
 		return ((uintptr_t)it->second & 0x01ULL) != 0;
 	}
-	std::pair<bool, llvm::Type*> get_full(char* name) {
+	std::pair<llvm::Type*, bool> get_full(const char* name) {
 		auto it = name_table.find(name);
-		return { ((uintptr_t)it->second & 0x01ULL) != 0, it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL) };
+		return { it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL), ((uintptr_t)it->second & 0x01ULL) != 0 };
 	}
+	std::pair<llvm::Type*, bool> get_full(unsigned _key) {
+		union {
+			int_val_type_t int_type;
+			gen_val_type_t gen_type;
+			unsigned key;
+		};
+		key = _key;
+		auto it = key32_table.find(key);
+		bool is_signed = (int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed);
+		return { it == key32_table.end() ? nullptr : it->second, is_signed };
+	}
+	
 	~TypeTable() = default;
 protected:
 	std::map<const char*, llvm::Type*> name_table;
@@ -179,7 +159,66 @@ protected:
 
 extern TypeTable type_table;
 
+class ExprAST {
+	SourceLocation Loc;
+
+public:
+	llvm::Type* type;
+	unsigned type_attr;
+	// construct from type and attributes
+	ExprAST(llvm::Type* type = _f64, unsigned type_attr = 0, SourceLocation Loc = CurLoc) : Loc(Loc), type(type), type_attr(type_attr) {}
+	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc) : Loc(Loc), type(p.first), type_attr(p.second) {}
+	// construct from key and attributes. The A_signed flag is already
+	// looked up when the key is searched
+	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc)  : Loc(Loc) {
+		auto fulltype = type_table.get_full(key);
+		type = fulltype.first;
+		type_attr = add_attr | (fulltype.second ? 1 : 0);
+	}
+	virtual ~ExprAST() {}
+	virtual llvm::Value *codegen() = 0;
+	int getLine() const { return Loc.Line; }
+	int getCol() const { return Loc.Col; }
+	virtual llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
+		return out << ':' << getLine() << ':' << getCol() << '\n';
+	}
+};
+
+struct DebugInfo {
+	llvm::DICompileUnit *TheCU;
+	llvm::DIType *DblTy;
+	std::vector<llvm::DIScope *> LexicalBlocks;
+
+	void emitLocation(ExprAST *AST);
+	llvm::DIType *getDoubleTy();
+};
+
+extern DebugInfo KSDbgInfo;
+
+enum CompModes {
+	comp_jit,
+	comp_obj,
+	comp_dbg
+};
+
+extern CompModes comp_mode;
+extern SourceLocation LexLoc;
+extern std::string IdentifierStr; // Filled in if tok_identifier
+
+// AST
+
+llvm::raw_ostream &indent(llvm::raw_ostream &O, int size);
+// Parser
+
+
 // Token
+
+union LitValue {
+	uint64_t Uint;
+	int64_t Int;
+	double Float;
+	char* Str;
+};
 
 class Token {
 public:
@@ -194,12 +233,7 @@ public:
 		gen_val_type_t gen_type;
 		unsigned key;
 	};
-	union {
-		uint64_t uint_val;
-		int64_t int_val;
-		double float_val;
-		char* str_val;
-	};
+	union LitValue Val;
 	std::string str() const { return this->tokName(); }
 };
 	
@@ -222,5 +256,17 @@ public:
 extern Lexer lex;
 
 // Types
+extern llvm::Type* _void;
+extern llvm::Type* _bool;
+extern llvm::Type* _u8;
+extern llvm::Type* _u16;
+extern llvm::Type* _u32;
+extern llvm::Type* _u64;
+extern llvm::Type* _i8;
+extern llvm::Type* _i16;
+extern llvm::Type* _i32;
+extern llvm::Type* _i64;
+extern llvm::Type* _f16;
+extern llvm::Type* _f32;
 extern llvm::Type* _f64;
 extern llvm::Type* _string;

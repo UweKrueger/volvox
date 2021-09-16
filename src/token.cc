@@ -49,15 +49,15 @@ Token::Token(char** s_ptr) : type(tok_number) {
 	char* endptr;
 	errno = 0;
 	if (sign) {
-		int_val = strtoll(*s_ptr, &endptr, 0);
+		Val.Int = strtoll(*s_ptr, &endptr, 0);
 	} else {
-		uint_val = strtoull(*s_ptr, &endptr, 0);
+		Val.Uint = strtoull(*s_ptr, &endptr, 0);
 	}
 	int_type = { .ID = llvm::Type::IntegerTyID, .is_signed = true };
 	if (errno != 0) {
-		int_val = errno;
+		Val.Int = errno;
 		*s_ptr = endptr;
-		LogError("cannot parse numeric token: %s", strerror(int_val));
+		LogError("cannot parse numeric token: %s", strerror(Val.Int));
 		return;
 	}
 	// try to parse same number as float
@@ -77,7 +77,7 @@ Token::Token(char** s_ptr) : type(tok_number) {
 			}
 		}
 		gen_type = { .ID = llvm::Type::DoubleTyID };
-		float_val = f;
+		Val.Float = f;
 		*s_ptr = endptr_f;
 	} else {
 		*s_ptr = endptr;
@@ -120,6 +120,6 @@ Token::Token(char** s_ptr) : type(tok_number) {
 				
 Token::Token(const std::string& str) : type(tok_str_lit) {						
 	gen_type = { .ID = llvm::Type::PointerTyID };
-	str_val = strdup(str.c_str());
+	Val.Str = strdup(str.c_str());
 }
 

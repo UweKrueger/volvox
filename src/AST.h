@@ -6,35 +6,34 @@
 // Abstract Syntax Tree (aka Parse Tree)
 //===----------------------------------------------------------------------===//
 
-// Type Attributes
-#define A_const  (1U<<0)
-#define A_shared (1U<<1)
-#define A_iso    (1U<<2)
-#define A_atomic (1U<<3)
 
 /// ExprAST - Base class for all expression nodes.
-/// NumberExprAST - Expression class for numeric literals like "1.0".
-class NumberExprAST : public ExprAST {
-	double Val;
+
+// Class for all literals - 1.2, 3u, "str"
+class LiteralExprAST : public ExprAST {
+protected:
+	union LitValue Val;
 
 public:
-	NumberExprAST(const Token& tok) : ExprAST(_f64), Val(tok.float_val) {
-	}
+	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const, Loc), Val(tok.Val) {}
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		return ExprAST::dump(out << Val, ind);
-	}
-	llvm::Value *codegen() override;
-};
-
-/// StringExprAST - Expression class for string literals like "abc".
-class StringExprAST : public ExprAST {
-	char* Val;
-
-public:
-	StringExprAST(const Token& tok) : ExprAST(_string), Val(tok.str_val) {
-	}
-	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		return ExprAST::dump(out << Val, ind);
+		switch (type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			if (type_attr | A_signed)
+				return ExprAST::dump(out << Val.Int, ind);
+			else
+				return ExprAST::dump(out << Val.Uint, ind);
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return ExprAST::dump(out << Val.Float, ind);
+		case llvm::Type::PointerTyID:
+			return ExprAST::dump(out << Val.Str, ind);
+		default:
+			fprintf(stderr, "internal compiler error: unhandled literal type %d\n", type->getTypeID());
+			return out;
+		}
 	}
 	llvm::Value *codegen() override;
 };
@@ -45,7 +44,7 @@ class VariableExprAST : public ExprAST {
 
 public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: ExprAST(_f64, Loc), Name(Name) {}
+		: ExprAST(type_table.get_full(Name.c_str()), Loc), Name(Name) {}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -79,7 +78,7 @@ class BinaryExprAST : public ExprAST {
 public:
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
 				  std::unique_ptr<ExprAST> RHS)
-		: ExprAST(_f64, Loc), LHS(std::move(LHS)), RHS(std::move(RHS)) {
+		: ExprAST(LHS->type, LHS->type_attr, Loc), LHS(std::move(LHS)), RHS(std::move(RHS)) {
 		strcpy(Op, _Op);
 	}
 	llvm::Value *codegen() override;
@@ -99,7 +98,7 @@ class CallExprAST : public ExprAST {
 public:
 	CallExprAST(SourceLocation Loc, const std::string &Callee,
 				std::vector<std::unique_ptr<ExprAST>> Args)
-		: ExprAST(_f64, Loc), Callee(Callee), Args(std::move(Args)) {}
+		: ExprAST(_f64, 0, Loc), Callee(Callee), Args(std::move(Args)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call " << Callee, ind);
@@ -116,7 +115,7 @@ class IfExprAST : public ExprAST {
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 			  std::unique_ptr<ExprAST> Then, std::unique_ptr<ExprAST> Else)
-		: ExprAST(_f64, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
+		: ExprAST(_f64, 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
 		  Else(std::move(Else)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

@@ -88,13 +88,13 @@ static std::unique_ptr<ExprAST> ParseExpression();
 
 /// numberexpr ::= number
 static std::unique_ptr<ExprAST> ParseNumberExpr() {
-	auto Result = std::make_unique<NumberExprAST>(CurTok);
+	auto Result = std::make_unique<LiteralExprAST>(CurTok);
 	getNextToken(true); // consume the number
 	return std::move(Result);
 }
 
 static std::unique_ptr<ExprAST> ParseStringExpr() {
-	auto Result = std::make_unique<StringExprAST>(CurTok);
+	auto Result = std::make_unique<LiteralExprAST>(CurTok);
 	getNextToken(true); // consume the string
 	return std::move(Result);
 }
@@ -428,9 +428,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 
 		// Read the precedence if present.
 		if (CurTok.type == tok_number) {
-			if (CurTok.int_val < 1 || CurTok.int_val > 100)
+			if (CurTok.Val.Int < 1 || CurTok.Val.Int > 100)
 				return LogErrorP("Invalid precedence: must be 1..100");
-			BinaryPrecedence = (unsigned)CurTok.int_val;
+			BinaryPrecedence = (unsigned)CurTok.Val.Int;
 			getNextToken();
 		}
 		break;
