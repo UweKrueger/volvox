@@ -102,7 +102,7 @@ public:
 
 class TypeTable {
 public:
-	bool add(const char* name, llvm::Type* type, bool is_signed = false) {
+	unsigned add(const char* name, llvm::Type* type, bool is_signed = false) {
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
@@ -120,8 +120,11 @@ public:
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
 			key32_table[key] = type;
+			fprintf(stderr, "defined key %u as \"%s\"\n", key, name);
+			return key;
+		} else {
+			return 0;
 		}
-		return it.second;
 	}
 	llvm::Type* get_raw(const char* name) {
 		auto it = name_table.find(name);
@@ -270,3 +273,4 @@ extern llvm::Type* _f16;
 extern llvm::Type* _f32;
 extern llvm::Type* _f64;
 extern llvm::Type* _string;
+extern unsigned stringkey;

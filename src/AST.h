@@ -15,7 +15,9 @@ protected:
 	union LitValue Val;
 
 public:
-	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const, Loc), Val(tok.Val) {}
+	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const, Loc), Val(tok.Val) {
+		fprintf(stderr, "AST: Type: %p ID: %d\n", type, type->getTypeID());
+	}
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (type->getTypeID()) {
 		case llvm::Type::IntegerTyID:

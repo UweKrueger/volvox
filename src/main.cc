@@ -44,6 +44,7 @@ llvm::Type* _f16;
 llvm::Type* _f32;
 llvm::Type* _f64;
 llvm::Type* _string;
+unsigned stringkey;
 
 void init() {
 	_void = llvm::Type::getVoidTy(*TheContext);
@@ -69,7 +70,7 @@ void init() {
 	_f64 = llvm::Type::getDoubleTy(*TheContext);
 	type_table.add("f64", _f64);
 	_string = llvm::PointerType::get(_u8, 0);
-	type_table.add("string", _string);
+	stringkey = type_table.add("string", _string);
 }
 
 //===----------------------------------------------------------------------===//
@@ -798,17 +799,17 @@ int main(int argc, char* argv[]) {
 		llvm::InitializeNativeTargetAsmParser();
 	}
 
-	// Prime the first token.
-	if (comp_mode == comp_jit) {
-		fprintf(stderr, "ready> ");
-	}
-	getNextToken();
-
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
 	}
 
 	InitializeModuleAndPassManager();
+
+	// Prime the first token.
+	if (comp_mode == comp_jit) {
+		fprintf(stderr, "ready> ");
+	}
+	getNextToken();
 
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.

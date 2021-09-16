@@ -119,7 +119,7 @@ Token::Token(char** s_ptr) : type(tok_number) {
 }
 				
 Token::Token(const std::string& str) : type(tok_str_lit) {						
-	gen_type = { .ID = llvm::Type::PointerTyID };
+	key = stringkey;
 	Val.Str = strdup(str.c_str());
 }
 
