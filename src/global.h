@@ -64,7 +64,24 @@ struct SourceLocation {
 	int Col;
 };
 
+// Types
+extern llvm::Type* _void;
+extern llvm::Type* _bool;
+extern llvm::Type* _u8;
+extern llvm::Type* _u16;
+extern llvm::Type* _u32;
+extern llvm::Type* _u64;
+extern llvm::Type* _i8;
+extern llvm::Type* _i16;
+extern llvm::Type* _i32;
+extern llvm::Type* _i64;
+extern llvm::Type* _f16;
+extern llvm::Type* _f32;
 extern llvm::Type* _f64;
+extern llvm::Type* _string;
+extern unsigned stringkey;
+
+extern std::unique_ptr<llvm::LLVMContext> TheContext;
 extern SourceLocation CurLoc;
 
 /// ExprAST - Base class for all expression nodes.
@@ -155,7 +172,7 @@ public:
 	}
 	
 	~TypeTable() = default;
-protected:
+
 	std::map<const char*, llvm::Type*> name_table;
 	std::map<unsigned, llvm::Type*> key32_table;
 };
@@ -174,9 +191,14 @@ public:
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched
 	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc)  : Loc(Loc) {
-		auto fulltype = type_table.get_full(key);
-		type = fulltype.first;
-		type_attr = add_attr | (fulltype.second ? 1 : 0);
+		if (key == stringkey) {
+			type = llvm::Type::getInt8PtrTy(*TheContext);
+			type_attr = add_attr;
+		} else {
+			auto fulltype = type_table.get_full(key);
+			type = fulltype.first;
+			type_attr = add_attr | (fulltype.second ? 1 : 0);
+		}
 	}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen() = 0;
@@ -257,20 +279,3 @@ public:
 };
 
 extern Lexer lex;
-
-// Types
-extern llvm::Type* _void;
-extern llvm::Type* _bool;
-extern llvm::Type* _u8;
-extern llvm::Type* _u16;
-extern llvm::Type* _u32;
-extern llvm::Type* _u64;
-extern llvm::Type* _i8;
-extern llvm::Type* _i16;
-extern llvm::Type* _i32;
-extern llvm::Type* _i64;
-extern llvm::Type* _f16;
-extern llvm::Type* _f32;
-extern llvm::Type* _f64;
-extern llvm::Type* _string;
-extern unsigned stringkey;

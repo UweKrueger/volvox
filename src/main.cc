@@ -12,7 +12,7 @@ TypeTable type_table;
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
 
-static std::unique_ptr<llvm::LLVMContext> TheContext;
+std::unique_ptr<llvm::LLVMContext> TheContext;
 static std::unique_ptr<llvm::Module> TheModule;
 static std::unique_ptr<llvm::IRBuilder<>> Builder;
 static llvm::ExitOnError ExitOnErr;
@@ -69,7 +69,7 @@ void init() {
 	type_table.add("u64", _u64);
 	_f64 = llvm::Type::getDoubleTy(*TheContext);
 	type_table.add("f64", _f64);
-	_string = llvm::PointerType::get(_u8, 0);
+	_string = llvm::Type::getInt8PtrTy(*TheContext);
 	stringkey = type_table.add("string", _string);
 }
 
@@ -709,6 +709,7 @@ static void HandleTopLevelExpression() {
 					break;
 				case llvm::Type::PointerTyID: // should be more sophisticated
 				{
+					fprintf(stderr, "String result\n");
 					char* (*SP)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
 					fprintf(stderr, "Evaluated to >%s<\n", SP());
 				}
