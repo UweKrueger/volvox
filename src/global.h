@@ -178,14 +178,9 @@ public:
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched
 	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc)  : Loc(Loc) {
-		if (key == stringkey) {
-			type = llvm::Type::getInt8PtrTy(*TheContext);
-			type_attr = add_attr;
-		} else {
-			auto fulltype = type_table.get_full(key);
-			type = fulltype.first;
-			type_attr = add_attr | (fulltype.second ? 1 : 0);
-		}
+		auto fulltype = type_table.get_full(key);
+		type = fulltype.first;
+		type_attr = (fulltype.second ? A_signed : 0) | add_attr;
 	}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen() = 0;
