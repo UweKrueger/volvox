@@ -268,7 +268,21 @@ llvm::Value *BinaryExprAST::codegen() {
 		default:
 			LogError(operr, Op);
 		}
-		return Builder->CreateMul(L, R, "multmp");
+	} else if (!strcmp(Op, "%")) {
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			if (type_attr & A_signed)
+				return Builder->CreateSRem(L, R, "remtmp");
+			else
+				return Builder->CreateURem(L, R, "remtmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFRem(L, R, "remtmp");
+		default:
+			LogError(operr, Op);
+		}
 	} else if (!strcmp(Op, "<")) {
 		L = Builder->CreateFCmpULT(L, R, "cmptmp");
 		// Convert bool 0/1 to double 0.0 or 1.0
