@@ -140,7 +140,7 @@ llvm::Value *LiteralExprAST::codegen() {
 	}
 	switch (type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		return llvm::ConstantInt::get(TheContext, llvm::APInt(64, Val.Uint, type_attr | A_signed));
+		return llvm::ConstantInt::get(TheContext, llvm::APInt(type->getIntegerBitWidth(), Val.Uint, type_attr & A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
 	case llvm::Type::FloatTyID:
