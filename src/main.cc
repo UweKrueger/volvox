@@ -182,6 +182,8 @@ llvm::Value *UnaryExprAST::codegen() {
 	return Builder->CreateCall(F, OperandV, "unop");
 }
 
+static const char* operr = "Op %s cannot create result for type ID %d";
+
 llvm::Value *BinaryExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -215,11 +217,58 @@ llvm::Value *BinaryExprAST::codegen() {
 		return nullptr;
 
 	if (!strcmp(Op, "+")) {
-		return Builder->CreateFAdd(L, R, "addtmp");
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			return Builder->CreateAdd(L, R, "addtmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFAdd(L, R, "addtmp");
+		default:
+			LogError(operr, Op);
+		}
 	} else if (!strcmp(Op, "-")) {
-		return Builder->CreateFSub(L, R, "subtmp");
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			return Builder->CreateSub(L, R, "subtmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFSub(L, R, "subtmp");
+		default:
+			LogError(operr, Op);
+		}
 	} else if (!strcmp(Op, "*")) {
-		return Builder->CreateFMul(L, R, "multmp");
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			return Builder->CreateMul(L, R, "multmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFMul(L, R, "multmp");
+		default:
+			LogError(operr, Op);
+		}
+		return Builder->CreateMul(L, R, "multmp");
+	} else if (!strcmp(Op, "/")) {
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			if (type_attr & A_signed)
+				return Builder->CreateSDiv(L, R, "divtmp");
+			else
+				return Builder->CreateUDiv(L, R, "divtmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFDiv(L, R, "divtmp");
+		default:
+			LogError(operr, Op);
+		}
+		return Builder->CreateMul(L, R, "multmp");
 	} else if (!strcmp(Op, "<")) {
 		L = Builder->CreateFCmpULT(L, R, "cmptmp");
 		// Convert bool 0/1 to double 0.0 or 1.0
@@ -635,11 +684,11 @@ static void HandleDefinition() {
 				FnIR->print(llvm::errs());
 				fprintf(stderr, "\n");
 				/*
-				if (comp_mode == comp_jit) {
-					ExitOnErr(TheJIT->addModule(
-								  llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
-					InitializeModuleAndPassManager();
-				}
+				  if (comp_mode == comp_jit) {
+				  ExitOnErr(TheJIT->addModule(
+				  llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
+				  InitializeModuleAndPassManager();
+				  }
 				*/
 			}
 		} else {
@@ -698,7 +747,7 @@ static void HandleTopLevelExpression() {
 				{
 					fprintf(stderr, "Evaluated to %f\n", gv.DoubleVal);
 				}
-					break;
+				break;
 				case llvm::Type::IntegerTyID:
 				{
 					auto int_val = gv.IntVal;
@@ -710,13 +759,13 @@ static void HandleTopLevelExpression() {
 						fprintf(stderr, "Evaluated to %lu\n", val);
 					}
 				}
-					break;
+				break;
 				case llvm::Type::PointerTyID: // should be more sophisticated
 				{
 					auto sp = gv.PointerVal;
 					fprintf(stderr, "Evaluated to >%s<\n", (char*)sp);
 				}
-					break;
+				break;
 				default:
 					fprintf(stderr, "unknown expression type %d\n", RetType);
 				}
