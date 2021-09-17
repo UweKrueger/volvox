@@ -98,7 +98,7 @@ class CallExprAST : public ExprAST {
 public:
 	CallExprAST(SourceLocation Loc, const std::string &Callee,
 				std::vector<std::unique_ptr<ExprAST>> Args)
-		: ExprAST(llvm::Type::getDoubleTy(*TheContext), 0, Loc), Callee(Callee), Args(std::move(Args)) {}
+		: ExprAST(llvm::Type::getDoubleTy(TheContext), 0, Loc), Callee(Callee), Args(std::move(Args)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call " << Callee, ind);
@@ -115,7 +115,7 @@ class IfExprAST : public ExprAST {
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 			  std::unique_ptr<ExprAST> Then, std::unique_ptr<ExprAST> Else)
-		: ExprAST(llvm::Type::getDoubleTy(*TheContext), 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
+		: ExprAST(llvm::Type::getDoubleTy(TheContext), 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
 		  Else(std::move(Else)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -182,11 +182,12 @@ class PrototypeAST {
 public:
 	std::string Name;
 	llvm::Type* RetType;
+	unsigned type_attr;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 				 std::vector<std::string> Args, bool IsOperator = false,
-				 llvm::Type* RetType = llvm::Type::getDoubleTy(*TheContext), std::vector<llvm::Type*> ArgTypes = {})
+				 llvm::Type* RetType = llvm::Type::getDoubleTy(TheContext), unsigned type_attr = 0, std::vector<llvm::Type*> ArgTypes = {})
 		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
-		  Line(Loc.Line), RetType(RetType), ArgTypes(ArgTypes) {}
+		  Line(Loc.Line), RetType(RetType), type_attr(type_attr), ArgTypes(ArgTypes) {}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
