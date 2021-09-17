@@ -723,7 +723,7 @@ static void HandleTopLevelExpression() {
 	if (auto FnAST = ParseTopLevelExpr()) {
 		auto RetType = FnAST->Proto->RetType->getTypeID();
 		unsigned ret_type_attr = FnAST->Proto->type_attr;
-		// fprintf(stderr, "Handling expression of type %d\n", RetType);
+
 		auto anon_expr = FnAST->codegen();
 		if (anon_expr) {
 			if (comp_mode == comp_jit) {

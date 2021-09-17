@@ -19,7 +19,7 @@ public:
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
-			if (type_attr | A_signed)
+			if (type_attr & A_signed)
 				return ExprAST::dump(out << Val.Int, ind);
 			else
 				return ExprAST::dump(out << Val.Uint, ind);
@@ -59,7 +59,7 @@ class UnaryExprAST : public ExprAST {
 
 public:
 	UnaryExprAST(const char* Op, std::unique_ptr<ExprAST> Operand)
-		: Operand(std::move(Operand)) {
+		: ExprAST(Operand->type, Operand->type_attr), Operand(std::move(Operand)) {
 		strcpy(Opcode, Op); 
 	}
 	llvm::Value *codegen() override;

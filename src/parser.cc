@@ -478,7 +478,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		asprintf(&name, "__anon_expr_%u", n++);
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, name,
 													std::vector<std::string>(),
-													false, E->type);
+													false, E->type, E->type_attr);
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	}
 	return nullptr;
