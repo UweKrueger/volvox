@@ -773,17 +773,33 @@ extern "C" DLLEXPORT double printd(double X) {
 //===----------------------------------------------------------------------===//
 
 int main(int argc, char* argv[]) {
-	auto output_file = "";
-	
+	FILE* input_file = stdin;
+	const char* input_file_name = "a.vx";
 	if (argc == 1) {
 		comp_mode = comp_jit;
 	} else {
 		if ((argc == 3) && std::string(argv[1]) == "-g") {
-			output_file = argv[2];
 			comp_mode = comp_dbg;
+			input_file_name = argv[2];
 		} else {
-			output_file = argv[1];
+			input_file_name = argv[1];
 		}
+		input_file = fopen(input_file_name, "r");
+		if (!input_file) {
+			fprintf(stderr, "Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
+			exit(1);
+		}
+	}
+	int len = strlen(input_file_name);
+	auto output_file = (char*)malloc(len + 3);
+	strcpy(output_file, input_file_name);
+	if(output_file[len-3]=='.' && output_file[len-2]=='v' && output_file[len-1]=='x') {
+		output_file[len-2] = 'o';
+		output_file[len-1] = '\0';
+	} else {
+		output_file[len] = '.';
+		output_file[len+1] = 'o';
+		output_file[len+2] = '\0';
 	}
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();
@@ -817,8 +833,8 @@ int main(int argc, char* argv[]) {
 		// Currently down as "fib.ks" as a filename since we're redirecting stdin
 		// but we'd like actual source locations.
 		KSDbgInfo.TheCU = DBuilder->createCompileUnit(
-			llvm::dwarf::DW_LANG_C, DBuilder->createFile("fib.ks", "."),
-			"Kaleidoscope Compiler", 0, "", 0);
+			llvm::dwarf::DW_LANG_C, DBuilder->createFile(input_file_name, "."),
+			"Volvox Compiler", 0, "", 0);
 	}
 	// Run the main "interpreter loop" now.
 	MainLoop();

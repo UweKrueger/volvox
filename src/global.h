@@ -248,7 +248,7 @@ extern Token getNextToken(bool expectBinary = false);
 
 class Lexer {
 public:
-	Lexer(FILE* input = stdin, size_t bufsize=100)
+	Lexer(FILE* input = stdin, size_t bufsize = 0)
 		: input(input), bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
 	~Lexer() { free(linebuf); }
 	int advance();
