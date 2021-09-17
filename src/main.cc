@@ -786,7 +786,7 @@ static void HandleTopLevelExpression() {
 static void MainLoop() {
 	while (true) {
 		if (comp_mode == comp_jit) {
-			fprintf(stderr, "ready> ");
+			fprintf(stderr, CurTok.type == tok_eof ? "\n" : "ready> ");
 		}
 		switch (CurTok.type) {
 		case tok_eof:
