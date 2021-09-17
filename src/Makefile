@@ -16,7 +16,7 @@ LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f
 OPT := -O0 -g
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) $(OPTF)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all)
-PRJH = ../include/volvox-$(LLVMVERSION).hh
+PRJH = ../include/volvox.hh
 PCH = $(PRJH:%.hh=%.hh.gch)
 
 PROG = ../volvox
@@ -30,7 +30,7 @@ SRCS := $(OBJS:%.o=%.cc)
 
 all: $(PROG)
 
-$(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh
+$(PCH): $(PRJH) ../include/volvox.hh
 	$(CXX) $(CXXFLAGS) $(OPT) $<
 
 $(PROG): $(OBJS)
