@@ -21,7 +21,7 @@ static llvm::ExitOnError ExitOnErr;
 static std::map<std::string, llvm::AllocaInst *> NamedValues;
 static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 static llvm::ExecutionEngine* TheJIT;
-static std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
@@ -483,9 +483,7 @@ llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
 	std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(TheContext));
 	llvm::FunctionType *FT =
-		// llvm::FunctionType::get(llvm::PointerType::get(llvm::Type::getInt8Ty(TheContext), 0), Doubles, false);
-		llvm::FunctionType::get(llvm::Type::getDoubleTy(TheContext), Doubles, false);
-	    // llvm::FunctionType::get(RetType, Doubles, false);
+		llvm::FunctionType::get(RetType, Doubles, false);
 
 	llvm::Function *F =
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule);
