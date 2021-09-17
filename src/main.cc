@@ -599,9 +599,11 @@ static void InitializeModuleAndPassManager() {
 	if (!has_run) {
 		init();
 		has_run = true;
-		TheModule = Owner.get();
-		TheJIT = llvm::EngineBuilder(std::move(Owner)).create();
 	}
+	Owner = std::make_unique<llvm::Module>("test", TheContext);
+	TheModule = Owner.get();
+	TheJIT = llvm::EngineBuilder(std::move(Owner)).create();
+
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		// TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
@@ -684,7 +686,6 @@ static void HandleTopLevelExpression() {
 			  
 				//auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext));
 				//ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-				// InitializeModuleAndPassManager();
 			  
 				// Search the JIT for the __anon_expr symbol.
 				//auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
@@ -693,6 +694,7 @@ static void HandleTopLevelExpression() {
 				// arguments, returns a double) so we can call it as a native function.
 				std::vector<llvm::GenericValue> Args;
 				llvm::GenericValue gv = TheJIT->runFunction(anon_expr, Args);
+				InitializeModuleAndPassManager();
 				switch (RetType) {
 				case llvm::Type::DoubleTyID:
 				{
