@@ -12,15 +12,16 @@ TypeTable type_table;
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
 
-std::unique_ptr<llvm::LLVMContext> TheContext;
-static std::unique_ptr<llvm::Module> TheModule;
+llvm::LLVMContext TheContext;
+static std::unique_ptr<llvm::Module> Owner;
+static llvm::Module* TheModule;
 static std::unique_ptr<llvm::IRBuilder<>> Builder;
 static llvm::ExitOnError ExitOnErr;
 
 static std::map<std::string, llvm::AllocaInst *> NamedValues;
 static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
-static std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
-static std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+static llvm::ExecutionEngine* TheJIT;
+std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
@@ -130,7 +131,7 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
 												llvm::StringRef VarName) {
 	llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 						   TheFunction->getEntryBlock().begin());
-	return TmpB.CreateAlloca(llvm::Type::getDoubleTy(*TheContext), nullptr, VarName);
+	return TmpB.CreateAlloca(llvm::Type::getDoubleTy(TheContext), nullptr, VarName);
 }
 
 llvm::Value *LiteralExprAST::codegen() {
@@ -139,12 +140,12 @@ llvm::Value *LiteralExprAST::codegen() {
 	}
 	switch (type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		return llvm::ConstantInt::get(*TheContext, llvm::APInt(64, Val.Uint, type_attr | A_signed));
+		return llvm::ConstantInt::get(TheContext, llvm::APInt(type->getIntegerBitWidth(), Val.Uint, type_attr & A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
 	case llvm::Type::FloatTyID:
 	case llvm::Type::DoubleTyID:
-		return llvm::ConstantFP::get(*TheContext, llvm::APFloat(Val.Float));
+		return llvm::ConstantFP::get(TheContext, llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
 		return Builder->CreateGlobalStringPtr(Val.Str);
 	default:
@@ -163,7 +164,7 @@ llvm::Value *VariableExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Load the value.
-	return Builder->CreateLoad(llvm::Type::getDoubleTy(*TheContext), V, Name.c_str());
+	return Builder->CreateLoad(llvm::Type::getDoubleTy(TheContext), V, Name.c_str());
 }
 
 llvm::Value *UnaryExprAST::codegen() {
@@ -180,6 +181,8 @@ llvm::Value *UnaryExprAST::codegen() {
 	}
 	return Builder->CreateCall(F, OperandV, "unop");
 }
+
+static const char* operr = "Op %s cannot create result for type ID %d";
 
 llvm::Value *BinaryExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
@@ -214,15 +217,76 @@ llvm::Value *BinaryExprAST::codegen() {
 		return nullptr;
 
 	if (!strcmp(Op, "+")) {
-		return Builder->CreateFAdd(L, R, "addtmp");
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			return Builder->CreateAdd(L, R, "addtmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFAdd(L, R, "addtmp");
+		default:
+			LogError(operr, Op);
+		}
 	} else if (!strcmp(Op, "-")) {
-		return Builder->CreateFSub(L, R, "subtmp");
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			return Builder->CreateSub(L, R, "subtmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFSub(L, R, "subtmp");
+		default:
+			LogError(operr, Op);
+		}
 	} else if (!strcmp(Op, "*")) {
-		return Builder->CreateFMul(L, R, "multmp");
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			return Builder->CreateMul(L, R, "multmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFMul(L, R, "multmp");
+		default:
+			LogError(operr, Op);
+		}
+		return Builder->CreateMul(L, R, "multmp");
+	} else if (!strcmp(Op, "/")) {
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			if (type_attr & A_signed)
+				return Builder->CreateSDiv(L, R, "divtmp");
+			else
+				return Builder->CreateUDiv(L, R, "divtmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFDiv(L, R, "divtmp");
+		default:
+			LogError(operr, Op);
+		}
+	} else if (!strcmp(Op, "%")) {
+		switch(type->getTypeID()) {
+		case llvm::Type::IntegerTyID:
+			if (type_attr & A_signed)
+				return Builder->CreateSRem(L, R, "remtmp");
+			else
+				return Builder->CreateURem(L, R, "remtmp");
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return Builder->CreateFRem(L, R, "remtmp");
+		default:
+			LogError(operr, Op);
+		}
 	} else if (!strcmp(Op, "<")) {
 		L = Builder->CreateFCmpULT(L, R, "cmptmp");
 		// Convert bool 0/1 to double 0.0 or 1.0
-		return Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*TheContext), "booltmp");
+		return Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(TheContext), "booltmp");
 	}
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
@@ -266,15 +330,15 @@ llvm::Value *IfExprAST::codegen() {
 
 	// Convert condition to a bool by comparing non-equal to 0.0.
 	CondV = Builder->CreateFCmpONE(
-		CondV, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "ifcond");
+		CondV, llvm::ConstantFP::get(TheContext, llvm::APFloat(0.0)), "ifcond");
 
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(*TheContext, "then", TheFunction);
-	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(*TheContext, "else");
-	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(*TheContext, "ifcont");
+	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(TheContext, "then", TheFunction);
+	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(TheContext, "else");
+	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(TheContext, "ifcont");
 
 	Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 
@@ -304,7 +368,7 @@ llvm::Value *IfExprAST::codegen() {
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
-	llvm::PHINode *PN = Builder->CreatePHI(llvm::Type::getDoubleTy(*TheContext), 2, "iftmp");
+	llvm::PHINode *PN = Builder->CreatePHI(llvm::Type::getDoubleTy(TheContext), 2, "iftmp");
 
 	PN->addIncoming(ThenV, ThenBB);
 	PN->addIncoming(ElseV, ElseBB);
@@ -349,7 +413,7 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Make the new basic block for the loop header, inserting after current
 	// block.
-	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(*TheContext, "loop", TheFunction);
+	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(TheContext, "loop", TheFunction);
 
 	// Insert an explicit fall through from the current block to the LoopBB.
 	Builder->CreateBr(LoopBB);
@@ -376,7 +440,7 @@ llvm::Value *ForExprAST::codegen() {
 			return nullptr;
 	} else {
 		// If not specified, use 1.0.
-		StepVal = llvm::ConstantFP::get(*TheContext, llvm::APFloat(1.0));
+		StepVal = llvm::ConstantFP::get(TheContext, llvm::APFloat(1.0));
 	}
 
 	// Compute the end condition.
@@ -386,18 +450,18 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Reload, increment, and restore the alloca.  This handles the case where
 	// the body of the loop mutates the variable.
-	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(*TheContext), Alloca,
+	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(TheContext), Alloca,
 											  VarName.c_str());
 	llvm::Value *NextVar = Builder->CreateFAdd(CurVar, StepVal, "nextvar");
 	Builder->CreateStore(NextVar, Alloca);
 
 	// Convert condition to a bool by comparing non-equal to 0.0.
 	EndCond = Builder->CreateFCmpONE(
-		EndCond, llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0)), "loopcond");
+		EndCond, llvm::ConstantFP::get(TheContext, llvm::APFloat(0.0)), "loopcond");
 
 	// Create the "after loop" block and insert it.
 	llvm::BasicBlock *AfterBB =
-		llvm::BasicBlock::Create(*TheContext, "afterloop", TheFunction);
+		llvm::BasicBlock::Create(TheContext, "afterloop", TheFunction);
 
 	// Insert the conditional branch into the end of LoopEndBB.
 	Builder->CreateCondBr(EndCond, LoopBB, AfterBB);
@@ -412,7 +476,7 @@ llvm::Value *ForExprAST::codegen() {
 		NamedValues.erase(VarName);
 
 	// for expr always returns 0.0.
-	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*TheContext));
+	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(TheContext));
 }
 
 llvm::Value *VarExprAST::codegen() {
@@ -438,7 +502,7 @@ llvm::Value *VarExprAST::codegen() {
 			if (!InitVal)
 				return nullptr;
 		} else { // If not specified, use 0.0.
-			InitVal = llvm::ConstantFP::get(*TheContext, llvm::APFloat(0.0));
+			InitVal = llvm::ConstantFP::get(TheContext, llvm::APFloat(0.0));
 		}
 
 		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName);
@@ -480,14 +544,12 @@ llvm::Value *VarExprAST::codegen() {
 
 llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
-	std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(*TheContext));
+	std::vector<llvm::Type *> Doubles(Args.size(), llvm::Type::getDoubleTy(TheContext));
 	llvm::FunctionType *FT =
-		// llvm::FunctionType::get(llvm::PointerType::get(llvm::Type::getInt8Ty(*TheContext), 0), Doubles, false);
-		llvm::FunctionType::get(llvm::Type::getDoubleTy(*TheContext), Doubles, false);
-	    // llvm::FunctionType::get(RetType, Doubles, false);
+		llvm::FunctionType::get(RetType, Doubles, false);
 
 	llvm::Function *F =
-		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
+		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule);
 
 	// Set names for all arguments.
 	unsigned Idx = 0;
@@ -507,7 +569,7 @@ llvm::Function *FunctionAST::codegen() {
 		return nullptr;
 
 	// Create a new basic block to start insertion into.
-	llvm::BasicBlock *BB = llvm::BasicBlock::Create(*TheContext, "entry", TheFunction);
+	llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
 	Builder->SetInsertPoint(BB);
 	// llvm::DISubprogram *SP; - make static
 	// llvm::DIFile *Unit;
@@ -594,22 +656,24 @@ llvm::Function *FunctionAST::codegen() {
 
 static void InitializeModuleAndPassManager() {
 	// Open a new module.
-	TheContext = std::make_unique<llvm::LLVMContext>();
 	static bool has_run = false;
 	if (!has_run) {
 		init();
 		has_run = true;
 	}
-	TheModule = std::make_unique<llvm::Module>("my cool jit", *TheContext);
+	Owner = std::make_unique<llvm::Module>("test", TheContext);
+	TheModule = Owner.get();
+	TheJIT = llvm::EngineBuilder(std::move(Owner)).create();
+
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		TheModule->setDataLayout(TheJIT->getDataLayout());
+		// TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
 	// Create a new builder for the module.
-	Builder = std::make_unique<llvm::IRBuilder<>>(*TheContext);
+	Builder = std::make_unique<llvm::IRBuilder<>>(TheContext);
 
 	if (comp_mode == comp_jit) {
 		// Create a new pass manager attached to it.
-		TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
+		TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule);
 	  
 		// Promote allocas to registers.
 		TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
@@ -633,11 +697,13 @@ static void HandleDefinition() {
 				fprintf(stderr, "Read function definition:");
 				FnIR->print(llvm::errs());
 				fprintf(stderr, "\n");
-				if (comp_mode == comp_jit) {
-					ExitOnErr(TheJIT->addModule(
-								  llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
-					InitializeModuleAndPassManager();
-				}
+				/*
+				  if (comp_mode == comp_jit) {
+				  ExitOnErr(TheJIT->addModule(
+				  llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
+				  InitializeModuleAndPassManager();
+				  }
+				*/
 			}
 		} else {
 			fprintf(stderr, "Error reading function definition:");
@@ -670,47 +736,56 @@ static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
 		auto RetType = FnAST->Proto->RetType->getTypeID();
-		// fprintf(stderr, "Handling expression of type %d\n", RetType);
-		if (FnAST->codegen()) {
+		unsigned ret_type_attr = FnAST->Proto->type_attr;
+
+		auto anon_expr = FnAST->codegen();
+		if (anon_expr) {
 			if (comp_mode == comp_jit) {
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
-				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+				// auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 			  
-				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext));
-				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-				InitializeModuleAndPassManager();
+				//auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext));
+				//ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 			  
 				// Search the JIT for the __anon_expr symbol.
-				auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
+				//auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
 			  
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a double) so we can call it as a native function.
+				std::vector<llvm::GenericValue> Args;
+				llvm::GenericValue gv = TheJIT->runFunction(anon_expr, Args);
+				InitializeModuleAndPassManager();
 				switch (RetType) {
 				case llvm::Type::DoubleTyID:
 				{
-					double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
-					fprintf(stderr, "Evaluated to %f\n", FP());
+					fprintf(stderr, "Evaluated to %f\n", gv.DoubleVal);
 				}
-					break;
+				break;
 				case llvm::Type::IntegerTyID:
 				{
-					uint64_t (*INT)() = (uint64_t (*)())(intptr_t)ExprSymbol.getAddress();
-					fprintf(stderr, "Evaluated to %lu\n", INT());
+					auto int_val = gv.IntVal;
+					if (ret_type_attr & A_signed) {
+						auto val = int_val.getSExtValue();
+						fprintf(stderr, "Evaluated to %ld\n", val);
+					} else {
+						auto val = int_val.getZExtValue();
+						fprintf(stderr, "Evaluated to %lu\n", val);
+					}
 				}
-					break;
+				break;
 				case llvm::Type::PointerTyID: // should be more sophisticated
 				{
-					char* (*SP)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
-					fprintf(stderr, "Evaluated to >%s<\n", SP());
+					auto sp = gv.PointerVal;
+					fprintf(stderr, "Evaluated to >%s<\n", (char*)sp);
 				}
-					break;
+				break;
 				default:
 					fprintf(stderr, "unknown expression type %d\n", RetType);
 				}
 
 				// Delete the anonymous expression module from the JIT.
-				ExitOnErr(RT->remove());
+				// ExitOnErr(RT->remove());
 			}
 		} else {
 			fprintf(stderr, "Error generating code for top level expr");
@@ -725,7 +800,7 @@ static void HandleTopLevelExpression() {
 static void MainLoop() {
 	while (true) {
 		if (comp_mode == comp_jit) {
-			fprintf(stderr, "ready> ");
+			fprintf(stderr, CurTok.type == tok_eof ? "\n" : "ready> ");
 		}
 		switch (CurTok.type) {
 		case tok_eof:
@@ -808,7 +883,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
+		// TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
 	}
 
 	InitializeModuleAndPassManager();

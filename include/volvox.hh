@@ -4,6 +4,9 @@
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/Analysis/BasicAliasAnalysis.h>
 #include <llvm/Analysis/Passes.h>
+#include <llvm/ExecutionEngine/ExecutionEngine.h>
+#include <llvm/ExecutionEngine/GenericValue.h>
+#include <llvm/ExecutionEngine/MCJIT.h>
 #include <llvm/IR/DIBuilder.h>
 #include <llvm/IR/BasicBlock.h>
 #include <llvm/IR/Constants.h>

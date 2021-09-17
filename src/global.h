@@ -67,7 +67,7 @@ struct SourceLocation {
 // Types
 extern unsigned stringkey;
 
-extern std::unique_ptr<llvm::LLVMContext> TheContext;
+extern llvm::LLVMContext TheContext;
 extern SourceLocation CurLoc;
 
 /// ExprAST - Base class for all expression nodes.
@@ -107,7 +107,7 @@ typedef llvm::Type* (typegetter) (llvm::LLVMContext&);
 class TypeTable {
 public:
 	unsigned add(const char* name, typegetter* typeg, bool is_signed = false) {
-		llvm::Type* type = typeg(*TheContext);
+		llvm::Type* type = typeg(TheContext);
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
@@ -131,19 +131,19 @@ public:
 	}
 	llvm::Type* get_raw(const char* name) {
 		auto it = name_table.find(name);
-		return it == name_table.end() ? nullptr : it->second(*TheContext);
+		return it == name_table.end() ? nullptr : it->second(TheContext);
 	}
 	llvm::Type* get(const char* name) {
 		auto it = name_table.find(name);
-		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second(*TheContext) & ~0x01ULL);
+		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second(TheContext) & ~0x01ULL);
 	}
 	bool is_signed(const char* name) {
 		auto it = name_table.find(name);
-		return ((uintptr_t)it->second(*TheContext) & 0x01ULL) != 0;
+		return ((uintptr_t)it->second(TheContext) & 0x01ULL) != 0;
 	}
 	std::pair<llvm::Type*, bool> get_full(const char* name) {
 		auto it = name_table.find(name);
-		return { it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second(*TheContext) & ~0x01ULL), ((uintptr_t)it->second(*TheContext) & 0x01ULL) != 0 };
+		return { it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second(TheContext) & ~0x01ULL), ((uintptr_t)it->second(TheContext) & 0x01ULL) != 0 };
 	}
 	std::pair<llvm::Type*, bool> get_full(unsigned _key) {
 		union {
@@ -154,7 +154,7 @@ public:
 		key = _key;
 		auto it = key32_table.find(key);
 		bool is_signed = (int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed);
-		return { it == key32_table.end() ? nullptr : it->second(*TheContext), is_signed };
+		return { it == key32_table.end() ? nullptr : it->second(TheContext), is_signed };
 	}
 	
 	~TypeTable() = default;
@@ -164,6 +164,7 @@ protected:
 };
 
 extern TypeTable type_table;
+extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 class ExprAST {
 	SourceLocation Loc;
@@ -172,7 +173,7 @@ public:
 	llvm::Type* type;
 	unsigned type_attr;
 	// construct from type and attributes
-	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*TheContext), unsigned type_attr = 0, SourceLocation Loc = CurLoc) : Loc(Loc), type(type), type_attr(type_attr) {}
+	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(TheContext), unsigned type_attr = 0, SourceLocation Loc = CurLoc) : Loc(Loc), type(type), type_attr(type_attr) {}
 	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc) : Loc(Loc), type(p.first), type_attr(p.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched

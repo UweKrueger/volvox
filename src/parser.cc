@@ -470,13 +470,15 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 
 /// toplevelexpr ::= expression
 std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
+	static unsigned n = 0;
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
 		// Make an anonymous proto.
-		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
+		char* name = nullptr;
+		asprintf(&name, "__anon_expr_%u", n++);
+		auto Proto = std::make_unique<PrototypeAST>(FnLoc, name,
 													std::vector<std::string>(),
-													false, E->type);
-		// fprintf(stderr, "got expression of type %d\n", E->type->getTypeID());
+													false, E->type, E->type_attr);
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	}
 	return nullptr;

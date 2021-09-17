@@ -19,7 +19,7 @@ public:
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
-			if (type_attr | A_signed)
+			if (type_attr & A_signed)
 				return ExprAST::dump(out << Val.Int, ind);
 			else
 				return ExprAST::dump(out << Val.Uint, ind);
@@ -59,7 +59,7 @@ class UnaryExprAST : public ExprAST {
 
 public:
 	UnaryExprAST(const char* Op, std::unique_ptr<ExprAST> Operand)
-		: Operand(std::move(Operand)) {
+		: ExprAST(Operand->type, Operand->type_attr), Operand(std::move(Operand)) {
 		strcpy(Opcode, Op); 
 	}
 	llvm::Value *codegen() override;
@@ -90,6 +90,39 @@ public:
 	}
 };
 
+/// PrototypeAST - This class represents the "prototype" for a function,
+/// which captures its name, and its argument names (thus implicitly the number
+/// of arguments the function takes), as well as if it is an operator.
+class PrototypeAST {
+	std::vector<std::string> Args;
+	std::vector<llvm::Type*> ArgTypes;
+	std::vector<unsigned> ArgAttribs;
+	bool IsOperator;
+	int Line;
+
+public:
+	std::string Name;
+	llvm::Type* RetType;
+	unsigned type_attr;
+	PrototypeAST(SourceLocation Loc, const std::string &Name,
+				 std::vector<std::string> Args, bool IsOperator = false,
+				 llvm::Type* RetType = llvm::Type::getDoubleTy(TheContext), unsigned type_attr = 0, std::vector<llvm::Type*> ArgTypes = {})
+		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
+		  Line(Loc.Line), RetType(RetType), type_attr(type_attr), ArgTypes(ArgTypes) {}
+	llvm::Function *codegen();
+	const std::string &getName() const { return Name; }
+
+	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
+	bool isBinaryOp() const { return IsOperator && Args.size() == 2; }
+
+	char getOperatorName() const {
+		assert(isUnaryOp() || isBinaryOp());
+		return Name[Name.size() - 1];
+	}
+
+	int getLine() const { return Line; }
+};
+
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
 	std::string Callee;
@@ -98,7 +131,15 @@ class CallExprAST : public ExprAST {
 public:
 	CallExprAST(SourceLocation Loc, const std::string &Callee,
 				std::vector<std::unique_ptr<ExprAST>> Args)
-		: ExprAST(llvm::Type::getDoubleTy(*TheContext), 0, Loc), Callee(Callee), Args(std::move(Args)) {}
+		: ExprAST(nullptr, 0, Loc), Callee(Callee), Args(std::move(Args)) {
+		auto FI = FunctionProtos.find(Callee);
+		if (FI != FunctionProtos.end()) {
+			type = FI->second->RetType;
+			type_attr = FI->second->type_attr;
+		} else {
+			LogError("call to undeclared function %s()", Callee.c_str());
+		}
+	}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call " << Callee, ind);
@@ -115,7 +156,7 @@ class IfExprAST : public ExprAST {
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 			  std::unique_ptr<ExprAST> Then, std::unique_ptr<ExprAST> Else)
-		: ExprAST(llvm::Type::getDoubleTy(*TheContext), 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
+		: ExprAST(llvm::Type::getDoubleTy(TheContext), 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
 		  Else(std::move(Else)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -167,38 +208,6 @@ public:
 		Body->dump(indent(out, ind) << "Body:", ind + 1);
 		return out;
 	}
-};
-
-/// PrototypeAST - This class represents the "prototype" for a function,
-/// which captures its name, and its argument names (thus implicitly the number
-/// of arguments the function takes), as well as if it is an operator.
-class PrototypeAST {
-	std::vector<std::string> Args;
-	std::vector<llvm::Type*> ArgTypes;
-	std::vector<unsigned> ArgAttribs;
-	bool IsOperator;
-	int Line;
-
-public:
-	std::string Name;
-	llvm::Type* RetType;
-	PrototypeAST(SourceLocation Loc, const std::string &Name,
-				 std::vector<std::string> Args, bool IsOperator = false,
-				 llvm::Type* RetType = llvm::Type::getDoubleTy(*TheContext), std::vector<llvm::Type*> ArgTypes = {})
-		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
-		  Line(Loc.Line), RetType(RetType), ArgTypes(ArgTypes) {}
-	llvm::Function *codegen();
-	const std::string &getName() const { return Name; }
-
-	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
-	bool isBinaryOp() const { return IsOperator && Args.size() == 2; }
-
-	char getOperatorName() const {
-		assert(isUnaryOp() || isBinaryOp());
-		return Name[Name.size() - 1];
-	}
-
-	int getLine() const { return Line; }
 };
 
 /// FunctionAST - This class represents a function definition itself.
