@@ -138,12 +138,11 @@ public:
 	}
 	llvm::Type* get_raw(const char* name) {
 		MapValue* val = map_string_get(name_table, name);
-		fprintf(stderr, "%p->get_raw(\"%s\") -> %p called\n", this, name, val->src_ptr);
-		return (llvm::Type*)val->src_ptr;
+		return val ? (llvm::Type*)val->src_ptr : nullptr;
 	}
 	llvm::Type* get(const char* name) {
 		llvm::Type* raw_type = get_raw(name);
-		return (llvm::Type*)((uintptr_t)raw_type & ~0x01ULL);
+		return (llvm::Type*)((uintptr_t)raw_type & ~(uintptr_t)A_signed);
 	}
 	bool is_signed(const char* name) {
 		llvm::Type* raw_type = get_raw(name);
@@ -159,12 +158,10 @@ public:
 		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
 	std::pair<llvm::Type*, bool> get_full(const char* name) {
-		fprintf(stderr, "get_full(\"%s\") called\n", name);
 		llvm::Type* raw_type = get_raw(name);
 		return { (llvm::Type*)((uintptr_t)raw_type & ~0x01ULL), (bool)((uintptr_t)raw_type & A_signed) };
 	}
 	std::pair<llvm::Type*, bool> get_full(unsigned _key) {
-		fprintf(stderr, "get_full(%u) called\n", _key);
 		union {
 			int_val_type_t int_type;
 			gen_val_type_t gen_type;

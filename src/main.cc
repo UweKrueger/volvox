@@ -53,8 +53,6 @@ void init() {
 	type_table.add("u64", getInt64Ty(TheContext));
 	type_table.add("f32", llvm::Type::getFloatTy(TheContext));
 	type_table.add("f64", llvm::Type::getDoubleTy(TheContext));
-	auto t = type_table.get_raw("f64");
-	fprintf(stderr, "inserted type %p\n", t);
 	stringkey = type_table.add("string", getInt8PtrTy(TheContext));
 }
 
