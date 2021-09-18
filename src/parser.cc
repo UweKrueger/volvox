@@ -392,7 +392,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	std::vector<llvm::Type*> ArgTypes;
 	std::vector<unsigned> ArgAttribs;
 	bool is_method;
-	MapNode* args_table = map_string_new_map(); // lookup table for local variables - initialized here with args
 
 	switch (CurTok.type) {
 	case '(': {
@@ -414,8 +413,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			.type = type.first,
 			.type_attr = type.second
 		};
-		MapValue full_t_ptr = { .src_ptr = &full_type };
-		map_string_insert(&args_table, IdentifierStr.c_str(), full_t_ptr, sizeof(FullType));
 		getNextToken();
 		Expect(')');
 	}
@@ -478,8 +475,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			.type = type.first,
 			.type_attr = type.second
 		};
-		MapValue full_t_ptr = { .src_ptr = &full_type };
-		map_string_insert(&args_table, IdentifierStr.c_str(), full_t_ptr, sizeof(FullType));
 		getNextToken();
 		if (CurTok.type == ')')
 			break;
