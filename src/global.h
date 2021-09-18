@@ -1,5 +1,9 @@
 #pragma once
 
+extern "C" {
+#include "../lib/map.h"
+}
+
 class PrototypeAST;
 class FunctionAST;
 class VariableExprAST;
@@ -104,12 +108,16 @@ public:
 
 class TypeTable {
 public:
+	TypeTable() : name_table(map_string_new_map()) {}
 	unsigned add(const char* name, llvm::Type* type, bool is_signed = false) {
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
-		auto it = name_table.insert({ name, is_signed ? (llvm::Type*)((uintptr_t)type | A_signed) : type });
-		if (it.second) {
+		MapValue val = {
+			.src_ptr = is_signed ? (llvm::Type*)((uintptr_t)type | A_signed) : type
+		};
+		bool is_new = map_string_insert(&name_table, name, val, 0);
+		if (is_new) {
 			union {
 				int_val_type_t int_type;
 				gen_val_type_t gen_type;
@@ -122,23 +130,24 @@ public:
 			}
 			key32_table[key] = type;
 			if (!is_signed)
-				type_table[type] = name;
+				typeptr_table[type] = name;
 			return key;
 		} else {
 			return 0;
 		}
 	}
 	llvm::Type* get_raw(const char* name) {
-		auto it = name_table.find(name);
-		return it == name_table.end() ? nullptr : it->second;
+		MapValue* val = map_string_get(name_table, name);
+		fprintf(stderr, "%p->get_raw(\"%s\") -> %p called\n", this, name, val->src_ptr);
+		return (llvm::Type*)val->src_ptr;
 	}
 	llvm::Type* get(const char* name) {
-		auto it = name_table.find(name);
-		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL);
+		llvm::Type* raw_type = get_raw(name);
+		return (llvm::Type*)((uintptr_t)raw_type & ~0x01ULL);
 	}
 	bool is_signed(const char* name) {
-		auto it = name_table.find(name);
-		return (bool)((uintptr_t)it->second & A_signed);
+		llvm::Type* raw_type = get_raw(name);
+		return (bool)((uintptr_t)raw_type & A_signed);
 	}
 	static bool is_signed(unsigned _key) {
 		union {
@@ -150,10 +159,12 @@ public:
 		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
 	std::pair<llvm::Type*, bool> get_full(const char* name) {
-		auto it = name_table.find(name);
-		return { it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL), ((uintptr_t)it->second & 0x01ULL) != 0 };
+		fprintf(stderr, "get_full(\"%s\") called\n", name);
+		llvm::Type* raw_type = get_raw(name);
+		return { (llvm::Type*)((uintptr_t)raw_type & ~0x01ULL), (bool)((uintptr_t)raw_type & A_signed) };
 	}
 	std::pair<llvm::Type*, bool> get_full(unsigned _key) {
+		fprintf(stderr, "get_full(%u) called\n", _key);
 		union {
 			int_val_type_t int_type;
 			gen_val_type_t gen_type;
@@ -165,14 +176,17 @@ public:
 		return { it == key32_table.end() ? nullptr : it->second, is_signed };
 	}
 	const char* get_name(llvm::Type* type) {
-		auto it = type_table.find(type);
-		return it == type_table.end() ? nullptr : it->second;
+		auto it = typeptr_table.find(type);
+		return it == typeptr_table.end() ? nullptr : it->second;
 	}
-	~TypeTable() = default;
+	~TypeTable() {
+		map_destroy(name_table);
+	}
 protected:
-	std::map<const char*, llvm::Type*> name_table;
+	MapNode* name_table;
+	//std::map<const char*, llvm::Type*> name_table;
 	std::map<unsigned, llvm::Type*> key32_table;
-	std::map<llvm::Type*, const char*> type_table;
+	std::map<llvm::Type*, const char*> typeptr_table;
 };
 
 extern TypeTable type_table;

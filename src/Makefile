@@ -34,7 +34,7 @@ $(PCH): $(PRJH) ../include/volvox.hh
 	$(CXX) $(CXXFLAGS) $(OPT) $<
 
 $(PROG): $(OBJS)
-	$(CXX) -o $@ $(LDFLAGS) $(OPT) $+
+	$(CXX) -o $@ $(LDFLAGS) $(OPT) ../lib/map.o $+
 
 .PHONY: clean
 clean:
