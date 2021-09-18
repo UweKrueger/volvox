@@ -96,22 +96,19 @@ struct gen_val_type_t {
 	unsigned SubclassData : 24;
 };
 
-
 // small hack to access protected method
 class genType : protected llvm::Type {
 public:
 	unsigned SubClassData() const { return getSubclassData(); }
 };
 
-typedef llvm::Type* (typegetter) (llvm::LLVMContext&);
 class TypeTable {
 public:
-	unsigned add(const char* name, typegetter* typeg, bool is_signed = false) {
-		llvm::Type* type = typeg(TheContext);
+	unsigned add(const char* name, llvm::Type* type, bool is_signed = false) {
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
-		auto it = name_table.insert({name, typeg});
+		auto it = name_table.insert({ name, is_signed ? (llvm::Type*)((uintptr_t)type | A_signed) : type });
 		if (it.second) {
 			union {
 				int_val_type_t int_type;
@@ -123,7 +120,7 @@ public:
 			} else {
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
-			key32_table[key] = typeg;
+			key32_table[key] = type;
 			return key;
 		} else {
 			return 0;
@@ -131,19 +128,28 @@ public:
 	}
 	llvm::Type* get_raw(const char* name) {
 		auto it = name_table.find(name);
-		return it == name_table.end() ? nullptr : it->second(TheContext);
+		return it == name_table.end() ? nullptr : it->second;
 	}
 	llvm::Type* get(const char* name) {
 		auto it = name_table.find(name);
-		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second(TheContext) & ~0x01ULL);
+		return it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL);
 	}
 	bool is_signed(const char* name) {
 		auto it = name_table.find(name);
-		return ((uintptr_t)it->second(TheContext) & 0x01ULL) != 0;
+		return (bool)((uintptr_t)it->second & A_signed);
+	}
+	static bool is_signed(unsigned _key) {
+		union {
+			int_val_type_t int_type;
+			gen_val_type_t gen_type;
+			unsigned key;
+		};
+		key = _key;
+		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
 	std::pair<llvm::Type*, bool> get_full(const char* name) {
 		auto it = name_table.find(name);
-		return { it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second(TheContext) & ~0x01ULL), ((uintptr_t)it->second(TheContext) & 0x01ULL) != 0 };
+		return { it == name_table.end() ? nullptr : (llvm::Type*)((uintptr_t)it->second & ~0x01ULL), ((uintptr_t)it->second & 0x01ULL) != 0 };
 	}
 	std::pair<llvm::Type*, bool> get_full(unsigned _key) {
 		union {
@@ -154,13 +160,13 @@ public:
 		key = _key;
 		auto it = key32_table.find(key);
 		bool is_signed = (int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed);
-		return { it == key32_table.end() ? nullptr : it->second(TheContext), is_signed };
+		return { it == key32_table.end() ? nullptr : it->second, is_signed };
 	}
 	
 	~TypeTable() = default;
 protected:
-	std::map<const char*, typegetter*> name_table;
-	std::map<unsigned, typegetter*> key32_table;
+	std::map<const char*, llvm::Type*> name_table;
+	std::map<unsigned, llvm::Type*> key32_table;
 };
 
 extern TypeTable type_table;

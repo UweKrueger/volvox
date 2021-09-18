@@ -41,19 +41,19 @@ static llvm::Type* getInt8PtrTy(llvm::LLVMContext &C) { return llvm::Type::getIn
 unsigned stringkey;
 
 void init() {
-	type_table.add("void", llvm::Type::getVoidTy);
-	type_table.add("bool", getInt1Ty);
-	type_table.add("i8", getInt8Ty, true);
-	type_table.add("i16", getInt16Ty, true);
-	type_table.add("i32", getInt32Ty, true);
-	type_table.add("i64", getInt64Ty, true);
-	type_table.add("u8", getInt8Ty);
-	type_table.add("u16", getInt16Ty);
-	type_table.add("u32", getInt32Ty);
-	type_table.add("u64", getInt64Ty);
-	type_table.add("f32", llvm::Type::getFloatTy);
-	type_table.add("f64", llvm::Type::getDoubleTy);
-	stringkey = type_table.add("string", getInt8PtrTy);
+	type_table.add("void", llvm::Type::getVoidTy(TheContext));
+	type_table.add("bool", getInt1Ty(TheContext));
+	type_table.add("i8", getInt8Ty(TheContext), true);
+	type_table.add("i16", getInt16Ty(TheContext), true);
+	type_table.add("i32", getInt32Ty(TheContext), true);
+	type_table.add("i64", getInt64Ty(TheContext), true);
+	type_table.add("u8", getInt8Ty(TheContext));
+	type_table.add("u16", getInt16Ty(TheContext));
+	type_table.add("u32", getInt32Ty(TheContext));
+	type_table.add("u64", getInt64Ty(TheContext));
+	type_table.add("f32", llvm::Type::getFloatTy(TheContext));
+	type_table.add("f64", llvm::Type::getDoubleTy(TheContext));
+	stringkey = type_table.add("string", getInt8PtrTy(TheContext));
 }
 
 //===----------------------------------------------------------------------===//
