@@ -16,13 +16,21 @@ MapNode* map_num_new_map() { return NULL; }
 
 // value_size: length including 0 when string values
 static MapNode* map_string_new_node(const char* key, MapValue value, unsigned int value_size) {
-	size_t keylen = strlen(key);
-	size_t nodesz = keylen + value_size < 8 ? sizeof(MapNode) : sizeof(MapNode) + keylen - 7 + value_size;
+	unsigned keylen = (unsigned)strlen(key) + 1;
+	if (value_size >= 8) {
+		keylen = ((keylen + 7) >> 3) << 3;
+	} else if (value_size >= 4) {
+		keylen = ((keylen + 3) >> 2) << 2;
+	} else if (value_size >= 2) {
+		keylen = ((keylen + 1) >> 1) << 1;
+	}
+	size_t nodesz = keylen + value_size <= 8 ? sizeof(MapNode) : sizeof(MapNode) + keylen - 8 + value_size;
 	MapNode* node = malloc(nodesz);
 	strcpy(&node->key.string[0], key);
 	if (value_size) {
-		memcpy(&node->key.string[0] + keylen + 1, value.src_ptr, value_size);
-		node->value.offset = sizeof(MapValue) + keylen + 1;
+		char* val_ptr = &node->key.string[0] + keylen;
+		memcpy(val_ptr, value.src_ptr, value_size);
+		node->value.offset = val_ptr - sizeof(MapValue);
 		node->value.size = value_size;
 	} else {
 		node->value = value;
