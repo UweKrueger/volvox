@@ -121,6 +121,8 @@ public:
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
 			key32_table[key] = type;
+			if (!is_signed)
+				type_table[type] = name;
 			return key;
 		} else {
 			return 0;
@@ -162,11 +164,15 @@ public:
 		bool is_signed = (int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed);
 		return { it == key32_table.end() ? nullptr : it->second, is_signed };
 	}
-	
+	const char* get_name(llvm::Type* type) {
+		auto it = type_table.find(type);
+		return it == type_table.end() ? nullptr : it->second;
+	}
 	~TypeTable() = default;
 protected:
 	std::map<const char*, llvm::Type*> name_table;
 	std::map<unsigned, llvm::Type*> key32_table;
+	std::map<llvm::Type*, const char*> type_table;
 };
 
 extern TypeTable type_table;

@@ -394,8 +394,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		auto type = ParseType();
-		if (!type.first)
-			return nullptr;
+		if (!type.first) {
+			return LogErrorP("Unexpected `%s` in method prototype - type name expected", CurTok.str().c_str());
+		}
 		ArgTypes.push_back(type.first);
 		ArgAttribs.push_back(type.second);
 	}
