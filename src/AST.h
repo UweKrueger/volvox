@@ -44,7 +44,7 @@ class VariableExprAST : public ExprAST {
 
 public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: ExprAST(type_table.get_full(Name.c_str()), Loc), Name(Name) {}
+		: ExprAST(type_table.get_full(/*typeof*/ Name.c_str()), Loc), Name(Name) {}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -94,21 +94,21 @@ public:
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes), as well as if it is an operator.
 class PrototypeAST {
+
+public:
 	std::vector<std::string> Args;
 	std::vector<llvm::Type*> ArgTypes;
 	std::vector<unsigned> ArgAttribs;
 	bool IsOperator;
 	int Line;
-
-public:
 	std::string Name;
 	llvm::Type* RetType;
 	unsigned type_attr;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 				 std::vector<std::string> Args, bool IsOperator = false,
-				 llvm::Type* RetType = llvm::Type::getDoubleTy(TheContext), unsigned type_attr = 0, std::vector<llvm::Type*> ArgTypes = {})
+				 llvm::Type* RetType = llvm::Type::getDoubleTy(TheContext), unsigned type_attr = 0, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
 		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
-		  Line(Loc.Line), RetType(RetType), type_attr(type_attr), ArgTypes(ArgTypes) {}
+		  Line(Loc.Line), RetType(RetType), type_attr(type_attr), ArgTypes(ArgTypes), ArgAttribs(ArgAttribs) {}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
@@ -226,4 +226,5 @@ public:
 		indent(out, ind) << "Body:";
 		return Body ? Body->dump(out, ind) : out << "null\n";
 	}
+	~FunctionAST() = default;
 };

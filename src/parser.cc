@@ -42,9 +42,19 @@ static std::unique_ptr<PrototypeAST> LogErrorP(const char *Str, ...) {
 	return nullptr;
 }
 
-void Expect(int tok) {
-	if (CurTok.type != tok)
+static bool Expect(int tok, bool expectBinary = false) {
+	bool res = CurTok.type == tok;
+	if (res) {
+		getNextToken(expectBinary);
+	} else {
 		LogErrorP("unexpected `%s` - expected `%s`", CurTok.str().c_str(), Token::tokName(tok).c_str());
+	}
+	return res;
+}
+
+static void Eat(int tok, bool expectBinary = false) {
+	if (CurTok.type == tok)
+		getNextToken(expectBinary);
 }
 
 std::pair<llvm::Type*, unsigned> ParseType() {
@@ -72,7 +82,7 @@ std::pair<llvm::Type*, unsigned> ParseType() {
 				break;
 			// else fallthough to error
 		default:
-			LogErrorP("Unexpected `%s` after `&` - type name expected", CurTok.str().c_str());
+			LogErrorP("Unexpected `%s` - type name expected", CurTok.str().c_str());
 			return { nullptr, 0 };
 		}
 	}
@@ -382,6 +392,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	std::vector<llvm::Type*> ArgTypes;
 	std::vector<unsigned> ArgAttribs;
 	bool is_method;
+	MapNode* args_table = map_string_new_map(); // lookup table for local variables - initialized here with args
 
 	switch (CurTok.type) {
 	case '(': {
@@ -399,6 +410,14 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}
 		ArgTypes.push_back(type.first);
 		ArgAttribs.push_back(type.second);
+		FullType full_type = {
+			.type = type.first,
+			.type_attr = type.second
+		};
+		MapValue full_t_ptr = { .src_ptr = &full_type };
+		map_string_insert(&args_table, IdentifierStr.c_str(), full_t_ptr, sizeof(FullType));
+		getNextToken();
+		Expect(')');
 	}
 	default:
 		is_method = false;
@@ -407,6 +426,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	case tok_identifier:
 		FnName = IdentifierStr;
 		Kind = 0;
+		fprintf(stderr, "fn declaration \"%s\"\n", FnName.c_str());
 		getNextToken();
 		break;
 	case tok_unary:
@@ -438,32 +458,49 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	default:
 		return LogErrorP("Expected function name in prototype");
 	}
-
-	if (CurTok.type != '(')
-		return LogErrorP("Expected '(' in prototype");
-
-	while (getNextToken().type == tok_identifier)
+	if (!Expect('(')) return nullptr;
+	if (CurTok.type == ')')
+		goto noargs;
+	for (;;) {
+		if (CurTok.type != tok_identifier)
+			return LogErrorP("Unexpected `%s` in function arg list - arg name expected", CurTok.str().c_str());
+		fprintf(stderr, "fn arg: >%s<\n", CurTok.str().c_str());
 		ArgNames.push_back(IdentifierStr);
-	if (CurTok.type != ')')
-		return LogErrorP("Expected ')' in prototype");
-
-	// success.
+		getNextToken();
+		fprintf(stderr, "fn type: >%s<\n", CurTok.str().c_str());
+		auto type = ParseType();
+		if (!type.first) {
+			return LogErrorP("Unexpected `%s` in function arg list - type name expected", CurTok.str().c_str());
+		}
+		ArgTypes.push_back(type.first);
+		ArgAttribs.push_back(type.second);
+		FullType full_type = {
+			.type = type.first,
+			.type_attr = type.second
+		};
+		MapValue full_t_ptr = { .src_ptr = &full_type };
+		map_string_insert(&args_table, IdentifierStr.c_str(), full_t_ptr, sizeof(FullType));
+		getNextToken();
+		if (CurTok.type == ')')
+			break;
+		Eat(tok_comma);
+	}
+noargs:
 	getNextToken(); // eat ')'.
 
 	// Verify right number of names for operator.
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, llvm::Type::getDoubleTy(TheContext), 0, ArgTypes, ArgAttribs);
 }
 
-/// definition ::= 'def' prototype expression
+/// definition ::= 'fn' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition() {
 	getNextToken(); // eat fn.
 	auto Proto = ParsePrototype();
 	if (!Proto)
 		return nullptr;
-
 	if (auto E = ParseExpression())
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	return nullptr;

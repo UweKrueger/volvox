@@ -100,6 +100,17 @@ struct gen_val_type_t {
 	unsigned SubclassData : 24;
 };
 
+struct FullType {
+	llvm::Type* type;
+	llvm::AllocaInst* val;
+	unsigned type_attr;
+	// union {
+	// 	int_val_type_t int_type;
+	// 	gen_val_type_t gen_type;
+	// 	unsigned key;
+	// };
+};
+
 // small hack to access protected method
 class genType : protected llvm::Type {
 public:
@@ -181,13 +192,13 @@ public:
 	}
 protected:
 	MapNode* name_table;
-	//std::map<const char*, llvm::Type*> name_table;
 	std::map<unsigned, llvm::Type*> key32_table;
 	std::map<llvm::Type*, const char*> typeptr_table;
 };
 
 extern TypeTable type_table;
 extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+extern MapNode* globals_table;
 
 class ExprAST {
 	SourceLocation Loc;
