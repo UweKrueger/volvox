@@ -62,13 +62,13 @@ extern MapNode* map_string_new_map();
 extern MapNode* map_num_new_map();
 
 // value_size: size of generic value (including 0 for strings)
-extern void map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size);
-extern void map_u64_insert(MapNode** root_ptr, u64 key, MapValue value, int value_size);
-extern void map_i64_insert(MapNode** root_ptr, i64 key, MapValue value, int value_size);
-extern void map_u32_insert(MapNode** root_ptr, u32 key, MapValue value, int value_size);
-extern void map_i32_insert(MapNode** root_ptr, i32 key, MapValue value, int value_size);
-extern void map_f32_insert(MapNode** root_ptr, f32 key, MapValue value, int value_size);
-extern void map_f64_insert(MapNode** root_ptr, f64 key, MapValue value, int value_size);
+extern bool map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size);
+extern bool map_u64_insert(MapNode** root_ptr, u64 key, MapValue value, int value_size);
+extern bool map_i64_insert(MapNode** root_ptr, i64 key, MapValue value, int value_size);
+extern bool map_u32_insert(MapNode** root_ptr, u32 key, MapValue value, int value_size);
+extern bool map_i32_insert(MapNode** root_ptr, i32 key, MapValue value, int value_size);
+extern bool map_f32_insert(MapNode** root_ptr, f32 key, MapValue value, int value_size);
+extern bool map_f64_insert(MapNode** root_ptr, f64 key, MapValue value, int value_size);
 
 extern bool map_string_delete(MapNode** root_ptr, const char* key);
 extern bool map_u64_delete(MapNode** root_ptr, u64 key);

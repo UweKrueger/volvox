@@ -299,33 +299,35 @@ DEFINE_MAP_FIND_FOR(i32)
 DEFINE_MAP_FIND_FOR(f32)
 DEFINE_MAP_FIND_FOR(f64)
 
-void map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size) {
+bool map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size) {
 	MapNode* node = map_string_new_node(key, value, value_size);
 	NodePosition insert_pos = map_string_find(root_ptr, key);
 	if(insert_pos.is_parent) {
 		map_insert_priv(root_ptr, node, (MapNode*)((uintptr_t)insert_pos.node & ~0x01), insert_pos.parent_ptr);
+		return true;
 	} else {
 		// replace current element with new
 		node->parent = insert_pos.node->parent;
 		node->leftChild = insert_pos.node->leftChild;
 		node->rightChild = insert_pos.node->rightChild;
 		free(insert_pos.node);
+		return false;
 	}
-	return;
 }
 
-#define DEFINE_MAP_INSERT_FOR(typ) void map_ ## typ ## _insert(MapNode** root_ptr, typ key, MapValue value, int value_size) { \
+#define DEFINE_MAP_INSERT_FOR(typ) bool map_ ## typ ## _insert(MapNode** root_ptr, typ key, MapValue value, int value_size) { \
 	MapNode* node = map_ ## typ ## _new_node(key, value, value_size); \
 	NodePosition insert_pos = map_ ## typ ## _find(root_ptr, key); \
 	if(insert_pos.is_parent) { \
 		map_insert_priv(root_ptr, node, (MapNode*)((uintptr_t)insert_pos.node & ~0x01), insert_pos.parent_ptr); \
+		return true; \
 	} else { \
 		node->parent = insert_pos.node->parent; \
 		node->leftChild = insert_pos.node->leftChild; \
 		node->rightChild = insert_pos.node->rightChild; \
 		free(insert_pos.node); \
+		return false; \
 	} \
-	return; \
 }
 
 DEFINE_MAP_INSERT_FOR(u64)
