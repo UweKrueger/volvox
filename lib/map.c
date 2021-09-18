@@ -15,7 +15,7 @@ MapNode* map_string_new_map() { return NULL; }
 MapNode* map_num_new_map() { return NULL; }
 
 // value_size: length including 0 when string values
-static MapNode* map_string_new_node(char* key, MapValue value, unsigned int value_size) {
+static MapNode* map_string_new_node(const char* key, MapValue value, unsigned int value_size) {
 	size_t keylen = strlen(key);
 	size_t nodesz = keylen + value_size < 8 ? sizeof(MapNode) : sizeof(MapNode) + keylen - 7 + value_size;
 	MapNode* node = malloc(nodesz);
@@ -235,15 +235,15 @@ static void map_insert_priv(MapNode** root_ptr, MapNode* node, MapNode* parent, 
 	}
 }
 
-static NodePosition map_string_find(MapNode** parent_ptr, char* key) {
+static NodePosition map_string_find(MapNode** parent_ptr, const char* key) {
 	NodePosition pos;
 	MapNode* curr;
 	MapNode* parent = *parent_ptr ? (*parent_ptr)->parent : NULL;
 	for(;;) {
 		curr = *parent_ptr;
 		if (!curr) break;
-		char* k = key;
-		for (char* c = curr->key.string; ; c++, k++) {
+		const char* k = key;
+		for (const char* c = curr->key.string; ; c++, k++) {
 			if (!*c) {
 				if(!*k) {
 					goto pos_found;
@@ -299,7 +299,7 @@ DEFINE_MAP_FIND_FOR(i32)
 DEFINE_MAP_FIND_FOR(f32)
 DEFINE_MAP_FIND_FOR(f64)
 
-void map_string_insert(MapNode** root_ptr, char* key, MapValue value, int value_size) {
+void map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size) {
 	MapNode* node = map_string_new_node(key, value, value_size);
 	NodePosition insert_pos = map_string_find(root_ptr, key);
 	if(insert_pos.is_parent) {
@@ -335,7 +335,7 @@ DEFINE_MAP_INSERT_FOR(i32)
 DEFINE_MAP_INSERT_FOR(f32)
 DEFINE_MAP_INSERT_FOR(f64)
 
-void map_dump_priv(MapNode* curr, char* indent, bool is_right, map_node_printer* prt) {
+char* indent, bool is_right, map_node_printer* prt) {
 	if (!curr) return;
 	int cur_len = strlen(indent);
 	if (curr->leftChild) {
@@ -391,7 +391,7 @@ void map_prt_str_int(int bf, MapKey* key, MapValue* value) {
 void map_prt_str_str(int bf, MapKey* key, MapValue* value) {
 	fputs(" \"", stdout);
 	fputs(key->string, stdout);
-	printf("\": %d \"%s\"\n", bf, (char*)value + value->offset);
+	printf("\": %d \"%s\"\n", bf, (const char*)value + value->offset);
 }
 
 static bool map_delete_priv(MapNode** root_ptr, MapNode* curr) {
@@ -548,7 +548,7 @@ static bool map_delete_priv(MapNode** root_ptr, MapNode* curr) {
 	return true;
 }
 
-bool map_string_delete(MapNode** root_ptr, char* key) {
+bool map_string_delete(MapNode** root_ptr, const char* key) {
 	NodePosition pos = map_string_find(root_ptr, key);
 	return pos.is_parent ? false : map_delete_priv(root_ptr, pos.node);
 }
@@ -586,30 +586,30 @@ int map_check_avl_get_depth(MapNode* node) {
 	int left = map_check_avl_get_depth(node->leftChild);
 	if (left) {
 		if (PARENT(node->leftChild) != node) {
-			char* parkey = PARENT(node->leftChild) ? (char*)PARENT(node->leftChild)->key.string : "<none>";
-			fprintf(stderr, "wrong parent of \"%s\"; expected \"%s\", got \"%s\"\n", (char*)node->leftChild->key.string, (char*)node->key.string, parkey);
+			const char* parkey = PARENT(node->leftChild) ? (const char*)PARENT(node->leftChild)->key.string : "<none>";
+			fprintf(stderr, "wrong parent of \"%s\"; expected \"%s\", got \"%s\"\n", (const char*)node->leftChild->key.string, (const char*)node->key.string, parkey);
 		}
 		if (strcmp(node->leftChild->key.string, node->key.string) >= 0) {
-			fprintf(stderr, "wrong order: \"%s\" \"%s\"\n", (char*)node->leftChild->key.string, (char*)node->key.string);
+			fprintf(stderr, "wrong order: \"%s\" \"%s\"\n", (const char*)node->leftChild->key.string, (const char*)node->key.string);
 		}
 
 	}
 	int right = map_check_avl_get_depth(node->rightChild);
 	if (right) {
 		if (PARENT(node->rightChild) != node) {
-			char* parkey = PARENT(node->rightChild) ? (char*)PARENT(node->rightChild)->key.string : "<none>";
-			fprintf(stderr, "wrong parent of \"%s\"; expected \"%s\", got \"%s\"\n", (char*)node->rightChild->key.string, (char*)node->key.string, parkey);
+			const char* parkey = PARENT(node->rightChild) ? (const char*)PARENT(node->rightChild)->key.string : "<none>";
+			fprintf(stderr, "wrong parent of \"%s\"; expected \"%s\", got \"%s\"\n", (const char*)node->rightChild->key.string, (const char*)node->key.string, parkey);
 		}
 		if (strcmp(node->key.string, node->rightChild->key.string) >= 0) {
-			fprintf(stderr, "wrong order: \"%s\" \"%s\"\n", (char*)node->key.string, (char*)node->rightChild->key.string);
+			fprintf(stderr, "wrong order: \"%s\" \"%s\"\n", (const char*)node->key.string, (const char*)node->rightChild->key.string);
 		}
 	}
 	int diff = right - left;
 	if (node->bf != diff) {
-		fprintf(stderr, "wrong balance factor for \"%s\"; expected %d, got %d\n", (char*)node->key.string, diff, node->bf);
+		fprintf(stderr, "wrong balance factor for \"%s\"; expected %d, got %d\n", (const char*)node->key.string, diff, node->bf);
 	}
 	if (diff < -1 || diff > 1) {
-		fprintf(stderr, "wrong balance factor for \"%s\" - %d out of range\n", (char*)node->key.string, diff);
+		fprintf(stderr, "wrong balance factor for \"%s\" - %d out of range\n", (const char*)node->key.string, diff);
 	}
 	return ((right > left) ? right : left) + 1;
 }
@@ -662,7 +662,7 @@ MapNode* map_iter_down(MapNode* elem) {
 	return elem;
 }
 
-MapValue* map_string_get(MapNode* root, char* key) {
+MapValue* map_string_get(MapNode* root, const char* key) {
 	NodePosition pos =  map_string_find(&root, key);
 	return pos.is_parent ? NULL : &pos.node->value; 
 }
