@@ -1,6 +1,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <stdbool.h>
 
 typedef uint64_t u64;
 typedef int64_t i64;
@@ -69,13 +70,13 @@ extern void map_i32_insert(MapNode** root_ptr, i32 key, MapValue value, int valu
 extern void map_f32_insert(MapNode** root_ptr, f32 key, MapValue value, int value_size);
 extern void map_f64_insert(MapNode** root_ptr, f64 key, MapValue value, int value_size);
 
-extern _Bool map_string_delete(MapNode** root_ptr, const char* key);
-extern _Bool map_u64_delete(MapNode** root_ptr, u64 key);
-extern _Bool map_i64_delete(MapNode** root_ptr, i64 key);
-extern _Bool map_u32_delete(MapNode** root_ptr, u32 key);
-extern _Bool map_i32_delete(MapNode** root_ptr, i32 key);
-extern _Bool map_f32_delete(MapNode** root_ptr, f32 key);
-extern _Bool map_f64_delete(MapNode** root_ptr, f64 key);
+extern bool map_string_delete(MapNode** root_ptr, const char* key);
+extern bool map_u64_delete(MapNode** root_ptr, u64 key);
+extern bool map_i64_delete(MapNode** root_ptr, i64 key);
+extern bool map_u32_delete(MapNode** root_ptr, u32 key);
+extern bool map_i32_delete(MapNode** root_ptr, i32 key);
+extern bool map_f32_delete(MapNode** root_ptr, f32 key);
+extern bool map_f64_delete(MapNode** root_ptr, f64 key);
 
 extern void map_destroy(MapNode* root);
 

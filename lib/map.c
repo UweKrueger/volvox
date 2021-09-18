@@ -335,7 +335,7 @@ DEFINE_MAP_INSERT_FOR(i32)
 DEFINE_MAP_INSERT_FOR(f32)
 DEFINE_MAP_INSERT_FOR(f64)
 
-char* indent, bool is_right, map_node_printer* prt) {
+void map_dump_priv(MapNode* curr, char* indent, bool is_right, map_node_printer* prt) {
 	if (!curr) return;
 	int cur_len = strlen(indent);
 	if (curr->leftChild) {
