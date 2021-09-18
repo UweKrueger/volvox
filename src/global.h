@@ -253,7 +253,38 @@ public:
 		unsigned key;
 	};
 	union LitValue Val;
-	std::string str() const { return this->tokName(); }
+	std::string str() const {
+		switch (type) {
+		case tok_identifier:
+		case tok_assign:
+		case tok_cmp:
+		case tok_add:
+		case tok_mult:
+		case tok_unary:
+		case tok_postfix:
+			return IdentifierStr;
+		case tok_number:
+			switch (int_type.ID) {
+			case llvm::Type::IntegerTyID:
+				if (int_type.is_signed)
+					return std::to_string(Val.Int);
+				else
+					return std::to_string(Val.Uint);
+			case llvm::Type::HalfTyID:
+			case llvm::Type::BFloatTyID:
+			case llvm::Type::FloatTyID:
+			case llvm::Type::DoubleTyID:
+				return std::to_string(Val.Float);
+			default:
+				fprintf(stderr, "internal compiler error: cannot print numeric literal of type %d\n", int_type.ID);
+				return "";
+			}
+		case tok_str_lit:
+			return Val.Str;
+		default:
+			return this->tokName();
+		}
+	}
 };
 	
 extern Token CurTok;
