@@ -30,7 +30,7 @@ static MapNode* map_string_new_node(const char* key, MapValue value, unsigned in
 	if (value_size) {
 		char* val_ptr = &node->key.string[0] + keylen;
 		memcpy(val_ptr, value.src_ptr, value_size);
-		node->value.offset = val_ptr - sizeof(MapValue);
+		node->value.offset = val_ptr - (char*)&node->value;
 		node->value.size = value_size;
 	} else {
 		node->value = value;

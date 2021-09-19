@@ -11,13 +11,13 @@ typedef float f32;
 typedef double f64;
 
 typedef union MapValue {
-	unsigned long long int u64;
-	long long int i64;
-	unsigned int u32;
-	int i32;
-	float f32;
-	double f64;
 	union {
+		unsigned long long int u64;
+		long long int i64;
+		unsigned int u32;
+		int i32;
+		float f32;
+		double f64;
 		struct {
 			unsigned int offset;
 			unsigned int size;
