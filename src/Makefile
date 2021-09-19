@@ -40,6 +40,10 @@ $(PROG): $(OBJS)
 clean:
 	rm -f $(OBJS) $(PCH)
 
+.PHONY: distclean
+distclean:
+	rm -f $(PROG) $(OBJS) *~ ../include/*~ ../include/*.gch .depend
+
 .PHONY: depend
 depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend

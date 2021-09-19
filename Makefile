@@ -8,8 +8,11 @@ srcdir:
 
 .PHONY: clean
 clean:
-	rm -f volvox
 	cd src && $(MAKE) clean
+
+.PHONY: distclean
+distclean:
+	cd src && $(MAKE) distclean
 
 .PHONY: depend
 depend:
