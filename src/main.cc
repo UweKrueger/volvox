@@ -11,16 +11,15 @@ TypeTable type_table;
 //===----------------------------------------------------------------------===//
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
-
-llvm::LLVMContext TheContext;
-static std::unique_ptr<llvm::Module> Owner;
-static llvm::Module* TheModule;
+static std::unique_ptr<llvm::LLVMContext> TheContext;
+llvm::orc::ThreadSafeContext Context;
+static std::unique_ptr<llvm::Module> TheModule;
 static std::unique_ptr<llvm::IRBuilder<>> Builder;
 static llvm::ExitOnError ExitOnErr;
 
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;
 static std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
-static llvm::ExecutionEngine* TheJIT;
+static std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
@@ -43,19 +42,19 @@ static llvm::Type* getInt8PtrTy(llvm::LLVMContext &C) { return llvm::Type::getIn
 unsigned stringkey;
 
 void init() {
-	type_table.add("void", llvm::Type::getVoidTy(TheContext));
-	type_table.add("bool", getInt1Ty(TheContext));
-	type_table.add("i8", getInt8Ty(TheContext), true);
-	type_table.add("i16", getInt16Ty(TheContext), true);
-	type_table.add("i32", getInt32Ty(TheContext), true);
-	type_table.add("i64", getInt64Ty(TheContext), true);
-	type_table.add("u8", getInt8Ty(TheContext));
-	type_table.add("u16", getInt16Ty(TheContext));
-	type_table.add("u32", getInt32Ty(TheContext));
-	type_table.add("u64", getInt64Ty(TheContext));
-	type_table.add("f32", llvm::Type::getFloatTy(TheContext));
-	type_table.add("f64", llvm::Type::getDoubleTy(TheContext));
-	stringkey = type_table.add("string", getInt8PtrTy(TheContext));
+	type_table.add("void", llvm::Type::getVoidTy(*Context.getContext()));
+	type_table.add("bool", getInt1Ty(*Context.getContext()));
+	type_table.add("i8", getInt8Ty(*Context.getContext()), true);
+	type_table.add("i16", getInt16Ty(*Context.getContext()), true);
+	type_table.add("i32", getInt32Ty(*Context.getContext()), true);
+	type_table.add("i64", getInt64Ty(*Context.getContext()), true);
+	type_table.add("u8", getInt8Ty(*Context.getContext()));
+	type_table.add("u16", getInt16Ty(*Context.getContext()));
+	type_table.add("u32", getInt32Ty(*Context.getContext()));
+	type_table.add("u64", getInt64Ty(*Context.getContext()));
+	type_table.add("f32", llvm::Type::getFloatTy(*Context.getContext()));
+	type_table.add("f64", llvm::Type::getDoubleTy(*Context.getContext()));
+	stringkey = type_table.add("string", getInt8PtrTy(*Context.getContext()));
 	globals_table = map_string_new_map();
 }
 
@@ -143,12 +142,12 @@ llvm::Value *LiteralExprAST::codegen() {
 	}
 	switch (type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		return llvm::ConstantInt::get(TheContext, llvm::APInt(type->getIntegerBitWidth(), Val.Uint, type_attr & A_signed));
+		return llvm::ConstantInt::get(*Context.getContext(), llvm::APInt(type->getIntegerBitWidth(), Val.Uint, type_attr & A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
 	case llvm::Type::FloatTyID:
 	case llvm::Type::DoubleTyID:
-		return llvm::ConstantFP::get(TheContext, llvm::APFloat(Val.Float));
+		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
 		return Builder->CreateGlobalStringPtr(Val.Str);
 	default:
@@ -168,7 +167,7 @@ llvm::Value *VariableExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Load the value.
-	return Builder->CreateLoad(llvm::Type::getDoubleTy(TheContext), V, Name.c_str());
+	return Builder->CreateLoad(llvm::Type::getDoubleTy(*Context.getContext()), V, Name.c_str());
 }
 
 llvm::Value *UnaryExprAST::codegen() {
@@ -291,7 +290,7 @@ llvm::Value *BinaryExprAST::codegen() {
 	} else if (!strcmp(Op, "<")) {
 		L = Builder->CreateFCmpULT(L, R, "cmptmp");
 		// Convert bool 0/1 to double 0.0 or 1.0
-		return Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(TheContext), "booltmp");
+		return Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*Context.getContext()), "booltmp");
 	}
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
@@ -335,15 +334,15 @@ llvm::Value *IfExprAST::codegen() {
 
 	// Convert condition to a bool by comparing non-equal to 0.0.
 	CondV = Builder->CreateFCmpONE(
-		CondV, llvm::ConstantFP::get(TheContext, llvm::APFloat(0.0)), "ifcond");
+		CondV, llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(0.0)), "ifcond");
 
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(TheContext, "then", TheFunction);
-	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(TheContext, "else");
-	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(TheContext, "ifcont");
+	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(*Context.getContext(), "then", TheFunction);
+	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(*Context.getContext(), "else");
+	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(*Context.getContext(), "ifcont");
 
 	Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 
@@ -373,7 +372,7 @@ llvm::Value *IfExprAST::codegen() {
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
-	llvm::PHINode *PN = Builder->CreatePHI(llvm::Type::getDoubleTy(TheContext), 2, "iftmp");
+	llvm::PHINode *PN = Builder->CreatePHI(llvm::Type::getDoubleTy(*Context.getContext()), 2, "iftmp");
 
 	PN->addIncoming(ThenV, ThenBB);
 	PN->addIncoming(ElseV, ElseBB);
@@ -403,7 +402,7 @@ llvm::Value *ForExprAST::codegen() {
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create an alloca for the variable in the entry block.
-	llvm::Type* AllocaT = llvm::Type::getInt32Ty(TheContext);
+	llvm::Type* AllocaT = llvm::Type::getInt32Ty(*Context.getContext());
 	unsigned AllocaF = A_signed;
 	llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName, AllocaT);
 
@@ -420,7 +419,7 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Make the new basic block for the loop header, inserting after current
 	// block.
-	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(TheContext, "loop", TheFunction);
+	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(*Context.getContext(), "loop", TheFunction);
 
 	// Insert an explicit fall through from the current block to the LoopBB.
 	Builder->CreateBr(LoopBB);
@@ -456,7 +455,7 @@ llvm::Value *ForExprAST::codegen() {
 			return nullptr;
 	} else {
 		// If not specified, use 1.0.
-		StepVal = llvm::ConstantFP::get(TheContext, llvm::APFloat(1.0));
+		StepVal = llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(1.0));
 	}
 
 	// Compute the end condition.
@@ -466,18 +465,18 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Reload, increment, and restore the alloca.  This handles the case where
 	// the body of the loop mutates the variable.
-	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(TheContext), Alloca,
+	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(*Context.getContext()), Alloca,
 											  VarName.c_str());
 	llvm::Value *NextVar = Builder->CreateFAdd(CurVar, StepVal, "nextvar");
 	Builder->CreateStore(NextVar, Alloca);
 
 	// Convert condition to a bool by comparing non-equal to 0.0.
 	EndCond = Builder->CreateFCmpONE(
-		EndCond, llvm::ConstantFP::get(TheContext, llvm::APFloat(0.0)), "loopcond");
+		EndCond, llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(0.0)), "loopcond");
 
 	// Create the "after loop" block and insert it.
 	llvm::BasicBlock *AfterBB =
-		llvm::BasicBlock::Create(TheContext, "afterloop", TheFunction);
+		llvm::BasicBlock::Create(*Context.getContext(), "afterloop", TheFunction);
 
 	// Insert the conditional branch into the end of LoopEndBB.
 	Builder->CreateCondBr(EndCond, LoopBB, AfterBB);
@@ -491,7 +490,7 @@ llvm::Value *ForExprAST::codegen() {
 	else
 		map_string_delete(&locals_table, VarName.c_str());
 	// for expr always returns 0.0.
-	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(TheContext));
+	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*Context.getContext()));
 }
 
 llvm::Value *VarExprAST::codegen() {
@@ -517,10 +516,10 @@ llvm::Value *VarExprAST::codegen() {
 			if (!InitVal)
 				return nullptr;
 		} else { // If not specified, use 0.0.
-			InitVal = llvm::ConstantFP::get(TheContext, llvm::APFloat(0.0));
+			InitVal = llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(0.0));
 		}
 
-		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName, llvm::Type::getInt32Ty(TheContext));
+		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName, llvm::Type::getInt32Ty(*Context.getContext()));
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createAutoVariable(
@@ -565,7 +564,7 @@ llvm::Function *PrototypeAST::codegen() {
 		llvm::FunctionType::get(RetType, ArgTypes, false);
 
 	llvm::Function *F =
-		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule);
+		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
 
 	// Set names for all arguments.
 	unsigned Idx = 0;
@@ -585,7 +584,7 @@ llvm::Function *FunctionAST::codegen() {
 		return nullptr;
 
 	// Create a new basic block to start insertion into.
-	llvm::BasicBlock *BB = llvm::BasicBlock::Create(TheContext, "entry", TheFunction);
+	llvm::BasicBlock *BB = llvm::BasicBlock::Create(*Context.getContext(), "entry", TheFunction);
 	Builder->SetInsertPoint(BB);
 	// llvm::DISubprogram *SP; - make static
 	// llvm::DIFile *Unit;
@@ -679,22 +678,21 @@ static void InitializeModuleAndPassManager() {
 	// Open a new module.
 	static bool has_run = false;
 	if (!has_run) {
+		TheContext = std::make_unique<llvm::LLVMContext>();
+		Context = llvm::orc::ThreadSafeContext(std::move(TheContext));
 		init();
-		has_run = true;
 	}
-	Owner = std::make_unique<llvm::Module>("test", TheContext);
-	TheModule = Owner.get();
-	TheJIT = llvm::EngineBuilder(std::move(Owner)).create();
-
+	TheModule = std::make_unique<llvm::Module>("my cool jit", *Context.getContext());
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		// TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
+	
 	// Create a new builder for the module.
-	Builder = std::make_unique<llvm::IRBuilder<>>(TheContext);
+	Builder = std::make_unique<llvm::IRBuilder<>>(*Context.getContext());
 
 	if (comp_mode == comp_jit) {
 		// Create a new pass manager attached to it.
-		TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule);
+		TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 	  
 		// Promote allocas to registers.
 		TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
@@ -718,14 +716,11 @@ static void HandleDefinition() {
 				fprintf(stderr, "Read function definition:");
 				FnIR->print(llvm::errs());
 				fprintf(stderr, "\n");
-				/*
-				  if (comp_mode == comp_jit) {
-				  ExitOnErr(TheJIT->addModule(
-				  llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext))));
-				  InitializeModuleAndPassManager();
-				  }
-				*/
-				//InitializeModuleAndPassManager();
+				if (comp_mode == comp_jit) {
+					ExitOnErr(TheJIT->addModule(
+								  llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+					InitializeModuleAndPassManager();
+				}
 			}
 		} else {
 			fprintf(stderr, "Error reading function definition:");
@@ -769,41 +764,41 @@ static void HandleTopLevelExpression() {
 			if (comp_mode == comp_jit) {
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
-				// auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 			  
-				//auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), std::move(TheContext));
-				//ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), Context);
+				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 			  
+				InitializeModuleAndPassManager();
 				// Search the JIT for the __anon_expr symbol.
-				//auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
+				auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
 			  
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a double) so we can call it as a native function.
-				std::vector<llvm::GenericValue> Args;
-				llvm::GenericValue gv = TheJIT->runFunction(anon_expr, Args);
-				InitializeModuleAndPassManager();
+				//std::vector<llvm::GenericValue> Args;
+				//llvm::GenericValue gv = TheJIT->runFunction(anon_expr, Args);
 				switch (RetType) {
 				case llvm::Type::DoubleTyID:
 				{
-					fprintf(stderr, "Evaluated to %f\n", gv.DoubleVal);
+					double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
+					fprintf(stderr, "Evaluated to %f\n", FP());
 				}
 				break;
 				case llvm::Type::IntegerTyID:
 				{
-					auto int_val = gv.IntVal;
 					if (ret_type_attr & A_signed) {
-						auto val = int_val.getSExtValue();
-						fprintf(stderr, "Evaluated to %ld\n", val);
+						int (*INT)() = (int (*)())(intptr_t)ExprSymbol.getAddress();
+						fprintf(stderr, "Evaluated to %d\n", INT());
 					} else {
-						auto val = int_val.getZExtValue();
-						fprintf(stderr, "Evaluated to %lu\n", val);
+						unsigned (*UINT)() = (unsigned (*)())(intptr_t)ExprSymbol.getAddress();
+						fprintf(stderr, "Evaluated to %u\n", UINT());
 					}
 				}
 				break;
 				case llvm::Type::PointerTyID: // should be more sophisticated
 				{
-					auto sp = gv.PointerVal;
-					fprintf(stderr, "Evaluated to >%s<\n", (char*)sp);
+					const char* (*SP)() = (const char* (*)())(intptr_t)ExprSymbol.getAddress();
+					fprintf(stderr, "Evaluated to >%s<\n", SP());
 				}
 				break;
 				default:
@@ -909,7 +904,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		// TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
+		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
 	}
 
 	InitializeModuleAndPassManager();

@@ -1,5 +1,5 @@
 #pragma once
-
+#include <llvm/ExecutionEngine/Orc/ThreadSafeModule.h>
 extern "C" {
 #include "../lib/map.h"
 }
@@ -71,7 +71,7 @@ struct SourceLocation {
 // Types
 extern unsigned stringkey;
 
-extern llvm::LLVMContext TheContext;
+extern llvm::orc::ThreadSafeContext Context;
 extern SourceLocation CurLoc;
 
 /// ExprAST - Base class for all expression nodes.
@@ -218,7 +218,7 @@ public:
 	llvm::Type* type;
 	unsigned type_attr;
 	// construct from type and attributes
-	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(TheContext), unsigned type_attr = 0, SourceLocation Loc = CurLoc) : Loc(Loc), type(type), type_attr(type_attr) {}
+	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0, SourceLocation Loc = CurLoc) : Loc(Loc), type(type), type_attr(type_attr) {}
 	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc) : Loc(Loc), type(p.first), type_attr(p.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched

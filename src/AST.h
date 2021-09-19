@@ -107,7 +107,7 @@ public:
 	unsigned type_attr;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 				 std::vector<std::string> Args, bool IsOperator = false,
-				 llvm::Type* RetType = llvm::Type::getDoubleTy(TheContext), unsigned type_attr = 0, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
+				 llvm::Type* RetType = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
 		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
 		  Line(Loc.Line), RetType(RetType), type_attr(type_attr), ArgTypes(ArgTypes), ArgAttribs(ArgAttribs) {}
 	llvm::Function *codegen();
@@ -157,7 +157,7 @@ class IfExprAST : public ExprAST {
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 			  std::unique_ptr<ExprAST> Then, std::unique_ptr<ExprAST> Else)
-		: ExprAST(llvm::Type::getDoubleTy(TheContext), 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
+		: ExprAST(llvm::Type::getDoubleTy(*Context.getContext()), 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
 		  Else(std::move(Else)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

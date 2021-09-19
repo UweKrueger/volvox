@@ -487,7 +487,7 @@ noargs:
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, llvm::Type::getDoubleTy(TheContext), 0, ArgTypes, ArgAttribs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, llvm::Type::getDoubleTy(*Context.getContext()), 0, ArgTypes, ArgAttribs);
 }
 
 /// definition ::= 'fn' prototype expression
@@ -517,13 +517,11 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 
 /// toplevelexpr ::= expression
 std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
-	static unsigned n = 0;
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
 		// Make an anonymous proto.
 		char* name = nullptr;
-		asprintf(&name, "__anon_expr_%u", n++);
-		auto Proto = std::make_unique<PrototypeAST>(FnLoc, name,
+		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 													std::vector<std::string>(),
 													false, E->type, E->type_attr);
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
