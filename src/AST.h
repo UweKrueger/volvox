@@ -73,10 +73,10 @@ public:
 
 /// BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
-	char Op[4];
-	std::unique_ptr<ExprAST> LHS, RHS;
 
 public:
+	char Op[4];
+	std::unique_ptr<ExprAST> LHS, RHS;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
 				  std::unique_ptr<ExprAST> RHS)
 		: ExprAST(LHS->type, LHS->type_attr, Loc), LHS(std::move(LHS)), RHS(std::move(RHS)) {

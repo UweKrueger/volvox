@@ -53,8 +53,12 @@ static bool Expect(int tok, bool expectBinary = false) {
 }
 
 static void Eat(int tok, bool expectBinary = false) {
-	if (CurTok.type == tok)
+	if (CurTok.type == tok) {
 		getNextToken(expectBinary);
+		fprintf(stderr, "\"%d\" found - next token: \"%s\"", tok, CurTok.str().c_str());
+	} else {
+		fprintf(stderr, "\"%d\" not found - got: \"%s\", %d", tok, CurTok.str().c_str(), CurTok.type);
+	}
 }
 
 std::pair<llvm::Type*, unsigned> ParseType() {
@@ -139,23 +143,23 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	getNextToken(); // eat (
 	std::vector<std::unique_ptr<ExprAST>> Args;
 	if (CurTok.type != ')') {
-		while (true) {
-			if (auto Arg = ParseExpression())
-				Args.push_back(std::move(Arg));
-			else
-				return nullptr;
-
-			if (CurTok.type == ')')
-				break;
-
-			if (CurTok.type != ',')
-				return LogError("Expected ')' or ',' in argument list");
-			getNextToken();
+		if (auto Arg = ParseExpression()) {
+			// split expression list if we have one
+			while (auto bin_expr = dynamic_cast<BinaryExprAST*>(Arg.get())) {
+				if (bin_expr->Op[0] == ',') {
+					Args.insert(Args.begin(), std::move(bin_expr->RHS));
+					Arg = std::move(bin_expr->LHS);
+				} else {
+					break;
+				}
+			}
+			Args.insert(Args.begin(), std::move(Arg));
+		} else {
+			return nullptr;
 		}
 	}
-
 	// Eat the ')'.
-	getNextToken(true);
+	Expect(')');
 
 	return std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
 }
@@ -475,10 +479,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			.type = type.first,
 			.type_attr = type.second
 		};
-		getNextToken();
+		getNextToken(true);
 		if (CurTok.type == ')')
 			break;
-		Eat(tok_comma);
+		Eat(tok_comma, true);
 	}
 noargs:
 	getNextToken(); // eat ')'.

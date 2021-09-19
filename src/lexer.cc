@@ -62,9 +62,11 @@ Token Lexer::gettok(bool expectBinary) {
 				CurChar = advance();
 				return tok_assign;
 			} else {
+				IdentifierStr = "=";
 				return tok_colon;
 			}
 		case ',':
+			IdentifierStr = CurChar;
 			CurChar = advance();
 			return tok_comma;
 		case '=':
