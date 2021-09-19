@@ -35,3 +35,6 @@ volvox
 # Backup files
 *.bak
 *~
+
+# Automatically Generated Dependencies
+.depend
