@@ -681,10 +681,11 @@ static void InitializeModuleAndPassManager() {
 		TheContext = std::make_unique<llvm::LLVMContext>();
 		Context = llvm::orc::ThreadSafeContext(std::move(TheContext));
 		init();
+		has_run = true;
 	}
 	TheModule = std::make_unique<llvm::Module>("my cool jit", *Context.getContext());
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		// TheModule->setDataLayout(TheJIT->getDataLayout());
+		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
 	
 	// Create a new builder for the module.
@@ -806,7 +807,7 @@ static void HandleTopLevelExpression() {
 				}
 
 				// Delete the anonymous expression module from the JIT.
-				// ExitOnErr(RT->remove());
+				ExitOnErr(RT->remove());
 			}
 		} else {
 			fprintf(stderr, "Error generating code for top level expr");
