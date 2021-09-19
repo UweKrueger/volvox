@@ -69,7 +69,6 @@ struct SourceLocation {
 };
 
 // Types
-extern unsigned stringkey;
 
 extern llvm::orc::ThreadSafeContext Context;
 extern SourceLocation CurLoc;

@@ -118,8 +118,9 @@ Token::Token(char** s_ptr) : type(tok_number) {
 	}
 }
 				
-Token::Token(const std::string& str) : type(tok_str_lit) {						
-	key = stringkey;
+Token::Token(const std::string& str) : type(tok_str_lit) {
+	auto llvmtype = llvm::Type::getInt8PtrTy(*Context.getContext());
+	gen_type = { .ID = llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 	Val.Str = strdup(str.c_str());
 }
 

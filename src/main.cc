@@ -25,37 +25,31 @@ std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
 }
-MapNode* globals_table = nullptr;
-MapNode* locals_table = nullptr; // including function arguments
+MapNode* globals_table;
+MapNode* locals_table; // including function arguments
 
 //===----------------------------------------------------------------------===//
 // Built-in Types
 //===----------------------------------------------------------------------===//
 
-static llvm::Type* getInt1Ty(llvm::LLVMContext &C) { return llvm::Type::getInt1Ty(C); }
-static llvm::Type* getInt8Ty(llvm::LLVMContext &C) { return llvm::Type::getInt8Ty(C); }
-static llvm::Type* getInt16Ty(llvm::LLVMContext &C) { return llvm::Type::getInt16Ty(C); }
-static llvm::Type* getInt32Ty(llvm::LLVMContext &C) { return llvm::Type::getInt32Ty(C); }
-static llvm::Type* getInt64Ty(llvm::LLVMContext &C) { return llvm::Type::getInt64Ty(C); }
-static llvm::Type* getInt8PtrTy(llvm::LLVMContext &C) { return llvm::Type::getInt8PtrTy(C); }
-
 unsigned stringkey;
 
 void init() {
 	type_table.add("void", llvm::Type::getVoidTy(*Context.getContext()));
-	type_table.add("bool", getInt1Ty(*Context.getContext()));
-	type_table.add("i8", getInt8Ty(*Context.getContext()), true);
-	type_table.add("i16", getInt16Ty(*Context.getContext()), true);
-	type_table.add("i32", getInt32Ty(*Context.getContext()), true);
-	type_table.add("i64", getInt64Ty(*Context.getContext()), true);
-	type_table.add("u8", getInt8Ty(*Context.getContext()));
-	type_table.add("u16", getInt16Ty(*Context.getContext()));
-	type_table.add("u32", getInt32Ty(*Context.getContext()));
-	type_table.add("u64", getInt64Ty(*Context.getContext()));
+	type_table.add("bool", llvm::Type::getInt1Ty(*Context.getContext()));
+	type_table.add("i8", llvm::Type::getInt8Ty(*Context.getContext()), true);
+	type_table.add("i16", llvm::Type::getInt16Ty(*Context.getContext()), true);
+	type_table.add("i32", llvm::Type::getInt32Ty(*Context.getContext()), true);
+	type_table.add("i64", llvm::Type::getInt64Ty(*Context.getContext()), true);
+	type_table.add("u8", llvm::Type::getInt8Ty(*Context.getContext()));
+	type_table.add("u16", llvm::Type::getInt16Ty(*Context.getContext()));
+	type_table.add("u32", llvm::Type::getInt32Ty(*Context.getContext()));
+	type_table.add("u64", llvm::Type::getInt64Ty(*Context.getContext()));
 	type_table.add("f32", llvm::Type::getFloatTy(*Context.getContext()));
 	type_table.add("f64", llvm::Type::getDoubleTy(*Context.getContext()));
-	stringkey = type_table.add("string", getInt8PtrTy(*Context.getContext()));
+
 	globals_table = map_string_new_map();
+	locals_table = map_string_new_map();
 }
 
 //===----------------------------------------------------------------------===//
