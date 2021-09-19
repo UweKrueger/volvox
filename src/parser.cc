@@ -496,7 +496,21 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	auto Proto = ParsePrototype();
 	if (!Proto)
 		return nullptr;
-	if (auto E = ParseExpression())
+	auto sz = Proto->Args.size();
+	// initialize local vars lookup table with function arguments
+	for (int i=0; i<sz; i++) {
+		FullType ft = {
+			.type = Proto->ArgTypes[i],
+			.type_attr = Proto->ArgAttribs[i]
+		};
+		bool is_new = map_string_insert(&locals_table, Proto->Args[i].c_str(), (MapValue){ .src_ptr = &ft }, sizeof(FullType));
+		if (!is_new) {
+			LogError("duplicat function arg \"%s\"\n", Proto->Args[i].c_str());
+			return nullptr;
+		}
+	}
+	auto E = ParseExpression();
+	if (E)
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	return nullptr;
 }

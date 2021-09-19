@@ -38,13 +38,14 @@ public:
 	llvm::Value *codegen() override;
 };
 
+
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
 	std::string Name;
 
 public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: ExprAST(type_table.get_full(/*typeof*/ Name.c_str()), Loc), Name(Name) {}
+		: ExprAST(lookup_var(Name.c_str()), Loc), Name(Name) {}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

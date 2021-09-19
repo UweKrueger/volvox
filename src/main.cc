@@ -612,20 +612,21 @@ llvm::Function *FunctionAST::codegen() {
 		KSDbgInfo.emitLocation(nullptr);
 	}
 	// Record the function arguments in the NamedValues map.
-	map_destroy(locals_table);
-	locals_table = map_string_new_map();
 	unsigned ArgIdx = 0;
 	for (auto &Arg : TheFunction->args()) {
 		// Create an alloca for this variable.
-		llvm::Type* type = P.ArgTypes[ArgIdx];
-		unsigned attrib = P.ArgAttribs[ArgIdx];
-		std::string ArgName = P.Args[ArgIdx];
-		fprintf(stderr, "handling arg >%s< >%s< %s\n", Arg.getName().str().c_str(), ArgName.c_str(), type_table.get_name(type));
 		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), P.ArgTypes[ArgIdx]);
+		// get reference to argument in symbol table
+		MapValue* mapitem = map_string_get(locals_table, Arg.getName().str().c_str());
+		if (!mapitem) {
+			fprintf(stderr, "internal compiler error: arg not found in table");
+			exit(1);
+		}
+		llvm::Type* type = ((FullType*)((char*)mapitem + mapitem->offset))->type;
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
-				SP, Arg.getName(), ArgIdx + 1, Unit, LineNo, KSDbgInfo.getDoubleTy() /* FIXME */,
+				SP, Arg.getName(), ++ArgIdx, Unit, LineNo, KSDbgInfo.getDoubleTy() /* FIXME */,
 				true);
 
 			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
@@ -635,18 +636,8 @@ llvm::Function *FunctionAST::codegen() {
 		// Store the initial value into the alloca.
 		Builder->CreateStore(&Arg, Alloca);
 
-		// Add arguments to variable symbol table.
-		FullType ft = {
-			.type = type,
-			.val = Alloca,
-			.type_attr = attrib
-		};
-		bool is_new = map_string_insert(&locals_table, Arg.getName().str().c_str(), (MapValue){ .src_ptr = &ft }, sizeof(FullType));
-		if (!is_new) {
-			LogError("duplicat function arg \"%s\"\n", Arg.getName().str().c_str());
-			return nullptr;
-		}
- 		ArgIdx++;
+		// Add storage to variable in symbol table.
+		((FullType*)((char*)mapitem + mapitem->offset))->val = Alloca;
 	}
 
 	if (comp_mode == comp_dbg) {
@@ -743,6 +734,9 @@ static void HandleDefinition() {
 		// Skip token for error recovery.
 		getNextToken();
 	}
+	map_destroy(locals_table);
+	locals_table = map_string_new_map();
+
 	fprintf(stderr, "definition successfully handled\n");
 }
 
