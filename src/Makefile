@@ -1,17 +1,17 @@
 SHELL := /bin/bash
-ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
-    LLVMSUFFIX := -13
+ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
+    SUFFIX :=
 else
 ifeq ($(shell test -x /usr/bin/clang++-12 && echo -n true),true)
-    LLVMSUFFIX := -12
+    SUFFIX := -12
 else
-ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
-    LLVMSUFFIX :=
+ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
+    SUFFIX := -13
 endif
 endif
 endif
-CXX := clang++$(LLVMSUFFIX)
-LLVMCONFIG := llvm-config$(LLVMSUFFIX)
+CXX := clang++$(SUFFIX)
+LLVMCONFIG := llvm-config$(SUFFIX)
 LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
 OPT := -O0 -g
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) $(OPTF)

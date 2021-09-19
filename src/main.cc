@@ -679,7 +679,13 @@ static void InitializeModuleAndPassManager() {
 	}
 	TheModule = std::make_unique<llvm::Module>("my cool jit", *Context.getContext());
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		TheModule->setDataLayout(TheJIT->getDataLayout());
+		TheModule->setDataLayout(
+#if LLVM_VERSION_MAJOR >= 12
+			TheJIT->getDataLayout()
+#else
+			TheJIT->getTargetMachine().createDataLayout()
+#endif
+			);
 	}
 	
 	// Create a new builder for the module.
@@ -712,8 +718,12 @@ static void HandleDefinition() {
 				FnIR->print(llvm::errs());
 				fprintf(stderr, "\n");
 				if (comp_mode == comp_jit) {
+#if LLVM_VERSION_MAJOR >= 12
 					ExitOnErr(TheJIT->addModule(
 								  llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+#else
+					TheJIT->addModule(std::move(TheModule));
+#endif
 					InitializeModuleAndPassManager();
 				}
 			}
@@ -757,16 +767,28 @@ static void HandleTopLevelExpression() {
 		auto anon_expr = FnAST->codegen();
 		if (anon_expr) {
 			if (comp_mode == comp_jit) {
+#if LLVM_VERSION_MAJOR >= 12
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-			  
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), Context);
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-			  
+#else
+				// JIT the module containing the anonymous expression, keeping a handle so
+				// we can free it later.
+				auto H = TheJIT->addModule(std::move(TheModule));
+#endif
 				InitializeModuleAndPassManager();
+
 				// Search the JIT for the __anon_expr symbol.
+#if LLVM_VERSION_MAJOR >= 12
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
+#define UNWRAP(x) (x)
+#else
+				auto ExprSymbol = TheJIT->findSymbol("__anon_expr");
+				assert(ExprSymbol && "Function not found");
+#define UNWRAP(x) cantFail(x)
+#endif
 			  
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a double) so we can call it as a native function.
@@ -775,24 +797,24 @@ static void HandleTopLevelExpression() {
 				switch (RetType) {
 				case llvm::Type::DoubleTyID:
 				{
-					double (*FP)() = (double (*)())(intptr_t)ExprSymbol.getAddress();
+					double (*FP)() = (double (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 					fprintf(stderr, "Evaluated to %f\n", FP());
 				}
 				break;
 				case llvm::Type::IntegerTyID:
 				{
 					if (ret_type_attr & A_signed) {
-						int (*INT)() = (int (*)())(intptr_t)ExprSymbol.getAddress();
+						int (*INT)() = (int (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 						fprintf(stderr, "Evaluated to %d\n", INT());
 					} else {
-						unsigned (*UINT)() = (unsigned (*)())(intptr_t)ExprSymbol.getAddress();
+						unsigned (*UINT)() = (unsigned (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 						fprintf(stderr, "Evaluated to %u\n", UINT());
 					}
 				}
 				break;
 				case llvm::Type::PointerTyID: // should be more sophisticated
 				{
-					const char* (*SP)() = (const char* (*)())(intptr_t)ExprSymbol.getAddress();
+					const char* (*SP)() = (const char* (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 					fprintf(stderr, "Evaluated to >%s<\n", SP());
 				}
 				break;
@@ -800,8 +822,13 @@ static void HandleTopLevelExpression() {
 					fprintf(stderr, "unknown expression type %d\n", RetType);
 				}
 
+#if LLVM_VERSION_MAJOR >= 12
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
+#else
+				// Delete the anonymous expression module from the JIT.
+				TheJIT->removeModule(H);
+#endif
 			}
 		} else {
 			fprintf(stderr, "Error generating code for top level expr");
@@ -899,7 +926,12 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
+		TheJIT =
+#if LLVM_VERSION_MAJOR >= 12
+			ExitOnErr(llvm::orc::VolvoxJIT::Create());
+#else
+			std::make_unique<llvm::orc::VolvoxJIT>();
+#endif
 	}
 
 	InitializeModuleAndPassManager();
