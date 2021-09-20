@@ -162,7 +162,7 @@ llvm::Value *VariableExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Load the value.
-	return Builder->CreateLoad(llvm::Type::getDoubleTy(*Context.getContext()), V, Name.c_str());
+	return Builder->CreateLoad(type, V, Name.c_str());
 }
 
 llvm::Value *UnaryExprAST::codegen() {
