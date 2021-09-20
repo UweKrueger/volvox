@@ -554,6 +554,9 @@ llvm::Value *VarExprAST::codegen() {
 
 llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
+	// TODO: support returning multiple objects
+	auto RetType = RetTypes.size() == 1 ?
+		RetTypes[0].first : llvm::Type::getVoidTy(*Context.getContext());
 	llvm::FunctionType *FT =
 		llvm::FunctionType::get(RetType, ArgTypes, false);
 
@@ -761,8 +764,12 @@ static void HandleExtern() {
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
-		auto RetType = FnAST->Proto->RetType->getTypeID();
-		unsigned ret_type_attr = FnAST->Proto->type_attr;
+		auto RetType = (FnAST->Proto->RetTypes.size() == 1 ?
+						FnAST->Proto->RetTypes[0].first :
+						llvm::Type::getVoidTy(*Context.getContext()))->getTypeID();
+		unsigned ret_type_attr = (FnAST->Proto->RetTypes.size() == 1 ?
+								  FnAST->Proto->RetTypes[0].second :
+								  0);
 
 		auto anon_expr = FnAST->codegen();
 		if (anon_expr) {

@@ -485,13 +485,21 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		Eat(tok_comma, true);
 	}
 noargs:
-	getNextToken(); // eat ')'.
-
+	getNextToken(true); // eat ')'.
+	// parse return type(s)
+	std::vector<std::pair<llvm::Type*, unsigned>> RetTypes;
+	while (CurTok.type != tok_semicolon) {
+		auto type = ParseType();
+		if (!type.first)
+			return LogErrorP("error parsing return type of function prototype");
+		RetTypes.push_back(type);
+	}
+	getNextToken();
 	// Verify right number of names for operator.
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, llvm::Type::getDoubleTy(*Context.getContext()), 0, ArgTypes, ArgAttribs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetTypes, ArgTypes, ArgAttribs);
 }
 
 /// definition ::= 'fn' prototype expression
@@ -527,7 +535,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		char* name = nullptr;
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 													std::vector<std::string>(),
-													false, E->type, E->type_attr);
+													false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	}
 	return nullptr;

@@ -25,8 +25,8 @@ std::string IdentifierStr; // Filled in if tok_identifier
 Token Lexer::gettok(bool expectBinary) {
 	static int CurChar = ' ';
 
-	// Skip any whitespace.
-	while (isspace(CurChar))
+	// Skip any whitespace but recorgnize newline if it could be as separator
+	while (expectBinary && isblank(CurChar) || isspace(CurChar))
 		CurChar = advance();
 	CurLoc = LexLoc;
 
@@ -62,13 +62,28 @@ Token Lexer::gettok(bool expectBinary) {
 				CurChar = advance();
 				return tok_assign;
 			} else {
-				IdentifierStr = "=";
+				IdentifierStr = ":";
 				return tok_colon;
 			}
-		case ',':
-			IdentifierStr = CurChar;
-			CurChar = advance();
-			return tok_comma;
+		case '\n':
+		case '\r':
+		case ';':
+		{
+			int bestfit = CurChar;
+			for (;;) {
+				// if we have ';\r\n\n' only one '\n' should be returned
+				// but if we only have one or more ';' return that
+				CurChar = advance();
+				if (CurChar == '\n' || CurChar == '\r') {
+					bestfit = CurChar;
+					continue;
+				}
+				if (CurChar != ';')
+					break;
+			}
+			IdentifierStr = bestfit;
+			return tok_semicolon;
+		}
 		case '=':
 			CurChar = advance();
 			if (CurChar == '=') {

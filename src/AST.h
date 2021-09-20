@@ -100,16 +100,15 @@ public:
 	std::vector<std::string> Args;
 	std::vector<llvm::Type*> ArgTypes;
 	std::vector<unsigned> ArgAttribs;
+	std::vector<std::pair<llvm::Type*, unsigned>> RetTypes;
 	bool IsOperator;
 	int Line;
 	std::string Name;
-	llvm::Type* RetType;
-	unsigned type_attr;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 				 std::vector<std::string> Args, bool IsOperator = false,
-				 llvm::Type* RetType = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
+				 std::vector<std::pair<llvm::Type*, unsigned>> RetTypes = {}, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
 		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
-		  Line(Loc.Line), RetType(RetType), type_attr(type_attr), ArgTypes(ArgTypes), ArgAttribs(ArgAttribs) {}
+		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), ArgAttribs(ArgAttribs) {}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
@@ -135,8 +134,15 @@ public:
 		: ExprAST(nullptr, 0, Loc), Callee(Callee), Args(std::move(Args)) {
 		auto FI = FunctionProtos.find(Callee);
 		if (FI != FunctionProtos.end()) {
-			type = FI->second->RetType;
-			type_attr = FI->second->type_attr;
+			if (FI->second->RetTypes.size() == 0) {
+				type = llvm::Type::getVoidTy(*Context.getContext());
+				type_attr = 0;
+			} else if(FI->second->RetTypes.size() == 1) {
+				type = FI->second->RetTypes[0].first;
+				type_attr = FI->second->RetTypes[0].second;
+			} else {
+				LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
+			}
 		} else {
 			LogError("call to undeclared function %s()", Callee.c_str());
 		}
