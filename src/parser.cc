@@ -96,7 +96,6 @@ std::pair<llvm::Type*, unsigned> ParseType() {
 		LogErrorP("Unknown type `%s` %p", IdentifierStr.c_str(), type);
 		return { nullptr, 0 };
 	}
-	getNextToken(true);
 	return { type, attribs };
 }
 
@@ -468,14 +467,14 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		goto noargs;
 	for (;;) {
 		if (CurTok.type != tok_identifier)
-			return LogErrorP("Unexpected `%s` in function arg list - arg name expected", CurTok.str().c_str());
+			return LogErrorP("Unexpected `%s` in function arg list - arg name expected\n", CurTok.str().c_str());
 		fprintf(stderr, "fn arg: >%s<\n", CurTok.str().c_str());
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		fprintf(stderr, "fn arg type: >%s<\n", CurTok.str().c_str());
 		auto type = ParseType();
 		if (!type.first) {
-			return LogErrorP("Unexpected `%s` in function arg list - type name expected", CurTok.str().c_str());
+			return LogErrorP("Unexpected `%s` in function arg list - type name expected\n", CurTok.str().c_str());
 		}
 		ArgTypes.push_back(type.first);
 		ArgAttribs.push_back(type.second);
@@ -483,14 +482,17 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			.type = type.first,
 			.type_attr = type.second
 		};
-		getNextToken(true);
+		fprintf(stderr, "Token1: >%d<\n", CurTok.type);
+		getNextToken();
+		fprintf(stderr, "Token2: >%d<\n", CurTok.type);
 		if (CurTok.type == ')')
 			break;
-		Eat(tok_comma, true);
+		Eat(',', true);
+		fprintf(stderr, "Token3: >%d<\n",CurTok.type);
 	}
 noargs:
 	getNextToken(true); // eat ')'.
-	fprintf(stderr, "Tok::: %d\n", CurTok.type);
+	fprintf(stderr, "Tok::: %d >%s<\n", CurTok.type, CurTok.str().c_str());
 	// parse return type(s)
 	std::vector<std::pair<llvm::Type*, unsigned>> RetTypes;
 	while (CurTok.type != ';') {
@@ -499,6 +501,7 @@ noargs:
 		if (!type.first)
 			return LogErrorP("error parsing return type of function prototype");
 		RetTypes.push_back(type);
+		getNextToken(true);
 	}
 	fprintf(stderr, "Types: %p\n", RetTypes[0].first);
 	getNextToken();
