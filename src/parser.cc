@@ -137,8 +137,12 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 
 	getNextToken(true); // eat identifier.
 
-	if (CurTok.kind != '(') // Simple variable ref.
-		return std::make_unique<VariableExprAST>(LitLoc, IdName);
+	if (CurTok.kind != '(') { // Simple variable ref.
+		auto var_expr = std::make_unique<VariableExprAST>(LitLoc, IdName);
+		if (!var_expr->type) // variable name not found
+			return nullptr;
+		return var_expr;
+	}
 
 	// Call.
 	getNextToken(); // eat (

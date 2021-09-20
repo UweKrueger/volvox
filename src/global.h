@@ -204,7 +204,7 @@ inline std::pair<llvm::Type*, bool> lookup_var(const char* Name) {
 	MapValue* full_type = map_string_get(locals_table, Name);
 	if (!full_type) {
 		fprintf(stderr, "Var %s not found\n", Name);
-		return { nullptr /*llvm::Type::getDoubleTy(TheContext)*/, 0 };
+		return { nullptr, 0 };
 	}
 	return { ((FullType*)((char*)full_type + full_type->offset))->type,
 		((FullType*)((char*)full_type + full_type->offset))->type_attr };

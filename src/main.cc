@@ -845,8 +845,8 @@ static void HandleTopLevelExpression() {
 			fprintf(stderr, "Error generating code for top level expr");
 		}
 	} else {
-		// Skip token for error recovery.
-		getNextToken();
+		// Skip rest for error recovery.
+		purgeLine();
 	}
 }
 
