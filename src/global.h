@@ -19,7 +19,6 @@ class UnaryExprAST;
 enum TokenType {
 
 	// operators - ordered by priority
-	tok_semicolon = -1, // maybe also newline unless continuation expected
 	tok_assign = -2, // = (possibly multiple assignees, result(s): old value(s), right binding)
 	tok_comma = -3,
 	tok_arrow = -4, // <-

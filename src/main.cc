@@ -47,6 +47,7 @@ void init() {
 	type_table.add("u64", llvm::Type::getInt64Ty(*Context.getContext()));
 	type_table.add("f32", llvm::Type::getFloatTy(*Context.getContext()));
 	type_table.add("f64", llvm::Type::getDoubleTy(*Context.getContext()));
+	type_table.add("string", llvm::Type::getInt8PtrTy(*Context.getContext()));
 
 	globals_table = map_string_new_map();
 	locals_table = map_string_new_map();
