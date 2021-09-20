@@ -7,6 +7,7 @@
 
 SourceLocation CurLoc = {0, 0};
 SourceLocation LexLoc = {0, 0};
+static int CurChar = ' ';
 
 int Lexer::advance() {
 	if (LexLoc.Col >= linelen) {
@@ -22,8 +23,15 @@ int Lexer::advance() {
 
 std::string IdentifierStr; // Filled in if tok_identifier
 
+Token Lexer::purge_line() {
+	LexLoc.Col = linelen;
+	CurLoc = LexLoc;
+	CurChar = '\n';
+	IdentifierStr = ';';
+	return ';';
+}
+
 Token Lexer::gettok(bool expectBinary) {
-	static int CurChar = ' ';
 
 	// Skip any whitespace but recorgnize newline if it could be as separator
 	while (expectBinary ? isblank(CurChar) : isspace(CurChar))

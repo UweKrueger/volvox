@@ -12,6 +12,7 @@
 Lexer lex;
 Token CurTok;
 Token getNextToken(bool expectBinary) { return CurTok = lex.gettok(expectBinary); }
+Token purgeLine() { return CurTok = lex.purge_line(); }
 
 /// GetTokPrecedence - Get the precedence of the pending binary operator token.
 static inline int GetTokPrecedence() {

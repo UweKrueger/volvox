@@ -715,6 +715,7 @@ static void InitializeModuleAndPassManager() {
 }
 
 static void HandleDefinition() {
+	bool success = false;
 	if (auto FnAST = ParseDefinition()) {
 		if (auto *FnIR = FnAST->codegen()) {
 			if (comp_mode != comp_dbg) {
@@ -731,17 +732,19 @@ static void HandleDefinition() {
 					InitializeModuleAndPassManager();
 				}
 			}
+			success = true;
 		} else {
-			fprintf(stderr, "Error reading function definition:");
+			fprintf(stderr, "Error compiling function definition\n");
 		}
 	} else {
+		fprintf(stderr, "Error parsing function definition\n");
 		// Skip token for error recovery.
-		getNextToken();
+		purgeLine();
 	}
 	map_destroy(locals_table);
 	locals_table = map_string_new_map();
-
-	fprintf(stderr, "definition successfully handled\n");
+	if (success)
+		fprintf(stderr, "definition successfully handled\n");
 }
 
 static void HandleExtern() {

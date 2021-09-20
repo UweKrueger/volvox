@@ -321,6 +321,7 @@ public:
 	
 extern Token CurTok;
 extern Token getNextToken(bool expectBinary = false);
+extern Token purgeLine();
 
 class Lexer {
 public:
@@ -329,6 +330,7 @@ public:
 	~Lexer() { free(linebuf); }
 	int advance();
 	Token gettok(bool expectBinary = false);
+	Token purge_line();
 	FILE* input;
 	ssize_t linelen;
 	size_t bufsize;
