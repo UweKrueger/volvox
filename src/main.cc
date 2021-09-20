@@ -768,12 +768,14 @@ static void HandleExtern() {
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
-		auto RetType = (FnAST->Proto->RetTypes.size() == 1 ?
-						FnAST->Proto->RetTypes[0].first :
-						llvm::Type::getVoidTy(*Context.getContext()))->getTypeID();
-		unsigned ret_type_attr = (FnAST->Proto->RetTypes.size() == 1 ?
-								  FnAST->Proto->RetTypes[0].second :
-								  0);
+		auto RetType = FnAST->Proto->RetTypes.size() == 1 ?
+			FnAST->Proto->RetTypes[0].first :
+			llvm::Type::getVoidTy(*Context.getContext());
+		unsigned ret_type_attr = FnAST->Proto->RetTypes.size() == 1 ?
+			FnAST->Proto->RetTypes[0].second : 0;
+		auto RetTypeID = RetType->getTypeID();
+		unsigned IntBitWidth = RetTypeID == llvm::Type::IntegerTyID ?
+			RetType->getIntegerBitWidth() : 0;
 
 		auto anon_expr = FnAST->codegen();
 		if (anon_expr) {
@@ -805,7 +807,7 @@ static void HandleTopLevelExpression() {
 				// arguments, returns a double) so we can call it as a native function.
 				//std::vector<llvm::GenericValue> Args;
 				//llvm::GenericValue gv = TheJIT->runFunction(anon_expr, Args);
-				switch (RetType) {
+				switch (RetTypeID) {
 				case llvm::Type::DoubleTyID:
 				{
 					double (*FP)() = (double (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
@@ -814,12 +816,59 @@ static void HandleTopLevelExpression() {
 				break;
 				case llvm::Type::IntegerTyID:
 				{
+					bool is_signed = (bool)(ret_type_attr & A_signed);
 					if (ret_type_attr & A_signed) {
-						int (*INT)() = (int (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-						fprintf(stderr, "Evaluated to %d\n", INT());
+						switch (IntBitWidth) {
+						case 8: {
+							signed char (*INT8)() = (signed char (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							signed char c = INT8();
+							fprintf(stderr, "Evaluated to %hhd ('%c')\n", c, c);
+							break;
+						}
+						case 16: {
+							short (*INT16)() = (short (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %hd\n", INT16());
+							break;
+						}
+						case 32: {
+							int (*INT32)() = (int (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %d\n", INT32());
+							break;
+						}
+						case 64: {
+							long (*INT64)() = (long (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %ld\n", INT64());
+							break;
+						}
+						default:
+							fprintf(stderr, "Expression has unsupported integer bit width %u\n", IntBitWidth);
+						}
 					} else {
-						unsigned (*UINT)() = (unsigned (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-						fprintf(stderr, "Evaluated to %u\n", UINT());
+						switch (IntBitWidth) {
+						case 8: {
+							unsigned char (*UINT8)() = (unsigned char (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							unsigned char c = UINT8();
+							fprintf(stderr, "Evaluated to %hhu ('%c')\n", c, c);
+							break;
+						}
+						case 16: {
+							unsigned short (*UINT16)() = (unsigned short (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %hu\n", UINT16());
+							break;
+						}
+						case 32: {
+							unsigned (*UINT32)() = (unsigned (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %u\n", UINT32());
+							break;
+						}
+						case 64: {
+							unsigned long (*UINT64)() = (unsigned long (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %lu\n", UINT64());
+							break;
+						}
+						default:
+							fprintf(stderr, "Expression has unsupported integer bit width %u\n", IntBitWidth);
+						}
 					}
 				}
 				break;
@@ -830,7 +879,7 @@ static void HandleTopLevelExpression() {
 				}
 				break;
 				default:
-					fprintf(stderr, "unknown expression type %d\n", RetType);
+					fprintf(stderr, "unknown expression type %d\n", RetTypeID);
 				}
 
 #if LLVM_VERSION_MAJOR >= 12
