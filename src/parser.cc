@@ -88,12 +88,14 @@ std::pair<llvm::Type*, unsigned> ParseType() {
 		}
 		getNextToken(true);
 	}
-	auto type = type_table.get_raw(IdentifierStr.c_str());
-	if (!type) {
+	auto type = type_table.get_full(IdentifierStr.c_str());
+	if (!type.first) {
 		LogErrorP("Unknown type `%s` %p", IdentifierStr.c_str(), type);
 		return { nullptr, 0 };
 	}
-	return { type, attribs };
+	if (type.second)
+		attribs |= A_signed;
+	return { type.first, attribs };
 }
 
 static std::unique_ptr<ExprAST> ParseExpression();
