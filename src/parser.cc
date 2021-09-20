@@ -55,9 +55,6 @@ static bool Expect(int tok, bool expectBinary = false) {
 static void Eat(int tok, bool expectBinary = false) {
 	if (CurTok.type == tok) {
 		getNextToken(expectBinary);
-		fprintf(stderr, "\"%d\" found - next token: \"%s\"", tok, CurTok.str().c_str());
-	} else {
-		fprintf(stderr, "\"%d\" not found - got: \"%s\", %d", tok, CurTok.str().c_str(), CurTok.type);
 	}
 }
 
@@ -342,11 +339,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 	// If this is a binop, find its precedence.
 	while (true) {
 		int TokPrec = GetTokPrecedence();
-		fprintf(stderr, "tok prec of >%c< (%s): %d\n", CurTok.type, CurTok.str().c_str(), TokPrec);
 		// If this is a binop that binds at least as tightly as the current binop,
 		// consume it, otherwise we are done.
 		if (TokPrec < ExprPrec) {
-			fprintf(stderr, "returning LHS\n");
 			return LHS;
 		}
 		// Okay, we know this is a binop.
@@ -369,7 +364,6 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		// Merge LHS/RHS.
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS),
 											  std::move(RHS));
-		fprintf(stderr, "new LHS is binary\n");
 	}
 }
 
@@ -430,7 +424,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	case tok_identifier:
 		FnName = IdentifierStr;
 		Kind = 0;
-		fprintf(stderr, "fn declaration \"%s\"\n", FnName.c_str());
 		getNextToken();
 		break;
 	case tok_unary:
@@ -468,10 +461,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	for (;;) {
 		if (CurTok.type != tok_identifier)
 			return LogErrorP("Unexpected `%s` in function arg list - arg name expected\n", CurTok.str().c_str());
-		fprintf(stderr, "fn arg: >%s<\n", CurTok.str().c_str());
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
-		fprintf(stderr, "fn arg type: >%s<\n", CurTok.str().c_str());
 		auto type = ParseType();
 		if (!type.first) {
 			return LogErrorP("Unexpected `%s` in function arg list - type name expected\n", CurTok.str().c_str());
@@ -482,30 +473,23 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			.type = type.first,
 			.type_attr = type.second
 		};
-		fprintf(stderr, "Token1: >%d<\n", CurTok.type);
 		getNextToken();
-		fprintf(stderr, "Token2: >%d<\n", CurTok.type);
 		if (CurTok.type == ')')
 			break;
 		Eat(',', true);
-		fprintf(stderr, "Token3: >%d<\n",CurTok.type);
 	}
 noargs:
 	getNextToken(true); // eat ')'.
-	fprintf(stderr, "Tok::: %d >%s<\n", CurTok.type, CurTok.str().c_str());
 	// parse return type(s)
 	std::vector<std::pair<llvm::Type*, unsigned>> RetTypes;
 	while (CurTok.type != ';') {
 		auto type = ParseType();
-		fprintf(stderr, "Got Type: %p\n", type.first);
 		if (!type.first)
 			return LogErrorP("error parsing return type of function prototype");
 		RetTypes.push_back(type);
 		getNextToken(true);
 	}
-	fprintf(stderr, "Types: %p\n", RetTypes[0].first);
 	getNextToken();
-	fprintf(stderr, "New Tokenkind: %d\n", CurTok.type);
 	// Verify right number of names for operator.
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
