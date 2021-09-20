@@ -851,9 +851,9 @@ static void HandleTopLevelExpression() {
 static void MainLoop() {
 	while (true) {
 		if (comp_mode == comp_jit) {
-			fprintf(stderr, CurTok.type == tok_eof ? "\n" : "ready> ");
+			fprintf(stderr, CurTok.kind == tok_eof ? "\n" : "ready> ");
 		}
-		switch (CurTok.type) {
+		switch (CurTok.kind) {
 		case tok_eof:
 			return;
 		case ';': // ignore top-level semicolons.

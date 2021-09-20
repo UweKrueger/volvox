@@ -16,7 +16,7 @@ class UnaryExprAST;
 
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things.
-enum TokenType {
+enum TokenKind {
 
 	// operators - ordered by priority
 	tok_assign = -2, // = (possibly multiple assignees, result(s): old value(s), right binding)
@@ -273,12 +273,12 @@ union LitValue {
 
 class Token {
 public:
-	int type;
-	Token(int type = 0) : type(type) {}
+	int kind;
+	Token(int kind = 0) : kind(kind) {}
 	Token(char** s_ptr);
 	Token(const std::string& str);
-	static std::string tokName(int type);
-	std::string tokName() const { return tokName(type); }
+	static std::string tokName(int kind);
+	std::string tokName() const { return tokName(kind); }
 	union {
 		int_val_type_t int_type;
 		gen_val_type_t gen_type;
@@ -286,7 +286,7 @@ public:
 	};
 	union LitValue Val;
 	std::string str() const {
-		switch (type) {
+		switch (kind) {
 		case tok_identifier:
 		case tok_assign:
 		case tok_cmp:

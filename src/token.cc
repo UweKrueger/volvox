@@ -2,8 +2,8 @@
 #include "global.h"
 #include "AST.h"
 
-std::string Token::tokName(int type) {
-	switch (type) {
+std::string Token::tokName(int tok_kind) {
+	switch (tok_kind) {
 	case tok_eof:
 		return "eof";
 	case tok_fn:
@@ -39,10 +39,10 @@ std::string Token::tokName(int type) {
 	case tok_self:
 		return "self";
 	}
-	return std::string(1, (char)type);
+	return std::string(1, (char)tok_kind);
 }
 
-Token::Token(char** s_ptr) : type(tok_number) {
+Token::Token(char** s_ptr) : kind(tok_number) {
 	while (isspace(**s_ptr))
 		++(*s_ptr);
 	bool sign = **s_ptr == '-';
@@ -118,7 +118,7 @@ Token::Token(char** s_ptr) : type(tok_number) {
 	}
 }
 				
-Token::Token(const std::string& str) : type(tok_str_lit) {
+Token::Token(const std::string& str) : kind(tok_str_lit) {
 	auto llvmtype = llvm::Type::getInt8PtrTy(*Context.getContext());
 	gen_type = { .ID = llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 	Val.Str = strdup(str.c_str());
