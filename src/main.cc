@@ -779,6 +779,8 @@ static void HandleTopLevelExpression() {
 
 		auto anon_expr = FnAST->codegen();
 		if (anon_expr) {
+			auto ret_type = anon_expr->getReturnType();
+			fprintf(stderr, "ExprType: %u BitWidth: %u Volvox: %u, %u\n", ret_type->getTypeID(), ret_type->isIntegerTy() ? ret_type->getIntegerBitWidth() : 0, RetType->getTypeID(), RetType->isIntegerTy() ? RetType->getIntegerBitWidth() : 0);
 			if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
 				// Create a ResourceTracker to track JIT'd memory allocated to our
