@@ -140,7 +140,10 @@ llvm::Value *LiteralExprAST::codegen() {
 		return llvm::ConstantInt::get(*Context.getContext(), llvm::APInt(type->getIntegerBitWidth(), Val.Uint, type_attr & A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
+		fprintf(stderr, "Warning: 16 bit floats are not supported, yet\n");
+		// passthrough to 32 bit float for now - but expect problems...
 	case llvm::Type::FloatTyID:
+		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat((float)Val.Float));
 	case llvm::Type::DoubleTyID:
 		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
@@ -810,14 +813,19 @@ static void HandleTopLevelExpression() {
 				//std::vector<llvm::GenericValue> Args;
 				//llvm::GenericValue gv = TheJIT->runFunction(anon_expr, Args);
 				switch (RetTypeID) {
-				case llvm::Type::DoubleTyID:
-				{
-					double (*FP)() = (double (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					fprintf(stderr, "Evaluated to %f\n", FP());
+				case llvm::Type::HalfTyID:
+				case llvm::Type::BFloatTyID:
+				case llvm::Type::FloatTyID: {
+					float (*FP)() = (float (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					fprintf(stderr, "Evaluated to %.7g\n", FP());
+					break;
 				}
-				break;
-				case llvm::Type::IntegerTyID:
-				{
+				case llvm::Type::DoubleTyID: {
+					double (*FP)() = (double (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					fprintf(stderr, "Evaluated to %.15g\n", FP());
+					break;
+				}
+				case llvm::Type::IntegerTyID: {
 					bool is_signed = (bool)(ret_type_attr & A_signed);
 					if (ret_type_attr & A_signed) {
 						switch (IntBitWidth) {
@@ -872,14 +880,13 @@ static void HandleTopLevelExpression() {
 							fprintf(stderr, "Expression has unsupported integer bit width %u\n", IntBitWidth);
 						}
 					}
+					break;
 				}
-				break;
-				case llvm::Type::PointerTyID: // should be more sophisticated
-				{
+				case llvm::Type::PointerTyID: { // should be more sophisticated
 					const char* (*SP)() = (const char* (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 					fprintf(stderr, "Evaluated to >%s<\n", SP());
+					break;
 				}
-				break;
 				default:
 					fprintf(stderr, "unknown expression type %d\n", RetTypeID);
 				}
