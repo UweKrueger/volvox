@@ -29,17 +29,17 @@ std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap) {
 
 std::unique_ptr<ExprAST> LogError(const char *Str, ...) {
 	va_list ap;
-    va_start(ap, Str);
-    LogErrorGen(Str, ap);
-    va_end(ap);
+	va_start(ap, Str);
+	LogErrorGen(Str, ap);
+	va_end(ap);
 	return nullptr;
 }
 
 static std::unique_ptr<PrototypeAST> LogErrorP(const char *Str, ...) {
 	va_list ap;
-    va_start(ap, Str);
-    LogErrorGen(Str, ap);
-    va_end(ap);
+	va_start(ap, Str);
+	LogErrorGen(Str, ap);
+	va_end(ap);
 	return nullptr;
 }
 
@@ -99,10 +99,12 @@ std::pair<llvm::Type*, unsigned> ParseType() {
 	return { type.first, attribs };
 }
 
-static std::unique_ptr<ExprAST> ParseExpression();
+static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
+                                                unsigned desired_attrib = 0u );
 
 /// numberexpr ::= number
-static std::unique_ptr<ExprAST> ParseNumberExpr() {
+static std::unique_ptr<ExprAST> ParseNumberExpr(llvm::Type* desired_type = nullptr,
+                                                unsigned desired_attrib = 0u) {
 	auto Result = std::make_unique<LiteralExprAST>(CurTok);
 	getNextToken(true); // consume the number
 	return std::move(Result);
@@ -115,7 +117,8 @@ static std::unique_ptr<ExprAST> ParseStringExpr() {
 }
 
 /// parenexpr ::= '(' expression ')'
-static std::unique_ptr<ExprAST> ParseParenExpr() {
+static std::unique_ptr<ExprAST> ParseParenExpr(llvm::Type* desired_type = nullptr,
+                                               unsigned desired_attrib = 0u) {
 	getNextToken(); // eat (.
 	auto V = ParseExpression();
 	if (!V)
@@ -130,7 +133,8 @@ static std::unique_ptr<ExprAST> ParseParenExpr() {
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
-static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
+static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = nullptr,
+                                                    unsigned desired_attrib = 0u) {
 	std::string IdName = IdentifierStr;
 
 	SourceLocation LitLoc = CurLoc;
@@ -149,7 +153,11 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	std::vector<std::unique_ptr<ExprAST>> Args;
 	if (CurTok.kind != ')') {
 		if (auto Arg = ParseExpression()) {
-			// split expression list if we have one
+			// The arguments are parsed as a tree of binary expressions (Op=',') where
+			// all objects are in the leaves.
+			// Due to operator precedence rules the tree is stricly left-heavy and can be
+			// processed right to left without the need for recursions. We just have to iterate
+			// through the binary nodes and front-push each right leave (RHS) to the Args list.
 			while (auto bin_expr = dynamic_cast<BinaryExprAST*>(Arg.get())) {
 				if (bin_expr->Op[0] == ',') {
 					Args.insert(Args.begin(), std::move(bin_expr->RHS));
@@ -172,7 +180,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 }
 
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
-static std::unique_ptr<ExprAST> ParseIfExpr() {
+static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
+                                            unsigned desired_attrib = 0u) {
 	SourceLocation IfLoc = CurLoc;
 
 	getNextToken(); // eat the if.
@@ -200,7 +209,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 		return nullptr;
 
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then),
-									   std::move(Else));
+	                                   std::move(Else));
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
@@ -246,7 +255,7 @@ static std::unique_ptr<ExprAST> ParseForExpr() {
 		return nullptr;
 
 	return std::make_unique<ForExprAST>(IdName, std::move(Start), std::move(End),
-										std::move(Step), std::move(Body));
+	                                    std::move(Step), std::move(Body));
 }
 
 /// varexpr ::= 'var' identifier ('=' expression)?
@@ -304,7 +313,8 @@ static std::unique_ptr<ExprAST> ParseVarExpr() {
 ///   ::= ifexpr
 ///   ::= forexpr
 ///   ::= varexpr
-static std::unique_ptr<ExprAST> ParsePrimary() {
+static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
+                                             unsigned desired_attrib = 0u) {
 	switch (CurTok.kind) {
 	default:
 		return LogError("unknown token %d '%s' when expecting an expression", CurTok.kind, CurTok.str().c_str());
@@ -328,7 +338,8 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 /// unary
 ///   ::= primary
 ///   ::= '!' unary
-static std::unique_ptr<ExprAST> ParseUnary() {
+static std::unique_ptr<ExprAST> ParseUnary(llvm::Type* desired_type = nullptr,
+                                           unsigned desired_attrib = 0u) {
 	// If the current token is not an operator, it must be a primary expr.
 	if (CurTok.kind != tok_unary || CurTok.kind == '(' || CurTok.kind == ',')
 		return ParsePrimary();
@@ -372,15 +383,15 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		}
 		// Merge LHS/RHS.
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS),
-											  std::move(RHS));
+		                                      std::move(RHS));
 	}
 }
 
 /// expression
 ///   ::= unary binoprhs
 ///
-static std::unique_ptr<ExprAST> ParseExpression() {
-	auto LHS = ParseUnary();
+static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type, unsigned desired_attrib) {
+	auto LHS = ParseUnary(desired_type, desired_attrib);
 	if (!LHS)
 		return nullptr;
 
@@ -538,8 +549,8 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		// Make an anonymous proto.
 		char* name = nullptr;
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
-													std::vector<std::string>(),
-													false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
+		                                            std::vector<std::string>(),
+		                                            false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	}
 	return nullptr;

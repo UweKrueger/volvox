@@ -78,7 +78,7 @@ public:
 	char Op[4];
 	std::unique_ptr<ExprAST> LHS, RHS;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
-				  std::unique_ptr<ExprAST> RHS)
+	              std::unique_ptr<ExprAST> RHS)
 		: ExprAST(LHS->type, LHS->type_attr, Loc), LHS(std::move(LHS)), RHS(std::move(RHS)) {
 		strcpy(Op, _Op);
 	}
@@ -105,8 +105,8 @@ public:
 	int Line;
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
-				 std::vector<std::string> Args, bool IsOperator = false,
-				 std::vector<std::pair<llvm::Type*, unsigned>> RetTypes = {}, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
+	             std::vector<std::string> Args, bool IsOperator = false,
+	             std::vector<std::pair<llvm::Type*, unsigned>> RetTypes = {}, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
 		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
 		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), ArgAttribs(ArgAttribs) {}
 	llvm::Function *codegen();
@@ -130,7 +130,7 @@ class CallExprAST : public ExprAST {
 
 public:
 	CallExprAST(SourceLocation Loc, const std::string &Callee,
-				std::vector<std::unique_ptr<ExprAST>> Args)
+	            std::vector<std::unique_ptr<ExprAST>> Args)
 		: ExprAST(nullptr, 0, Loc), Callee(Callee), Args(std::move(Args)) {
 		auto FI = FunctionProtos.find(Callee);
 		if (FI != FunctionProtos.end()) {
@@ -163,7 +163,7 @@ class IfExprAST : public ExprAST {
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
-			  std::unique_ptr<ExprAST> Then, std::unique_ptr<ExprAST> Else)
+	          std::unique_ptr<ExprAST> Then, std::unique_ptr<ExprAST> Else)
 		: ExprAST(llvm::Type::getDoubleTy(*Context.getContext()), 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
 		  Else(std::move(Else)) {}
 	llvm::Value *codegen() override;
@@ -183,8 +183,8 @@ class ForExprAST : public ExprAST {
 
 public:
 	ForExprAST(const std::string &VarName, std::unique_ptr<ExprAST> Start,
-			   std::unique_ptr<ExprAST> End, std::unique_ptr<ExprAST> Step,
-			   std::unique_ptr<ExprAST> Body)
+	           std::unique_ptr<ExprAST> End, std::unique_ptr<ExprAST> Step,
+	           std::unique_ptr<ExprAST> Body)
 		: VarName(VarName), Start(std::move(Start)), End(std::move(End)),
 		  Step(std::move(Step)), Body(std::move(Body)) {}
 	llvm::Value *codegen() override;
@@ -225,7 +225,7 @@ public:
 	std::unique_ptr<ExprAST> Body;
 
 	FunctionAST(std::unique_ptr<PrototypeAST> Proto,
-				std::unique_ptr<ExprAST> Body)
+	            std::unique_ptr<ExprAST> Body)
 		: Proto(std::move(Proto)), Body(std::move(Body)) {}
 	llvm::Function *codegen();
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {

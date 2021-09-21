@@ -237,13 +237,21 @@ class ExprAST {
 
 public:
 	llvm::Type* type;
+	llvm::Type* desired_type;
 	unsigned type_attr;
+	unsigned desired_type_attr;
+
 	// construct from type and attributes
-	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0, SourceLocation Loc = CurLoc) : Loc(Loc), type(type), type_attr(type_attr) {}
-	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc) : Loc(Loc), type(p.first), type_attr(p.second) {}
+	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0,
+	        SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr, unsigned desired_type_attr = 0) :
+		Loc(Loc), type(type), desired_type(desired_type), type_attr(type_attr), desired_type_attr(desired_type_attr) {}
+	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc,
+	        std::pair<llvm::Type*, unsigned> q = { nullptr, 0 }) :
+		Loc(Loc), type(p.first), type_attr(p.second), desired_type(q.first), desired_type_attr(q.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched
-	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc)  : Loc(Loc) {
+	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr,
+	        unsigned desired_type_attr = 0)  : Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr) {
 		auto fulltype = type_table.get_full(key);
 		type = fulltype.first;
 		type_attr = (fulltype.second ? A_signed : 0) | add_attr;

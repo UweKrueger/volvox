@@ -73,7 +73,7 @@ void DebugInfo::emitLocation(ExprAST *AST) {
 	else
 		Scope = LexicalBlocks.back();
 	Builder->SetCurrentDebugLocation(llvm::DILocation::get(
-										 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
+		                                 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
 }
 
 static llvm::DISubroutineType *CreateFunctionType(unsigned NumArgs, llvm::DIFile *Unit) {
@@ -98,9 +98,9 @@ static llvm::DIFile *Unit;
 
 llvm::Value *LogErrorV(const char *Str, ...) {
 	va_list ap;
-    va_start(ap, Str);
-    LogErrorGen(Str, ap);
-    va_end(ap);
+	va_start(ap, Str);
+	LogErrorGen(Str, ap);
+	va_end(ap);
 	return nullptr;
 }
 
@@ -122,9 +122,9 @@ llvm::Function *getFunction(std::string Name) {
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
 /// the function.  This is used for mutable variables etc.
 static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
-												llvm::StringRef VarName, llvm::Type* type) {
+                                                llvm::StringRef VarName, llvm::Type* type) {
 	llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
-						   TheFunction->getEntryBlock().begin());
+	                       TheFunction->getEntryBlock().begin());
 	return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
@@ -461,7 +461,7 @@ llvm::Value *ForExprAST::codegen() {
 	// Reload, increment, and restore the alloca.  This handles the case where
 	// the body of the loop mutates the variable.
 	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(*Context.getContext()), Alloca,
-											  VarName.c_str());
+	                                          VarName.c_str());
 	llvm::Value *NextVar = Builder->CreateFAdd(CurVar, StepVal, "nextvar");
 	Builder->CreateStore(NextVar, Alloca);
 
@@ -522,8 +522,8 @@ llvm::Value *VarExprAST::codegen() {
 				true);
 
 			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-									llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
-									Builder->GetInsertBlock());
+			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
+			                        Builder->GetInsertBlock());
 		}
 		Builder->CreateStore(InitVal, Alloca);
 
@@ -590,7 +590,7 @@ llvm::Function *FunctionAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		// Create a subprogram DIE for this function.
 		Unit = DBuilder->createFile(KSDbgInfo.TheCU->getFilename(),
-									KSDbgInfo.TheCU->getDirectory());
+		                            KSDbgInfo.TheCU->getDirectory());
 		llvm::DIScope *FContext = Unit;
 		LineNo = P.getLine();
 		unsigned ScopeLine = LineNo;
@@ -627,8 +627,8 @@ llvm::Function *FunctionAST::codegen() {
 				true);
 
 			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-									llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
-									Builder->GetInsertBlock());
+			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
+			                        Builder->GetInsertBlock());
 		}
 		// Store the initial value into the alloca.
 		Builder->CreateStore(&Arg, Alloca);
@@ -725,7 +725,7 @@ static void HandleDefinition() {
 				if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
 					ExitOnErr(TheJIT->addModule(
-								  llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+						          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
 #else
 					TheJIT->addModule(std::move(TheModule));
 #endif
@@ -995,7 +995,7 @@ int main(int argc, char* argv[]) {
 #if LLVM_VERSION_MAJOR >= 12
 			ExitOnErr(llvm::orc::VolvoxJIT::Create());
 #else
-			std::make_unique<llvm::orc::VolvoxJIT>();
+		std::make_unique<llvm::orc::VolvoxJIT>();
 #endif
 	}
 
@@ -1010,7 +1010,7 @@ int main(int argc, char* argv[]) {
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.
 		TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version",
-								 llvm::DEBUG_METADATA_VERSION);
+		                         llvm::DEBUG_METADATA_VERSION);
 		// Darwin only supports dwarf2.
 		if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
 			TheModule->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
@@ -1078,7 +1078,7 @@ int main(int argc, char* argv[]) {
 	  
 		llvm::outs() << "Wrote " << Filename << "\n";
 	} else if (comp_mode == comp_dbg) {
-	    // Finalize the debug info.
+		// Finalize the debug info.
 		DBuilder->finalize();
 	  
 		// Print out all of the generated code.

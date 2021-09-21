@@ -184,10 +184,10 @@ Token Lexer::gettok(bool expectBinary) {
 	}
 	// Number Literal
 	if (isdigit(CurChar) || // [0-9]*
-		CurChar == '.' && isdigit(linebuf[LexLoc.Col]) || // .[0-9]*
-		(CurChar == '+' || CurChar == '-') &&
-		(isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
-		 linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
+	    CurChar == '.' && isdigit(linebuf[LexLoc.Col]) || // .[0-9]*
+	    (CurChar == '+' || CurChar == '-') &&
+	    (isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
+	     linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
 		LexLoc.Col = (n_ptr - linebuf);
@@ -226,10 +226,10 @@ Token Lexer::gettok(bool expectBinary) {
 			return gettok();
 		// passthough
 	}
-	// Check for end of file.  Don't eat the EOF.
+		// Check for end of file.  Don't eat the EOF.
 	case EOF:
 		return tok_eof;
-	// unary operators
+		// unary operators
 	case '+':
 	case '-':
 	case '!':
