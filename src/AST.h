@@ -144,6 +144,7 @@ public:
 				LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
 			}
 		} else {
+			// constructors have no return value so failure is signaled by type == nullptr
 			LogError("call to undeclared function %s()", Callee.c_str());
 		}
 	}

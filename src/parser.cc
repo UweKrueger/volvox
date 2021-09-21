@@ -165,8 +165,10 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	}
 	// Eat the ')'.
 	Expect(')', true);
-
-	return std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
+	auto call_expr = std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
+	if (!call_expr->type) // Used to signal failure, e.g. IdName was not found
+		return nullptr;
+	return call_expr;
 }
 
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
