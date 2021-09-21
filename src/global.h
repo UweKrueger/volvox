@@ -197,17 +197,39 @@ protected:
 
 extern TypeTable type_table;
 extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
-extern MapNode* globals_table;
-extern MapNode* locals_table;
+
+class VarTable {
+protected:
+	MapNode* table;
+public:
+	VarTable() : table(map_string_new_map()) {}
+	~VarTable() { map_destroy(table); }
+	void clear() {
+		map_destroy(table);
+		table = map_string_new_map();
+	}
+	bool insert(const char* key, const FullType& value) {
+		return map_string_insert(&table, key, (MapValue){ .src_ptr = (void*)&value }, sizeof(FullType));
+	}
+	FullType* operator[](const char* key) {
+		MapValue* node = map_string_get(table, key);
+		return node ? (FullType*)((char*)node + node->offset) : nullptr;
+	}
+	bool erase(const char* name) {
+		return map_string_delete(&table, name);
+	}
+};
+
+extern VarTable globals_table;
+extern VarTable locals_table; // including function arguments
 
 inline std::pair<llvm::Type*, bool> lookup_var(const char* Name) {
-	MapValue* full_type = map_string_get(locals_table, Name);
+	FullType* full_type = locals_table[Name];
 	if (!full_type) {
 		fprintf(stderr, "Var %s not found\n", Name);
 		return { nullptr, 0 };
 	}
-	return { ((FullType*)((char*)full_type + full_type->offset))->type,
-		((FullType*)((char*)full_type + full_type->offset))->type_attr };
+	return { full_type->type, full_type->type_attr };
 }
 
 class ExprAST {

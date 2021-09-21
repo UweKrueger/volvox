@@ -25,8 +25,8 @@ std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
 }
-MapNode* globals_table;
-MapNode* locals_table; // including function arguments
+VarTable globals_table;
+VarTable locals_table; // including function arguments
 
 //===----------------------------------------------------------------------===//
 // Built-in Types
@@ -48,9 +48,6 @@ void init() {
 	type_table.add("f32", llvm::Type::getFloatTy(*Context.getContext()));
 	type_table.add("f64", llvm::Type::getDoubleTy(*Context.getContext()));
 	type_table.add("string", llvm::Type::getInt8PtrTy(*Context.getContext()));
-
-	globals_table = map_string_new_map();
-	locals_table = map_string_new_map();
 }
 
 //===----------------------------------------------------------------------===//
@@ -156,10 +153,10 @@ llvm::Value *LiteralExprAST::codegen() {
 
 llvm::Value *VariableExprAST::codegen() {
 	// Look this variable up in the function.
-	MapValue* full_type = map_string_get(locals_table, Name.c_str());
+	FullType* full_type = locals_table[Name.c_str()];
 	if (!full_type)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
-	llvm::Value *V = ((FullType*)((char*)full_type + full_type->offset))->val;
+	llvm::Value *V = full_type->val;
 
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -204,10 +201,10 @@ llvm::Value *BinaryExprAST::codegen() {
 			return nullptr;
 
 		// Look up the name.
-		MapValue* full_type = map_string_get(locals_table, LHSE->getName().c_str());
+		FullType* full_type = locals_table[LHSE->getName().c_str()];
 		if (!full_type)
 			return LogErrorV("Unknown variable name2 %s", LHSE->getName().c_str());
-		llvm::Value *Variable = ((FullType*)((char*)full_type + full_type->offset))->val;
+		llvm::Value *Variable = full_type->val;
 
 		Builder->CreateStore(Val, Variable);
 		return Val;
@@ -427,17 +424,17 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Within the loop, the variable is defined equal to the PHI node.  If it
 	// shadows an existing variable, we have to restore it, so save it now.
-	MapValue* OldValPtr = map_string_get(locals_table, VarName.c_str());
-	llvm::AllocaInst *OldVal = OldValPtr ? ((FullType*)((char*)OldValPtr + OldValPtr->offset))->val : nullptr;
+	FullType* OldValPtr = locals_table[VarName.c_str()];
+	llvm::AllocaInst *OldVal = OldValPtr ? OldValPtr->val : nullptr;
 	if (OldVal) {
-		((FullType*)((char*)OldValPtr + OldValPtr->offset))->val = Alloca;
+		OldVal = Alloca;
 	} else {
 		FullType ft = {
 			.type = AllocaT,
 			.val = Alloca,
 			.type_attr = AllocaF
 		};
-		map_string_insert(&locals_table, VarName.c_str(), (MapValue){ .src_ptr = &ft }, sizeof(FullType));
+		locals_table.insert(VarName.c_str(), ft);
 	}
 	// Emit the body of the loop.  This, like any other expr, can change the
 	// current BB.  Note that we ignore the value computed by the body, but don't
@@ -484,9 +481,9 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Restore the unshadowed variable.
 	if (OldVal)
-		((FullType*)((char*)OldValPtr + OldValPtr->offset))->val = OldVal;
+		OldValPtr->val = OldVal;
 	else
-		map_string_delete(&locals_table, VarName.c_str());
+		locals_table.erase(VarName.c_str());
 	// for expr always returns 0.0.
 	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*Context.getContext()));
 }
@@ -532,11 +529,11 @@ llvm::Value *VarExprAST::codegen() {
 
 		// Remember the old variable binding so that we can restore the binding when
 		// we unrecurse.
-		MapValue* OldValPtr = map_string_get(locals_table, VarName.c_str());
-		OldBindings.push_back(((FullType*)((char*)OldValPtr + OldValPtr->offset))->val);
+		FullType* OldValPtr = locals_table[VarName.c_str()];
+		OldBindings.push_back(OldValPtr->val);
 
 		// Remember this binding.
-		((FullType*)((char*)OldValPtr + OldValPtr->offset))->val = Alloca;
+		OldValPtr->val = Alloca;
 	}
 
 	if (comp_mode == comp_dbg) {
@@ -549,8 +546,8 @@ llvm::Value *VarExprAST::codegen() {
 
 	// Pop all our variables from scope.
 	for (unsigned i = 0, e = VarNames.size(); i != e; ++i) {
-		MapValue* OldValPtr = map_string_get(locals_table, VarNames[i].first.c_str());
-		((FullType*)((char*)OldValPtr + OldValPtr->offset))->val =  OldBindings[i];
+		FullType* OldValPtr = locals_table[VarNames[i].first.c_str()];
+		OldValPtr->val =  OldBindings[i];
 	}
 	// Return the body computation.
 	return BodyVal;
@@ -617,12 +614,12 @@ llvm::Function *FunctionAST::codegen() {
 		// Create an alloca for this variable.
 		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), P.ArgTypes[ArgIdx]);
 		// get reference to argument in symbol table
-		MapValue* mapitem = map_string_get(locals_table, Arg.getName().str().c_str());
+		FullType* mapitem = locals_table[Arg.getName().str().c_str()];
 		if (!mapitem) {
 			fprintf(stderr, "internal compiler error: arg not found in table");
 			exit(1);
 		}
-		llvm::Type* type = ((FullType*)((char*)mapitem + mapitem->offset))->type;
+		llvm::Type* type = mapitem->type;
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
@@ -637,7 +634,7 @@ llvm::Function *FunctionAST::codegen() {
 		Builder->CreateStore(&Arg, Alloca);
 
 		// Add storage to variable in symbol table.
-		((FullType*)((char*)mapitem + mapitem->offset))->val = Alloca;
+		mapitem->val = Alloca;
 	}
 
 	if (comp_mode == comp_dbg) {
@@ -744,8 +741,7 @@ static void HandleDefinition() {
 		// Skip token for error recovery.
 		purgeLine();
 	}
-	map_destroy(locals_table);
-	locals_table = map_string_new_map();
+	locals_table.clear();
 	if (success)
 		fprintf(stderr, "definition successfully handled\n");
 }

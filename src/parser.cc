@@ -519,7 +519,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 			.type = Proto->ArgTypes[i],
 			.type_attr = Proto->ArgAttribs[i]
 		};
-		bool is_new = map_string_insert(&locals_table, Proto->Args[i].c_str(), (MapValue){ .src_ptr = &ft }, sizeof(FullType));
+		bool is_new = locals_table.insert(Proto->Args[i].c_str(), ft);
 		if (!is_new) {
 			LogError("duplicat function arg \"%s\"\n", Proto->Args[i].c_str());
 			return nullptr;
