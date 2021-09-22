@@ -15,14 +15,18 @@ std::nullptr_t Error(SourceLocation Loc, const char *Str, ...) {
 	return nullptr;
 }
 	
-static std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type, const char* reason) {
+static std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
+                              unsigned expr_attr, unsigned desired_attr, const char* reason) {
 	return Error(Loc, "Cannot automatically convert %s to %s (%s)",
-	             type_table.get_name(expr_type), type_table.get_name(desired_type), reason);
+	             type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))),
+	             type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))), reason);
 }
 
-static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type, const char* reason) {
+static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
+                                  unsigned expr_attr, unsigned desired_attr, const char* reason) {
 	return Error(Loc, "Cannot convert %s to %s (%s)",
-	             type_table.get_name(expr_type), type_table.get_name(desired_type), reason);
+	             type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))),
+	             type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))), reason);
 }
 
 static llvm::Value* NoConversion(llvm::Value* v) { return v; }
@@ -43,7 +47,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 				if (expr_attr & A_signed)
 					// signed -> unsigned
 					if (!is_explicit)
-						return AutoErr(Loc, expr_type, desired_type, "signed->unsigned");
+						return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "signed->unsigned");
 					else
 						if (desired_bitwidth == expr_bitwidth)
 							return NoConversion;
@@ -56,7 +60,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 						if (is_explicit)
 							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "trunctmp"); };
 						else
-							return AutoErr(Loc, expr_type, desired_type, "would truncate upper bits");
+							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate upper bits");
 					else
 						if (desired_bitwidth == expr_bitwidth)
 							return NoConversion;
@@ -69,7 +73,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 						if (is_explicit)
 							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, true, "trunctmp"); };
 						else
-							return AutoErr(Loc, expr_type, desired_type, "would truncate upper bits");
+							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate upper bits");
 					else
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, true, "expandstmp"); };
 				else
@@ -81,7 +85,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 							else
 								return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "trunctmp"); };
 						else
-							return AutoErr(Loc, expr_type, desired_type, "would truncate/reinterpret upper bits");
+							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate/reinterpret upper bits");
 					else
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandstmp"); };
 		}
@@ -92,7 +96,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 // compute the conversion functions for binary Operators
 std::tuple<std::function<llvm::Value*(llvm::Value*)>,
            std::function<llvm::Value*(llvm::Value*)>,
-	std::function<llvm::Value*(llvm::Value*)>, llvm::Type*>
+           std::function<llvm::Value*(llvm::Value*)>, llvm::Type*>
 calc_conv(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
           unsigned left_attr, unsigned right_attr, unsigned desired_attr,
           const char* Op, SourceLocation Loc)
@@ -124,7 +128,7 @@ calc_conv(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_typ
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, false, "expandstmp"); },
 								NoConversion, left_type };
 						else
-							return { AutoErr(Loc, left_type, right_type, "would truncate/reinterpret upper bits"), nullptr, nullptr, nullptr };
+							return { AutoErr(Loc, left_type, right_type, left_attr, right_attr,"would truncate/reinterpret upper bits"), nullptr, nullptr, nullptr };
 				else
 					if (right_attr & A_signed)
 						// unsigned # signed
@@ -133,7 +137,7 @@ calc_conv(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_typ
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, false, "expandstmp"); },
 								NoConversion, NoConversion, right_type };
 						else
-							return { AutoErr(Loc, right_type, left_type, "would truncate/reinterpret upper bits"), nullptr, nullptr, nullptr };
+							return { AutoErr(Loc, right_type, left_type, right_attr, left_attr, "would truncate/reinterpret upper bits"), nullptr, nullptr, nullptr };
 					else
 						// unsigned # unsigned
 						if (left_bitwidth == right_bitwidth)
