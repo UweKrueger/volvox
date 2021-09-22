@@ -139,7 +139,9 @@ public:
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
 			key32_table[key] = type;
-			if (!is_signed)
+			if (is_signed)
+				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = name;
+			else
 				typeptr_table[type] = name;
 			return key;
 		} else {
