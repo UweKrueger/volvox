@@ -161,11 +161,20 @@ llvm::Value *BinaryExprAST::codegen() {
 		Builder->CreateStore(Val, Variable);
 		return Val;
 	}
-
 	llvm::Value *L = LHS->codegen();
 	llvm::Value *R = RHS->codegen();
 	if (!L || !R)
 		return nullptr;
+	auto conversions = calc_conv(LHS->type, RHS->type, nullptr, LHS->type_attr, RHS->type_attr, 0, Op);
+	type = std::get<3>(conversions);
+	if (!type)
+		return nullptr;
+	auto lhs_conv = std::get<0>(conversions);
+	auto rhs_conv = std::get<1>(conversions);
+	if (lhs_conv)
+		L = lhs_conv(L);
+	if (rhs_conv)
+		R = rhs_conv(R);
 
 	if (!strcmp(Op, "+")) {
 		switch(type->getTypeID()) {

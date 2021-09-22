@@ -372,3 +372,10 @@ public:
 };
 
 extern Lexer lex;
+// compute the conversion functions for binary Operators
+extern std::tuple<std::function<llvm::Value*(llvm::Value*)>,
+           std::function<llvm::Value*(llvm::Value*)>,
+           std::function<llvm::Value*(llvm::Value*)>, llvm::Type*>
+calc_conv(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
+          unsigned left_attr, unsigned right_attr, unsigned desired_attr,
+          const char* Op, SourceLocation Loc = CurLoc);

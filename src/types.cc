@@ -92,10 +92,10 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 // compute the conversion functions for binary Operators
 std::tuple<std::function<llvm::Value*(llvm::Value*)>,
            std::function<llvm::Value*(llvm::Value*)>,
-           std::function<llvm::Value*(llvm::Value*)>>
+	std::function<llvm::Value*(llvm::Value*)>, llvm::Type*>
 calc_conv(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
           unsigned left_attr, unsigned right_attr, unsigned desired_attr,
-          const char* Op, SourceLocation Loc = CurLoc)
+          const char* Op, SourceLocation Loc)
 {
 	if (desired_type) {
 	} else {
@@ -108,48 +108,47 @@ calc_conv(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_typ
 					if (right_attr & A_signed)
 						// signed # signed
 						if (left_bitwidth == right_bitwidth)
-							return { NoConversion, NoConversion, NoConversion };
+							return { NoConversion, NoConversion, NoConversion, left_type };
 						else if (left_bitwidth > right_bitwidth)
 							return { NoConversion,
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
-								NoConversion };
+								NoConversion, left_type };
 						else
 							return {
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, true, "expandstmp"); },
-								NoConversion, NoConversion };
+								NoConversion, NoConversion, right_type };
 					else
 						// signed # unsigned
 						if (left_bitwidth > right_bitwidth)
 							return { NoConversion,
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, false, "expandstmp"); },
-								NoConversion };
+								NoConversion, left_type };
 						else
-							return { AutoErr(Loc, left_type, right_type, "would truncate/reinterpret upper bits"), nullptr, nullptr };
+							return { AutoErr(Loc, left_type, right_type, "would truncate/reinterpret upper bits"), nullptr, nullptr, nullptr };
 				else
 					if (right_attr & A_signed)
 						// unsigned # signed
 						if (left_bitwidth < right_bitwidth)
 							return {
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, false, "expandstmp"); },
-								NoConversion,
-								NoConversion };
+								NoConversion, NoConversion, right_type };
 						else
-							return { AutoErr(Loc, right_type, left_type, "would truncate/reinterpret upper bits"), nullptr, nullptr };
+							return { AutoErr(Loc, right_type, left_type, "would truncate/reinterpret upper bits"), nullptr, nullptr, nullptr };
 					else
 						// unsigned # unsigned
 						if (left_bitwidth == right_bitwidth)
-							return { NoConversion, NoConversion, NoConversion };
+							return { NoConversion, NoConversion, NoConversion, left_type };
 						else if (left_bitwidth > right_bitwidth)
 							return { NoConversion,
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
-								NoConversion };
+								NoConversion, left_type };
 						else
 							return {
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, true, "expandstmp"); },
-								NoConversion, NoConversion };
+								NoConversion, NoConversion, right_type };
 			}
 		}
 	}
-	return { nullptr, nullptr, nullptr };
+	return { nullptr, nullptr, nullptr, nullptr };
 }
 
