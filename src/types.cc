@@ -41,6 +41,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 			unsigned expr_bitwidth = expr_type->getIntegerBitWidth();
 			if (!(desired_attr & A_signed))
 				if (expr_attr & A_signed)
+					// signed -> unsigned
 					if (!is_explicit)
 						return AutoErr(Loc, expr_type, desired_type, "signed->unsigned");
 					else
@@ -48,7 +49,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 							return NoConversion;
 						else
 							// design decision: make this a signed conversion so that `u64(-1) -> 0xffffffffffffffff`
-							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, true, "convtmp"); };
+							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, true, "convstmp"); };
 				else
 					// unsigned -> unsigned
 					if (desired_bitwidth < expr_bitwidth)
@@ -89,13 +90,66 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 }
 
 // compute the conversion functions for binary Operators
-std::tuple<llvm::Value* (*)(llvm::Value*, llvm::Value*),
-           llvm::Value* (*)(llvm::Value*, llvm::Value*),
-           llvm::Value* (*)(llvm::Value*, llvm::Value*)>
-	    calc_conv(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
-	              unsigned left_attr, unsigned right_attr, unsigned desired_attr,
-	              const char* Op, SourceLocation Loc = CurLoc)
+std::tuple<std::function<llvm::Value*(llvm::Value*)>,
+           std::function<llvm::Value*(llvm::Value*)>,
+           std::function<llvm::Value*(llvm::Value*)>>
+calc_conv(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
+          unsigned left_attr, unsigned right_attr, unsigned desired_attr,
+          const char* Op, SourceLocation Loc = CurLoc)
 {
+	if (desired_type) {
+	} else {
+		// no result type known - deduce from "biggest" operand
+		if (left_type->isIntegerTy()) {
+			unsigned left_bitwidth = left_type->getIntegerBitWidth();
+			if (right_type->isIntegerTy()) {
+				unsigned right_bitwidth = right_type->getIntegerBitWidth();
+				if (left_attr & A_signed)
+					if (right_attr & A_signed)
+						// signed # signed
+						if (left_bitwidth == right_bitwidth)
+							return { NoConversion, NoConversion, NoConversion };
+						else if (left_bitwidth > right_bitwidth)
+							return { NoConversion,
+								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
+								NoConversion };
+						else
+							return {
+								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, true, "expandstmp"); },
+								NoConversion, NoConversion };
+					else
+						// signed # unsigned
+						if (left_bitwidth > right_bitwidth)
+							return { NoConversion,
+								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, false, "expandstmp"); },
+								NoConversion };
+						else
+							return { AutoErr(Loc, left_type, right_type, "would truncate/reinterpret upper bits"), nullptr, nullptr };
+				else
+					if (right_attr & A_signed)
+						// unsigned # signed
+						if (left_bitwidth < right_bitwidth)
+							return {
+								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, false, "expandstmp"); },
+								NoConversion,
+								NoConversion };
+						else
+							return { AutoErr(Loc, right_type, left_type, "would truncate/reinterpret upper bits"), nullptr, nullptr };
+					else
+						// unsigned # unsigned
+						if (left_bitwidth == right_bitwidth)
+							return { NoConversion, NoConversion, NoConversion };
+						else if (left_bitwidth > right_bitwidth)
+							return { NoConversion,
+								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
+								NoConversion };
+						else
+							return {
+								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, true, "expandstmp"); },
+								NoConversion, NoConversion };
+			}
+		}
+	}
 	return { nullptr, nullptr, nullptr };
 }
 
