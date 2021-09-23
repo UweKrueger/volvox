@@ -149,18 +149,22 @@ static void HandleExtern() {
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
+		/*
 		auto RetType = FnAST->Proto->RetTypes.size() == 1 ?
 			FnAST->Proto->RetTypes[0].first :
 			llvm::Type::getVoidTy(*Context.getContext());
 		unsigned ret_type_attr = FnAST->Proto->RetTypes.size() == 1 ?
 			FnAST->Proto->RetTypes[0].second : 0;
+		*/
+		auto anon_expr = FnAST->codegen();
+		auto RetType = anon_expr->getReturnType();
+		unsigned ret_type_attr = 0;
 		auto RetTypeID = RetType->getTypeID();
 		unsigned IntBitWidth = RetTypeID == llvm::Type::IntegerTyID ?
 			RetType->getIntegerBitWidth() : 0;
 
-		auto anon_expr = FnAST->codegen();
 		if (anon_expr) {
-			auto ret_type = anon_expr->getReturnType();
+			auto ret_type = RetType; // anon_expr->getReturnType();
 			fprintf(stderr, "ExprType: %u BitWidth: %u Volvox: %u, %u\n", ret_type->getTypeID(), ret_type->isIntegerTy() ? ret_type->getIntegerBitWidth() : 0, RetType->getTypeID(), RetType->isIntegerTy() ? RetType->getIntegerBitWidth() : 0);
 			if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12

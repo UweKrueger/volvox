@@ -77,9 +77,14 @@ class BinaryExprAST : public ExprAST {
 public:
 	char Op[4];
 	std::unique_ptr<ExprAST> LHS, RHS;
+	std::function<llvm::Value*(llvm::Value*)> ConvertLHS, convertRHS, convertRES;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
-	              std::unique_ptr<ExprAST> RHS)
-		: ExprAST(LHS->type, LHS->type_attr, Loc), LHS(std::move(LHS)), RHS(std::move(RHS)) {
+	              std::unique_ptr<ExprAST> RHS,
+	              std::tuple<std::function<llvm::Value*(llvm::Value*)>,
+	              std::function<llvm::Value*(llvm::Value*)>,
+	              std::function<llvm::Value*(llvm::Value*)>, llvm::Type*, unsigned> conversions)
+		: ExprAST(std::get<3>(conversions), std::get<4>(conversions), Loc), LHS(std::move(LHS)), RHS(std::move(RHS)),
+		  ConvertLHS(std::get<0>(conversions)), convertRHS(std::get<1>(conversions)), convertRES(std::get<2>(conversions)) {
 		strcpy(Op, _Op);
 	}
 	llvm::Value *codegen() override;
@@ -221,6 +226,7 @@ public:
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
 public:
+	llvm::Type* type;
 	std::unique_ptr<PrototypeAST> Proto;
 	std::unique_ptr<ExprAST> Body;
 

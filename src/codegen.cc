@@ -165,16 +165,10 @@ llvm::Value *BinaryExprAST::codegen() {
 	llvm::Value *R = RHS->codegen();
 	if (!L || !R)
 		return nullptr;
-	auto conversions = calc_conv(LHS->type, RHS->type, nullptr, LHS->type_attr, RHS->type_attr, 0, Op);
-	type = std::get<3>(conversions);
-	if (!type)
-		return nullptr;
-	auto lhs_conv = std::get<0>(conversions);
-	auto rhs_conv = std::get<1>(conversions);
-	if (lhs_conv)
-		L = lhs_conv(L);
-	if (rhs_conv)
-		R = rhs_conv(R);
+	if (ConvertLHS)
+		L = ConvertLHS(L);
+	if (convertRHS)
+		R = convertRHS(R);
 
 	if (!strcmp(Op, "+")) {
 		switch(type->getTypeID()) {
@@ -603,6 +597,8 @@ llvm::Function *FunctionAST::codegen() {
 	}
 	if (llvm::Value *RetVal = Body->codegen()) {
 		// Finish off the function.
+		auto ret_type = RetVal->getType();
+		type = ret_type; // TODO: hande conversion if != proto->type;
 		Builder->CreateRet(RetVal);
 		if (comp_mode == comp_dbg) {
 			// Pop off the lexical block for the function.
