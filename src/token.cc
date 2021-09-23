@@ -53,7 +53,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	} else {
 		Val.Uint = strtoull(*s_ptr, &endptr, 0);
 	}
-	int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = sign };
+	int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
 	if (errno != 0) {
 		Val.Int = errno;
 		*s_ptr = endptr;
@@ -116,6 +116,9 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 			break;
 		}
 	}
+	if (gen_type.ID == llvm::Type::IntegerTyID && int_type.is_signed && !sign && Val.Int < 0)
+		// TODO: further checks for bit sizes
+		LogError("%u exceeds maximum maximum possible signed value");
 }
 				
 Token::Token(const std::string& str) : kind(tok_str_lit) {
