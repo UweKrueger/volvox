@@ -157,13 +157,12 @@ static void HandleTopLevelExpression() {
 			FnAST->Proto->RetTypes[0].second : 0;
 		*/
 		auto anon_expr = FnAST->codegen();
-		auto RetType = anon_expr->getReturnType();
-		unsigned ret_type_attr = 0;
-		auto RetTypeID = RetType->getTypeID();
-		unsigned IntBitWidth = RetTypeID == llvm::Type::IntegerTyID ?
-			RetType->getIntegerBitWidth() : 0;
-
 		if (anon_expr) {
+			auto RetType = anon_expr->getReturnType();
+			unsigned ret_type_attr = 0;
+			auto RetTypeID = RetType->getTypeID();
+			unsigned IntBitWidth = RetTypeID == llvm::Type::IntegerTyID ?
+				RetType->getIntegerBitWidth() : 0;
 			auto ret_type = RetType; // anon_expr->getReturnType();
 			fprintf(stderr, "ExprType: %u BitWidth: %u Volvox: %u, %u\n", ret_type->getTypeID(), ret_type->isIntegerTy() ? ret_type->getIntegerBitWidth() : 0, RetType->getTypeID(), RetType->isIntegerTy() ? RetType->getIntegerBitWidth() : 0);
 			if (comp_mode == comp_jit) {
@@ -282,7 +281,7 @@ static void HandleTopLevelExpression() {
 #endif
 			}
 		} else {
-			fprintf(stderr, "Error generating code for top level expr");
+			fprintf(stderr, "Error generating code for top level expr\n");
 		}
 	} else {
 		// Skip rest for error recovery.

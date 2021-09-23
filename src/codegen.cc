@@ -513,6 +513,8 @@ llvm::Function *PrototypeAST::codegen() {
 	// TODO: support returning multiple objects
 	auto RetType = RetTypes.size() == 1 ?
 		RetTypes[0].first : llvm::Type::getVoidTy(*Context.getContext());
+	if (!RetType) // RetTypes[0] exists but type could not be derived
+		return nullptr;
 	llvm::FunctionType *FT =
 		llvm::FunctionType::get(RetType, ArgTypes, false);
 
