@@ -112,7 +112,7 @@ convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_typ
 					if (right_attr & A_signed)
 						// signed # signed
 						if (left_bitwidth == right_bitwidth)
-							return { NoConversion, NoConversion, NoConversion, left_type, 0 };
+							return { NoConversion, NoConversion, NoConversion, left_type, A_signed };
 						else if (left_bitwidth > right_bitwidth)
 							return { NoConversion,
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
