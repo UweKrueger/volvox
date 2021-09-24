@@ -165,6 +165,8 @@ llvm::Value *BinaryExprAST::codegen() {
 	llvm::Value *R = RHS->codegen();
 	if (!L || !R)
 		return nullptr;
+	if (conv.compat.err_msg)
+		return AutoErr(Loc, LHS->type, RHS->type, LHS->type_attr, RHS->type_attr, conv.compat.err_msg);
 	if (conv.compat.LHS)
 		L = conv.compat.LHS(L);
 	if (conv.compat.RHS)

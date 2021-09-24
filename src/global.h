@@ -235,9 +235,9 @@ inline std::pair<llvm::Type*, bool> lookup_var(const char* Name) {
 }
 
 class ExprAST {
+public:
 	SourceLocation Loc;
 
-public:
 	llvm::Type* type;
 	llvm::Type* desired_type;
 	unsigned type_attr;
@@ -374,3 +374,6 @@ public:
 };
 
 extern Lexer lex;
+
+extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
+                              unsigned expr_attr, unsigned desired_attr, const char* reason);

@@ -79,6 +79,7 @@ struct BinOpConv {
 	std::function<llvm::Value*(llvm::Value*)> RHS;
 	llvm::Type* res_type;
 	unsigned res_attr;
+	const char* err_msg;
 };
 
 // there are two sets of conversions. E.g. `u16 * u16(u8) -> u16` works, but could overflow

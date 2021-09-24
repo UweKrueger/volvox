@@ -551,8 +551,16 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
+		if (!E->type) {
+			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
+				if (B->conv.compat.err_msg)
+					return AutoErr(B->Loc, B->LHS->type, B->RHS->type, B->LHS->type_attr, B->RHS->type_attr, B->conv.compat.err_msg);
+			} else {
+				fprintf(stderr, "Could not deduce type of expression\n");
+				return nullptr;
+			}
+		}
 		// Make an anonymous proto.
-		char* name = nullptr;
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
