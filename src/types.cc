@@ -99,7 +99,7 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type
                        unsigned left_attr, unsigned right_attr, unsigned desired_attr,
                        const char* Op, SourceLocation Loc)
 {
-	unsigned left_bitwidth, right_bitwidth;
+	unsigned left_bitwidth, right_bitwidth, res_bitwidth;
 	if (desired_type) {
 		return {{ nullptr, nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 	} else {
@@ -201,6 +201,26 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type
 							left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 				else
 					return {{ AutoErr(Loc, right_type, left_type, right_attr, left_attr, "int->float would lose precision"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
+			case llvm::Type::HalfTyID:
+				right_bitwidth = 11;
+				goto right_real2;
+			case llvm::Type::BFloatTyID:
+				right_bitwidth = 8;
+				goto right_real2;
+			case llvm::Type::FloatTyID:
+				right_bitwidth = 24;
+				goto right_real2;
+			case llvm::Type::DoubleTyID:
+				right_bitwidth = 53;
+			right_real2:
+				if (right_bitwidth == left_bitwidth)
+					return {{ NoConversion, NoConversion, left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
+				else if (left_bitwidth > right_bitwidth)
+					return {{ NoConversion,
+							[=](llvm::Value* v) { return Builder->CreateFPCast(v, left_type, "fpcasttmp"); },
+							left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
+				else
+					return {{ [=](llvm::Value* v) { return Builder->CreateFPCast(v, right_type, "fpcasttmp"); }, NoConversion, right_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 			default:
 				return {{ AutoErr(Loc, left_type, right_type, left_attr, right_attr, "no known automatic conversion"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 			}
