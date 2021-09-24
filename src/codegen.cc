@@ -165,10 +165,10 @@ llvm::Value *BinaryExprAST::codegen() {
 	llvm::Value *R = RHS->codegen();
 	if (!L || !R)
 		return nullptr;
-	if (ConvertLHS)
-		L = ConvertLHS(L);
-	if (convertRHS)
-		R = convertRHS(R);
+	if (conv.compat.LHS)
+		L = conv.compat.LHS(L);
+	if (conv.compat.RHS)
+		R = conv.compat.RHS(R);
 
 	if (!strcmp(Op, "+")) {
 		switch(type->getTypeID()) {

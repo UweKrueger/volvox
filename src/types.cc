@@ -1,5 +1,6 @@
 #include "../include/volvox.hh"
 #include "global.h"
+#include "AST.h"
 
 //===----------------------------------------------------------------------
 // type conversion handling
@@ -94,16 +95,13 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 }
 
 // compute the conversion functions for binary Operators
-std::tuple<std::function<llvm::Value*(llvm::Value*)>,
-           std::function<llvm::Value*(llvm::Value*)>,
-           std::function<llvm::Value*(llvm::Value*)>, llvm::Type*, unsigned>
-convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
-          unsigned left_attr, unsigned right_attr, unsigned desired_attr,
-          const char* Op, SourceLocation Loc)
+BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
+                       unsigned left_attr, unsigned right_attr, unsigned desired_attr,
+                       const char* Op, SourceLocation Loc)
 {
 	unsigned left_bitwidth, right_bitwidth;
 	if (desired_type) {
-		return { nullptr, nullptr, nullptr, nullptr, 0 };
+		return {{ nullptr, nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 	} else {
 		// no result type known - deduce from "biggest" operand
 		switch (left_type->getTypeID()) {
@@ -116,44 +114,44 @@ convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_typ
 					if (right_attr & A_signed)
 						// signed # signed
 						if (left_bitwidth == right_bitwidth)
-							return { NoConversion, NoConversion, NoConversion, left_type, A_signed };
+							return {{ NoConversion, NoConversion, left_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
 						else if (left_bitwidth > right_bitwidth)
-							return { NoConversion,
+							return {{ NoConversion,
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
-								NoConversion, left_type, A_signed };
+								left_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
 						else
-							return {
+							return {{
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, true, "expandstmp"); },
-								NoConversion, NoConversion, right_type, A_signed };
+								NoConversion, right_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
 					else
 						// signed # unsigned
 						if (left_bitwidth > right_bitwidth)
-							return { NoConversion,
+							return {{ NoConversion,
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, false, "expandstmp"); },
-								NoConversion, left_type, A_signed };
+								left_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
 						else
-							return { AutoErr(Loc, left_type, right_type, left_attr, right_attr, "would truncate/reinterpret upper bits"), nullptr, nullptr, nullptr, 0 };
+							return {{ AutoErr(Loc, left_type, right_type, left_attr, right_attr, "would truncate/reinterpret upper bits"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 				else
 					if (right_attr & A_signed)
 						// unsigned # signed
 						if (left_bitwidth < right_bitwidth)
-							return {
+							return {{
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, false, "expandstmp"); },
-								NoConversion, NoConversion, right_type, A_signed };
+								NoConversion, right_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
 						else
-							return { AutoErr(Loc, right_type, left_type, right_attr, left_attr, "would truncate/reinterpret upper bits"), nullptr, nullptr, nullptr, 0 };
+							return {{ AutoErr(Loc, right_type, left_type, right_attr, left_attr, "would truncate/reinterpret upper bits"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 					else
 						// unsigned # unsigned
 						if (left_bitwidth == right_bitwidth)
-							return { NoConversion, NoConversion, NoConversion, left_type, 0 };
+							return {{ NoConversion, NoConversion, left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 						else if (left_bitwidth > right_bitwidth)
-							return { NoConversion,
+							return {{ NoConversion,
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
-								NoConversion, left_type, 0 };
+								left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 						else
-							return {
+							return {{
 								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, true, "expandstmp"); },
-								NoConversion, NoConversion, right_type, 0 };
+								NoConversion, right_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 			case llvm::Type::HalfTyID:
 				right_bitwidth = 11;
 				goto right_real;
@@ -168,16 +166,16 @@ convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_typ
 			right_real:
 				if (right_bitwidth >= (left_bitwidth - (left_attr & A_signed)))
 					if (left_attr & A_signed)
-						return { [=](llvm::Value* v) { return Builder->CreateSIToFP(v, right_type, "convsrealtmp"); },
-							NoConversion, NoConversion, right_type, 0 };
+						return {{ [=](llvm::Value* v) { return Builder->CreateSIToFP(v, right_type, "convsrealtmp"); },
+							NoConversion, right_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 					else
-						return { [=](llvm::Value* v) { return Builder->CreateUIToFP(v, right_type, "convurealtmp"); },
-							NoConversion, NoConversion, right_type, 0 };
+						return {{ [=](llvm::Value* v) { return Builder->CreateUIToFP(v, right_type, "convurealtmp"); },
+							NoConversion, right_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 				else
-					return { AutoErr(Loc, left_type, right_type, left_attr, right_attr, "int->float would lose precision"), nullptr, nullptr, nullptr, 0 };
+					return {{ AutoErr(Loc, left_type, right_type, left_attr, right_attr, "int->float would lose precision"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 				break;
 			default:
-				return { AutoErr(Loc, left_type, right_type, left_attr, right_attr, "no known automatic conversion"), nullptr, nullptr, nullptr, 0 };
+				return {{ AutoErr(Loc, left_type, right_type, left_attr, right_attr, "no known automatic conversion"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 			}
 		case llvm::Type::HalfTyID:
 			left_bitwidth = 11;
@@ -196,18 +194,18 @@ convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_typ
 				right_bitwidth = right_type->getIntegerBitWidth();
 				if (left_bitwidth >= (right_bitwidth - (right_attr & A_signed)))
 					if (right_attr & A_signed)
-						return { NoConversion, [=](llvm::Value* v) { return Builder->CreateSIToFP(v, left_type, "convsrealtmp"); },
-							NoConversion, left_type, 0 };
+						return {{ NoConversion, [=](llvm::Value* v) { return Builder->CreateSIToFP(v, left_type, "convsrealtmp"); },
+							left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 					else
-						return { NoConversion, [=](llvm::Value* v) { return Builder->CreateUIToFP(v, left_type, "convurealtmp"); },
-							NoConversion, left_type, 0 };
+						return {{ NoConversion, [=](llvm::Value* v) { return Builder->CreateUIToFP(v, left_type, "convurealtmp"); },
+							left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
 				else
-					return { AutoErr(Loc, right_type, left_type, right_attr, left_attr, "int->float would lose precision"), nullptr, nullptr, nullptr, 0 };
+					return {{ AutoErr(Loc, right_type, left_type, right_attr, left_attr, "int->float would lose precision"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 			default:
-				return { AutoErr(Loc, left_type, right_type, left_attr, right_attr, "no known automatic conversion"), nullptr, nullptr, nullptr, 0 };
+				return {{ AutoErr(Loc, left_type, right_type, left_attr, right_attr, "no known automatic conversion"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 			}
 		default:
-			return { AutoErr(Loc, left_type, right_type, left_attr, right_attr, "no known automatic conversion"), nullptr, nullptr, nullptr, 0 };
+			return {{ AutoErr(Loc, left_type, right_type, left_attr, right_attr, "no known automatic conversion"), nullptr, nullptr, 0 }, { nullptr, nullptr, nullptr, 0 }};
 		}
 	}
 }

@@ -73,20 +73,36 @@ public:
 	}
 };
 
+// conversions that have to be applied to Operands of binary Operator to make them compatible
+struct BinOpConv {
+	std::function<llvm::Value*(llvm::Value*)> LHS;
+	std::function<llvm::Value*(llvm::Value*)> RHS;
+	llvm::Type* res_type;
+	unsigned res_attr;
+};
+
+// there are two sets of conversions. E.g. `u16 * u16(u8) -> u16` works, but could overflow
+// ideal would be `u32(u16) * u32(u8) -> u32`, which will never overflow but is only
+// feasible if an `u32` is desired
+struct BinOpConvSet {
+	BinOpConv compat; // conversion (only one side) to make operands match
+	BinOpConv ideal; // conversions to best prevent overflow/precision loss
+};
+
+extern BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
+                              unsigned left_attr, unsigned right_attr, unsigned desired_attr,
+                              const char* Op, SourceLocation Loc = CurLoc);
+
 /// BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
-
+	
 public:
 	char Op[4];
 	std::unique_ptr<ExprAST> LHS, RHS;
-	std::function<llvm::Value*(llvm::Value*)> ConvertLHS, convertRHS, convertRES;
+	BinOpConvSet conv;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
-	              std::unique_ptr<ExprAST> RHS,
-	              std::tuple<std::function<llvm::Value*(llvm::Value*)>,
-	              std::function<llvm::Value*(llvm::Value*)>,
-	              std::function<llvm::Value*(llvm::Value*)>, llvm::Type*, unsigned> conversions)
-		: ExprAST(std::get<3>(conversions), std::get<4>(conversions), Loc), LHS(std::move(LHS)), RHS(std::move(RHS)),
-		  ConvertLHS(std::get<0>(conversions)), convertRHS(std::get<1>(conversions)), convertRES(std::get<2>(conversions)) {
+	              std::unique_ptr<ExprAST> RHS, BinOpConvSet conv)
+		: ExprAST(conv.compat.res_type, conv.compat.res_attr), LHS(std::move(LHS)), RHS(std::move(RHS)), conv(conv) {
 		strcpy(Op, _Op);
 	}
 	llvm::Value *codegen() override;
