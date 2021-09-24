@@ -89,8 +89,8 @@ struct BinOpConvSet {
 	BinOpConv ideal; // conversions to best prevent overflow/precision loss
 };
 
-extern BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, llvm::Type* desired_type,
-                              unsigned left_attr, unsigned right_attr, unsigned desired_attr,
+extern BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type,
+                              unsigned left_attr, unsigned right_attr,
                               const char* Op, SourceLocation Loc = CurLoc);
 
 /// BinaryExprAST - Expression class for a binary operator.

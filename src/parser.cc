@@ -388,7 +388,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		auto RHS_type = RHS->type;
 		auto RHS_attr = RHS->type_attr;
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
-		                                      convBinOp(LHS_type, RHS_type, nullptr, LHS_attr, RHS_attr, 0, BinOp.c_str()));
+		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr, BinOp.c_str()));
 	}
 }
 
