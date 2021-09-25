@@ -32,6 +32,21 @@ static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llv
 
 static llvm::Value* NoConversion(llvm::Value* v) { return v; }
 
+std::pair<unsigned, bool> getBitWidth(llvm::Type* type) {
+	switch(type->getTypeID()) {
+	case llvm::Type::IntegerTyID:
+		return { type->getIntegerBitWidth(), false };
+	case llvm::Type::BFloatTyID:
+		return { 8, true };
+	case llvm::Type::FloatTyID:
+		return { 24, true };
+	case llvm::Type::DoubleTyID:
+		return { 53, true };
+	default:
+		return { 64, false };
+	}
+}
+			
 static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 	if (is_float)
 		if (bitwidth > 8)
@@ -42,7 +57,31 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 		else
 			return llvm::Type::getBFloatTy(*Context.getContext());
 	else
-		return llvm::Integer::get(*Context.getContext(), bitwidth);
+		return llvm::IntegerType::get(*Context.getContext(), bitwidth);
+}
+
+static std::function<llvm::Value*(llvm::Value*)> getCast(llvm::Type* target_type, unsigned bitwidth, bool is_float, bool is_signed) {
+	if (target_type->isIntegerTy())
+		if (is_float) {
+			fprintf(stderr, "internal compiler error: automatic cast float->int\n");
+			return nullptr;
+		}
+		else
+			if (target_type->getIntegerBitWidth() == bitwidth)
+				return nullptr;
+			else
+				return [=](llvm::Value* v) { return Builder->CreateIntCast(v, target_type, is_signed, is_signed ? "intscasttmp" : "intucasttmp"); };
+	else
+		if (is_float)
+			if (getFittingType(bitwidth, true) == target_type)
+				return nullptr;
+			else
+				return [=](llvm::Value* v) { return Builder->CreateFPCast(v, target_type, "fpcasttmp"); };
+		else
+			if (is_signed)
+				return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, target_type, "sitofptmp"); };
+			else
+				return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, target_type, "uitofptmp"); };
 }
 
 // Try to convert 'expr_type' to 'desired_type'
@@ -107,80 +146,89 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 	return NoConversion;		
 }
 
+inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
+
 // compute the conversion functions for binary Operators
 BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr,
                        const char* Op, SourceLocation Loc)
 {
-	unsigned left_bitwidth, right_bitwidth, res_bitwidth;
 	// no result type known - deduce from "biggest" operand
+	auto left_descr = getBitWidth(left_type);
+	unsigned left_bitwidth = left_descr.first;
+	bool left_is_float = left_descr.second;
+	auto right_descr = getBitWidth(right_type);
+	unsigned right_bitwidth = right_descr.first;
+	bool right_is_float = right_descr.second;
+	unsigned res_bitwidth_min = max(right_bitwidth, left_bitwidth);
+	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
+	unsigned res_is_float = left_is_float || right_is_float;
+	
+	// in simple cases one operand is converted to the type of the other
+	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
+	switch (Op[0]) {
+	case '*':
+		switch(Op[1]) {
+		case '\0': // a * b
+			res_bitwidth = left_bitwidth + right_bitwidth; // for ideal result type without overflow
+			break;
+		case '*': // a ** b
+			res_bitwidth = 64;
+			break;
+		default:
+			// TODO: handle +=, *=, ...
+			fprintf(stderr, "internal error\n");
+		}
+		break;
+	case '/':
+	case '%':
+		res_bitwidth = left_bitwidth;
+		break;
+	case '+':
+	case '-':
+		res_bitwidth = ((left_bitwidth > right_bitwidth) ? left_bitwidth : right_bitwidth) + 1;
+		break;
+	case '|':
+	case '&':
+	case '^':
+		switch(Op[1]) {
+		case '\0':
+			res_bitwidth = ((left_bitwidth > right_bitwidth) ? left_bitwidth : right_bitwidth);
+			break;
+		case '=':
+			res_bitwidth = left_bitwidth;
+			break;
+		case '&':
+		case '|': // &&, ||, &&=, ||=
+			if (left_bitwidth != 1 || right_bitwidth != 1)
+				return {{ nullptr, nullptr, nullptr, 0, "boolean operands expected" }, { nullptr, nullptr, nullptr, 0, "boolean operands expected" }};
+			else
+				res_bitwidth = 1;
+			break;
+		}
+		break;
+	case '=':
+		switch(Op[1]) {
+		case '\0':
+			res_bitwidth = left_bitwidth;
+			break;
+		case '=':
+			res_bitwidth = 1;
+			break;
+		default:
+			fprintf(stderr, "%s-Operator not implemented, yet\n", Op);
+		}
+		break;
+	case '<':
+	case '>':
+		res_bitwidth = 1;
+		break;
+	default:
+		fprintf(stderr, "%s-Operator not implemented, yet\n", Op);
+	}
 	switch (left_type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		left_bitwidth = left_type->getIntegerBitWidth();
 		switch (right_type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
-			right_bitwidth = right_type->getIntegerBitWidth();
-			// in simple cases one operand is converted to the type of the other
-			// here we calculate the ideal result bitwidth to prevent data loss due to overflow
-			switch (Op[0]) {
-			case '*':
-				switch(Op[1]) {
-				case '\0': // a * b
-					res_bitwidth = left_bitwidth + right_bitwidth; // for ideal result type without overflow
-					break;
-				case '*': // a ** b
-					res_bitwidth = 64;
-					break;
-				default:
-					// TODO: handle +=, *=, ...
-					fprintf(stderr, "internal error\n");
-				}
-				break;
-			case '/':
-			case '%':
-				res_bitwidth = left_bitwidth;
-				break;
-			case '+':
-			case '-':
-				res_bitwidth = ((left_bitwidth > right_bitwidth) ? left_bitwidth : right_bitwidth) + 1;
-				break;
-			case '|':
-			case '&':
-			case '^':
-				switch(Op[1]) {
-				case '\0':
-					res_bitwidth = ((left_bitwidth > right_bitwidth) ? left_bitwidth : right_bitwidth);
-					break;
-				case '=':
-					res_bitwidth = left_bitwidth;
-					break;
-				case '&':
-				case '|': // &&, ||, &&=, ||=
-					if (left_bitwidth != 1 || right_bitwidth != 1)
-						return {{ nullptr, nullptr, nullptr, 0, "boolean operands expected" }, { nullptr, nullptr, nullptr, 0, "boolean operands expected" }};
-					else
-						res_bitwidth = 1;
-					break;
-				}
-				break;
-			case '=':
-				switch(Op[1]) {
-				case '\0':
-					res_bitwidth = left_bitwidth;
-					break;
-				case '=':
-					res_bitwidth = 1;
-					break;
-				default:
-					fprintf(stderr, "%s-Operator not implemented, yet\n", Op);
-				}
-				break;
-			case '<':
-			case '>':
-				res_bitwidth = 1;
-				break;
-			default:
-				fprintf(stderr, "%s-Operator not implemented, yet\n", Op);
-			}
 			if (left_attr & A_signed)
 				if (right_attr & A_signed)
 					// signed # signed
