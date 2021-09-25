@@ -106,6 +106,68 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 		switch (right_type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
 			right_bitwidth = right_type->getIntegerBitWidth();
+			// in simple cases one operand is converted to the type of the other
+			// here we calculate the ideal result bitwidth to prevent data loss due to overflow
+			switch (Op[0]) {
+			case '*':
+				switch(Op[1]) {
+				case '\0': // a * b
+					res_bitwidth = left_bitwidth + right_bitwidth; // for ideal result type without overflow
+					break;
+				case '*': // a ** b
+					res_bitwidth = 64;
+					break;
+				default:
+					// TODO: handle +=, *=, ...
+					fprintf(stderr, "internal error\n");
+				}
+				break;
+			case '/':
+			case '%':
+				res_bitwidth = left_bitwidth;
+				break;
+			case '+':
+			case '-':
+				res_bitwidth = ((left_bitwidth > right_bitwidth) ? left_bitwidth : right_bitwidth) + 1;
+				break;
+			case '|':
+			case '&':
+			case '^':
+				switch(Op[1]) {
+				case '\0':
+					res_bitwidth = ((left_bitwidth > right_bitwidth) ? left_bitwidth : right_bitwidth);
+					break;
+				case '=':
+					res_bitwidth = left_bitwidth;
+					break;
+				case '&':
+				case '|': // &&, ||, &&=, ||=
+					if (left_bitwidth != 1 || right_bitwidth != 1)
+						return {{ nullptr, nullptr, nullptr, 0, "boolean operands expected" }, { nullptr, nullptr, nullptr, 0, "boolean operands expected" }};
+					else
+						res_bitwidth = 1;
+					break;
+				}
+				break;
+			case '=':
+				switch(Op[1]) {
+				case '\0':
+					res_bitwidth = left_bitwidth;
+					break;
+				case '=':
+					res_bitwidth = 1;
+					break;
+				default:
+					fprintf(stderr, "%s-Operator not implemented, yet\n", Op);
+				}
+				break;
+			case '<':
+			case '>':
+				res_bitwidth = 1;
+				break;
+			default:
+				fprintf(stderr, "%s-Operator not implemented, yet\n", Op);
+			}
 			if (left_attr & A_signed)
 				if (right_attr & A_signed)
 					// signed # signed
