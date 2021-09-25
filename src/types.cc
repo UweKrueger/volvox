@@ -32,6 +32,19 @@ static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llv
 
 static llvm::Value* NoConversion(llvm::Value* v) { return v; }
 
+static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
+	if (is_float)
+		if (bitwidth > 8)
+			if (bitwidth > 24)
+				return llvm::Type::getDoubleTy(*Context.getContext());
+			else
+				return llvm::Type::getFloatTy(*Context.getContext());
+		else
+			return llvm::Type::getBFloatTy(*Context.getContext());
+	else
+		return llvm::Integer::get(*Context.getContext(), bitwidth);
+}
+
 // Try to convert 'expr_type' to 'desired_type'
 // return an error if not possible or no explicit conversion
 // is requested but precision would be lost
