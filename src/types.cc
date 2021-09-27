@@ -84,6 +84,27 @@ static std::function<llvm::Value*(llvm::Value*)> getCast(llvm::Type* target_type
 				return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, target_type, "uitofptmp"); };
 }
 
+// is the definition area bigger (not the precision)
+// input: type, is_signed
+// results: b fits completely, b fits with presision loss
+std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b) {
+	auto a_id = a.first->getTypeID();
+	auto b_id = b.first->getTypeID();
+	auto a_descr = getBitWidth(a.first);
+	auto b_descr = getBitWidth(b.first);
+	// signed type have a slightly smaller effective bitwidth
+	unsigned a_bitwidth = a.second ? (a_descr.first - 1) : a_descr.first;
+	unsigned b_bitwidth = b.second ? (b_descr.first - 1) : b_descr.first;
+	// cannot convert a signed to an unsigned
+	bool ill_i_u = (!b_descr.second && !b.second) && a.second;
+	// cannot convert float to int
+	bool ill_f_i = a_descr.second && !b_descr.second;
+	// source exceeds target range
+	bool overflow = a_bitwidth > b_bitwidth && !(b_descr.second && !a_descr.second);
+	bool convertable = !overflow && !ill_f_i && !ill_f_i;
+	return { convertable && b_bitwidth <= a_bitwidth, convertable };
+}
+
 // Try to convert 'expr_type' to 'desired_type'
 // return an error if not possible or no explicit conversion
 // is requested but precision would be lost
