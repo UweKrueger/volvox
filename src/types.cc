@@ -169,6 +169,69 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 
 inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 
+std::tuple<llvm::Type*, llvm::Type*, unsigned> getResType(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr, const char* Op) {
+	auto left_descr = getBitWidth(left_type);
+	unsigned left_bitwidth = left_descr.first;
+	bool left_is_float = left_descr.second;
+	bool left_is_signed = left_attr & A_signed;
+	auto right_descr = getBitWidth(right_type);
+	unsigned right_bitwidth = right_descr.first;
+	bool right_is_float = right_descr.second;
+	bool right_is_signed = right_attr & A_signed;
+	unsigned res_bitwidth_min = max(right_bitwidth, left_bitwidth);
+	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
+	unsigned res_is_float = left_is_float || right_is_float;
+	bool res_is_signed = !res_is_float && ((left_attr & A_signed ) || (right_attr & A_signed));
+	// in simple cases one operand is converted to the type of the other
+	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
+	if (Op[1] == '=') {
+		if (Op[0] == '>' || Op[0] == '<')
+			goto comparison;
+		res_bitwidth = left_bitwidth;
+		if (right_bitwidth > left_bitwidth || !left_is_float && (right_is_float || !left_is_signed && right_is_signed ||
+		                                                        left_is_signed && !right_is_signed && right_bitwidth >= left_bitwidth))
+			goto prec_err;
+		goto calc_types;
+	}
+	switch (Op[0]) {
+	case '+':
+	case '-':
+		res_bitwidth++;
+		break;
+	case '*':
+		if (Op[1] != '*') {
+			res_bitwidth = left_bitwidth + right_bitwidth;
+			goto calc_types;
+		}
+		// fallthrough for **
+	case '/':
+	case '%':
+		res_bitwidth = left_bitwidth;
+		break;
+	case '>':
+	case '<':
+	case '=':
+	comparison:
+		res_bitwidth_min = res_bitwidth = 1;
+		if (Op[0] == '=') {
+			// this is an assignment by default, i.e. if no bool result is expected
+			res_bitwidth_min = left_bitwidth;
+			res_is_signed = left_is_signed;
+		}
+		break;
+	case '&':
+	case '|':
+	case '^':
+	default:
+		;
+	}
+calc_types:
+	return { getFittingType(res_bitwidth_min, res_is_float), getFittingType(res_bitwidth, res_is_float), res_is_signed };
+prec_err:
+	fprintf(stderr,  "illegal usage of %s: RHS would degrade\n", Op);
+	return { nullptr, nullptr, 0 };
+}
+
 // compute the conversion functions for binary Operators
 BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr,
                        const char* Op, SourceLocation Loc)
