@@ -245,7 +245,10 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	auto left_conv = getConv(left_type, std::get<0>(res_t), left_attr, std::get<2>(res_t), Loc, false);
 	auto right_conv = getConv(right_type, std::get<0>(res_t), right_attr, std::get<2>(res_t), Loc, false);
 	if (res_bitwidth < res_bitwidth_min) // downgrading operation, e.g. >
-		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) }, { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }};
+		if (Op[0] == '=')
+			return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) }, { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }};
+		else
+			return {{ left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }, { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }};
 	else
 		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) },
 		        { getConv(left_type, std::get<1>(res_t), left_attr, std::get<2>(res_t), Loc, false),
