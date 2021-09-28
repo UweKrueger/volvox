@@ -172,16 +172,6 @@ inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 
 // min result, ideal result, result is signed, errormessage
 std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned left_bitwidth, bool left_is_float, bool left_is_signed, unsigned right_bitwidth, bool right_is_float, bool right_is_signed, const char* Op) {
-	/*
-	auto left_descr = getBitWidth(left_type);
-	unsigned left_bitwidth = left_descr.first;
-	bool left_is_float = left_descr.second;
-	bool left_is_signed = left_attr & A_signed;
-	auto right_descr = getBitWidth(right_type);
-	unsigned right_bitwidth = right_descr.first;
-	bool right_is_float = right_descr.second;
-	bool right_is_signed = right_attr & A_signed;
-	*/
 	unsigned res_bitwidth_min = max(right_bitwidth, left_bitwidth);
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
 	unsigned res_is_float = left_is_float || right_is_float;
@@ -189,7 +179,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {
-		if (Op[0] == '>' || Op[0] == '<')
+		if (Op[0] == '>' || Op[0] == '<' || Op[0] == '!')
 			goto comparison;
 		res_bitwidth = left_bitwidth;
 		if (right_bitwidth > left_bitwidth || !left_is_float && (right_is_float || !left_is_signed && right_is_signed ||
@@ -221,9 +211,6 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 			// this is an assignment by default, i.e. if no bool result is expected
 			res_bitwidth_min = left_bitwidth;
 			res_is_signed = left_is_signed;
-		} else {
-			res_bitwidth_min = 1;
-			res_is_signed = false;
 		}
 		break;
 	case '&':
