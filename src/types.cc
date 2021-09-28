@@ -113,10 +113,38 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 	SourceLocation Loc = CurLoc, bool is_explicit = false)
 {
 	const char* reason = "";
-	if (desired_type->isIntegerTy()) {
-		unsigned desired_bitwidth = desired_type->getIntegerBitWidth();
-		if (expr_type->isIntegerTy()) {
-			unsigned expr_bitwidth = expr_type->getIntegerBitWidth();
+	auto desired_descr = getBitWidth(desired_type);
+	unsigned desired_bitwidth = desired_descr.first;
+	bool float_desired = desired_descr.second;
+	auto expr_descr = getBitWidth(expr_type);
+	unsigned expr_bitwidth = expr_descr.first;
+	bool float_expr = expr_descr.second;
+	if (float_desired)
+		if (float_expr)
+			if (desired_bitwidth == expr_bitwidth)
+				return NoConversion;
+			else if (is_explicit || desired_bitwidth >= expr_bitwidth)
+				return [=](llvm::Value* v) { return Builder->CreateFPCast(v, desired_type, "convfptmp"); };
+			else
+				return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "float truncation");
+		else
+			if (is_explicit || desired_bitwidth >= expr_bitwidth)
+				if (expr_attr & A_signed)
+					return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, desired_type, "convsfptmp"); };
+				else
+					return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, desired_type, "convufptmp"); };
+			else
+				return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "int->float would lose precision");
+	else
+		if (float_expr)
+			if (is_explicit)
+				if (desired_attr & A_signed)
+					return [=](llvm::Value* v) { return Builder->CreateFPToSI(v, desired_type, "convfpstmp"); };
+				else
+					return [=](llvm::Value* v) { return Builder->CreateFPToUI(v, desired_type, "convfputmp"); };
+			else 
+				return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "float -> integer");
+		else
 			if (!(desired_attr & A_signed))
 				if (expr_attr & A_signed)
 					// signed -> unsigned
@@ -162,9 +190,6 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate/reinterpret upper bits");
 					else
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandstmp"); };
-		}
-	}
-	return NoConversion;		
 }
 
 inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
