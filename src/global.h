@@ -378,3 +378,6 @@ extern Lexer lex;
 extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               unsigned expr_attr, unsigned desired_attr, const char* reason);
 extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b);
+extern std::function<llvm::Value*(llvm::Value*)> getConv(
+	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
+	SourceLocation Loc = CurLoc, bool is_explicit = false);

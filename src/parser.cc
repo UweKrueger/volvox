@@ -543,6 +543,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 		}
 	}
 	auto E = ParseExpression();
+	fprintf(stderr, "expression parsed %p\n", Proto.get());
 	if (E)
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	return nullptr;

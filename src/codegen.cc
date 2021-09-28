@@ -161,6 +161,7 @@ llvm::Value *BinaryExprAST::codegen() {
 		Builder->CreateStore(Val, Variable);
 		return Val;
 	}
+	llvm::Value* result;
 	if (!desired_type) {
 		desired_type = type;
 		desired_type_attr = type_attr;
@@ -199,52 +200,59 @@ conv_done:
 	if (!strcmp(Op, "+")) {
 		switch(type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
-			return Builder->CreateAdd(L, R, "addtmp");
+			result = Builder->CreateAdd(L, R, "addtmp");
+			break;
 		case llvm::Type::HalfTyID:
 		case llvm::Type::BFloatTyID:
 		case llvm::Type::FloatTyID:
 		case llvm::Type::DoubleTyID:
-			return Builder->CreateFAdd(L, R, "addtmp");
+			result = Builder->CreateFAdd(L, R, "addtmp");
+			break;
 		default:
 			LogError(operr, Op);
 		}
 	} else if (!strcmp(Op, "-")) {
 		switch(type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
-			return Builder->CreateSub(L, R, "subtmp");
+			result = Builder->CreateSub(L, R, "subtmp");
+			break;
 		case llvm::Type::HalfTyID:
 		case llvm::Type::BFloatTyID:
 		case llvm::Type::FloatTyID:
 		case llvm::Type::DoubleTyID:
-			return Builder->CreateFSub(L, R, "subtmp");
+			result = Builder->CreateFSub(L, R, "subtmp");
+			break;
 		default:
 			LogError(operr, Op);
 		}
 	} else if (!strcmp(Op, "*")) {
 		switch(type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
-			return Builder->CreateMul(L, R, "multmp");
+			result = Builder->CreateMul(L, R, "multmp");
+			break;
 		case llvm::Type::HalfTyID:
 		case llvm::Type::BFloatTyID:
 		case llvm::Type::FloatTyID:
 		case llvm::Type::DoubleTyID:
-			return Builder->CreateFMul(L, R, "multmp");
+			result = Builder->CreateFMul(L, R, "multmp");
+			break;
 		default:
 			LogError(operr, Op);
 		}
-		return Builder->CreateMul(L, R, "multmp");
 	} else if (!strcmp(Op, "/")) {
 		switch(type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
 			if (type_attr & A_signed)
-				return Builder->CreateSDiv(L, R, "divtmp");
+				result = Builder->CreateSDiv(L, R, "divtmp");
 			else
-				return Builder->CreateUDiv(L, R, "divtmp");
+				result = Builder->CreateUDiv(L, R, "divtmp");
+			break;
 		case llvm::Type::HalfTyID:
 		case llvm::Type::BFloatTyID:
 		case llvm::Type::FloatTyID:
 		case llvm::Type::DoubleTyID:
-			return Builder->CreateFDiv(L, R, "divtmp");
+			result = Builder->CreateFDiv(L, R, "divtmp");
+			break;
 		default:
 			LogError(operr, Op);
 		}
@@ -252,14 +260,16 @@ conv_done:
 		switch(type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
 			if (type_attr & A_signed)
-				return Builder->CreateSRem(L, R, "remtmp");
+				result = Builder->CreateSRem(L, R, "remtmp");
 			else
-				return Builder->CreateURem(L, R, "remtmp");
+				result = Builder->CreateURem(L, R, "remtmp");
+			break;
 		case llvm::Type::HalfTyID:
 		case llvm::Type::BFloatTyID:
 		case llvm::Type::FloatTyID:
 		case llvm::Type::DoubleTyID:
-			return Builder->CreateFRem(L, R, "remtmp");
+			result = Builder->CreateFRem(L, R, "remtmp");
+			break;
 		default:
 			LogError(operr, Op);
 		}
@@ -270,6 +280,12 @@ conv_done:
 	}
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
+	if (result) {
+		auto conv = getConv(type, desired_type, type_attr, desired_type_attr, Loc, true);
+		if (conv)
+			result = conv(result);
+		return result;
+	}
 	llvm::Function *F = getFunction(std::string("binary") + Op);
 	assert(F && "binary operator not found!");
 
@@ -623,10 +639,12 @@ llvm::Function *FunctionAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(Body.get());
 	}
+	Body->desired_type = P.RetTypes[0].first;
+	Body->desired_type_attr = P.RetTypes[0].second;
 	if (llvm::Value *RetVal = Body->codegen()) {
 		// Finish off the function.
 		auto ret_type = RetVal->getType();
-		type = ret_type; // TODO: hande conversion if != proto->type;
+		//type = ret_type; // TODO: hande conversion if != proto->type;
 		Builder->CreateRet(RetVal);
 		if (comp_mode == comp_dbg) {
 			// Pop off the lexical block for the function.
