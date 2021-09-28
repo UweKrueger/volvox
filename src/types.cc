@@ -170,7 +170,8 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 
 // min result, ideal result, result is signed, errormessage
-std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr, const char* Op) {
+std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned left_bitwidth, bool left_is_float, bool left_is_signed, unsigned right_bitwidth, bool right_is_float, bool right_is_signed, const char* Op) {
+	/*
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
 	bool left_is_float = left_descr.second;
@@ -179,10 +180,11 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(llvm::Typ
 	unsigned right_bitwidth = right_descr.first;
 	bool right_is_float = right_descr.second;
 	bool right_is_signed = right_attr & A_signed;
+	*/
 	unsigned res_bitwidth_min = max(right_bitwidth, left_bitwidth);
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
 	unsigned res_is_float = left_is_float || right_is_float;
-	bool res_is_signed = !res_is_float && ((left_attr & A_signed ) || (right_attr & A_signed));
+	bool res_is_signed = !res_is_float && (left_is_signed || right_is_signed);
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {
@@ -236,199 +238,25 @@ prec_err:
 BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr,
                        const char* Op, SourceLocation Loc)
 {
-	// no result type known - deduce from "biggest" operand
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
 	bool left_is_float = left_descr.second;
+	bool left_is_signed = left_attr & A_signed;
 	auto right_descr = getBitWidth(right_type);
 	unsigned right_bitwidth = right_descr.first;
 	bool right_is_float = right_descr.second;
-	unsigned res_bitwidth_min = max(right_bitwidth, left_bitwidth);
-	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
-	unsigned res_is_float = left_is_float || right_is_float;
-	
-	// in simple cases one operand is converted to the type of the other
-	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
-	switch (Op[0]) {
-	case '*':
-		switch(Op[1]) {
-		case '\0': // a * b
-			res_bitwidth = left_bitwidth + right_bitwidth; // for ideal result type without overflow
-			break;
-		case '*': // a ** b
-			res_bitwidth = 64;
-			break;
-		default:
-			// TODO: handle +=, *=, ...
-			fprintf(stderr, "internal error\n");
-		}
-		break;
-	case '/':
-	case '%':
-		res_bitwidth = left_bitwidth;
-		break;
-	case '+':
-	case '-':
-		res_bitwidth = ((left_bitwidth > right_bitwidth) ? left_bitwidth : right_bitwidth) + 1;
-		break;
-	case '|':
-	case '&':
-	case '^':
-		switch(Op[1]) {
-		case '\0':
-			res_bitwidth = ((left_bitwidth > right_bitwidth) ? left_bitwidth : right_bitwidth);
-			break;
-		case '=':
-			res_bitwidth = left_bitwidth;
-			break;
-		case '&':
-		case '|': // &&, ||, &&=, ||=
-			if (left_bitwidth != 1 || right_bitwidth != 1)
-				return {{ nullptr, nullptr, nullptr, 0, "boolean operands expected" }, { nullptr, nullptr, nullptr, 0, "boolean operands expected" }};
-			else
-				res_bitwidth = 1;
-			break;
-		}
-		break;
-	case '=':
-		switch(Op[1]) {
-		case '\0':
-			res_bitwidth = left_bitwidth;
-			break;
-		case '=':
-			res_bitwidth = 1;
-			break;
-		default:
-			fprintf(stderr, "%s-Operator not implemented, yet\n", Op);
-		}
-		break;
-	case '<':
-	case '>':
-		res_bitwidth = 1;
-		break;
-	default:
-		fprintf(stderr, "%s-Operator not implemented, yet\n", Op);
-	}
-	switch (left_type->getTypeID()) {
-	case llvm::Type::IntegerTyID:
-		switch (right_type->getTypeID()) {
-		case llvm::Type::IntegerTyID:
-			if (left_attr & A_signed)
-				if (right_attr & A_signed)
-					// signed # signed
-					if (left_bitwidth == right_bitwidth)
-						return {{ nullptr, nullptr, left_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
-					else if (left_bitwidth > right_bitwidth)
-						return {{ nullptr,
-								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
-								left_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
-					else
-						return {{
-								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, true, "expandstmp"); },
-								nullptr, right_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
-				else
-					// signed # unsigned
-					if (left_bitwidth > right_bitwidth)
-						return {{ nullptr,
-								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, false, "expandstmp"); },
-								left_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
-					else
-						return {{ nullptr, nullptr, nullptr, 0, "would truncate/reinterpret upper bits" }, { nullptr, nullptr, nullptr, 0 }};
-			else
-				if (right_attr & A_signed)
-					// unsigned # signed
-					if (left_bitwidth < right_bitwidth)
-						return {{
-								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, false, "expandstmp"); },
-								nullptr, right_type, A_signed }, { nullptr, nullptr, nullptr, 0 }};
-					else
-						return {{ nullptr, nullptr, nullptr, 0, "would truncate/reinterpret upper bits" }, { nullptr, nullptr, nullptr, 0 }};
-				else
-					// unsigned # unsigned
-					if (left_bitwidth == right_bitwidth)
-						return {{ nullptr, nullptr, left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-					else if (left_bitwidth > right_bitwidth)
-						return {{ nullptr,
-								[=](llvm::Value* v) { return Builder->CreateIntCast(v, left_type, true, "expandstmp"); },
-								left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-					else
-						return {{
-								[=](llvm::Value* v) { return Builder->CreateIntCast(v, right_type, true, "expandstmp"); },
-								nullptr, right_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-		case llvm::Type::HalfTyID:
-			right_bitwidth = 11;
-			goto right_real;
-		case llvm::Type::BFloatTyID:
-			right_bitwidth = 8;
-			goto right_real;
-		case llvm::Type::FloatTyID:
-			right_bitwidth = 24;
-			goto right_real;
-		case llvm::Type::DoubleTyID:
-			right_bitwidth = 53;
-		right_real:
-			if (right_bitwidth >= (left_bitwidth - (left_attr & A_signed)))
-				if (left_attr & A_signed)
-					return {{ [=](llvm::Value* v) { return Builder->CreateSIToFP(v, right_type, "convsrealtmp"); },
-							nullptr, right_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-				else
-					return {{ [=](llvm::Value* v) { return Builder->CreateUIToFP(v, right_type, "convurealtmp"); },
-							nullptr, right_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-			else
-				return {{ nullptr, nullptr, nullptr, 0, "int->float would lose precision" }, { nullptr, nullptr, nullptr, 0 }};
-			break;
-		default:
-			return {{ nullptr, nullptr, nullptr, 0, "no known automatic conversion" }, { nullptr, nullptr, nullptr, 0 }};
-		}
-	case llvm::Type::HalfTyID:
-		left_bitwidth = 11;
-		goto left_real;
-	case llvm::Type::BFloatTyID:
-		left_bitwidth = 8;
-		goto left_real;
-	case llvm::Type::FloatTyID:
-		left_bitwidth = 24;
-		goto left_real;
-	case llvm::Type::DoubleTyID:
-		left_bitwidth = 53;
-	left_real:
-		switch (right_type->getTypeID()) {
-		case llvm::Type::IntegerTyID:
-			right_bitwidth = right_type->getIntegerBitWidth();
-			if (left_bitwidth >= (right_bitwidth - (right_attr & A_signed)))
-				if (right_attr & A_signed)
-					return {{ nullptr, [=](llvm::Value* v) { return Builder->CreateSIToFP(v, left_type, "convsrealtmp"); },
-							left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-				else
-					return {{ nullptr, [=](llvm::Value* v) { return Builder->CreateUIToFP(v, left_type, "convurealtmp"); },
-							left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-			else
-				return {{ nullptr, nullptr, nullptr, 0, "int->float would lose precision" }, { nullptr, nullptr, nullptr, 0 }};
-		case llvm::Type::HalfTyID:
-			right_bitwidth = 11;
-			goto right_real2;
-		case llvm::Type::BFloatTyID:
-			right_bitwidth = 8;
-			goto right_real2;
-		case llvm::Type::FloatTyID:
-			right_bitwidth = 24;
-			goto right_real2;
-		case llvm::Type::DoubleTyID:
-			right_bitwidth = 53;
-		right_real2:
-			if (right_bitwidth == left_bitwidth)
-				return {{ nullptr, nullptr, left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-			else if (left_bitwidth > right_bitwidth)
-				return {{ nullptr,
-						[=](llvm::Value* v) { return Builder->CreateFPCast(v, left_type, "fpcasttmp"); },
-						left_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-			else
-				return {{ [=](llvm::Value* v) { return Builder->CreateFPCast(v, right_type, "fpcasttmp"); }, nullptr, right_type, 0 }, { nullptr, nullptr, nullptr, 0 }};
-		default:
-			return {{ nullptr, nullptr, nullptr, 0, "no known automatic conversion" }, { nullptr, nullptr, nullptr, 0 }};
-		}
-	default:
-		return {{ nullptr, nullptr, nullptr, 0, "no known automatic conversion" }, { nullptr, nullptr, nullptr, 0 }};
-	}
+	bool right_is_signed = right_attr & A_signed;
+	std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> res_t = getResType(left_bitwidth, left_is_float, left_is_signed, right_bitwidth, right_is_float, right_is_signed, Op);
+	if (std::get<3>(res_t))
+		return {{ nullptr, nullptr, nullptr, 0, std::get<3>(res_t) }, { nullptr, nullptr, nullptr, 0, std::get<3>(res_t) }};
+	unsigned res_bitwidth_min = getBitWidth(std::get<0>(res_t)).first;
+	unsigned res_bitwidth = getBitWidth(std::get<1>(res_t)).first;
+	auto left_conv = getConv(left_type, std::get<0>(res_t), left_attr, std::get<2>(res_t), Loc, false);
+	auto right_conv = getConv(right_type, std::get<0>(res_t), right_attr, std::get<2>(res_t), Loc, false);
+	if (res_bitwidth < res_bitwidth_min) // downgrading operation, e.g. >
+		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) }, { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }};
+	else
+		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) },
+		        { getConv(left_type, std::get<1>(res_t), left_attr, std::get<2>(res_t), Loc, false),
+		          getConv(right_type, std::get<1>(res_t), right_attr, std::get<2>(res_t), Loc, false), std::get<1>(res_t), std::get<2>(res_t) }};
 }
-
