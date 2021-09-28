@@ -102,8 +102,8 @@ public:
 	std::unique_ptr<ExprAST> LHS, RHS;
 	BinOpConvSet conv;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
-	              std::unique_ptr<ExprAST> RHS, BinOpConvSet conv)
-		: ExprAST(conv.compat.res_type, conv.compat.res_attr), LHS(std::move(LHS)), RHS(std::move(RHS)), conv(conv) {
+	              std::unique_ptr<ExprAST> RHS, BinOpConvSet conv, llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0)
+		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib), LHS(std::move(LHS)), RHS(std::move(RHS)), conv(conv) {
 		strcpy(Op, _Op);
 	}
 	llvm::Value *codegen() override;

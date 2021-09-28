@@ -355,7 +355,7 @@ static std::unique_ptr<ExprAST> ParseUnary(llvm::Type* desired_type = nullptr,
 /// binoprhs
 ///   ::= ('+' unary)*
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
-                                              std::unique_ptr<ExprAST> LHS) {
+                                              std::unique_ptr<ExprAST> LHS, llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0) {
 	// If this is a binop, find its precedence.
 	while (true) {
 		int TokPrec = GetTokPrecedence();
@@ -388,7 +388,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		auto RHS_type = RHS->type;
 		auto RHS_attr = RHS->type_attr;
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
-		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr, BinOp.c_str()));
+		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr, BinOp.c_str()),
+		                                      desired_type, desired_attrib);
 	}
 }
 
@@ -400,7 +401,7 @@ static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type, unsign
 	if (!LHS)
 		return nullptr;
 
-	return ParseBinOpRHS(0, std::move(LHS));
+	return ParseBinOpRHS(0, std::move(LHS), desired_type, desired_attrib);
 }
 
 /// prototype
