@@ -134,12 +134,21 @@ llvm::Value *UnaryExprAST::codegen() {
 
 static const char* operr = "Op %s cannot create result for type ID %d";
 
+enum TypeClass {
+	is_unknown = 0,
+	is_float,
+	is_int,
+	is_string,
+	is_other
+};
+
 llvm::Value *BinaryExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	bool is_bool = desired_type == llvm::Type::getInt1Ty(*Context.getContext()) || type == llvm::Type::getInt1Ty(*Context.getContext());
 	// Special case '=' because we don't want to emit the LHS as an expression.
-	if (!strcmp(Op, "=")) {
+	if (!strcmp(Op, "=") && !is_bool) {
 		// Assignment requires the LHS to be an identifier.
 		// This assume we're building without RTTI because LLVM builds that way by
 		// default.  If you build LLVM with RTTI this can be changed to a
@@ -166,13 +175,15 @@ llvm::Value *BinaryExprAST::codegen() {
 		desired_type = type;
 		desired_type_attr = type_attr;
 	}
-	if (auto BinL = dynamic_cast<BinaryExprAST*>(LHS.get())) {
-		BinL->desired_type = desired_type;
-		BinL->desired_type_attr = desired_type_attr;
-	}
-	if (auto BinR = dynamic_cast<BinaryExprAST*>(RHS.get())) {
-		BinR->desired_type = desired_type;
-		BinR->desired_type_attr = desired_type_attr;
+	if (!is_bool) {
+		if (auto BinL = dynamic_cast<BinaryExprAST*>(LHS.get())) {
+			BinL->desired_type = desired_type;
+			BinL->desired_type_attr = desired_type_attr;
+		}
+		if (auto BinR = dynamic_cast<BinaryExprAST*>(RHS.get())) {
+			BinR->desired_type = desired_type;
+			BinR->desired_type_attr = desired_type_attr;
+		}
 	}
 	llvm::Value *L = LHS->codegen();
 	llvm::Value *R = RHS->codegen();
@@ -197,77 +208,77 @@ llvm::Value *BinaryExprAST::codegen() {
 	if (conv.compat.RHS)
 		R = conv.compat.RHS(R);
 conv_done:
+	TypeClass typeclass = is_unknown;
+	switch(type->getTypeID()) {
+	case llvm::Type::IntegerTyID:
+		typeclass = is_int;
+		break;
+	case llvm::Type::HalfTyID:
+	case llvm::Type::BFloatTyID:
+	case llvm::Type::FloatTyID:
+	case llvm::Type::DoubleTyID:
+		typeclass = is_float;
+		break;
+	default:
+		typeclass = is_unknown;
+	}
+
 	if (!strcmp(Op, "+")) {
-		switch(type->getTypeID()) {
-		case llvm::Type::IntegerTyID:
+		switch(typeclass) {
+		case is_int:
 			result = Builder->CreateAdd(L, R, "addtmp");
 			break;
-		case llvm::Type::HalfTyID:
-		case llvm::Type::BFloatTyID:
-		case llvm::Type::FloatTyID:
-		case llvm::Type::DoubleTyID:
+		case is_float:
 			result = Builder->CreateFAdd(L, R, "addtmp");
 			break;
 		default:
 			LogError(operr, Op);
 		}
 	} else if (!strcmp(Op, "-")) {
-		switch(type->getTypeID()) {
-		case llvm::Type::IntegerTyID:
+		switch(typeclass) {
+		case is_int:
 			result = Builder->CreateSub(L, R, "subtmp");
 			break;
-		case llvm::Type::HalfTyID:
-		case llvm::Type::BFloatTyID:
-		case llvm::Type::FloatTyID:
-		case llvm::Type::DoubleTyID:
+		case is_float:
 			result = Builder->CreateFSub(L, R, "subtmp");
 			break;
 		default:
 			LogError(operr, Op);
 		}
 	} else if (!strcmp(Op, "*")) {
-		switch(type->getTypeID()) {
-		case llvm::Type::IntegerTyID:
+		switch(typeclass) {
+		case is_int:
 			result = Builder->CreateMul(L, R, "multmp");
 			break;
-		case llvm::Type::HalfTyID:
-		case llvm::Type::BFloatTyID:
-		case llvm::Type::FloatTyID:
-		case llvm::Type::DoubleTyID:
+		case is_float:
 			result = Builder->CreateFMul(L, R, "multmp");
 			break;
 		default:
 			LogError(operr, Op);
 		}
 	} else if (!strcmp(Op, "/")) {
-		switch(type->getTypeID()) {
-		case llvm::Type::IntegerTyID:
+		switch(typeclass) {
+		case is_int:
 			if (type_attr & A_signed)
 				result = Builder->CreateSDiv(L, R, "divtmp");
 			else
 				result = Builder->CreateUDiv(L, R, "divtmp");
 			break;
-		case llvm::Type::HalfTyID:
-		case llvm::Type::BFloatTyID:
-		case llvm::Type::FloatTyID:
-		case llvm::Type::DoubleTyID:
+		case is_float:
 			result = Builder->CreateFDiv(L, R, "divtmp");
 			break;
 		default:
 			LogError(operr, Op);
 		}
 	} else if (!strcmp(Op, "%")) {
-		switch(type->getTypeID()) {
-		case llvm::Type::IntegerTyID:
+		switch(typeclass) {
+		case is_int:
 			if (type_attr & A_signed)
 				result = Builder->CreateSRem(L, R, "remtmp");
 			else
 				result = Builder->CreateURem(L, R, "remtmp");
 			break;
-		case llvm::Type::HalfTyID:
-		case llvm::Type::BFloatTyID:
-		case llvm::Type::FloatTyID:
-		case llvm::Type::DoubleTyID:
+		case is_float:
 			result = Builder->CreateFRem(L, R, "remtmp");
 			break;
 		default:
