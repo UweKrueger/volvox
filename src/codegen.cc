@@ -291,9 +291,67 @@ conv_done:
 		}
 		break;
 	case '<':
-		L = Builder->CreateFCmpULT(L, R, "cmptmp");
-		// Convert bool 0/1 to double 0.0 or 1.0
-		return Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*Context.getContext()), "booltmp");
+		if (Op[1] == '=') {
+			switch(typeclass) {
+			case is_int:
+				if (type_attr & A_signed)
+					result = Builder->CreateICmpSLE(L, R, "lesitmp");
+				else
+					result = Builder->CreateICmpULE(L, R, "leuitmp");
+				break;
+			case is_float:
+				result = Builder->CreateFCmpOLE(L, R, "leftmp");
+				break;
+			default:
+				LogError(operr, Op);
+			}
+		} else {
+			switch(typeclass) {
+			case is_int:
+				if (type_attr & A_signed)
+					result = Builder->CreateICmpSLT(L, R, "ltsitmp");
+				else
+					result = Builder->CreateICmpULT(L, R, "ltuitmp");
+				break;
+			case is_float:
+				result = Builder->CreateFCmpOLT(L, R, "ltftmp");
+				break;
+			default:
+				LogError(operr, Op);
+			}
+		}
+		break;
+	case '>':
+		if (Op[1] == '=') {
+			switch(typeclass) {
+			case is_int:
+				if (type_attr & A_signed)
+					result = Builder->CreateICmpSGE(L, R, "gesitmp");
+				else
+					result = Builder->CreateICmpUGE(L, R, "geuitmp");
+				break;
+			case is_float:
+				result = Builder->CreateFCmpOGE(L, R, "geftmp");
+				break;
+			default:
+				LogError(operr, Op);
+			}
+		} else {
+			switch(typeclass) {
+			case is_int:
+				if (type_attr & A_signed)
+					result = Builder->CreateICmpSGT(L, R, "gtsitmp");
+				else
+					result = Builder->CreateICmpUGT(L, R, "gtuitmp");
+				break;
+			case is_float:
+				result = Builder->CreateFCmpOGT(L, R, "gtftmp");
+				break;
+			default:
+				LogError(operr, Op);
+			}
+		}
+		break;
 	}
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
