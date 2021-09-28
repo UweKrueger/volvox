@@ -60,33 +60,6 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 		return llvm::IntegerType::get(*Context.getContext(), bitwidth);
 }
 
-// TODO: combine with getConv
-static std::function<llvm::Value*(llvm::Value*)> getCast(llvm::Type* target_type, unsigned bitwidth, bool is_float, bool is_signed) {
-	if (target_type->isIntegerTy())
-		if (is_float) {
-			if (is_signed)
-				return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, target_type, "convsfptmp"); };
-			else
-				return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, target_type, "convufptmp"); };
-		}
-		else
-			if (target_type->getIntegerBitWidth() == bitwidth)
-				return nullptr;
-			else
-				return [=](llvm::Value* v) { return Builder->CreateIntCast(v, target_type, is_signed, is_signed ? "intscasttmp" : "intucasttmp"); };
-	else
-		if (is_float)
-			if (getFittingType(bitwidth, true) == target_type)
-				return nullptr;
-			else
-				return [=](llvm::Value* v) { return Builder->CreateFPCast(v, target_type, "fpcasttmp"); };
-		else
-			if (is_signed)
-				return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, target_type, "sitofptmp"); };
-			else
-				return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, target_type, "uitofptmp"); };
-}
-
 // is the definition area bigger (not the precision)
 // input: type, is_signed
 // results: b fits completely, b fits with presision loss
@@ -113,7 +86,7 @@ std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<ll
 // is requested but precision would be lost
 std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
-	SourceLocation Loc = CurLoc, bool is_explicit = false)
+	SourceLocation Loc, bool is_explicit)
 {
 	const char* reason = "";
 	auto desired_descr = getBitWidth(desired_type);
