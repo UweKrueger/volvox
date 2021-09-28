@@ -216,11 +216,14 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 	case '<':
 	case '=':
 	comparison:
-		res_bitwidth_min = res_bitwidth = 1;
+		res_bitwidth = 1;
 		if (Op[0] == '=') {
 			// this is an assignment by default, i.e. if no bool result is expected
 			res_bitwidth_min = left_bitwidth;
 			res_is_signed = left_is_signed;
+		} else {
+			res_bitwidth_min = 1;
+			res_is_signed = false;
 		}
 		break;
 	case '&':

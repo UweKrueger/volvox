@@ -223,7 +223,8 @@ conv_done:
 		typeclass = is_unknown;
 	}
 
-	if (!strcmp(Op, "+")) {
+	switch (Op[0]) {
+	case '+':
 		switch(typeclass) {
 		case is_int:
 			result = Builder->CreateAdd(L, R, "addtmp");
@@ -234,7 +235,8 @@ conv_done:
 		default:
 			LogError(operr, Op);
 		}
-	} else if (!strcmp(Op, "-")) {
+		break;
+	case '-':
 		switch(typeclass) {
 		case is_int:
 			result = Builder->CreateSub(L, R, "subtmp");
@@ -245,7 +247,8 @@ conv_done:
 		default:
 			LogError(operr, Op);
 		}
-	} else if (!strcmp(Op, "*")) {
+		break;
+	case '*':
 		switch(typeclass) {
 		case is_int:
 			result = Builder->CreateMul(L, R, "multmp");
@@ -256,7 +259,8 @@ conv_done:
 		default:
 			LogError(operr, Op);
 		}
-	} else if (!strcmp(Op, "/")) {
+		break;
+	case '/':
 		switch(typeclass) {
 		case is_int:
 			if (type_attr & A_signed)
@@ -270,7 +274,8 @@ conv_done:
 		default:
 			LogError(operr, Op);
 		}
-	} else if (!strcmp(Op, "%")) {
+		break;
+	case '%':
 		switch(typeclass) {
 		case is_int:
 			if (type_attr & A_signed)
@@ -284,7 +289,8 @@ conv_done:
 		default:
 			LogError(operr, Op);
 		}
-	} else if (!strcmp(Op, "<")) {
+		break;
+	case '<':
 		L = Builder->CreateFCmpULT(L, R, "cmptmp");
 		// Convert bool 0/1 to double 0.0 or 1.0
 		return Builder->CreateUIToFP(L, llvm::Type::getDoubleTy(*Context.getContext()), "booltmp");
