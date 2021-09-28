@@ -210,6 +210,12 @@ static void HandleTopLevelExpression() {
 					bool is_signed = (bool)(ret_type_attr & A_signed);
 					if (ret_type_attr & A_signed) {
 						switch (IntBitWidth) {
+						case 1: { // this should actually be unsigned - put it here, too, just in case
+							bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							bool b = BOOL();
+							fprintf(stderr, "Evaluated to %s\n", b ? "true" : "false");
+							break;
+						}
 						case 8: {
 							signed char (*INT8)() = (signed char (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 							signed char c = INT8();
@@ -236,6 +242,12 @@ static void HandleTopLevelExpression() {
 						}
 					} else {
 						switch (IntBitWidth) {
+						case 1: {
+							bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							bool b = BOOL();
+							fprintf(stderr, "Evaluated to %s\n", b ? "true" : "false");
+							break;
+						}
 						case 8: {
 							unsigned char (*UINT8)() = (unsigned char (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 							unsigned char c = UINT8();
