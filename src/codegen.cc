@@ -161,17 +161,41 @@ llvm::Value *BinaryExprAST::codegen() {
 		Builder->CreateStore(Val, Variable);
 		return Val;
 	}
+	if (!desired_type) {
+		desired_type = type;
+		desired_type_attr = type_attr;
+	}
+	if (auto BinL = dynamic_cast<BinaryExprAST*>(LHS.get())) {
+		BinL->desired_type = desired_type;
+		BinL->desired_type_attr = desired_type_attr;
+	}
+	if (auto BinR = dynamic_cast<BinaryExprAST*>(RHS.get())) {
+		BinR->desired_type = desired_type;
+		BinR->desired_type_attr = desired_type_attr;
+	}
 	llvm::Value *L = LHS->codegen();
 	llvm::Value *R = RHS->codegen();
 	if (!L || !R)
 		return nullptr;
+	if (desired_type && !conv.ideal.err_msg) {
+		auto ana = analyze_types({ conv.ideal.res_type, conv.ideal.res_attr }, { desired_type, desired_type_attr });
+		// printf("desired_type: %s %d %d\n", type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_type_attr & A_signed))), ana.first, (ana.second && !conv.compat.err_msg));
+		if (ana.first || (ana.second && !conv.compat.err_msg)) {
+			if (conv.ideal.LHS)
+				L = conv.ideal.LHS(L);
+			if (conv.ideal.RHS)
+				R = conv.ideal.RHS(R);
+			goto conv_done;
+		}
+			
+	} 
 	if (conv.compat.err_msg)
 		return AutoErr(Loc, LHS->type, RHS->type, LHS->type_attr, RHS->type_attr, conv.compat.err_msg);
 	if (conv.compat.LHS)
 		L = conv.compat.LHS(L);
 	if (conv.compat.RHS)
 		R = conv.compat.RHS(R);
-
+conv_done:
 	if (!strcmp(Op, "+")) {
 		switch(type->getTypeID()) {
 		case llvm::Type::IntegerTyID:

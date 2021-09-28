@@ -60,11 +60,14 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 		return llvm::IntegerType::get(*Context.getContext(), bitwidth);
 }
 
+// TODO: combine with getConv
 static std::function<llvm::Value*(llvm::Value*)> getCast(llvm::Type* target_type, unsigned bitwidth, bool is_float, bool is_signed) {
 	if (target_type->isIntegerTy())
 		if (is_float) {
-			fprintf(stderr, "internal compiler error: automatic cast float->int\n");
-			return nullptr;
+			if (is_signed)
+				return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, target_type, "convsfptmp"); };
+			else
+				return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, target_type, "convufptmp"); };
 		}
 		else
 			if (target_type->getIntegerBitWidth() == bitwidth)
