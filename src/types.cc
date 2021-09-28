@@ -169,7 +169,8 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 
 inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 
-std::tuple<llvm::Type*, llvm::Type*, unsigned> getResType(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr, const char* Op) {
+// min result, ideal result, result is signed, errormessage
+std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr, const char* Op) {
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
 	bool left_is_float = left_descr.second;
@@ -226,10 +227,9 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned> getResType(llvm::Type* left_type,
 		;
 	}
 calc_types:
-	return { getFittingType(res_bitwidth_min, res_is_float), getFittingType(res_bitwidth, res_is_float), res_is_signed };
+	return { getFittingType(res_bitwidth_min, res_is_float), getFittingType(res_bitwidth, res_is_float), res_is_signed, nullptr };
 prec_err:
-	fprintf(stderr,  "illegal usage of %s: RHS would degrade\n", Op);
-	return { nullptr, nullptr, 0 };
+	return { nullptr, nullptr, 0, "illegal usage of %s: RHS would degrade\n" };
 }
 
 // compute the conversion functions for binary Operators
