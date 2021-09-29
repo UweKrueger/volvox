@@ -48,7 +48,7 @@ std::pair<unsigned, bool> getBitWidth(llvm::Type* type) {
 }
 			
 static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
-	if (is_float)
+	if (is_float && bitwidth > 1) // bitwidth = 1 is always bool, i.e. u1
 		if (bitwidth > 8)
 			if (bitwidth > 24)
 				return llvm::Type::getDoubleTy(*Context.getContext());
@@ -209,8 +209,8 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 		res_bitwidth = 1;
 		if (Op[0] == '=') {
 			// this is an assignment by default, i.e. if no bool result is expected
-			res_bitwidth_min = left_bitwidth;
-			res_is_signed = left_is_signed;
+			//res_bitwidth_min = left_bitwidth;
+			//res_is_signed = left_is_signed;
 		}
 		break;
 	case '&':
@@ -237,6 +237,7 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	unsigned right_bitwidth = right_descr.first;
 	bool right_is_float = right_descr.second;
 	bool right_is_signed = right_attr & A_signed;
+	// TODO: use C++-17 structured bindings instead of anonymous tuple in the future
 	std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> res_t = getResType(left_bitwidth, left_is_float, left_is_signed, right_bitwidth, right_is_float, right_is_signed, Op);
 	if (std::get<3>(res_t))
 		return {{ nullptr, nullptr, nullptr, 0, std::get<3>(res_t) }, { nullptr, nullptr, nullptr, 0, std::get<3>(res_t) }};
@@ -244,11 +245,8 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	unsigned res_bitwidth = getBitWidth(std::get<1>(res_t)).first;
 	auto left_conv = getConv(left_type, std::get<0>(res_t), left_attr, std::get<2>(res_t), Loc, false);
 	auto right_conv = getConv(right_type, std::get<0>(res_t), right_attr, std::get<2>(res_t), Loc, false);
-	if (res_bitwidth < res_bitwidth_min) // downgrading operation, e.g. >
-		if (Op[0] == '=')
-			return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) }, { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }};
-		else
-			return {{ left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }, { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }};
+	if (res_bitwidth < res_bitwidth_min) // downgrading operation, e.g. comparison with bool result
+		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) }, { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }};
 	else
 		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) },
 		        { getConv(left_type, std::get<1>(res_t), left_attr, std::get<2>(res_t), Loc, false),

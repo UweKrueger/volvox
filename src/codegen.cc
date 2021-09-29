@@ -208,8 +208,11 @@ llvm::Value *BinaryExprAST::codegen() {
 	if (conv.compat.RHS)
 		R = conv.compat.RHS(R);
 conv_done:
+	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
+	llvm::Type* OperandType = conv.compat.res_type;
+	bool OperandSigned = conv.compat.res_attr | A_signed;
 	TypeClass typeclass = is_unknown;
-	switch(type->getTypeID()) {
+	switch(OperandType->getTypeID()) {
 	case llvm::Type::IntegerTyID:
 		typeclass = is_int;
 		break;
@@ -263,7 +266,7 @@ conv_done:
 	case '/':
 		switch(typeclass) {
 		case is_int:
-			if (type_attr & A_signed)
+			if (OperandSigned)
 				result = Builder->CreateSDiv(L, R, "divtmp");
 			else
 				result = Builder->CreateUDiv(L, R, "divtmp");
@@ -278,7 +281,7 @@ conv_done:
 	case '%':
 		switch(typeclass) {
 		case is_int:
-			if (type_attr & A_signed)
+			if (OperandSigned)
 				result = Builder->CreateSRem(L, R, "remtmp");
 			else
 				result = Builder->CreateURem(L, R, "remtmp");
@@ -294,7 +297,7 @@ conv_done:
 		if (Op[1] == '=') {
 			switch(typeclass) {
 			case is_int:
-				if (type_attr & A_signed)
+				if (OperandSigned)
 					result = Builder->CreateICmpSLE(L, R, "lesitmp");
 				else
 					result = Builder->CreateICmpULE(L, R, "leuitmp");
@@ -308,7 +311,7 @@ conv_done:
 		} else {
 			switch(typeclass) {
 			case is_int:
-				if (type_attr & A_signed)
+				if (OperandSigned)
 					result = Builder->CreateICmpSLT(L, R, "ltsitmp");
 				else
 					result = Builder->CreateICmpULT(L, R, "ltuitmp");
@@ -325,7 +328,7 @@ conv_done:
 		if (Op[1] == '=') {
 			switch(typeclass) {
 			case is_int:
-				if (type_attr & A_signed)
+				if (OperandSigned)
 					result = Builder->CreateICmpSGE(L, R, "gesitmp");
 				else
 					result = Builder->CreateICmpUGE(L, R, "geuitmp");
@@ -339,7 +342,7 @@ conv_done:
 		} else {
 			switch(typeclass) {
 			case is_int:
-				if (type_attr & A_signed)
+				if (OperandSigned)
 					result = Builder->CreateICmpSGT(L, R, "gtsitmp");
 				else
 					result = Builder->CreateICmpUGT(L, R, "gtuitmp");
