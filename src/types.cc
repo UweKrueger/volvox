@@ -51,17 +51,13 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 	if (is_float && bitwidth > 1) // bitwidth = 1 is always bool, i.e. u1
 		if (bitwidth > 8)
 			if (bitwidth > 24)
-				if (bitwidth > 53)
-					fprintf(stderr, "Cannot create float with %u bit mantissa\n", bitwidth);
-				else
-					return llvm::Type::getDoubleTy(*Context.getContext());
+				return llvm::Type::getDoubleTy(*Context.getContext());
 			else
 				return llvm::Type::getFloatTy(*Context.getContext());
 		else
 			return llvm::Type::getBFloatTy(*Context.getContext());
 	else
 		return llvm::IntegerType::get(*Context.getContext(), bitwidth);
-	return nullptr;
 }
 
 // is the definition area bigger (not the precision)
