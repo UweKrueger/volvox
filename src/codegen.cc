@@ -293,6 +293,24 @@ conv_done:
 			LogError(operr, Op);
 		}
 		break;
+	case '&':
+		switch(typeclass) {
+		case is_int:
+			result = Builder->CreateAnd(L, R, "andtmp");
+			break;
+		default:
+			LogError(operr, Op);
+		}
+		break;
+	case '|':
+		switch(typeclass) {
+		case is_int:
+			result = Builder->CreateOr(L, R, "ortmp");
+			break;
+		default:
+			LogError(operr, Op);
+		}
+		break;
 	case '<':
 		if (Op[1] == '=') {
 			switch(typeclass) {
