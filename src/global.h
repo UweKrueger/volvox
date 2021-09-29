@@ -70,6 +70,7 @@ struct SourceLocation {
 
 // Types
 
+extern const char* input_file_name;
 extern llvm::orc::ThreadSafeContext Context;
 extern SourceLocation CurLoc;
 

@@ -352,6 +352,8 @@ extern "C" DLLEXPORT double printd(double X) {
 // Main driver code.
 //===----------------------------------------------------------------------===//
 
+const char* input_file_name = "/dev/stdin";
+
 int main(int argc, char* argv[]) {
 	FILE* input_file = stdin;
 	const char* input_file_name = "a.vx";

@@ -7,7 +7,7 @@
 //===----------------------------------------------------------------------
 
 std::nullptr_t Error(SourceLocation Loc, const char *Str, ...) {
-	fprintf(stderr, "Error (%d, %d)", Loc.Line, Loc.Col);
+	fprintf(stderr, "%s:%d:%d: ", input_file_name, Loc.Line, Loc.Col);
 	va_list ap;
 	va_start(ap, Str);
 	vfprintf(stderr, Str, ap);
@@ -18,7 +18,7 @@ std::nullptr_t Error(SourceLocation Loc, const char *Str, ...) {
 	
 std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               unsigned expr_attr, unsigned desired_attr, const char* reason) {
-	return Error(Loc, "Cannot automatically convert %s to %s (%s)",
+	return Error(Loc, "cannot automatically convert %s / %s - %s",
 	             type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))),
 	             type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))), reason);
 }
@@ -51,13 +51,17 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 	if (is_float && bitwidth > 1) // bitwidth = 1 is always bool, i.e. u1
 		if (bitwidth > 8)
 			if (bitwidth > 24)
-				return llvm::Type::getDoubleTy(*Context.getContext());
+				if (bitwidth > 53)
+					fprintf(stderr, "Cannot create float with %u bit mantissa\n", bitwidth);
+				else
+					return llvm::Type::getDoubleTy(*Context.getContext());
 			else
 				return llvm::Type::getFloatTy(*Context.getContext());
 		else
 			return llvm::Type::getBFloatTy(*Context.getContext());
 	else
 		return llvm::IntegerType::get(*Context.getContext(), bitwidth);
+	return nullptr;
 }
 
 // is the definition area bigger (not the precision)
@@ -182,9 +186,10 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 		if (Op[0] == '>' || Op[0] == '<' || Op[0] == '!')
 			goto comparison;
 		res_bitwidth = left_bitwidth;
-		if (right_bitwidth > left_bitwidth || !left_is_float && (right_is_float || !left_is_signed && right_is_signed ||
-		                                                        left_is_signed && !right_is_signed && right_bitwidth >= left_bitwidth))
-			goto prec_err;
+		if (right_bitwidth > left_bitwidth || !left_is_float &&
+		    (right_is_float || !left_is_signed && right_is_signed ||
+		     left_is_signed && !right_is_signed && right_bitwidth >= left_bitwidth))
+			return { nullptr, nullptr, 0, "illegal usage of %s: RHS would degrade\n" };
 		goto calc_types;
 	}
 	switch (Op[0]) {
@@ -220,9 +225,12 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 		;
 	}
 calc_types:
-	return { getFittingType(res_bitwidth_min, res_is_float), getFittingType(res_bitwidth, res_is_float), res_is_signed, nullptr };
-prec_err:
-	return { nullptr, nullptr, 0, "illegal usage of %s: RHS would degrade\n" };
+	bool left_is_promoted = res_bitwidth_min > left_bitwidth || res_is_signed != left_is_signed || res_is_float && !left_is_float;
+	bool right_is_promoted = res_bitwidth_min > right_bitwidth || res_is_signed != right_is_signed || res_is_float && !right_is_float;
+	llvm::Type* def_type = (left_is_promoted && right_is_promoted) ?
+		nullptr : // forbid both-side promotion as default
+		getFittingType(res_bitwidth_min, res_is_float);
+	return { def_type, getFittingType(res_bitwidth, res_is_float), res_is_signed, def_type ? nullptr : "would require promotions on both sides" };
 }
 
 // compute the conversion functions for binary Operators
