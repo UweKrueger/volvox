@@ -326,6 +326,15 @@ conv_done:
 			default:
 				LogError(operr, Op);
 			}
+		} else if (Op[1] == '<') {
+			switch(typeclass) {
+			case is_int:
+				result = Builder->CreateShl(L, R, "remtmp");
+				break;
+			default:
+				LogError(operr, Op);
+			}
+			break;
 		} else {
 			switch(typeclass) {
 			case is_int:
@@ -357,6 +366,18 @@ conv_done:
 			default:
 				LogError(operr, Op);
 			}
+		} else if (Op[1] == '>') {
+			switch(typeclass) {
+			case is_int:
+				if (OperandSigned)
+					result = Builder->CreateAShr(L, R, "remtmp");
+				else
+					result = Builder->CreateLShr(L, R, "remtmp");
+				break;
+			default:
+				LogError(operr, Op);
+			}
+			break;
 		} else {
 			switch(typeclass) {
 			case is_int:

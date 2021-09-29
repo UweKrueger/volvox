@@ -176,6 +176,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
 	unsigned res_is_float = left_is_float || right_is_float;
 	bool res_is_signed = !res_is_float && (left_is_signed || right_is_signed);
+	bool is_shift = false;
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {
@@ -207,11 +208,18 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 	case '<':
 	case '=':
 	comparison:
-		res_bitwidth = 1;
-		if (Op[0] == '=') {
-			// this is an assignment by default, i.e. if no bool result is expected
-			//res_bitwidth_min = left_bitwidth;
-			//res_is_signed = left_is_signed;
+		if (Op[1] == Op[0]) {
+			// <<, >> TODO: forbid float
+			is_shift = true; // to allow signed / unsigend mismatch
+			res_bitwidth_min = left_bitwidth;
+			res_is_signed = left_is_signed;
+		} else {
+			res_bitwidth = 1;
+			if (Op[0] == '=') {
+				// this is an assignment by default, i.e. if no bool result is expected
+				res_bitwidth_min = left_bitwidth;
+				res_is_signed = left_is_signed;
+			}
 		}
 		break;
 	case '&':
@@ -222,7 +230,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 	}
 calc_types:
 	bool left_is_promoted = res_bitwidth_min > left_bitwidth || res_is_signed != left_is_signed || res_is_float && !left_is_float;
-	bool right_is_promoted = res_bitwidth_min > right_bitwidth || res_is_signed != right_is_signed || res_is_float && !right_is_float;
+	bool right_is_promoted = (res_bitwidth_min > right_bitwidth || res_is_signed != right_is_signed) && !is_shift || res_is_float && !right_is_float;
 	llvm::Type* def_type = (left_is_promoted && right_is_promoted) ?
 		nullptr : // forbid both-side promotion as default
 		getFittingType(res_bitwidth_min, res_is_float);
