@@ -22,12 +22,12 @@ enum TokenKind {
 	tok_assign = -2, // = (possibly multiple assignees, result(s): old value(s), right binding)
 	tok_comma = -3,
 	tok_arrow = -4, // <-
-	tok_or = -5, // || (between bool, result: bool)
-	tok_and = -6, // && (between bool, result: bool)
+	tok_or = -5, // |, ^, ! (between bool or int, result: bool or int)
+	tok_and = -6, // & (between bool or int, result: bool or int)
 	// the following operators can be redfined for user types
 	tok_cmp = -7, // >=, >, ==, !=, <, <=, <=>
-	tok_add = -8, // +, -, |, ^, !, ~
-	tok_mult = -9, // *, /, %, <<, >>, &
+	tok_add = -8, // +, -, ~
+	tok_mult = -9, // *, /, %, <<, >>
 	tok_unary = -10, // +, -, !, ~, &, <-
 	tok_pow = -11, // **
 	tok_postfix = -12, // ++, -- (return old result)

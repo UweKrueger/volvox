@@ -124,11 +124,16 @@ Token Lexer::gettok(bool expectBinary) {
 				return tok_cmp;
 			}
 		}
-		case '+':
-		case '-':
 		case '|':
 		case '^':
 		case '!':
+		{
+			IdentifierStr = CurChar;
+			CurChar = advance();
+			return tok_or;
+		}
+		case '+':
+		case '-':
 		case '~':
 		{
 			auto c0 = CurChar;
@@ -137,11 +142,8 @@ Token Lexer::gettok(bool expectBinary) {
 			if (CurChar == c0) {
 				IdentifierStr += CurChar;
 				CurChar = advance();
-				if (c0 == '|')  { // ||
-					return tok_or;
-				} else { // postfix ++, --, !!, ~~, ^^
-					return tok_postfix;
-				}
+				// postfix ++, --, ~~
+				return tok_postfix;
 			} else {
 				if (CurChar == '=') {
 					IdentifierStr += CurChar;
@@ -156,10 +158,15 @@ Token Lexer::gettok(bool expectBinary) {
 				}
 			}
 		}
+		case '&':
+		{
+			IdentifierStr = CurChar;
+			CurChar = advance();
+			return tok_and;
+		}
 		case '*':
 		case '/':
 		case '%':
-		case '&':
 		{ // <<, >> already handled in <, > case	
 			auto c0 = CurChar;
 			IdentifierStr = c0;
@@ -222,9 +229,11 @@ Token Lexer::gettok(bool expectBinary) {
 			CurChar = advance();
 		while (CurChar != EOF && CurChar != '\n' && CurChar != '\r');
 
-		if (CurChar != EOF)
-			return gettok();
-		// passthough
+		if (CurChar != EOF) {
+			IdentifierStr = CurChar;
+			return ';';
+		}
+	// passthough
 	}
 		// Check for end of file.  Don't eat the EOF.
 	case EOF:
