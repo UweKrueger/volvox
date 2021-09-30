@@ -7,6 +7,7 @@
 //===----------------------------------------------------------------------===//
 
 std::unique_ptr<llvm::DIBuilder> DBuilder;
+bool inside_function = false;
 
 llvm::DIType *DebugInfo::getDoubleTy() {
 	if (DblTy)
@@ -122,6 +123,9 @@ llvm::Value *UnaryExprAST::codegen() {
 	if (!OperandV)
 		return nullptr;
 
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	switch (OperandV->getType()->getTypeID()) {
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
@@ -154,9 +158,6 @@ llvm::Value *UnaryExprAST::codegen() {
 		if (!F)
 			return LogErrorV("Unknown unary operator");
 
-		if (comp_mode == comp_dbg) {
-			KSDbgInfo.emitLocation(this);
-		}
 		return Builder->CreateCall(F, OperandV, "unop");
 	}
 }
@@ -171,13 +172,45 @@ enum TypeClass {
 	is_other
 };
 
+enum OpKind {
+	other_op = 0,
+	assign_op,
+	decl_assign_op,
+	modification_op,
+};
+
 llvm::Value *BinaryExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
 	bool is_bool = desired_type == llvm::Type::getInt1Ty(*Context.getContext()) || type == llvm::Type::getInt1Ty(*Context.getContext());
-	// Special case '=' because we don't want to emit the LHS as an expression.
-	if (!strcmp(Op, "=") && !is_bool) {
+	OpKind kind;
+	if (Op[0] == '=')
+		kind = assign_op;
+	else if (Op[1] == '=')
+		switch (Op[0]) {
+		case ':':
+			kind = decl_assign_op;
+			break;
+		case '+':
+		case '-':
+		case '*':
+		case '/':
+		case '%':
+		case '&':
+		case '|':
+		case '^':
+			kind = modification_op;
+			break;
+		default:
+			kind = other_op;
+		}
+	else
+		kind = other_op;
+			
+	// Special assign-like ops because we don't want to emit the LHS as an expression.
+	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
+	if (kind != other_op && !(kind == assign_op && is_bool)) {
 		// Assignment requires the LHS to be an identifier.
 		// This assume we're building without RTTI because LLVM builds that way by
 		// default.  If you build LLVM with RTTI this can be changed to a
@@ -191,10 +224,31 @@ llvm::Value *BinaryExprAST::codegen() {
 			return nullptr;
 
 		// Look up the name.
-		FullType* full_type = locals_table[LHSE->getName().c_str()];
+		const char* varname = LHSE->getName().c_str();
+		FullType* full_type = locals_table[varname];
+		llvm::Value* Variable = nullptr;
 		if (!full_type)
-			return LogErrorV("Unknown variable name2 %s", LHSE->getName().c_str());
-		llvm::Value *Variable = full_type->val;
+			if (kind != decl_assign_op)
+				return LogErrorV("unknown variable name %s", varname);
+			else // variable declaration
+				if (inside_function) {
+					llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+					llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, RHS->type);
+					FullType ft = {
+						.type = RHS->type,
+						.val = Alloca,
+						.type_attr = RHS->type_attr
+					};
+					locals_table.insert(varname, ft);
+					Variable = Alloca;
+				} else {
+					;
+				}
+		else
+			if (kind == decl_assign_op)
+				return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
+			else
+				Variable = full_type->val;
 
 		Builder->CreateStore(Val, Variable);
 		return Val;

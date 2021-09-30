@@ -73,6 +73,7 @@ struct SourceLocation {
 extern const char* input_file_name;
 extern llvm::orc::ThreadSafeContext Context;
 extern SourceLocation CurLoc;
+extern bool inside_function;
 
 /// ExprAST - Base class for all expression nodes.
 
@@ -229,7 +230,7 @@ extern VarTable locals_table; // including function arguments
 inline std::pair<llvm::Type*, bool> lookup_var(const char* Name) {
 	FullType* full_type = locals_table[Name];
 	if (!full_type) {
-		fprintf(stderr, "Var %s not found\n", Name);
+		// fprintf(stderr, "Var %s not found\n", Name);
 		return { nullptr, 0 };
 	}
 	return { full_type->type, full_type->type_attr };

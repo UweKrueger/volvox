@@ -241,6 +241,8 @@ calc_types:
 BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr,
                        const char* Op, SourceLocation Loc)
 {
+	if (!left_type) // variable declaration, i.e. := operator
+		return {{ nullptr, nullptr, nullptr, 0, nullptr }, { nullptr, nullptr, nullptr, 0, nullptr }};
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
 	bool left_is_float = left_descr.second;

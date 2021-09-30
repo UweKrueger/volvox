@@ -143,8 +143,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 
 	if (CurTok.kind != '(') { // Simple variable ref.
 		auto var_expr = std::make_unique<VariableExprAST>(LitLoc, IdName);
-		if (!var_expr->type) // variable name not found
-			return nullptr;
+		// if (!var_expr->type) // variable name not found
+		//	return nullptr;
 		return var_expr;
 	}
 
