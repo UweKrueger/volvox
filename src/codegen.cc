@@ -340,6 +340,24 @@ conv_done:
 			LogError(operr, Op);
 		}
 		break;
+	case '^':
+		switch(typeclass) {
+		case is_int:
+			result = Builder->CreateXor(L, R, "xortmp");
+			break;
+		default:
+			LogError(operr, Op);
+		}
+		break;
+	case '!':
+		switch(typeclass) {
+		case is_int:
+			result = Builder->CreateNot(Builder->CreateXor(L, R, "xortmp"), "nxortmp");
+			break;
+		default:
+			LogError(operr, Op);
+		}
+		break;
 	case '<':
 		if (Op[1] == '=') {
 			switch(typeclass) {
