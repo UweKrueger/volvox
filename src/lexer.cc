@@ -245,12 +245,12 @@ Token Lexer::gettok(bool expectBinary) {
 	case '~':
 	case '&':
 		IdentifierStr = CurChar;
-		advance();
+		CurChar = advance();
 		return tok_unary;
 	case '<':
 		if (linebuf[LexLoc.Col] == '-') {
 			IdentifierStr = "<-";
-			advance();
+			CurChar = advance();
 			return tok_unary;
 		}
 		// else passthrough
