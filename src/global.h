@@ -314,6 +314,10 @@ public:
 	Token(int kind = 0) : kind(kind) {}
 	Token(char** s_ptr);
 	Token(const std::string& str);
+	Token(bool truth) : kind(tok_number) {
+		Val.Uint = truth ? 1UL : 0UL;
+		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 1, .is_signed = false };
+	}
 	static std::string tokName(int kind);
 	std::string tokName() const { return tokName(kind); }
 	union {
@@ -335,7 +339,12 @@ public:
 		case tok_number:
 			switch (int_type.ID) {
 			case llvm::Type::IntegerTyID:
-				if (int_type.is_signed)
+				if (int_type.BitWidth == 1)
+					if (Val.Uint & 1UL)
+						return "true";
+					else
+						return "false";
+				else if (int_type.is_signed)
 					return std::to_string(Val.Int);
 				else
 					return std::to_string(Val.Uint);
