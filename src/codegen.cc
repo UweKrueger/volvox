@@ -122,14 +122,43 @@ llvm::Value *UnaryExprAST::codegen() {
 	if (!OperandV)
 		return nullptr;
 
-	llvm::Function *F = getFunction(std::string("unary") + Opcode);
-	if (!F)
-		return LogErrorV("Unknown unary operator");
+	switch (OperandV->getType()->getTypeID()) {
+	case llvm::Type::HalfTyID:
+	case llvm::Type::BFloatTyID:
+	case llvm::Type::FloatTyID:
+	case llvm::Type::DoubleTyID:
+		switch (Opcode[0]) {
+		case '+':
+			return OperandV;
+		case '-':
+			return Builder->CreateFNeg(OperandV, "negftmp");
+		// TODO: case '&'
+		default:
+			return LogErrorV("unary operator '%c' undefined for floats", Opcode[0]);
+		}
+	case llvm::Type::IntegerTyID:
+		if (Opcode[0] != '!' && OperandV->getType()->getIntegerBitWidth() == 1)
+			return LogErrorV("unary operator '%c' undefined for bool", Opcode[0]);
+		switch (Opcode[0]) {
+		case '+':
+			return OperandV;
+		case '-':
+			return Builder->CreateNeg(OperandV, "negtmp");
+		case '!':
+			return Builder->CreateNot(OperandV, "nottmp");
+		default:
+			return LogErrorV("unary operator '%c' undefined for integers", Opcode[0]);
+		}
+	default:
+		llvm::Function *F = getFunction(std::string("unary") + Opcode);
+		if (!F)
+			return LogErrorV("Unknown unary operator");
 
-	if (comp_mode == comp_dbg) {
-		KSDbgInfo.emitLocation(this);
+		if (comp_mode == comp_dbg) {
+			KSDbgInfo.emitLocation(this);
+		}
+		return Builder->CreateCall(F, OperandV, "unop");
 	}
-	return Builder->CreateCall(F, OperandV, "unop");
 }
 
 static const char* operr = "Op %s cannot create result for type ID %d";
