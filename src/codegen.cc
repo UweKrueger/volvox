@@ -242,7 +242,24 @@ llvm::Value *BinaryExprAST::codegen() {
 					locals_table.insert(varname, ft);
 					Variable = Alloca;
 				} else {
-					;
+					if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(Val)) {
+						auto GV = new llvm::GlobalVariable(initializer->getType(),
+						                                   false, llvm::GlobalValue::InternalLinkage,
+						                                   initializer, varname,
+						                                   llvm::GlobalVariable::LocalDynamicTLSModel);
+						llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), 0);
+						llvm::Constant *Indices[] = {Zero, Zero};
+						llvm::Value* Var = llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
+						FullType ft = {
+							.type = RHS->type,
+							.val = GV,
+							.type_attr = RHS->type_attr
+						};
+						globals_table.insert(varname, ft);
+						Variable = GV;
+					} else {
+						return LogErrorV("global variable %s must be assigned with compile time const", varname);
+					}
 				}
 		else
 			if (kind == decl_assign_op)
@@ -640,7 +657,7 @@ llvm::Value *ForExprAST::codegen() {
 	// Within the loop, the variable is defined equal to the PHI node.  If it
 	// shadows an existing variable, we have to restore it, so save it now.
 	FullType* OldValPtr = locals_table[VarName.c_str()];
-	llvm::AllocaInst *OldVal = OldValPtr ? OldValPtr->val : nullptr;
+	llvm::Value *OldVal = OldValPtr ? OldValPtr->val : nullptr;
 	if (OldVal) {
 		OldVal = Alloca;
 	} else {
@@ -704,7 +721,7 @@ llvm::Value *ForExprAST::codegen() {
 }
 
 llvm::Value *VarExprAST::codegen() {
-	std::vector<llvm::AllocaInst *> OldBindings;
+	std::vector<llvm::Value *> OldBindings;
 
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 

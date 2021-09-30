@@ -103,7 +103,7 @@ struct gen_val_type_t {
 
 struct FullType {
 	llvm::Type* type;
-	llvm::AllocaInst* val;
+	llvm::Value* val;
 	unsigned type_attr;
 	// union {
 	// 	int_val_type_t int_type;
