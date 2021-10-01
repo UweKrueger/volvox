@@ -207,18 +207,40 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
 		if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(Val)) {
-			auto GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-			                                   false, llvm::GlobalValue::ExternalLinkage,
-			                                   initializer, varname, nullptr /*,
-			                                   llvm::GlobalVariable::GeneralDynamicTLSModel*/);
-			FullType ft = {
-				.type = expr->RHS->type,
-				.val = GV,
-				.type_attr = expr->RHS->type_attr
-			};
-			printf("Inserted %s to globals table\n", varname);
-			globals_table.insert(varname, ft);
+			llvm::GlobalVariable* GV;
 			if (comp_mode == comp_jit) {
+				llvm::Type* type = initializer->getType();
+				auto StoreSize = TheModule->getDataLayout().getTypeStoreSize(type);
+				auto AllocSize = TheModule->getDataLayout().getTypeAllocSize(type);
+				size_t var_offset = AllocSize * ((__volvox_jit_tls_size + AllocSize - 1) / AllocSize);
+				__volvox_jit_tls_size = var_offset + AllocSize;
+				__volvox_jit_tls_ptr = (char*)realloc(__volvox_jit_tls_ptr, __volvox_jit_tls_size);
+				GV = new llvm::GlobalVariable(*TheModule, llvm::Type::getInt64Ty(*Context.getContext()), true,
+				                              llvm::GlobalValue::ExternalLinkage,
+				                              llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset),
+				                              varname);
+				if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(initializer)) {
+					if (expr->RHS->type_attr & A_signed) {
+						long sVal = CI->getSExtValue();
+						memcpy(__volvox_jit_tls_ptr + var_offset, &sVal, StoreSize);
+					} else {
+						unsigned long uVal = CI->getZExtValue();
+						memcpy(__volvox_jit_tls_ptr + var_offset, &uVal, StoreSize);
+					}
+				} else if (llvm::ConstantFP* CF = llvm::dyn_cast<llvm::ConstantFP>(initializer)) {
+					const llvm::APFloat& apf = CF->getValue();
+					if (expr->RHS->type->getTypeID() == llvm::Type::DoubleTyID) {
+						double dVal = apf.convertToDouble();
+						memcpy(__volvox_jit_tls_ptr + var_offset, &dVal, StoreSize);
+					} else if (expr->RHS->type->getTypeID() == llvm::Type::FloatTyID) {
+						float fVal = apf.convertToFloat();
+						memcpy(__volvox_jit_tls_ptr + var_offset, &fVal, StoreSize);
+					} else {
+						fprintf(stderr, "unsupported float size %u for global\n", (unsigned)StoreSize);
+					}
+				} else {
+					fprintf(stderr, "unsupported type (size: %u) for global\n", (unsigned)StoreSize);
+				}
 #if LLVM_VERSION_MAJOR >= 12
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
@@ -226,7 +248,19 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				TheJIT->addModule(std::move(TheModule));
 #endif
 				InitializeModuleAndPassManager();
+			} else {
+				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+				                              false, llvm::GlobalValue::ExternalLinkage,
+				                              initializer, varname, nullptr,
+				                              llvm::GlobalVariable::GeneralDynamicTLSModel);
 			}
+			FullType ft = {
+				.type = expr->RHS->type,
+				.val = GV,
+				.type_attr = expr->RHS->type_attr
+			};
+			globals_table.insert(varname, ft);
+			printf("Inserted %s to globals table\n", varname);
 			return nullptr;
 		} else {
 			LogErrorV("global variable %s must be assigned with compile time const", varname);

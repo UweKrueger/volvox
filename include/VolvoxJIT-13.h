@@ -74,7 +74,12 @@ public:
     auto DL = JTMB.getDefaultDataLayoutForTarget();
     if (!DL)
       return DL.takeError();
-
+    auto opts = JTMB.getOptions();
+    opts.EmulatedTLS = 0;
+    opts.ExplicitEmulatedTLS=0;
+    JTMB.setOptions(opts);
+    auto options = JTMB.getOptions();
+    printf("Options: EmuTLS: %u ExplicitEmuTLS: %u\n", options.EmulatedTLS, options.ExplicitEmulatedTLS);
     return std::make_unique<VolvoxJIT>(std::move(ES), std::move(JTMB),
                                              std::move(*DL));
   }

@@ -16,6 +16,8 @@ llvm::orc::ThreadSafeContext Context;
 std::unique_ptr<llvm::Module> TheModule;
 std::unique_ptr<llvm::IRBuilder<>> Builder;
 static llvm::ExitOnError ExitOnErr;
+__thread char* __volvox_jit_tls_ptr = nullptr;
+__thread size_t __volvox_jit_tls_size = 0;
 
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
