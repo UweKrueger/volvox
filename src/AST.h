@@ -52,6 +52,9 @@ public:
 		if (full_type) {
 			type = full_type->type;
 			type_attr = full_type->type_attr;
+		} else {
+			type = nullptr;
+			type_attr = 0;
 		}
 	}
 	const std::string &getName() const { return Name; }

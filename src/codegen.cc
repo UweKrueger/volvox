@@ -106,38 +106,21 @@ llvm::Value *LiteralExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
+	printf("Variable expression\n");
 	if (!full_type)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (comp_mode == comp_jit) {
-#if LLVM_VERSION_MAJOR >= 12
-		auto v_sym = ExitOnErr(TheJIT->lookup(Name));
-#else
-		auto v_sym = TheJIT->findSymbol(Name);
-#endif
-		if (!v_sym) {
-			return LogErrorV("Could not find variable %s in JIT", Name.c_str());
-		} else {
-			if (auto adr_or_err = v_sym.getAddress()) {
-#if LLVM_VERSION_MAJOR >= 12
-				auto adr = adr_or_err;
-#else
-				auto adr = adr_or_err.get();
-#endif
-				size_t var_offset = (size_t)full_type->val;
-				auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
-				auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
-				auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
-				auto PtrUintTy = llvm::Type::getInt64Ty(*Context.getContext())->getPointerTo();
-				auto PtrTy = full_type->type->getPointerTo();
-				auto PtrTLS = llvm::ConstantExpr::getIntToPtr(uIntTLS, PtrUintTy);
-				auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
-				auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
-				auto Ptr = Builder->CreateIntToPtr(uIntValAdr, PtrTy);
-				return Builder->CreateLoad(full_type->type, Ptr, Name.c_str());
-			} else {
-				return LogErrorV("Cannot get address of global variable %s", Name.c_str());
-			}
-		}
+		size_t var_offset = (size_t)full_type->val;
+		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
+		auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
+		auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
+		auto PtrUintTy = llvm::Type::getInt64Ty(*Context.getContext())->getPointerTo();
+		auto PtrTy = full_type->type->getPointerTo();
+		auto PtrTLS = llvm::ConstantExpr::getIntToPtr(uIntTLS, PtrUintTy);
+		auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
+		auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
+		auto Ptr = Builder->CreateIntToPtr(uIntValAdr, PtrTy);
+		return Builder->CreateLoad(full_type->type, Ptr, Name.c_str());
 	}
 	llvm::Value *V = full_type->val;
 
@@ -210,6 +193,7 @@ enum OpKind {
 };
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
+	printf("Handling global variable\n");
 	if (auto Val = expr->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
@@ -249,13 +233,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				} else {
 					fprintf(stderr, "unsupported type (size: %u) for global\n", (unsigned)StoreSize);
 				}
-#if LLVM_VERSION_MAJOR >= 12
-				ExitOnErr(TheJIT->addModule(
-					          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
-#else
-				TheJIT->addModule(std::move(TheModule));
-#endif
-				InitializeModuleAndPassManager();
 			} else {
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, llvm::GlobalValue::ExternalLinkage,
