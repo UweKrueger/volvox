@@ -123,9 +123,16 @@ llvm::Value *VariableExprAST::codegen() {
 #else
 				auto adr = adr_or_err.get();
 #endif
-				auto uIntPtr = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), adr);
+				size_t var_offset = (size_t)full_type->val;
+				auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
+				auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
+				auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
+				auto PtrUintTy = llvm::Type::getInt64Ty(*Context.getContext())->getPointerTo();
 				auto PtrTy = full_type->type->getPointerTo();
-				auto Ptr = llvm::ConstantExpr::getIntToPtr(uIntPtr, PtrTy);
+				auto PtrTLS = llvm::ConstantExpr::getIntToPtr(uIntTLS, PtrUintTy);
+				auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
+				auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
+				auto Ptr = Builder->CreateIntToPtr(uIntValAdr, PtrTy);
 				return Builder->CreateLoad(full_type->type, Ptr, Name.c_str());
 			} else {
 				return LogErrorV("Cannot get address of global variable %s", Name.c_str());
@@ -215,10 +222,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				size_t var_offset = AllocSize * ((__volvox_jit_tls_size + AllocSize - 1) / AllocSize);
 				__volvox_jit_tls_size = var_offset + AllocSize;
 				__volvox_jit_tls_ptr = (char*)realloc(__volvox_jit_tls_ptr, __volvox_jit_tls_size);
-				GV = new llvm::GlobalVariable(*TheModule, llvm::Type::getInt64Ty(*Context.getContext()), true,
-				                              llvm::GlobalValue::ExternalLinkage,
-				                              llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset),
-				                              varname);
+				// GV = new llvm::GlobalVariable(*TheModule, llvm::Type::getInt64Ty(*Context.getContext()), true,
+				//                               llvm::GlobalValue::ExternalLinkage,
+				//                               llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset),
+				//                               varname);
+				GV = (llvm::GlobalVariable*)var_offset;
 				if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(initializer)) {
 					if (expr->RHS->type_attr & A_signed) {
 						long sVal = CI->getSExtValue();
