@@ -8,6 +8,7 @@
 
 std::unique_ptr<llvm::DIBuilder> DBuilder;
 bool inside_function = false;
+static llvm::ExitOnError ExitOnErr;
 
 llvm::DIType *DebugInfo::getDoubleTy() {
 	if (DblTy)
@@ -110,12 +111,20 @@ llvm::Value *VariableExprAST::codegen() {
 	if (!full_type) {
 		full_type = globals_table[Name.c_str()];
 		if (full_type && comp_mode == comp_jit) {
+#if LLVM_VERSION_MAJOR >= 12
+			auto v_sym = ExitOnErr(TheJIT->lookup(Name));
+#else
 			auto v_sym = TheJIT->findSymbol(Name);
+#endif
 			if (!v_sym) {
 				return LogErrorV("Could not find variable %s in JIT", Name.c_str());
 			} else {
 				if (auto adr_or_err = v_sym.getAddress()) {
-					auto& adr = *adr_or_err;
+#if LLVM_VERSION_MAJOR >= 12
+					auto adr = adr_or_err;
+#else
+					auto adr = adr_or_err.get();
+#endif
 					auto uIntPtr = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), adr);
 					auto PtrTy = full_type->type->getPointerTo();
 					auto Ptr = llvm::ConstantExpr::getIntToPtr(uIntPtr, PtrTy);
@@ -205,11 +214,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(Val)) {
 			auto GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                                   false, llvm::GlobalValue::ExternalLinkage,
-			                                   initializer, varname
-			                                   /*llvm::GlobalVariable::LocalDynamicTLSModel*/);
-			// llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), 0);
-			// llvm::Constant *Indices[] = {Zero, Zero};
-			// llvm::Value* Var = llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
+			                                   initializer, varname, nullptr /*,
+			                                   llvm::GlobalVariable::GeneralDynamicTLSModel*/);
 			FullType ft = {
 				.type = expr->RHS->type,
 				.val = GV,
