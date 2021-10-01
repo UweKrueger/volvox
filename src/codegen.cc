@@ -303,6 +303,8 @@ llvm::Value *BinaryExprAST::codegen() {
 			full_type = globals_table[varname];
 			if (!full_type)
 				goto not_found;
+			if (kind == decl_assign_op)
+				return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
 			if (comp_mode == comp_jit) {
 				printf("reassignment\n");
 				size_t var_offset = (size_t)full_type->val;
