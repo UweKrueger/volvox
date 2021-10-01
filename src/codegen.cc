@@ -283,7 +283,7 @@ llvm::Value *BinaryExprAST::codegen() {
 			
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (kind != other_op && !(kind == assign_op && is_bool)) {
+	if (kind != other_op && !(kind == assign_op && false /*is_bool */)) {
 		// Assignment requires the LHS to be an identifier.
 		// This assume we're building without RTTI because LLVM builds that way by
 		// default.  If you build LLVM with RTTI this can be changed to a
@@ -299,8 +299,27 @@ llvm::Value *BinaryExprAST::codegen() {
 		// Look up the name.
 		const char* varname = LHSE->getName().c_str();
 		FullType* full_type = locals_table[varname];
-		if (!full_type)
+		if (!full_type) {
 			full_type = globals_table[varname];
+			if (!full_type)
+				goto not_found;
+			if (comp_mode == comp_jit) {
+				printf("reassignment\n");
+				size_t var_offset = (size_t)full_type->val;
+				auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
+				auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
+				auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
+				auto PtrUintTy = llvm::Type::getInt64Ty(*Context.getContext())->getPointerTo();
+				auto PtrTy = full_type->type->getPointerTo();
+				auto PtrTLS = llvm::ConstantExpr::getIntToPtr(uIntTLS, PtrUintTy);
+				auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
+				auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
+				auto Ptr = Builder->CreateIntToPtr(uIntValAdr, PtrTy);
+				Builder->CreateStore(Val, Ptr);
+				return Val;
+			}
+		}
+	not_found:
 		llvm::Value* Variable = nullptr;
 		if (!full_type)
 			if (kind != decl_assign_op)
