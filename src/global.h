@@ -398,3 +398,4 @@ extern void InitializeModuleAndPassManager();
 extern std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 extern __thread char* __volvox_jit_tls_ptr;
 extern __thread size_t __volvox_jit_tls_size;
+extern char* __volvox_jit_tls_inits;

@@ -204,6 +204,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				size_t var_offset = AllocSize * ((__volvox_jit_tls_size + AllocSize - 1) / AllocSize);
 				__volvox_jit_tls_size = var_offset + AllocSize;
 				__volvox_jit_tls_ptr = (char*)realloc(__volvox_jit_tls_ptr, __volvox_jit_tls_size);
+				__volvox_jit_tls_inits = (char*)realloc(__volvox_jit_tls_inits, __volvox_jit_tls_size);
 				GV = (llvm::GlobalVariable*)var_offset;
 				if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(initializer)) {
 					if (expr->RHS->type_attr & A_signed) {
@@ -227,6 +228,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				} else {
 					fprintf(stderr, "unsupported type (size: %u) for global\n", (unsigned)StoreSize);
 				}
+				memcpy(__volvox_jit_tls_inits + var_offset, __volvox_jit_tls_ptr + var_offset, StoreSize);
 			} else {
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, llvm::GlobalValue::ExternalLinkage,
