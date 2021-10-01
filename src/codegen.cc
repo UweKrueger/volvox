@@ -315,8 +315,9 @@ llvm::Value *BinaryExprAST::codegen() {
 				auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
 				auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
 				auto Ptr = Builder->CreateIntToPtr(uIntValAdr, PtrTy);
+				auto OldVal = Builder->CreateLoad(full_type->type, Ptr, varname);
 				Builder->CreateStore(Val, Ptr);
-				return Val;
+				return OldVal;
 			}
 		}
 	not_found:

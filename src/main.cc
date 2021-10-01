@@ -189,8 +189,6 @@ static void HandleTopLevelExpression() {
 #else
 				auto ExprSymbol = TheJIT->findSymbol("__anon_expr");
 				assert(ExprSymbol && "Function not found");
-				auto v_sym = TheJIT->findSymbol("qwe");
-				printf("found symbol qwe: %s\n", v_sym ? "yes" : "no");
 #define UNWRAP(x) cantFail(x)
 #endif
 			  
