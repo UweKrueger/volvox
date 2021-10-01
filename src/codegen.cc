@@ -106,7 +106,6 @@ llvm::Value *LiteralExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
-	printf("Variable expression\n");
 	if (!full_type)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (comp_mode == comp_jit) {
@@ -193,7 +192,6 @@ enum OpKind {
 };
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
-	printf("Handling global variable\n");
 	if (auto Val = expr->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
@@ -206,10 +204,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				size_t var_offset = AllocSize * ((__volvox_jit_tls_size + AllocSize - 1) / AllocSize);
 				__volvox_jit_tls_size = var_offset + AllocSize;
 				__volvox_jit_tls_ptr = (char*)realloc(__volvox_jit_tls_ptr, __volvox_jit_tls_size);
-				// GV = new llvm::GlobalVariable(*TheModule, llvm::Type::getInt64Ty(*Context.getContext()), true,
-				//                               llvm::GlobalValue::ExternalLinkage,
-				//                               llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset),
-				//                               varname);
 				GV = (llvm::GlobalVariable*)var_offset;
 				if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(initializer)) {
 					if (expr->RHS->type_attr & A_signed) {
@@ -257,7 +251,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 }
 
 llvm::Value *BinaryExprAST::codegen() {
-	printf("BinaryExprAST::codegen()\n");
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
