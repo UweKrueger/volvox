@@ -109,11 +109,22 @@ llvm::Value *VariableExprAST::codegen() {
 	FullType* full_type = locals_table[Name.c_str()];
 	if (!full_type) {
 		full_type = globals_table[Name.c_str()];
-		// if (full_type) {
-		// 	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(Name, true);
-		// 	printf("create load for %p\n", GV);
-		// 	return Builder->CreateLoad(type, GV, Name.c_str());
-		// }
+		if (full_type && comp_mode == comp_jit) {
+			auto v_sym = TheJIT->findSymbol(Name);
+			if (!v_sym) {
+				return LogErrorV("Could not find variable %s in JIT", Name.c_str());
+			} else {
+				if (auto adr_or_err = v_sym.getAddress()) {
+					auto& adr = *adr_or_err;
+					auto uIntPtr = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), adr);
+					auto PtrTy = full_type->type->getPointerTo();
+					auto Ptr = llvm::ConstantExpr::getIntToPtr(uIntPtr, PtrTy);
+					return Builder->CreateLoad(full_type->type, Ptr, Name.c_str());
+				} else {
+					return LogErrorV("Cannot get address of global variable %s", Name.c_str());
+				}
+			}
+		}
 	}
 	if (!full_type)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
