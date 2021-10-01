@@ -107,6 +107,14 @@ llvm::Value *LiteralExprAST::codegen() {
 llvm::Value *VariableExprAST::codegen() {
 	// Look this variable up in the function.
 	FullType* full_type = locals_table[Name.c_str()];
+	if (!full_type) {
+		full_type = globals_table[Name.c_str()];
+		// if (full_type) {
+		// 	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(Name, true);
+		// 	printf("create load for %p\n", GV);
+		// 	return Builder->CreateLoad(type, GV, Name.c_str());
+		// }
+	}
 	if (!full_type)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	llvm::Value *V = full_type->val;
@@ -179,7 +187,46 @@ enum OpKind {
 	modification_op,
 };
 
+std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
+	if (auto Val = expr->codegen()) {
+		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
+		const char* varname = LHSE->getName().c_str();
+		if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(Val)) {
+			auto GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+			                                   false, llvm::GlobalValue::ExternalLinkage,
+			                                   initializer, varname
+			                                   /*llvm::GlobalVariable::LocalDynamicTLSModel*/);
+			// llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), 0);
+			// llvm::Constant *Indices[] = {Zero, Zero};
+			// llvm::Value* Var = llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
+			FullType ft = {
+				.type = expr->RHS->type,
+				.val = GV,
+				.type_attr = expr->RHS->type_attr
+			};
+			printf("Inserted %s to globals table\n", varname);
+			globals_table.insert(varname, ft);
+			if (comp_mode == comp_jit) {
+#if LLVM_VERSION_MAJOR >= 12
+				ExitOnErr(TheJIT->addModule(
+					          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+#else
+				TheJIT->addModule(std::move(TheModule));
+#endif
+				InitializeModuleAndPassManager();
+			}
+			return nullptr;
+		} else {
+			LogErrorV("global variable %s must be assigned with compile time const", varname);
+			return nullptr;
+		}
+	} else {
+		return nullptr;
+	}
+}
+
 llvm::Value *BinaryExprAST::codegen() {
+	printf("BinaryExprAST::codegen()\n");
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -226,6 +273,8 @@ llvm::Value *BinaryExprAST::codegen() {
 		// Look up the name.
 		const char* varname = LHSE->getName().c_str();
 		FullType* full_type = locals_table[varname];
+		if (!full_type)
+			full_type = globals_table[varname];
 		llvm::Value* Variable = nullptr;
 		if (!full_type)
 			if (kind != decl_assign_op)
@@ -242,31 +291,13 @@ llvm::Value *BinaryExprAST::codegen() {
 					locals_table.insert(varname, ft);
 					Variable = Alloca;
 				} else {
-					if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(Val)) {
-						auto GV = new llvm::GlobalVariable(initializer->getType(),
-						                                   false, llvm::GlobalValue::InternalLinkage,
-						                                   initializer, varname,
-						                                   llvm::GlobalVariable::LocalDynamicTLSModel);
-						llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), 0);
-						llvm::Constant *Indices[] = {Zero, Zero};
-						llvm::Value* Var = llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
-						FullType ft = {
-							.type = RHS->type,
-							.val = GV,
-							.type_attr = RHS->type_attr
-						};
-						globals_table.insert(varname, ft);
-						Variable = GV;
-					} else {
-						return LogErrorV("global variable %s must be assigned with compile time const", varname);
-					}
+					return Val;
 				}
 		else
 			if (kind == decl_assign_op)
 				return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
 			else
 				Variable = full_type->val;
-
 		Builder->CreateStore(Val, Variable);
 		return Val;
 	}
@@ -812,9 +843,10 @@ llvm::Function *FunctionAST::codegen() {
 	auto &P = *Proto;
 	FunctionProtos[Proto->getName()] = std::move(Proto);
 	llvm::Function *TheFunction = getFunction(P.getName());
-	if (!TheFunction)
+	if (!TheFunction) {
+		llvm::Value *RetVal = Body->codegen();
 		return nullptr;
-
+	}
 	// Create a new basic block to start insertion into.
 	llvm::BasicBlock *BB = llvm::BasicBlock::Create(*Context.getContext(), "entry", TheFunction);
 	Builder->SetInsertPoint(BB);

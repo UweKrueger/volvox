@@ -19,7 +19,7 @@ static llvm::ExitOnError ExitOnErr;
 
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
-static std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
+std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
@@ -55,7 +55,7 @@ void init() {
 // Top-Level parsing and JIT Driver
 //===----------------------------------------------------------------------===//
 
-static void InitializeModuleAndPassManager() {
+void InitializeModuleAndPassManager() {
 	// Open a new module.
 	static bool has_run = false;
 	if (!has_run) {
@@ -186,6 +186,8 @@ static void HandleTopLevelExpression() {
 #else
 				auto ExprSymbol = TheJIT->findSymbol("__anon_expr");
 				assert(ExprSymbol && "Function not found");
+				auto v_sym = TheJIT->findSymbol("qwe");
+				printf("found symbol qwe: %s\n", v_sym ? "yes" : "no");
 #define UNWRAP(x) cantFail(x)
 #endif
 			  

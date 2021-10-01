@@ -13,6 +13,7 @@ class IfExprAST;
 class ForExprAST;
 class VarExprAST;
 class UnaryExprAST;
+class BinaryExprAST;
 
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things.
@@ -229,6 +230,8 @@ extern VarTable locals_table; // including function arguments
 
 inline std::pair<llvm::Type*, bool> lookup_var(const char* Name) {
 	FullType* full_type = locals_table[Name];
+	if (!full_type)
+		full_type = globals_table[Name];
 	if (!full_type) {
 		// fprintf(stderr, "Var %s not found\n", Name);
 		return { nullptr, 0 };
@@ -392,3 +395,6 @@ extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::
 extern std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
 	SourceLocation Loc = CurLoc, bool is_explicit = false);
+extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr);
+extern void InitializeModuleAndPassManager();
+extern std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;

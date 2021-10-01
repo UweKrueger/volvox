@@ -557,6 +557,8 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
 				if (B->conv.compat.err_msg)
 					return AutoErr(B->Loc, B->LHS->type, B->RHS->type, B->LHS->type_attr, B->RHS->type_attr, B->conv.compat.err_msg);
+				if (!strcmp(B->Op, ":="))
+					return HandleGlobalVariable(B);
 			} else {
 				fprintf(stderr, "Could not deduce type of expression\n");
 				return nullptr;
