@@ -106,37 +106,32 @@ llvm::Value *LiteralExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
-	// Look this variable up in the function.
-	FullType* full_type = locals_table[Name.c_str()];
-	if (!full_type) {
-		full_type = globals_table[Name.c_str()];
-		if (full_type && comp_mode == comp_jit) {
+	if (!full_type)
+		return LogErrorV("Unknown variable name1 %s", Name.c_str());
+	if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
-			auto v_sym = ExitOnErr(TheJIT->lookup(Name));
+		auto v_sym = ExitOnErr(TheJIT->lookup(Name));
 #else
-			auto v_sym = TheJIT->findSymbol(Name);
+		auto v_sym = TheJIT->findSymbol(Name);
 #endif
-			if (!v_sym) {
-				return LogErrorV("Could not find variable %s in JIT", Name.c_str());
+		if (!v_sym) {
+			return LogErrorV("Could not find variable %s in JIT", Name.c_str());
+		} else {
+			if (auto adr_or_err = v_sym.getAddress()) {
+#if LLVM_VERSION_MAJOR >= 12
+				auto adr = adr_or_err;
+#else
+				auto adr = adr_or_err.get();
+#endif
+				auto uIntPtr = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), adr);
+				auto PtrTy = full_type->type->getPointerTo();
+				auto Ptr = llvm::ConstantExpr::getIntToPtr(uIntPtr, PtrTy);
+				return Builder->CreateLoad(full_type->type, Ptr, Name.c_str());
 			} else {
-				if (auto adr_or_err = v_sym.getAddress()) {
-#if LLVM_VERSION_MAJOR >= 12
-					auto adr = adr_or_err;
-#else
-					auto adr = adr_or_err.get();
-#endif
-					auto uIntPtr = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), adr);
-					auto PtrTy = full_type->type->getPointerTo();
-					auto Ptr = llvm::ConstantExpr::getIntToPtr(uIntPtr, PtrTy);
-					return Builder->CreateLoad(full_type->type, Ptr, Name.c_str());
-				} else {
-					return LogErrorV("Cannot get address of global variable %s", Name.c_str());
-				}
+				return LogErrorV("Cannot get address of global variable %s", Name.c_str());
 			}
 		}
 	}
-	if (!full_type)
-		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	llvm::Value *V = full_type->val;
 
 	if (comp_mode == comp_dbg) {

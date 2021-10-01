@@ -44,10 +44,16 @@ public:
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
 	std::string Name;
+	FullType* full_type;
 
 public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: ExprAST(lookup_var(Name.c_str()), Loc), Name(Name) {}
+		: ExprAST(Loc), Name(Name), full_type(lookup_var(Name.c_str())) {
+		if (full_type) {
+			type = full_type->type;
+			type_attr = full_type->type_attr;
+		}
+	}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -213,8 +219,8 @@ class ForExprAST : public ExprAST {
 public:
 	ForExprAST(const std::string &VarName, std::unique_ptr<ExprAST> Start,
 	           std::unique_ptr<ExprAST> End, std::unique_ptr<ExprAST> Step,
-	           std::unique_ptr<ExprAST> Body)
-		: VarName(VarName), Start(std::move(Start)), End(std::move(End)),
+	           std::unique_ptr<ExprAST> Body, SourceLocation Loc = CurLoc)
+		: ExprAST(Loc), VarName(VarName), Start(std::move(Start)), End(std::move(End)),
 		  Step(std::move(Step)), Body(std::move(Body)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -235,8 +241,8 @@ class VarExprAST : public ExprAST {
 public:
 	VarExprAST(
 		std::vector<std::pair<std::string, std::unique_ptr<ExprAST>>> VarNames,
-		std::unique_ptr<ExprAST> Body)
-		: VarNames(std::move(VarNames)), Body(std::move(Body)) {}
+		std::unique_ptr<ExprAST> Body, SourceLocation Loc = CurLoc)
+		: ExprAST(Loc), VarNames(std::move(VarNames)), Body(std::move(Body)) {}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "var", ind);

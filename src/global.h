@@ -228,15 +228,12 @@ public:
 extern VarTable globals_table;
 extern VarTable locals_table; // including function arguments
 
-inline std::pair<llvm::Type*, bool> lookup_var(const char* Name) {
+inline FullType* lookup_var(const char* Name) {
 	FullType* full_type = locals_table[Name];
-	if (!full_type)
-		full_type = globals_table[Name];
-	if (!full_type) {
-		// fprintf(stderr, "Var %s not found\n", Name);
-		return { nullptr, 0 };
-	}
-	return { full_type->type, full_type->type_attr };
+	if (full_type)
+		return full_type;
+	else
+		return globals_table[Name];
 }
 
 class ExprAST {
@@ -249,6 +246,7 @@ public:
 	unsigned desired_type_attr;
 
 	// construct from type and attributes
+	ExprAST(SourceLocation Loc) : Loc(Loc) {}
 	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0,
 	        SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr, unsigned desired_type_attr = 0) :
 		Loc(Loc), type(type), desired_type(desired_type), type_attr(type_attr), desired_type_attr(desired_type_attr) {}
