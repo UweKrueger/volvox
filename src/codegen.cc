@@ -106,22 +106,22 @@ llvm::Value *LiteralExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
-	if (!full_type)
+	if (!full_type.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
-	if (comp_mode == comp_jit) {
-		size_t var_offset = (size_t)full_type->val;
+	if (full_type.second && comp_mode == comp_jit) {
+		size_t var_offset = (size_t)full_type.first->val;
 		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
 		auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
 		auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
 		auto PtrUintTy = llvm::Type::getInt64Ty(*Context.getContext())->getPointerTo();
-		auto PtrTy = full_type->type->getPointerTo();
+		auto PtrTy = full_type.first->type->getPointerTo();
 		auto PtrTLS = llvm::ConstantExpr::getIntToPtr(uIntTLS, PtrUintTy);
 		auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
 		auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
 		auto Ptr = Builder->CreateIntToPtr(uIntValAdr, PtrTy);
-		return Builder->CreateLoad(full_type->type, Ptr, Name.c_str());
+		return Builder->CreateLoad(full_type.first->type, Ptr, Name.c_str());
 	}
-	llvm::Value *V = full_type->val;
+	llvm::Value *V = full_type.first->val;
 
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);

@@ -107,11 +107,6 @@ struct FullType {
 	llvm::Type* type;
 	llvm::Value* val;
 	unsigned type_attr;
-	// union {
-	// 	int_val_type_t int_type;
-	// 	gen_val_type_t gen_type;
-	// 	unsigned key;
-	// };
 };
 
 // small hack to access protected method
@@ -229,12 +224,13 @@ public:
 extern VarTable globals_table;
 extern VarTable locals_table; // including function arguments
 
-inline FullType* lookup_var(const char* Name) {
+// look up var and return if it's global
+inline std::pair<FullType*, bool> lookup_var(const char* Name) {
 	FullType* full_type = locals_table[Name];
 	if (full_type)
-		return full_type;
+		return { full_type, false };
 	else
-		return globals_table[Name];
+		return { globals_table[Name], true };
 }
 
 class ExprAST {
