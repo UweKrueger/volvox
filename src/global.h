@@ -54,6 +54,7 @@ enum TokenKind {
 	tok_in = -54,
 	// var definition
 	tok_var = -55,
+	tok_return = -56,
 
 	// built-in type attributes
 	tok_atomic = -60,

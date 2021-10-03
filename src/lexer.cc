@@ -58,6 +58,8 @@ Token Lexer::gettok(bool expectBinary) {
 			return Token(tok_in);
 		if (IdentifierStr == "var")
 			return Token(tok_var);
+		if (IdentifierStr == "return")
+			return Token(tok_return);
 		if (IdentifierStr == "true")
 			return Token(true);
 		if (IdentifierStr == "false")

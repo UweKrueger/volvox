@@ -261,17 +261,22 @@ public:
 class FunctionAST {
 public:
 	std::unique_ptr<PrototypeAST> Proto;
-	std::unique_ptr<ExprAST> Body;
+	std::vector<std::unique_ptr<ExprAST>> Body;
 
 	FunctionAST(std::unique_ptr<PrototypeAST> Proto,
-	            std::unique_ptr<ExprAST> Body)
+	            std::vector<std::unique_ptr<ExprAST>> Body)
 		: Proto(std::move(Proto)), Body(std::move(Body)) {}
 	llvm::Function *codegen();
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		indent(out, ind) << "FunctionAST\n";
 		++ind;
 		indent(out, ind) << "Body:";
-		return Body ? Body->dump(out, ind) : out << "null\n";
+		if (Body.size())
+			for (const auto& expr : Body)
+				expr->dump(out, ind);
+		else
+			out << "null\n";
+		return out;
 	}
 	~FunctionAST() = default;
 };

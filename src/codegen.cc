@@ -892,7 +892,8 @@ llvm::Function *FunctionAST::codegen() {
 	FunctionProtos[Proto->getName()] = std::move(Proto);
 	llvm::Function *TheFunction = getFunction(P.getName());
 	if (!TheFunction) {
-		llvm::Value *RetVal = Body->codegen();
+		for (auto& expr : Body)
+			llvm::Value *RetVal = expr->codegen();
 		return nullptr;
 	}
 	// Create a new basic block to start insertion into.
@@ -951,37 +952,40 @@ llvm::Function *FunctionAST::codegen() {
 		mapitem->val = Alloca;
 	}
 
-	if (comp_mode == comp_dbg) {
-		KSDbgInfo.emitLocation(Body.get());
-	}
-	Body->desired_type = P.RetTypes[0].first;
-	Body->desired_type_attr = P.RetTypes[0].second;
-	if (llvm::Value *RetVal = Body->codegen()) {
-		// Finish off the function.
-		auto ret_type = RetVal->getType();
-		//type = ret_type; // TODO: hande conversion if != proto->type;
-		Builder->CreateRet(RetVal);
-		if (comp_mode == comp_dbg) {
-			// Pop off the lexical block for the function.
-			KSDbgInfo.LexicalBlocks.pop_back();
+	Body.back()->desired_type = P.RetTypes[0].first;
+	Body.back()->desired_type_attr = P.RetTypes[0].second;
+	llvm::Value* RetVal;
+	for (auto& Expr : Body) {
+		if ((RetVal = Expr->codegen())) {
+			if (comp_mode == comp_dbg) {
+				KSDbgInfo.emitLocation(Expr.get());
+			}
+		} else {
+			// Error reading body, remove function.
+			TheFunction->eraseFromParent();
+			
+			if (comp_mode == comp_dbg) {
+				// Pop off the lexical block for the function since we added it
+				// unconditionally.
+				KSDbgInfo.LexicalBlocks.pop_back();
+			}
+			return nullptr;
 		}
-		// Validate the generated code, checking for consistency.
-		verifyFunction(*TheFunction);
-		// Run the optimizer on the function.
-		if (comp_mode == comp_jit) {
-			TheFPM->run(*TheFunction);
-		}
-
-		return TheFunction;
 	}
-
-	// Error reading body, remove function.
-	TheFunction->eraseFromParent();
-
+	// Finish off the function.
+	auto ret_type = RetVal->getType();
+	//type = ret_type; // TODO: hande conversion if != proto->type;
+	Builder->CreateRet(RetVal);
 	if (comp_mode == comp_dbg) {
-		// Pop off the lexical block for the function since we added it
-		// unconditionally.
+		// Pop off the lexical block for the function.
 		KSDbgInfo.LexicalBlocks.pop_back();
 	}
-	return nullptr;
+	// Validate the generated code, checking for consistency.
+	verifyFunction(*TheFunction);
+	// Run the optimizer on the function.
+	if (comp_mode == comp_jit) {
+		TheFPM->run(*TheFunction);
+	}
+	
+	return TheFunction;
 }

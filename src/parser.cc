@@ -404,6 +404,29 @@ static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type, unsign
 	return ParseBinOpRHS(0, std::move(LHS), desired_type, desired_attrib);
 }
 
+static std::pair<std::unique_ptr<ExprAST>, bool> ParseExprOrReturn(llvm::Type* desired_type, unsigned desired_attrib) {
+	while (CurTok.kind == ';')
+		getNextToken();
+	if (CurTok.kind == tok_return) {
+		getNextToken();
+		return { ParseExpression(desired_type, desired_attrib), true };
+	} else {
+		return { ParseExpression(nullptr, 0), false };
+	}
+}
+
+static std::vector<std::unique_ptr<ExprAST>> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib) {
+	std::vector<std::unique_ptr<ExprAST>> expr_list;
+	for (bool is_return = false; !is_return; ) {
+		auto expr = ParseExprOrReturn(desired_type, desired_attrib);
+		if (expr.first) {
+			is_return = expr.second;
+			expr_list.push_back(std::move(expr.first));
+		}
+	}
+	return expr_list;
+}
+
 /// prototype
 ///   ::= id '(' id* ')'
 ///   ::= binary LETTER number? (id, id)
@@ -542,9 +565,9 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 			return nullptr;
 		}
 	}
-	auto E = ParseExpression();
+	auto E = ParseExpressionList(Proto->RetTypes[0].first, Proto->RetTypes[0].second);
 	fprintf(stderr, "expression parsed %p\n", Proto.get());
-	if (E)
+	if (E.size())
 		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
 	return nullptr;
 }
@@ -568,7 +591,9 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
-		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
+		std::vector<std::unique_ptr<ExprAST>> ExprList;
+		ExprList.push_back(std::move(E));
+		return std::make_unique<FunctionAST>(std::move(Proto), std::move(ExprList));
 	}
 	return nullptr;
 }
