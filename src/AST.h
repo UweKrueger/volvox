@@ -44,9 +44,9 @@ public:
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
 	std::string Name;
-	std::pair<FullType*, bool> full_type; // and if it's global
 
 public:
+	std::pair<FullType*, bool> full_type; // and if it's global
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: ExprAST(Loc), Name(Name), full_type(lookup_var(Name.c_str())) {
 		if (full_type.first) {

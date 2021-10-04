@@ -107,6 +107,8 @@ llvm::Value *LiteralExprAST::codegen() {
 
 llvm::Value *VariableExprAST::codegen() {
 	if (!full_type.first)
+		full_type = lookup_var(Name.c_str());
+	if (!full_type.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (full_type.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_type.first->val;
@@ -298,13 +300,13 @@ llvm::Value *BinaryExprAST::codegen() {
 
 		// Look up the name.
 		const char* varname = LHSE->getName().c_str();
-		FullType* full_type = locals_table[varname];
-		if (!full_type) {
-			full_type = globals_table[varname];
-			if (!full_type)
-				goto not_found;
-			if (kind == decl_assign_op)
-				return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
+		FullType* full_type = LHSE->full_type.first;
+		bool is_global = LHSE->full_type.second;
+		if (!full_type)
+			goto not_found;
+		if (kind == decl_assign_op)
+			return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
+		if (is_global) {
 			if (comp_mode == comp_jit) {
 				printf("reassignment\n");
 				size_t var_offset = (size_t)full_type->val;
@@ -321,32 +323,33 @@ llvm::Value *BinaryExprAST::codegen() {
 				Builder->CreateStore(Val, Ptr);
 				return OldVal;
 			}
+		} else {
+			auto Variable = full_type->val;
+			auto OldVal = Builder->CreateLoad(full_type->type, Variable, varname);
+			Builder->CreateStore(Val, Variable);
+			return OldVal;
 		}
 	not_found:
 		llvm::Value* Variable = nullptr;
-		if (!full_type)
-			if (kind != decl_assign_op)
-				return LogErrorV("unknown variable name %s", varname);
-			else // variable declaration
-				if (inside_function) {
-					llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-					llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, RHS->type);
-					FullType ft = {
-						.type = RHS->type,
-						.val = Alloca,
-						.type_attr = RHS->type_attr
-					};
-					locals_table.insert(varname, ft);
-					Variable = Alloca;
-				} else {
-					return Val;
-				}
-		else
-			if (kind == decl_assign_op)
-				return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
-			else
-				Variable = full_type->val;
-		Builder->CreateStore(Val, Variable);
+		if (kind != decl_assign_op)
+			return LogErrorV("unknown variable name %s", varname);
+		// variable declaration
+		printf("%s not found\n", varname);
+		if (inside_function) {
+			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, RHS->type);
+			FullType ft = {
+				.type = RHS->type,
+				.val = Alloca,
+				.type_attr = RHS->type_attr
+			};
+			locals_table.insert(varname, ft);
+			printf("Inserted %s to locals table\n", varname);
+			Builder->CreateStore(Val, Alloca);
+			return Val;
+		} else {
+			return Val;
+		}
 		return Val;
 	}
 	llvm::Value* result;
@@ -955,6 +958,7 @@ llvm::Function *FunctionAST::codegen() {
 	Body.back()->desired_type = P.RetTypes[0].first;
 	Body.back()->desired_type_attr = P.RetTypes[0].second;
 	llvm::Value* RetVal;
+	inside_function = true;
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {
 			if (comp_mode == comp_dbg) {
@@ -969,6 +973,7 @@ llvm::Function *FunctionAST::codegen() {
 				// unconditionally.
 				KSDbgInfo.LexicalBlocks.pop_back();
 			}
+			inside_function = false;
 			return nullptr;
 		}
 	}
@@ -986,6 +991,6 @@ llvm::Function *FunctionAST::codegen() {
 	if (comp_mode == comp_jit) {
 		TheFPM->run(*TheFunction);
 	}
-	
+	inside_function = false;
 	return TheFunction;
 }
