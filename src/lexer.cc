@@ -5,6 +5,34 @@
 // Lexer
 //===----------------------------------------------------------------------===//
 
+#if defined (_WIN32)
+
+static ssize_t getline(char **lineptr, size_t *n, FILE *stream) {
+    if (!(*lineptr)) {
+	    *n = 100;
+	    *lineptr = (char*)malloc(*n);
+    }
+    ssize_t offset = 0;
+    for (;;) {
+	    int c = fgetc(stream);
+	    if (c == EOF)
+		    return -1;
+	    if (offset >= (*n - 1)) {
+		    *n += *n / 2;
+		    *lineptr = (char*)realloc(*lineptr, *n);
+	    }
+	    *(*lineptr + offset++) = c;
+	    if (c == '\n') {
+		    break;
+	    }
+    }
+    *(*lineptr + offset) = '\0';
+    return offset;
+}
+
+#endif
+
+
 SourceLocation CurLoc = {0, 0};
 SourceLocation LexLoc = {0, 0};
 static int CurChar = ' ';
