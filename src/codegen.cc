@@ -107,8 +107,6 @@ llvm::Value *LiteralExprAST::codegen() {
 
 llvm::Value *VariableExprAST::codegen() {
 	if (!full_type.first)
-		full_type = lookup_var(Name.c_str());
-	if (!full_type.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (full_type.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_type.first->val;
