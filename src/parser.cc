@@ -606,18 +606,18 @@ std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition() {
 }
 
 /// toplevelexpr ::= expression
-llvm::Function* ParseTopLevelExpr() {
+std::pair<llvm::Function*, unsigned> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
 		if (!E->type) {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
 				if (B->conv.compat.err_msg)
-					return AutoErr(B->Loc, B->LHS->type, B->RHS->type, B->LHS->type_attr, B->RHS->type_attr, B->conv.compat.err_msg);
+					return { AutoErr(B->Loc, B->LHS->type, B->RHS->type, B->LHS->type_attr, B->RHS->type_attr, B->conv.compat.err_msg), 0 };
 				if (!strcmp(B->Op, ":="))
-					return HandleGlobalVariable(B);
+					return { HandleGlobalVariable(B), 0 };
 			} else {
 				fprintf(stderr, "Could not deduce type of expression\n");
-				return nullptr;
+				return { nullptr, 0 };
 			}
 		}
 		// Make an anonymous proto.
@@ -640,12 +640,12 @@ llvm::Function* ParseTopLevelExpr() {
 				// unconditionally.
 				KSDbgInfo.LexicalBlocks.pop_back();
 			}
-			return nullptr;
+			return { nullptr, 0 };
 		}
 		FinishFunction(TheFunction, RetVal);
-		return TheFunction;
+		return { TheFunction, E->type_attr };
 	}
-	return nullptr;
+	return { nullptr, 0 };
 }
 
 /// external ::= 'extern' prototype

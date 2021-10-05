@@ -153,15 +153,14 @@ static void HandleExtern() {
 
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
-	if (auto anon_expr = ParseTopLevelExpr()) {
-		unsigned ret_type_attr = 0; //FnAST->Proto->RetTypes.size() == 1 ? FnAST->Proto->RetTypes[0].second : 0;
-		auto ret_type = anon_expr->getReturnType();
+	auto anon_expr_s = ParseTopLevelExpr();
+	if (anon_expr_s.first) {
+		auto ret_type = anon_expr_s.first->getReturnType();
 		auto RetTypeID = ret_type->getTypeID();
 		unsigned IntBitWidth = RetTypeID == llvm::Type::IntegerTyID ?
 			ret_type->getIntegerBitWidth() : 0;
-		fprintf(stderr, "ExprType: %u BitWidth: %u Volvox: %u\n",
-		        ret_type->getTypeID(), ret_type->isIntegerTy() ? ret_type->getIntegerBitWidth() : 0,
-		        ret_type_attr);
+		fprintf(stderr, "ExprType: %s\n",
+		        type_table.get_name((llvm::Type*)((uintptr_t)ret_type | (anon_expr_s.second & A_signed))));
 		if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
 			// Create a ResourceTracker to track JIT'd memory allocated to our
@@ -203,8 +202,7 @@ static void HandleTopLevelExpression() {
 				break;
 			}
 			case llvm::Type::IntegerTyID: {
-				bool is_signed = (bool)(ret_type_attr & A_signed);
-				if (ret_type_attr & A_signed) {
+				if (anon_expr_s.second & A_signed) {
 					switch (IntBitWidth) {
 					case 1: { // this should actually be unsigned - put it here, too, just in case
 						bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
