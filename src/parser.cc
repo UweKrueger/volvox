@@ -415,16 +415,36 @@ static std::pair<std::unique_ptr<ExprAST>, bool> ParseExprOrReturn(llvm::Type* d
 	}
 }
 
-static std::vector<std::unique_ptr<ExprAST>> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib) {
+static std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib, llvm::Function* TheFunction) {
 	std::vector<std::unique_ptr<ExprAST>> expr_list;
+	inside_function = true;
+	llvm::Value* RetVal = nullptr;
+
 	for (bool is_return = false; !is_return; ) {
 		auto expr = ParseExprOrReturn(desired_type, desired_attrib);
 		if (expr.first) {
 			is_return = expr.second;
+			if ((RetVal = expr.first->codegen())) {
+				if (comp_mode == comp_dbg) {
+					KSDbgInfo.emitLocation(expr.first.get());
+				}
+			} else {
+				// Error reading body, remove function.
+				TheFunction->eraseFromParent();
+				
+				if (comp_mode == comp_dbg) {
+					// Pop off the lexical block for the function since we added it
+					// unconditionally.
+					KSDbgInfo.LexicalBlocks.pop_back();
+				}
+				inside_function = false;
+				return { std::move(std::vector<std::unique_ptr<ExprAST>>{}), nullptr };
+			}
 			expr_list.push_back(std::move(expr.first));
 		}
 	}
-	return expr_list;
+	inside_function = false;
+	return { std::move(expr_list), RetVal };
 }
 
 /// prototype
@@ -547,11 +567,11 @@ noargs:
 }
 
 /// definition ::= 'fn' prototype expression
-std::unique_ptr<FunctionAST> ParseDefinition() {
+std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition() {
 	getNextToken(); // eat fn.
 	auto Proto = ParsePrototype();
 	if (!Proto)
-		return nullptr;
+		return { nullptr, nullptr };
 	auto sz = Proto->Args.size();
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
@@ -562,18 +582,29 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 		bool is_new = locals_table.insert(Proto->Args[i].c_str(), ft);
 		if (!is_new) {
 			LogError("duplicat function arg \"%s\"\n", Proto->Args[i].c_str());
-			return nullptr;
+			return { nullptr, nullptr };
 		}
 	}
-	auto E = ParseExpressionList(Proto->RetTypes[0].first, Proto->RetTypes[0].second);
+	auto F = Proto->codegen();
+	if (!F) {
+		fprintf(stderr, "Could not compile function prototype\n");
+		return { nullptr, nullptr };
+	}
+	// TODO: stop here if it's a forward declaration
+	// TODO: chaeck if this definition matches existing one
+	llvm::Function* TheFunction = PrepareFunctionBody(std::move(Proto));
+	std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ElistV = ParseExpressionList(Proto->RetTypes[0].first, Proto->RetTypes[0].second, TheFunction);
+	
 	fprintf(stderr, "expression parsed %p\n", Proto.get());
-	if (E.size())
-		return std::make_unique<FunctionAST>(std::move(Proto), std::move(E));
-	return nullptr;
+	if (ElistV.first.size()) {
+		FinishFunction(TheFunction, ElistV.second);
+		return { std::make_unique<FunctionAST>(std::move(Proto), std::move(ElistV.first)), TheFunction };
+	}
+	return { nullptr, nullptr };
 }
 
 /// toplevelexpr ::= expression
-std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
+llvm::Function* ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
 		if (!E->type) {
@@ -591,9 +622,26 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
-		std::vector<std::unique_ptr<ExprAST>> ExprList;
-		ExprList.push_back(std::move(E));
-		return std::make_unique<FunctionAST>(std::move(Proto), std::move(ExprList));
+		auto F = Proto->codegen();
+		llvm::Function* TheFunction = PrepareFunctionBody(std::move(Proto));
+		llvm::Value* RetVal;
+		if ((RetVal = E->codegen())) {
+			if (comp_mode == comp_dbg) {
+				KSDbgInfo.emitLocation(E.get());
+			}
+		} else {
+			// Error reading body, remove function.
+			TheFunction->eraseFromParent();
+			
+			if (comp_mode == comp_dbg) {
+				// Pop off the lexical block for the function since we added it
+				// unconditionally.
+				KSDbgInfo.LexicalBlocks.pop_back();
+			}
+			return nullptr;
+		}
+		FinishFunction(TheFunction, RetVal);
+		return TheFunction;
 	}
 	return nullptr;
 }

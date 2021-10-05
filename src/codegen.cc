@@ -888,15 +888,14 @@ llvm::Function *PrototypeAST::codegen() {
 	return F;
 }
 
-llvm::Function *FunctionAST::codegen() {
+llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto) {
 	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
 	// reference to it for use below.
+	
 	auto &P = *Proto;
-	FunctionProtos[Proto->getName()] = std::move(Proto);
 	llvm::Function *TheFunction = getFunction(P.getName());
 	if (!TheFunction) {
-		for (auto& expr : Body)
-			llvm::Value *RetVal = expr->codegen();
+		fprintf(stderr, "prototype %s not found in module\n", P.getName().c_str());
 		return nullptr;
 	}
 	// Create a new basic block to start insertion into.
@@ -954,30 +953,11 @@ llvm::Function *FunctionAST::codegen() {
 		// Add storage to variable in symbol table.
 		mapitem->val = Alloca;
 	}
+	FunctionProtos[Proto->getName()] = std::move(Proto);
+	return TheFunction;
+}
 
-	Body.back()->desired_type = P.RetTypes[0].first;
-	Body.back()->desired_type_attr = P.RetTypes[0].second;
-	llvm::Value* RetVal;
-	inside_function = true;
-	for (auto& Expr : Body) {
-		if ((RetVal = Expr->codegen())) {
-			if (comp_mode == comp_dbg) {
-				KSDbgInfo.emitLocation(Expr.get());
-			}
-		} else {
-			// Error reading body, remove function.
-			TheFunction->eraseFromParent();
-			
-			if (comp_mode == comp_dbg) {
-				// Pop off the lexical block for the function since we added it
-				// unconditionally.
-				KSDbgInfo.LexicalBlocks.pop_back();
-			}
-			inside_function = false;
-			return nullptr;
-		}
-	}
-	// Finish off the function.
+void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal) {
 	auto ret_type = RetVal->getType();
 	//type = ret_type; // TODO: hande conversion if != proto->type;
 	Builder->CreateRet(RetVal);
@@ -991,6 +971,4 @@ llvm::Function *FunctionAST::codegen() {
 	if (comp_mode == comp_jit) {
 		TheFPM->run(*TheFunction);
 	}
-	inside_function = false;
-	return TheFunction;
 }
