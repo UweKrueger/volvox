@@ -591,9 +591,11 @@ std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition() {
 		return { nullptr, nullptr };
 	}
 	// TODO: stop here if it's a forward declaration
-	// TODO: chaeck if this definition matches existing one
+	// TODO: check if this definition matches existing one
+	auto RetType = Proto->RetTypes[0].first;
+	auto RetAttr = Proto->RetTypes[0].second;
 	llvm::Function* TheFunction = PrepareFunctionBody(std::move(Proto));
-	std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ElistV = ParseExpressionList(Proto->RetTypes[0].first, Proto->RetTypes[0].second, TheFunction);
+	std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ElistV = ParseExpressionList(RetType, RetAttr, TheFunction);
 	
 	fprintf(stderr, "expression parsed %p\n", Proto.get());
 	if (ElistV.first.size()) {
