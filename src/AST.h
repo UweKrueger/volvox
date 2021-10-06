@@ -43,9 +43,9 @@ public:
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
-	std::string Name;
 
 public:
+	std::string Name;
 	std::pair<FullType*, bool> full_type; // and if it's global
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: ExprAST(Loc), Name(Name), full_type(lookup_var(Name.c_str())) {
@@ -200,15 +200,13 @@ public:
 class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond;
 	std::vector<std::unique_ptr<ExprAST>> Then, Else;
-	llvm::PHINode* PN;
 	bool is_void; // no consistent result in branches -> will return bool
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
-	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
-	          llvm::PHINode* PN = nullptr)
+	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else)
 		: ExprAST(_Then.back()->type, _Then.back()->type_attr, Loc),
-		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else)), PN(PN)
+		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else))
 		{
 			is_void = Then.back()->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
 				|| Else.back()->type != Then.back()->type || Else.back()->type_attr != Then.back()->type_attr; 
@@ -274,12 +272,12 @@ public:
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
 public:
-	PrototypeAST* Proto; // owned by map FunctionProtos
+	std::unique_ptr<PrototypeAST> Proto;
 	std::vector<std::unique_ptr<ExprAST>> Body;
 
-	FunctionAST(PrototypeAST* Proto,
+	FunctionAST(std::unique_ptr<PrototypeAST> Proto,
 	            std::vector<std::unique_ptr<ExprAST>> Body)
-		: Proto(Proto), Body(std::move(Body)) {}
+		: Proto(std::move(Proto)), Body(std::move(Body)) {}
 	llvm::Function *codegen();
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		indent(out, ind) << "FunctionAST\n";

@@ -8,7 +8,6 @@
 
 std::unique_ptr<llvm::DIBuilder> DBuilder;
 bool inside_function = false;
-llvm::Function* TheFunction = nullptr;
 static llvm::ExitOnError ExitOnErr;
 
 llvm::DIType *DebugInfo::getDoubleTy() {
@@ -335,14 +334,16 @@ llvm::Value *BinaryExprAST::codegen() {
 		// variable declaration
 		printf("%s not found\n", varname);
 		if (inside_function) {
+			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, RHS->type);
-			FullType ft = {
-				.type = RHS->type,
-				.val = Alloca,
-				.type_attr = RHS->type_attr
-			};
-			locals_table.back().insert(varname, ft);
-			printf("Inserted %s to locals table\n", varname);
+			// FullType ft = {
+			// 	.type = RHS->type,
+			// 	.val = Alloca,
+			// 	.type_attr = RHS->type_attr
+			// };
+			locals_table.back()[varname]->val = Alloca;
+			// locals_table.back().insert(varname, ft);
+			printf("Added storage of %s to locals table\n", varname);
 			Builder->CreateStore(Val, Alloca);
 			return Val;
 		} else {
@@ -632,8 +633,6 @@ llvm::Value *CallExprAST::codegen() {
 }
 
 llvm::Value *IfExprAST::codegen() {
-	if (PN)
-		return PN;
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -892,14 +891,15 @@ llvm::Function *PrototypeAST::codegen() {
 	return F;
 }
 
-llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto) {
+llvm::Function *FunctionAST::codegen() {
 	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
 	// reference to it for use below.
-	
 	auto &P = *Proto;
-	TheFunction = getFunction(P.getName());
+	FunctionProtos[Proto->getName()] = std::move(Proto);
+	llvm::Function *TheFunction = getFunction(P.getName());
 	if (!TheFunction) {
-		fprintf(stderr, "prototype %s not found in module\n", P.getName().c_str());
+		for (auto& expr : Body)
+			llvm::Value *RetVal = expr->codegen();
 		return nullptr;
 	}
 	// Create a new basic block to start insertion into.
@@ -957,11 +957,30 @@ llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto) {
 		// Add storage to variable in symbol table.
 		mapitem->val = Alloca;
 	}
-	FunctionProtos[Proto->getName()] = std::move(Proto);
-	return TheFunction;
-}
 
-void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal) {
+	Body.back()->desired_type = P.RetTypes[0].first;
+	Body.back()->desired_type_attr = P.RetTypes[0].second;
+	llvm::Value* RetVal;
+	inside_function = true;
+	for (auto& Expr : Body) {
+		if ((RetVal = Expr->codegen())) {
+			if (comp_mode == comp_dbg) {
+				KSDbgInfo.emitLocation(Expr.get());
+			}
+		} else {
+			// Error reading body, remove function.
+			TheFunction->eraseFromParent();
+			
+			if (comp_mode == comp_dbg) {
+				// Pop off the lexical block for the function since we added it
+				// unconditionally.
+				KSDbgInfo.LexicalBlocks.pop_back();
+			}
+			inside_function = false;
+			return nullptr;
+		}
+	}
+	// Finish off the function.
 	auto ret_type = RetVal->getType();
 	//type = ret_type; // TODO: hande conversion if != proto->type;
 	Builder->CreateRet(RetVal);
@@ -975,4 +994,6 @@ void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal) {
 	if (comp_mode == comp_jit) {
 		TheFPM->run(*TheFunction);
 	}
+	inside_function = false;
+	return TheFunction;
 }

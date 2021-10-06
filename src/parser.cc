@@ -179,7 +179,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	return call_expr;
 }
 
-static std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib);
+static std::vector<std::unique_ptr<ExprAST>> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib);
 
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
 static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
@@ -192,54 +192,22 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	auto Cond = ParseExpression(llvm::Type::getInt1Ty(*Context.getContext()));
 	if (!Cond)
 		return nullptr;
-	if (comp_mode == comp_dbg) {
-		//KSDbgInfo.emitLocation(this);
-		Builder->SetCurrentDebugLocation(llvm::DebugLoc());
-	}
-	llvm::Value *CondV = Cond->codegen();
-	if (!CondV)
-		return nullptr;
-	if (CondV->getType() != llvm::Type::getInt1Ty(*Context.getContext()))
-		return Error(Cond->Loc, "bool type expected as \"if\" condition");
-
-	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(*Context.getContext(), "then", TheFunction);
-	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(*Context.getContext(), "else");
-	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(*Context.getContext(), "ifcont");
-
-	Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 
 	if (CurTok.kind != tok_then)
 		return LogError("expected then");
 	getNextToken(); // eat the then
 
-	// Emit then value.
-	Builder->SetInsertPoint(ThenBB);
-
 	auto Then = ParseExpressionList(desired_type, desired_attrib);
-	if (!Then.second)
+	if (!Then.size())
 		return Error(CurLoc, "\"then\" branch expected");
-
-	Builder->CreateBr(MergeBB);
-	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
-	ThenBB = Builder->GetInsertBlock();
-
 	// if (CurTok.kind != tok_else)
 	// 	return LogError("expected else");
 
-	// Emit else block.
-	TheFunction->getBasicBlockList().push_back(ElseBB);
-	Builder->SetInsertPoint(ElseBB);
 	auto Else = ParseExpressionList(desired_type, desired_attrib);
-	if (!Else.first.size())
+	if (!Else.size())
 		return Error(CurLoc, "\"else\" branch expected");
-
-	TheFunction->getBasicBlockList().push_back(MergeBB);
-	Builder->SetInsertPoint(MergeBB);
-	llvm::PHINode *PN = Builder->CreatePHI(Then.second->getType(), 2, "iftmp");
-	PN->addIncoming(Then.second, ThenBB);
-	PN->addIncoming(Else.second, ElseBB);
-	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), PN);
+	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then),
+	                                   std::move(Else));
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
@@ -417,6 +385,21 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		auto LHS_attr = LHS->type_attr;
 		auto RHS_type = RHS->type;
 		auto RHS_attr = RHS->type_attr;
+		if (inside_function && BinOp == ":=") {
+			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
+				FullType ft = {
+					.type = RHS_type,
+					.type_attr = RHS_attr
+				};
+				if (!locals_table.back().insert(VarL->Name.c_str(), ft)) {
+					fprintf(stderr, "variable %s already exists in current scope\n", VarL->Name.c_str());
+					return nullptr;
+				}
+			} else {
+				fprintf(stderr, "left operand of \":=\" must be a variable\n");
+				return nullptr;
+			}
+		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
 		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr, BinOp.c_str()),
 		                                      desired_type, desired_attrib);
@@ -449,7 +432,7 @@ static std::pair<std::unique_ptr<ExprAST>, bool> ParseExprOrReturn(llvm::Type* d
 	}
 }
 
-static std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib) {
+static std::vector<std::unique_ptr<ExprAST>> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib) {
 	std::vector<std::unique_ptr<ExprAST>> expr_list;
 	// inside_function = true;
 	llvm::Value* RetVal = nullptr;
@@ -458,29 +441,13 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ParseExpres
 		auto expr = ParseExprOrReturn(desired_type, desired_attrib);
 		if (expr.first) {
 			is_return = expr.second;
-			if ((RetVal = expr.first->codegen())) {
-				if (comp_mode == comp_dbg) {
-					KSDbgInfo.emitLocation(expr.first.get());
-				}
-			} else {
-				// Error reading body, remove function.
-				TheFunction->eraseFromParent();
-				
-				if (comp_mode == comp_dbg) {
-					// Pop off the lexical block for the function since we added it
-					// unconditionally.
-					KSDbgInfo.LexicalBlocks.pop_back();
-				}
-				inside_function = false;
-				return { std::move(std::vector<std::unique_ptr<ExprAST>>{}), nullptr };
-			}
+			RetVal = expr.first->codegen();
 			expr_list.push_back(std::move(expr.first));
 		} else if (expr.second) {
 			break;
 		}
 	}
-	// inside_function = false;
-	return { std::move(expr_list), RetVal };
+	return { std::move(expr_list) };
 }
 
 /// prototype
@@ -603,11 +570,11 @@ noargs:
 }
 
 /// definition ::= 'fn' prototype expression
-std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition() {
+std::unique_ptr<FunctionAST> ParseDefinition() {
 	getNextToken(); // eat fn.
 	auto Proto = ParsePrototype();
 	if (!Proto)
-		return { nullptr, nullptr };
+		return nullptr;
 	auto sz = Proto->Args.size();
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
@@ -618,73 +585,40 @@ std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition() {
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), ft);
 		if (!is_new) {
 			LogError("duplicat function arg \"%s\"\n", Proto->Args[i].c_str());
-			return { nullptr, nullptr };
+			return nullptr;
 		}
 	}
-	auto F = Proto->codegen();
-	if (!F) {
-		fprintf(stderr, "Could not compile function prototype\n");
-		return { nullptr, nullptr };
+	std::vector<std::unique_ptr<ExprAST>> Elist = ParseExpressionList(Proto->RetTypes[0].first, Proto->RetTypes[0].second);
+	if (Elist.size()) {
+		return std::make_unique<FunctionAST>(std::move(Proto), std::move(Elist));
 	}
-	// TODO: stop here if it's a forward declaration
-	// TODO: check if this definition matches existing one
-	auto RetType = Proto->RetTypes[0].first;
-	auto RetAttr = Proto->RetTypes[0].second;
-	auto TheProto = Proto.get();
-	TheFunction = PrepareFunctionBody(std::move(Proto));
-	inside_function = true;
-	std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ElistV = ParseExpressionList(RetType, RetAttr);
-	inside_function = false;
-	fprintf(stderr, "expression parsed %p\n", TheProto);
-	if (ElistV.first.size()) {
-		FinishFunction(TheFunction, ElistV.second);
-		return { std::make_unique<FunctionAST>(TheProto, std::move(ElistV.first)), TheFunction };
-	}
-	return { nullptr, nullptr };
+	return nullptr;
 }
 
 /// toplevelexpr ::= expression
-std::pair<llvm::Function*, unsigned> ParseTopLevelExpr() {
-	TheFunction = nullptr;
+std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
 		if (!E->type) {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
 				if (B->conv.compat.err_msg)
-					return { AutoErr(B->Loc, B->LHS->type, B->RHS->type, B->LHS->type_attr, B->RHS->type_attr, B->conv.compat.err_msg), 0 };
+					return AutoErr(B->Loc, B->LHS->type, B->RHS->type, B->LHS->type_attr, B->RHS->type_attr, B->conv.compat.err_msg);
 				if (!strcmp(B->Op, ":="))
-					return { HandleGlobalVariable(B), 0 };
+					return HandleGlobalVariable(B);
 			} else {
 				fprintf(stderr, "Could not deduce type of expression\n");
-				return { nullptr, 0 };
+				return nullptr;
 			}
 		}
 		// Make an anonymous proto.
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
-		auto F = Proto->codegen();
-		llvm::Function* TheFunction = PrepareFunctionBody(std::move(Proto));
-		llvm::Value* RetVal;
-		if ((RetVal = E->codegen())) {
-			if (comp_mode == comp_dbg) {
-				KSDbgInfo.emitLocation(E.get());
-			}
-		} else {
-			// Error reading body, remove function.
-			TheFunction->eraseFromParent();
-			
-			if (comp_mode == comp_dbg) {
-				// Pop off the lexical block for the function since we added it
-				// unconditionally.
-				KSDbgInfo.LexicalBlocks.pop_back();
-			}
-			return { nullptr, 0 };
-		}
-		FinishFunction(TheFunction, RetVal);
-		return { TheFunction, E->type_attr };
+		std::vector<std::unique_ptr<ExprAST>> ExprList;
+		ExprList.push_back(std::move(E));
+		return std::make_unique<FunctionAST>(std::move(Proto), std::move(ExprList));
 	}
-	return { nullptr, 0 };
+	return nullptr;
 }
 
 /// external ::= 'extern' prototype

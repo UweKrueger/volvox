@@ -89,8 +89,8 @@ extern bool inside_function;
 
 extern std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap);
 extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
-extern std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition();
-extern std::pair<llvm::Function*, unsigned> ParseTopLevelExpr();
+extern std::unique_ptr<FunctionAST> ParseDefinition();
+extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 
 struct int_val_type_t {
@@ -401,4 +401,3 @@ extern char* __volvox_jit_tls_inits;
 extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);
 extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);
 extern std::nullptr_t Error(SourceLocation Loc, const char *Str, ...);
-extern llvm::Function* TheFunction;
