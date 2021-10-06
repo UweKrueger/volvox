@@ -615,7 +615,7 @@ std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition() {
 			.type = Proto->ArgTypes[i],
 			.type_attr = Proto->ArgAttribs[i]
 		};
-		bool is_new = locals_table.insert(Proto->Args[i].c_str(), ft);
+		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), ft);
 		if (!is_new) {
 			LogError("duplicat function arg \"%s\"\n", Proto->Args[i].c_str());
 			return { nullptr, nullptr };

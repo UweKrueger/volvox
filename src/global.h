@@ -223,15 +223,16 @@ public:
 };
 
 extern VarTable globals_table;
-extern VarTable locals_table; // including function arguments
+extern std::vector<VarTable> locals_table; // including function arguments
 
 // look up var and return if it's global
 inline std::pair<FullType*, bool> lookup_var(const char* Name) {
-	FullType* full_type = locals_table[Name];
-	if (full_type)
-		return { full_type, false };
-	else
-		return { globals_table[Name], true };
+	for (int i = locals_table.size() - 1; i >= 0; i--) {
+		FullType* full_type = locals_table[i][Name];
+		if (full_type)
+			return { full_type, false };
+	}
+	return { globals_table[Name], true };
 }
 
 class ExprAST {

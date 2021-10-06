@@ -29,7 +29,7 @@ llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
 }
 VarTable globals_table;
-VarTable locals_table; // including function arguments
+std::vector<VarTable> locals_table; // including function arguments
 
 //===----------------------------------------------------------------------===//
 // Built-in Types
@@ -101,6 +101,7 @@ void InitializeModuleAndPassManager() {
 }
 
 static void HandleDefinition() {
+	locals_table.push_back(VarTable());
 	bool success = false;
 	auto Fn = ParseDefinition();
 	if (auto FnAST = std::move(Fn.first)) {
@@ -128,7 +129,8 @@ static void HandleDefinition() {
 		// Skip token for error recovery.
 		purgeLine();
 	}
-	locals_table.clear();
+	locals_table[0].clear();
+	locals_table = {};
 	if (success)
 		fprintf(stderr, "definition successfully handled\n");
 	TheFunction = nullptr;

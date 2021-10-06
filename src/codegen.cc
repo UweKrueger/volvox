@@ -341,7 +341,7 @@ llvm::Value *BinaryExprAST::codegen() {
 				.val = Alloca,
 				.type_attr = RHS->type_attr
 			};
-			locals_table.insert(varname, ft);
+			locals_table.back().insert(varname, ft);
 			printf("Inserted %s to locals table\n", varname);
 			Builder->CreateStore(Val, Alloca);
 			return Val;
@@ -742,7 +742,7 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Within the loop, the variable is defined equal to the PHI node.  If it
 	// shadows an existing variable, we have to restore it, so save it now.
-	FullType* OldValPtr = locals_table[VarName.c_str()];
+	FullType* OldValPtr = locals_table.back()[VarName.c_str()];
 	llvm::Value *OldVal = OldValPtr ? OldValPtr->val : nullptr;
 	if (OldVal) {
 		OldVal = Alloca;
@@ -752,7 +752,7 @@ llvm::Value *ForExprAST::codegen() {
 			.val = Alloca,
 			.type_attr = AllocaF
 		};
-		locals_table.insert(VarName.c_str(), ft);
+		locals_table.back().insert(VarName.c_str(), ft);
 	}
 	// Emit the body of the loop.  This, like any other expr, can change the
 	// current BB.  Note that we ignore the value computed by the body, but don't
@@ -801,7 +801,7 @@ llvm::Value *ForExprAST::codegen() {
 	if (OldVal)
 		OldValPtr->val = OldVal;
 	else
-		locals_table.erase(VarName.c_str());
+		locals_table.back().erase(VarName.c_str());
 	// for expr always returns 0.0.
 	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*Context.getContext()));
 }
@@ -847,7 +847,7 @@ llvm::Value *VarExprAST::codegen() {
 
 		// Remember the old variable binding so that we can restore the binding when
 		// we unrecurse.
-		FullType* OldValPtr = locals_table[VarName.c_str()];
+		FullType* OldValPtr = locals_table.back()[VarName.c_str()];
 		OldBindings.push_back(OldValPtr->val);
 
 		// Remember this binding.
@@ -864,7 +864,7 @@ llvm::Value *VarExprAST::codegen() {
 
 	// Pop all our variables from scope.
 	for (unsigned i = 0, e = VarNames.size(); i != e; ++i) {
-		FullType* OldValPtr = locals_table[VarNames[i].first.c_str()];
+		FullType* OldValPtr = locals_table.back()[VarNames[i].first.c_str()];
 		OldValPtr->val =  OldBindings[i];
 	}
 	// Return the body computation.
@@ -935,7 +935,7 @@ llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto) {
 		// Create an alloca for this variable.
 		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), P.ArgTypes[ArgIdx]);
 		// get reference to argument in symbol table
-		FullType* mapitem = locals_table[Arg.getName().str().c_str()];
+		FullType* mapitem = locals_table.back()[Arg.getName().str().c_str()];
 		if (!mapitem) {
 			fprintf(stderr, "internal compiler error: arg not found in table");
 			exit(1);
