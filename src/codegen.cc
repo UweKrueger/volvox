@@ -632,6 +632,8 @@ llvm::Value *CallExprAST::codegen() {
 }
 
 llvm::Value *IfExprAST::codegen() {
+	if (PN)
+		return PN;
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
