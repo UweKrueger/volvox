@@ -392,6 +392,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		auto RHS_type = RHS->type;
 		auto RHS_attr = RHS->type_attr;
 		if (inside_function && BinOp == ":=") {
+			printf("got :=\n");
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
 				FullType ft = {
 					.type = RHS_type,
@@ -400,6 +401,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				if (!locals_table.back().insert(VarL->Name.c_str(), ft)) {
 					fprintf(stderr, "variable %s already exists in current scope\n", VarL->Name.c_str());
 					return nullptr;
+				} else {
+					printf("inserted local %s\n", VarL->Name.c_str());
 				}
 			} else {
 				fprintf(stderr, "left operand of \":=\" must be a variable\n");
