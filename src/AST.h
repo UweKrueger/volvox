@@ -212,7 +212,6 @@ public:
 		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else))
 		{
 			if (is_void) {
-				printf("is void if expr %p %p\n", _Then.back()->type, _Else.back()->type);
 				type = llvm::Type::getInt1Ty(*Context.getContext());
 				type_attr = 0;
 			}
