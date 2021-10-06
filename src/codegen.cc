@@ -961,7 +961,6 @@ llvm::Function *FunctionAST::codegen() {
 	Body.back()->desired_type = P.RetTypes[0].first;
 	Body.back()->desired_type_attr = P.RetTypes[0].second;
 	llvm::Value* RetVal;
-	inside_function = true;
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {
 			if (comp_mode == comp_dbg) {
@@ -976,7 +975,6 @@ llvm::Function *FunctionAST::codegen() {
 				// unconditionally.
 				KSDbgInfo.LexicalBlocks.pop_back();
 			}
-			inside_function = false;
 			return nullptr;
 		}
 	}
@@ -994,6 +992,5 @@ llvm::Function *FunctionAST::codegen() {
 	if (comp_mode == comp_jit) {
 		TheFPM->run(*TheFunction);
 	}
-	inside_function = false;
 	return TheFunction;
 }

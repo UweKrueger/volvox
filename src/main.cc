@@ -101,6 +101,7 @@ void InitializeModuleAndPassManager() {
 }
 
 static void HandleDefinition() {
+	inside_function = true;
 	locals_table.push_back(VarTable());
 	bool success = false;
 	if (auto FnAST = ParseDefinition()) {
@@ -132,6 +133,7 @@ static void HandleDefinition() {
 	locals_table = {};
 	if (success)
 		fprintf(stderr, "definition successfully handled\n");
+	inside_function = false;
 }
 
 static void HandleExtern() {
