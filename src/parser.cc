@@ -186,8 +186,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 
 	getNextToken(); // eat the if.
 
-	// condition.
-	auto Cond = ParseExpression();
+	// condition - expect bool.
+	auto Cond = ParseExpression(llvm::Type::getInt1Ty(*Context.getContext()));
 	if (!Cond)
 		return nullptr;
 

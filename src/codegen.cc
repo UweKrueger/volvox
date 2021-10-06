@@ -640,8 +640,8 @@ llvm::Value *IfExprAST::codegen() {
 		return nullptr;
 
 	// Convert condition to a bool by comparing non-equal to 0.0.
-	CondV = Builder->CreateFCmpONE(
-		CondV, llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(0.0)), "ifcond");
+	if (CondV->getType() != llvm::Type::getInt1Ty(*Context.getContext()))
+		return Error(Cond->Loc, "bool type expected as \"if\" condition");
 
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 

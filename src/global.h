@@ -398,3 +398,4 @@ extern __thread size_t __volvox_jit_tls_size;
 extern char* __volvox_jit_tls_inits;
 extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);
 extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);
+extern std::nullptr_t Error(SourceLocation Loc, const char *Str, ...);
