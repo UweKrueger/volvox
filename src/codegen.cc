@@ -8,6 +8,7 @@
 
 std::unique_ptr<llvm::DIBuilder> DBuilder;
 bool inside_function = false;
+llvm::Function* TheFunction = nullptr;
 static llvm::ExitOnError ExitOnErr;
 
 llvm::DIType *DebugInfo::getDoubleTy() {
@@ -334,7 +335,6 @@ llvm::Value *BinaryExprAST::codegen() {
 		// variable declaration
 		printf("%s not found\n", varname);
 		if (inside_function) {
-			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, RHS->type);
 			FullType ft = {
 				.type = RHS->type,
@@ -656,7 +656,7 @@ llvm::Value *IfExprAST::codegen() {
 	// Emit then value.
 	Builder->SetInsertPoint(ThenBB);
 
-	llvm::Value *ThenV = Then->codegen();
+	llvm::Value *ThenV = Then[0]->codegen();
 	if (!ThenV)
 		return nullptr;
 	if (is_void)
@@ -670,7 +670,7 @@ llvm::Value *IfExprAST::codegen() {
 	TheFunction->getBasicBlockList().push_back(ElseBB);
 	Builder->SetInsertPoint(ElseBB);
 
-	llvm::Value *ElseV = Else->codegen();
+	llvm::Value *ElseV = Else[0]->codegen();
 	if (!ElseV)
 		return nullptr;
 	if (is_void)
@@ -895,7 +895,7 @@ llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto) {
 	// reference to it for use below.
 	
 	auto &P = *Proto;
-	llvm::Function *TheFunction = getFunction(P.getName());
+	TheFunction = getFunction(P.getName());
 	if (!TheFunction) {
 		fprintf(stderr, "prototype %s not found in module\n", P.getName().c_str());
 		return nullptr;

@@ -179,6 +179,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	return call_expr;
 }
 
+static std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib);
+
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
 static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
                                             unsigned desired_attrib = 0u) {
@@ -190,26 +192,54 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	auto Cond = ParseExpression(llvm::Type::getInt1Ty(*Context.getContext()));
 	if (!Cond)
 		return nullptr;
+	if (comp_mode == comp_dbg) {
+		//KSDbgInfo.emitLocation(this);
+		Builder->SetCurrentDebugLocation(llvm::DebugLoc());
+	}
+	llvm::Value *CondV = Cond->codegen();
+	if (!CondV)
+		return nullptr;
+	if (CondV->getType() != llvm::Type::getInt1Ty(*Context.getContext()))
+		return Error(Cond->Loc, "bool type expected as \"if\" condition");
+
+	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(*Context.getContext(), "then", TheFunction);
+	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(*Context.getContext(), "else");
+	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(*Context.getContext(), "ifcont");
+
+	Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 
 	if (CurTok.kind != tok_then)
 		return LogError("expected then");
 	getNextToken(); // eat the then
 
-	auto Then = ParseExpression();
-	if (!Then)
-		return nullptr;
+	// Emit then value.
+	Builder->SetInsertPoint(ThenBB);
 
-	if (CurTok.kind != tok_else)
-		return LogError("expected else");
+	auto Then = ParseExpressionList(desired_type, desired_attrib);
+	if (!Then.second)
+		return Error(CurLoc, "\"then\" branch expected");
 
-	getNextToken();
+	Builder->CreateBr(MergeBB);
+	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
+	ThenBB = Builder->GetInsertBlock();
 
-	auto Else = ParseExpression();
-	if (!Else)
-		return nullptr;
+	// if (CurTok.kind != tok_else)
+	// 	return LogError("expected else");
 
-	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then),
-	                                   std::move(Else));
+	// Emit else block.
+	TheFunction->getBasicBlockList().push_back(ElseBB);
+	Builder->SetInsertPoint(ElseBB);
+	auto Else = ParseExpressionList(desired_type, desired_attrib);
+	if (!Else.first.size())
+		return Error(CurLoc, "\"else\" branch expected");
+
+	TheFunction->getBasicBlockList().push_back(MergeBB);
+	Builder->SetInsertPoint(MergeBB);
+	llvm::PHINode *PN = Builder->CreatePHI(Then.second->getType(), 2, "iftmp");
+	PN->addIncoming(Then.second, ThenBB);
+	PN->addIncoming(Else.second, ElseBB);
+	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
+	                                   std::move(Else.first), PN);
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
@@ -407,17 +437,20 @@ static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type, unsign
 static std::pair<std::unique_ptr<ExprAST>, bool> ParseExprOrReturn(llvm::Type* desired_type, unsigned desired_attrib) {
 	while (CurTok.kind == ';')
 		getNextToken();
-	if (CurTok.kind == tok_return) {
+	if (CurTok.kind == tok_return || CurTok.kind == tok_else || CurTok.kind == tok_end) {
 		getNextToken();
-		return { ParseExpression(desired_type, desired_attrib), true };
+		if (CurTok.kind == tok_return)
+			return { ParseExpression(desired_type, desired_attrib), true };
+		else
+			return { nullptr, true };
 	} else {
 		return { ParseExpression(nullptr, 0), false };
 	}
 }
 
-static std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib, llvm::Function* TheFunction) {
+static std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib) {
 	std::vector<std::unique_ptr<ExprAST>> expr_list;
-	inside_function = true;
+	// inside_function = true;
 	llvm::Value* RetVal = nullptr;
 
 	for (bool is_return = false; !is_return; ) {
@@ -441,9 +474,11 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ParseExpres
 				return { std::move(std::vector<std::unique_ptr<ExprAST>>{}), nullptr };
 			}
 			expr_list.push_back(std::move(expr.first));
+		} else if (expr.second) {
+			break;
 		}
 	}
-	inside_function = false;
+	// inside_function = false;
 	return { std::move(expr_list), RetVal };
 }
 
@@ -594,9 +629,10 @@ std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition() {
 	// TODO: check if this definition matches existing one
 	auto RetType = Proto->RetTypes[0].first;
 	auto RetAttr = Proto->RetTypes[0].second;
-	llvm::Function* TheFunction = PrepareFunctionBody(std::move(Proto));
-	std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ElistV = ParseExpressionList(RetType, RetAttr, TheFunction);
-	
+	TheFunction = PrepareFunctionBody(std::move(Proto));
+	inside_function = true;
+	std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ElistV = ParseExpressionList(RetType, RetAttr);
+	inside_function = false;
 	fprintf(stderr, "expression parsed %p\n", Proto.get());
 	if (ElistV.first.size()) {
 		FinishFunction(TheFunction, ElistV.second);

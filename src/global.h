@@ -55,6 +55,7 @@ enum TokenKind {
 	// var definition
 	tok_var = -55,
 	tok_return = -56,
+	tok_end = -57,
 
 	// built-in type attributes
 	tok_atomic = -60,
@@ -399,3 +400,4 @@ extern char* __volvox_jit_tls_inits;
 extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);
 extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);
 extern std::nullptr_t Error(SourceLocation Loc, const char *Str, ...);
+extern llvm::Function* TheFunction;

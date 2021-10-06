@@ -198,17 +198,20 @@ public:
 
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public ExprAST {
-	std::unique_ptr<ExprAST> Cond, Then, Else;
+	std::unique_ptr<ExprAST> Cond;
+	std::vector<std::unique_ptr<ExprAST>> Then, Else;
+	llvm::PHINode* PN;
 	bool is_void; // no consistent result in branches -> will return bool
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
-	          std::unique_ptr<ExprAST> _Then, std::unique_ptr<ExprAST> _Else)
-		: ExprAST(_Then->type, _Then->type_attr, Loc),
-		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else))
+	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
+	          llvm::PHINode* PN = nullptr)
+		: ExprAST(_Then.back()->type, _Then.back()->type_attr, Loc),
+		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else)), PN(PN)
 		{
-			is_void = Then->type == llvm::Type::getVoidTy(*Context.getContext()) || !Else
-				|| Else->type != Then->type || Else->type_attr != Then->type_attr; 
+			is_void = Then.back()->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
+				|| Else.back()->type != Then.back()->type || Else.back()->type_attr != Then.back()->type_attr; 
 			if (is_void) {
 				printf("is void if expr\n");
 				type = llvm::Type::getInt1Ty(*Context.getContext());
@@ -219,8 +222,9 @@ public:
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
 		Cond->dump(indent(out, ind) << "Cond:", ind + 1);
-		Then->dump(indent(out, ind) << "Then:", ind + 1);
-		Else->dump(indent(out, ind) << "Else:", ind + 1);
+		Then[0]->dump(indent(out, ind) << "Then:", ind + 1);
+		if (Else.size())
+			Else[0]->dump(indent(out, ind) << "Else:", ind + 1);
 		return out;
 	}
 };

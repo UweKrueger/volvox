@@ -22,6 +22,8 @@ std::string Token::tokName(int tok_kind) {
 		return "else";
 	case tok_for:
 		return "for";
+	case tok_end:
+		return "end";
 	case tok_in:
 		return "in";
 	case tok_unary:
