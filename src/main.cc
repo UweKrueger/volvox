@@ -106,7 +106,7 @@ static void HandleDefinition() {
 	if (auto FnAST = std::move(Fn.first)) {
 		if (auto *FnIR = Fn.second) {
 			if (comp_mode != comp_dbg) {
-				fprintf(stderr, "Read function definition:");
+				fprintf(stderr, "Read function definition:\n");
 				FnIR->print(llvm::errs());
 				fprintf(stderr, "\n");
 				if (comp_mode == comp_jit) {
@@ -131,6 +131,7 @@ static void HandleDefinition() {
 	locals_table.clear();
 	if (success)
 		fprintf(stderr, "definition successfully handled\n");
+	TheFunction = nullptr;
 }
 
 static void HandleExtern() {

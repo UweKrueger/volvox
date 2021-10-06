@@ -437,9 +437,10 @@ static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type, unsign
 static std::pair<std::unique_ptr<ExprAST>, bool> ParseExprOrReturn(llvm::Type* desired_type, unsigned desired_attrib) {
 	while (CurTok.kind == ';')
 		getNextToken();
-	if (CurTok.kind == tok_return || CurTok.kind == tok_else || CurTok.kind == tok_end) {
+	auto kind = CurTok.kind;
+	if (kind == tok_return || kind == tok_else || kind == tok_end) {
 		getNextToken();
-		if (CurTok.kind == tok_return)
+		if (kind == tok_return)
 			return { ParseExpression(desired_type, desired_attrib), true };
 		else
 			return { nullptr, true };
@@ -629,20 +630,22 @@ std::pair<std::unique_ptr<FunctionAST>, llvm::Function*> ParseDefinition() {
 	// TODO: check if this definition matches existing one
 	auto RetType = Proto->RetTypes[0].first;
 	auto RetAttr = Proto->RetTypes[0].second;
+	auto TheProto = Proto.get();
 	TheFunction = PrepareFunctionBody(std::move(Proto));
 	inside_function = true;
 	std::pair<std::vector<std::unique_ptr<ExprAST>>,llvm::Value*> ElistV = ParseExpressionList(RetType, RetAttr);
 	inside_function = false;
-	fprintf(stderr, "expression parsed %p\n", Proto.get());
+	fprintf(stderr, "expression parsed %p\n", TheProto);
 	if (ElistV.first.size()) {
 		FinishFunction(TheFunction, ElistV.second);
-		return { std::make_unique<FunctionAST>(std::move(Proto), std::move(ElistV.first)), TheFunction };
+		return { std::make_unique<FunctionAST>(TheProto, std::move(ElistV.first)), TheFunction };
 	}
 	return { nullptr, nullptr };
 }
 
 /// toplevelexpr ::= expression
 std::pair<llvm::Function*, unsigned> ParseTopLevelExpr() {
+	TheFunction = nullptr;
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
 		if (!E->type) {
