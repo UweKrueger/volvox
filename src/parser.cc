@@ -179,11 +179,11 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	return call_expr;
 }
 
-static std::vector<std::unique_ptr<ExprAST>> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attrib);
+static std::vector<std::unique_ptr<ExprAST>> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attr);
 
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
 static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
-                                            unsigned desired_attrib = 0u) {
+                                            unsigned desired_attr = 0u) {
 	SourceLocation IfLoc = CurLoc;
 
 	getNextToken(); // eat the if.
@@ -197,13 +197,19 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 		return LogError("expected then");
 	getNextToken(); // eat the then
 
-	auto Then = ParseExpressionList(desired_type, desired_attrib);
+	auto Then = ParseExpressionList(desired_type, desired_attr);
 	if (!Then.size())
 		return Error(CurLoc, "\"then\" branch expected");
-	// if (CurTok.kind != tok_else)
-	// 	return LogError("expected else");
+	desired_type = Then.back()->type;
+	desired_attr = Then.back()->type_attr;
+	if (CurTok.kind != tok_else)
+	 	return LogError("expected else");
+	getNextToken();
 
-	auto Else = ParseExpressionList(desired_type, desired_attrib);
+	auto Else = ParseExpressionList(desired_type, desired_attr);
+	if (CurTok.kind != tok_end)
+	 	return LogError("expected end");
+	getNextToken(true);
 	if (!Else.size())
 		return Error(CurLoc, "\"else\" branch expected");
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then),
@@ -422,9 +428,10 @@ static std::pair<std::unique_ptr<ExprAST>, bool> ParseExprOrReturn(llvm::Type* d
 		getNextToken();
 	auto kind = CurTok.kind;
 	if (kind == tok_return || kind == tok_else || kind == tok_end) {
-		getNextToken();
-		if (kind == tok_return)
+		if (kind == tok_return) {
+			getNextToken();
 			return { ParseExpression(desired_type, desired_attrib), true };
+		}
 		else
 			return { nullptr, true };
 	} else {
@@ -441,7 +448,6 @@ static std::vector<std::unique_ptr<ExprAST>> ParseExpressionList(llvm::Type* des
 		auto expr = ParseExprOrReturn(desired_type, desired_attrib);
 		if (expr.first) {
 			is_return = expr.second;
-			RetVal = expr.first->codegen();
 			expr_list.push_back(std::move(expr.first));
 		} else if (expr.second) {
 			break;

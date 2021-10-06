@@ -199,19 +199,20 @@ public:
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond;
-	std::vector<std::unique_ptr<ExprAST>> Then, Else;
 	bool is_void; // no consistent result in branches -> will return bool
+	std::vector<std::unique_ptr<ExprAST>> Then, Else;
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else)
 		: ExprAST(_Then.back()->type, _Then.back()->type_attr, Loc),
+		  is_void(_Then.back()->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
+		          || _Else.back()->type != _Then.back()->type
+		          || _Else.back()->type_attr != _Then.back()->type_attr),
 		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else))
 		{
-			is_void = Then.back()->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
-				|| Else.back()->type != Then.back()->type || Else.back()->type_attr != Then.back()->type_attr; 
 			if (is_void) {
-				printf("is void if expr\n");
+				printf("is void if expr %p %p\n", _Then.back()->type, _Else.back()->type);
 				type = llvm::Type::getInt1Ty(*Context.getContext());
 				type_attr = 0;
 			}

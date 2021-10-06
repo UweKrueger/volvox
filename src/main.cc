@@ -155,6 +155,7 @@ static void HandleExtern() {
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
+		printf("top level expr parsed\n");
 		auto RetType = FnAST->Proto->RetTypes.size() == 1 ?
 			FnAST->Proto->RetTypes[0].first :
 			llvm::Type::getVoidTy(*Context.getContext());
