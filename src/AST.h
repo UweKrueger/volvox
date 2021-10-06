@@ -199,12 +199,22 @@ public:
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond, Then, Else;
+	bool is_void; // no consistent result in branches -> will return bool
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
-	          std::unique_ptr<ExprAST> Then, std::unique_ptr<ExprAST> Else)
-		: ExprAST(llvm::Type::getDoubleTy(*Context.getContext()), 0, Loc), Cond(std::move(Cond)), Then(std::move(Then)),
-		  Else(std::move(Else)) {}
+	          std::unique_ptr<ExprAST> _Then, std::unique_ptr<ExprAST> _Else)
+		: ExprAST(_Then->type, _Then->type_attr, Loc),
+		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else))
+		{
+			is_void = Then->type == llvm::Type::getVoidTy(*Context.getContext()) || !Else
+				|| Else->type != Then->type || Else->type_attr != Then->type_attr; 
+			if (is_void) {
+				printf("is void if expr\n");
+				type = llvm::Type::getInt1Ty(*Context.getContext());
+				type_attr = 0;
+			}
+		}
 	llvm::Value *codegen() override;
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);

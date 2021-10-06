@@ -659,6 +659,8 @@ llvm::Value *IfExprAST::codegen() {
 	llvm::Value *ThenV = Then->codegen();
 	if (!ThenV)
 		return nullptr;
+	if (is_void)
+		ThenV = llvm::ConstantInt::getTrue(*Context.getContext());
 
 	Builder->CreateBr(MergeBB);
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
@@ -671,16 +673,18 @@ llvm::Value *IfExprAST::codegen() {
 	llvm::Value *ElseV = Else->codegen();
 	if (!ElseV)
 		return nullptr;
+	if (is_void)
+		ElseV = llvm::ConstantInt::getFalse(*Context.getContext());
 
 	Builder->CreateBr(MergeBB);
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();
-
+	fprintf(stderr, "IfType: %s\n",
+	        type_table.get_name((llvm::Type*)((uintptr_t)type | (type_attr & A_signed))));
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
-	llvm::PHINode *PN = Builder->CreatePHI(llvm::Type::getDoubleTy(*Context.getContext()), 2, "iftmp");
-
+	llvm::PHINode *PN = Builder->CreatePHI(type, 2, "iftmp");
 	PN->addIncoming(ThenV, ThenBB);
 	PN->addIncoming(ElseV, ElseBB);
 	return PN;
