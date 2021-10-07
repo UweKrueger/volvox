@@ -56,6 +56,7 @@ enum TokenKind {
 	tok_var = -55,
 	tok_return = -56,
 	tok_end = -57,
+	tok_leave = -58, // indicator that branch does not continue (i.e. last expr is return)
 
 	// built-in type attributes
 	tok_atomic = -60,

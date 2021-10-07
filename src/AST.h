@@ -281,10 +281,11 @@ class FunctionAST {
 public:
 	PrototypeAST* Proto;
 	std::vector<std::unique_ptr<ExprAST>> Body;
-
+	int EndKind;
+	
 	FunctionAST(PrototypeAST* Proto,
-	            std::vector<std::unique_ptr<ExprAST>> Body)
-		: Proto(Proto), Body(std::move(Body)) {}
+	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind)
+		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind) {}
 	llvm::Function *codegen();
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		indent(out, ind) << "FunctionAST\n";
