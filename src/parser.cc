@@ -179,7 +179,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	return call_expr;
 }
 
-static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attr);
+static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList(llvm::Type* desired_type, unsigned desired_attr);
 
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
 static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
@@ -197,7 +197,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 		return LogError("expected then");
 	getNextToken(); // eat the then
 
-	auto Then = ParseExpressionList(desired_type, desired_attr);
+	auto Then = ParseExprList(desired_type, desired_attr);
 	if (Then.first.size()) {
 		desired_type = Then.first.back()->type;
 		desired_attr = Then.first.back()->type_attr;
@@ -211,7 +211,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	 	return LogError("expected else");
 	getNextToken();
 
-	auto Else = ParseExpressionList(desired_type, desired_attr);
+	auto Else = ParseExprList(desired_type, desired_attr);
 	if (Else.second != tok_end)
 		getNextToken();
 	if (CurTok.kind != tok_end)
@@ -452,7 +452,7 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn(llvm::Type* de
 	}
 }
 
-static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExpressionList(llvm::Type* desired_type, unsigned desired_attr) {
+static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList(llvm::Type* desired_type, unsigned desired_attr) {
 	std::vector<std::unique_ptr<ExprAST>> expr_list;
 	int end_kind = 0;
 	while (!end_kind) {
@@ -605,7 +605,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	}
 	auto ProtoRef = Proto.get();
 	FunctionProtos[Proto->getName()] = std::move(Proto);
-	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExpressionList(ProtoRef->RetTypes[0].first, ProtoRef->RetTypes[0].second);
+	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetTypes[0].first, ProtoRef->RetTypes[0].second);
 	if (Elist.first.size()) {
 		return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first));
 	}
