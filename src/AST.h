@@ -208,7 +208,7 @@ public:
 		: ExprAST(_Then.back()->type, _Then.back()->type_attr, Loc),
 		  is_void(_Then.back()->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
 		          || _Else.back()->type != _Then.back()->type
-		          || _Else.back()->type_attr != _Then.back()->type_attr),
+		          || (_Else.back()->type_attr & A_signed) != (_Then.back()->type_attr & A_signed)),
 		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else))
 		{
 			if (is_void) {
