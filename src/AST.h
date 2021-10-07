@@ -212,6 +212,10 @@ public:
 		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else))
 		{
 			if (is_void) {
+				printf("void IfExpr: %p %p %u %u %s %s\n", Then.back()->type, Else.back()->type,
+				       Then.back()->type_attr, Else.back()->type_attr,
+				       type_table.get_name(Then.back()->type, Then.back()->type_attr & A_signed),
+				       type_table.get_name(Else.back()->type, Else.back()->type_attr & A_signed));
 				type = llvm::Type::getInt1Ty(*Context.getContext());
 				type_attr = 0;
 			}

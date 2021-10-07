@@ -185,8 +185,13 @@ public:
 		return { it == key32_table.end() ? nullptr : it->second, is_signed };
 	}
 	const char* get_name(llvm::Type* type) {
+		if (!type) return nullptr;
 		auto it = typeptr_table.find(type);
 		return it == typeptr_table.end() ? nullptr : it->second;
+	}
+	const char* get_name(llvm::Type* type, bool is_signed) {
+		if (!type) return nullptr;
+		return get_name((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
 	}
 	~TypeTable() {
 		map_destroy(name_table);
