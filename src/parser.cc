@@ -218,7 +218,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	 	return LogError("expected end");
 	getNextToken(true);
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first));
+	                                   std::move(Else.first), Then.second, Else.second);
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression

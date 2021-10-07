@@ -201,15 +201,18 @@ class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond;
 	bool is_void; // no consistent result in branches -> will return bool
 	std::vector<std::unique_ptr<ExprAST>> Then, Else;
+	int ThenEndKind, ElseEndKind; // maybe tok_else, tok_end, tok_return, ...
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
-	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else)
+	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
+	          int ThenEndKind, int ElseEndKind)
 		: ExprAST(_Then.back()->type, _Then.back()->type_attr, Loc),
 		  is_void(_Then.back()->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
 		          || _Else.back()->type != _Then.back()->type
 		          || (_Else.back()->type_attr & A_signed) != (_Then.back()->type_attr & A_signed)),
-		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else))
+		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
+		  ElseEndKind(ElseEndKind)
 		{
 			if (is_void) {
 				printf("void IfExpr: %p %p %u %u %s %s\n", Then.back()->type, Else.back()->type,

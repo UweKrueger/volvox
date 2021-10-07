@@ -662,10 +662,14 @@ llvm::Value *IfExprAST::codegen() {
 		ThenV = expr->codegen();
 	if (!ThenV)
 		return nullptr;
+	if (ThenEndKind == tok_return) {
+		Builder->CreateRet(ThenV);
+	} else {
+		Builder->CreateBr(MergeBB);
+	}
 	if (is_void)
 		ThenV = llvm::ConstantInt::getTrue(*Context.getContext());
-
-	Builder->CreateBr(MergeBB);
+	
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
 
@@ -678,10 +682,14 @@ llvm::Value *IfExprAST::codegen() {
 		ElseV = expr->codegen();
 	if (!ElseV)
 		return nullptr;
+	if (ElseEndKind == tok_return) {
+		Builder->CreateRet(ElseV);
+	} else {
+		Builder->CreateBr(MergeBB);
+	}
 	if (is_void)
 		ElseV = llvm::ConstantInt::getFalse(*Context.getContext());
 
-	Builder->CreateBr(MergeBB);
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();
 	fprintf(stderr, "IfType: %s\n",
