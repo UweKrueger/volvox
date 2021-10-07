@@ -657,7 +657,9 @@ llvm::Value *IfExprAST::codegen() {
 	// Emit then value.
 	Builder->SetInsertPoint(ThenBB);
 
-	llvm::Value *ThenV = Then[0]->codegen();
+	llvm::Value* ThenV = nullptr;
+	for (auto& expr : Then)
+		ThenV = expr->codegen();
 	if (!ThenV)
 		return nullptr;
 	if (is_void)
@@ -671,7 +673,9 @@ llvm::Value *IfExprAST::codegen() {
 	TheFunction->getBasicBlockList().push_back(ElseBB);
 	Builder->SetInsertPoint(ElseBB);
 
-	llvm::Value *ElseV = Else[0]->codegen();
+	llvm::Value* ElseV = nullptr;
+	for (auto& expr : Else)
+		ElseV = expr->codegen();
 	if (!ElseV)
 		return nullptr;
 	if (is_void)
