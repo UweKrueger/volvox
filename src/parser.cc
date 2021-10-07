@@ -597,9 +597,11 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 			return nullptr;
 		}
 	}
-	std::vector<std::unique_ptr<ExprAST>> Elist = ParseExpressionList(Proto->RetTypes[0].first, Proto->RetTypes[0].second);
+	auto ProtoRef = Proto.get();
+	FunctionProtos[Proto->getName()] = std::move(Proto);
+	std::vector<std::unique_ptr<ExprAST>> Elist = ParseExpressionList(ProtoRef->RetTypes[0].first, ProtoRef->RetTypes[0].second);
 	if (Elist.size()) {
-		return std::make_unique<FunctionAST>(std::move(Proto), std::move(Elist));
+		return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist));
 	}
 	return nullptr;
 }
@@ -625,7 +627,9 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		                                            false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		ExprList.push_back(std::move(E));
-		return std::make_unique<FunctionAST>(std::move(Proto), std::move(ExprList));
+		auto ProtoRef = Proto.get();
+		FunctionProtos[Proto->getName()] = std::move(Proto);
+		return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList));
 	}
 	return nullptr;
 }

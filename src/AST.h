@@ -272,12 +272,12 @@ public:
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
 public:
-	std::unique_ptr<PrototypeAST> Proto;
+	PrototypeAST* Proto;
 	std::vector<std::unique_ptr<ExprAST>> Body;
 
-	FunctionAST(std::unique_ptr<PrototypeAST> Proto,
+	FunctionAST(PrototypeAST* Proto,
 	            std::vector<std::unique_ptr<ExprAST>> Body)
-		: Proto(std::move(Proto)), Body(std::move(Body)) {}
+		: Proto(Proto), Body(std::move(Body)) {}
 	llvm::Function *codegen();
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		indent(out, ind) << "FunctionAST\n";
