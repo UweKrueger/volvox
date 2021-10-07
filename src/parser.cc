@@ -320,8 +320,9 @@ static std::unique_ptr<ExprAST> ParseVarExpr() {
 static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
                                              unsigned desired_attrib = 0u) {
 	switch (CurTok.kind) {
-	default:
-		return LogError("unknown token %d '%s' when expecting an expression", CurTok.kind, CurTok.str().c_str());
+	case tok_eof:
+		fprintf(stderr, "EOF when expecting an expression\n");
+		exit(1);
 	case tok_identifier:
 		return ParseIdentifierExpr();
 	case tok_number:
@@ -336,6 +337,10 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
 		return ParseForExpr();
 	case tok_var:
 		return ParseVarExpr();
+	default:
+		auto err = LogError("unknown token %d '%s' when expecting an expression", CurTok.kind, CurTok.str().c_str());
+		purgeLine();
+		return err;
 	}
 }
 
