@@ -459,6 +459,10 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList(llvm:
 		auto expr = ParseExprOrReturn(desired_type, desired_attr);
 		end_kind = expr.second;
 		if (expr.first) {
+			if (!end_kind)
+				if (auto I = dynamic_cast<IfExprAST*>(expr.first.get()))
+					if (I->ThenEndKind == tok_return && I->ElseEndKind == tok_return)
+						end_kind = tok_leave;
 			expr_list.push_back(std::move(expr.first));
 		}
 	}

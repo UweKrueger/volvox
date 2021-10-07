@@ -201,9 +201,10 @@ class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond;
 	bool is_void; // no consistent result in branches -> will return bool
 	std::vector<std::unique_ptr<ExprAST>> Then, Else;
-	int ThenEndKind, ElseEndKind; // maybe tok_else, tok_end, tok_return, ...
 
 public:
+	int ThenEndKind, ElseEndKind; // maybe tok_else, tok_end, tok_return, ...
+
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind)

@@ -994,6 +994,8 @@ llvm::Function *FunctionAST::codegen() {
 	//type = ret_type; // TODO: hande conversion if != proto->type;
 	if (EndKind == tok_return)
 		Builder->CreateRet(RetVal);
+	else
+		Builder->CreateRetVoid();
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function.
 		KSDbgInfo.LexicalBlocks.pop_back();
