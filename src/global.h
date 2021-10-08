@@ -318,6 +318,7 @@ union LitValue {
 class Token {
 public:
 	int kind;
+	bool is_unknown_type;
 	Token(int kind = 0) : kind(kind) {}
 	Token(char** s_ptr);
 	Token(const std::string& str);

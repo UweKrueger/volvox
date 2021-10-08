@@ -65,6 +65,9 @@ void init() {
 	type_table.add("float", llvm::Type::getDoubleTy(*Context.getContext()));
 #endif
 	type_table.add("string", llvm::Type::getInt8PtrTy(*Context.getContext()));
+	// only for internal use:
+	type_table.add("i*", llvm::Type::getInt64Ty(*Context.getContext()), true);
+	type_table.add("f*", llvm::Type::getDoubleTy(*Context.getContext()));
 }
 
 //===----------------------------------------------------------------------===//

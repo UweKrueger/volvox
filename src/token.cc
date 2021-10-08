@@ -45,6 +45,7 @@ std::string Token::tokName(int tok_kind) {
 }
 
 Token::Token(char** s_ptr) : kind(tok_number) {
+	is_unknown_type = true;
 	while (isspace(**s_ptr))
 		++(*s_ptr);
 	bool sign = **s_ptr == '-';
@@ -55,7 +56,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	} else {
 		Val.Uint = strtoull(*s_ptr, &endptr, 0);
 	}
-	int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
+	int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 64, .is_signed = true };
 	if (errno != 0) {
 		Val.Int = errno;
 		*s_ptr = endptr;
@@ -88,6 +89,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	char t = tolower(**s_ptr);
 	unsigned long bits;
 	if (t == 'f' || t == 'i' || t == 'u') {
+		is_unknown_type = false;
 		++*s_ptr;
 		if (isdigit(**s_ptr)) {
 			bits = strtoul(*s_ptr, s_ptr, 10);
@@ -98,7 +100,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 		case 'f':
 			switch (bits) {
 			case 16: // not really supported, yet
-				gen_type = { .ID = llvm::Type::HalfTyID };
+				gen_type = { .ID = llvm::Type::BFloatTyID };
 				break;
 			case 32:
 				gen_type = { .ID = llvm::Type::FloatTyID };
