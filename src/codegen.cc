@@ -632,6 +632,12 @@ llvm::Value *CallExprAST::codegen() {
 	return Builder->CreateCall(CalleeF, ArgsV, "calltmp");
 }
 
+inline static llvm::Value* CheckTailCall(llvm::Value* V) {
+	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
+		C->setTailCall();
+	return V;
+}
+
 llvm::Value *IfExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -663,7 +669,7 @@ llvm::Value *IfExprAST::codegen() {
 	if (!ThenV)
 		return nullptr;
 	if (ThenEndKind == tok_return) {
-		Builder->CreateRet(ThenV);
+		Builder->CreateRet(CheckTailCall(ThenV));
 	} else {
 		Builder->CreateBr(MergeBB);
 	}
@@ -683,7 +689,7 @@ llvm::Value *IfExprAST::codegen() {
 	if (!ElseV)
 		return nullptr;
 	if (ElseEndKind == tok_return) {
-		Builder->CreateRet(ElseV);
+		Builder->CreateRet(CheckTailCall(ElseV));
 	} else {
 		Builder->CreateBr(MergeBB);
 	}
@@ -993,7 +999,7 @@ llvm::Function *FunctionAST::codegen() {
 	auto ret_type = RetVal->getType();
 	//type = ret_type; // TODO: hande conversion if != proto->type;
 	if (EndKind == tok_return)
-		Builder->CreateRet(RetVal);
+		Builder->CreateRet(CheckTailCall(RetVal));
 	else
 		Builder->CreateRetVoid();
 	if (comp_mode == comp_dbg) {
