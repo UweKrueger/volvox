@@ -51,6 +51,19 @@ void init() {
 	type_table.add("f16", llvm::Type::getBFloatTy(*Context.getContext()));
 	type_table.add("f32", llvm::Type::getFloatTy(*Context.getContext()));
 	type_table.add("f64", llvm::Type::getDoubleTy(*Context.getContext()));
+#ifdef __AVR_ARCH__
+	type_table.add("int", llvm::Type::getInt16Ty(*Context.getContext()), true);
+	type_table.add("uint", llvm::Type::getInt16Ty(*Context.getContext()));
+	type_table.add("size", llvm::Type::getInt16Ty(*Context.getContext()), true);
+	type_table.add("usize", llvm::Type::getInt16Ty(*Context.getContext()));
+	type_table.add("float", llvm::Type::getFloatTy(*Context.getContext()));
+#else
+	type_table.add("int", llvm::Type::getInt32Ty(*Context.getContext()), true);
+	type_table.add("uint", llvm::Type::getInt32Ty(*Context.getContext()));
+	type_table.add("size", llvm::Type::getInt64Ty(*Context.getContext()), true);
+	type_table.add("usize", llvm::Type::getInt64Ty(*Context.getContext()));
+	type_table.add("float", llvm::Type::getDoubleTy(*Context.getContext()));
+#endif
 	type_table.add("string", llvm::Type::getInt8PtrTy(*Context.getContext()));
 }
 
