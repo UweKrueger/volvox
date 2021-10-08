@@ -249,23 +249,28 @@ public:
 	llvm::Type* desired_type;
 	unsigned type_attr;
 	unsigned desired_type_attr;
+	bool is_unknown_type;
 
 	// construct from type and attributes
 	ExprAST(SourceLocation Loc) : Loc(Loc) {}
 	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0,
-	        SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr, unsigned desired_type_attr = 0) :
-		Loc(Loc), type(type), desired_type(desired_type), type_attr(type_attr), desired_type_attr(desired_type_attr) {}
+	        SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr, unsigned desired_type_attr = 0,
+	        bool is_unknown_type = false) :
+		Loc(Loc), type(type), desired_type(desired_type), type_attr(type_attr), desired_type_attr(desired_type_attr),
+		is_unknown_type(is_unknown_type) {}
 	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc,
 	        std::pair<llvm::Type*, unsigned> q = { nullptr, 0 }) :
 		Loc(Loc), type(p.first), type_attr(p.second), desired_type(q.first), desired_type_attr(q.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched
 	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr,
-	        unsigned desired_type_attr = 0)  : Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr) {
-		auto fulltype = type_table.get_full(key);
-		type = fulltype.first;
-		type_attr = (fulltype.second ? A_signed : 0) | add_attr;
-	}
+	        unsigned desired_type_attr = 0, bool is_unknown_type = false) :
+		Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type)
+		{
+			auto fulltype = type_table.get_full(key);
+			type = fulltype.first;
+			type_attr = (fulltype.second ? A_signed : 0) | add_attr;
+		}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen() = 0;
 	int getLine() const { return Loc.Line; }
