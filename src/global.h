@@ -263,8 +263,8 @@ public:
 		Loc(Loc), type(p.first), type_attr(p.second), desired_type(q.first), desired_type_attr(q.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched
-	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr,
-	        unsigned desired_type_attr = 0, bool is_unknown_type = false) :
+	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc, bool is_unknown_type = false, llvm::Type* desired_type = nullptr,
+	        unsigned desired_type_attr = 0) :
 		Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type)
 		{
 			auto fulltype = type_table.get_full(key);

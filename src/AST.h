@@ -17,7 +17,7 @@ protected:
 public:
 	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
 		  ((tok.int_type.ID == llvm::Type::IntegerTyID &&
-		    tok.int_type.is_signed) ? A_signed : 0), Loc), Val(tok.Val) {}
+		    tok.int_type.is_signed) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {}
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
@@ -112,7 +112,7 @@ public:
 	BinOpConvSet conv;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
 	              std::unique_ptr<ExprAST> RHS, BinOpConvSet conv, llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0)
-		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib), LHS(std::move(LHS)), RHS(std::move(RHS)), conv(conv) {
+		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib, RHS->is_unknown_type && LHS->is_unknown_type), LHS(std::move(LHS)), RHS(std::move(RHS)), conv(conv) {
 		if (!desired_type && _Op[0] != '=' || desired_type && desired_type == llvm::Type::getInt1Ty(*Context.getContext())) {
 			if (conv.ideal.res_type == llvm::Type::getInt1Ty(*Context.getContext())) {
 				type = conv.ideal.res_type;
