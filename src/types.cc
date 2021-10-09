@@ -86,7 +86,7 @@ std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<ll
 // is requested but precision would be lost
 std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
-	SourceLocation Loc, bool is_explicit)
+	SourceLocation Loc, bool is_explicit, bool is_unknown_type)
 {
 	const char* reason = "";
 	auto desired_descr = getBitWidth(desired_type);
@@ -99,12 +99,12 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 		if (float_expr)
 			if (desired_bitwidth == expr_bitwidth)
 				return NoConversion;
-			else if (is_explicit || desired_bitwidth >= expr_bitwidth)
+			else if (is_explicit || is_unknown_type || desired_bitwidth >= expr_bitwidth)
 				return [=](llvm::Value* v) { return Builder->CreateFPCast(v, desired_type, "convfptmp"); };
 			else
 				return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "float truncation");
 		else
-			if (is_explicit || desired_bitwidth >= expr_bitwidth)
+			if (is_explicit || is_unknown_type || desired_bitwidth >= expr_bitwidth)
 				if (expr_attr & A_signed)
 					return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, desired_type, "convsfptmp"); };
 				else
@@ -124,7 +124,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 			if (!(desired_attr & A_signed))
 				if (expr_attr & A_signed)
 					// signed -> unsigned
-					if (!is_explicit)
+					if (!is_explicit && !is_unknown_type)
 						return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "signed->unsigned");
 					else
 						if (desired_bitwidth == expr_bitwidth)
@@ -135,7 +135,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 				else
 					// unsigned -> unsigned
 					if (desired_bitwidth < expr_bitwidth)
-						if (is_explicit)
+						if (is_explicit || is_unknown_type)
 							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "trunctmp"); };
 						else
 							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate upper bits");
@@ -148,7 +148,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 				if (expr_attr & A_signed)
 					// signed -> signed
 					if (desired_bitwidth < expr_bitwidth)
-						if (is_explicit)
+						if (is_explicit || is_unknown_type)
 							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, true, "trunctmp"); };
 						else
 							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate upper bits");
@@ -157,7 +157,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 				else
 					// unsigned -> signed
 					if (desired_bitwidth <= expr_bitwidth)
-						if (is_explicit)
+						if (is_explicit || is_unknown_type)
 							if (desired_bitwidth == expr_bitwidth)
 								return NoConversion;
 							else
@@ -171,7 +171,10 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 
 // min result, ideal result, result is signed, errormessage
-std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned left_bitwidth, bool left_is_float, bool left_is_signed, unsigned right_bitwidth, bool right_is_float, bool right_is_signed, const char* Op) {
+std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
+	unsigned left_bitwidth, bool left_is_float, bool left_is_signed, bool left_is_unknown_type,
+	unsigned right_bitwidth, bool right_is_float, bool right_is_signed, bool right_is_unknown_type, const char* Op)
+{
 	unsigned res_bitwidth_min = max(right_bitwidth, left_bitwidth);
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
 	unsigned res_is_float = left_is_float || right_is_float;
@@ -183,10 +186,12 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> getResType(unsigned 
 		if (Op[0] == '>' || Op[0] == '<' || Op[0] == '!')
 			goto comparison;
 		res_bitwidth = left_bitwidth;
-		if (right_bitwidth > left_bitwidth || !left_is_float &&
-		    (right_is_float || !left_is_signed && right_is_signed ||
+		if ((right_bitwidth > left_bitwidth && !right_is_unknown_type)
+		    || !left_is_float &&
+		    (right_is_float ||
+		     !left_is_signed && right_is_signed && !right_is_unknown_type ||
 		     left_is_signed && !right_is_signed && right_bitwidth >= left_bitwidth))
-			return { nullptr, nullptr, 0, "illegal usage of %s: RHS would degrade\n" };
+			return { nullptr, nullptr, 0, false, "illegal usage of %s: RHS would degrade\n" };
 		goto calc_types;
 	}
 	switch (Op[0]) {
@@ -234,15 +239,18 @@ calc_types:
 	llvm::Type* def_type = (left_is_promoted && right_is_promoted) ?
 		nullptr : // forbid both-side promotion as default
 		getFittingType(res_bitwidth_min, res_is_float);
-	return { def_type, getFittingType(res_bitwidth, res_is_float), res_is_signed, def_type ? nullptr : "would require promotions on both sides" };
+	return { def_type, getFittingType(res_bitwidth, res_is_float), res_is_signed,
+		left_is_unknown_type && (right_is_unknown_type || is_shift),
+		def_type ? nullptr : "would require promotions on both sides" };
 }
 
 // compute the conversion functions for binary Operators
 BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr,
+                       bool left_is_unknown_type, bool right_is_unknown_type,
                        const char* Op, SourceLocation Loc)
 {
 	if (!left_type) // variable declaration, i.e. := operator
-		return {{ nullptr, nullptr, nullptr, 0, nullptr }, { nullptr, nullptr, nullptr, 0, nullptr }};
+		return {{ nullptr, nullptr, nullptr, 0, false, nullptr }, { nullptr, nullptr, nullptr, 0, false, nullptr }};
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
 	bool left_is_float = left_descr.second;
@@ -252,17 +260,22 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	bool right_is_float = right_descr.second;
 	bool right_is_signed = right_attr & A_signed;
 	// TODO: use C++-17 structured bindings instead of anonymous tuple in the future
-	std::tuple<llvm::Type*, llvm::Type*, unsigned, const char*> res_t = getResType(left_bitwidth, left_is_float, left_is_signed, right_bitwidth, right_is_float, right_is_signed, Op);
-	if (std::get<3>(res_t))
-		return {{ nullptr, nullptr, nullptr, 0, std::get<3>(res_t) }, { nullptr, nullptr, nullptr, 0, std::get<3>(res_t) }};
+	std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> res_t = getResType(
+		left_bitwidth, left_is_float, left_is_signed, left_is_unknown_type,
+		right_bitwidth, right_is_float, right_is_signed, right_is_unknown_type, Op);
+	bool res_is_unknown_type = std::get<3>(res_t);
+	if (std::get<4>(res_t))
+		return {{ nullptr, nullptr, nullptr, 0, false, std::get<4>(res_t) }, { nullptr, nullptr, nullptr, 0, false, std::get<4>(res_t) }};
 	unsigned res_bitwidth_min = getBitWidth(std::get<0>(res_t)).first;
 	unsigned res_bitwidth = getBitWidth(std::get<1>(res_t)).first;
-	auto left_conv = getConv(left_type, std::get<0>(res_t), left_attr, std::get<2>(res_t), Loc, false);
-	auto right_conv = getConv(right_type, std::get<0>(res_t), right_attr, std::get<2>(res_t), Loc, false);
+	auto left_conv = getConv(left_type, std::get<0>(res_t), left_attr, std::get<2>(res_t), Loc, false, left_is_unknown_type);
+	auto right_conv = getConv(right_type, std::get<0>(res_t), right_attr, std::get<2>(res_t), Loc, false, right_is_unknown_type);
 	if (res_bitwidth < res_bitwidth_min) // downgrading operation, e.g. comparison with bool result
-		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) }, { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t) }};
+		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t), std::get<3>(res_t) },
+		        { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t), std::get<3>(res_t) }};
 	else
-		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t) },
-		        { getConv(left_type, std::get<1>(res_t), left_attr, std::get<2>(res_t), Loc, false),
-		          getConv(right_type, std::get<1>(res_t), right_attr, std::get<2>(res_t), Loc, false), std::get<1>(res_t), std::get<2>(res_t) }};
+		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t), std::get<3>(res_t) },
+		        { getConv(left_type, std::get<1>(res_t), left_attr, std::get<2>(res_t), Loc, false, left_is_unknown_type),
+		          getConv(right_type, std::get<1>(res_t), right_attr, std::get<2>(res_t), Loc, false, right_is_unknown_type),
+		          std::get<1>(res_t), std::get<2>(res_t), std::get<3>(res_t) }};
 }

@@ -399,8 +399,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		// save types befor objects are moved
 		auto LHS_type = LHS->type;
 		auto LHS_attr = LHS->type_attr;
+		auto LHS_is_unknown_type = LHS->is_unknown_type;
 		auto RHS_type = RHS->type;
 		auto RHS_attr = RHS->type_attr;
+		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		if (inside_function && BinOp == ":=") {
 			printf("got :=\n");
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
@@ -420,7 +422,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 			}
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
-		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr, BinOp.c_str()),
+		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr,
+		                                                LHS_is_unknown_type, RHS_is_unknown_type, BinOp.c_str()),
 		                                      desired_type, desired_attrib);
 	}
 }

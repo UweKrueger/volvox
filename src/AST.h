@@ -88,6 +88,7 @@ struct BinOpConv {
 	std::function<llvm::Value*(llvm::Value*)> RHS;
 	llvm::Type* res_type;
 	unsigned res_attr;
+	bool is_unknown_type;
 	const char* err_msg;
 };
 
@@ -101,6 +102,7 @@ struct BinOpConvSet {
 
 extern BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type,
                               unsigned left_attr, unsigned right_attr,
+                              bool left_is_unknown_type, bool right_is_unknown_type,
                               const char* Op, SourceLocation Loc = CurLoc);
 
 /// BinaryExprAST - Expression class for a binary operator.

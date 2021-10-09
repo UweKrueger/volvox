@@ -594,14 +594,19 @@ conv_done:
 		}
 		break;
 	}
-	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
-	// a call to it.
 	if (result) {
-		auto conv = getConv(type, desired_type, type_attr, desired_type_attr, Loc, true);
-		if (conv)
+		auto conv = getConv(type, desired_type, type_attr, desired_type_attr, Loc, true, is_unknown_type);
+		if (conv) {
+			printf("converted result of binop from %s to %s (%s)\n",
+			       type_table.get_name(type, type_attr & A_signed),
+			       type_table.get_name(desired_type, desired_type_attr & A_signed),
+			       is_unknown_type ? "literal" : "explicit type");
 			result = conv(result);
+		}
 		return result;
 	}
+	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
+	// a call to it.
 	llvm::Function *F = getFunction(std::string("binary") + Op);
 	assert(F && "binary operator not found!");
 
