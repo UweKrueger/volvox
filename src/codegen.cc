@@ -195,10 +195,16 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 	if (auto Val = expr->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
-		if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(Val)) {
+		llvm::Type* val_type = Val->getType();
+		auto type_descr = MakeType(val_type, expr->RHS->type_attr & A_signed, expr->RHS->is_unknown_type);
+		llvm::Type* type = std::get<0>(type_descr);
+		auto conversion = std::get<1>(type_descr);
+		bool is_signed = std::get<2>(type_descr);
+		auto convertedVal = conversion(Val);
+		if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
+			printf("type: %s\n", type_table.get_name(initializer->getType(), is_signed));
 			llvm::GlobalVariable* GV;
 			if (comp_mode == comp_jit) {
-				llvm::Type* type = initializer->getType();
 				auto StoreSize = TheModule->getDataLayout().getTypeStoreSize(type);
 				auto AllocSize = TheModule->getDataLayout().getTypeAllocSize(type);
 				size_t var_offset = AllocSize * ((__volvox_jit_tls_size + AllocSize - 1) / AllocSize);
@@ -207,8 +213,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				__volvox_jit_tls_inits = (char*)realloc(__volvox_jit_tls_inits, __volvox_jit_tls_size);
 				GV = (llvm::GlobalVariable*)var_offset;
 				if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(initializer)) {
-					if (expr->RHS->type_attr & A_signed) {
+					if (is_signed) {
 						long sVal = CI->getSExtValue();
+						// TODO: this works only for little endian architectures
 						memcpy(__volvox_jit_tls_ptr + var_offset, &sVal, StoreSize);
 					} else {
 						unsigned long uVal = CI->getZExtValue();
@@ -236,9 +243,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel);
 			}
 			FullType ft = {
-				.type = expr->RHS->type,
+				.type = type,
 				.val = GV,
-				.type_attr = expr->RHS->type_attr
+				.type_attr = is_signed ? 1U : 0U
 			};
 			globals_table.insert(varname, ft);
 			printf("Inserted %s to globals table\n", varname);

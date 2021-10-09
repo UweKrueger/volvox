@@ -413,3 +413,4 @@ extern char* __volvox_jit_tls_inits;
 extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);
 extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);
 extern std::nullptr_t Error(SourceLocation Loc, const char *Str, ...);
+extern std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type);

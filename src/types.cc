@@ -286,3 +286,12 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 		          getConv(right_type, std::get<1>(res_t), right_attr, std::get<2>(res_t), Loc, false, right_is_unknown_type),
 		          std::get<1>(res_t), std::get<2>(res_t), std::get<3>(res_t) }};
 }
+
+std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
+	if(!is_unknown_type)
+		return { type, NoConversion, is_signed };
+	if (type->isIntegerTy())
+		return { llvm::Type::getInt32Ty(*Context.getContext()), [=](llvm::Value* v) { return Builder->CreateSExtOrTrunc(v, llvm::Type::getInt32Ty(*Context.getContext()), "contintinit"); } , true };
+	else
+		return { type, NoConversion, false };
+}
