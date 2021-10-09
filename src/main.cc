@@ -38,6 +38,19 @@ std::vector<VarTable> locals_table; // including function arguments
 unsigned stringkey;
 
 void init() {
+#ifdef __AVR_ARCH__
+	type_table.add("int", llvm::Type::getInt16Ty(*Context.getContext()), true);
+	type_table.add("uint", llvm::Type::getInt16Ty(*Context.getContext()));
+	type_table.add("size", llvm::Type::getInt16Ty(*Context.getContext()), true);
+	type_table.add("usize", llvm::Type::getInt16Ty(*Context.getContext()));
+	type_table.add("real", llvm::Type::getFloatTy(*Context.getContext()));
+#else
+	type_table.add("int", llvm::Type::getInt32Ty(*Context.getContext()), true);
+	type_table.add("uint", llvm::Type::getInt32Ty(*Context.getContext()));
+	type_table.add("size", llvm::Type::getInt64Ty(*Context.getContext()), true);
+	type_table.add("usize", llvm::Type::getInt64Ty(*Context.getContext()));
+	type_table.add("real", llvm::Type::getDoubleTy(*Context.getContext()));
+#endif
 	type_table.add("void", llvm::Type::getVoidTy(*Context.getContext()));
 	type_table.add("bool", llvm::Type::getInt1Ty(*Context.getContext()));
 	type_table.add("i8", llvm::Type::getInt8Ty(*Context.getContext()), true);
@@ -51,19 +64,6 @@ void init() {
 	type_table.add("f16", llvm::Type::getBFloatTy(*Context.getContext()));
 	type_table.add("f32", llvm::Type::getFloatTy(*Context.getContext()));
 	type_table.add("f64", llvm::Type::getDoubleTy(*Context.getContext()));
-#ifdef __AVR_ARCH__
-	type_table.add("int", llvm::Type::getInt16Ty(*Context.getContext()), true);
-	type_table.add("uint", llvm::Type::getInt16Ty(*Context.getContext()));
-	type_table.add("size", llvm::Type::getInt16Ty(*Context.getContext()), true);
-	type_table.add("usize", llvm::Type::getInt16Ty(*Context.getContext()));
-	type_table.add("float", llvm::Type::getFloatTy(*Context.getContext()));
-#else
-	type_table.add("int", llvm::Type::getInt32Ty(*Context.getContext()), true);
-	type_table.add("uint", llvm::Type::getInt32Ty(*Context.getContext()));
-	type_table.add("size", llvm::Type::getInt64Ty(*Context.getContext()), true);
-	type_table.add("usize", llvm::Type::getInt64Ty(*Context.getContext()));
-	type_table.add("float", llvm::Type::getDoubleTy(*Context.getContext()));
-#endif
 	type_table.add("string", llvm::Type::getInt8PtrTy(*Context.getContext()));
 	// only for internal use:
 	type_table.add("i*", llvm::Type::getInt64Ty(*Context.getContext()), true);
