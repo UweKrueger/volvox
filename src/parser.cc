@@ -212,11 +212,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	getNextToken();
 
 	auto Else = ParseExprList(desired_type, desired_attr);
-	if (Else.second != tok_end)
+	if (Else.second == tok_end)
 		getNextToken();
-	if (CurTok.kind != tok_end)
-	 	return LogError("expected end");
-	getNextToken(true);
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second);
 }
