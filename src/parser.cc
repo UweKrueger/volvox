@@ -406,9 +406,12 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		if (inside_function && BinOp == ":=") {
 			printf("got :=\n");
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
+				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
+				llvm::Type* type = std::get<0>(type_descr);
+				bool is_signed = std::get<2>(type_descr);
 				FullType ft = {
-					.type = RHS_type,
-					.type_attr = RHS_attr
+					.type = type,
+					.type_attr = is_signed ? 1U : 0U
 				};
 				if (!locals_table.back().insert(VarL->Name.c_str(), ft)) {
 					fprintf(stderr, "variable %s already exists in current scope\n", VarL->Name.c_str());

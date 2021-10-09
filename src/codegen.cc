@@ -342,17 +342,17 @@ llvm::Value *BinaryExprAST::codegen() {
 		printf("%s not found\n", varname);
 		if (inside_function) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, RHS->type);
-			// FullType ft = {
-			// 	.type = RHS->type,
-			// 	.val = Alloca,
-			// 	.type_attr = RHS->type_attr
-			// };
+			auto type_descr = MakeType(Val->getType(), RHS->type_attr & A_signed, RHS->is_unknown_type);
+			llvm::Type* type = std::get<0>(type_descr);
+			auto conversion = std::get<1>(type_descr);
+			bool is_signed = std::get<2>(type_descr);
+			auto convertedVal = conversion(Val);
+			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, type);
+			// Entry has already been created by parser
 			locals_table.back()[varname]->val = Alloca;
-			// locals_table.back().insert(varname, ft);
 			printf("Added storage of %s to locals table\n", varname);
-			Builder->CreateStore(Val, Alloca);
-			return Val;
+			Builder->CreateStore(convertedVal, Alloca);
+			return convertedVal;
 		} else {
 			return Val;
 		}
