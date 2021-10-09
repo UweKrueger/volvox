@@ -38,7 +38,7 @@ std::vector<VarTable> locals_table; // including function arguments
 unsigned stringkey;
 
 void init() {
-#ifdef __AVR_ARCH__
+#if UINTPTR_MAX == UINT16_MAX // e.g. AVR platform
 	type_table.add("int", llvm::Type::getInt16Ty(*Context.getContext()), true);
 	type_table.add("uint", llvm::Type::getInt16Ty(*Context.getContext()));
 	type_table.add("size", llvm::Type::getInt16Ty(*Context.getContext()), true);
@@ -47,8 +47,13 @@ void init() {
 #else
 	type_table.add("int", llvm::Type::getInt32Ty(*Context.getContext()), true);
 	type_table.add("uint", llvm::Type::getInt32Ty(*Context.getContext()));
+#if UINTPTR_MAX == UINT32_MAX
+	type_table.add("size", llvm::Type::getInt32Ty(*Context.getContext()), true);
+	type_table.add("usize", llvm::Type::getInt32Ty(*Context.getContext()));
+#else
 	type_table.add("size", llvm::Type::getInt64Ty(*Context.getContext()), true);
 	type_table.add("usize", llvm::Type::getInt64Ty(*Context.getContext()));
+#endif
 	type_table.add("real", llvm::Type::getDoubleTy(*Context.getContext()));
 #endif
 	type_table.add("void", llvm::Type::getVoidTy(*Context.getContext()));
