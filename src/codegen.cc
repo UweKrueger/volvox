@@ -58,19 +58,16 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 	return nullptr;
 }
 
-llvm::Function *getFunction(std::string Name) {
-	// First, see if the function has already been added to the current module.
-	if (auto *F = TheModule->getFunction(Name))
-		return F;
-
-	// If not, check whether we can codegen the declaration from some existing
-	// prototype.
+std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 	auto FI = FunctionProtos.find(Name);
-	if (FI != FunctionProtos.end())
-		return FI->second->codegen();
+	if (FI == FunctionProtos.end())
+		return { nullptr, nullptr };
+	// See if the function has already been added to the current module.
+	if (auto F = TheModule->getFunction(Name))
+		return { F, FI->second.get() };
 
-	// If no existing prototype exists, return null.
-	return nullptr;
+	// codegen the declaration from the existing prototype.
+	return { FI->second->codegen(), FI->second.get() };
 }
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
@@ -166,11 +163,11 @@ llvm::Value *UnaryExprAST::codegen() {
 			return LogErrorV("unary operator '%c' undefined for integers", Opcode[0]);
 		}
 	default:
-		llvm::Function *F = getFunction(std::string("unary") + Opcode);
-		if (!F)
+		auto F = getFunction(std::string("unary") + Opcode);
+		if (!F.first)
 			return LogErrorV("Unknown unary operator");
-
-		return Builder->CreateCall(F, OperandV, "unop");
+		// TODO: operand types
+		return Builder->CreateCall(F.first, OperandV, "unop");
 	}
 }
 
@@ -614,11 +611,11 @@ conv_done:
 	}
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
-	llvm::Function *F = getFunction(std::string("binary") + Op);
-	assert(F && "binary operator not found!");
+	auto F = getFunction(std::string("binary") + Op);
+	assert(F.first && "binary operator not found!");
 
 	llvm::Value *Ops[] = {L, R};
-	return Builder->CreateCall(F, Ops, "binop");
+	return Builder->CreateCall(F.first, Ops, "binop");
 }
 
 llvm::Value *CallExprAST::codegen() {
@@ -626,22 +623,28 @@ llvm::Value *CallExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Look up the name in the global module table.
-	llvm::Function *CalleeF = getFunction(Callee);
-	if (!CalleeF)
+	auto CalleeF = getFunction(Callee);
+	if (!CalleeF.first)
 		return LogErrorV("Unknown function referenced");
 
 	// If argument mismatch error.
-	if (CalleeF->arg_size() != Args.size())
+	if (CalleeF.first->arg_size() != Args.size() || CalleeF.first->arg_size() != CalleeF.second->Args.size())
 		return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(); i != e; ++i) {
-		ArgsV.push_back(Args[i]->codegen());
+		auto conversion = getConv(
+			Args[i]->type, CalleeF.second->ArgTypes[i],
+			Args[i]->type_attr, CalleeF.second->ArgAttribs[i],
+			Args[i]->Loc, false, Args[i]->is_unknown_type);
+		if (!conversion)
+			return nullptr;
+		ArgsV.push_back(conversion(Args[i]->codegen()));
 		if (!ArgsV.back())
 			return nullptr;
 	}
 
-	return Builder->CreateCall(CalleeF, ArgsV, "calltmp");
+	return Builder->CreateCall(CalleeF.first, ArgsV, "calltmp");
 }
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
@@ -925,7 +928,8 @@ llvm::Function *FunctionAST::codegen() {
 	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
-	llvm::Function *TheFunction = getFunction(P.getName());
+	auto CalleeF = getFunction(P.getName());
+	llvm::Function* TheFunction = CalleeF.first;
 	if (!TheFunction) {
 		for (auto& expr : Body)
 			llvm::Value *RetVal = expr->codegen();
