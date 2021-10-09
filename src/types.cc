@@ -15,7 +15,7 @@ std::nullptr_t Error(SourceLocation Loc, const char *Str, ...) {
 	fprintf(stderr, "\n");
 	return nullptr;
 }
-	
+
 std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               unsigned expr_attr, unsigned desired_attr, const char* reason) {
 	return Error(Loc, "cannot automatically convert %s / %s - %s",
@@ -169,16 +169,23 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 }
 
 inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
+inline static unsigned min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
 // min result, ideal result, result is signed, errormessage
 std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	unsigned left_bitwidth, bool left_is_float, bool left_is_signed, bool left_is_unknown_type,
 	unsigned right_bitwidth, bool right_is_float, bool right_is_signed, bool right_is_unknown_type, const char* Op)
 {
-	unsigned res_bitwidth_min = max(right_bitwidth, left_bitwidth);
+	unsigned res_bitwidth_min = right_is_unknown_type ?
+		left_is_unknown_type ? min(right_bitwidth, left_bitwidth) : left_bitwidth
+		:
+		left_is_unknown_type ? right_bitwidth : max(right_bitwidth, left_bitwidth);
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
 	unsigned res_is_float = left_is_float || right_is_float;
-	bool res_is_signed = !res_is_float && (left_is_signed || right_is_signed);
+	bool res_is_signed = !res_is_float && (
+		left_is_signed && !left_is_unknown_type
+		|| right_is_signed && !right_is_unknown_type
+		|| left_is_unknown_type && right_is_unknown_type);
 	bool is_shift = false;
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
@@ -234,8 +241,8 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 		;
 	}
 calc_types:
-	bool left_is_promoted = res_bitwidth_min > left_bitwidth || res_is_signed != left_is_signed || res_is_float && !left_is_float;
-	bool right_is_promoted = (res_bitwidth_min > right_bitwidth || res_is_signed != right_is_signed) && !is_shift || res_is_float && !right_is_float;
+	bool left_is_promoted = res_bitwidth_min > left_bitwidth || res_is_signed != left_is_signed && !left_is_unknown_type || res_is_float && !left_is_float;
+	bool right_is_promoted = (res_bitwidth_min > right_bitwidth || res_is_signed != right_is_signed && !right_is_unknown_type) && !is_shift || res_is_float && !right_is_float;
 	llvm::Type* def_type = (left_is_promoted && right_is_promoted) ?
 		nullptr : // forbid both-side promotion as default
 		getFittingType(res_bitwidth_min, res_is_float);
