@@ -240,28 +240,28 @@ static void HandleTopLevelExpression() {
 						case 1: { // this should actually be unsigned - put it here, too, just in case
 							bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 							bool b = BOOL();
-							fprintf(stderr, "Evaluated to %s\n", b ? "true" : "false");
+							fprintf(stderr, "Evaluated to %s\n", b ? "true(s)" : "false(s)");
 							break;
 						}
 						case 8: {
-							signed char (*INT8)() = (signed char (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							signed char c = INT8();
-							fprintf(stderr, "Evaluated to %hhd ('%c')\n", c, c);
+							int8_t (*INT8)() = (int8_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							int8_t c = INT8();
+							fprintf(stderr, "Evaluated to %" PRId8 " ('%c')\n", c, c);
 							break;
 						}
 						case 16: {
 							short (*INT16)() = (short (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %hd\n", INT16());
+							fprintf(stderr, "Evaluated to %" PRId16 "\n", INT16());
 							break;
 						}
 						case 32: {
-							int (*INT32)() = (int (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %d\n", INT32());
+							int32_t (*INT32)() = (int32_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %" PRId32 "\n", INT32());
 							break;
 						}
 						case 64: {
-							long (*INT64)() = (long (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %ld\n", INT64());
+							int64_t (*INT64)() = (int64_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %" PRId64 "\n", INT64());
 							break;
 						}
 						default:
@@ -276,24 +276,24 @@ static void HandleTopLevelExpression() {
 							break;
 						}
 						case 8: {
-							unsigned char (*UINT8)() = (unsigned char (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							unsigned char c = UINT8();
-							fprintf(stderr, "Evaluated to %hhu ('%c')\n", c, c);
+							uint8_t (*UINT8)() = (uint8_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							uint8_t c = UINT8();
+							fprintf(stderr, "Evaluated to %" PRIu8 " ('%c')\n", c, c);
 							break;
 						}
 						case 16: {
-							unsigned short (*UINT16)() = (unsigned short (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %hu\n", UINT16());
+							uint16_t (*UINT16)() = (uint16_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %" PRIu16 "\n", UINT16());
 							break;
 						}
 						case 32: {
-							unsigned (*UINT32)() = (unsigned (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %u\n", UINT32());
+							uint32_t (*UINT32)() = (uint32_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %" PRIu32 "\n", UINT32());
 							break;
 						}
 						case 64: {
-							unsigned long (*UINT64)() = (unsigned long (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %lu\n", UINT64());
+							uint64_t (*UINT64)() = (uint64_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+							fprintf(stderr, "Evaluated to %" PRIu64 "\n", UINT64());
 							break;
 						}
 						default:
