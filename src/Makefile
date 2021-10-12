@@ -52,11 +52,6 @@ clean:
 distclean:
 	rm -f $(PROG) $(OBJS) $(LIB) *~ ../include/*~ ../include/*.gch .depend
 
-.PHONY: depend
-depend:
-	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
-	$(CC) -MM $(OPT) $(LIBSRC) >> .depend
-
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
 	$(CC) -MM $(OPT) $(LIBSRC) >> .depend

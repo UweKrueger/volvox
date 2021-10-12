@@ -16,4 +16,4 @@ distclean:
 
 .PHONY: depend
 depend:
-	cd src && $(MAKE) depend
+	cd src && $(MAKE) .depend
