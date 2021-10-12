@@ -141,9 +141,9 @@ public:
 			}
 			key32_table[key] = type;
 			if (is_signed)
-				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = name;
+				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = { name, nullptr };
 			else
-				typeptr_table[type] = name;
+				typeptr_table[type] = { name, nullptr };
 			return key;
 		} else {
 			return 0;
@@ -188,7 +188,7 @@ public:
 	const char* get_name(llvm::Type* type) {
 		if (!type) return nullptr;
 		auto it = typeptr_table.find(type);
-		return it == typeptr_table.end() ? nullptr : it->second;
+		return it == typeptr_table.end() ? nullptr : it->second.first;
 	}
 	const char* get_name(llvm::Type* type, bool is_signed) {
 		if (!type) return nullptr;
@@ -200,7 +200,7 @@ public:
 protected:
 	MapNode* name_table;
 	std::map<unsigned, llvm::Type*> key32_table;
-	std::map<llvm::Type*, const char*> typeptr_table;
+	std::map<llvm::Type*, std::pair<const char*, llvm::DIType*>> typeptr_table;
 };
 
 extern TypeTable type_table;
@@ -287,6 +287,7 @@ struct DebugInfo {
 
 	void emitLocation(ExprAST *AST);
 	llvm::DIType *getDoubleTy();
+	llvm::DIType* getType(llvm::Type* type, unsigned attr);
 };
 
 extern DebugInfo KSDbgInfo;

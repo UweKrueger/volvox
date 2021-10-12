@@ -18,6 +18,14 @@ llvm::DIType *DebugInfo::getDoubleTy() {
 	return DblTy;
 }
 
+llvm::DIType *DebugInfo::getType(llvm::Type* type, unsigned attr) {
+	if (DblTy)
+		return DblTy;
+
+	DblTy = DBuilder->createBasicType("double", 64, llvm::dwarf::DW_ATE_float);
+	return DblTy;
+}
+
 void DebugInfo::emitLocation(ExprAST *AST) {
 	if (!AST)
 		return Builder->SetCurrentDebugLocation(llvm::DebugLoc());
@@ -977,7 +985,7 @@ llvm::Function *FunctionAST::codegen() {
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
-				SP, Arg.getName(), ++ArgIdx, Unit, LineNo, KSDbgInfo.getDoubleTy() /* FIXME */,
+				SP, Arg.getName(), ++ArgIdx, Unit, LineNo, KSDbgInfo.getType(mapitem->type, mapitem->type_attr),
 				true);
 
 			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
