@@ -1,4 +1,5 @@
 ifeq ($(OS),Windows_NT)
+    SHELL := cmd.exe
     LLVMVERSION := 13
     LINKEXTRAFLAGS := -LC:\\mingw64\\bin -lpthread
     SUFFIX :=
@@ -31,6 +32,7 @@ OPT := -O0 -ggdb
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
 PRJH = ../include/volvox-$(LLVMVERSION).hh
+
 PCH = $(PRJH:%.hh=%.hh.gch)
 
 PROG = $(TARGETDIR)volvox
@@ -59,11 +61,19 @@ $(PROG): $(OBJS) $(LIB)
 
 .PHONY: clean
 clean:
-	$(RM) $(OBJS) $(PCH)
+ifeq ($(OS),Windows_NT)
+	$(shell del $(OBJS))
+else
+	rm -f $(OBJS)
+endif
 
 .PHONY: distclean
 distclean:
-	$(RM) $(PROG) $(PROG).exe $(OBJS) $(LIB) *~ ../include/*~ ../include/*.gch .depend
+ifeq ($(OS),Windows_NT)
+	$(shell del $(PROG) $(PROG).exe $(OBJS) $(LIB) *~ ..\\include\\*~ ..\\include\\*.gch .depend)
+else
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIB) *~ ../include/*~ ../include/*.gch .depend
+endif
 
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
