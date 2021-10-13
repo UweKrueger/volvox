@@ -86,7 +86,7 @@ llvm::Value *LiteralExprAST::codegen() {
 	case llvm::Type::DoubleTyID:
 		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
-		return Builder->CreateGlobalStringPtr(Val.Str);
+		return Builder->CreateGlobalStringPtr(Val.Str, "tmpstr");
 	default:
 		fprintf(stderr, "internal compiler error: unhandled literal type %d\n", type->getTypeID());
 		return nullptr;
@@ -704,8 +704,8 @@ llvm::Value *IfExprAST::codegen() {
 
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();
-	fprintf(stderr, "IfType: %s\n",
-	        type_table.get_name((llvm::Type*)((uintptr_t)type | (type_attr & A_signed))));
+	// fprintf(stderr, "IfType: %s\n",
+	//         type_table.get_name((llvm::Type*)((uintptr_t)type | (type_attr & A_signed))));
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);

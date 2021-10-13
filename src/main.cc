@@ -148,7 +148,7 @@ static void HandleDefinition() {
 	locals_table[0].clear();
 	locals_table = {};
 	if (success)
-		fprintf(stderr, "definition successfully handled\n");
+		printf("definition successfully handled\n");
 	inside_function = false;
 }
 
