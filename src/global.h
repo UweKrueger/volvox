@@ -291,12 +291,9 @@ public:
 
 struct DebugInfo {
 	llvm::DICompileUnit *TheCU;
-	llvm::DIType *DblTy;
 	std::vector<llvm::DIScope *> LexicalBlocks;
 
 	void emitLocation(ExprAST *AST);
-	llvm::DIType *getDoubleTy();
-	llvm::DIType* getType(llvm::Type* type, unsigned attr);
 };
 
 extern DebugInfo KSDbgInfo;

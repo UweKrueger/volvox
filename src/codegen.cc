@@ -10,22 +10,6 @@ std::unique_ptr<llvm::DIBuilder> DBuilder;
 bool inside_function = false;
 static llvm::ExitOnError ExitOnErr;
 
-llvm::DIType *DebugInfo::getDoubleTy() {
-	if (DblTy)
-		return DblTy;
-
-	DblTy = DBuilder->createBasicType("double", 64, llvm::dwarf::DW_ATE_float);
-	return DblTy;
-}
-
-llvm::DIType *DebugInfo::getType(llvm::Type* type, unsigned attr) {
-	if (DblTy)
-		return DblTy;
-
-	DblTy = DBuilder->createBasicType("double", 64, llvm::dwarf::DW_ATE_float);
-	return DblTy;
-}
-
 void DebugInfo::emitLocation(ExprAST *AST) {
 	if (!AST)
 		return Builder->SetCurrentDebugLocation(llvm::DebugLoc());
@@ -38,15 +22,14 @@ void DebugInfo::emitLocation(ExprAST *AST) {
 		                                 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
 }
 
-static llvm::DISubroutineType *CreateFunctionType(unsigned NumArgs, llvm::DIFile *Unit) {
+static llvm::DISubroutineType *CreateFunctionType(std::pair<llvm::Type*, unsigned> RetType, std::vector<llvm::Type*>& ArgTypes, std::vector<unsigned>& ArgAttribs, llvm::DIFile *Unit) {
 	llvm::SmallVector<llvm::Metadata *, 8> EltTys;
-	llvm::DIType *DblTy = KSDbgInfo.getDoubleTy();
 
 	// Add the result type.
-	EltTys.push_back(DblTy);
-
-	for (unsigned i = 0, e = NumArgs; i != e; ++i)
-		EltTys.push_back(DblTy);
+	EltTys.push_back(type_table.get_diType(RetType.first, RetType.second & A_signed));
+	auto NumArgs = ArgTypes.size();
+	for (unsigned i = 0; i < NumArgs; i++)
+		EltTys.push_back(type_table.get_diType(ArgTypes[i], ArgAttribs[i] & A_signed));
 
 	return DBuilder->createSubroutineType(DBuilder->getOrCreateTypeArray(EltTys));
 }
@@ -876,7 +859,7 @@ llvm::Value *VarExprAST::codegen() {
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-				SP, VarName, Unit, LineNo, KSDbgInfo.getDoubleTy(),
+				SP, VarName, Unit, LineNo, type_table.get_diType(llvm::Type::getDoubleTy(*Context.getContext())),
 				true);
 
 			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
@@ -958,7 +941,7 @@ llvm::Function *FunctionAST::codegen() {
 		unsigned ScopeLine = LineNo;
 		SP = DBuilder->createFunction(
 			FContext, P.getName(), llvm::StringRef(), Unit, LineNo,
-			CreateFunctionType(TheFunction->arg_size(), Unit), ScopeLine,
+			CreateFunctionType(P.RetTypes[0], P.ArgTypes, P.ArgAttribs, Unit), ScopeLine,
 			llvm::DINode::FlagPrototyped, llvm::DISubprogram::SPFlagDefinition);
 		TheFunction->setSubprogram(SP);
 	  
@@ -985,7 +968,7 @@ llvm::Function *FunctionAST::codegen() {
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
-				SP, Arg.getName(), ++ArgIdx, Unit, LineNo, KSDbgInfo.getType(mapitem->type, mapitem->type_attr),
+				SP, Arg.getName(), ++ArgIdx, Unit, LineNo, type_table.get_diType(mapitem->type, mapitem->type_attr & A_signed),
 				true);
 
 			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
