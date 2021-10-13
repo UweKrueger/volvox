@@ -230,6 +230,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				}
 				memcpy(__volvox_jit_tls_inits + var_offset, __volvox_jit_tls_ptr + var_offset, StoreSize);
 			} else {
+				if (comp_mode == comp_dbg) {
+					// Create a debug descriptor for the variable.
+					DBuilder->createGlobalVariableExpression(
+						SP, varname, varname, Unit, expr->Loc.Line, type_table.get_diType(type, is_signed), false);
+				}
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, llvm::GlobalValue::ExternalLinkage,
 				                              initializer, varname, nullptr,
