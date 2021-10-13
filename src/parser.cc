@@ -107,13 +107,13 @@ static std::unique_ptr<ExprAST> ParseNumberExpr(llvm::Type* desired_type = nullp
                                                 unsigned desired_attrib = 0u) {
 	auto Result = std::make_unique<LiteralExprAST>(CurTok);
 	getNextToken(true); // consume the number
-	return std::move(Result);
+	return Result;
 }
 
 static std::unique_ptr<ExprAST> ParseStringExpr() {
 	auto Result = std::make_unique<LiteralExprAST>(CurTok);
 	getNextToken(true); // consume the string
-	return std::move(Result);
+	return Result;
 }
 
 /// parenexpr ::= '(' expression ')'
@@ -400,6 +400,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		auto RHS_type = RHS->type;
 		auto RHS_attr = RHS->type_attr;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
+		printf("LHS: %s RHS: %s\n", type_table.get_name(LHS_type, LHS_attr & A_signed), type_table.get_name(RHS_type, RHS_attr & A_signed));
 		if (inside_function && BinOp == ":=") {
 			printf("got :=\n");
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {

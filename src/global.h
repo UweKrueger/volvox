@@ -94,13 +94,13 @@ extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 
-struct int_val_type_t {
+struct __attribute__((packed)) int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned BitWidth : 23; // #bits for int types, 0 for default
-	bool is_signed : 1; // signed int?
+	unsigned is_signed : 1; // signed int?
 };
 
-struct gen_val_type_t {
+struct __attribute__((packed)) gen_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned SubclassData : 24;
 };
@@ -140,6 +140,7 @@ public:
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
 			key32_table[key] = type;
+			printf("inserted %u %p %s\n", key, type, name);
 			if (is_signed)
 				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = { name, ditype };
 			else
@@ -278,6 +279,7 @@ public:
 		{
 			auto fulltype = type_table.get_full(key);
 			type = fulltype.first;
+			printf("key: %u type: %s\n", key, type_table.get_name(type));
 			type_attr = (fulltype.second ? A_signed : 0) | add_attr;
 		}
 	virtual ~ExprAST() {}
