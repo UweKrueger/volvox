@@ -221,8 +221,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 						fprintf(stderr, "unsupported float size %u for global\n", (unsigned)StoreSize);
 					}
 				} else if (expr->RHS->type->isPointerTy()) {
-					if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(Builder->CreatePtrToInt(initializer, llvm::Type::getInt64Ty(*Context.getContext()))))
-						printf("good\n");
+					if (LiteralExprAST* Lit = dynamic_cast<LiteralExprAST*>(expr->RHS.get())) {
+						const char* pVal = Lit->Val.Str;
+							memcpy(__volvox_jit_tls_ptr + var_offset, &pVal, StoreSize);
+					}
 					else
 						printf("bad\n");
 				} else {

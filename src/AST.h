@@ -11,10 +11,9 @@
 
 // Class for all literals - 1.2, 3u, "str"
 class LiteralExprAST : public ExprAST {
-protected:
-	union LitValue Val;
 
 public:
+	union LitValue Val;
 	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
 		  ((tok.int_type.ID == llvm::Type::IntegerTyID &&
 		    tok.int_type.is_signed) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {}
