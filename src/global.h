@@ -120,7 +120,7 @@ public:
 class TypeTable {
 public:
 	TypeTable() : name_table(map_string_new_map()) {}
-	unsigned add(const char* name, llvm::Type* type, bool is_signed = false) {
+	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, bool is_signed = false) {
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
@@ -141,9 +141,9 @@ public:
 			}
 			key32_table[key] = type;
 			if (is_signed)
-				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = { name, nullptr };
+				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = { name, ditype };
 			else
-				typeptr_table[type] = { name, nullptr };
+				typeptr_table[type] = { name, ditype };
 			return key;
 		} else {
 			return 0;
@@ -193,6 +193,15 @@ public:
 	const char* get_name(llvm::Type* type, bool is_signed) {
 		if (!type) return nullptr;
 		return get_name((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
+	}
+	llvm::DIType* get_diType(llvm::Type* type) {
+		if (!type) return nullptr;
+		auto it = typeptr_table.find(type);
+		return it == typeptr_table.end() ? nullptr : it->second.second;
+	}
+	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) {
+		if (!type) return nullptr;
+		return get_diType((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
 	}
 	~TypeTable() {
 		map_destroy(name_table);
