@@ -193,8 +193,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			printf("type: %s\n", type_table.get_name(initializer->getType(), is_signed));
 			llvm::GlobalVariable* GV;
 			if (comp_mode == comp_jit) {
-				auto StoreSize = TheModule->getDataLayout().getTypeStoreSize(type);
-				auto AllocSize = TheModule->getDataLayout().getTypeAllocSize(type);
+				uint64_t StoreSize = TheModule->getDataLayout().getTypeStoreSize(type);
+				uint64_t AllocSize = TheModule->getDataLayout().getTypeAllocSize(type);
 				size_t var_offset = AllocSize * ((__volvox_jit_tls_size + AllocSize - 1) / AllocSize);
 				__volvox_jit_tls_size = var_offset + AllocSize;
 				__volvox_jit_tls_ptr = (char*)realloc(__volvox_jit_tls_ptr, __volvox_jit_tls_size);
