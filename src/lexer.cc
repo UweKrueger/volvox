@@ -39,7 +39,7 @@ static int CurChar = ' ';
 
 int Lexer::advance() {
 	if (LexLoc.Col >= linelen) {
-		linelen = getline(&linebuf, &bufsize, input);
+		linelen = getline(&linebuf, &bufsize, input_file);
 		if (linelen <= 0) {
 			return EOF;
 		}

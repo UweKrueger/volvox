@@ -83,7 +83,7 @@ void init() {
 
 void InitializeModuleAndPassManager() {
 	// Open a new module.
-	TheModule = std::make_unique<llvm::Module>("my cool jit", *Context.getContext());
+	TheModule = std::make_unique<llvm::Module>(input_file_name, *Context.getContext());
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheModule->setDataLayout(
 #if LLVM_VERSION_MAJOR >= 12
@@ -375,10 +375,9 @@ extern "C" DLLEXPORT double printd(double X) {
 //===----------------------------------------------------------------------===//
 
 const char* input_file_name = "/dev/stdin";
+FILE* input_file = stdin;
 
 int main(int argc, char* argv[]) {
-	FILE* input_file = stdin;
-	const char* input_file_name = "a.vx";
 	if (argc == 1) {
 		comp_mode = comp_jit;
 	} else {
@@ -502,7 +501,6 @@ int main(int argc, char* argv[]) {
 	} else if (comp_mode == comp_dbg) {
 		// Finalize the debug info.
 		DBuilder->finalize();
-	  
 		// Print out all of the generated code.
 		TheModule->print(llvm::errs(), nullptr);
 	}

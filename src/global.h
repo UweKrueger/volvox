@@ -391,20 +391,19 @@ extern Token purgeLine();
 
 class Lexer {
 public:
-	Lexer(FILE* input = stdin, size_t bufsize = 0)
-		: input(input), bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
+	Lexer(size_t bufsize = 0)
+		: bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
 	~Lexer() { free(linebuf); }
 	int advance();
 	Token gettok(bool expectBinary = false);
 	Token purge_line();
-	FILE* input;
 	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;
 };
 
 extern Lexer lex;
-
+extern FILE* input_file;
 extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               unsigned expr_attr, unsigned desired_attr, const char* reason);
 extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b);
