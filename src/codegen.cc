@@ -86,7 +86,7 @@ llvm::Value *LiteralExprAST::codegen() {
 	case llvm::Type::DoubleTyID:
 		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
-		return Builder->CreateGlobalStringPtr(Val.Str, "tmpstr", 0, TheModule.get());
+		return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
 	default:
 		fprintf(stderr, "internal compiler error: unhandled literal type %d\n", type->getTypeID());
 		return nullptr;
@@ -220,6 +220,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					} else {
 						fprintf(stderr, "unsupported float size %u for global\n", (unsigned)StoreSize);
 					}
+				} else if (expr->RHS->type->isPointerTy()) {
+					if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(Builder->CreatePtrToInt(initializer, llvm::Type::getInt64Ty(*Context.getContext()))))
+						printf("good\n");
+					else
+						printf("bad\n");
 				} else {
 					fprintf(stderr, "unsupported type (size: %u) for global\n", (unsigned)StoreSize);
 				}
