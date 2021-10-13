@@ -348,6 +348,16 @@ llvm::Value *BinaryExprAST::codegen() {
 			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, type);
 			// Entry has already been created by parser
 			locals_table.back()[varname]->val = Alloca;
+			if (comp_mode == comp_dbg) {
+				// Create a debug descriptor for the variable.
+				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
+					SP, varname, Unit, LHS->Loc.Line, type_table.get_diType(type, is_signed),
+					true);
+
+				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+										llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
+										Builder->GetInsertBlock());
+			}
 			printf("Added storage of %s to locals table\n", varname);
 			Builder->CreateStore(convertedVal, Alloca);
 			return convertedVal;
