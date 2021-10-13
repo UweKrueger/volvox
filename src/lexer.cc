@@ -14,7 +14,10 @@ static ssize_t getline(char **lineptr, size_t *n, FILE *stream) {
     }
     ssize_t offset = 0;
     for (;;) {
-	    int c = fgetc(stream);
+	    int c;
+	    do {
+		    c = fgetc(stream);
+	    } while (c == '\r');
 	    if (c == EOF)
 		    return -1;
 	    if (offset >= (*n - 1)) {
