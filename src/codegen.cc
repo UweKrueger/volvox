@@ -86,7 +86,7 @@ llvm::Value *LiteralExprAST::codegen() {
 	case llvm::Type::DoubleTyID:
 		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
-		return Builder->CreateGlobalStringPtr(Val.Str, "tmpstr");
+		return Builder->CreateGlobalStringPtr(Val.Str, "tmpstr", 0, TheModule.get());
 	default:
 		fprintf(stderr, "internal compiler error: unhandled literal type %d\n", type->getTypeID());
 		return nullptr;
