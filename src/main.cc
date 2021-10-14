@@ -16,8 +16,8 @@ llvm::orc::ThreadSafeContext Context;
 std::unique_ptr<llvm::Module> TheModule;
 std::unique_ptr<llvm::IRBuilder<>> Builder;
 static llvm::ExitOnError ExitOnErr;
-__thread char* __volvox_jit_tls_ptr = nullptr;
-__thread size_t __volvox_jit_tls_size = 0;
+thread_local char* __volvox_jit_tls_ptr = nullptr;
+thread_local size_t __volvox_jit_tls_size = 0;
 char* __volvox_jit_tls_inits = nullptr;
 
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;

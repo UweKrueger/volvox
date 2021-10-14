@@ -1,7 +1,7 @@
 ifeq ($(OS),Windows_NT)
     SHELL := cmd.exe
     LLVMVERSION := 13
-    LINKEXTRAFLAGS := -LC:\\mingw64\\bin -lpthread
+    LINKEXTRAFLAGS := -LC:\\mingw64\\bin -lwinpthread
     SUFFIX :=
     RM := del
     TARGETDIR := ..\\
