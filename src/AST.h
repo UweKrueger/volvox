@@ -111,9 +111,9 @@ public:
 	char Op[4];
 	std::unique_ptr<ExprAST> LHS, RHS;
 	BinOpConvSet conv;
-	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> LHS,
-	              std::unique_ptr<ExprAST> RHS, BinOpConvSet conv, llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0)
-		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib, RHS->is_unknown_type && LHS->is_unknown_type), LHS(std::move(LHS)), RHS(std::move(RHS)), conv(conv) {
+	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
+	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv, llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0)
+		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib, _RHS->is_unknown_type && _LHS->is_unknown_type), LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
 		if (!desired_type && _Op[0] != '=' || desired_type && desired_type == llvm::Type::getInt1Ty(*Context.getContext())) {
 			if (conv.ideal.res_type == llvm::Type::getInt1Ty(*Context.getContext())) {
 				type = conv.ideal.res_type;
