@@ -1,5 +1,7 @@
 #pragma once
-
+#if defined (_WIN32)
+#include "../include/volvox-13.hh"
+#endif
 extern "C" {
 #include "../lib/map.h"
 }
@@ -94,13 +96,13 @@ extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 
-struct __attribute__((packed)) int_val_type_t {
+struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned BitWidth : 23; // #bits for int types, 0 for default
 	unsigned is_signed : 1; // signed int?
 };
 
-struct __attribute__((packed)) gen_val_type_t {
+struct gen_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned SubclassData : 24;
 };
@@ -227,7 +229,9 @@ public:
 		table = map_string_new_map();
 	}
 	bool insert(const char* key, const FullType& value) {
-		return map_string_insert(&table, key, (MapValue){ .src_ptr = (void*)&value }, sizeof(FullType));
+		MapValue mv = { .src_ptr = const_cast<FullType*>(&value) };
+		auto res = map_string_insert(&table, key, mv, sizeof(FullType));
+		return res;
 	}
 	FullType* operator[](const char* key) {
 		MapValue* node = map_string_get(table, key);

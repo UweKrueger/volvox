@@ -636,9 +636,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			}
 		}
 		// Make an anonymous proto.
+		std::vector<std::pair<llvm::Type*, unsigned>> TheType = { { E->type, E->type_attr } };
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
-		                                            false, (std::vector<std::pair<llvm::Type*, unsigned>>){ { E->type, E->type_attr } });
+		                                            false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		ExprList.push_back(std::move(E));
 		auto ProtoRef = Proto.get();

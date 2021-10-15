@@ -12,7 +12,7 @@ static ssize_t getline(char **lineptr, size_t *n, FILE *stream) {
 	    *n = 100;
 	    *lineptr = (char*)malloc(*n);
     }
-    ssize_t offset = 0;
+    size_t offset = 0;
     for (;;) {
 	    int c;
 	    do {
