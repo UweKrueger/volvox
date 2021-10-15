@@ -147,7 +147,7 @@ public:
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, bool IsOperator = false,
 	             std::vector<std::pair<llvm::Type*, unsigned>> RetTypes = {}, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
-		: Name(Name), Args(std::move(Args)), IsOperator(IsOperator),
+		: Name(Name), Args(Args), IsOperator(IsOperator),
 		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), ArgAttribs(ArgAttribs) {}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
