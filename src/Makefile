@@ -1,15 +1,7 @@
-ifeq ($(OS),Windows_NT)
-    SHELL := cmd.exe
-    LLVMVERSION := 13
-    LINKEXTRAFLAGS := -LC:\\mingw64\\bin -lwinpthread
-    SUFFIX :=
-    RM := del
-    TARGETDIR := ..\\
-else
-    SHELL := /bin/bash
-    RM = rm -f
-    LINKEXTRAFLAGS :=
-    TARGETDIR := ../
+SHELL := /bin/bash
+RM = rm -f
+LINKEXTRAFLAGS :=
+TARGETDIR := ../
 ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
     SUFFIX :=
 else
@@ -21,15 +13,12 @@ ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
 endif
 endif
 endif
-endif
 CC := clang$(SUFFIX)
 CXX := clang++$(SUFFIX)
 LLVMCONFIG := llvm-config$(SUFFIX)
-ifneq ($(OS),Windows_NT)
-    LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
-endif
+LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
 OPT := -O0 -ggdb
-CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags)
+CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -frtti
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
 PRJH = ../include/volvox-$(LLVMVERSION).hh
 
@@ -61,19 +50,11 @@ $(PROG): $(OBJS) $(LIB)
 
 .PHONY: clean
 clean:
-ifeq ($(OS),Windows_NT)
-	$(shell del $(OBJS))
-else
 	rm -f $(OBJS)
-endif
 
 .PHONY: distclean
 distclean:
-ifeq ($(OS),Windows_NT)
-	$(shell del $(PROG) $(PROG).exe $(OBJS) $(LIB) *~ ..\\include\\*~ ..\\include\\*.gch .depend)
-else
 	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIB) *~ ../include/*~ ../include/*.gch .depend
-endif
 
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend

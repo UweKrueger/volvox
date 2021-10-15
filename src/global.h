@@ -1,5 +1,5 @@
 #pragma once
-#if defined (_WIN32)
+#if defined (_MSC_VER)
 #include "../include/volvox-13.hh"
 #endif
 extern "C" {
