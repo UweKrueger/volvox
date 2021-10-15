@@ -440,7 +440,7 @@ int main(int argc, char* argv[]) {
 			"Volvox Compiler", 0, "", 0);
 	}
 	init();
-	printf("%llu %llu\n", sizeof(gen_val_type_t), sizeof(int_val_type_t));
+	printf("%" PRIu64 " %" PRIu64 "\n", sizeof(gen_val_type_t), sizeof(int_val_type_t));
 	// Prime the first token.
 	if (comp_mode == comp_jit) {
 		fprintf(stderr, "ready> ");
