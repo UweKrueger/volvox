@@ -264,54 +264,6 @@ static std::unique_ptr<ExprAST> ParseForExpr() {
 	                                    std::move(Step), std::move(Body));
 }
 
-/// varexpr ::= 'var' identifier ('=' expression)?
-//                    (',' identifier ('=' expression)?)* 'in' expression
-static std::unique_ptr<ExprAST> ParseVarExpr() {
-	getNextToken(); // eat the var.
-
-	std::vector<std::pair<std::string, std::unique_ptr<ExprAST>>> VarNames;
-
-	// At least one variable name is required.
-	if (CurTok.kind != tok_identifier)
-		return LogError("expected identifier after var");
-
-	while (true) {
-		std::string Name = IdentifierStr;
-		getNextToken(true); // eat identifier.
-
-		// Read the optional initializer.
-		std::unique_ptr<ExprAST> Init = nullptr;
-		if (CurTok.kind == tok_assign) {
-			getNextToken(); // eat the '='.
-
-			Init = ParseExpression();
-			if (!Init)
-				return nullptr;
-		}
-
-		VarNames.push_back(std::make_pair(Name, std::move(Init)));
-
-		// End of var list, exit loop.
-		if (CurTok.kind != ',')
-			break;
-		getNextToken(); // eat the ','.
-
-		if (CurTok.kind != tok_identifier)
-			return LogError("expected identifier list after var");
-	}
-
-	// At this point, we have to have 'in'.
-	if (CurTok.kind != tok_in)
-		return LogError("expected 'in' keyword after 'var'");
-	getNextToken(); // eat 'in'.
-
-	auto Body = ParseExpression();
-	if (!Body)
-		return nullptr;
-
-	return std::make_unique<VarExprAST>(std::move(VarNames), std::move(Body));
-}
-
 /// primary
 ///   ::= identifierexpr
 ///   ::= numberexpr
@@ -337,8 +289,6 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
 		return ParseIfExpr();
 	case tok_for:
 		return ParseForExpr();
-	case tok_var:
-		return ParseVarExpr();
 	default:
 		auto err = LogError("unknown token %d '%s' when expecting an expression", CurTok.kind, CurTok.str().c_str());
 		purgeLine();

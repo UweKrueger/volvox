@@ -28,8 +28,6 @@ std::string Token::tokName(int tok_kind) {
 		return "in";
 	case tok_unary:
 		return "unary";
-	case tok_var:
-		return "var";
 	case tok_atomic:
 		return "atomic";
 	case tok_shared:
