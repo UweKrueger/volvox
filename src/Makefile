@@ -1,4 +1,4 @@
-SHELL := /bin/bash
+SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS :=
 TARGETDIR := ../
@@ -46,7 +46,7 @@ $(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh
 	$(CXX) $(CXXFLAGS) $(OPT) $<
 
 $(PROG): $(OBJS) $(LIB)
-	$(CXX) -o $@ $(LDFLAGS) $(OPT) $+ $(LINKEXTRAFLAGS)
+	$(CXX) -o $@ $+ $(LDFLAGS) $(OPT) $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:
