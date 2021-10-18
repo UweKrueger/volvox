@@ -236,6 +236,15 @@ public:
 	}
 };
 
+class IteratorAST {
+public:
+	std::unique_ptr<ExprAST> Cond, Iterate, Init, Key, Value;
+	bool skip_1st_check;
+	IteratorAST(std::unique_ptr<ExprAST> Cond, std::unique_ptr<ExprAST> Iterate, bool skip_1st_check, std::unique_ptr<ExprAST> Init, std::unique_ptr<ExprAST> Key, std::unique_ptr<ExprAST> Value)
+		: Cond(std::move(Cond)), Iterate(std::move(Iterate)), skip_1st_check(skip_1st_check), Init(std::move(Init)), Key(std::move(Key)), Value(std::move(Value)) {}
+	virtual ~IteratorAST() = default;
+};
+
 /// ForExprAST - Expression class for for/in.
 class ForExprAST : public ExprAST {
 	std::string VarName;
