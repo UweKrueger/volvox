@@ -91,7 +91,7 @@ std::pair<llvm::Type*, unsigned> ParseType() {
 	}
 	auto type = type_table.get_full(IdentifierStr.c_str());
 	if (!type.first) {
-		LogErrorP("Unknown type `%s` %p", IdentifierStr.c_str(), type);
+		LogErrorP("Unknown type `%s`", IdentifierStr.c_str());
 		return { nullptr, 0 };
 	}
 	if (type.second)
