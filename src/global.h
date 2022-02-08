@@ -112,6 +112,14 @@ struct FullType {
 	unsigned type_attr;
 };
 
+struct ArgType {
+	llvm::Type* type;
+	char* f_name; // field name - or NULL for anonymous embedding (?)
+	char* t_name; // type name
+	unsigned type_attr;
+	std::vector<ArgType> struct_elems; // for anonymous structs
+};
+
 // small hack to access protected method
 class genType : protected llvm::Type {
 public:
@@ -120,8 +128,9 @@ public:
 
 class TypeTable {
 public:
+	// nelem: -1 = flex-array, 0 = no array
 	TypeTable() : name_table(map_string_new_map()) {}
-	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, bool is_signed = false) {
+	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, bool is_signed = false, int nelem = 0, std::vector<ArgType> struct_elem = {}) {
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
