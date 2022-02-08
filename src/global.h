@@ -108,8 +108,12 @@ struct gen_val_type_t {
 
 struct FullType {
 	llvm::Type* type;
-	llvm::Value* val;
 	unsigned type_attr;
+};
+
+struct FullVar {
+	FullType ft;
+	llvm::Value* val;
 };
 
 struct ArgType {
@@ -236,14 +240,14 @@ public:
 		map_destroy(table);
 		table = map_string_new_map();
 	}
-	bool insert(const char* key, const FullType& value) {
-		MapValue mv = { .src_ptr = const_cast<FullType*>(&value) };
-		auto res = map_string_insert(&table, key, mv, sizeof(FullType));
+	bool insert(const char* key, const FullVar& value) {
+		MapValue mv = { .src_ptr = const_cast<FullVar*>(&value) };
+		auto res = map_string_insert(&table, key, mv, sizeof(FullVar));
 		return res;
 	}
-	FullType* operator[](const char* key) {
+	FullVar* operator[](const char* key) {
 		MapValue* node = map_string_get(table, key);
-		return node ? (FullType*)((char*)node + node->offset) : nullptr;
+		return node ? (FullVar*)((char*)node + node->offset) : nullptr;
 	}
 	bool erase(const char* name) {
 		return map_string_delete(&table, name);
@@ -254,11 +258,11 @@ extern VarTable globals_table;
 extern std::vector<VarTable> locals_table; // including function arguments
 
 // look up var and return if it's global
-inline std::pair<FullType*, bool> lookup_var(const char* Name) {
+inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 	for (int i = locals_table.size() - 1; i >= 0; i--) {
-		FullType* full_type = locals_table[i][Name];
-		if (full_type)
-			return { full_type, false };
+		FullVar* full_var = locals_table[i][Name];
+		if (full_var)
+			return { full_var, false };
 	}
 	return { globals_table[Name], true };
 }

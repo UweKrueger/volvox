@@ -75,6 +75,10 @@ std::pair<llvm::Type*, unsigned> ParseType() {
 		case tok_const:
 			attribs |= A_const;
 			break;
+		case '[':
+			break;
+		case '{':
+			break;
 		case '&':
 			do {
 				attribs = (attribs & 0xffff) | ((attribs & 0xffff0000) + 0x10000);
@@ -357,11 +361,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				llvm::Type* type = std::get<0>(type_descr);
 				bool is_signed = std::get<2>(type_descr);
-				FullType ft = {
-					.type = type,
-					.type_attr = is_signed ? 1U : 0U
+				FullVar fv = {
+					.ft = {
+						.type = type,
+						.type_attr = is_signed ? 1U : 0U
+					}
 				};
-				if (!locals_table.back().insert(VarL->Name.c_str(), ft)) {
+				if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
 					fprintf(stderr, "variable %s already exists in current scope\n", VarL->Name.c_str());
 					return nullptr;
 				} else {
@@ -551,11 +557,13 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	auto sz = Proto->Args.size();
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
-		FullType ft = {
-			.type = Proto->ArgTypes[i],
-			.type_attr = Proto->ArgAttribs[i]
+		FullVar fv = {
+			.ft = {
+				.type = Proto->ArgTypes[i],
+				.type_attr = Proto->ArgAttribs[i]
+			}
 		};
-		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), ft);
+		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);
 		if (!is_new) {
 			LogError("duplicat function arg \"%s\"\n", Proto->Args[i].c_str());
 			return nullptr;

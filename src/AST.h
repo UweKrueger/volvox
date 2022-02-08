@@ -45,12 +45,12 @@ class VariableExprAST : public ExprAST {
 
 public:
 	std::string Name;
-	std::pair<FullType*, bool> full_type; // and if it's global
+	std::pair<FullVar*, bool> full_var; // and if it's global
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: ExprAST(Loc), Name(Name), full_type(lookup_var(Name.c_str())) {
-		if (full_type.first) {
-			type = full_type.first->type;
-			type_attr = full_type.first->type_attr;
+		: ExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
+		if (full_var.first) {
+			type = full_var.first->ft.type;
+			type_attr = full_var.first->ft.type_attr;
 		} else {
 			type = nullptr;
 			type_attr = 0;

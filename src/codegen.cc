@@ -94,28 +94,28 @@ llvm::Value *LiteralExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
-	if (!full_type.first)
+	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
-	if (full_type.second && comp_mode == comp_jit) {
-		size_t var_offset = (size_t)full_type.first->val;
+	if (full_var.second && comp_mode == comp_jit) {
+		size_t var_offset = (size_t)full_var.first->val;
 		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
 		auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
 		auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
 		auto PtrUintTy = llvm::Type::getInt64Ty(*Context.getContext())->getPointerTo();
-		auto PtrTy = full_type.first->type->getPointerTo();
+		auto PtrTy = full_var.first->ft.type->getPointerTo();
 		auto PtrTLS = llvm::ConstantExpr::getIntToPtr(uIntTLS, PtrUintTy);
 		auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
 		auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
 		auto Ptr = Builder->CreateIntToPtr(uIntValAdr, PtrTy);
-		return Builder->CreateLoad(full_type.first->type, Ptr, Name.c_str());
+		return Builder->CreateLoad(full_var.first->ft.type, Ptr, Name.c_str());
 	}
-	llvm::Value *V = full_type.first->val;
+	llvm::Value *V = full_var.first->val;
 
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Load the value.
-	return Builder->CreateLoad(full_type.first->type, V, Name.c_str());
+	return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
 }
 
 llvm::Value *UnaryExprAST::codegen() {
@@ -242,12 +242,14 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				                              initializer, varname, nullptr,
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel);
 			}
-			FullType ft = {
-				.type = type,
+			FullVar fv = {
+				.ft = {
+					.type = type,
+					.type_attr = is_signed ? 1U : 0U
+				},
 				.val = GV,
-				.type_attr = is_signed ? 1U : 0U
 			};
-			globals_table.insert(varname, ft);
+			globals_table.insert(varname, fv);
 			printf("Inserted %s to globals table\n", varname);
 			return nullptr;
 		} else {
@@ -305,32 +307,32 @@ llvm::Value *BinaryExprAST::codegen() {
 
 		// Look up the name.
 		const char* varname = LHSE->getName().c_str();
-		FullType* full_type = LHSE->full_type.first;
-		bool is_global = LHSE->full_type.second;
-		if (!full_type)
+		FullVar* full_var = LHSE->full_var.first;
+		bool is_global = LHSE->full_var.second;
+		if (!full_var)
 			goto not_found;
 		if (kind == decl_assign_op)
 			return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
 		if (is_global) {
 			if (comp_mode == comp_jit) {
 				printf("reassignment\n");
-				size_t var_offset = (size_t)full_type->val;
+				size_t var_offset = (size_t)full_var->val;
 				auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
 				auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
 				auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
 				auto PtrUintTy = llvm::Type::getInt64Ty(*Context.getContext())->getPointerTo();
-				auto PtrTy = full_type->type->getPointerTo();
+				auto PtrTy = full_var->ft.type->getPointerTo();
 				auto PtrTLS = llvm::ConstantExpr::getIntToPtr(uIntTLS, PtrUintTy);
 				auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
 				auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
 				auto Ptr = Builder->CreateIntToPtr(uIntValAdr, PtrTy);
-				auto OldVal = Builder->CreateLoad(full_type->type, Ptr, varname);
+				auto OldVal = Builder->CreateLoad(full_var->ft.type, Ptr, varname);
 				Builder->CreateStore(Val, Ptr);
 				return OldVal;
 			}
 		} else {
-			auto Variable = full_type->val;
-			auto OldVal = Builder->CreateLoad(full_type->type, Variable, varname);
+			auto Variable = full_var->val;
+			auto OldVal = Builder->CreateLoad(full_var->ft.type, Variable, varname);
 			Builder->CreateStore(Val, Variable);
 			return OldVal;
 		}
@@ -787,17 +789,19 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Within the loop, the variable is defined equal to the PHI node.  If it
 	// shadows an existing variable, we have to restore it, so save it now.
-	FullType* OldValPtr = locals_table.back()[VarName.c_str()];
+	FullVar* OldValPtr = locals_table.back()[VarName.c_str()];
 	llvm::Value *OldVal = OldValPtr ? OldValPtr->val : nullptr;
 	if (OldVal) {
 		OldVal = Alloca;
 	} else {
-		FullType ft = {
-			.type = AllocaT,
+		FullVar fv = {
+			.ft = {
+				.type = AllocaT,
+				.type_attr = AllocaF
+			},
 			.val = Alloca,
-			.type_attr = AllocaF
 		};
-		locals_table.back().insert(VarName.c_str(), ft);
+		locals_table.back().insert(VarName.c_str(), fv);
 	}
 	// Emit the body of the loop.  This, like any other expr, can change the
 	// current BB.  Note that we ignore the value computed by the body, but don't
@@ -916,16 +920,16 @@ llvm::Function *FunctionAST::codegen() {
 		// Create an alloca for this variable.
 		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), P.ArgTypes[ArgIdx]);
 		// get reference to argument in symbol table
-		FullType* mapitem = locals_table.back()[Arg.getName().str().c_str()];
+		FullVar* mapitem = locals_table.back()[Arg.getName().str().c_str()];
 		if (!mapitem) {
 			fprintf(stderr, "internal compiler error: arg not found in table");
 			exit(1);
 		}
-		llvm::Type* type = mapitem->type;
+		llvm::Type* type = mapitem->ft.type;
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
-				SP, Arg.getName(), ++ArgIdx, Unit, LineNo, type_table.get_diType(mapitem->type, mapitem->type_attr & A_signed),
+				SP, Arg.getName(), ++ArgIdx, Unit, LineNo, type_table.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
 				true);
 
 			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
