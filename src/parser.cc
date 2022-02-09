@@ -59,7 +59,7 @@ static void Eat(int tok, bool expectBinary = false) {
 	}
 }
 
-std::pair<llvm::Type*, unsigned> ParseType() {
+FullType ParseType() {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
 		switch (CurTok.kind) {
@@ -94,13 +94,13 @@ std::pair<llvm::Type*, unsigned> ParseType() {
 		getNextToken(true);
 	}
 	auto type = type_table.get_full(IdentifierStr.c_str());
-	if (!type.first) {
+	if (!type.type) {
 		LogErrorP("Unknown type `%s`", IdentifierStr.c_str());
 		return { nullptr, 0 };
 	}
-	if (type.second)
+	if (type.type_attr)
 		attribs |= A_signed;
-	return { type.first, attribs };
+	return { type.type, attribs, 0, NULL, {}};
 }
 
 static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
@@ -441,8 +441,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary.
 	unsigned BinaryPrecedence = 30;
 	std::vector<std::string> ArgNames;
-	std::vector<llvm::Type*> ArgTypes;
-	std::vector<unsigned> ArgAttribs;
+	std::vector<FullType> ArgTypes;
+	std::vector<llvm::Type*> LLVMArgTypes;
 	bool is_method;
 
 	switch (CurTok.kind) {
@@ -456,15 +456,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		auto type = ParseType();
-		if (!type.first) {
+		if (!type.type) {
 			return LogErrorP("Unexpected `%s` in method prototype - type name expected", CurTok.str().c_str());
 		}
-		ArgTypes.push_back(type.first);
-		ArgAttribs.push_back(type.second);
-		FullType full_type = {
-			.type = type.first,
-			.type_attr = type.second
-		};
+		ArgTypes.push_back(type);
+		LLVMArgTypes.push_back(type.type);
 		getNextToken();
 		Expect(')');
 	}
@@ -515,15 +511,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		auto type = ParseType();
-		if (!type.first) {
+		if (!type.type) {
 			return LogErrorP("Unexpected `%s` in function arg list - type name expected\n", CurTok.str().c_str());
 		}
-		ArgTypes.push_back(type.first);
-		ArgAttribs.push_back(type.second);
-		FullType full_type = {
-			.type = type.first,
-			.type_attr = type.second
-		};
+		ArgTypes.push_back(type);
+		LLVMArgTypes.push_back(type.type);
 		getNextToken();
 		if (CurTok.kind == ')')
 			break;
@@ -532,10 +524,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 noargs:
 	getNextToken(true); // eat ')'.
 	// parse return type(s)
-	std::vector<std::pair<llvm::Type*, unsigned>> RetTypes;
+	std::vector<FullType> RetTypes;
 	while (CurTok.kind != ';') {
 		auto type = ParseType();
-		if (!type.first)
+		if (!type.type)
 			return LogErrorP("error parsing return type of function prototype");
 		RetTypes.push_back(type);
 		getNextToken(true);
@@ -545,7 +537,7 @@ noargs:
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetTypes, ArgTypes, ArgAttribs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetTypes, ArgTypes);
 }
 
 /// definition ::= 'fn' prototype expression
@@ -558,10 +550,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
 		FullVar fv = {
-			.ft = {
-				.type = Proto->ArgTypes[i],
-				.type_attr = Proto->ArgAttribs[i]
-			}
+			.ft = Proto->ArgTypes[i]
 		};
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);
 		if (!is_new) {
@@ -571,7 +560,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	}
 	auto ProtoRef = Proto.get();
 	FunctionProtos[Proto->getName()] = std::move(Proto);
-	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetTypes[0].first, ProtoRef->RetTypes[0].second);
+	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetTypes[0].type, ProtoRef->RetTypes[0].type_attr);
 	if (Elist.first.size()) {
 		return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
 	}
@@ -594,7 +583,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			}
 		}
 		// Make an anonymous proto.
-		std::vector<std::pair<llvm::Type*, unsigned>> TheType = { { E->type, E->type_attr } };
+		std::vector<FullType> TheType = { { E->type, E->type_attr } };
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, TheType);

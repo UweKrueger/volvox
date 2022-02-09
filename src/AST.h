@@ -138,17 +138,18 @@ class PrototypeAST {
 
 public:
 	std::vector<std::string> Args;
-	std::vector<llvm::Type*> ArgTypes;
-	std::vector<unsigned> ArgAttribs;
-	std::vector<std::pair<llvm::Type*, unsigned>> RetTypes;
+	std::vector<FullType> ArgTypes;
+	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
+	std::vector<FullType> RetTypes;
 	bool IsOperator;
 	int Line;
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, bool IsOperator = false,
-	             std::vector<std::pair<llvm::Type*, unsigned>> RetTypes = {}, std::vector<llvm::Type*> ArgTypes = {}, std::vector<unsigned> ArgAttribs = {})
+	             std::vector<FullType> RetTypes = {}, std::vector<FullType> ArgTypes = {},
+	             std::vector<llvm::Type*> LLVMArgTypes = {})
 		: Name(Name), Args(Args), IsOperator(IsOperator),
-		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), ArgAttribs(ArgAttribs) {}
+		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes) {}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
@@ -178,8 +179,8 @@ public:
 				type = llvm::Type::getVoidTy(*Context.getContext());
 				type_attr = 0;
 			} else if(FI->second->RetTypes.size() == 1) {
-				type = FI->second->RetTypes[0].first;
-				type_attr = FI->second->RetTypes[0].second;
+				type = FI->second->RetTypes[0].type;
+				type_attr = FI->second->RetTypes[0].type_attr;
 			} else {
 				LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
 			}

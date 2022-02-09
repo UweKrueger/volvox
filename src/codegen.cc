@@ -22,14 +22,14 @@ void DebugInfo::emitLocation(ExprAST *AST) {
 		                                 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
 }
 
-static llvm::DISubroutineType *CreateFunctionType(std::pair<llvm::Type*, unsigned> RetType, std::vector<llvm::Type*>& ArgTypes, std::vector<unsigned>& ArgAttribs, llvm::DIFile *Unit) {
+static llvm::DISubroutineType *CreateFunctionType(FullType RetType, std::vector<FullType>& ArgTypes, llvm::DIFile *Unit) {
 	llvm::SmallVector<llvm::Metadata *, 8> EltTys;
 
 	// Add the result type.
-	EltTys.push_back(type_table.get_diType(RetType.first, RetType.second & A_signed));
+	EltTys.push_back(type_table.get_diType(RetType.type, RetType.type_attr & A_signed));
 	auto NumArgs = ArgTypes.size();
 	for (unsigned i = 0; i < NumArgs; i++)
-		EltTys.push_back(type_table.get_diType(ArgTypes[i], ArgAttribs[i] & A_signed));
+		EltTys.push_back(type_table.get_diType(ArgTypes[i].type, ArgTypes[i].type_attr & A_signed));
 
 	return DBuilder->createSubroutineType(DBuilder->getOrCreateTypeArray(EltTys));
 }
@@ -649,8 +649,8 @@ llvm::Value *CallExprAST::codegen() {
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(); i != e; ++i) {
 		auto conversion = getConv(
-			Args[i]->type, CalleeF.second->ArgTypes[i],
-			Args[i]->type_attr, CalleeF.second->ArgAttribs[i],
+			Args[i]->type, CalleeF.second->ArgTypes[i].type,
+			Args[i]->type_attr, CalleeF.second->ArgTypes[i].type_attr,
 			Args[i]->Loc, false, Args[i]->is_unknown_type);
 		if (!conversion)
 			return nullptr;
@@ -859,11 +859,11 @@ llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
 	// TODO: support returning multiple objects
 	auto RetType = RetTypes.size() == 1 ?
-		RetTypes[0].first : llvm::Type::getVoidTy(*Context.getContext());
+		RetTypes[0].type : llvm::Type::getVoidTy(*Context.getContext());
 	if (!RetType) // RetTypes[0] exists but type could not be derived
 		return nullptr;
 	llvm::FunctionType *FT =
-		llvm::FunctionType::get(RetType, ArgTypes, false);
+		llvm::FunctionType::get(RetType, LLVMArgTypes, false);
 
 	llvm::Function *F =
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
@@ -902,7 +902,7 @@ llvm::Function *FunctionAST::codegen() {
 		unsigned ScopeLine = LineNo;
 		SP = DBuilder->createFunction(
 			FContext, P.getName(), llvm::StringRef(), Unit, LineNo,
-			CreateFunctionType(P.RetTypes[0], P.ArgTypes, P.ArgAttribs, Unit), ScopeLine,
+			CreateFunctionType(P.RetTypes[0], P.ArgTypes, Unit), ScopeLine,
 			llvm::DINode::FlagPrototyped, llvm::DISubprogram::SPFlagDefinition);
 		TheFunction->setSubprogram(SP);
 	  
@@ -918,7 +918,7 @@ llvm::Function *FunctionAST::codegen() {
 	unsigned ArgIdx = 0;
 	for (auto &Arg : TheFunction->args()) {
 		// Create an alloca for this variable.
-		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), P.ArgTypes[ArgIdx]);
+		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), P.LLVMArgTypes[ArgIdx]);
 		// get reference to argument in symbol table
 		FullVar* mapitem = locals_table.back()[Arg.getName().str().c_str()];
 		if (!mapitem) {
@@ -943,8 +943,8 @@ llvm::Function *FunctionAST::codegen() {
 		mapitem->val = Alloca;
 	}
 
-	Body.back()->desired_type = P.RetTypes[0].first;
-	Body.back()->desired_type_attr = P.RetTypes[0].second;
+	Body.back()->desired_type = P.RetTypes[0].type;
+	Body.back()->desired_type_attr = P.RetTypes[0].type_attr;
 	llvm::Value* RetVal;
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {

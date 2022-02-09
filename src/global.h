@@ -109,6 +109,9 @@ struct gen_val_type_t {
 struct FullType {
 	llvm::Type* type;
 	unsigned type_attr;
+	int nelem; // nelem: -1 = flex-array, 0 = no array
+	const char* type_name; // maybe NULL for anonymous types
+	std::vector<std::pair<const char*, FullType>> struct_elems;
 };
 
 struct FullVar {
@@ -132,9 +135,8 @@ public:
 
 class TypeTable {
 public:
-	// nelem: -1 = flex-array, 0 = no array
 	TypeTable() : name_table(map_string_new_map()) {}
-	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, bool is_signed = false, int nelem = 0, std::vector<ArgType> struct_elem = {}) {
+	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, bool is_signed = false, int nelem = 0, std::vector<std::pair<const char*, FullType>> struct_elem = {}) {
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
@@ -142,7 +144,7 @@ public:
 			.src_ptr = is_signed ? (llvm::Type*)((uintptr_t)type | A_signed) : type
 		};
 		bool is_new = map_string_insert(&name_table, name, val, 0);
-		if (is_new) {
+		if (is_new && !nelem && struct_elem.empty()) {
 			union {
 				int_val_type_t int_type;
 				gen_val_type_t gen_type;
@@ -185,11 +187,11 @@ public:
 		key = _key;
 		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
-	std::pair<llvm::Type*, bool> get_full(const char* name) {
+	FullType get_full(const char* name) {
 		llvm::Type* raw_type = get_raw(name);
 		return { (llvm::Type*)((uintptr_t)raw_type & ~0x01ULL), (bool)((uintptr_t)raw_type & A_signed) };
 	}
-	std::pair<llvm::Type*, bool> get_full(unsigned _key) {
+	FullType get_full(unsigned _key) {
 		union {
 			int_val_type_t int_type;
 			gen_val_type_t gen_type;
@@ -267,14 +269,16 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 	return { globals_table[Name], true };
 }
 
-class ExprAST {
+class ExprAST : public FullType {
 public:
 	SourceLocation Loc;
 
-	llvm::Type* type;
 	llvm::Type* desired_type;
-	unsigned type_attr;
 	unsigned desired_type_attr;
+	int desired_nelem; // nelem: -1 = flex-array, 0 = no array
+	const char* desired_type_name; // maybe NULL for anonymous types
+	std::vector<std::pair<const char*, FullType>> desired_struct_elems;
+
 	bool is_unknown_type;
 
 	// construct from type and attributes
@@ -282,21 +286,18 @@ public:
 	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0,
 	        SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr, unsigned desired_type_attr = 0,
 	        bool is_unknown_type = false) :
-		Loc(Loc), type(type), desired_type(desired_type), type_attr(type_attr), desired_type_attr(desired_type_attr),
+		FullType(FullType{.type = type, .type_attr = type_attr}), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr),
 		is_unknown_type(is_unknown_type) {}
 	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc,
 	        std::pair<llvm::Type*, unsigned> q = { nullptr, 0 }) :
-		Loc(Loc), type(p.first), type_attr(p.second), desired_type(q.first), desired_type_attr(q.second) {}
+		FullType(FullType{.type = p.first, .type_attr = p.second}), Loc(Loc), desired_type(q.first), desired_type_attr(q.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched
 	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc, bool is_unknown_type = false, llvm::Type* desired_type = nullptr,
 	        unsigned desired_type_attr = 0) :
-		Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type)
+		FullType(type_table.get_full(key)), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type)
 		{
-			auto fulltype = type_table.get_full(key);
-			type = fulltype.first;
-			printf("key: %u type: %s\n", key, type_table.get_name(type));
-			type_attr = (fulltype.second ? A_signed : 0) | add_attr;
+			type_attr |= add_attr;
 		}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen() = 0;
