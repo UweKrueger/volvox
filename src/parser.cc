@@ -59,6 +59,9 @@ static void Eat(int tok, bool expectBinary = false) {
 	}
 }
 
+static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
+                                                unsigned desired_attrib = 0u);
+
 FullType ParseType() {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
@@ -75,7 +78,47 @@ FullType ParseType() {
 		case tok_const:
 			attribs |= A_const;
 			break;
-		case '[':
+		case '[': {
+			getNextToken(true);
+			int64_t dim = -1;
+			if (CurTok.kind == ']') {
+				getNextToken();
+			} else {
+				auto e = ParseExpression(llvm::Type::getInt64Ty(*Context.getContext()), A_signed);
+				if (auto Dim = e->codegen()) {
+					if (llvm::ConstantInt* d = llvm::dyn_cast<llvm::ConstantInt>(Dim)) {
+						dim = d->getSExtValue();
+					} else {
+						LogErrorP("dimension must be constant int");
+						return { nullptr, 0 };
+					}
+				} else {
+					LogErrorP("cannot parse dimension expression");
+					return { nullptr, 0 };
+				}
+				if (!Expect(']'))
+					return { nullptr, 0 };
+				if (dim <= 0 || dim > INT_MAX) {
+					LogErrorP("dimension must be a positive int (not %lld)", dim);
+					return { nullptr, 0 };
+				}
+			} 
+			auto elem_type = ParseType();
+			if (!elem_type.type)
+				return { nullptr, 0 };
+			llvm::Type* array_type;
+			if (dim > 0) {
+				array_type = llvm::ArrayType::get(elem_type.type, dim);
+			} else {
+				llvm::Type* ptr = llvm::PointerType::get(elem_type.type, 0);
+				array_type = llvm::StructType::get(ptr, llvm_int_type);
+			}
+			return FullType{
+				.type = array_type,
+				.nelem = (int)dim,
+				.elems = { { NULL, elem_type } }
+			};
+		}
 			break;
 		case '{':
 			break;
@@ -102,9 +145,6 @@ FullType ParseType() {
 		attribs |= A_signed;
 	return { type.type, attribs, 0, NULL, {}};
 }
-
-static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
-                                                unsigned desired_attrib = 0u );
 
 /// numberexpr ::= number
 static std::unique_ptr<ExprAST> ParseNumberExpr(llvm::Type* desired_type = nullptr,

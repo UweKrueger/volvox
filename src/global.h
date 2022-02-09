@@ -79,6 +79,8 @@ extern const char* input_file_name;
 extern llvm::orc::ThreadSafeContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
+extern llvm::Type* llvm_int_type;
+extern llvm::Type* llvm_size_type;
 
 /// ExprAST - Base class for all expression nodes.
 
@@ -111,7 +113,7 @@ struct FullType {
 	unsigned type_attr;
 	int nelem; // nelem: -1 = flex-array, 0 = no array
 	const char* type_name; // maybe NULL for anonymous types
-	std::vector<std::pair<const char*, FullType>> struct_elems;
+	std::vector<std::pair<const char*, FullType>> elems;
 };
 
 struct FullVar {
