@@ -244,8 +244,8 @@ public:
 		map_destroy(table);
 		table = map_string_new_map();
 	}
-	bool insert(const char* key, const FullVar& value) {
-		MapValue mv = { .src_ptr = const_cast<FullVar*>(&value) };
+	bool insert(const char* key, FullVar* value) {
+		MapValue mv = { .src_ptr = value };
 		auto res = map_string_insert(&table, key, mv, sizeof(FullVar));
 		return res;
 	}

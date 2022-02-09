@@ -401,12 +401,12 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				llvm::Type* type = std::get<0>(type_descr);
 				bool is_signed = std::get<2>(type_descr);
-				FullVar fv = {
-					.ft = {
-						.type = type,
-						.type_attr = is_signed ? 1U : 0U
-					}
+				FullVar* fv = (FullVar*)malloc(sizeof(FullVar));
+				fv->ft = FullType{
+					.type = type,
+					.type_attr = is_signed ? 1U : 0U
 				};
+				fv->val = NULL;
 				if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
 					fprintf(stderr, "variable %s already exists in current scope\n", VarL->Name.c_str());
 					return nullptr;
@@ -577,7 +577,7 @@ noargs:
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetTypes, ArgTypes);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetTypes, ArgTypes, LLVMArgTypes);
 }
 
 /// definition ::= 'fn' prototype expression
@@ -589,9 +589,9 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	auto sz = Proto->Args.size();
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
-		FullVar fv = {
-			.ft = Proto->ArgTypes[i]
-		};
+		FullVar* fv = (FullVar*)malloc(sizeof(FullVar));
+		fv->ft = Proto->ArgTypes[i];
+		fv->val = NULL;
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);
 		if (!is_new) {
 			LogError("duplicat function arg \"%s\"\n", Proto->Args[i].c_str());
