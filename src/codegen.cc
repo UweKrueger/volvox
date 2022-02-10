@@ -242,12 +242,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				                              initializer, varname, nullptr,
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel);
 			}
-			FullVar* fv = (FullVar*)malloc(sizeof(FullVar));
-			fv->ft = {
+			FullVar fv = {
+				.ft = {
 					.type = type,
 					.type_attr = is_signed ? 1U : 0U
+				},
+				.val = GV,
 			};
-			fv->val = GV;
 			globals_table.insert(varname, fv);
 			printf("Inserted %s to globals table\n", varname);
 			return nullptr;
@@ -793,12 +794,13 @@ llvm::Value *ForExprAST::codegen() {
 	if (OldVal) {
 		OldVal = Alloca;
 	} else {
-		FullVar* fv = (FullVar*)malloc(sizeof(FullVar));
-		fv->ft = {
-			.type = AllocaT,
-			.type_attr = AllocaF
+		FullVar fv = {
+			.ft = {
+				.type = AllocaT,
+				.type_attr = AllocaF
+			},
+			.val = Alloca,
 		};
-		fv->val = Alloca;
 		locals_table.back().insert(VarName.c_str(), fv);
 	}
 	// Emit the body of the loop.  This, like any other expr, can change the
