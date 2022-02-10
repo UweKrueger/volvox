@@ -63,6 +63,18 @@ public:
 	}
 };
 
+// IndexExprAST - Expressions like x[2] or y["key"]
+class IndexExprAST : public ExprAST {
+
+public:
+	std::unique_ptr<ExprAST> Field, Index;
+	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field,
+	             std::unique_ptr<ExprAST> Index,
+	             llvm::Type* desired_type = nullptr,
+	             unsigned desired_attrib = 0)
+		: ExprAST(*Field) {}
+};
+
 /// UnaryExprAST - Expression class for a unary operator.
 class UnaryExprAST : public ExprAST {
 	char Opcode[4];
