@@ -121,14 +121,6 @@ struct FullVar {
 	llvm::Value* val;
 };
 
-struct ArgType {
-	llvm::Type* type;
-	char* f_name; // field name - or NULL for anonymous embedding (?)
-	char* t_name; // type name
-	unsigned type_attr;
-	std::vector<ArgType> struct_elems; // for anonymous structs
-};
-
 // small hack to access protected method
 class genType : protected llvm::Type {
 public:
