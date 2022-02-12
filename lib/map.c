@@ -15,25 +15,44 @@ MapNode* map_string_new_map() { return NULL; }
 MapNode* map_num_new_map() { return NULL; }
 
 // value_size: length including 0 when string values
-static MapNode* map_string_new_node(const char* key, MapValue value, unsigned int value_size) {
+
+static MapNode* map_string_tag_new_node(const char* key, unsigned tag, MapValue value, unsigned int value_size, bool use_tag) {
 	unsigned keylen = (unsigned)strlen(key) + 1;
-	if (value_size >= 8) {
-		keylen = ((keylen + 7) >> 3) << 3;
-	} else if (value_size >= 4) {
-		keylen = ((keylen + 3) >> 2) << 2;
-	} else if (value_size >= 2) {
-		keylen = ((keylen + 1) >> 1) << 1;
+	size_t nodesz;
+	if (use_tag) {
+		if (value_size >= 4) {
+			keylen = ((keylen + 7) >> 3) << 3;
+		}
+		nodesz = keylen + value_size <= 4 ? sizeof(MapNode) : sizeof(MapNode) + keylen - 4 + value_size;
+	} else {
+		if (value_size >= 8) {
+			keylen = ((keylen + 7) >> 3) << 3;
+		} else if (value_size >= 4) {
+			keylen = ((keylen + 3) >> 2) << 2;
+		} else if (value_size >= 2) {
+			keylen = ((keylen + 1) >> 1) << 1;
+		}
+		nodesz = keylen + value_size <= 8 ? sizeof(MapNode) : sizeof(MapNode) + keylen - 8 + value_size;
 	}
-	size_t nodesz = keylen + value_size <= 8 ? sizeof(MapNode) : sizeof(MapNode) + keylen - 8 + value_size;
 	MapNode* node = malloc(nodesz);
 	strcpy(&node->key.string[0], key);
-	if (value_size) {
-		char* val_ptr = &node->key.string[0] + keylen;
-		memcpy(val_ptr, value.src_ptr, value_size);
+	char* val_ptr = &node->key.string[0] + keylen;
+	if (use_tag) {
+		memcpy(val_ptr, &tag, 4);
+		if (value_size) {
+			memcpy(val_ptr + 4, value.src_ptr, value_size);
+		}
 		node->value.offset = val_ptr - (char*)&node->value;
-		node->value.size = value_size;
+		node->value.size = value_size + 4;
 	} else {
-		node->value = value;
+		if (value_size) {
+			char* val_ptr = &node->key.string[0] + keylen;
+			memcpy(val_ptr, value.src_ptr, value_size);
+			node->value.offset = val_ptr - (char*)&node->value;
+			node->value.size = value_size;
+		} else {
+			node->value = value;
+		}
 	}
 	node->parent = node->leftChild = node->rightChild = NULL;
 	return node;
@@ -307,25 +326,33 @@ DEFINE_MAP_FIND_FOR(i32)
 DEFINE_MAP_FIND_FOR(f32)
 DEFINE_MAP_FIND_FOR(f64)
 
-MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace) {
+MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace) {
+	bool use_tag = false;
+	if ((uintptr_t)root_ptr & 0x01)
+		root_ptr = (MapNode**)((uintptr_t)root_ptr & ~1ULL);
+	else
+		use_tag = true;
 	NodePosition insert_pos = map_string_find(root_ptr, key);
-	if(insert_pos.is_parent) {
-		MapNode* node = map_string_new_node(key, value, value_size);
-		map_insert_priv(root_ptr, node, (MapNode*)((uintptr_t)insert_pos.node & ~0x01), insert_pos.parent_ptr);
-		return node;
-	} else {
-		if (allow_replace) {
-			MapNode* node = map_string_new_node(key, value, value_size);
+	if(insert_pos.is_parent || allow_replace) {
+		MapNode* node = map_string_tag_new_node(key, tag, value, value_size, use_tag);
+		map_insert_priv(root_ptr, node, (MapNode*)((uintptr_t)insert_pos.node & ~1ULL), insert_pos.parent_ptr);
+		if (insert_pos.is_parent) {
+			return node;
+		} else {
 			// replace current element with new
 			node->parent = insert_pos.node->parent;
 			node->leftChild = insert_pos.node->leftChild;
 			node->rightChild = insert_pos.node->rightChild;
 			free(insert_pos.node);
 			return (MapNode*)((uintptr_t)node | 0x01);
-		} else {
-			return NULL;
 		}
+	} else {
+		return NULL;
 	}
+}
+
+MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace) {
+	return map_string_tag_insert((MapNode**)((uintptr_t)root_ptr | 0x01), key, 0, value, value_size, allow_replace);
 }
 
 #define DEFINE_MAP_INSERT_FOR(typ) MapNode* map_ ## typ ## _insert(MapNode** root_ptr, typ key, MapValue value, int value_size, bool allow_replace) { \
@@ -412,6 +439,12 @@ void map_prt_str_str(int bf, MapKey* key, MapValue* value) {
 	fputs(" \"", stdout);
 	fputs(key->string, stdout);
 	printf("\": %d \"%s\"\n", bf, (const char*)value + value->offset);
+}
+
+void map_prt_str_tag(int bf, MapKey* key, MapValue* value) {
+	fputs(" \"", stdout);
+	fputs(key->string, stdout);
+	printf("\": %d %u \"%s\"\n", bf, *(unsigned*)((const char*)value + value->offset), (const char*)value + value->offset + 4);
 }
 
 static bool map_delete_priv(MapNode** root_ptr, MapNode* curr) {

@@ -65,6 +65,7 @@ extern MapNode* map_num_new_map();
 // return address of inserted node with lowest bit set if existing node has been replaced
 
 extern MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace);
+extern MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace);
 extern MapNode* map_u64_insert(MapNode** root_ptr, u64 key, MapValue value, int value_size, bool allow_replace);
 extern MapNode* map_i64_insert(MapNode** root_ptr, i64 key, MapValue value, int value_size, bool allow_replace);
 extern MapNode* map_u32_insert(MapNode** root_ptr, u32 key, MapValue value, int value_size, bool allow_replace);
@@ -92,3 +93,4 @@ extern MapValue* map_string_get(MapNode* root, const char* key);
 
 extern void map_prt_str_int(int bf, MapKey* key, MapValue* value);
 extern void map_prt_str_str(int bf, MapKey* key, MapValue* value);
+extern void map_prt_str_tag(int bf, MapKey* key, MapValue* value);
