@@ -137,7 +137,7 @@ public:
 		MapValue val = {
 			.src_ptr = is_signed ? (llvm::Type*)((uintptr_t)type | A_signed) : type
 		};
-		bool is_new = map_string_insert(&name_table, name, val, 0);
+		MapNode* is_new = map_string_insert(&name_table, name, val, 0, false);
 		if (is_new && !nelem && struct_elem.empty()) {
 			union {
 				int_val_type_t int_type;
@@ -238,7 +238,7 @@ public:
 	}
 	bool insert(const char* key, const FullVar& value) {
 		MapValue mv = { .src_ptr = const_cast<FullVar*>(&value) };
-		auto res = map_string_insert(&table, key, mv, sizeof(FullVar));
+		auto res = map_string_insert(&table, key, mv, sizeof(FullVar), false);
 		return res;
 	}
 	FullVar* operator[](const char* key) {

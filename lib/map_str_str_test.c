@@ -6,7 +6,7 @@
 #include <time.h>
 #include "map.h"
 
-#define MAP_INSERT_STRING(map, k, s) map_string_insert(&map, k, (MapValue){.src_ptr = s}, sizeof(s)+1)
+#define MAP_INSERT_STRING(map, k, s) map_string_insert(&map, k, (MapValue){.src_ptr = s}, sizeof(s)+1, true)
 
 int main(int argc, char* argv[]) {
 	struct timespec real_timespec;
