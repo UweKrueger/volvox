@@ -79,9 +79,12 @@ extern const char* input_file_name;
 extern llvm::orc::ThreadSafeContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
+
+// often used types - for faster access
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
 
+extern unsigned anon_struct_nr;
 /// ExprAST - Base class for all expression nodes.
 
 // Type Attributes

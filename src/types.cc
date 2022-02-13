@@ -6,6 +6,8 @@
 // type conversion handling
 //===----------------------------------------------------------------------
 
+unsigned anon_struct_nr = 0;
+
 std::nullptr_t Error(SourceLocation Loc, const char *Str, ...) {
 	fprintf(stderr, "%s:%d:%d: ", input_file_name, Loc.Line, Loc.Col);
 	va_list ap;
