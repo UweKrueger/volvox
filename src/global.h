@@ -85,7 +85,6 @@ extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
 
 extern unsigned anon_struct_nr;
-/// ExprAST - Base class for all expression nodes.
 
 // Type Attributes
 #define A_signed (1U<<0)
@@ -266,6 +265,7 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 	return { globals_table[Name], true };
 }
 
+/// ExprAST - Base class for all expression nodes.
 class ExprAST : public FullType {
 public:
 	SourceLocation Loc;
