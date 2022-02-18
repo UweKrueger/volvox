@@ -99,6 +99,27 @@ extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 
+static inline void dprt(const char* fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
+	fflush(stdout);
+}
+
+static inline void eprt(const char* fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
+	fflush(stderr);
+}
+
+static inline void veprt(const char* fmt, va_list args) {
+	vfprintf(stderr, fmt, args);
+	fflush(stderr);
+}
+
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned BitWidth : 23; // #bits for int types, 0 for default
@@ -152,7 +173,7 @@ public:
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
 			key32_table[key] = type;
-			printf("inserted %u %p %s\n", key, type, name);
+			dprt("inserted %u %p %s\n", key, type, name);
 			if (is_signed)
 				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = { name, ditype };
 			else
@@ -394,7 +415,7 @@ public:
 			case llvm::Type::DoubleTyID:
 				return std::to_string(Val.Float);
 			default:
-				fprintf(stderr, "internal compiler error: cannot print numeric literal of type %d\n", int_type.ID);
+				eprt("internal compiler error: cannot print numeric literal of type %d\n", int_type.ID);
 				return "";
 			}
 		case tok_str_lit:
@@ -411,9 +432,9 @@ extern Token purgeLine();
 
 class Lexer {
 public:
-	Lexer(size_t bufsize = 0)
+	Lexer(size_t bufsize = 100)
 		: bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
-	~Lexer() { free(linebuf); }
+	virtual ~Lexer() { free(linebuf); }
 	int advance();
 	Token gettok(bool expectBinary = false);
 	Token purge_line();

@@ -21,9 +21,9 @@ static inline int GetTokPrecedence() {
 
 /// LogError* - These are little helper functions for error handling.
 std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap) {
-	fprintf(stderr, "Error: ");
-	vfprintf(stderr, Str, ap);
-	fprintf(stderr, "\n");
+	eprt("Error: ");
+	veprt(Str, ap);
+	eprt("\n");
 	return nullptr;
 }
 
@@ -319,7 +319,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
                                              unsigned desired_attrib = 0u) {
 	switch (CurTok.kind) {
 	case tok_eof:
-		fprintf(stderr, "EOF when expecting an expression\n");
+		eprt("EOF when expecting an expression\n");
 		exit(1);
 	case tok_identifier:
 		return ParseIdentifierExpr();
@@ -394,9 +394,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		auto RHS_type = RHS->type;
 		auto RHS_attr = RHS->type_attr;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
-		printf("LHS: %s RHS: %s\n", type_table.get_name(LHS_type, LHS_attr & A_signed), type_table.get_name(RHS_type, RHS_attr & A_signed));
+		dprt("LHS: %s RHS: %s\n", type_table.get_name(LHS_type, LHS_attr & A_signed), type_table.get_name(RHS_type, RHS_attr & A_signed));
 		if (inside_function && BinOp == ":=") {
-			printf("got :=\n");
+			dprt("got :=\n");
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
 				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				llvm::Type* type = std::get<0>(type_descr);
@@ -408,13 +408,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 					}
 				};
 				if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
-					fprintf(stderr, "variable %s already exists in current scope\n", VarL->Name.c_str());
+					eprt("variable %s already exists in current scope\n", VarL->Name.c_str());
 					return nullptr;
 				} else {
-					printf("inserted local %s\n", VarL->Name.c_str());
+					dprt("inserted local %s\n", VarL->Name.c_str());
 				}
 			} else {
-				fprintf(stderr, "left operand of \":=\" must be a variable\n");
+				eprt("left operand of \":=\" must be a variable\n");
 				return nullptr;
 			}
 		}
@@ -618,7 +618,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				if (!strcmp(B->Op, ":="))
 					return HandleGlobalVariable(B);
 			} else {
-				fprintf(stderr, "Could not deduce type of expression\n");
+				eprt("Could not deduce type of expression\n");
 				return nullptr;
 			}
 		}

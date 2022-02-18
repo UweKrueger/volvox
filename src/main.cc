@@ -132,9 +132,9 @@ static void HandleDefinition() {
 	if (auto FnAST = ParseDefinition()) {
 		if (auto *FnIR = FnAST->codegen()) {
 			if (comp_mode != comp_dbg) {
-				fprintf(stderr, "Read function definition:\n");
+				eprt("Read function definition:\n");
 				FnIR->print(llvm::errs());
-				fprintf(stderr, "\n");
+				eprt("\n");
 				if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
 					ExitOnErr(TheJIT->addModule(
@@ -147,17 +147,17 @@ static void HandleDefinition() {
 			}
 			success = true;
 		} else {
-			fprintf(stderr, "Error compiling function definition\n");
+			eprt("Error compiling function definition\n");
 		}
 	} else {
-		fprintf(stderr, "Error parsing function definition\n");
+		eprt("Error parsing function definition\n");
 		// Skip token for error recovery.
 		purgeLine();
 	}
 	locals_table[0].clear();
 	locals_table = {};
 	if (success)
-		printf("definition successfully handled\n");
+		dprt("definition successfully handled\n");
 	inside_function = false;
 }
 
@@ -165,13 +165,13 @@ static void HandleExtern() {
 	if (auto ProtoAST = ParseExtern()) {
 		if (auto *FnIR = ProtoAST->codegen()) {
 			if (comp_mode != comp_dbg) {
-				fprintf(stderr, "Read extern: ");
+				eprt("Read extern: ");
 				FnIR->print(llvm::errs());
-				fprintf(stderr, "\n");
+				eprt("\n");
 			}
 			FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
 		} else {
-			fprintf(stderr, "Error reading extern");
+			eprt("Error reading extern");
 		}
 	} else {
 		// Skip token for error recovery.
@@ -182,7 +182,7 @@ static void HandleExtern() {
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
-		printf("top level expr parsed\n");
+		dprt("top level expr parsed\n");
 		auto RetType = FnAST->Proto->RetTypes.size() == 1 ?
 			FnAST->Proto->RetTypes[0].type :
 			llvm::Type::getVoidTy(*Context.getContext());
@@ -194,7 +194,7 @@ static void HandleTopLevelExpression() {
 			auto RetTypeID = RetType->getTypeID();
 			unsigned IntBitWidth = RetTypeID == llvm::Type::IntegerTyID ?
 				RetType->getIntegerBitWidth() : 0;
-			fprintf(stderr, "ExprType: %u BitWidth: %u Volvox: %u, %u, %u\n",
+			eprt("ExprType: %u BitWidth: %u Volvox: %u, %u, %u\n",
 			        ret_type->getTypeID(), ret_type->isIntegerTy() ? ret_type->getIntegerBitWidth() : 0,
 			        RetType->getTypeID(), RetType->isIntegerTy() ? RetType->getIntegerBitWidth() : 0,
 			        ret_type_attr);
@@ -230,12 +230,12 @@ static void HandleTopLevelExpression() {
 				case llvm::Type::BFloatTyID:
 				case llvm::Type::FloatTyID: {
 					float (*FP)() = (float (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					fprintf(stderr, "Evaluated to %.7g\n", FP());
+					eprt("Evaluated to %.7g\n", FP());
 					break;
 				}
 				case llvm::Type::DoubleTyID: {
 					double (*FP)() = (double (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					fprintf(stderr, "Evaluated to %.15g\n", FP());
+					eprt("Evaluated to %.15g\n", FP());
 					break;
 				}
 				case llvm::Type::IntegerTyID: {
@@ -244,75 +244,75 @@ static void HandleTopLevelExpression() {
 						case 1: { // this should actually be unsigned - put it here, too, just in case
 							bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 							bool b = BOOL();
-							fprintf(stderr, "Evaluated to %s\n", b ? "true(s)" : "false(s)");
+							eprt("Evaluated to %s\n", b ? "true(s)" : "false(s)");
 							break;
 						}
 						case 8: {
 							int8_t (*INT8)() = (int8_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 							int8_t c = INT8();
-							fprintf(stderr, "Evaluated to %" PRId8 " ('%c')\n", c, c);
+							eprt("Evaluated to %" PRId8 " ('%c')\n", c, c);
 							break;
 						}
 						case 16: {
 							short (*INT16)() = (short (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %" PRId16 "\n", INT16());
+							eprt("Evaluated to %" PRId16 "\n", INT16());
 							break;
 						}
 						case 32: {
 							int32_t (*INT32)() = (int32_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %" PRId32 "\n", INT32());
+							eprt("Evaluated to %" PRId32 "\n", INT32());
 							break;
 						}
 						case 64: {
 							int64_t (*INT64)() = (int64_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %" PRId64 "\n", INT64());
+							eprt("Evaluated to %" PRId64 "\n", INT64());
 							break;
 						}
 						default:
-							fprintf(stderr, "Expression has unsupported integer bit width %u\n", IntBitWidth);
+							eprt("Expression has unsupported integer bit width %u\n", IntBitWidth);
 						}
 					} else {
 						switch (IntBitWidth) {
 						case 1: {
 							bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 							bool b = BOOL();
-							fprintf(stderr, "Evaluated to %s\n", b ? "true" : "false");
+							eprt("Evaluated to %s\n", b ? "true" : "false");
 							break;
 						}
 						case 8: {
 							uint8_t (*UINT8)() = (uint8_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 							uint8_t c = UINT8();
-							fprintf(stderr, "Evaluated to %" PRIu8 " ('%c')\n", c, c);
+							eprt("Evaluated to %" PRIu8 " ('%c')\n", c, c);
 							break;
 						}
 						case 16: {
 							uint16_t (*UINT16)() = (uint16_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %" PRIu16 "\n", UINT16());
+							eprt("Evaluated to %" PRIu16 "\n", UINT16());
 							break;
 						}
 						case 32: {
 							uint32_t (*UINT32)() = (uint32_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %" PRIu32 "\n", UINT32());
+							eprt("Evaluated to %" PRIu32 "\n", UINT32());
 							break;
 						}
 						case 64: {
 							uint64_t (*UINT64)() = (uint64_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							fprintf(stderr, "Evaluated to %" PRIu64 "\n", UINT64());
+							eprt("Evaluated to %" PRIu64 "\n", UINT64());
 							break;
 						}
 						default:
-							fprintf(stderr, "Expression has unsupported integer bit width %u\n", IntBitWidth);
+							eprt("Expression has unsupported integer bit width %u\n", IntBitWidth);
 						}
 					}
 					break;
 				}
 				case llvm::Type::PointerTyID: { // should be more sophisticated
 					const char* (*SP)() = (const char* (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					fprintf(stderr, "Evaluated to >%s<\n", SP());
+					eprt("Evaluated to >%s<\n", SP());
 					break;
 				}
 				default:
-					fprintf(stderr, "unknown expression type %d\n", RetTypeID);
+					eprt("unknown expression type %d\n", RetTypeID);
 				}
 			
 #if LLVM_VERSION_MAJOR >= 12
@@ -324,7 +324,7 @@ static void HandleTopLevelExpression() {
 #endif
 			}
 		} else {
-			fprintf(stderr, "Error generating code for top level expr\n");
+			eprt("Error generating code for top level expr\n");
 		}
 	} else {
 		// Skip rest for error recovery.
@@ -336,7 +336,7 @@ static void HandleTopLevelExpression() {
 static void MainLoop() {
 	while (true) {
 		if (comp_mode == comp_jit) {
-			fprintf(stderr, CurTok.kind == tok_eof ? "\n" : "ready> ");
+			eprt(CurTok.kind == tok_eof ? "\n" : "ready> ");
 		}
 		switch (CurTok.kind) {
 		case tok_eof:
@@ -375,7 +375,7 @@ extern "C" DLLEXPORT double putchard(double X) {
 
 /// printd - printf that takes a double prints it as "%f\n", returning 0.
 extern "C" DLLEXPORT double printd(double X) {
-	fprintf(stderr, "%f\n", X);
+	eprt("%f\n", X);
 	return 0;
 }
 
@@ -398,7 +398,7 @@ int main(int argc, char* argv[]) {
 		}
 		input_file = fopen(input_file_name, "r");
 		if (!input_file) {
-			fprintf(stderr, "Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
+			eprt("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
 			exit(1);
 		}
 	}
@@ -449,10 +449,10 @@ int main(int argc, char* argv[]) {
 			"Volvox Compiler", 0, "", 0);
 	}
 	init();
-	printf("%u %u\n", (unsigned)sizeof(gen_val_type_t), (unsigned)sizeof(int_val_type_t));
+	dprt("%u %u\n", (unsigned)sizeof(gen_val_type_t), (unsigned)sizeof(int_val_type_t));
 	// Prime the first token.
 	if (comp_mode == comp_jit) {
-		fprintf(stderr, "ready> ");
+		eprt("ready> ");
 	}
 	getNextToken();
 	// Run the main "interpreter loop" now.

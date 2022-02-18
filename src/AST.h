@@ -32,7 +32,7 @@ public:
 		case llvm::Type::PointerTyID:
 			return ExprAST::dump(out << Val.Str, ind);
 		default:
-			fprintf(stderr, "internal compiler error: unhandled literal type %d\n", type->getTypeID());
+			eprt("internal compiler error: unhandled literal type %d\n", type->getTypeID());
 			return out;
 		}
 	}
@@ -230,7 +230,7 @@ public:
 		  ElseEndKind(ElseEndKind)
 		{
 			if (is_void) {
-				printf("void IfExpr: %p %p %u %u %s %s\n", Then.back()->type, Else.back()->type,
+				dprt("void IfExpr: %p %p %u %u %s %s\n", Then.back()->type, Else.back()->type,
 				       Then.back()->type_attr, Else.back()->type_attr,
 				       type_table.get_name(Then.back()->type, Then.back()->type_attr & A_signed),
 				       type_table.get_name(Else.back()->type, Else.back()->type_attr & A_signed));

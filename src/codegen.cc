@@ -79,7 +79,7 @@ llvm::Value *LiteralExprAST::codegen() {
 		return llvm::ConstantInt::get(*Context.getContext(), llvm::APInt(type->getIntegerBitWidth(), Val.Uint, type_attr & A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
-		fprintf(stderr, "Warning: 16 bit floats are not supported, yet\n");
+		eprt("Warning: 16 bit floats are not supported, yet\n");
 		// passthrough to 32 bit float for now - but expect problems...
 	case llvm::Type::FloatTyID:
 		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat((float)Val.Float));
@@ -88,7 +88,7 @@ llvm::Value *LiteralExprAST::codegen() {
 	case llvm::Type::PointerTyID:
 		return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
 	default:
-		fprintf(stderr, "internal compiler error: unhandled literal type %d\n", type->getTypeID());
+		eprt("internal compiler error: unhandled literal type %d\n", type->getTypeID());
 		return nullptr;
 	}
 }
@@ -190,7 +190,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
 		if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
-			printf("type: %s\n", type_table.get_name(initializer->getType(), is_signed));
+			dprt("type: %s\n", type_table.get_name(initializer->getType(), is_signed));
 			llvm::GlobalVariable* GV;
 			if (comp_mode == comp_jit) {
 				uint64_t StoreSize = TheModule->getDataLayout().getTypeStoreSize(type);
@@ -218,7 +218,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 						float fVal = apf.convertToFloat();
 						memcpy(__volvox_jit_tls_ptr + var_offset, &fVal, StoreSize);
 					} else {
-						fprintf(stderr, "unsupported float size %u for global\n", (unsigned)StoreSize);
+						eprt("unsupported float size %u for global\n", (unsigned)StoreSize);
 					}
 				} else if (expr->RHS->type->isPointerTy()) {
 					if (LiteralExprAST* Lit = dynamic_cast<LiteralExprAST*>(expr->RHS.get())) {
@@ -226,9 +226,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 							memcpy(__volvox_jit_tls_ptr + var_offset, &pVal, StoreSize);
 					}
 					else
-						printf("bad\n");
+						dprt("bad\n");
 				} else {
-					fprintf(stderr, "unsupported type (size: %u) for global\n", (unsigned)StoreSize);
+					eprt("unsupported type (size: %u) for global\n", (unsigned)StoreSize);
 				}
 				memcpy(__volvox_jit_tls_inits + var_offset, __volvox_jit_tls_ptr + var_offset, StoreSize);
 			} else {
@@ -250,7 +250,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				.val = GV,
 			};
 			globals_table.insert(varname, fv);
-			printf("Inserted %s to globals table\n", varname);
+			dprt("Inserted %s to globals table\n", varname);
 			return nullptr;
 		} else {
 			LogErrorV("global variable %s must be assigned with compile time const", varname);
@@ -262,6 +262,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 }
 
 llvm::Value *BinaryExprAST::codegen() {
+	dprt("Binary Codegen\n");
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -315,7 +316,7 @@ llvm::Value *BinaryExprAST::codegen() {
 			return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
 		if (is_global) {
 			if (comp_mode == comp_jit) {
-				printf("reassignment\n");
+				dprt("reassignment\n");
 				size_t var_offset = (size_t)full_var->val;
 				auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
 				auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
@@ -341,7 +342,7 @@ llvm::Value *BinaryExprAST::codegen() {
 		if (kind != decl_assign_op)
 			return LogErrorV("unknown variable name %s", varname);
 		// variable declaration
-		printf("%s not found\n", varname);
+		dprt("%s not found\n", varname);
 		if (inside_function) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			auto type_descr = MakeType(Val->getType(), RHS->type_attr & A_signed, RHS->is_unknown_type);
@@ -362,7 +363,7 @@ llvm::Value *BinaryExprAST::codegen() {
 										llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
 										Builder->GetInsertBlock());
 			}
-			printf("Added storage of %s to locals table\n", varname);
+			dprt("Added storage of %s to locals table\n", varname);
 			Builder->CreateStore(convertedVal, Alloca);
 			return convertedVal;
 		} else {
@@ -391,7 +392,7 @@ llvm::Value *BinaryExprAST::codegen() {
 		return nullptr;
 	if (desired_type && !conv.ideal.err_msg) {
 		auto ana = analyze_types({ conv.ideal.res_type, conv.ideal.res_attr }, { desired_type, desired_type_attr });
-		// printf("desired_type: %s %d %d\n", type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_type_attr & A_signed))), ana.first, (ana.second && !conv.compat.err_msg));
+		// dprt("desired_type: %s %d %d\n", type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_type_attr & A_signed))), ana.first, (ana.second && !conv.compat.err_msg));
 		if (ana.first || (ana.second && !conv.compat.err_msg)) {
 			if (conv.ideal.LHS)
 				L = conv.ideal.LHS(L);
@@ -614,9 +615,10 @@ conv_done:
 		break;
 	}
 	if (result) {
+		dprt("Got Result %p\n", (void*)result);
 		auto conv = getConv(type, desired_type, type_attr, desired_type_attr, Loc, true, is_unknown_type);
 		if (conv) {
-			printf("converted result of binop from %s to %s (%s)\n",
+			dprt("converted result of binop from %s to %s (%s)\n",
 			       type_table.get_name(type, type_attr & A_signed),
 			       type_table.get_name(desired_type, desired_type_attr & A_signed),
 			       is_unknown_type ? "literal" : "explicit type");
@@ -728,7 +730,7 @@ llvm::Value *IfExprAST::codegen() {
 
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();
-	// fprintf(stderr, "IfType: %s\n",
+	// eprt("IfType: %s\n",
 	//         type_table.get_name((llvm::Type*)((uintptr_t)type | (type_attr & A_signed))));
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
@@ -922,7 +924,7 @@ llvm::Function *FunctionAST::codegen() {
 		// get reference to argument in symbol table
 		FullVar* mapitem = locals_table.back()[Arg.getName().str().c_str()];
 		if (!mapitem) {
-			fprintf(stderr, "internal compiler error: arg not found in table");
+			eprt("internal compiler error: arg not found in table");
 			exit(1);
 		}
 		llvm::Type* type = mapitem->ft.type;

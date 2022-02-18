@@ -9,12 +9,12 @@
 unsigned anon_struct_nr = 0;
 
 std::nullptr_t Error(SourceLocation Loc, const char *Str, ...) {
-	fprintf(stderr, "%s:%d:%d: ", input_file_name, Loc.Line, Loc.Col);
+	eprt("%s:%d:%d: ", input_file_name, Loc.Line, Loc.Col);
 	va_list ap;
 	va_start(ap, Str);
-	vfprintf(stderr, Str, ap);
+	veprt(Str, ap);
 	va_end(ap);
-	fprintf(stderr, "\n");
+	eprt("\n");
 	return nullptr;
 }
 
