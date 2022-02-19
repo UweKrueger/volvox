@@ -77,6 +77,14 @@ public:
 	             llvm::Type* desired_type = nullptr,
 	             unsigned desired_attrib = 0)
 		: ExprAST(*Field) {}
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		ExprAST::dump(out << "index", ind);
+		Field->dump(indent(out, ind) << "Field:", ind + 1);
+		Index->dump(indent(out, ind) << "Index:", ind + 1);
+		return out;
+	}
+#endif
 };
 
 /// UnaryExprAST - Expression class for a unary operator.
