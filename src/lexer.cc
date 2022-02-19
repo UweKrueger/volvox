@@ -252,7 +252,7 @@ Token Lexer::gettok(bool expectBinary) {
 				CurChar = advance();
 				return Token(StrLit);
 			case EOF:
-				fprintf(stderr, "unexpected EOF in string literal\n");
+				eprt("unexpected EOF in string literal\n");
 				return EOF;
 			default:
 			add_letter:

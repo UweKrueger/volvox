@@ -99,6 +99,27 @@ extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 
+static inline void dprt(const char* fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	vprintf(fmt, args);
+	va_end(args);
+	fflush(stdout);
+}
+
+static inline void eprt(const char* fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
+	fflush(stderr);
+}
+
+static inline void veprt(const char* fmt, va_list args) {
+	vfprintf(stderr, fmt, args);
+	fflush(stderr);
+}
+
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned BitWidth : 23; // #bits for int types, 0 for default
@@ -113,9 +134,14 @@ struct gen_val_type_t {
 struct FullType {
 	llvm::Type* type;
 	unsigned type_attr;
-	int nelem; // nelem: -1 = flex-array, 0 = no array
+	int nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
+	int ncolumns;
+	int nelem; // for struct
 	const char* type_name; // maybe NULL for anonymous types
-	std::vector<std::pair<const char*, FullType>> elems;
+	union {
+		MapNode* elems; // element-name -> { index, FullType }
+		FullType* array_elem;
+	};
 };
 
 struct FullVar {
@@ -152,7 +178,7 @@ public:
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
 			key32_table[key] = type;
-			printf("inserted %u %p %s\n", key, type, name);
+			dprt("inserted %u %p %s\n", key, type, name);
 			if (is_signed)
 				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = { name, ditype };
 			else
@@ -272,9 +298,11 @@ public:
 
 	llvm::Type* desired_type;
 	unsigned desired_type_attr;
-	int desired_nelem; // nelem: -1 = flex-array, 0 = no array
+	int desired_nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
+	int desired_ncolumns;
+	int desired_nelem; // for struct
 	const char* desired_type_name; // maybe NULL for anonymous types
-	std::vector<std::pair<const char*, FullType>> desired_struct_elems;
+	MapNode* desired_elems; // element-name -> { index, FullType }
 
 	bool is_unknown_type;
 
@@ -298,15 +326,18 @@ public:
 		}
 	ExprAST(const FullType& full_type, SourceLocation Loc = CurLoc, FullType desired = {}, bool is_unknown_type = false) :
 		FullType(full_type), Loc(Loc), desired_type(desired.type), desired_type_attr(desired.type_attr),
-		desired_nelem(desired.nelem), desired_type_name(desired.type_name), desired_struct_elems(desired.elems),
+		desired_nrows(desired.nrows), desired_ncolumns(desired.ncolumns), desired_nelem(desired.nelem),
+		desired_type_name(desired.type_name), desired_elems(desired.elems),
 		is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen() = 0;
 	int getLine() const { return Loc.Line; }
 	int getCol() const { return Loc.Col; }
+#ifndef NDEBUG
 	virtual llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		return out << ':' << getLine() << ':' << getCol() << '\n';
 	}
+#endif
 };
 
 struct DebugInfo {
@@ -394,7 +425,7 @@ public:
 			case llvm::Type::DoubleTyID:
 				return std::to_string(Val.Float);
 			default:
-				fprintf(stderr, "internal compiler error: cannot print numeric literal of type %d\n", int_type.ID);
+				eprt("internal compiler error: cannot print numeric literal of type %d\n", int_type.ID);
 				return "";
 			}
 		case tok_str_lit:
@@ -411,9 +442,9 @@ extern Token purgeLine();
 
 class Lexer {
 public:
-	Lexer(size_t bufsize = 0)
+	Lexer(size_t bufsize = 100)
 		: bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
-	~Lexer() { free(linebuf); }
+	virtual ~Lexer() { free(linebuf); }
 	int advance();
 	Token gettok(bool expectBinary = false);
 	Token purge_line();
