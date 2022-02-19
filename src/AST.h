@@ -17,6 +17,7 @@ public:
 	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
 		  ((tok.int_type.ID == llvm::Type::IntegerTyID &&
 		    tok.int_type.is_signed) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {}
+#ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
@@ -32,10 +33,11 @@ public:
 		case llvm::Type::PointerTyID:
 			return ExprAST::dump(out << Val.Str, ind);
 		default:
-			fprintf(stderr, "internal compiler error: unhandled literal type %d\n", type->getTypeID());
+			eprt("internal compiler error: unhandled literal type %d\n", type->getTypeID());
 			return out;
 		}
 	}
+#endif
 	llvm::Value *codegen() override;
 };
 
@@ -58,9 +60,11 @@ public:
 	}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
+#ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);
 	}
+#endif
 };
 
 // IndexExprAST - Expressions like x[2] or y["key"]
@@ -86,11 +90,13 @@ public:
 		strcpy(Opcode, Op); 
 	}
 	llvm::Value *codegen() override;
+#ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "unary" << Opcode, ind);
 		Operand->dump(out, ind + 1);
 		return out;
 	}
+#endif
 };
 
 // conversions that have to be applied to Operands of binary Operator to make them compatible
@@ -135,12 +141,14 @@ public:
 		strcpy(Op, _Op);
 	}
 	llvm::Value *codegen() override;
+#ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "binary" << Op, ind);
 		LHS->dump(indent(out, ind) << "LHS:", ind + 1);
 		RHS->dump(indent(out, ind) << "RHS:", ind + 1);
 		return out;
 	}
+#endif
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -202,12 +210,14 @@ public:
 		}
 	}
 	llvm::Value *codegen() override;
+#ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call " << Callee, ind);
 		for (const auto &Arg : Args)
 			Arg->dump(indent(out, ind + 1), ind + 1);
 		return out;
 	}
+#endif
 };
 
 /// IfExprAST - Expression class for if/then/else.
@@ -230,7 +240,7 @@ public:
 		  ElseEndKind(ElseEndKind)
 		{
 			if (is_void) {
-				printf("void IfExpr: %p %p %u %u %s %s\n", Then.back()->type, Else.back()->type,
+				dprt("void IfExpr: %p %p %u %u %s %s\n", Then.back()->type, Else.back()->type,
 				       Then.back()->type_attr, Else.back()->type_attr,
 				       type_table.get_name(Then.back()->type, Then.back()->type_attr & A_signed),
 				       type_table.get_name(Else.back()->type, Else.back()->type_attr & A_signed));
@@ -239,6 +249,7 @@ public:
 			}
 		}
 	llvm::Value *codegen() override;
+#ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
 		Cond->dump(indent(out, ind) << "Cond:", ind + 1);
@@ -247,6 +258,7 @@ public:
 			Else[0]->dump(indent(out, ind) << "Else:", ind + 1);
 		return out;
 	}
+#endif
 };
 
 class IteratorAST {
@@ -270,6 +282,7 @@ public:
 		: ExprAST(Loc), VarName(VarName), Start(std::move(Start)), End(std::move(End)),
 		  Step(std::move(Step)), Body(std::move(Body)) {}
 	llvm::Value *codegen() override;
+#ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "for", ind);
 		Start->dump(indent(out, ind) << "Cond:", ind + 1);
@@ -278,6 +291,7 @@ public:
 		Body->dump(indent(out, ind) << "Body:", ind + 1);
 		return out;
 	}
+#endif
 };
 
 /// FunctionAST - This class represents a function definition itself.
@@ -291,6 +305,7 @@ public:
 	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind)
 		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind) {}
 	llvm::Function *codegen();
+#ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		indent(out, ind) << "FunctionAST\n";
 		++ind;
@@ -302,5 +317,6 @@ public:
 			out << "null\n";
 		return out;
 	}
+#endif
 	~FunctionAST() = default;
 };
