@@ -145,7 +145,7 @@ FullType ParseType() {
 	}
 	if (type.type_attr)
 		attribs |= A_signed;
-	return { type.type, attribs, 0, NULL, {}};
+	return { type.type, attribs };
 }
 
 /// numberexpr ::= number
