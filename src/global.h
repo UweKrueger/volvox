@@ -22,7 +22,8 @@ class BinaryExprAST;
 enum TokenKind {
 
 	// operators - ordered by priority
-	tok_assign = -2, // = (possibly multiple assignees, result(s): old value(s), right binding)
+	tok_assign = -1, // = (possibly multiple assignees, result(s): old value(s), right binding)
+	tok_colon = -2,
 	tok_comma = -3,
 	tok_arrow = -4, // <-
 	tok_or = -5, // |, ^, ! (between bool or int, result: bool or int)
@@ -34,8 +35,7 @@ enum TokenKind {
 	tok_unary = -10, // +, -, !, ~, &, <-
 	tok_pow = -11, // **
 	tok_postfix = -12, // ++, -- (return old result)
-	tok_colon = -13,
-	tok_last_op = -14, // only used for comparisons to identify operators
+	tok_last_op = -13, // only used for comparisons to identify operators
 
 	tok_eof = -20,
 
