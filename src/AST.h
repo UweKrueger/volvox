@@ -87,6 +87,29 @@ public:
 #endif
 };
 
+enum ContainerType {
+	FixedArray,
+	VarArray,
+	FixedVector,
+	Vector,
+	FixedMatrix,
+	Matrix
+};
+
+class ContainerExprAST : public ExprAST {
+protected:
+	ContainerType container_type;
+public:
+	ContainerExprAST(ExprAST&& e, ContainerType t) :
+		ExprAST(std::move(e)), container_type(t) {}
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		ExprAST::dump(out << "container type " << int(container_type), ind);
+		return out;
+	}
+#endif
+};
+
 /// UnaryExprAST - Expression class for a unary operator.
 class UnaryExprAST : public ExprAST {
 	char Opcode[4];
