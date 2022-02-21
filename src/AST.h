@@ -229,7 +229,7 @@ class CallExprAST : public ExprAST {
 
 public:
 	CallExprAST(SourceLocation Loc, const std::string &Callee,
-	            std::vector<std::unique_ptr<ExprAST>> Args)
+	            std::vector<std::unique_ptr<ExprAST>> Args = {})
 		: ExprAST(nullptr, 0, Loc), Callee(Callee), Args(std::move(Args)) {
 		auto FI = FunctionProtos.find(Callee);
 		if (FI != FunctionProtos.end()) {

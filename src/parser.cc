@@ -176,6 +176,25 @@ static std::unique_ptr<ExprAST> ParseParenExpr(llvm::Type* desired_type = nullpt
 	return V;
 }
 
+static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprAST> Arg) {
+	std::vector<std::unique_ptr<ExprAST>> Args;
+	// The arguments are parsed as a tree of binary expressions (Op=',') where
+	// all objects are in the leaves.
+	// Due to operator precedence rules the tree is stricly left-heavy and can be
+	// processed right to left without the need for recursions. We just have to iterate
+	// through the binary nodes and front-push each right leave (RHS) to the Args list.
+	while (auto bin_expr = dynamic_cast<BinaryExprAST*>(Arg.get())) {
+		if (bin_expr->Op[0] == ',') {
+			Args.insert(Args.begin(), std::move(bin_expr->RHS));
+			Arg = std::move(bin_expr->LHS);
+		} else {
+			break;
+		}
+	}
+	Args.insert(Args.begin(), std::move(Arg));
+	return Args;
+}
+
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
@@ -195,34 +214,23 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	}
 
 	// Call.
-	getNextToken(); // eat (
-	std::vector<std::unique_ptr<ExprAST>> Args;
+	getNextToken(); // eat '('
 	if (CurTok.kind != ')') {
 		if (auto Arg = ParseExpression()) {
-			// The arguments are parsed as a tree of binary expressions (Op=',') where
-			// all objects are in the leaves.
-			// Due to operator precedence rules the tree is stricly left-heavy and can be
-			// processed right to left without the need for recursions. We just have to iterate
-			// through the binary nodes and front-push each right leave (RHS) to the Args list.
-			while (auto bin_expr = dynamic_cast<BinaryExprAST*>(Arg.get())) {
-				if (bin_expr->Op[0] == ',') {
-					Args.insert(Args.begin(), std::move(bin_expr->RHS));
-					Arg = std::move(bin_expr->LHS);
-				} else {
-					break;
-				}
-			}
-			Args.insert(Args.begin(), std::move(Arg));
+			auto Args = SplitExprList(std::move(Arg));
+			Expect(')', true);
+			auto call_expr = std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
+			if (!call_expr->type) // Used to signal failure, e.g. IdName was not found
+				return nullptr;
+			return call_expr;
 		} else {
 			return nullptr;
 		}
+	} else {
+		// no call arguments
+		getNextToken(true); // eat ')';
+		return std::make_unique<CallExprAST>(LitLoc, IdName);
 	}
-	// Eat the ')'.
-	Expect(')', true);
-	auto call_expr = std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
-	if (!call_expr->type) // Used to signal failure, e.g. IdName was not found
-		return nullptr;
-	return call_expr;
 }
 
 static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList(llvm::Type* desired_type, unsigned desired_attr);
