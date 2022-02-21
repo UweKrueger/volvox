@@ -97,7 +97,7 @@ llvm::Value *ContainerExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	return nullptr;
+	return Builder->CreateVectorSplat(Initializers.size(), llvm::ConstantInt::get(llvm_int_type, 13, true), "container");
 }
 
 llvm::Value *VariableExprAST::codegen() {
