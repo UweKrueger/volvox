@@ -140,7 +140,7 @@ struct FullType {
 	const char* type_name; // maybe NULL for anonymous types
 	union {
 		MapNode* elems; // element-name -> { index, FullType }
-		FullType* array_elem;
+		FullType* elem_type;
 	};
 };
 

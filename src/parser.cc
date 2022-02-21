@@ -118,7 +118,7 @@ FullType ParseType() {
 			return FullType{
 				.type = array_type,
 				.nrows = (int)dim,
-				.array_elem = (FullType*)array_elem_type
+				.elem_type = (FullType*)array_elem_type
 			};
 		}
 			break;
@@ -259,10 +259,17 @@ static std::unique_ptr<ExprAST> ParseContainerExpr(llvm::Type* desired_type = nu
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, true);
 		auto Elems = SplitExprList(std::move(Elem));
+		FullType el_ft;
 		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(Elems[0].get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map
+				el_ft = *static_cast<FullType*>(bin_expr->RHS.get());
 				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
-					kind = is_dynamic ? Array : Struct;
+					if (is_dynamic) {
+						kind = Array;
+						
+					} else {
+						kind = Struct;
+					}
 				} else if (auto key = dynamic_cast<LiteralExprAST*>(bin_expr->LHS.get())) {
 					kind = is_dynamic ? Map : FixedArray;
 				} else {
@@ -382,6 +389,9 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
 		return ParseStringExpr();
 	case '(':
 		return ParseParenExpr();
+	case '{':
+	case '[':
+		return ParseContainerExpr();
 	case tok_if:
 		return ParseIfExpr();
 	case tok_for:

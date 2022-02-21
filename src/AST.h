@@ -109,9 +109,16 @@ class ContainerExprAST : public ExprAST {
 	ContainerKind kind;
 public:
 	ContainerExprAST(SourceLocation Loc, ContainerKind k,
-	                 std::vector<std::unique_ptr<ExprAST>> Initializers = {}) :
+	                 std::vector<std::unique_ptr<ExprAST>> Initializers = {},
+	                 FullType* el_type = nullptr) :
 		ExprAST(nullptr, 0, Loc), Initializers(std::move(Initializers)),
-		kind(k) {}
+		kind(k)
+		{
+			if (kind == FixedArray) {
+				type = llvm::ArrayType::get(el_type->type, Initializers.size());
+				elem_type = el_type;
+			}
+		}
 	const char* KindName();
 	llvm::Value* codegen() override;
 #ifndef NDEBUG

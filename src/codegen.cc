@@ -93,6 +93,13 @@ llvm::Value *LiteralExprAST::codegen() {
 	}
 }
 
+llvm::Value *ContainerExprAST::codegen() {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
+	return nullptr;
+}
+
 llvm::Value *VariableExprAST::codegen() {
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
