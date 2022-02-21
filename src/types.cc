@@ -302,15 +302,25 @@ const char* ContainerExprAST::KindName() {
 	switch(kind) {
 	case FixedArray:
 		return "FixedArray";
-	case VarArray:
-		return "VarArray";
-	case FixedVector:
-		return "FixedVector";
-	case Vector:
-		return "Vector";
+	case Struct:
+		return "Struct";
 	case FixedMatrix:
 		return "FixedMatrix";
+	case FixedVector:
+		return "FixedVector";
+	case Interval:
+		return "Interval";
+	case AnyFixed:
+		return "AnyFixed";
+	case Array:
+		return "Array";
+	case Vector:
+		return "Vector";
+	case Map:
+		return "Map";
 	case Matrix:
 		return "Matrix";
+	case AnyDyn:
+		return "AnyDyn";
 	}
 }

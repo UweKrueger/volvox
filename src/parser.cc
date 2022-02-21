@@ -217,8 +217,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	getNextToken(); // eat '('
 	if (CurTok.kind != ')') {
 		if (auto Arg = ParseExpression()) {
-			auto Args = SplitExprList(std::move(Arg));
 			Expect(')', true);
+			auto Args = SplitExprList(std::move(Arg));
 			auto call_expr = std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
 			if (!call_expr->type) // Used to signal failure, e.g. IdName was not found
 				return nullptr;
@@ -230,6 +230,49 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 		// no call arguments
 		getNextToken(true); // eat ')';
 		return std::make_unique<CallExprAST>(LitLoc, IdName);
+	}
+}
+
+static std::unique_ptr<ExprAST> ParseContainerExpr(llvm::Type* desired_type = nullptr,
+                                                   unsigned desired_attrib = 0u) {
+	bool is_dynamic;
+	ContainerKind kind;
+	switch (CurTok.kind) {
+	case '{':
+		is_dynamic = true;
+		kind = AnyDyn;
+		break;
+	case '[':
+		is_dynamic = false;
+		kind = AnyFixed;
+		break;
+	default:
+		return LogError("ContainerExpr: unexpected \"%s%\" (expected '{' or '[')", CurTok.str().c_str());
+	}
+	SourceLocation loc = CurLoc;
+	getNextToken(); // eat '{' or '['
+	TokenKind closing = is_dynamic ? (TokenKind)'}' : (TokenKind)']';
+	if (CurTok.kind == closing) {
+		getNextToken(true);
+		return std::make_unique<ContainerExprAST>(loc, kind);
+	}
+	if (auto Elem = ParseExpression()) {
+		Expect(closing, true);
+		auto Elems = SplitExprList(std::move(Elem));
+		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(Elems[0].get())) {
+			if (bin_expr->Op[0] == ':') { // struct or map
+				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
+					kind = is_dynamic ? Array : Struct;
+				} else if (auto key = dynamic_cast<LiteralExprAST*>(bin_expr->LHS.get())) {
+					kind = is_dynamic ? Map : FixedArray;
+				} else {
+					return LogError("ContainerExpr: illegal expression before ':'");
+				}
+			}
+		}
+		return std::make_unique<ContainerExprAST>(loc, kind, std::move(Elems));
+	} else {
+		return LogError("ContainerExpr: unexpected \"%s%\" (expected expression)", CurTok.str().c_str());
 	}
 }
 

@@ -77,6 +77,7 @@ public:
 	             llvm::Type* desired_type = nullptr,
 	             unsigned desired_attrib = 0)
 		: ExprAST(*Field) {}
+	llvm::Value* codegen() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "index", ind);
@@ -88,25 +89,31 @@ public:
 };
 
 enum ContainerKind {
+	// fixed size kinds - [ ... ]
 	FixedArray,
-	VarArray,
-	FixedVector,
-	Vector,
+	Struct,
 	FixedMatrix,
-	Matrix
+	FixedVector,
+	Interval,
+	AnyFixed,
+	// dynamic size containers - { ... }
+	Array,
+	Vector,
+	Map,
+	Matrix,
+	AnyDyn
 };
 
 class ContainerExprAST : public ExprAST {
 	std::vector<std::unique_ptr<ExprAST>> Initializers;
 	ContainerKind kind;
 public:
-	ContainerExprAST(SourceLocation Loc,
-	                 std::vector<std::unique_ptr<ExprAST>> Initializers,
-	                 ContainerKind k) :
+	ContainerExprAST(SourceLocation Loc, ContainerKind k,
+	                 std::vector<std::unique_ptr<ExprAST>> Initializers = {}) :
 		ExprAST(nullptr, 0, Loc), Initializers(std::move(Initializers)),
 		kind(k) {}
 	const char* KindName();
-		
+	llvm::Value* codegen() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "container type " << KindName(), ind);
