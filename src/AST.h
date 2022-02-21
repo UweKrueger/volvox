@@ -87,7 +87,7 @@ public:
 #endif
 };
 
-enum ContainerType {
+enum ContainerKind {
 	FixedArray,
 	VarArray,
 	FixedVector,
@@ -97,14 +97,21 @@ enum ContainerType {
 };
 
 class ContainerExprAST : public ExprAST {
-protected:
-	ContainerType container_type;
+	std::vector<std::unique_ptr<ExprAST>> Initializers;
+	ContainerKind kind;
 public:
-	ContainerExprAST(ExprAST&& e, ContainerType t) :
-		ExprAST(std::move(e)), container_type(t) {}
+	ContainerExprAST(SourceLocation Loc,
+	                 std::vector<std::unique_ptr<ExprAST>> Initializers,
+	                 ContainerKind k) :
+		ExprAST(nullptr, 0, Loc), Initializers(std::move(Initializers)),
+		kind(k) {}
+	const char* KindName();
+		
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "container type " << int(container_type), ind);
+		ExprAST::dump(out << "container type " << KindName(), ind);
+		for (const auto &Initializer : Initializers)
+			Initializer->dump(indent(out, ind + 1), ind + 1);
 		return out;
 	}
 #endif

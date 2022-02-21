@@ -1,3 +1,7 @@
+# do 'make distclean' when changing optimization options or compiler version
+OPT := -O3
+# OPT := -O0 -ggdb
+
 SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS :=
@@ -17,8 +21,7 @@ CC := clang$(SUFFIX)
 CXX := clang++$(SUFFIX)
 LLVMCONFIG := llvm-config$(SUFFIX)
 LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
-OPT := -O3
-# -O0 -ggdb
+
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -frtti
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
 PRJH = ../include/volvox-$(LLVMVERSION).hh

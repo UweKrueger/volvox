@@ -297,3 +297,20 @@ std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeTyp
 	else
 		return { type, NoConversion, false };
 }
+
+const char* ContainerExprAST::KindName() {
+	switch(kind) {
+	case FixedArray:
+		return "FixedArray";
+	case VarArray:
+		return "VarArray";
+	case FixedVector:
+		return "FixedVector";
+	case Vector:
+		return "Vector";
+	case FixedMatrix:
+		return "FixedMatrix";
+	case Matrix:
+		return "Matrix";
+	}
+}
