@@ -16,7 +16,7 @@ public:
 	union LitValue Val;
 	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
 		  ((tok.int_type.ID == llvm::Type::IntegerTyID &&
-		    tok.int_type.is_signed) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {}
+		    tok.int_type.is_signed) ? A_signed : 0), Loc, tok.is_unknown_type, nullptr, 0, true), Val(tok.Val) {}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (type->getTypeID()) {
@@ -40,7 +40,6 @@ public:
 #endif
 	llvm::Value *codegen() override;
 };
-
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
@@ -183,7 +182,10 @@ public:
 	BinOpConvSet conv;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv, llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0)
-		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib, _RHS->is_unknown_type && _LHS->is_unknown_type), LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
+		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib,
+		          _RHS->is_unknown_type && _LHS->is_unknown_type,
+		          _RHS->is_compile_time_const && _LHS->is_compile_time_const),
+		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
 		if (!desired_type && _Op[0] != '=' || desired_type && desired_type == llvm::Type::getInt1Ty(*Context.getContext())) {
 			if (conv.ideal.res_type == llvm::Type::getInt1Ty(*Context.getContext())) {
 				type = conv.ideal.res_type;

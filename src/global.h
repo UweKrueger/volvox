@@ -305,22 +305,23 @@ public:
 	MapNode* desired_elems; // element-name -> { index, FullType }
 
 	bool is_unknown_type;
+	bool is_compile_time_const;
 
 	// construct from type and attributes
 	ExprAST(SourceLocation Loc) : Loc(Loc) {}
 	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0,
 	        SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr, unsigned desired_type_attr = 0,
-	        bool is_unknown_type = false) :
+	        bool is_unknown_type = false, bool is_compile_time_const = false) :
 		FullType(FullType{.type = type, .type_attr = type_attr}), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr),
-		is_unknown_type(is_unknown_type) {}
+		is_unknown_type(is_unknown_type), is_compile_time_const(is_compile_time_const) {}
 	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc,
 	        std::pair<llvm::Type*, unsigned> q = { nullptr, 0 }) :
 		FullType(FullType{.type = p.first, .type_attr = p.second}), Loc(Loc), desired_type(q.first), desired_type_attr(q.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched
 	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc, bool is_unknown_type = false, llvm::Type* desired_type = nullptr,
-	        unsigned desired_type_attr = 0) :
-		FullType(type_table.get_full(key)), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type)
+	        unsigned desired_type_attr = 0, bool is_compile_time_const = false) :
+		FullType(type_table.get_full(key)), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type), is_compile_time_const(is_compile_time_const)
 		{
 			type_attr |= add_attr;
 		}

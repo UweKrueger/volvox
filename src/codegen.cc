@@ -101,10 +101,12 @@ llvm::Value *ContainerExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
+	dprt("load variable %s\n", Name.c_str());
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (full_var.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_var.first->val;
+		dprt("var offset: %llu %p\n", var_offset, &__volvox_jit_tls_ptr);
 		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
 		auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
 		auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
@@ -187,7 +189,8 @@ enum OpKind {
 };
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
-	if (auto Val = expr->codegen()) {
+	dprt("Global variable declaration %s\n", expr->RHS->is_compile_time_const ? "ctc" : "var");
+	if (auto Val = expr->RHS->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
 		llvm::Type* val_type = Val->getType();
@@ -197,7 +200,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
 		if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
-			dprt("type: %s\n", type_table.get_name(initializer->getType(), is_signed));
+			dprt("type: %s %s\n", type_table.get_name(initializer->getType(), is_signed), expr->is_compile_time_const ? "ctc" : "var");
 			llvm::GlobalVariable* GV;
 			if (comp_mode == comp_jit) {
 				uint64_t StoreSize = TheModule->getDataLayout().getTypeStoreSize(type);
@@ -264,6 +267,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			return nullptr;
 		}
 	} else {
+		dprt("Could not generate assigned expression\n");
 		return nullptr;
 	}
 }
