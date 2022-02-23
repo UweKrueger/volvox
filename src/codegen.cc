@@ -190,6 +190,8 @@ enum OpKind {
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 	dprt("Global variable declaration %s\n", expr->RHS->is_compile_time_const ? "ctc" : "var");
+	if (!expr->RHS->is_compile_time_const)
+		goto nonconst;
 	if (auto Val = expr->RHS->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
@@ -263,13 +265,16 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			dprt("Inserted %s to globals table\n", varname);
 			return nullptr;
 		} else {
-			LogErrorV("global variable %s must be assigned with compile time const", varname);
-			return nullptr;
+			dprt("Global: non-LLVM const initializer");
+			goto nonconst;
 		}
 	} else {
-		dprt("Could not generate assigned expression\n");
+		eprt("Could not generate assigned expression\n");
 		return nullptr;
 	}
+nonconst:
+	eprt("global variable must be initialized with compile time const\n");
+	return nullptr;
 }
 
 llvm::Value *BinaryExprAST::codegen() {
