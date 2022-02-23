@@ -117,6 +117,12 @@ public:
 				type = llvm::ArrayType::get(el_type->type, Initializers.size());
 				elem_type = el_type;
 			}
+			is_compile_time_const = true;
+			for (auto& e: Initializers)
+				if (!e->is_compile_time_const) {
+					is_compile_time_const = false;
+					break;
+				}
 		}
 	const char* KindName();
 	llvm::Value* codegen() override;

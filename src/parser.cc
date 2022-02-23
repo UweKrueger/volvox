@@ -237,21 +237,23 @@ static std::unique_ptr<ExprAST> ParseContainerExpr(llvm::Type* desired_type = nu
                                                    unsigned desired_attrib = 0u) {
 	bool is_dynamic;
 	ContainerKind kind;
+	TokenKind closing;
 	switch (CurTok.kind) {
 	case '{':
 		is_dynamic = true;
 		kind = AnyDyn;
+		closing = (TokenKind)'}';
 		break;
 	case '[':
 		is_dynamic = false;
 		kind = AnyFixed;
+		closing = (TokenKind)']';
 		break;
 	default:
 		return LogError("ContainerExpr: unexpected \"%s%\" (expected '{' or '[')", CurTok.str().c_str());
 	}
 	SourceLocation loc = CurLoc;
-	getNextToken(); // eat '{' or '['
-	TokenKind closing = is_dynamic ? (TokenKind)'}' : (TokenKind)']';
+	getNextToken(); // eat '{'/'['
 	if (CurTok.kind == closing) {
 		getNextToken(true);
 		return std::make_unique<ContainerExprAST>(loc, kind);
