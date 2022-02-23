@@ -87,7 +87,7 @@ public:
 #endif
 };
 
-enum ContainerKind {
+enum AggregateKind {
 	// fixed size kinds - [ ... ]
 	FixedArray,
 	Struct,
@@ -95,7 +95,7 @@ enum ContainerKind {
 	FixedVector,
 	Interval,
 	AnyFixed,
-	// dynamic size containers - { ... }
+	// dynamic size aggregates - { ... }
 	Array,
 	Vector,
 	Map,
@@ -103,11 +103,11 @@ enum ContainerKind {
 	AnyDyn
 };
 
-class ContainerExprAST : public ExprAST {
+class AggregateExprAST : public ExprAST {
 	std::vector<std::unique_ptr<ExprAST>> Initializers;
-	ContainerKind kind;
+	AggregateKind kind;
 public:
-	ContainerExprAST(SourceLocation Loc, ContainerKind k,
+	AggregateExprAST(SourceLocation Loc, AggregateKind k,
 	                 std::vector<std::unique_ptr<ExprAST>> Initializers = {},
 	                 FullType* el_type = nullptr) :
 		ExprAST(nullptr, 0, Loc), Initializers(std::move(Initializers)),
@@ -128,7 +128,7 @@ public:
 	llvm::Value* codegen() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "container type " << KindName(), ind);
+		ExprAST::dump(out << "aggregate type " << KindName(), ind);
 		for (const auto &Initializer : Initializers)
 			Initializer->dump(indent(out, ind + 1), ind + 1);
 		return out;

@@ -298,7 +298,7 @@ std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeTyp
 		return { type, NoConversion, false };
 }
 
-const char* ContainerExprAST::KindName() {
+const char* AggregateExprAST::KindName() {
 	switch(kind) {
 	case FixedArray:
 		return "FixedArray";

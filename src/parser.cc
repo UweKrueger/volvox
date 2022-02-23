@@ -233,10 +233,10 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	}
 }
 
-static std::unique_ptr<ExprAST> ParseContainerExpr(llvm::Type* desired_type = nullptr,
+static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nullptr,
                                                    unsigned desired_attrib = 0u) {
 	bool is_dynamic;
-	ContainerKind kind;
+	AggregateKind kind;
 	TokenKind closing;
 	switch (CurTok.kind) {
 	case '{':
@@ -250,13 +250,13 @@ static std::unique_ptr<ExprAST> ParseContainerExpr(llvm::Type* desired_type = nu
 		closing = (TokenKind)']';
 		break;
 	default:
-		return LogError("ContainerExpr: unexpected \"%s%\" (expected '{' or '[')", CurTok.str().c_str());
+		return LogError("AggregateExpr: unexpected \"%s%\" (expected '{' or '[')", CurTok.str().c_str());
 	}
 	SourceLocation loc = CurLoc;
 	getNextToken(); // eat '{'/'['
 	if (CurTok.kind == closing) {
 		getNextToken(true);
-		return std::make_unique<ContainerExprAST>(loc, kind);
+		return std::make_unique<AggregateExprAST>(loc, kind);
 	}
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, true);
@@ -275,13 +275,13 @@ static std::unique_ptr<ExprAST> ParseContainerExpr(llvm::Type* desired_type = nu
 				} else if (auto key = dynamic_cast<LiteralExprAST*>(bin_expr->LHS.get())) {
 					kind = is_dynamic ? Map : FixedArray;
 				} else {
-					return LogError("ContainerExpr: illegal expression before ':'");
+					return LogError("AggregateExpr: illegal expression before ':'");
 				}
 			}
 		}
-		return std::make_unique<ContainerExprAST>(loc, kind, std::move(Elems));
+		return std::make_unique<AggregateExprAST>(loc, kind, std::move(Elems));
 	} else {
-		return LogError("ContainerExpr: unexpected \"%s%\" (expected expression)", CurTok.str().c_str());
+		return LogError("AggregateExpr: unexpected \"%s%\" (expected expression)", CurTok.str().c_str());
 	}
 }
 
@@ -393,7 +393,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
 		return ParseParenExpr();
 	case '{':
 	case '[':
-		return ParseContainerExpr();
+		return ParseAggregateExpr();
 	case tok_if:
 		return ParseIfExpr();
 	case tok_for:
