@@ -688,6 +688,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			}
 		}
 		// Make an anonymous proto.
+		uint64_t res_size = TheModule->getDataLayout().getTypeStoreSize(E->type);
+		if (res_size > 8) {
+			uint64_t alloc_size = TheModule->getDataLayout().getTypeAllocSize(E->type);
+		}
 		std::vector<FullType> TheType = { { E->type, E->type_attr } };
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
