@@ -97,7 +97,7 @@ llvm::Value *AggregateExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	return Builder->CreateVectorSplat(Initializers.size(), llvm::ConstantInt::get(llvm_int_type, 13, true), "aggregate");
+	return llvm::ConstantArray::get(reinterpret_cast<llvm::ArrayType*>(type), Initializers);
 }
 
 llvm::Value *VariableExprAST::codegen() {

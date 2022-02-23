@@ -104,33 +104,42 @@ enum AggregateKind {
 };
 
 class AggregateExprAST : public ExprAST {
-	std::vector<std::unique_ptr<ExprAST>> Initializers;
+	std::vector<std::unique_ptr<ExprAST>> Elements;
+	std::vector<llvm::Constant*> Initializers;
 	AggregateKind kind;
 public:
 	AggregateExprAST(SourceLocation Loc, AggregateKind k,
-	                 std::vector<std::unique_ptr<ExprAST>> Initializers = {},
+	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 FullType* el_type = nullptr) :
-		ExprAST(nullptr, 0, Loc), Initializers(std::move(Initializers)),
+		ExprAST(nullptr, 0, Loc), Elements(std::move(_Elements)),
 		kind(k)
 		{
+			dprt("AggregateExpr, kind: %d\n", int(kind));
 			if (kind == FixedArray) {
-				type = llvm::ArrayType::get(el_type->type, Initializers.size());
-				elem_type = el_type;
+				if (el_type)
+					elem_type = el_type;
+				else
+					elem_type = Elements[0].get();
+				type = llvm::ArrayType::get(elem_type->type, Initializers.size());
+				is_compile_time_const = true;
+				dprt("CTC: true\n");
+				for (auto& e: Elements)
+					if (!e->is_compile_time_const) {
+						is_compile_time_const = false;
+						dprt("CTC: false\n");
+						Initializers.push_back(llvm::Constant::getNullValue(elem_type->type));
+					} else {
+						Initializers.push_back(llvm::dyn_cast<llvm::Constant>(e->codegen()));
+					}
 			}
-			is_compile_time_const = true;
-			for (auto& e: Initializers)
-				if (!e->is_compile_time_const) {
-					is_compile_time_const = false;
-					break;
-				}
 		}
 	const char* KindName();
 	llvm::Value* codegen() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "aggregate type " << KindName(), ind);
-		for (const auto &Initializer : Initializers)
-			Initializer->dump(indent(out, ind + 1), ind + 1);
+		for (const auto &Element : Elements)
+			Element->dump(indent(out, ind + 1), ind + 1);
 		return out;
 	}
 #endif

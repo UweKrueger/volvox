@@ -279,7 +279,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 				}
 			}
 		}
-		return std::make_unique<AggregateExprAST>(loc, kind, std::move(Elems));
+		return std::make_unique<AggregateExprAST>(loc, /* kind */ FixedArray, std::move(Elems));
 	} else {
 		return LogError("AggregateExpr: unexpected \"%s%\" (expected expression)", CurTok.str().c_str());
 	}
