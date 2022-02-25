@@ -32,7 +32,7 @@ PROG = $(TARGETDIR)volvox
 
 OBJS := main.o lexer.o parser.o token.o codegen.o types.o
 
-LIB := map.o
+LIB := map.o str.o
 
 SRCS := $(OBJS:%.o=%.cc)
 
@@ -40,6 +40,9 @@ LIBSRC := $(LIB:%.o=../lib/%.c)
 
 %.o: %.cc $(PCH)
 	$(CXX) -c $(CXXFLAGS) $(OPT) -include-pch $(PCH) $<
+
+%.o: ../lib/%.cc
+	$(CXX) -c $(CXXFLAGS) $(OPT) $<
 
 %.o: ../lib/%.c
 	$(CC) -c $(OPT) $<
