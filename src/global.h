@@ -5,6 +5,7 @@
 extern "C" {
 #include "../lib/map.h"
 }
+#include "../lib/types.h"
 
 class PrototypeAST;
 class FunctionAST;
@@ -129,19 +130,6 @@ struct int_val_type_t {
 struct gen_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned SubclassData : 24;
-};
-
-struct FullType {
-	llvm::Type* type;
-	unsigned type_attr;
-	int nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
-	int ncolumns;
-	int nelem; // for struct
-	const char* type_name; // maybe NULL for anonymous types
-	union {
-		MapNode* elems; // element-name -> { index, FullType }
-		FullType* elem_type;
-	};
 };
 
 struct FullVar {
