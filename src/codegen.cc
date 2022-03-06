@@ -23,7 +23,7 @@ void DebugInfo::emitLocation(ExprAST *AST) {
 		                                 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
 }
 
-static llvm::DISubroutineType *CreateFunctionType(FullType RetType, std::vector<FullType>& ArgTypes, llvm::DIFile *Unit) {
+static llvm::DISubroutineType *CreateFunctionType(volvox::FullType RetType, std::vector<volvox::FullType>& ArgTypes, llvm::DIFile *Unit) {
 	llvm::SmallVector<llvm::Metadata *, 8> EltTys;
 
 	// Add the result type.

@@ -2,9 +2,7 @@
 #if defined (_MSC_VER)
 #include "../include/volvox-13.hh"
 #endif
-extern "C" {
 #include "../lib/map.h"
-}
 #include "../lib/types.h"
 #include "../lib/str.h"
 
@@ -129,7 +127,7 @@ struct int_val_type_t {
 };
 
 struct FullVar {
-	FullType ft;
+	volvox::FullType ft;
 	llvm::Value* val;
 };
 
@@ -142,7 +140,7 @@ public:
 class TypeTable {
 public:
 	TypeTable() : name_table(map_string_new_map()) {}
-	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, bool is_signed = false, int nelem = 0, std::vector<std::pair<const char*, FullType>> struct_elem = {}) {
+	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, bool is_signed = false, int nelem = 0, std::vector<std::pair<const char*, volvox::FullType>> struct_elem = {}) {
 		bool is_int = type->isIntegerTy();
 		if (is_signed && !is_int)
 			LogError("non-int type %s cannot be signed", name);
@@ -153,7 +151,7 @@ public:
 		if (is_new && !nelem && struct_elem.empty()) {
 			union {
 				int_val_type_t int_type;
-				gen_val_type_t gen_type;
+				volvox::gen_val_type_t gen_type;
 				unsigned key;
 			};
 			if (is_int) {
@@ -187,20 +185,20 @@ public:
 	static bool is_signed(unsigned _key) {
 		union {
 			int_val_type_t int_type;
-			gen_val_type_t gen_type;
+			volvox::gen_val_type_t gen_type;
 			unsigned key;
 		};
 		key = _key;
 		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
-	FullType get_full(const char* name) {
+	volvox::FullType get_full(const char* name) {
 		llvm::Type* raw_type = get_raw(name);
 		return { (llvm::Type*)((uintptr_t)raw_type & ~0x01ULL), (bool)((uintptr_t)raw_type & A_signed) };
 	}
-	FullType get_full(unsigned _key) {
+	volvox::FullType get_full(unsigned _key) {
 		union {
 			int_val_type_t int_type;
-			gen_val_type_t gen_type;
+			volvox::gen_val_type_t gen_type;
 			unsigned key;
 		};
 		key = _key;
@@ -276,7 +274,7 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 }
 
 /// ExprAST - Base class for all expression nodes.
-class ExprAST : public FullType {
+class ExprAST : public volvox::FullType {
 public:
 	SourceLocation Loc;
 
@@ -378,7 +376,7 @@ public:
 	std::string tokName() const { return tokName(kind); }
 	union {
 		int_val_type_t int_type;
-		gen_val_type_t gen_type;
+		volvox::gen_val_type_t gen_type;
 		unsigned key;
 	};
 	union LitValue Val;

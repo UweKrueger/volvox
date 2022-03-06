@@ -22,19 +22,23 @@
 #define FMT_ALT 64U
 #define FMT_UNSIGNED 128U
 
-extern bool is_compiler;
+namespace volvox {
 
-class i1 {
-public:
-	bool v;
-	i1() : v(false) {}
-	i1(bool v) : v(v) {}
-	operator bool() const { return v; }
+	extern bool is_compiler;
 
-	static const char* fmt;
-	static const char* fmt_w;
-	static const char* fmt_wp;
+	class i1 {
+	public:
+		bool v;
+		i1() : v(false) {}
+		i1(bool v) : v(v) {}
+		operator bool() const { return v; }
 
-	const char* str();
-	void str(char** s, unsigned cap, unsigned pos);
-};
+		static const char* fmt;
+		static const char* fmt_w;
+		static const char* fmt_wp;
+
+		const char* str();
+		void str(char** s, unsigned cap, unsigned pos);
+	};
+
+}

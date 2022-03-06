@@ -36,16 +36,13 @@ LIB := map.o str.o
 
 SRCS := $(OBJS:%.o=%.cc)
 
-LIBSRC := $(LIB:%.o=../lib/%.c)
+LIBSRC := $(LIB:%.o=../lib/%.cc)
 
 %.o: %.cc $(PCH)
 	$(CXX) -c $(CXXFLAGS) $(OPT) -include-pch $(PCH) $<
 
 %.o: ../lib/%.cc
 	$(CXX) -c $(CXXFLAGS) $(OPT) $<
-
-%.o: ../lib/%.c
-	$(CC) -c $(OPT) $<
 
 all: $(PROG)
 
@@ -65,6 +62,6 @@ distclean:
 
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
-	$(CC) -MM $(OPT) $(LIBSRC) >> .depend
+	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
 
 -include .depend

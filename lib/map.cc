@@ -34,7 +34,7 @@ static MapNode* map_string_tag_new_node(const char* key, unsigned tag, MapValue 
 		}
 		nodesz = keylen + value_size <= 8 ? sizeof(MapNode) : sizeof(MapNode) + keylen - 8 + value_size;
 	}
-	MapNode* node = malloc(nodesz);
+	MapNode* node = (MapNode*)malloc(nodesz);
 	strcpy(&node->key.string[0], key);
 	char* val_ptr = &node->key.string[0] + keylen;
 	if (use_tag) {
@@ -60,7 +60,7 @@ static MapNode* map_string_tag_new_node(const char* key, unsigned tag, MapValue 
 
 #define DEFINE_MAP_NEW_NODE_FOR(typ) static MapNode* map_ ## typ ## _new_node(typ key, MapValue value, unsigned int value_size) { \
 	size_t nodesz = sizeof(MapNode) + value_size; \
-	MapNode* node = malloc(nodesz); \
+	MapNode* node = (MapNode*)malloc(nodesz); \
 	node->key.typ = key; \
 	if (value_size) { \
 		memcpy((char*)node + sizeof(MapNode), value.src_ptr, value_size); \

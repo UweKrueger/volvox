@@ -62,7 +62,7 @@ static void Eat(int tok, bool expectBinary = false) {
 static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
                                                 unsigned desired_attrib = 0u);
 
-FullType ParseType() {
+volvox::FullType ParseType() {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
 		switch (CurTok.kind) {
@@ -113,12 +113,12 @@ FullType ParseType() {
 				llvm::Type* ptr = llvm::PointerType::get(elem_type.type, 0);
 				array_type = llvm::StructType::get(ptr, llvm_int_type);
 			}
-			void* array_elem_type = malloc(sizeof(FullType));
-			memcpy(array_elem_type, &elem_type, sizeof(FullType));
-			return FullType{
+			void* array_elem_type = malloc(sizeof(volvox::FullType));
+			memcpy(array_elem_type, &elem_type, sizeof(volvox::FullType));
+			return volvox::FullType{
 				.type = array_type,
 				.nrows = (int)dim,
-				.elem_type = (FullType*)array_elem_type
+				.elem_type = (volvox::FullType*)array_elem_type
 			};
 		}
 			break;
@@ -261,10 +261,10 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, true);
 		auto Elems = SplitExprList(std::move(Elem));
-		FullType el_ft;
+		volvox::FullType el_ft;
 		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(Elems[0].get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map
-				el_ft = *static_cast<FullType*>(bin_expr->RHS.get());
+				el_ft = *static_cast<volvox::FullType*>(bin_expr->RHS.get());
 				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 					if (is_dynamic) {
 						kind = Array;
@@ -546,7 +546,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary.
 	unsigned BinaryPrecedence = 30;
 	std::vector<std::string> ArgNames;
-	std::vector<FullType> ArgTypes;
+	std::vector<volvox::FullType> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes;
 	bool is_method;
 
@@ -629,7 +629,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 noargs:
 	getNextToken(true); // eat ')'.
 	// parse return type(s)
-	std::vector<FullType> RetTypes;
+	std::vector<volvox::FullType> RetTypes;
 	while (CurTok.kind != ';') {
 		auto type = ParseType();
 		if (!type.type)
@@ -692,7 +692,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		if (res_size > 8) {
 			uint64_t alloc_size = TheModule->getDataLayout().getTypeAllocSize(E->type);
 		}
-		std::vector<FullType> TheType = { { E->type, E->type_attr } };
+		std::vector<volvox::FullType> TheType = { { E->type, E->type_attr } };
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, TheType);

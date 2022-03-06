@@ -402,7 +402,7 @@ int main(int argc, char* argv[]) {
 			exit(1);
 		}
 	}
-	is_compiler = true;
+	volvox::is_compiler = true;
 	int len = strlen(input_file_name);
 	auto output_file = (char*)malloc(len + 3);
 	strcpy(output_file, input_file_name);
@@ -450,7 +450,7 @@ int main(int argc, char* argv[]) {
 			"Volvox Compiler", 0, "", 0);
 	}
 	init();
-	dprt("%u %u\n", (unsigned)sizeof(gen_val_type_t), (unsigned)sizeof(int_val_type_t));
+	dprt("%u %u\n", (unsigned)sizeof(volvox::gen_val_type_t), (unsigned)sizeof(int_val_type_t));
 	// Prime the first token.
 	if (comp_mode == comp_jit) {
 		eprt("ready> ");

@@ -227,15 +227,15 @@ class PrototypeAST {
 
 public:
 	std::vector<std::string> Args;
-	std::vector<FullType> ArgTypes;
+	std::vector<volvox::FullType> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
-	std::vector<FullType> RetTypes;
+	std::vector<volvox::FullType> RetTypes;
 	bool IsOperator;
 	int Line;
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, bool IsOperator = false,
-	             std::vector<FullType> RetTypes = {}, std::vector<FullType> ArgTypes = {},
+	             std::vector<volvox::FullType> RetTypes = {}, std::vector<volvox::FullType> ArgTypes = {},
 	             std::vector<llvm::Type*> LLVMArgTypes = {})
 		: Name(Name), Args(Args), IsOperator(IsOperator),
 		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes) {}
