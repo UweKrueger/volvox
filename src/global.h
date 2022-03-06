@@ -6,6 +6,7 @@ extern "C" {
 #include "../lib/map.h"
 }
 #include "../lib/types.h"
+#include "../lib/str.h"
 
 class PrototypeAST;
 class FunctionAST;
@@ -125,11 +126,6 @@ struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned BitWidth : 23; // #bits for int types, 0 for default
 	unsigned is_signed : 1; // signed int?
-};
-
-struct gen_val_type_t {
-	llvm::Type::TypeID ID : 8; // base type
-	unsigned SubclassData : 24;
 };
 
 struct FullVar {

@@ -4,8 +4,16 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
 
+struct gen_val_type_t {
+	llvm::Type::TypeID ID : 8; // base type
+	unsigned SubclassData : 24;
+};
+
 struct FullType {
-	llvm::Type* type;
+	union {
+		llvm::Type* type; // used by compiler
+		gen_val_type_t rt_type; // used by rt-library
+	};
 	unsigned type_attr;
 	int nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
 	int ncolumns;

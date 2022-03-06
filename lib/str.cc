@@ -3,6 +3,8 @@
 #include "types.h"
 #include "str.h"
 
+bool is_compiler = false;
+
 const char* i1::str() { return v ? "true" : "false"; }
 
 const char* i1::fmt = nullptr;
@@ -304,7 +306,7 @@ void vtostr(char** s, unsigned* cap, unsigned* pos, va_list ap) {
 		int p = va_arg(ap, int);
 		unsigned flags = va_arg(ap, unsigned);
 		int space = *cap - *pos;
-		switch (ft->type->getTypeID()) {
+		switch (is_compiler ? ft->type->getTypeID() : ft->rt_type.ID) {
 		case llvm::Type::BFloatTyID:
 		case llvm::Type::FloatTyID:
 		case llvm::Type::DoubleTyID: {
@@ -323,7 +325,7 @@ void vtostr(char** s, unsigned* cap, unsigned* pos, va_list ap) {
 		}
 			break;
 		case llvm::Type::IntegerTyID: {
-			if (ft->type->getIntegerBitWidth() <= 32) {
+			if ((is_compiler ? ft->type->getIntegerBitWidth() : ft->rt_type.SubclassData) <= 32) {
 				int val = va_arg(ap, int);
 				const char* fmt = getFmtInt(flags);
 				int expected_nchar = max(abs(w)+1, 11+1);

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <inttypes.h>
 #include <stdbool.h>
 
@@ -20,6 +22,7 @@
 #define FMT_ALT 64U
 #define FMT_UNSIGNED 128U
 
+extern bool is_compiler;
 
 class i1 {
 public:
