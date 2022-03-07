@@ -307,21 +307,21 @@ namespace volvox {
 			*s = (char*)realloc(*s, *cap);
 		}
 		int space = *cap - *pos;
-		int n = 0;
-		for (;;) {
-			int m = snprintf(*s, space, "%s", pre + n);
-			if (m >= space) {
-				n += space - 1;
-				*cap += (*cap >> 1) + (m - space) + 1;
-				*s = (char*)realloc(*s, *cap);
-				*pos += space - 1;
-				space = *cap - *pos;
-			} else {
-				*pos += m;
-				space = *cap - *pos;
-				break;
+		if (pre)
+			for (int n = 0;;) {
+				int m = snprintf(*s, space, "%s", pre + n);
+				if (m >= space) {
+					n += space - 1;
+					*cap += (*cap >> 1) + (m - space) + 1;
+					*s = (char*)realloc(*s, *cap);
+					*pos += space - 1;
+					space = *cap - *pos;
+				} else {
+					*pos += m;
+					space = *cap - *pos;
+					break;
+				}
 			}
-		}
 		do {
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
