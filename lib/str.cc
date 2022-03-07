@@ -301,29 +301,49 @@ namespace volvox {
 		return a > b ? a : b;
 	}
 
-	void vtostr(char** s, unsigned* cap, unsigned* pos, va_list ap) {
-		char fmt[16] = {};
-		while (FullType* ft = va_arg(ap, FullType*)) {
+	void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, FullType* ft, va_list ap) {
+		if (!*cap) {
+			*cap = 128;
+			*s = (char*)realloc(*s, *cap);
+		}
+		int space = *cap - *pos;
+		int n = 0;
+		for (;;) {
+			int m = snprintf(*s, space, "%s", pre + n);
+			if (m >= space) {
+				n += space - 1;
+				*cap += (*cap >> 1) + (m - space) + 1;
+				*s = (char*)realloc(*s, *cap);
+				*pos += space - 1;
+				space = *cap - *pos;
+			} else {
+				*pos += m;
+				space = *cap - *pos;
+				break;
+			}
+		}
+		do {
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
-			int space = *cap - *pos;
 			switch (is_compiler ? ft->type->getTypeID() : ft->rt_type.ID) {
 			case llvm::Type::BFloatTyID:
 			case llvm::Type::FloatTyID:
+				if (p <= 0) p = F32_DEFAULT_PRECISION;
 			case llvm::Type::DoubleTyID: {
 				double val = va_arg(ap, double);
 				const char* fmt = getFmtFlt(flags);
-				if (p <= 0) p = 16; 
+				if (p <= 0) p = F64_DEFAULT_PRECISION;
 				int expected_nchar = max(abs(w)+1, p+7+1);
 				while (space < expected_nchar) {
-					*cap += *cap ? (expected_nchar + (*cap >> 1)) : 128;
+					*cap += expected_nchar + (*cap >> 1);
 					*s = (char*)realloc(*s, *cap);
 					space = *cap - *pos;
 				}
 				*pos += sprintf(*s, fmt, val);
-				if (*pos + 1 > *cap)
-					abort();
+				space = *cap - *pos;
+				if (space < 1)
+					abort(); // error in calculation 
 			}
 				break;
 			case llvm::Type::IntegerTyID: {
@@ -332,13 +352,14 @@ namespace volvox {
 					const char* fmt = getFmtInt(flags);
 					int expected_nchar = max(abs(w)+1, 11+1);
 					while (space < expected_nchar) {
-						*cap += *cap ? (expected_nchar + (*cap >> 1)) : 128;
+						*cap += expected_nchar + (*cap >> 1);
 						*s = (char*)realloc(*s, *cap);
 						space = *cap - *pos;
 					}
 					*pos += sprintf(*s, fmt, val);
-					if (*pos + 1 > *cap)
-						abort();
+					space = *cap - *pos;
+					if (space < 1)
+						abort(); // error in calculation 
 				} else {
 					abort();
 				}
@@ -347,14 +368,25 @@ namespace volvox {
 			default:
 				abort();
 			}
-		}
+		} while ((ft = va_arg(ap, FullType*)));
 	}
 		
-	void tostr(char** s, unsigned* cap, unsigned* pos, ... /* FullType* ft, int w, int p, unsigned flags, val */) {
+	void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val */) {
 		va_list ap;
-		va_start(ap, pos);
-		vtostr(s, cap, pos, ap);
+		va_start(ap, ft);
+		vsprt(s, cap, pos, pre, ft, ap);
 		va_end(ap);
+	}
+
+	char* str(FullType* ft, ...) {
+		va_list ap;
+		char* s = NULL;
+		unsigned cap = 0;
+		unsigned pos = 0;
+		va_start(ap, ft);
+		sprt(&s, &cap, &pos, nullptr, ft, ap);
+		va_end(ap);
+		return s;
 	}
 
 }

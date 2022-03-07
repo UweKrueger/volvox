@@ -22,6 +22,9 @@
 #define FMT_ALT 64U
 #define FMT_UNSIGNED 128U
 
+#define F32_DEFAULT_PRECISION 8
+#define F64_DEFAULT_PRECISION 17
+
 namespace volvox {
 
 	extern bool is_compiler;
