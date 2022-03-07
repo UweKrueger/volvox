@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <inttypes.h>
+#include <unistd.h>
 #include "types.h"
 #include "str.h"
 
@@ -403,6 +404,33 @@ namespace volvox {
 		sprt(&s, &cap, &pos, nullptr, ft, ap);
 		va_end(ap);
 		return s;
+	}
+
+	bool print(int fd, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+		va_list ap;
+		char* s = NULL;
+		unsigned cap = 0;
+		unsigned pos = 0;
+		va_start(ap, ft);
+		sprt(&s, &cap, &pos, nullptr, ft, ap);
+		va_end(ap);
+		int n = write(fd, s, pos);
+		free(s);
+		return n != pos;
+	}
+
+	bool println(int fd, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+		va_list ap;
+		char* s = NULL;
+		unsigned cap = 0;
+		unsigned pos = 0;
+		va_start(ap, ft);
+		sprt(&s, &cap, &pos, nullptr, ft, ap);
+		va_end(ap);
+		s[pos] = '\n';
+		int n = write(fd, s, pos + 1);
+		free(s);
+		return n != pos + 1;
 	}
 
 }
