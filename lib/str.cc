@@ -4,12 +4,10 @@
 #include "types.h"
 #include "str.h"
 
-extern "C" {
 double qwertz(double x) {
 	double y = x*x;
 	printf("Result of mult: >%g<\n", y);
 	return y;
-}
 }
 
 namespace volvox {

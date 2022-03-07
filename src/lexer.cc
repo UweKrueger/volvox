@@ -69,9 +69,9 @@ Token Lexer::gettok(bool expectBinary) {
 		CurChar = advance();
 	CurLoc = LexLoc;
 
-	if (isalpha(CurChar)) { // identifier: [a-zA-Z][a-zA-Z0-9]*
+	if (isalpha(CurChar) || CurChar == '_') { // identifier: [a-zA-Z_][a-zA-Z0-9_]*
 		IdentifierStr = CurChar;
-		while (isalnum((CurChar = advance())))
+		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
 		if (IdentifierStr == "fn")
 			return Token(tok_fn);
