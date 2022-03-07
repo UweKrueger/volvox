@@ -93,6 +93,82 @@ namespace volvox {
 							return "%0 *D";
 	}
 
+	const char* getFmtLong(unsigned fmt_flags) {
+		if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_NONE)
+			if ((fmt_flags & FMT_UPPER) == 0U)
+				if ((fmt_flags & FMT_ZEROPAD) == 0U)
+					if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
+						if ((fmt_flags & FMT_UNSIGNED) == 0U)
+							return "%*lld";
+						else
+							return "%*llu";
+					else
+						if ((fmt_flags & FMT_ALT) == 0U)
+							return "%#*llx";
+						else
+							return "%*llx";
+				else // FMT_ZEROPAD
+					if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
+						if ((fmt_flags & FMT_UNSIGNED) == 0U)
+							return "%0*lld";
+						else
+							return "%0*llu";
+					else
+						if ((fmt_flags & FMT_ALT) == 0U)
+							return "%#0*llx";
+						else
+							return "%0*llx";
+			else // FMT_UPPER
+				if ((fmt_flags & FMT_ZEROPAD) == 0U)
+					if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
+						if ((fmt_flags & FMT_UNSIGNED) == 0U)
+							return "%*llD";
+						else
+							return "%*llU";
+					else
+						if ((fmt_flags & FMT_ALT) == 0U)
+							return "%#*llX";
+						else
+							return "%*llX";
+				else // FMT_ZEROPAD
+					if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
+						if ((fmt_flags & FMT_UNSIGNED) == 0U)
+							return "%0*llD";
+						else
+							return "%0*llU";
+					else
+						if ((fmt_flags & FMT_ALT) == 0U)
+							return "%#0*llX";
+						else
+							return "%0*llX";
+		else // FMT_PREFIX...
+			if (fmt_flags & (FMT_DISPLAY_HEX | FMT_UNSIGNED))
+				return NULL;
+			else
+				if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_PLUS)
+					if ((fmt_flags & FMT_UPPER) == 0U)
+						if ((fmt_flags & FMT_ZEROPAD) == 0U)
+							return "%+*lld";
+						else // FMT_ZEROPAD
+							return "%0+*lld";
+					else // FMT_UPPER
+						if ((fmt_flags & FMT_ZEROPAD) == 0U)
+							return "%+*llD";
+						else // FMT_ZEROPAD
+							return "%0+*llD";
+				else // FMT_PREFIX_SPACE
+					if ((fmt_flags & FMT_UPPER) == 0U)
+						if ((fmt_flags & FMT_ZEROPAD) == 0U)
+							return "% *lld";
+						else // FMT_ZEROPAD
+							return "%0 *lld";
+					else // FMT_UPPER
+						if ((fmt_flags & FMT_ZEROPAD) == 0U)
+							return "% *llD";
+						else // FMT_ZEROPAD
+							return "%0 *llD";
+	}
+
 	const char* getFmtFlt(unsigned fmt_flags) {
 		if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_NONE)
 			if ((fmt_flags & FMT_UPPER) == 0U)
@@ -351,7 +427,7 @@ namespace volvox {
 				if ((is_compiler ? ft->type->getIntegerBitWidth() : ft->rt_type.SubclassData) <= 32) {
 					int val = va_arg(ap, int);
 					const char* fmt = getFmtInt(flags);
-					int expected_nchar = max(abs(w)+1, 11+1);
+					int expected_nchar = max(abs(w)+1, 21+1);
 					while (space < expected_nchar) {
 						*cap += expected_nchar + (*cap >> 1);
 						*s = (char*)realloc(*s, *cap);
@@ -362,7 +438,18 @@ namespace volvox {
 					if (space < 1)
 						abort(); // error in calculation 
 				} else {
-					abort();
+					long long int val = va_arg(ap, long long int);
+					const char* fmt = getFmtLong(flags);
+					int expected_nchar = max(abs(w)+1, 11+1);
+					while (space < expected_nchar) {
+						*cap += expected_nchar + (*cap >> 1);
+						*s = (char*)realloc(*s, *cap);
+						space = *cap - *pos;
+					}
+					*pos += sprintf(*s, fmt, val);
+					space = *cap - *pos;
+					if (space < 1)
+						abort(); // error in calculation
 				}
 			}
 				break;
