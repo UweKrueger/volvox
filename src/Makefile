@@ -34,6 +34,8 @@ OBJS := main.o lexer.o parser.o token.o codegen.o types.o
 
 LIB := map.o str.o
 
+LIBLIB := libvolvox.so.0
+
 SRCS := $(OBJS:%.o=%.cc)
 
 LIBSRC := $(LIB:%.o=../lib/%.cc)
@@ -42,15 +44,19 @@ LIBSRC := $(LIB:%.o=../lib/%.cc)
 	$(CXX) -c $(CXXFLAGS) $(OPT) -include-pch $(PCH) $<
 
 %.o: ../lib/%.cc
-	$(CXX) -c $(CXXFLAGS) $(OPT) $<
+	$(CXX) -c $(CXXFLAGS) -fPIC $(OPT) $<
 
 all: $(PROG)
 
 $(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh
 	$(CXX) $(CXXFLAGS) $(OPT) $<
 
-$(PROG): $(OBJS) $(LIB)
-	$(CXX) -o $@ $+ $(LDFLAGS) $(OPT) $(LINKEXTRAFLAGS)
+$(LIBLIB): $(LIB)
+	$(CXX) -shared -fPIC -Wl,-soname,$(LIBLIB) -o $(LIBLIB) $(LIB)
+	ln -sf $(LIBLIB) libvolvox.so
+
+$(PROG): $(OBJS) $(LIBLIB)
+	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L. -lvolvox -Wl,-rpath,$(shell pwd) $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:
@@ -58,7 +64,7 @@ clean:
 
 .PHONY: distclean
 distclean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIB) *~ ../include/*~ ../include/*.gch .depend
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIB) $(LIBLIB) *~ ../include/*~ ../include/*.gch .depend
 
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
