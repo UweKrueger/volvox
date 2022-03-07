@@ -368,6 +368,22 @@ namespace volvox {
 			default:
 				abort();
 			}
+			const char* post = va_arg(ap, char*);
+			if (post)
+				for (int n = 0;;) {
+					int m = snprintf(*s, space, "%s", post + n);
+					if (m >= space) {
+						n += space - 1;
+						*cap += (*cap >> 1) + (m - space) + 1;
+						*s = (char*)realloc(*s, *cap);
+						*pos += space - 1;
+						space = *cap - *pos;
+					} else {
+						*pos += m;
+						space = *cap - *pos;
+						break;
+					}
+				}
 		} while ((ft = va_arg(ap, FullType*)));
 	}
 		
