@@ -335,7 +335,7 @@ static void HandleTopLevelExpression() {
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	while (true) {
-		if (comp_mode == comp_jit) {
+		if (comp_mode == comp_jit && cur_input_fd == 0) {
 			eprt(CurTok.kind == tok_eof ? "\n" : "ready> ");
 		}
 		switch (CurTok.kind) {
@@ -384,7 +384,9 @@ extern "C" DLLEXPORT double printd(double X) {
 //===----------------------------------------------------------------------===//
 
 const char* input_file_name = "/dev/stdin";
+const char* builtin_file_name = "builtin.vx";
 int input_fd = 0;
+int cur_input_fd;
 
 int main(int argc, char* argv[]) {
 	if (argc == 1) {
@@ -397,11 +399,18 @@ int main(int argc, char* argv[]) {
 			input_file_name = argv[1];
 		}
 		input_fd = open(input_file_name, O_CLOEXEC);
-		if (!input_fd) {
+		if (input_fd < 0) {
 			eprt("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
 			exit(1);
 		}
 	}
+	// always read builtin definitions first
+	cur_input_fd = open(builtin_file_name, O_CLOEXEC);
+	if (cur_input_fd < 0) {
+		eprt("Cannot opendefinition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
+		exit(1);
+	}
+
 	volvox::is_compiler = true;
 	int len = strlen(input_file_name);
 	auto output_file = (char*)malloc(len + 3);
@@ -452,9 +461,6 @@ int main(int argc, char* argv[]) {
 	init();
 	dprt("%u %u\n", (unsigned)sizeof(volvox::gen_val_type_t), (unsigned)sizeof(int_val_type_t));
 	// Prime the first token.
-	if (comp_mode == comp_jit) {
-		eprt("ready> ");
-	}
 	getNextToken();
 	// Run the main "interpreter loop" now.
 	MainLoop();

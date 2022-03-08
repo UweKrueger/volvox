@@ -5,7 +5,7 @@
 // Lexer
 //===----------------------------------------------------------------------===//
 
-static ssize_t fdgetline(char **lineptr, size_t *n, int stream) {
+static ssize_t fdgetline(char **lineptr, size_t *n) {
     if (!(*lineptr)) {
 	    *n = 100;
 	    *lineptr = (char*)malloc(*n);
@@ -15,9 +15,20 @@ static ssize_t fdgetline(char **lineptr, size_t *n, int stream) {
 	    int c;
 	    do {
 		    c = 0;
-		    int n = read(stream, &c, 1);
-		    if (n != 1)
-			    c = EOF;
+		    int n = read(cur_input_fd, &c, 1);
+		    if (n != 1) {
+			    if (cur_input_fd != input_fd) {
+				    // This was just the initialization file for builtins
+				    // now switch to real input
+				    cur_input_fd = input_fd;
+				    if (comp_mode == comp_jit && cur_input_fd == 0) {
+					    eprt("ready> ");
+				    }
+				    c = '\r'; // abuse Windows logic to repeat read
+			    } else {
+				    c = EOF;
+			    }
+		    }
 	    } while (c == '\r');
 	    if (c == EOF)
 		    return -1;
@@ -40,7 +51,7 @@ static int CurChar = ' ';
 
 int Lexer::advance() {
 	if (LexLoc.Col >= linelen) {
-		linelen = fdgetline(&linebuf, &bufsize, input_fd);
+		linelen = fdgetline(&linebuf, &bufsize);
 		if (linelen <= 0) {
 			return EOF;
 		}
