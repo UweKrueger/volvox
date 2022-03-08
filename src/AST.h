@@ -230,15 +230,16 @@ public:
 	std::vector<volvox::FullType> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
 	std::vector<volvox::FullType> RetTypes;
+	bool IsVarArgs;
 	bool IsOperator;
 	int Line;
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, bool IsOperator = false,
 	             std::vector<volvox::FullType> RetTypes = {}, std::vector<volvox::FullType> ArgTypes = {},
-	             std::vector<llvm::Type*> LLVMArgTypes = {})
+	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
 		: Name(Name), Args(Args), IsOperator(IsOperator),
-		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes) {}
+		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
