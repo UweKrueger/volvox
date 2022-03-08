@@ -549,6 +549,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	std::vector<volvox::FullType> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes;
 	bool is_method;
+	bool isVarArgs = false;
 
 	switch (CurTok.kind) {
 	case '(': {
@@ -611,8 +612,17 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	if (CurTok.kind == ')')
 		goto noargs;
 	for (;;) {
-		if (CurTok.kind != tok_identifier)
+		if (CurTok.kind != tok_identifier) {
+			if (CurTok.kind == tok_ellipsis) {
+				isVarArgs = true;
+				getNextToken();
+				if (CurTok.kind != ')')
+					return LogErrorP("Unexpected `%s` after `...` - `)` expected\n", CurTok.str().c_str());
+				else
+					break;
+			}
 			return LogErrorP("Unexpected `%s` in function arg list - arg name expected\n", CurTok.str().c_str());
+		}	
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		auto type = ParseType();
@@ -642,7 +652,7 @@ noargs:
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetTypes, ArgTypes, LLVMArgTypes);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetTypes, ArgTypes, LLVMArgTypes, isVarArgs);
 }
 
 /// definition ::= 'fn' prototype expression
