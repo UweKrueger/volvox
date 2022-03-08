@@ -662,7 +662,7 @@ llvm::Value *CallExprAST::codegen() {
 		return LogErrorV("Unknown function referenced");
 
 	// If argument mismatch error.
-	if (CalleeF.first->arg_size() != Args.size() || CalleeF.first->arg_size() != CalleeF.second->Args.size())
+	if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())
 		return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<llvm::Value *> ArgsV;
