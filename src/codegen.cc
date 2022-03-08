@@ -882,7 +882,7 @@ llvm::Function *PrototypeAST::codegen() {
 	if (!RetType) // RetTypes[0] exists but type could not be derived
 		return nullptr;
 	llvm::FunctionType *FT =
-		llvm::FunctionType::get(RetType, LLVMArgTypes, false);
+		llvm::FunctionType::get(RetType, LLVMArgTypes, IsVarArgs);
 
 	llvm::Function *F =
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
