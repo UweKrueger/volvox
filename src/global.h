@@ -36,7 +36,8 @@ enum TokenKind {
 	tok_unary = -11, // +, -, !, ~, &, <-
 	tok_pow = -12, // **
 	tok_postfix = -13, // ++, -- (return old result)
-	tok_last_op = -14, // only used for comparisons to identify operators
+	tok_selector = -14, // . (struct.field, module.ident)
+	tok_last_op = -15, // only used for comparisons to identify operators
 
 	tok_eof = -20,
 

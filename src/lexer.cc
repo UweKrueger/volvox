@@ -73,7 +73,7 @@ Token Lexer::purge_line() {
 
 Token Lexer::gettok(bool expectBinary) {
 
-	// Skip any whitespace but recorgnize newline if it could be as separator
+	// Skip any whitespace but recorgnize newline as it could be a separator
 	while (expectBinary ? isblank(CurChar) : isspace(CurChar))
 		CurChar = advance();
 	CurLoc = LexLoc;
@@ -293,6 +293,22 @@ Token Lexer::gettok(bool expectBinary) {
 		IdentifierStr = CurChar;
 		CurChar = advance();
 		return tok_unary;
+	case '.':
+		IdentifierStr = CurChar;
+		CurChar = advance();
+		if (CurChar == '.') {
+			IdentifierStr += CurChar;
+			CurChar = advance();
+			if (CurChar == '.') {
+				IdentifierStr += CurChar;
+				CurChar = advance();
+				return tok_ellipsis;
+			} else {
+				return tok_range;
+			}
+		} else {
+			return tok_selector;
+		}
 	case '<':
 		if (linebuf[LexLoc.Col] == '-') {
 			IdentifierStr = "<-";
