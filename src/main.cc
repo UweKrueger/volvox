@@ -407,7 +407,7 @@ int main(int argc, char* argv[]) {
 	// always read builtin definitions first
 	cur_input_fd = open(builtin_file_name, O_CLOEXEC);
 	if (cur_input_fd < 0) {
-		eprt("Cannot opendefinition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
+		eprt("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
 		exit(1);
 	}
 
