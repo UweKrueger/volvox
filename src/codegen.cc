@@ -666,18 +666,22 @@ llvm::Value *CallExprAST::codegen() {
 		return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<llvm::Value *> ArgsV;
-	for (unsigned i = 0, e = Args.size(); i != e; ++i) {
-		auto conversion = getConv(
-			Args[i]->type, CalleeF.second->ArgTypes[i].type,
-			Args[i]->type_attr, CalleeF.second->ArgTypes[i].type_attr,
-			Args[i]->Loc, false, Args[i]->is_unknown_type);
-		if (!conversion)
-			return nullptr;
-		ArgsV.push_back(conversion(Args[i]->codegen()));
+	for (unsigned i = 0, e = Args.size(), v = CalleeF.second->Args.size(); i != e; ++i) {
+		if (i < v) {
+			auto conversion = getConv(
+				Args[i]->type, CalleeF.second->ArgTypes[i].type,
+				Args[i]->type_attr, CalleeF.second->ArgTypes[i].type_attr,
+				Args[i]->Loc, false, Args[i]->is_unknown_type);
+			if (!conversion)
+				return nullptr;
+			ArgsV.push_back(conversion(Args[i]->codegen()));
+		} else {
+			ArgsV.push_back(Args[i]->codegen());
+		}
 		if (!ArgsV.back())
 			return nullptr;
 	}
-
+	
 	return Builder->CreateCall(CalleeF.first, ArgsV, "calltmp");
 }
 
