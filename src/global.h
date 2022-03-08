@@ -437,7 +437,7 @@ public:
 };
 
 extern Lexer lex;
-extern FILE* input_file;
+extern int input_fd;
 extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               unsigned expr_attr, unsigned desired_attr, const char* reason);
 extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b);

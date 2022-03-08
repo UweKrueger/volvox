@@ -45,3 +45,7 @@
 #include <stdarg.h>
 #include <string.h>
 #include <inttypes.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <fcntl.h>

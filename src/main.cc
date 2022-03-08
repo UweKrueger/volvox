@@ -384,7 +384,7 @@ extern "C" DLLEXPORT double printd(double X) {
 //===----------------------------------------------------------------------===//
 
 const char* input_file_name = "/dev/stdin";
-FILE* input_file = stdin;
+int input_fd = 0;
 
 int main(int argc, char* argv[]) {
 	if (argc == 1) {
@@ -396,8 +396,8 @@ int main(int argc, char* argv[]) {
 		} else {
 			input_file_name = argv[1];
 		}
-		input_file = fopen(input_file_name, "r");
-		if (!input_file) {
+		input_fd = open(input_file_name, O_CLOEXEC);
+		if (!input_fd) {
 			eprt("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
 			exit(1);
 		}

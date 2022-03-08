@@ -5,9 +5,7 @@
 // Lexer
 //===----------------------------------------------------------------------===//
 
-#if defined (_WIN32)
-
-static ssize_t getline(char **lineptr, size_t *n, FILE *stream) {
+static ssize_t fdgetline(char **lineptr, size_t *n, int stream) {
     if (!(*lineptr)) {
 	    *n = 100;
 	    *lineptr = (char*)malloc(*n);
@@ -16,7 +14,10 @@ static ssize_t getline(char **lineptr, size_t *n, FILE *stream) {
     for (;;) {
 	    int c;
 	    do {
-		    c = fgetc(stream);
+		    c = 0;
+		    int n = read(stream, &c, 1);
+		    if (n != 1)
+			    c = EOF;
 	    } while (c == '\r');
 	    if (c == EOF)
 		    return -1;
@@ -33,16 +34,13 @@ static ssize_t getline(char **lineptr, size_t *n, FILE *stream) {
     return offset;
 }
 
-#endif
-
-
 SourceLocation CurLoc = {0, 0};
 SourceLocation LexLoc = {0, 0};
 static int CurChar = ' ';
 
 int Lexer::advance() {
 	if (LexLoc.Col >= linelen) {
-		linelen = getline(&linebuf, &bufsize, input_file);
+		linelen = fdgetline(&linebuf, &bufsize, input_fd);
 		if (linelen <= 0) {
 			return EOF;
 		}
