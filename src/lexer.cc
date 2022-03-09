@@ -104,6 +104,8 @@ Token Lexer::gettok(bool expectBinary) {
 			return Token(true);
 		if (IdentifierStr == "false")
 			return Token(false);
+		if (IdentifierStr == "nullptr")
+			return Token((void*)0);
 		return Token(tok_identifier);
 	}
 	// Binary Operators

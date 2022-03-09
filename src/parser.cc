@@ -162,6 +162,12 @@ static std::unique_ptr<ExprAST> ParseStringExpr() {
 	return Result;
 }
 
+static std::unique_ptr<ExprAST> ParsePointerExpr() {
+	auto Result = std::make_unique<LiteralExprAST>(CurTok);
+	getNextToken(true); // consume the pointer
+	return Result;
+}
+
 /// parenexpr ::= '(' expression ')'
 static std::unique_ptr<ExprAST> ParseParenExpr(llvm::Type* desired_type = nullptr,
                                                unsigned desired_attrib = 0u) {
@@ -389,6 +395,8 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
 		return ParseNumberExpr();
 	case tok_str_lit:
 		return ParseStringExpr();
+	case tok_ptr_lit:
+		return ParsePointerExpr();
 	case '(':
 		return ParseParenExpr();
 	case '{':

@@ -15,8 +15,8 @@ class LiteralExprAST : public ExprAST {
 public:
 	union LitValue Val;
 	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
-		  ((tok.int_type.ID == llvm::Type::IntegerTyID &&
-		    tok.int_type.is_signed) ? A_signed : 0), Loc, tok.is_unknown_type, nullptr, 0, true), Val(tok.Val) {}
+		  (((tok.int_type.ID == llvm::Type::IntegerTyID &&
+		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type, nullptr, 0, true), Val(tok.Val) {}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (type->getTypeID()) {
@@ -31,7 +31,10 @@ public:
 		case llvm::Type::DoubleTyID:
 			return ExprAST::dump(out << Val.Float, ind);
 		case llvm::Type::PointerTyID:
-			return ExprAST::dump(out << Val.Str, ind);
+			if (type_attr & A_signed)
+				return ExprAST::dump(out << Val.Ptr, ind);
+			else
+				return ExprAST::dump(out << Val.Str, ind);
 		default:
 			eprt("internal compiler error: unhandled literal type %d\n", type->getTypeID());
 			return out;

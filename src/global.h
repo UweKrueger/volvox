@@ -50,6 +50,7 @@ enum TokenKind {
 	tok_identifier = -40,
 	tok_number = -41,
 	tok_str_lit = -42,
+	tok_ptr_lit = -43,
 
 	// control
 	tok_if = -50,
@@ -90,7 +91,7 @@ extern llvm::Type* llvm_size_type;
 extern unsigned anon_struct_nr;
 
 // Type Attributes
-#define A_signed (1U<<0)
+#define A_signed (1U<<0) // also used for imaginary, string
 #define A_const  (1U<<1)
 #define A_shared (1U<<2)
 #define A_iso    (1U<<3)
@@ -362,14 +363,23 @@ union LitValue {
 	int64_t Int;
 	double Float;
 	char* Str;
+	void* Ptr;
 };
 
 class Token {
 public:
 	int kind;
+	union {
+		int_val_type_t int_type;
+		volvox::gen_val_type_t gen_type;
+		unsigned key;
+	};
+	union LitValue Val;
 	bool is_unknown_type;
+
 	Token(int kind = 0) : kind(kind) {}
 	Token(char** s_ptr);
+	Token(void* ptr);
 	Token(const std::string& str);
 	Token(bool truth) : kind(tok_number) {
 		Val.Uint = truth ? 1UL : 0UL;
@@ -377,12 +387,6 @@ public:
 	}
 	static std::string tokName(int kind);
 	std::string tokName() const { return tokName(kind); }
-	union {
-		int_val_type_t int_type;
-		volvox::gen_val_type_t gen_type;
-		unsigned key;
-	};
-	union LitValue Val;
 	std::string str() const {
 		switch (kind) {
 		case tok_identifier:
