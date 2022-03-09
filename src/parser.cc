@@ -267,6 +267,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, true);
 		auto Elems = SplitExprList(std::move(Elem));
+		dprt("Array initialized with %d elements\n", Elems.size());
 		volvox::FullType el_ft;
 		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(Elems[0].get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map

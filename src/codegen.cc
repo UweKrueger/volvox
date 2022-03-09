@@ -101,6 +101,12 @@ llvm::Value *AggregateExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	std::vector<llvm::Constant*> Initializers;
+	for (auto& e: Elements)
+		if (is_compile_time_const)
+			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(e->codegen()));
+		else
+			Initializers.push_back(llvm::Constant::getNullValue(elem_type->type));
 	return llvm::ConstantArray::get(reinterpret_cast<llvm::ArrayType*>(type), Initializers);
 }
 

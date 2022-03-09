@@ -465,6 +465,11 @@ namespace volvox {
 				}
 			}
 				break;
+			case llvm::Type::ArrayTyID:
+				fprintf(stderr, "\nArray: %d %d %d \n", ft->nrows, ft->ncolumns, ft->nelem);
+				fflush(stderr);
+				
+				break;
 			default:
 				abort();
 			}

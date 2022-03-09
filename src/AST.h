@@ -108,7 +108,6 @@ enum AggregateKind {
 
 class AggregateExprAST : public ExprAST {
 	std::vector<std::unique_ptr<ExprAST>> Elements;
-	std::vector<llvm::Constant*> Initializers;
 	AggregateKind kind;
 public:
 	AggregateExprAST(SourceLocation Loc, AggregateKind k,
@@ -123,17 +122,16 @@ public:
 					elem_type = el_type;
 				else
 					elem_type = Elements[0].get();
-				type = llvm::ArrayType::get(elem_type->type, Initializers.size());
+				type = llvm::ArrayType::get(elem_type->type, Elements.size());
+				nrows = Elements.size();
 				is_compile_time_const = true;
-				dprt("CTC: true\n");
+				dprt("CTC: true, nrows: %d\n", nrows);
 				for (auto& e: Elements)
 					if (!e->is_compile_time_const) {
 						is_compile_time_const = false;
-						dprt("CTC: false\n");
-						Initializers.push_back(llvm::Constant::getNullValue(elem_type->type));
-					} else {
-						Initializers.push_back(llvm::dyn_cast<llvm::Constant>(e->codegen()));
+						break;
 					}
+				dprt("CTC: %s\n", is_compile_time_const ? "true" : "false");
 			}
 		}
 	const char* KindName();
