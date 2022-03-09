@@ -680,9 +680,9 @@ llvm::Value *CallExprAST::codegen() {
 				return nullptr;
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
-			if (Args[i]->type->getTypeID() != CalleeF.second->ArgTypes[i].type->getTypeID())
+			if (i < v && Args[i]->type->getTypeID() != CalleeF.second->ArgTypes[i].type->getTypeID())
 				// TODO: better check compatibility
-				return LogErrorV("Wrong type passed for function arg #%d", i);
+				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->type->getTypeID(), CalleeF.second->ArgTypes[i].type->getTypeID());
 			ArgsV.push_back(Args[i]->codegen());
 		}
 		if (!ArgsV.back())

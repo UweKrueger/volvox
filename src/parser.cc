@@ -691,6 +691,9 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 }
 
 /// toplevelexpr ::= expression
+
+static volvox::FullType keep_ft;
+
 std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
@@ -710,12 +713,27 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		if (res_size > 8) {
 			uint64_t alloc_size = TheModule->getDataLayout().getTypeAllocSize(E->type);
 		}
-		std::vector<volvox::FullType> TheType = { { E->type, E->type_attr } };
+		std::vector<volvox::FullType> TheType = { { llvm::Type::getInt1Ty(*Context.getContext()), 0 } };
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
-		ExprList.push_back(std::move(E));
+		std::string volvox_println = "_ZN6volvox7printlnEPKcPNS_8FullTypeEz";
+		keep_ft = *(volvox::FullType*)E.get();
+		auto tok = Token((void*)&keep_ft);
+		auto ft_expr = std::make_unique<LiteralExprAST>(tok);
+		eprt("FT: %u\n", ft_expr->type->getTypeID());
+		std::vector<std::unique_ptr<ExprAST>> PrintArgs;
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
+		PrintArgs.push_back(std::move(ft_expr));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		PrintArgs.push_back(std::move(E));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
+		auto print_call = std::make_unique<CallExprAST>(FnLoc, volvox_println, std::move(PrintArgs));
+		ExprList.push_back(std::move(print_call));
 		auto ProtoRef = Proto.get();
 		FunctionProtos[Proto->getName()] = std::move(Proto);
 		return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return);

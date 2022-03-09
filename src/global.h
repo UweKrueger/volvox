@@ -385,6 +385,14 @@ public:
 		Val.Uint = truth ? 1UL : 0UL;
 		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 1, .is_signed = false };
 	}
+	Token(long long n) : kind(tok_number) {
+		Val.Int = n;
+		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
+	}
+	Token(double x) : kind(tok_number) {
+		Val.Float = x;
+		gen_type = { .ID = llvm::Type::DoubleTyID };
+	}
 	static std::string tokName(int kind);
 	std::string tokName() const { return tokName(kind); }
 	std::string str() const {

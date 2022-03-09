@@ -423,7 +423,7 @@ namespace volvox {
 					*s = (char*)realloc(*s, *cap);
 					space = *cap - *pos;
 				}
-				*pos += sprintf(*s, fmt, val);
+				*pos += sprintf(*s, fmt, w, p, val);
 				space = *cap - *pos;
 				if (space < 1)
 					abort(); // error in calculation 
@@ -439,7 +439,7 @@ namespace volvox {
 						*s = (char*)realloc(*s, *cap);
 						space = *cap - *pos;
 					}
-					*pos += sprintf(*s, fmt, val);
+					*pos += sprintf(*s, fmt, w, p, val);
 					space = *cap - *pos;
 					if (space < 1)
 						abort(); // error in calculation 
@@ -504,7 +504,7 @@ namespace volvox {
 		char* s = NULL;
 		unsigned cap = 0;
 		unsigned pos = 0;
-		sprt(&s, &cap, &pos, pre, ft, ap);
+		vsprt(&s, &cap, &pos, pre, ft, ap);
 		unsigned bytes_to_write = pos;
 		if (newline) {
 			s[pos] = '\n';
