@@ -54,7 +54,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	} else {
 		Val.Uint = strtoull(*s_ptr, &endptr, 0);
 	}
-	int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 64, .is_signed = true };
+	int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
 	if (errno != 0) {
 		Val.Int = errno;
 		*s_ptr = endptr;
