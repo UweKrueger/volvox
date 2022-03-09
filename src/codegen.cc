@@ -87,7 +87,10 @@ llvm::Value *LiteralExprAST::codegen() {
 	case llvm::Type::DoubleTyID:
 		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
-		return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
+		if (type_attr & A_signed)
+			return Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), Val.Uint, false), llvm::Type::getInt8PtrTy(*Context.getContext()));
+		else
+			return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
 	default:
 		eprt("internal compiler error: unhandled literal type %d\n", type->getTypeID());
 		return nullptr;
@@ -667,7 +670,8 @@ llvm::Value *CallExprAST::codegen() {
 
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(), v = CalleeF.second->Args.size(); i != e; ++i) {
-		if (i < v) {
+		if (i < v && (CalleeF.second->ArgTypes[i].type->isIntegerTy() || CalleeF.second->ArgTypes[i].type->isFloatingPointTy())) {
+			dprt("Try to get conversion\n");
 			auto conversion = getConv(
 				Args[i]->type, CalleeF.second->ArgTypes[i].type,
 				Args[i]->type_attr, CalleeF.second->ArgTypes[i].type_attr,
@@ -676,6 +680,9 @@ llvm::Value *CallExprAST::codegen() {
 				return nullptr;
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
+			if (Args[i]->type->getTypeID() != CalleeF.second->ArgTypes[i].type->getTypeID())
+				// TODO: better check compatibility
+				return LogErrorV("Wrong type passed for function arg #%d", i);
 			ArgsV.push_back(Args[i]->codegen());
 		}
 		if (!ArgsV.back())

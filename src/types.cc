@@ -258,7 +258,7 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
                        bool left_is_unknown_type, bool right_is_unknown_type,
                        const char* Op, SourceLocation Loc)
 {
-	if (!left_type) // variable declaration, i.e. := operator
+	if (!left_type || Op[0] == ',') // variable declaration, i.e. := operator
 		return {{ nullptr, nullptr, nullptr, 0, false, nullptr }, { nullptr, nullptr, nullptr, 0, false, nullptr }};
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
