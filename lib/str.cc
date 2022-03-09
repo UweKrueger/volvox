@@ -405,7 +405,7 @@ namespace volvox {
 					break;
 				}
 			}
-		do {
+		while (ft) {
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
@@ -478,7 +478,8 @@ namespace volvox {
 						break;
 					}
 				}
-		} while ((ft = va_arg(ap, FullType*)));
+			 ft = va_arg(ap, FullType*);
+		}
 	}
 		
 	void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val */) {
@@ -503,7 +504,7 @@ namespace volvox {
 		char* s = NULL;
 		unsigned cap = 0;
 		unsigned pos = 0;
-		sprt(&s, &cap, &pos, nullptr, ft, ap);
+		sprt(&s, &cap, &pos, pre, ft, ap);
 		unsigned bytes_to_write = pos;
 		if (newline) {
 			s[pos] = '\n';
@@ -533,7 +534,7 @@ namespace volvox {
 	bool print(const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
-		bool has_succeeded = vfprint(0, false, pre, ft, ap);
+		bool has_succeeded = vfprint(1, false, pre, ft, ap);
 		va_end(ap);
 		return has_succeeded;
 	}
@@ -541,7 +542,7 @@ namespace volvox {
 	bool println(const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
-		bool has_succeeded = vfprint(0, true, pre, ft, ap);
+		bool has_succeeded = vfprint(1, true, pre, ft, ap);
 		va_end(ap);
 		return has_succeeded;
 	}
