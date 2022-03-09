@@ -409,6 +409,8 @@ namespace volvox {
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
+			fprintf(stderr, "\nID: %u\n", is_compiler ? ft->type->getTypeID() : ft->rt_type.ID);
+			fflush(stderr);
 			switch (is_compiler ? ft->type->getTypeID() : ft->rt_type.ID) {
 			case llvm::Type::BFloatTyID:
 			case llvm::Type::FloatTyID:
@@ -423,7 +425,7 @@ namespace volvox {
 					*s = (char*)realloc(*s, *cap);
 					space = *cap - *pos;
 				}
-				*pos += sprintf(*s, fmt, w, p, val);
+				*pos += sprintf(*s + *pos, fmt, w, p, val);
 				space = *cap - *pos;
 				if (space < 1)
 					abort(); // error in calculation 
@@ -433,26 +435,30 @@ namespace volvox {
 				if ((is_compiler ? ft->type->getIntegerBitWidth() : ft->rt_type.SubclassData) <= 32) {
 					int val = va_arg(ap, int);
 					const char* fmt = getFmtInt(flags);
+					fprintf(stderr, "\nfmt: %s\n", fmt);
+					fflush(stderr);
 					int expected_nchar = max(abs(w)+1, 21+1);
 					while (space < expected_nchar) {
 						*cap += expected_nchar + (*cap >> 1);
 						*s = (char*)realloc(*s, *cap);
 						space = *cap - *pos;
 					}
-					*pos += sprintf(*s, fmt, w, p, val);
+					*pos += sprintf(*s + *pos, fmt, w, val);
 					space = *cap - *pos;
 					if (space < 1)
 						abort(); // error in calculation 
 				} else {
 					long long int val = va_arg(ap, long long int);
 					const char* fmt = getFmtLong(flags);
+					fprintf(stderr, "\nfmtL: %s\n", fmt);
+					fflush(stderr);
 					int expected_nchar = max(abs(w)+1, 11+1);
 					while (space < expected_nchar) {
 						*cap += expected_nchar + (*cap >> 1);
 						*s = (char*)realloc(*s, *cap);
 						space = *cap - *pos;
 					}
-					*pos += sprintf(*s, fmt, val);
+					*pos += sprintf(*s + *pos, fmt, w, val);
 					space = *cap - *pos;
 					if (space < 1)
 						abort(); // error in calculation
@@ -465,7 +471,7 @@ namespace volvox {
 			const char* post = va_arg(ap, char*);
 			if (post)
 				for (int n = 0;;) {
-					int m = snprintf(*s, space, "%s", post + n);
+					int m = snprintf(*s + *pos, space, "%s", post + n);
 					if (m >= space) {
 						n += space - 1;
 						*cap += (*cap >> 1) + (m - space) + 1;
