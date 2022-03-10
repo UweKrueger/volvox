@@ -384,27 +384,34 @@ namespace volvox {
 		return a > b ? a : b;
 	}
 
+	// similar to strcat but assures enough space
+	void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str) {
+		int space = *cap - *pos;
+		for (int n = 0;;) {
+			int m = snprintf(*s + *pos, space, "%s", str + n);
+			if (m >= space) {
+				n += space - 1;
+				*cap += (*cap >> 1) + (m - space) + 1;
+				*s = (char*)realloc(*s, *cap);
+				*pos += space - 1;
+				space = *cap - *pos;
+			} else {
+				*pos += m;
+				break;
+			}
+		}
+	}
+
+	void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val */);
+
 	void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, FullType* ft, va_list ap) {
 		if (!*cap) {
 			*cap = 128;
 			*s = (char*)realloc(*s, *cap);
 		}
-		int space = *cap - *pos;
 		if (pre)
-			for (int n = 0;;) {
-				int m = snprintf(*s, space, "%s", pre + n);
-				if (m >= space) {
-					n += space - 1;
-					*cap += (*cap >> 1) + (m - space) + 1;
-					*s = (char*)realloc(*s, *cap);
-					*pos += space - 1;
-					space = *cap - *pos;
-				} else {
-					*pos += m;
-					space = *cap - *pos;
-					break;
-				}
-			}
+			prtstring(s, cap, pos, pre);
+		int space = *cap - *pos;
 		while (ft) {
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
@@ -465,31 +472,26 @@ namespace volvox {
 				}
 			}
 				break;
-			case llvm::Type::ArrayTyID:
+			case llvm::Type::ArrayTyID: {
+				char* elem_ptr = va_arg(ap, char*);
+				int elem_size;
 				fprintf(stderr, "\nArray: %d %d %d \n", ft->nrows, ft->ncolumns, ft->nelem);
 				fflush(stderr);
-				
+				for (int i = 0; i < ft->nrows; i++)
+					sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((int*)elem_ptr + i), nullptr, nullptr);
+				prtstring(s, cap, pos, " ]");
+				space = *cap - *pos;
+			}
 				break;
 			default:
 				abort();
 			}
 			const char* post = va_arg(ap, char*);
-			if (post)
-				for (int n = 0;;) {
-					int m = snprintf(*s + *pos, space, "%s", post + n);
-					if (m >= space) {
-						n += space - 1;
-						*cap += (*cap >> 1) + (m - space) + 1;
-						*s = (char*)realloc(*s, *cap);
-						*pos += space - 1;
-						space = *cap - *pos;
-					} else {
-						*pos += m;
-						space = *cap - *pos;
-						break;
-					}
-				}
-			 ft = va_arg(ap, FullType*);
+			if (post) {
+				prtstring(s, cap, pos, post);
+				space = *cap - *pos;
+			}
+			ft = va_arg(ap, FullType*);
 		}
 	}
 		
