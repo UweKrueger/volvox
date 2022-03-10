@@ -705,6 +705,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				return nullptr;
 			}
 		}
+		dprt("anonymous expression - TypeID: %u\n", E->type->getTypeID());
 		// Make an anonymous proto.
 		uint64_t res_size = TheModule->getDataLayout().getTypeStoreSize(E->type);
 		if (res_size > 8) {
@@ -715,10 +716,11 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		                                            std::vector<std::string>(),
 		                                            false, TheType);
 		// the type must survive this call to ParseTopLevelExpr() - so make it static
-		static volvox::FullType keep_ft = *(volvox::FullType*)E.get();
+		static volvox::FullType keep_ft;
+		keep_ft = *E;
 		auto tok = Token((void*)&keep_ft);
 		auto ft_expr = std::make_unique<LiteralExprAST>(tok);
-		eprt("FT: %u\n", ft_expr->type->getTypeID());
+		eprt("FT: %u %u\n", ft_expr->type->getTypeID(), keep_ft.type->getTypeID());
 
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		if (E->type->isAggregateType())
