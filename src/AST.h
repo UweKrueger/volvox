@@ -62,6 +62,7 @@ public:
 	}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
+	llvm::Value *codegen_ref(); // create reference to this variable
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);
@@ -197,7 +198,8 @@ public:
 	std::unique_ptr<ExprAST> LHS, RHS;
 	BinOpConvSet conv;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
-	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv, llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0)
+	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv = {},
+	              llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0)
 		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib,
 		          _RHS->is_unknown_type && _LHS->is_unknown_type,
 		          _RHS->is_compile_time_const && (_LHS->is_compile_time_const || !strcmp(Op, ":"))),

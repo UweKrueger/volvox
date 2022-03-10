@@ -137,7 +137,39 @@ llvm::Value *VariableExprAST::codegen() {
 	return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
 }
 
+llvm::Value *VariableExprAST::codegen_ref() {
+	dprt("create pointer to variable %s\n", Name.c_str());
+	if (!full_var.first)
+		return LogErrorV("Unknown variable name1 %s", Name.c_str());
+	auto PtrTy = full_var.first->ft.type->getPointerTo();
+	if (full_var.second && comp_mode == comp_jit) {
+		size_t var_offset = (size_t)full_var.first->val;
+		dprt("var offset: %llu %p\n", var_offset, &__volvox_jit_tls_ptr);
+		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
+		auto uIntTLS = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)&__volvox_jit_tls_ptr);
+		auto uIntValPtr = Builder->CreateAdd(uIntTLS, Offset);
+		auto PtrUintTy = llvm::Type::getInt64Ty(*Context.getContext())->getPointerTo();
+		auto PtrTLS = llvm::ConstantExpr::getIntToPtr(uIntTLS, PtrUintTy);
+		auto TLS = Builder->CreateLoad(llvm::Type::getInt64Ty(*Context.getContext()), PtrTLS);
+		auto uIntValAdr = Builder->CreateAdd(TLS, Offset);
+		return Builder->CreateIntToPtr(uIntValAdr, PtrTy);
+	}
+	llvm::Value *V = full_var.first->val;
+
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
+	// Load the value.
+	return V;
+}
+
 llvm::Value *UnaryExprAST::codegen() {
+	if (Opcode[0] == '&') {
+		if (auto V = dynamic_cast<VariableExprAST*>(Operand.get()))
+			return V->codegen_ref();
+		else
+			return LogErrorV("cannot get address of non variable expression");
+	}
 	llvm::Value *OperandV = Operand->codegen();
 	if (!OperandV)
 		return nullptr;
