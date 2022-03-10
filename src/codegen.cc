@@ -302,11 +302,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				                              initializer, varname, nullptr,
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel);
 			}
+			volvox::FullType ft = *expr->RHS;
+			ft.type = type;
+			ft.type_attr = is_signed ? 1U : 0U;
 			FullVar fv = {
-				.ft = {
-					.type = type,
-					.type_attr = is_signed ? 1U : 0U
-				},
+				.ft = ft,
 				.val = GV,
 			};
 			globals_table.insert(varname, fv);

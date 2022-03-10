@@ -53,11 +53,7 @@ public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: ExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
-			type = full_var.first->ft.type;
-			type_attr = full_var.first->ft.type_attr;
-		} else {
-			type = nullptr;
-			type_attr = 0;
+			*(volvox::FullType*)this = full_var.first->ft;
 		}
 	}
 	const std::string &getName() const { return Name; }
