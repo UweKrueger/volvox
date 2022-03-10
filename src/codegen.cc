@@ -165,10 +165,16 @@ llvm::Value *VariableExprAST::codegen_ref() {
 
 llvm::Value *UnaryExprAST::codegen() {
 	if (Opcode[0] == '&') {
-		if (auto V = dynamic_cast<VariableExprAST*>(Operand.get()))
+		if (auto V = dynamic_cast<VariableExprAST*>(Operand.get())) {
 			return V->codegen_ref();
-		else
-			return LogErrorV("cannot get address of non variable expression");
+		} else {
+			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+			                       TheFunction->getEntryBlock().begin());
+			llvm::AllocaInst* Alloca = TmpB.CreateAlloca(Operand->type);
+			Builder->CreateStore(Operand->codegen(), Alloca);
+			return Alloca;
+		}
 	}
 	llvm::Value *OperandV = Operand->codegen();
 	if (!OperandV)

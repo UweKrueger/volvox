@@ -721,32 +721,9 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		eprt("FT: %u\n", ft_expr->type->getTypeID());
 
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
-		if (E->type->isAggregateType()) {
-			inside_function = true;
-			locals_table.push_back(VarTable());
-			// save in tmp variable and pass reference
-			std::string tmpname = "__tmp";
-			auto tmp = std::make_unique<VariableExprAST>(FnLoc, tmpname);
-			auto init_expr = std::make_unique<BinaryExprAST>(FnLoc, ":=", std::move(tmp), std::move(E));
-			FullVar fv = {
-				.ft = {
-					.type = keep_ft.type,
-					.type_attr = keep_ft.type_attr
-				}
-			};
-			if (!locals_table.back().insert(tmpname.c_str(), fv)) {
-				eprt("variable %s already exists in current scope\n", tmpname.c_str());
-				return nullptr;
-			} else {
-				dprt("inserted local %s\n", tmpname.c_str());
-			}
-			ExprList.push_back(std::move(init_expr));
-			tmp = std::make_unique<VariableExprAST>(FnLoc, tmpname);
-			E = std::make_unique<UnaryExprAST>("&", std::move(tmp));
-			//locals_table[0].clear();
-			//locals_table = {};
-			inside_function = false;
-		}
+		if (E->type->isAggregateType())
+			// pass by reference
+			E = std::make_unique<UnaryExprAST>("&", std::move(E));
 		std::string volvox_println = "_ZN6volvox7printlnEPKcPNS_8FullTypeEz";
 		std::vector<std::unique_ptr<ExprAST>> PrintArgs;
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
