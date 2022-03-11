@@ -86,6 +86,8 @@ Token Lexer::gettok(bool expectBinary) {
 			return Token(tok_fn);
 		if (IdentifierStr == "extern")
 			return Token(tok_extern);
+		if (IdentifierStr == "type")
+			return Token(tok_type);
 		if (IdentifierStr == "if")
 			return Token(tok_if);
 		if (IdentifierStr == "then")

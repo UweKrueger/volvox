@@ -45,6 +45,7 @@ enum TokenKind {
 	// commands
 	tok_fn = -30,
 	tok_extern = -31,
+	tok_type = -32,
 
 	// primary
 	tok_identifier = -40,
@@ -102,6 +103,7 @@ extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
+extern volvox::FullType ParseType();
 
 static inline void dprt(const char* fmt, ...) {
 	va_list args;

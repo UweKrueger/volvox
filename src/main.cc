@@ -179,6 +179,17 @@ static void HandleExtern() {
 	}
 }
 
+static void HandleTypeDef() {
+	getNextToken(); // eat type
+	if (CurTok.kind != tok_identifier) {
+		eprt("unexpected `%` in type declaration - type name expected\n", CurTok.str().c_str());
+		purgeLine();
+		return;
+	}
+	auto type_name = IdentifierStr;
+	auto type = ParseType();
+}
+
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
@@ -349,6 +360,9 @@ static void MainLoop() {
 			break;
 		case tok_extern:
 			HandleExtern();
+			break;
+		case tok_type:
+			HandleTypeDef();
 			break;
 		default:
 			HandleTopLevelExpression();
