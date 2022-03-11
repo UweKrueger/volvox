@@ -12,10 +12,7 @@ struct gen_val_type_t {
 };
 
 struct FullType {
-	union {
-		llvm::Type* type; // used by compiler
-		gen_val_type_t rt_type; // used by rt-library
-	};
+	llvm::Type* type; // used by compiler
 	unsigned type_attr;
 	int nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
 	int ncolumns;

@@ -416,9 +416,9 @@ namespace volvox {
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
-			fprintf(stderr, "\nID: %u\n", is_compiler ? ft->type->getTypeID() : ft->rt_type.ID);
+			fprintf(stderr, "\nID: %u\n", ft->type->getTypeID());
 			fflush(stderr);
-			switch (is_compiler ? ft->type->getTypeID() : ft->rt_type.ID) {
+			switch (ft->type->getTypeID()) {
 			case llvm::Type::BFloatTyID:
 			case llvm::Type::FloatTyID:
 				if (p <= 0) p = F32_DEFAULT_PRECISION;
@@ -439,7 +439,7 @@ namespace volvox {
 			}
 				break;
 			case llvm::Type::IntegerTyID: {
-				if ((is_compiler ? ft->type->getIntegerBitWidth() : ft->rt_type.SubclassData) <= 32) {
+				if (ft->type->getIntegerBitWidth() <= 32) {
 					int val = va_arg(ap, int);
 					const char* fmt = getFmtInt(flags);
 					fprintf(stderr, "\nfmt: %s\n", fmt);
