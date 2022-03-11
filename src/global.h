@@ -103,7 +103,7 @@ extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
-extern volvox::FullType ParseType();
+extern volvox::FullType ParseType(bool allow_attribute = false);
 
 static inline void dprt(const char* fmt, ...) {
 	va_list args;

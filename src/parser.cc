@@ -62,22 +62,26 @@ static void Eat(int tok, bool expectBinary = false) {
 static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
                                                 unsigned desired_attrib = 0u);
 
-volvox::FullType ParseType() {
+volvox::FullType ParseType(bool allow_attribute) {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
+		if (allow_attribute) {
+			switch (CurTok.kind) {
+			case tok_atomic:
+				attribs |= A_atomic;
+				break;
+			case tok_shared:
+				attribs |= A_shared;
+				break;
+			case tok_iso:
+				attribs |= A_iso;
+				break;
+			case tok_const:
+				attribs |= A_const;
+				break;
+			}
+		}
 		switch (CurTok.kind) {
-		case tok_atomic:
-			attribs |= A_atomic;
-			break;
-		case tok_shared:
-			attribs |= A_shared;
-			break;
-		case tok_iso:
-			attribs |= A_iso;
-			break;
-		case tok_const:
-			attribs |= A_const;
-			break;
 		case '[': {
 			getNextToken(true);
 			int64_t dim = -1;
@@ -570,7 +574,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
-		auto type = ParseType();
+		auto type = ParseType(true);
 		if (!type.type) {
 			return LogErrorP("Unexpected `%s` in method prototype - type name expected", CurTok.str().c_str());
 		}
@@ -634,7 +638,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}	
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
-		auto type = ParseType();
+		auto type = ParseType(true);
 		if (!type.type) {
 			return LogErrorP("Unexpected `%s` in function arg list - type name expected\n", CurTok.str().c_str());
 		}
@@ -650,7 +654,7 @@ noargs:
 	// parse return type(s)
 	std::vector<volvox::FullType> RetTypes;
 	while (CurTok.kind != ';') {
-		auto type = ParseType();
+		auto type = ParseType(true);
 		if (!type.type)
 			return LogErrorP("error parsing return type of function prototype");
 		RetTypes.push_back(type);
