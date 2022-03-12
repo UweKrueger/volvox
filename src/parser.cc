@@ -121,7 +121,7 @@ volvox::FullType ParseType(bool allow_attribute) {
 			memcpy(array_elem_type, &elem_type, sizeof(volvox::FullType));
 			return volvox::FullType{
 				.type = array_type,
-				.nrows = (int)dim,
+				// .nrows = (int)dim,
 				.elem_type = (volvox::FullType*)array_elem_type
 			};
 		}

@@ -120,9 +120,9 @@ public:
 				else
 					elem_type = Elements[0].get();
 				type = llvm::ArrayType::get(elem_type->type, Elements.size());
-				nrows = Elements.size();
+				// TODO... nrows = Elements.size();
 				is_compile_time_const = true;
-				dprt("CTC: true, nrows: %d\n", nrows);
+				// dprt("CTC: true, nrows: %d\n", nrows);
 				for (auto& e: Elements)
 					if (!e->is_compile_time_const) {
 						is_compile_time_const = false;

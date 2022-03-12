@@ -11,25 +11,26 @@ namespace volvox {
 		unsigned SubclassData : 24;
 	};
 
+	struct FullStructField;
+
+	// Type representation used by compiler - uses LLVM type system
 	struct FullType {
 		llvm::Type* type; // used by compiler
 		unsigned type_attr;
-		int nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
-		int ncolumns;
-		int nelem; // for struct
 		const char* type_name; // maybe NULL for anonymous types
 		union {
-			MapNode* elems; // element-name -> { index, FullType }
-			FullType* elem_type;
+			FullType* elem_type; // element-name -> { index, FullType }
+			FullStructField* fields;
 		};
+		// unsigned dimensions[...];
 	};
 
-	struct RtType;
-
-	struct StructField {
-		RtType* FieldType;
+	struct FullStructField {
 		const char* FieldName;
+		FullType rttype;
 	};
+
+	struct RtStructField;
 
 	struct RtType {
 		union {
@@ -37,13 +38,17 @@ namespace volvox {
 			gen_val_type_t type;
 		};
 		unsigned type_attr;
-		unsigned nrows; // arrays and struct types
-		unsigned ncols; // only for matrix
 		const char* name;
 		union {
-			const StructField* fields;
-			const RtType* ElementType;
+			const RtType* elem_type;
+			const RtStructField* fields;
 		};
+		// unsigned dimensions[...];
+	};
+
+	struct RtStructField {
+		const char* FieldName;
+		RtType rttype;
 	};
 
 }

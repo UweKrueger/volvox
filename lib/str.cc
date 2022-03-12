@@ -475,10 +475,10 @@ namespace volvox {
 			case llvm::Type::ArrayTyID: {
 				char* elem_ptr = va_arg(ap, char*);
 				int elem_size;
-				fprintf(stderr, "\nArray: %d %d %d \n", ft->nrows, ft->ncolumns, ft->nelem);
+				// fprintf(stderr, "\nArray: %d %d %d \n", ft->nrows, ft->ncolumns, ft->nelem);
 				fflush(stderr);
-				for (int i = 0; i < ft->nrows; i++)
-					sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((int*)elem_ptr + i), nullptr, nullptr);
+				// for (int i = 0; i < ft->nrows; i++)
+				// 	sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((int*)elem_ptr + i), nullptr, nullptr);
 				prtstring(s, cap, pos, " ]");
 				space = *cap - *pos;
 			}

@@ -187,7 +187,17 @@ static void HandleTypeDef() {
 		return;
 	}
 	auto type_name = IdentifierStr;
-	auto type = ParseType();
+	auto ft = ParseType();
+	union {
+		volvox::gen_val_type_t gen_type;
+		unsigned key;
+	};
+	llvm::SmallVector<llvm::Constant*, 1> type_fields = {
+		llvm::ConstantInt::get(llvm_int_type, key)
+	};
+	type_fields.push_back(llvm::ConstantInt::get(llvm_int_type, 12));
+	gen_type = { .ID = ft.type->getTypeID(), .SubclassData = ((genType*)ft.type)->SubClassData() };
+	llvm::Constant* RtType = llvm::ConstantStruct::getAnon(*Context.getContext(), type_fields);
 }
 
 static void HandleTopLevelExpression() {

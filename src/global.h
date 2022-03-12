@@ -315,8 +315,7 @@ public:
 		}
 	ExprAST(const FullType& full_type, SourceLocation Loc = CurLoc, FullType desired = {}, bool is_unknown_type = false) :
 		FullType(full_type), Loc(Loc), desired_type(desired.type), desired_type_attr(desired.type_attr),
-		desired_nrows(desired.nrows), desired_ncolumns(desired.ncolumns), desired_nelem(desired.nelem),
-		desired_type_name(desired.type_name), desired_elems(desired.elems),
+		desired_type_name(desired.type_name),
 		is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen() = 0;
