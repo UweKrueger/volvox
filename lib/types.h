@@ -3,6 +3,7 @@
 #include "map.h"
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
+#include <llvm/IR/DebugInfoMetadata.h>
 
 namespace volvox {
 
@@ -16,12 +17,13 @@ namespace volvox {
 	// Type representation used by compiler - uses LLVM type system
 	struct FullType {
 		llvm::Type* type; // used by compiler
-		unsigned type_attr;
+		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
 		const char* type_name; // maybe NULL for anonymous types
 		union {
 			FullType* elem_type; // element-name -> { index, FullType }
 			FullStructField* fields;
 		};
+		llvm::DIType* ditype;
 		// unsigned dimensions[...];
 	};
 
