@@ -413,6 +413,8 @@ int input_fd = 0;
 int cur_input_fd;
 
 int main(int argc, char* argv[]) {
+	printf("%lu %lu\n", sizeof(volvox::RtType), sizeof(volvox::FullType));
+	fflush(stdout);
 	if (argc == 1) {
 		comp_mode = comp_jit;
 	} else {

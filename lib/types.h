@@ -7,12 +7,8 @@
 
 namespace volvox {
 
-	struct gen_val_type_t {
-		llvm::Type::TypeID ID : 8; // base type
-		unsigned SubclassData : 24;
-	};
-
-	struct FullStructField;
+	/* The compile time type system supplements the LLVM
+	   type system with attributes and field names */
 
 	// Type representation used by compiler - uses LLVM type system
 	struct FullType {
@@ -20,33 +16,44 @@ namespace volvox {
 		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
 		const char* type_name; // maybe NULL for anonymous types
 		union {
-			FullType* elem_type; // element-name -> { index, FullType }
-			FullStructField* fields;
+			FullType* elem_type; // for array or tuples
+			MapNode* fields;
 		};
 		llvm::DIType* ditype;
-		// unsigned dimensions[...];
 	};
 
-	struct FullStructField {
-		const char* FieldName;
-		FullType rttype;
-	};
+	/* The runtime type system has no LLVM infrastructure available
+	   so it is a somewhat stripped down version of the above */
+
+#if defined (_MSC_VER)
+#define PACK(s) __pragma(pack(push,1)) s __pragma(pack(pop))
+#else
+#define PACK(s) s __attribute__((__packed__))
+#endif
+
+	PACK(struct gen_val_type_t {
+		llvm::Type::TypeID ID : 8; // base type
+		unsigned SubclassData : 24;
+	});
 
 	struct RtStructField;
 
-	struct RtType {
-		union {
-			unsigned key;
-			gen_val_type_t type;
-		};
-		unsigned type_attr;
+	PACK(struct RtType {
+		PACK(struct {
+			llvm::Type::TypeID ID : 8; // base type
+			unsigned SubclassData : 24;
+		});
+		PACK(struct {
+			unsigned type_attr : 16;
+			unsigned num_dimension : 16;
+		});
 		const char* name;
 		union {
 			const RtType* elem_type;
 			const RtStructField* fields;
 		};
 		// unsigned dimensions[...];
-	};
+	});
 
 	struct RtStructField {
 		const char* FieldName;
