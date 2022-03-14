@@ -43,27 +43,27 @@ unsigned stringkey;
 
 void init() {
 	// only for internal use:
-	type_table.add("i*", llvm::Type::getInt64Ty(*Context.getContext()), nullptr, true);
+	type_table.add("i*", llvm::Type::getInt64Ty(*Context.getContext()), nullptr, A_signed);
 	type_table.add("f*", llvm::Type::getDoubleTy(*Context.getContext()), nullptr);
 
 #if UINTPTR_MAX == UINT16_MAX // e.g. AVR platform
-	type_table.add("int", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, true);
+	type_table.add("int", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	type_table.add("uint", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("uint", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_int_type = llvm::Type::getInt16Ty(*Context.getContext());
-	type_table.add("size", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("size", 16, llvm::dwarf::DW_ATE_signed) : nullptr, true);
+	type_table.add("size", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("size", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	type_table.add("usize", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("usize", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt16Ty(*Context.getContext());
 	type_table.add("real", llvm::Type::getFloatTy(*Context.getContext()), DBuilder ? DBuilder->createBasicType("real", 32, llvm::dwarf::DW_ATE_float) : nullptr);
 #else
-	type_table.add("int", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed) : nullptr, true);
+	type_table.add("int", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	type_table.add("uint", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("uint", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_int_type = llvm::Type::getInt32Ty(*Context.getContext());
 #if UINTPTR_MAX == UINT32_MAX
-	type_table.add("size", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("size", 32, llvm::dwarf::DW_ATE_signed) : nullptr, true);
+	type_table.add("size", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("size", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	type_table.add("usize", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("usize", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt32Ty(*Context.getContext());
 #else
-	type_table.add("size", llvm::Type::getInt64Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("size", 64, llvm::dwarf::DW_ATE_signed) : nullptr, true);
+	type_table.add("size", llvm::Type::getInt64Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("size", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	type_table.add("usize", llvm::Type::getInt64Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("usize", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt64Ty(*Context.getContext());
 #endif
@@ -71,10 +71,10 @@ void init() {
 #endif
 	type_table.add("void", llvm::Type::getVoidTy(*Context.getContext()), nullptr);
 	type_table.add("bool", llvm::Type::getInt1Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
-	type_table.add("i8", llvm::Type::getInt8Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed) : nullptr, true);
-	type_table.add("i16", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i16", 16, llvm::dwarf::DW_ATE_signed) : nullptr, true);
-	type_table.add("i32", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i32", 32, llvm::dwarf::DW_ATE_signed) : nullptr, true);
-	type_table.add("i64", llvm::Type::getInt64Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i64", 64, llvm::dwarf::DW_ATE_signed) : nullptr, true);
+	type_table.add("i8", llvm::Type::getInt8Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	type_table.add("i16", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i16", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	type_table.add("i32", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i32", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	type_table.add("i64", llvm::Type::getInt64Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i64", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	type_table.add("u8", llvm::Type::getInt8Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("u8", 8, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	type_table.add("u16", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("u16", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	type_table.add("u32", llvm::Type::getInt32Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("u32", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);

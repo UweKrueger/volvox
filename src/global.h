@@ -131,21 +131,6 @@ static inline void veprt(const char* fmt, va_list args) {
 // Type representation used by compiler - uses LLVM type system
 namespace volvox {
 
-	PACK(struct gen_val_type_t {
-		llvm::Type::TypeID ID : 8; // base type
-		unsigned SubclassData : 24;
-	});
-
-	struct FullType {
-		llvm::Type* type; // used by compiler
-		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
-		const char* type_name; // maybe NULL for anonymous types
-		union {
-			FullType* elem_type; // for array or tuples
-			MapNode* fields;
-		};
-		llvm::DIType* ditype;
-	};
 }
 
 extern volvox::FullType ParseType(bool allow_attribute = false);
@@ -170,28 +155,33 @@ public:
 class TypeTable {
 public:
 	TypeTable() : name_table(map_string_new_map()) {}
-	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, bool is_signed = false, int nelem = 0, std::vector<std::pair<const char*, volvox::FullType>> struct_elem = {}) {
+	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, std::vector<std::pair<const char*, volvox::FullType*>> struct_elem = {}) {
 		bool is_int = type->isIntegerTy();
-		if (is_signed && !is_int)
+		if ((type_attr & A_signed) && !is_int)
 			LogError("non-int type %s cannot be signed", name);
-		MapValue val = {
-			.src_ptr = is_signed ? (llvm::Type*)((uintptr_t)type | A_signed) : type
+		volvox::FullType ft = {
+			.type = type,
+			.type_attr = type_attr,
+			.ditype = ditype
 		};
-		MapNode* is_new = map_string_insert(&name_table, name, val, 0, false);
-		if (is_new && !nelem && struct_elem.empty()) {
+		MapValue val = {
+			.src_ptr = &ft
+		};
+		MapNode* is_new = map_string_insert(&name_table, name, val, sizeof(volvox::FullType), false);
+		if (is_new) {
 			union {
 				int_val_type_t int_type;
 				volvox::gen_val_type_t gen_type;
 				unsigned key;
 			};
 			if (is_int) {
-				int_type = { .ID = type->getTypeID(), .BitWidth = type->getIntegerBitWidth(), .is_signed = is_signed };
+				int_type = { .ID = type->getTypeID(), .BitWidth = type->getIntegerBitWidth(), .is_signed = (bool)(type_attr & A_signed) };
 			} else {
 				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
 			}
 			key32_table[key] = type;
 			dprt("inserted %u %p %s\n", key, type, name);
-			if (is_signed)
+			if (type_attr & A_signed)
 				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = { name, ditype };
 			else
 				typeptr_table[type] = { name, ditype };
@@ -200,17 +190,17 @@ public:
 			return 0;
 		}
 	}
-	llvm::Type* get_raw(const char* name) {
-		MapValue* val = map_string_get(name_table, name);
-		return val ? (llvm::Type*)val->src_ptr : nullptr;
-	}
+	// llvm::Type* get_raw(const char* name) {
+	// 	MapValue* val = map_string_get(name_table, name);
+	// 	return val ? (llvm::Type*)val->src_ptr : nullptr;
+	// }
 	llvm::Type* get(const char* name) {
-		llvm::Type* raw_type = get_raw(name);
-		return (llvm::Type*)((uintptr_t)raw_type & ~(uintptr_t)A_signed);
+		MapValue* val = map_string_get(name_table, name);
+		return ((volvox::FullType*)((char*)val + val->offset))->type;
 	}
 	bool is_signed(const char* name) {
-		llvm::Type* raw_type = get_raw(name);
-		return (bool)((uintptr_t)raw_type & A_signed);
+		MapValue* val = map_string_get(name_table, name);
+		return (bool)(((volvox::FullType*)((char*)val + val->offset))->type_attr & A_signed);
 	}
 	static bool is_signed(unsigned _key) {
 		union {
@@ -222,8 +212,8 @@ public:
 		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
 	volvox::FullType get_full(const char* name) {
-		llvm::Type* raw_type = get_raw(name);
-		return { (llvm::Type*)((uintptr_t)raw_type & ~0x01ULL), (bool)((uintptr_t)raw_type & A_signed) };
+		MapValue* val = map_string_get(name_table, name);
+		return *(volvox::FullType*)((char*)val + val->offset);
 	}
 	volvox::FullType get_full(unsigned _key) {
 		union {
