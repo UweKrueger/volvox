@@ -103,7 +103,6 @@ extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
-extern volvox::FullType ParseType(bool allow_attribute = false);
 
 static inline void dprt(const char* fmt, ...) {
 	va_list args;
@@ -125,6 +124,31 @@ static inline void veprt(const char* fmt, va_list args) {
 	vfprintf(stderr, fmt, args);
 	fflush(stderr);
 }
+
+/* The compile time type system supplements the LLVM
+   type system with attributes and field names */
+
+// Type representation used by compiler - uses LLVM type system
+namespace volvox {
+
+	PACK(struct gen_val_type_t {
+		llvm::Type::TypeID ID : 8; // base type
+		unsigned SubclassData : 24;
+	});
+
+	struct FullType {
+		llvm::Type* type; // used by compiler
+		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
+		const char* type_name; // maybe NULL for anonymous types
+		union {
+			FullType* elem_type; // for array or tuples
+			MapNode* fields;
+		};
+		llvm::DIType* ditype;
+	};
+}
+
+extern volvox::FullType ParseType(bool allow_attribute = false);
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
