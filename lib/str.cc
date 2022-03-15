@@ -20,7 +20,6 @@ namespace volvox {
 	const char* i1::fmt_w = nullptr;
 	const char* i1::fmt_wp = nullptr;
 
-	struct FullType;
 
 /* create the printf-format string to print given Type */
 
@@ -403,9 +402,9 @@ namespace volvox {
 		}
 	}
 
-	void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val */);
+	void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, RtType* ft, ... /* int w, int p, unsigned flags, val */);
 
-	void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, FullType* ft, va_list ap) {
+	void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, RtType* ft, va_list ap) {
 		if (!*cap) {
 			*cap = 128;
 			*s = (char*)realloc(*s, *cap);
@@ -417,9 +416,9 @@ namespace volvox {
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
-			fprintf(stderr, "\nID: %u\n", ft->type->getTypeID());
+			fprintf(stderr, "\nID: %u\n", ft->ID);
 			fflush(stderr);
-			switch (ft->type->getTypeID()) {
+			switch (ft->ID) {
 			case llvm::Type::BFloatTyID:
 			case llvm::Type::FloatTyID:
 				if (p <= 0) p = F32_DEFAULT_PRECISION;
@@ -440,7 +439,7 @@ namespace volvox {
 			}
 				break;
 			case llvm::Type::IntegerTyID: {
-				if (ft->type->getIntegerBitWidth() <= 32) {
+				if (ft->SubclassData <= 32) {
 					int val = va_arg(ap, int);
 					const char* fmt = getFmtInt(flags);
 					fprintf(stderr, "\nfmt: %s\n", fmt);
@@ -492,18 +491,18 @@ namespace volvox {
 				prtstring(s, cap, pos, post);
 				space = *cap - *pos;
 			}
-			ft = va_arg(ap, FullType*);
+			ft = va_arg(ap, RtType*);
 		}
 	}
 		
-	void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val */) {
+	void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, RtType* ft, ... /* int w, int p, unsigned flags, val */) {
 		va_list ap;
 		va_start(ap, ft);
 		vsprt(s, cap, pos, pre, ft, ap);
 		va_end(ap);
 	}
 
-	char* str(FullType* ft, ...) {
+	char* str(RtType* ft, ...) {
 		va_list ap;
 		char* s = NULL;
 		unsigned cap = 0;
@@ -514,7 +513,7 @@ namespace volvox {
 		return s;
 	}
 
-	bool vfprint(int fd, bool newline, const char* pre, FullType* ft, va_list ap) {
+	bool vfprint(int fd, bool newline, const char* pre, RtType* ft, va_list ap) {
 		char* s = NULL;
 		unsigned cap = 0;
 		unsigned pos = 0;
@@ -529,7 +528,7 @@ namespace volvox {
 		return n == bytes_to_write;
 	}
 
-	bool fprint(int fd, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	bool fprint(int fd, const char* pre, RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = vfprint(fd, false, pre, ft, ap);
@@ -537,7 +536,7 @@ namespace volvox {
 		return has_succeeded;
 	}
 
-	bool fprintln(int fd, const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	bool fprintln(int fd, const char* pre, RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = vfprint(fd, true, pre, ft, ap);
@@ -545,7 +544,7 @@ namespace volvox {
 		return has_succeeded;
 	}
 
-	bool print(const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	bool print(const char* pre, RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = vfprint(1, false, pre, ft, ap);
@@ -553,7 +552,7 @@ namespace volvox {
 		return has_succeeded;
 	}
 
-	bool println(const char* pre, FullType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	bool println(const char* pre, RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = vfprint(1, true, pre, ft, ap);
