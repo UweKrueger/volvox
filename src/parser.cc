@@ -159,13 +159,18 @@ volvox::FullType* ParseType(bool allow_attribute) {
 			getNextToken();
 			llvm::Type* struct_type = llvm::StructType::get(*Context.getContext(), LLVMFieldTypes, (bool)(attribs & A_packed));
 			MapNode* fields = map_string_new_map();
-			// for (int i=0; i<FieldNames.size(); i++);
+			for (int i=0; i<FieldNames.size(); i++) {
+				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = FieldTypes[i] }, 0, false);
+				if (!new_node) {
+					LogErrorP("Duplicat field name `%s` in struct declaration\n", FieldNames[i].c_str());
+					return nullptr;
+				}
+			}
 				
 			return new volvox::FullType{
 				.type = struct_type,
-				.type_attr = attribs
-				// .nrows = (int)dim,
-				// .elem_type = (volvox::FullType*)array_elem_type
+				.type_attr = attribs,
+				.fields = fields
 			};
 		}
 			break;
