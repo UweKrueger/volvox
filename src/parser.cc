@@ -766,20 +766,21 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		                                            std::vector<std::string>(),
 		                                            false, TheType);
 		// the type must survive this call to ParseTopLevelExpr() - so make it static
-		static volvox::FullType keep_ft;
-		keep_ft = *E;
-		auto tok = Token((void*)&keep_ft);
-		auto ft_expr = std::make_unique<LiteralExprAST>(tok);
-		eprt("FT: %u %u\n", ft_expr->type->getTypeID(), keep_ft.type->getTypeID());
+		// static volvox::FullType keep_ft;
+		llvm::Constant* rttype_ptr = getRtType(E.get());
+		// keep_ft = *E;
+		// auto tok = Token((void*)&keep_ft);
+		// auto ft_expr = std::make_unique<LiteralExprAST>(tok);
+		// eprt("FT: %u %u\n", ft_expr->type->getTypeID(), keep_ft.type->getTypeID());
 
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		if (E->type->isAggregateType())
 			// pass by reference
 			E = std::make_unique<UnaryExprAST>("&", std::move(E));
-		std::string volvox_println = "_ZN6volvox7printlnEPKcPNS_8FullTypeEz";
+		std::string volvox_println = "_ZN6volvox7printlnEPKcPNS_6RtTypeEz";
 		std::vector<std::unique_ptr<ExprAST>> PrintArgs;
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
-		PrintArgs.push_back(std::move(ft_expr));
+		PrintArgs.push_back(std::move(std::make_unique<ConstExprAST>(rttype_ptr)));
 		// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));

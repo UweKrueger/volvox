@@ -136,6 +136,8 @@ namespace volvox {
 }
 
 extern volvox::FullType* ParseType(bool allow_attribute = false);
+extern llvm::Constant* getRtType(volvox::FullType* ft);
+extern llvm::Constant* getRtType(volvox::FullType* ft);
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type

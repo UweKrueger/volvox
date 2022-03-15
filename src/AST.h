@@ -9,6 +9,15 @@
 
 /// ExprAST - Base class for all expression nodes.
 
+class ConstExprAST : public ExprAST {
+	llvm::Constant* val;
+public:
+	ConstExprAST(llvm::Constant* val) : val(val) {
+		type = val->getType();
+	}
+	llvm::Value* codegen() { return val; }
+};
+
 // Class for all literals - 1.2, 3u, "str"
 class LiteralExprAST : public ExprAST {
 

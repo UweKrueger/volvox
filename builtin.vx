@@ -5,7 +5,7 @@ type _ZN6volvox6RtTypeE packed {
 	name string
 	fields string
 }
-extern _ZN6volvox6fprintEiPKcPNS_8FullTypeEz(fd int, pre string, ft string, ...) bool
-extern _ZN6volvox8fprintlnEiPKcPNS_8FullTypeEz(fd int, pre string, ft string, ...) bool
-extern _ZN6volvox5printEPKcPNS_8FullTypeEz(pre string, ft string, ...) bool
-extern _ZN6volvox7printlnEPKcPNS_8FullTypeEz(pre string, ft string, ...) bool
+extern _ZN6volvox6fprintEiPKcPNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
+extern _ZN6volvox8fprintlnEiPKcPNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
+extern _ZN6volvox5printEPKcPNS_6RtTypeEz(pre string, ft string, ...) bool
+extern _ZN6volvox7printlnEPKcPNS_6RtTypeEz(pre string, ft string, ...) bool

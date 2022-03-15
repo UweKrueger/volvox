@@ -324,3 +324,37 @@ const char* AggregateExprAST::KindName() {
 		return "AnyDyn";
 	}
 }
+
+llvm::Constant* getRtType(volvox::FullType* ft) {
+	if (!ft->rttype) {
+		union {
+			volvox::gen_val_type_t llvmtype;
+			unsigned key;
+		};
+		llvmtype = volvox::gen_val_type_t{ .ID = ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+		union {
+			struct {
+				unsigned type_attr : 16;
+				unsigned num_fields : 16;
+			};
+			unsigned attr;
+		};
+		type_attr = ft->type_attr;
+		num_fields = ft->num_fields;
+		llvm::SmallVector<llvm::Constant*, 16> fields;
+		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)key));
+		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)attr));
+		fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
+		if (llvmtype.ID == llvm::Type::ArrayTyID) {
+			fields.push_back(getRtType(ft->elem_type));
+		}
+		llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(*Context.getContext(), fields, true);
+		auto *GV = new llvm::GlobalVariable(*TheModule, rt_const->getType(), true, llvm::GlobalValue::PrivateLinkage, rt_const);
+		llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), 0);
+		llvm::Constant *Indices[] = {Zero, Zero};
+		ft->rttype = llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV,
+		                                                          Indices);
+
+	}
+	return ft->rttype;
+}
