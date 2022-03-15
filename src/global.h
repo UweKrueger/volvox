@@ -185,6 +185,7 @@ public:
 				typeptr_table[ft->type] = { name, ft->ditype };
 			return key;
 		} else {
+			eprt("Cannot add new type `%s` - name already exists\n", name);
 			return 0;
 		}
 	}
