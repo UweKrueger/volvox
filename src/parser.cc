@@ -62,7 +62,7 @@ static void Eat(int tok, bool expectBinary = false) {
 static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
                                                 unsigned desired_attrib = 0u);
 
-volvox::FullType ParseType(bool allow_attribute) {
+volvox::FullType* ParseType(bool allow_attribute) {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
 		if (allow_attribute) {
@@ -99,32 +99,32 @@ volvox::FullType ParseType(bool allow_attribute) {
 						dim = d->getSExtValue();
 					} else {
 						LogErrorP("dimension must be constant int");
-						return { nullptr, 0 };
+						return nullptr;
 					}
 				} else {
 					LogErrorP("cannot parse dimension expression");
-					return { nullptr, 0 };
+					return nullptr;
 				}
 				if (!Expect(']'))
-					return { nullptr, 0 };
+					return nullptr;
 				if (dim <= 0 || dim > INT_MAX) {
 					LogErrorP("dimension must be a positive int (not %lld)", dim);
-					return { nullptr, 0 };
+					return nullptr;
 				}
 			} 
 			auto elem_type = ParseType();
-			if (!elem_type.type)
-				return {};
+			if (!elem_type)
+				return nullptr;
 			llvm::Type* array_type;
 			if (dim > 0) {
-				array_type = llvm::ArrayType::get(elem_type.type, dim);
+				array_type = llvm::ArrayType::get(elem_type->type, dim);
 			} else {
-				llvm::Type* ptr = llvm::PointerType::get(elem_type.type, 0);
+				llvm::Type* ptr = llvm::PointerType::get(elem_type->type, 0);
 				array_type = llvm::StructType::get(ptr, llvm_int_type);
 			}
 			void* array_elem_type = malloc(sizeof(volvox::FullType));
 			memcpy(array_elem_type, &elem_type, sizeof(volvox::FullType));
-			return volvox::FullType{
+			return new volvox::FullType{
 				.type = array_type,
 				// .nrows = (int)dim,
 				.elem_type = (volvox::FullType*)array_elem_type
@@ -135,22 +135,22 @@ volvox::FullType ParseType(bool allow_attribute) {
 			// struct type
 			getNextToken();
 			std::vector<std::string> FieldNames;
-			std::vector<volvox::FullType> FieldTypes;
+			std::vector<volvox::FullType*> FieldTypes;
 			std::vector<llvm::Type*> LLVMFieldTypes;
 			for (;;) {
 				if (CurTok.kind != tok_identifier) {
 					LogErrorP("Unexpected `%s` in struct declaration - field name expected\n", CurTok.str().c_str());
-					return { nullptr, 0 };
+					return nullptr;
 				}
 				FieldNames.push_back(IdentifierStr);
 				getNextToken();
 				auto type = ParseType(true);
-				if (!type.type) {
+				if (!type) {
 					LogErrorP("Unexpected `%s` in struct declaration - type name expected\n", CurTok.str().c_str());
-					return { nullptr, 0 };
+					return nullptr;
 				}
 				FieldTypes.push_back(type);
-				LLVMFieldTypes.push_back(type.type);
+				LLVMFieldTypes.push_back(type->type);
 				getNextToken();
 				if (CurTok.kind == '}')
 					break;
@@ -158,7 +158,10 @@ volvox::FullType ParseType(bool allow_attribute) {
 			}
 			getNextToken();
 			llvm::Type* struct_type = llvm::StructType::get(*Context.getContext(), LLVMFieldTypes, (bool)(attribs & A_packed));
-			return volvox::FullType{
+			MapNode* fields = map_string_new_map();
+			// for (int i=0; i<FieldNames.size(); i++);
+				
+			return new volvox::FullType{
 				.type = struct_type,
 				.type_attr = attribs
 				// .nrows = (int)dim,
@@ -176,18 +179,18 @@ volvox::FullType ParseType(bool allow_attribute) {
 			// else fallthough to error
 		default:
 			LogErrorP("Unexpected `%s` - type name expected", CurTok.str().c_str());
-			return { nullptr, 0 };
+			return nullptr;
 		}
 		getNextToken(true);
 	}
 	auto type = type_table.get_full(IdentifierStr.c_str());
-	if (!type.type) {
+	if (!type) {
 		LogErrorP("Unknown type `%s`", IdentifierStr.c_str());
-		return { nullptr, 0 };
+		return nullptr;
 	}
-	if (type.type_attr)
-		attribs |= A_signed;
-	return { type.type, attribs };
+	//if (type.type_attr)
+	//	attribs |= A_signed;
+	return type;
 }
 
 /// numberexpr ::= number
@@ -597,7 +600,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary.
 	unsigned BinaryPrecedence = 30;
 	std::vector<std::string> ArgNames;
-	std::vector<volvox::FullType> ArgTypes;
+	std::vector<volvox::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes;
 	bool is_method;
 	bool isVarArgs = false;
@@ -613,11 +616,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		auto type = ParseType(true);
-		if (!type.type) {
+		if (!type->type) {
 			return LogErrorP("Unexpected `%s` in method prototype - type name expected", CurTok.str().c_str());
 		}
 		ArgTypes.push_back(type);
-		LLVMArgTypes.push_back(type.type);
+		LLVMArgTypes.push_back(type->type);
 		getNextToken();
 		Expect(')');
 	}
@@ -677,11 +680,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		auto type = ParseType(true);
-		if (!type.type) {
+		if (!type) {
 			return LogErrorP("Unexpected `%s` in function arg list - type name expected\n", CurTok.str().c_str());
 		}
 		ArgTypes.push_back(type);
-		LLVMArgTypes.push_back(type.type);
+		LLVMArgTypes.push_back(type->type);
 		getNextToken();
 		if (CurTok.kind == ')')
 			break;
@@ -690,10 +693,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 noargs:
 	getNextToken(true); // eat ')'.
 	// parse return type(s)
-	std::vector<volvox::FullType> RetTypes;
+	std::vector<volvox::FullType*> RetTypes;
 	while (CurTok.kind != ';') {
 		auto type = ParseType(true);
-		if (!type.type)
+		if (!type)
 			return LogErrorP("error parsing return type of function prototype");
 		RetTypes.push_back(type);
 		getNextToken(true);
@@ -716,7 +719,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
 		FullVar fv = {
-			.ft = Proto->ArgTypes[i]
+			.ft = *Proto->ArgTypes[i]
 		};
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);
 		if (!is_new) {
@@ -726,7 +729,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	}
 	auto ProtoRef = Proto.get();
 	FunctionProtos[Proto->getName()] = std::move(Proto);
-	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetTypes[0].type, ProtoRef->RetTypes[0].type_attr);
+	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetTypes[0]->type, ProtoRef->RetTypes[0]->type_attr);
 	if (Elist.first.size()) {
 		return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
 	}
@@ -753,7 +756,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		if (res_size > 8) {
 			uint64_t alloc_size = TheModule->getDataLayout().getTypeAllocSize(E->type);
 		}
-		std::vector<volvox::FullType> TheType = { { llvm::Type::getInt1Ty(*Context.getContext()), 0 } };
+		std::vector<volvox::FullType*> TheType = { type_table.get_full("bool") };
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, TheType);

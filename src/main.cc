@@ -206,10 +206,10 @@ static void HandleTopLevelExpression() {
 	if (auto FnAST = ParseTopLevelExpr()) {
 		dprt("top level expr parsed\n");
 		auto RetType = FnAST->Proto->RetTypes.size() == 1 ?
-			FnAST->Proto->RetTypes[0].type :
+			FnAST->Proto->RetTypes[0]->type :
 			llvm::Type::getVoidTy(*Context.getContext());
 		unsigned ret_type_attr = FnAST->Proto->RetTypes.size() == 1 ?
-			FnAST->Proto->RetTypes[0].type_attr : 0;
+			FnAST->Proto->RetTypes[0]->type_attr : 0;
 		auto anon_expr = FnAST->codegen();
 		if (anon_expr) {
 			auto ret_type = anon_expr->getReturnType();

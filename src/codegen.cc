@@ -23,14 +23,14 @@ void DebugInfo::emitLocation(ExprAST *AST) {
 		                                 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
 }
 
-static llvm::DISubroutineType *CreateFunctionType(volvox::FullType RetType, std::vector<volvox::FullType>& ArgTypes, llvm::DIFile *Unit) {
+static llvm::DISubroutineType *CreateFunctionType(volvox::FullType* RetType, std::vector<volvox::FullType*>& ArgTypes, llvm::DIFile *Unit) {
 	llvm::SmallVector<llvm::Metadata *, 8> EltTys;
 
 	// Add the result type.
-	EltTys.push_back(type_table.get_diType(RetType.type, RetType.type_attr & A_signed));
+	EltTys.push_back(type_table.get_diType(RetType->type, RetType->type_attr & A_signed));
 	auto NumArgs = ArgTypes.size();
 	for (unsigned i = 0; i < NumArgs; i++)
-		EltTys.push_back(type_table.get_diType(ArgTypes[i].type, ArgTypes[i].type_attr & A_signed));
+		EltTys.push_back(type_table.get_diType(ArgTypes[i]->type, ArgTypes[i]->type_attr & A_signed));
 
 	return DBuilder->createSubroutineType(DBuilder->getOrCreateTypeArray(EltTys));
 }
@@ -714,19 +714,19 @@ llvm::Value *CallExprAST::codegen() {
 
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(), v = CalleeF.second->Args.size(); i != e; ++i) {
-		if (i < v && (CalleeF.second->ArgTypes[i].type->isIntegerTy() || CalleeF.second->ArgTypes[i].type->isFloatingPointTy())) {
+		if (i < v && (CalleeF.second->ArgTypes[i]->type->isIntegerTy() || CalleeF.second->ArgTypes[i]->type->isFloatingPointTy())) {
 			dprt("Try to get conversion\n");
 			auto conversion = getConv(
-				Args[i]->type, CalleeF.second->ArgTypes[i].type,
-				Args[i]->type_attr, CalleeF.second->ArgTypes[i].type_attr,
+				Args[i]->type, CalleeF.second->ArgTypes[i]->type,
+				Args[i]->type_attr, CalleeF.second->ArgTypes[i]->type_attr,
 				Args[i]->Loc, false, Args[i]->is_unknown_type);
 			if (!conversion)
 				return nullptr;
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
-			if (i < v && Args[i]->type->getTypeID() != CalleeF.second->ArgTypes[i].type->getTypeID())
+			if (i < v && Args[i]->type->getTypeID() != CalleeF.second->ArgTypes[i]->type->getTypeID())
 				// TODO: better check compatibility
-				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->type->getTypeID(), CalleeF.second->ArgTypes[i].type->getTypeID());
+				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->type->getTypeID(), CalleeF.second->ArgTypes[i]->type->getTypeID());
 			ArgsV.push_back(Args[i]->codegen());
 		}
 		if (!ArgsV.back())
@@ -933,7 +933,7 @@ llvm::Function *PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
 	// TODO: support returning multiple objects
 	auto RetType = RetTypes.size() == 1 ?
-		RetTypes[0].type : llvm::Type::getVoidTy(*Context.getContext());
+		RetTypes[0]->type : llvm::Type::getVoidTy(*Context.getContext());
 	if (!RetType) // RetTypes[0] exists but type could not be derived
 		return nullptr;
 	llvm::FunctionType *FT =
@@ -1017,8 +1017,8 @@ llvm::Function *FunctionAST::codegen() {
 		mapitem->val = Alloca;
 	}
 
-	Body.back()->desired_type = P.RetTypes[0].type;
-	Body.back()->desired_type_attr = P.RetTypes[0].type_attr;
+	Body.back()->desired_type = P.RetTypes[0]->type;
+	Body.back()->desired_type_attr = P.RetTypes[0]->type_attr;
 	llvm::Value* RetVal;
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {

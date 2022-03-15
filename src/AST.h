@@ -226,16 +226,16 @@ class PrototypeAST {
 
 public:
 	std::vector<std::string> Args;
-	std::vector<volvox::FullType> ArgTypes;
+	std::vector<volvox::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
-	std::vector<volvox::FullType> RetTypes;
+	std::vector<volvox::FullType*> RetTypes;
 	bool IsVarArgs;
 	bool IsOperator;
 	int Line;
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, bool IsOperator = false,
-	             std::vector<volvox::FullType> RetTypes = {}, std::vector<volvox::FullType> ArgTypes = {},
+	             std::vector<volvox::FullType*> RetTypes = {}, std::vector<volvox::FullType*> ArgTypes = {},
 	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
 		: Name(Name), Args(Args), IsOperator(IsOperator),
 		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {}
@@ -268,8 +268,8 @@ public:
 				type = llvm::Type::getVoidTy(*Context.getContext());
 				type_attr = 0;
 			} else if(FI->second->RetTypes.size() == 1) {
-				type = FI->second->RetTypes[0].type;
-				type_attr = FI->second->RetTypes[0].type_attr;
+				type = FI->second->RetTypes[0]->type;
+				type_attr = FI->second->RetTypes[0]->type_attr;
 			} else {
 				LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
 			}

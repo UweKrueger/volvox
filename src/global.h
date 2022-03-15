@@ -135,7 +135,7 @@ namespace volvox {
 
 }
 
-extern volvox::FullType ParseType(bool allow_attribute = false);
+extern volvox::FullType* ParseType(bool allow_attribute = false);
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
@@ -218,9 +218,9 @@ public:
 		key = _key;
 		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
-	volvox::FullType get_full(const char* name) {
+	volvox::FullType* get_full(const char* name) {
 		MapValue* val = map_string_get(name_table, name);
-		return *(volvox::FullType*)((char*)val + val->offset);
+		return (volvox::FullType*)(val ? (char*)val + val->offset : nullptr);
 	}
 	volvox::FullType get_full(unsigned _key) {
 		union {
