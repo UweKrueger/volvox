@@ -1,4 +1,10 @@
 extern sin(x f64) f64
+type _ZN6volvox6RtTypeE packed {
+	key u32
+	attr u32
+	name string
+	fields string
+}
 extern _ZN6volvox6fprintEiPKcPNS_8FullTypeEz(fd int, pre string, ft string, ...) bool
 extern _ZN6volvox8fprintlnEiPKcPNS_8FullTypeEz(fd int, pre string, ft string, ...) bool
 extern _ZN6volvox5printEPKcPNS_8FullTypeEz(pre string, ft string, ...) bool

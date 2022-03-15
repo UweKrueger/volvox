@@ -35,14 +35,20 @@ namespace volvox {
 	struct RtStructField;
 
 	PACK(struct RtType {
-		PACK(struct {
-			llvm::Type::TypeID ID : 8; // base type
-			unsigned SubclassData : 24;
-		});
-		PACK(struct {
-			unsigned type_attr : 16;
-			unsigned num_dimension : 16;
-		});
+		union {
+			struct {
+				llvm::Type::TypeID ID : 8; // base type
+				unsigned SubclassData : 24;
+			};
+			unsigned key;
+		};
+		union {
+			struct {
+				unsigned type_attr : 16;
+				unsigned num_dimension : 16;
+			};
+			unsigned attr;
+		};
 		const char* name;
 		union {
 			const RtType* elem_type;
