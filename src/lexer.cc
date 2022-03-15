@@ -106,6 +106,8 @@ Token Lexer::gettok(bool expectBinary) {
 			return Token(true);
 		if (IdentifierStr == "false")
 			return Token(false);
+		if (IdentifierStr == "packed")
+			return Token(tok_packed);
 		if (IdentifierStr == "nullptr")
 			return Token((void*)0);
 		return Token(tok_identifier);

@@ -22,11 +22,11 @@ namespace volvox {
 		llvm::Type* type; // used by compiler
 		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
 		const char* type_name; // maybe NULL for anonymous types
+		llvm::DIType* ditype;
 		union {
 			FullType* elem_type; // for array or tuples
 			MapNode* fields;
 		};
-		llvm::DIType* ditype;
 	};
 
 	/* The runtime type system has no LLVM infrastructure available

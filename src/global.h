@@ -69,6 +69,7 @@ enum TokenKind {
 	tok_shared = -61,
 	tok_iso = -62,
 	tok_const = -63,
+	tok_packed = -64,
 	
 	tok_self = -70,
 };
@@ -97,6 +98,7 @@ extern unsigned anon_struct_nr;
 #define A_shared (1U<<2)
 #define A_iso    (1U<<3)
 #define A_atomic (1U<<4)
+#define A_packed (1U<<5)
 
 extern std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap);
 extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
@@ -155,17 +157,12 @@ public:
 class TypeTable {
 public:
 	TypeTable() : name_table(map_string_new_map()) {}
-	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, std::vector<std::pair<const char*, volvox::FullType*>> struct_elem = {}) {
-		bool is_int = type->isIntegerTy();
-		if ((type_attr & A_signed) && !is_int)
+	unsigned add(const char* name, volvox::FullType* ft) {
+		bool is_int = ft->type->isIntegerTy();
+		if ((ft->type_attr & A_signed) && !is_int)
 			LogError("non-int type %s cannot be signed", name);
-		volvox::FullType ft = {
-			.type = type,
-			.type_attr = type_attr,
-			.ditype = ditype
-		};
 		MapValue val = {
-			.src_ptr = &ft
+			.src_ptr = ft
 		};
 		MapNode* new_node = map_string_insert(&name_table, name, val, sizeof(volvox::FullType), false);
 		if (new_node) {
@@ -176,20 +173,29 @@ public:
 				unsigned key;
 			};
 			if (is_int) {
-				int_type = { .ID = type->getTypeID(), .BitWidth = type->getIntegerBitWidth(), .is_signed = (bool)(type_attr & A_signed) };
+				int_type = { .ID = ft->type->getTypeID(), .BitWidth = ft->type->getIntegerBitWidth(), .is_signed = (bool)(ft->type_attr & A_signed) };
 			} else {
-				gen_type = { .ID = type->getTypeID(), .SubclassData = ((genType*)type)->SubClassData() };
+				gen_type = { .ID = ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
 			}
-			key32_table[key] = type;
-			dprt("inserted %u %p %s\n", key, type, name);
-			if (type_attr & A_signed)
-				typeptr_table[(llvm::Type*)((uintptr_t)type | A_signed)] = { name, ditype };
+			key32_table[key] = ft->type;
+			dprt("inserted %u %p %s\n", key, ft->type, name);
+			if (ft->type_attr & A_signed)
+				typeptr_table[(llvm::Type*)((uintptr_t)ft->type | A_signed)] = { name, ft->ditype };
 			else
-				typeptr_table[type] = { name, ditype };
+				typeptr_table[ft->type] = { name, ft->ditype };
 			return key;
 		} else {
 			return 0;
 		}
+	}
+	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr) {
+		volvox::FullType ft = {
+			.type = type,
+			.type_attr = type_attr,
+			.ditype = ditype,
+			.fields = fields
+		};
+		return add(name, &ft);
 	}
 	// llvm::Type* get_raw(const char* name) {
 	// 	MapValue* val = map_string_get(name_table, name);

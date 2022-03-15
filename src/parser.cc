@@ -80,10 +80,15 @@ volvox::FullType ParseType(bool allow_attribute) {
 				attribs |= A_const;
 				break;
 			}
+		} else {
+			if (CurTok.kind == tok_packed)
+				attribs |= A_packed;
 		}
+		if (attribs)
+			getNextToken();
 		switch (CurTok.kind) {
 		case '[': {
-			getNextToken(true);
+			getNextToken();
 			int64_t dim = -1;
 			if (CurTok.kind == ']') {
 				getNextToken();
@@ -126,7 +131,40 @@ volvox::FullType ParseType(bool allow_attribute) {
 			};
 		}
 			break;
-		case '{':
+		case '{': {
+			// struct type
+			getNextToken();
+			std::vector<std::string> FieldNames;
+			std::vector<volvox::FullType> FieldTypes;
+			std::vector<llvm::Type*> LLVMFieldTypes;
+			for (;;) {
+				if (CurTok.kind != tok_identifier) {
+					LogErrorP("Unexpected `%s` in struct declaration - field name expected\n", CurTok.str().c_str());
+					return { nullptr, 0 };
+				}
+				FieldNames.push_back(IdentifierStr);
+				getNextToken();
+				auto type = ParseType(true);
+				if (!type.type) {
+					LogErrorP("Unexpected `%s` in struct declaration - type name expected\n", CurTok.str().c_str());
+					return { nullptr, 0 };
+				}
+				FieldTypes.push_back(type);
+				LLVMFieldTypes.push_back(type.type);
+				getNextToken();
+				if (CurTok.kind == '}')
+					break;
+				Eat(',', true);
+			}
+			getNextToken();
+			llvm::Type* struct_type = llvm::StructType::get(*Context.getContext(), LLVMFieldTypes, (bool)(attribs & A_packed));
+			return volvox::FullType{
+				.type = struct_type,
+				.type_attr = attribs
+				// .nrows = (int)dim,
+				// .elem_type = (volvox::FullType*)array_elem_type
+			};
+		}
 			break;
 		case '&':
 			do {
