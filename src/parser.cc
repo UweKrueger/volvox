@@ -734,10 +734,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		std::vector<std::unique_ptr<ExprAST>> PrintArgs;
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
 		PrintArgs.push_back(std::move(ft_expr));
-		// println requires parameters for width, precision and flags - pass 0s to get defaults
+		// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((E->type_attr & A_signed) ? 0LL : (long long)FMT_UNSIGNED))));
 		PrintArgs.push_back(std::move(E));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
