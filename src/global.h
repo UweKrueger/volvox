@@ -167,8 +167,9 @@ public:
 		MapValue val = {
 			.src_ptr = &ft
 		};
-		MapNode* is_new = map_string_insert(&name_table, name, val, sizeof(volvox::FullType), false);
-		if (is_new) {
+		MapNode* new_node = map_string_insert(&name_table, name, val, sizeof(volvox::FullType), false);
+		if (new_node) {
+			((volvox::FullType*)((char*)&(new_node->value) + new_node->value.offset))->type_name = new_node->key.string;
 			union {
 				int_val_type_t int_type;
 				volvox::gen_val_type_t gen_type;
