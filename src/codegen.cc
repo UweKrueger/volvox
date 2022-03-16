@@ -260,7 +260,66 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				__volvox_jit_tls_ptr = (char*)realloc(__volvox_jit_tls_ptr, __volvox_jit_tls_size);
 				__volvox_jit_tls_inits = (char*)realloc(__volvox_jit_tls_inits, __volvox_jit_tls_size);
 				GV = (llvm::GlobalVariable*)var_offset;
-				if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(initializer)) {
+				if (initializer->getType()->isAggregateType()) {
+					// There is no simple way to get the "normal" memory layout of LLVM array
+					// and struct constants. So create generate code in which memcpy() is used
+					auto *GInit = new llvm::GlobalVariable(*TheModule, initializer->getType(), true,
+					                                       llvm::GlobalValue::PrivateLinkage, initializer);
+					GInit->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+					GInit->setAlignment(llvm::Align(8));
+					llvm::Constant* Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), 0);
+					llvm::Constant* Indices[] = {Zero, Zero};
+					llvm::Constant* InitPtr = llvm::ConstantExpr::getInBoundsGetElementPtr(GInit->getValueType(), GInit, Indices);
+					llvm::Constant* DstAddr = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uintptr_t)__volvox_jit_tls_ptr + var_offset);
+					llvm::Constant* DstPtr = llvm::ConstantExpr::getIntToPtr(DstAddr, GInit->getValueType()->getPointerTo());
+					llvm::Constant* cStoreSize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), StoreSize);
+					std::vector<volvox::FullType*> TheType = { type_table.get_full("string") };
+					auto Proto = std::make_unique<PrototypeAST>(CurLoc, "__anon_expr",
+					                                            std::vector<std::string>(),
+					                                            false, TheType);
+					std::vector<std::unique_ptr<ExprAST>> MemCpyArgs;
+					MemCpyArgs.push_back(std::move(std::make_unique<ConstExprAST>(DstPtr)));
+					MemCpyArgs.push_back(std::move(std::make_unique<ConstExprAST>(InitPtr)));
+					MemCpyArgs.push_back(std::move(std::make_unique<ConstExprAST>(cStoreSize)));
+					std::string memcpy_sym = "memcpy";
+					auto memcpy_call = std::make_unique<CallExprAST>(CurLoc, memcpy_sym, std::move(MemCpyArgs));
+					std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
+					GlobalExprList.push_back(std::move(memcpy_call));
+					auto ProtoRef = Proto.get();
+					FunctionProtos[Proto->getName()] = std::move(Proto);
+					auto FnAST = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
+					auto anon_expr = FnAST->codegen();
+#if LLVM_VERSION_MAJOR >= 12
+					// Create a ResourceTracker to track JIT'd memory allocated to our
+					// anonymous expression -- that way we can free it after executing.
+					auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), Context);
+					ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+#else
+					// JIT the module containing the anonymous expression, keeping a handle so
+					// we can free it later.
+					auto H = TheJIT->addModule(std::move(TheModule));
+#endif
+					InitializeModuleAndPassManager();
+					// Search the JIT for the __anon_expr symbol.
+#if LLVM_VERSION_MAJOR >= 12
+					auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
+#define UNWRAP(x) (x)
+#else
+					auto ExprSymbol = TheJIT->findSymbol("__anon_expr");
+					assert(ExprSymbol && "Function not found");
+#define UNWRAP(x) cantFail(x)
+#endif
+					const char* (*SP)() = (const char* (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					eprt("Evaluated to >%p<\n", SP());
+#if LLVM_VERSION_MAJOR >= 12
+					// Delete the anonymous expression module from the JIT.
+					ExitOnErr(RT->remove());
+#else
+					// Delete the anonymous expression module from the JIT.
+					TheJIT->removeModule(H);
+#endif
+				} else if (llvm::ConstantInt* CI = llvm::dyn_cast<llvm::ConstantInt>(initializer)) {
 					if (is_signed) {
 						long sVal = CI->getSExtValue();
 						// TODO: this works only for little endian architectures
@@ -283,7 +342,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				} else if (expr->RHS->type->isPointerTy()) {
 					if (LiteralExprAST* Lit = dynamic_cast<LiteralExprAST*>(expr->RHS.get())) {
 						const char* pVal = Lit->Val.Str;
-							memcpy(__volvox_jit_tls_ptr + var_offset, &pVal, StoreSize);
+						memcpy(__volvox_jit_tls_ptr + var_offset, &pVal, StoreSize);
 					}
 					else
 						dprt("bad\n");

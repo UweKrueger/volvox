@@ -11,7 +11,6 @@
 /// lexer and updates CurTok with its results.
 Lexer lex;
 Token CurTok;
-std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 Token getNextToken(bool expectBinary) { return CurTok = lex.gettok(expectBinary); }
 Token purgeLine() { return CurTok = lex.purge_line(); }
 
@@ -783,11 +782,11 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 		auto print_call = std::make_unique<CallExprAST>(FnLoc, volvox_println, std::move(PrintArgs));
+		std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 		GlobalExprList.push_back(std::move(print_call));
 		auto ProtoRef = Proto.get();
 		FunctionProtos[Proto->getName()] = std::move(Proto);
 		auto tmp_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
-		GlobalExprList = std::vector<std::unique_ptr<ExprAST>>{};
 		return tmp_function;
 	}
 	return nullptr;

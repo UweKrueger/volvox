@@ -9,3 +9,4 @@ extern _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) 
 extern _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
 extern _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
 extern _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
+extern memcpy(dest string, src string, n u64) string
