@@ -312,6 +312,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 	getNextToken(); // eat '{'/'['
 	if (CurTok.kind == closing) {
 		getNextToken(true);
+		// TODO: parse type and given elements
 		return std::make_unique<AggregateExprAST>(loc, kind);
 	}
 	if (auto Elem = ParseExpression()) {
@@ -777,7 +778,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		if (E->type->isAggregateType())
 			// pass by reference
 			E = std::make_unique<UnaryExprAST>("&", std::move(E));
-		std::string volvox_println = "_ZN6volvox7printlnEPKcPNS_6RtTypeEz";
+		std::string volvox_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
 		std::vector<std::unique_ptr<ExprAST>> PrintArgs;
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
 		PrintArgs.push_back(std::move(std::make_unique<ConstExprAST>(rttype_ptr)));

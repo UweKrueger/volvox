@@ -118,8 +118,8 @@ class AggregateExprAST : public ExprAST {
 public:
 	AggregateExprAST(SourceLocation Loc, AggregateKind k,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 FullType* el_type = nullptr) :
-		ExprAST(nullptr, 0, Loc), Elements(std::move(_Elements)),
+	                 unsigned type_attr = 0, FullType* el_type = nullptr) :
+		ExprAST(nullptr, type_attr, Loc), Elements(std::move(_Elements)),
 		kind(k)
 		{
 			dprt("AggregateExpr, kind: %d\n", int(kind));
@@ -129,6 +129,7 @@ public:
 				else
 					elem_type = Elements[0].get();
 				type = llvm::ArrayType::get(elem_type->type, Elements.size());
+				num_fields = Elements.size();
 				// TODO... nrows = Elements.size();
 				is_compile_time_const = true;
 				// dprt("CTC: true, nrows: %d\n", nrows);

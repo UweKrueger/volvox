@@ -21,7 +21,7 @@ namespace volvox {
 	struct FullType {
 		llvm::Type* type; // used by compiler
 		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
-		unsigned num_fields;
+		unsigned num_fields; // or #elements for fixed sized arrays
 		const char* type_name; // maybe NULL for anonymous types
 		llvm::DIType* ditype;
 		union {

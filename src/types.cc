@@ -341,6 +341,7 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 		};
 		type_attr = ft->type_attr;
 		num_fields = ft->num_fields;
+		dprt("Array props: %u %u\n", num_fields, attr);
 		llvm::SmallVector<llvm::Constant*, 16> fields;
 		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)key));
 		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)attr));
