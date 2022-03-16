@@ -11,6 +11,7 @@
 /// lexer and updates CurTok with its results.
 Lexer lex;
 Token CurTok;
+std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 Token getNextToken(bool expectBinary) { return CurTok = lex.gettok(expectBinary); }
 Token purgeLine() { return CurTok = lex.purge_line(); }
 
@@ -766,15 +767,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, TheType);
-		// the type must survive this call to ParseTopLevelExpr() - so make it static
-		// static volvox::FullType keep_ft;
 		llvm::Constant* rttype_ptr = getRtType(E.get());
-		// keep_ft = *E;
-		// auto tok = Token((void*)&keep_ft);
-		// auto ft_expr = std::make_unique<LiteralExprAST>(tok);
-		// eprt("FT: %u %u\n", ft_expr->type->getTypeID(), keep_ft.type->getTypeID());
-
-		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		if (E->type->isAggregateType())
 			// pass by reference
 			E = std::make_unique<UnaryExprAST>("&", std::move(E));
@@ -790,10 +783,12 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 		auto print_call = std::make_unique<CallExprAST>(FnLoc, volvox_println, std::move(PrintArgs));
-		ExprList.push_back(std::move(print_call));
+		GlobalExprList.push_back(std::move(print_call));
 		auto ProtoRef = Proto.get();
 		FunctionProtos[Proto->getName()] = std::move(Proto);
-		return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return);
+		auto tmp_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
+		GlobalExprList = std::vector<std::unique_ptr<ExprAST>>{};
+		return tmp_function;
 	}
 	return nullptr;
 }
