@@ -103,10 +103,16 @@ llvm::Value *AggregateExprAST::codegen() {
 	}
 	std::vector<llvm::Constant*> Initializers;
 	for (auto& e: Elements)
-		if (is_compile_time_const)
-			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(e->codegen()));
-		else
+		if (is_compile_time_const) {
+			auto conversion = getConv(e->ft->type, ft->elem_type->type, e->ft->type_attr, ft->elem_type->type_attr, Loc, false, false);
+			if (!conversion) {
+				eprt("Cannot convert array element\n");
+				return nullptr;
+			}
+			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(conversion(e->codegen())));
+		} else {
 			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
+		}
 	return llvm::ConstantArray::get(reinterpret_cast<llvm::ArrayType*>(ft->type), Initializers);
 }
 
