@@ -13,7 +13,7 @@ class ConstExprAST : public ExprAST {
 	llvm::Constant* val;
 public:
 	ConstExprAST(llvm::Constant* val) : val(val) {
-		type = val->getType();
+		ft = new_FullType(val->getType(), 0);
 	}
 	llvm::Value* codegen() { return val; }
 };
@@ -28,9 +28,9 @@ public:
 		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type, nullptr, 0, true), Val(tok.Val) {}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		switch (type->getTypeID()) {
+		switch (ft->type->getTypeID()) {
 		case llvm::Type::IntegerTyID:
-			if (type_attr & A_signed)
+			if (ft->type_attr & A_signed)
 				return ExprAST::dump(out << Val.Int, ind);
 			else
 				return ExprAST::dump(out << Val.Uint, ind);
@@ -40,12 +40,12 @@ public:
 		case llvm::Type::DoubleTyID:
 			return ExprAST::dump(out << Val.Float, ind);
 		case llvm::Type::PointerTyID:
-			if (type_attr & A_signed)
+			if (ft->type_attr & A_signed)
 				return ExprAST::dump(out << Val.Ptr, ind);
 			else
 				return ExprAST::dump(out << Val.Str, ind);
 		default:
-			eprt("internal compiler error: unhandled literal type %d\n", type->getTypeID());
+			eprt("internal compiler error: unhandled literal type %d\n", ft->type->getTypeID());
 			return out;
 		}
 	}
@@ -118,18 +118,18 @@ class AggregateExprAST : public ExprAST {
 public:
 	AggregateExprAST(SourceLocation Loc, AggregateKind k,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 unsigned type_attr = 0, FullType* el_type = nullptr) :
+	                 unsigned type_attr = 0, volvox::FullType* el_type = nullptr) :
 		ExprAST(nullptr, type_attr, Loc), Elements(std::move(_Elements)),
 		kind(k)
 		{
 			dprt("AggregateExpr, kind: %d\n", int(kind));
 			if (kind == FixedArray) {
 				if (el_type)
-					elem_type = el_type;
+					ft->elem_type = el_type;
 				else
-					elem_type = Elements[0].get();
-				type = llvm::ArrayType::get(elem_type->type, Elements.size());
-				num_fields = Elements.size();
+					ft->elem_type = Elements[0]->ft;
+				ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
+				ft->num_fields = Elements.size();
 				// TODO... nrows = Elements.size();
 				is_compile_time_const = true;
 				// dprt("CTC: true, nrows: %d\n", nrows);
@@ -160,7 +160,7 @@ class UnaryExprAST : public ExprAST {
 
 public:
 	UnaryExprAST(const char* Op, std::unique_ptr<ExprAST> Operand)
-		: ExprAST(Operand->type, Operand->type_attr), Operand(std::move(Operand)) {
+		: ExprAST(Operand->ft->type, Operand->ft->type_attr), Operand(std::move(Operand)) {
 		strcpy(Opcode, Op); 
 	}
 	llvm::Value *codegen() override;
@@ -212,8 +212,8 @@ public:
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
 		if (!desired_type && _Op[0] != '=' || desired_type && desired_type == llvm::Type::getInt1Ty(*Context.getContext())) {
 			if (conv.ideal.res_type == llvm::Type::getInt1Ty(*Context.getContext())) {
-				type = conv.ideal.res_type;
-				type_attr = 0;
+				ft->type = conv.ideal.res_type;
+				ft->type_attr = 0;
 			}
 		}
 		strcpy(Op, _Op);
@@ -275,11 +275,11 @@ public:
 		auto FI = FunctionProtos.find(Callee);
 		if (FI != FunctionProtos.end()) {
 			if (FI->second->RetTypes.size() == 0) {
-				type = llvm::Type::getVoidTy(*Context.getContext());
-				type_attr = 0;
+				ft->type = llvm::Type::getVoidTy(*Context.getContext());
+				ft->type_attr = 0;
 			} else if(FI->second->RetTypes.size() == 1) {
-				type = FI->second->RetTypes[0]->type;
-				type_attr = FI->second->RetTypes[0]->type_attr;
+				ft->type = FI->second->RetTypes[0]->type;
+				ft->type_attr = FI->second->RetTypes[0]->type_attr;
 			} else {
 				LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
 			}
@@ -311,20 +311,20 @@ public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind)
-		: ExprAST(_Then.back()->type, _Then.back()->type_attr, Loc),
-		  is_void(_Then.back()->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
-		          || _Else.back()->type != _Then.back()->type
-		          || (_Else.back()->type_attr & A_signed) != (_Then.back()->type_attr & A_signed)),
+		: ExprAST(_Then.back()->ft->type, _Then.back()->ft->type_attr, Loc),
+		  is_void(_Then.back()->ft->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
+		          || _Else.back()->ft->type != _Then.back()->ft->type
+		          || (_Else.back()->ft->type_attr & A_signed) != (_Then.back()->ft->type_attr & A_signed)),
 		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
 		  ElseEndKind(ElseEndKind)
 		{
 			if (is_void) {
-				dprt("void IfExpr: %p %p %u %u %s %s\n", Then.back()->type, Else.back()->type,
-				       Then.back()->type_attr, Else.back()->type_attr,
-				       type_table.get_name(Then.back()->type, Then.back()->type_attr & A_signed),
-				       type_table.get_name(Else.back()->type, Else.back()->type_attr & A_signed));
-				type = llvm::Type::getInt1Ty(*Context.getContext());
-				type_attr = 0;
+				dprt("void IfExpr: %p %p %u %u %s %s\n", Then.back()->ft->type, Else.back()->ft->type,
+				       Then.back()->ft->type_attr, Else.back()->ft->type_attr,
+				       type_table.get_name(Then.back()->ft->type, Then.back()->ft->type_attr & A_signed),
+				       type_table.get_name(Else.back()->ft->type, Else.back()->ft->type_attr & A_signed));
+				ft->type = llvm::Type::getInt1Ty(*Context.getContext());
+				ft->type_attr = 0;
 			}
 		}
 	llvm::Value *codegen() override;

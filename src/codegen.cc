@@ -75,9 +75,9 @@ llvm::Value *LiteralExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	switch (type->getTypeID()) {
+	switch (ft->type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		return llvm::ConstantInt::get(*Context.getContext(), llvm::APInt(type->getIntegerBitWidth(), Val.Uint, type_attr & A_signed));
+		return llvm::ConstantInt::get(*Context.getContext(), llvm::APInt(ft->type->getIntegerBitWidth(), Val.Uint, ft->type_attr & A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
 		eprt("Warning: 16 bit floats are not supported, yet\n");
@@ -87,12 +87,12 @@ llvm::Value *LiteralExprAST::codegen() {
 	case llvm::Type::DoubleTyID:
 		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
-		if (type_attr & A_signed)
+		if (ft->type_attr & A_signed)
 			return Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), Val.Uint, false), llvm::Type::getInt8PtrTy(*Context.getContext()));
 		else
 			return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
 	default:
-		eprt("internal compiler error: unhandled literal type %d\n", type->getTypeID());
+		eprt("internal compiler error: unhandled literal type %d\n", ft->type->getTypeID());
 		return nullptr;
 	}
 }
@@ -106,8 +106,8 @@ llvm::Value *AggregateExprAST::codegen() {
 		if (is_compile_time_const)
 			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(e->codegen()));
 		else
-			Initializers.push_back(llvm::Constant::getNullValue(elem_type->type));
-	return llvm::ConstantArray::get(reinterpret_cast<llvm::ArrayType*>(type), Initializers);
+			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
+	return llvm::ConstantArray::get(reinterpret_cast<llvm::ArrayType*>(ft->type), Initializers);
 }
 
 llvm::Value *VariableExprAST::codegen() {
@@ -171,7 +171,7 @@ llvm::Value *UnaryExprAST::codegen() {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
-			llvm::AllocaInst* Alloca = TmpB.CreateAlloca(Operand->type);
+			llvm::AllocaInst* Alloca = TmpB.CreateAlloca(Operand->ft->type);
 			Builder->CreateStore(Operand->codegen(), Alloca);
 			return Alloca;
 		}
@@ -244,7 +244,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
 		llvm::Type* val_type = Val->getType();
-		auto type_descr = MakeType(val_type, expr->RHS->type_attr & A_signed, expr->RHS->is_unknown_type);
+		auto type_descr = MakeType(val_type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
 		llvm::Type* type = std::get<0>(type_descr);
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
@@ -330,16 +330,16 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					}
 				} else if (llvm::ConstantFP* CF = llvm::dyn_cast<llvm::ConstantFP>(initializer)) {
 					const llvm::APFloat& apf = CF->getValue();
-					if (expr->RHS->type->getTypeID() == llvm::Type::DoubleTyID) {
+					if (expr->RHS->ft->type->getTypeID() == llvm::Type::DoubleTyID) {
 						double dVal = apf.convertToDouble();
 						memcpy(__volvox_jit_tls_ptr + var_offset, &dVal, StoreSize);
-					} else if (expr->RHS->type->getTypeID() == llvm::Type::FloatTyID) {
+					} else if (expr->RHS->ft->type->getTypeID() == llvm::Type::FloatTyID) {
 						float fVal = apf.convertToFloat();
 						memcpy(__volvox_jit_tls_ptr + var_offset, &fVal, StoreSize);
 					} else {
 						eprt("unsupported float size %u for global\n", (unsigned)StoreSize);
 					}
-				} else if (expr->RHS->type->isPointerTy()) {
+				} else if (expr->RHS->ft->type->isPointerTy()) {
 					if (LiteralExprAST* Lit = dynamic_cast<LiteralExprAST*>(expr->RHS.get())) {
 						const char* pVal = Lit->Val.Str;
 						memcpy(__volvox_jit_tls_ptr + var_offset, &pVal, StoreSize);
@@ -361,7 +361,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				                              initializer, varname, nullptr,
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel);
 			}
-			volvox::FullType ft = *expr->RHS;
+			volvox::FullType ft = *expr->RHS->ft;
 			ft.type = type;
 			ft.type_attr = is_signed ? 1U : 0U;
 			FullVar fv = {
@@ -389,7 +389,7 @@ llvm::Value *BinaryExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	bool is_bool = desired_type == llvm::Type::getInt1Ty(*Context.getContext()) || type == llvm::Type::getInt1Ty(*Context.getContext());
+	bool is_bool = desired_type == llvm::Type::getInt1Ty(*Context.getContext()) || ft->type == llvm::Type::getInt1Ty(*Context.getContext());
 	OpKind kind;
 	if (Op[0] == '=')
 		kind = assign_op;
@@ -468,7 +468,7 @@ llvm::Value *BinaryExprAST::codegen() {
 		dprt("%s not found\n", varname);
 		if (inside_function) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-			auto type_descr = MakeType(Val->getType(), RHS->type_attr & A_signed, RHS->is_unknown_type);
+			auto type_descr = MakeType(Val->getType(), RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
 			llvm::Type* type = std::get<0>(type_descr);
 			auto conversion = std::get<1>(type_descr);
 			bool is_signed = std::get<2>(type_descr);
@@ -496,8 +496,8 @@ llvm::Value *BinaryExprAST::codegen() {
 	}
 	llvm::Value* result;
 	if (!desired_type) {
-		desired_type = type;
-		desired_type_attr = type_attr;
+		desired_type = ft->type;
+		desired_type_attr = ft->type_attr;
 	}
 	if (!is_bool) {
 		if (auto BinL = dynamic_cast<BinaryExprAST*>(LHS.get())) {
@@ -526,7 +526,7 @@ llvm::Value *BinaryExprAST::codegen() {
 			
 	} 
 	if (conv.compat.err_msg)
-		return AutoErr(Loc, LHS->type, RHS->type, LHS->type_attr, RHS->type_attr, conv.compat.err_msg);
+		return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
 	if (conv.compat.LHS)
 		L = conv.compat.LHS(L);
 	if (conv.compat.RHS)
@@ -739,10 +739,10 @@ conv_done:
 	}
 	if (result) {
 		dprt("Got Result %p\n", (void*)result);
-		auto conv = getConv(type, desired_type, type_attr, desired_type_attr, Loc, true, is_unknown_type);
+		auto conv = getConv(ft->type, desired_type, ft->type_attr, desired_type_attr, Loc, true, is_unknown_type);
 		if (conv) {
 			dprt("converted result of binop from %s to %s (%s)\n",
-			       type_table.get_name(type, type_attr & A_signed),
+			       type_table.get_name(ft->type, ft->type_attr & A_signed),
 			       type_table.get_name(desired_type, desired_type_attr & A_signed),
 			       is_unknown_type ? "literal" : "explicit type");
 			result = conv(result);
@@ -776,16 +776,16 @@ llvm::Value *CallExprAST::codegen() {
 		if (i < v && (CalleeF.second->ArgTypes[i]->type->isIntegerTy() || CalleeF.second->ArgTypes[i]->type->isFloatingPointTy())) {
 			dprt("Try to get conversion\n");
 			auto conversion = getConv(
-				Args[i]->type, CalleeF.second->ArgTypes[i]->type,
-				Args[i]->type_attr, CalleeF.second->ArgTypes[i]->type_attr,
+				Args[i]->ft->type, CalleeF.second->ArgTypes[i]->type,
+				Args[i]->ft->type_attr, CalleeF.second->ArgTypes[i]->type_attr,
 				Args[i]->Loc, false, Args[i]->is_unknown_type);
 			if (!conversion)
 				return nullptr;
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
-			if (i < v && Args[i]->type->getTypeID() != CalleeF.second->ArgTypes[i]->type->getTypeID())
+			if (i < v && Args[i]->ft->type->getTypeID() != CalleeF.second->ArgTypes[i]->type->getTypeID())
 				// TODO: better check compatibility
-				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->type->getTypeID(), CalleeF.second->ArgTypes[i]->type->getTypeID());
+				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->ft->type->getTypeID(), CalleeF.second->ArgTypes[i]->type->getTypeID());
 			ArgsV.push_back(Args[i]->codegen());
 		}
 		if (!ArgsV.back())
@@ -866,7 +866,7 @@ llvm::Value *IfExprAST::codegen() {
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
-	llvm::PHINode *PN = Builder->CreatePHI(type, 2, "iftmp");
+	llvm::PHINode *PN = Builder->CreatePHI(ft->type, 2, "iftmp");
 	PN->addIncoming(ThenV, ThenBB);
 	PN->addIncoming(ElseV, ElseBB);
 	return PN;

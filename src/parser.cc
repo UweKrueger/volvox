@@ -276,7 +276,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 			Expect(')', true);
 			auto Args = SplitExprList(std::move(Arg));
 			auto call_expr = std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
-			if (!call_expr->type) // Used to signal failure, e.g. IdName was not found
+			if (!call_expr->ft->type) // Used to signal failure, e.g. IdName was not found
 				return nullptr;
 			return call_expr;
 		} else {
@@ -322,7 +322,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 		volvox::FullType el_ft;
 		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(Elems[0].get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map
-				el_ft = *static_cast<volvox::FullType*>(bin_expr->RHS.get());
+				el_ft = *static_cast<volvox::FullType*>(bin_expr->RHS.get()->ft);
 				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 					if (is_dynamic) {
 						kind = Array;
@@ -363,8 +363,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 
 	auto Then = ParseExprList(desired_type, desired_attr);
 	if (Then.first.size()) {
-		desired_type = Then.first.back()->type;
-		desired_attr = Then.first.back()->type_attr;
+		desired_type = Then.first.back()->ft->type;
+		desired_attr = Then.first.back()->ft->type_attr;
 	} else {
 		desired_type = nullptr;
 		desired_attr = 0;
@@ -513,11 +513,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		}
 		// Merge LHS/RHS.
 		// save types befor objects are moved
-		auto LHS_type = LHS->type;
-		auto LHS_attr = LHS->type_attr;
+		auto LHS_type = LHS->ft->type;
+		auto LHS_attr = LHS->ft->type_attr;
 		auto LHS_is_unknown_type = LHS->is_unknown_type;
-		auto RHS_type = RHS->type;
-		auto RHS_attr = RHS->type_attr;
+		auto RHS_type = RHS->ft->type;
+		auto RHS_attr = RHS->ft->type_attr;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		dprt("LHS: %s RHS: %s\n", type_table.get_name(LHS_type, LHS_attr & A_signed), type_table.get_name(RHS_type, RHS_attr & A_signed));
 		if (inside_function && BinOp == ":=") {
@@ -745,10 +745,10 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
-		if (!E->type) {
+		if (!E->ft->type) {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
 				if (B->conv.compat.err_msg)
-					return AutoErr(B->Loc, B->LHS->type, B->RHS->type, B->LHS->type_attr, B->RHS->type_attr, B->conv.compat.err_msg);
+					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);
 				if (!strcmp(B->Op, ":="))
 					return HandleGlobalVariable(B);
 			} else {
@@ -756,18 +756,18 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				return nullptr;
 			}
 		}
-		dprt("anonymous expression - TypeID: %u\n", E->type->getTypeID());
+		dprt("anonymous expression - TypeID: %u\n", E->ft->type->getTypeID());
 		// Make an anonymous proto.
-		uint64_t res_size = TheModule->getDataLayout().getTypeStoreSize(E->type);
+		uint64_t res_size = TheModule->getDataLayout().getTypeStoreSize(E->ft->type);
 		if (res_size > 8) {
-			uint64_t alloc_size = TheModule->getDataLayout().getTypeAllocSize(E->type);
+			uint64_t alloc_size = TheModule->getDataLayout().getTypeAllocSize(E->ft->type);
 		}
 		std::vector<volvox::FullType*> TheType = { type_table.get_full("bool") };
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, TheType);
-		llvm::Constant* rttype_ptr = getRtType(E.get());
-		if (E->type->isAggregateType())
+		llvm::Constant* rttype_ptr = getRtType(E->ft);
+		if (E->ft->type->isAggregateType())
 			// pass by reference
 			E = std::make_unique<UnaryExprAST>("&", std::move(E));
 		std::string volvox_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
@@ -777,7 +777,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((E->type_attr & A_signed) ? 0LL : (long long)FMT_UNSIGNED))));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((E->ft->type_attr & A_signed) ? 0LL : (long long)FMT_UNSIGNED))));
 		PrintArgs.push_back(std::move(E));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
 		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));

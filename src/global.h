@@ -148,6 +148,25 @@ public:
 	unsigned SubClassData() const { return getSubclassData(); }
 };
 
+extern volvox::FTListElem* anon_types;
+extern volvox::FTListElem** anon_types_end;
+
+inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
+                              uint64_t num_fields = 0, volvox::FullType* elem_type = nullptr) {
+	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
+	new_node->next = nullptr;
+	new_node->ft.type = type;
+	new_node->ft.type_attr = type_attr;
+	new_node->ft.num_fields = num_fields;
+	new_node->ft.type_name = nullptr; // it's an anonymous type
+	new_node->ft.ditype = ditype;
+	new_node->ft.elem_type = elem_type;
+	new_node->ft.rttype = nullptr; // will be created on demand
+	*anon_types_end = new_node;
+	anon_types_end = &new_node->next;
+	return &new_node->ft;
+}
+
 class TypeTable {
 public:
 	TypeTable() : name_table(map_string_new_map()) {}
@@ -213,7 +232,7 @@ public:
 		MapValue* val = map_string_get(name_table, name);
 		return (volvox::FullType*)(val ? (char*)val + val->offset : nullptr);
 	}
-	volvox::FullType get_full(unsigned _key) {
+	volvox::FullType* get_full(unsigned _key) {
 		union {
 			int_val_type_t int_type;
 			volvox::gen_val_type_t gen_type;
@@ -222,7 +241,7 @@ public:
 		key = _key;
 		auto it = key32_table.find(key);
 		bool is_signed = (int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed);
-		return { it == key32_table.end() ? nullptr : it->second, is_signed };
+		return new_FullType(it == key32_table.end() ? nullptr : it->second, is_signed ? A_signed : 0);
 	}
 	const char* get_name(llvm::Type* type) {
 		if (!type) return nullptr;
@@ -281,25 +300,6 @@ public:
 extern VarTable globals_table;
 extern std::vector<VarTable> locals_table; // including function arguments
 
-extern volvox::FTListElem* anon_types;
-extern volvox::FTListElem** anon_types_end;
-
-inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
-                              uint64_t num_fields = 0, volvox::FullType* elem_type = nullptr) {
-	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
-	new_node->next = nullptr;
-	new_node->ft.type = type;
-	new_node->ft.type_attr = type_attr;
-	new_node->ft.num_fields = num_fields;
-	new_node->ft.type_name = nullptr; // it's an anonymous type
-	new_node->ft.ditype = ditype;
-	new_node->ft.elem_type = elem_type;
-	new_node->ft.rttype = nullptr; // will be created on demand
-	*anon_types_end = new_node;
-	anon_types_end = &new_node->next;
-	return &new_node->ft;
-}
-
 // look up var and return if it's global
 inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 	for (int i = locals_table.size() - 1; i >= 0; i--) {
@@ -311,10 +311,10 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 }
 
 /// ExprAST - Base class for all expression nodes.
-class ExprAST : public volvox::FullType {
+class ExprAST {
 public:
 	SourceLocation Loc;
-
+	volvox::FullType* ft;
 	llvm::Type* desired_type;
 	unsigned desired_type_attr;
 	int desired_nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
@@ -327,25 +327,25 @@ public:
 	bool is_compile_time_const;
 
 	// construct from type and attributes
-	ExprAST(SourceLocation Loc) : Loc(Loc) {}
+	ExprAST(SourceLocation Loc) : ft(new_FullType(nullptr, 0)), Loc(Loc) {}
 	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0,
 	        SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr, unsigned desired_type_attr = 0,
 	        bool is_unknown_type = false, bool is_compile_time_const = false) :
-		FullType(FullType{.type = type, .type_attr = type_attr}), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr),
+		ft(new_FullType(type, type_attr)), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr),
 		is_unknown_type(is_unknown_type), is_compile_time_const(is_compile_time_const) {}
 	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc,
 	        std::pair<llvm::Type*, unsigned> q = { nullptr, 0 }) :
-		FullType(FullType{.type = p.first, .type_attr = p.second}), Loc(Loc), desired_type(q.first), desired_type_attr(q.second) {}
+		ft(new_FullType(p.first, p.second)), Loc(Loc), desired_type(q.first), desired_type_attr(q.second) {}
 	// construct from key and attributes. The A_signed flag is already
 	// looked up when the key is searched
 	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc, bool is_unknown_type = false, llvm::Type* desired_type = nullptr,
 	        unsigned desired_type_attr = 0, bool is_compile_time_const = false) :
-		FullType(type_table.get_full(key)), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type), is_compile_time_const(is_compile_time_const)
+		ft(type_table.get_full(key)), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type), is_compile_time_const(is_compile_time_const)
 		{
-			type_attr |= add_attr;
+			ft->type_attr |= add_attr;
 		}
-	ExprAST(const FullType& full_type, SourceLocation Loc = CurLoc, FullType desired = {}, bool is_unknown_type = false) :
-		FullType(full_type), Loc(Loc), desired_type(desired.type), desired_type_attr(desired.type_attr),
+	ExprAST(volvox::FullType& full_type, SourceLocation Loc = CurLoc, volvox::FullType desired = {}, bool is_unknown_type = false) :
+		ft(&full_type), Loc(Loc), desired_type(desired.type), desired_type_attr(desired.type_attr),
 		desired_type_name(desired.type_name),
 		is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
