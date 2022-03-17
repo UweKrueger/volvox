@@ -281,8 +281,24 @@ public:
 extern VarTable globals_table;
 extern std::vector<VarTable> locals_table; // including function arguments
 
-extern volvox::FullType* anon_types;
-extern volvox::FullType** anon_types_end;
+extern volvox::FTListElem* anon_types;
+extern volvox::FTListElem** anon_types_end;
+
+inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
+                              uint64_t num_fields = 0, volvox::FullType* elem_type = nullptr) {
+	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
+	new_node->next = nullptr;
+	new_node->ft.type = type;
+	new_node->ft.type_attr = type_attr;
+	new_node->ft.num_fields = num_fields;
+	new_node->ft.type_name = nullptr; // it's an anonymous type
+	new_node->ft.ditype = ditype;
+	new_node->ft.elem_type = elem_type;
+	new_node->ft.rttype = nullptr; // will be created on demand
+	*anon_types_end = new_node;
+	anon_types_end = &new_node->next;
+	return &new_node->ft;
+}
 
 // look up var and return if it's global
 inline std::pair<FullVar*, bool> lookup_var(const char* Name) {

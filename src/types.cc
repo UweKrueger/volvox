@@ -8,6 +8,9 @@
 
 unsigned anon_struct_nr = 0;
 
+volvox::FTListElem* anon_types = nullptr;
+volvox::FTListElem** anon_types_end = &anon_types;
+
 std::nullptr_t Error(SourceLocation Loc, const char *Str, ...) {
 	eprt("%s:%d:%d: ", input_file_name, Loc.Line, Loc.Col);
 	va_list ap;

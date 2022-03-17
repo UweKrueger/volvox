@@ -38,7 +38,7 @@ namespace volvox {
 	   This can be done in a single linked list */
 
 	struct FTListElem {
-		FullType* next;
+		FTListElem* next;
 		FullType ft;
 	};
 
