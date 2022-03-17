@@ -29,7 +29,6 @@ namespace volvox {
 			FullType* elem_type; // for array or tuples
 			MapNode* fields;
 		};
-		llvm::Constant* rttype; // to cache run-time type - only generated on demand
 	};
 
 	/* Named types can be kept in a map using the name as key.

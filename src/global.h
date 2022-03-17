@@ -161,7 +161,6 @@ inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm
 	new_node->ft.type_name = nullptr; // it's an anonymous type
 	new_node->ft.ditype = ditype;
 	new_node->ft.elem_type = elem_type;
-	new_node->ft.rttype = nullptr; // will be created on demand
 	*anon_types_end = new_node;
 	anon_types_end = &new_node->next;
 	return &new_node->ft;
