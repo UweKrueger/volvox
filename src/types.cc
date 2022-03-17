@@ -332,19 +332,11 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 			unsigned key;
 		};
 		llvmtype = volvox::gen_val_type_t{ .ID = ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
-		union {
-			struct {
-				unsigned type_attr : 16;
-				unsigned num_fields : 16;
-			};
-			unsigned attr;
-		};
-		type_attr = ft->type_attr;
-		num_fields = ft->num_fields;
-		dprt("Array props: %u %u\n", num_fields, attr);
+		dprt("Array props: %llu %u\n", ft->num_fields, ft->type_attr);
 		llvm::SmallVector<llvm::Constant*, 16> fields;
 		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)key));
-		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)attr));
+		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)ft->type_attr));
+		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uint64_t)ft->num_fields));
 		fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
 		if (llvmtype.ID == llvm::Type::ArrayTyID) {
 			fields.push_back(getRtType(ft->elem_type));

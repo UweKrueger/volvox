@@ -1,6 +1,7 @@
 #pragma once
 
 #include "map.h"
+#include <inttypes.h>
 #include <llvm/IR/Type.h>
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/DebugInfoMetadata.h>
@@ -21,14 +22,24 @@ namespace volvox {
 	struct FullType {
 		llvm::Type* type; // used by compiler
 		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
-		unsigned num_fields; // or #elements for fixed sized arrays
+		uint64_t num_fields; // or #elements for fixed sized arrays
 		const char* type_name; // maybe NULL for anonymous types
 		llvm::DIType* ditype;
 		union {
 			FullType* elem_type; // for array or tuples
 			MapNode* fields;
 		};
-		llvm::Constant* rttype;
+		llvm::Constant* rttype; // to cache run-time type - only generated on demand
+	};
+
+	/* Named types can be kept in a map using the name as key.
+	   anonymous types must be kept too - in a way that allows freeing
+	   them when not needed anymore.
+	   This can be done in a single linked list */
+
+	struct FTListElem {
+		FullType* next;
+		FullType ft;
 	};
 
 	/* The runtime type system has no LLVM infrastructure available
@@ -44,19 +55,13 @@ namespace volvox {
 			};
 			unsigned key;
 		};
-		union {
-			struct {
-				unsigned type_attr : 16;
-				unsigned num_fields : 16;
-			};
-			unsigned attr;
-		};
+		unsigned type_attr;
+		uint64_t num_fields;
 		const char* name;
 		union {
 			const RtType* elem_type;
 			const RtStructField* fields;
 		};
-		// unsigned dimensions[...];
 	});
 
 	struct RtStructField {

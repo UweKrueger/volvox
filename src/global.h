@@ -127,14 +127,6 @@ static inline void veprt(const char* fmt, va_list args) {
 	fflush(stderr);
 }
 
-/* The compile time type system supplements the LLVM
-   type system with attributes and field names */
-
-// Type representation used by compiler - uses LLVM type system
-namespace volvox {
-
-}
-
 extern volvox::FullType* ParseType(bool allow_attribute = false);
 extern llvm::Constant* getRtType(volvox::FullType* ft);
 extern llvm::Constant* getRtType(volvox::FullType* ft);
@@ -200,10 +192,6 @@ public:
 		};
 		return add(name, &ft);
 	}
-	// llvm::Type* get_raw(const char* name) {
-	// 	MapValue* val = map_string_get(name_table, name);
-	// 	return val ? (llvm::Type*)val->src_ptr : nullptr;
-	// }
 	llvm::Type* get(const char* name) {
 		MapValue* val = map_string_get(name_table, name);
 		return ((volvox::FullType*)((char*)val + val->offset))->type;
@@ -292,6 +280,9 @@ public:
 
 extern VarTable globals_table;
 extern std::vector<VarTable> locals_table; // including function arguments
+
+extern volvox::FullType* anon_types;
+extern volvox::FullType** anon_types_end;
 
 // look up var and return if it's global
 inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
