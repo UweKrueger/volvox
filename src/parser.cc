@@ -167,11 +167,7 @@ volvox::FullType* ParseType(bool allow_attribute) {
 				}
 			}
 				
-			return new volvox::FullType{
-				.type = struct_type,
-				.type_attr = attribs,
-				.fields = fields
-			};
+			return new_FullType(struct_type, attribs, nullptr /*DIType*/, FieldNames.size(), (volvox::FullType*)fields);
 		}
 			break;
 		case '&':
@@ -745,7 +741,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
-		if (!E->ft->type) {
+		if (!E->ft || !E->ft->type) {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
 				if (B->conv.compat.err_msg)
 					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);

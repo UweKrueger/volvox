@@ -13,7 +13,7 @@ class ConstExprAST : public ExprAST {
 	llvm::Constant* val;
 public:
 	ConstExprAST(llvm::Constant* val) : val(val) {
-		ft = new_FullType(val->getType(), 0);
+		ft->type = val->getType();
 	}
 	llvm::Value* codegen() { return val; }
 };
@@ -62,7 +62,7 @@ public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: ExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
-			*(volvox::FullType*)this = full_var.first->ft;
+			this->ft = new_FullType(full_var.first->ft);
 		}
 	}
 	const std::string &getName() const { return Name; }

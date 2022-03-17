@@ -167,6 +167,15 @@ inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm
 	return &new_node->ft;
 }
 
+inline volvox::FullType* new_FullType(const volvox::FullType& orig) {
+	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
+	new_node->next = nullptr;
+	new_node->ft = orig;
+	*anon_types_end = new_node;
+	anon_types_end = &new_node->next;
+	return &new_node->ft;
+}
+
 class TypeTable {
 public:
 	TypeTable() : name_table(map_string_new_map()) {}
@@ -345,7 +354,7 @@ public:
 			ft->type_attr |= add_attr;
 		}
 	ExprAST(volvox::FullType& full_type, SourceLocation Loc = CurLoc, volvox::FullType desired = {}, bool is_unknown_type = false) :
-		ft(&full_type), Loc(Loc), desired_type(desired.type), desired_type_attr(desired.type_attr),
+		ft(new_FullType(full_type)), Loc(Loc), desired_type(desired.type), desired_type_attr(desired.type_attr),
 		desired_type_name(desired.type_name),
 		is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
