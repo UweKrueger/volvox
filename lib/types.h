@@ -64,6 +64,7 @@ namespace volvox {
 		};
 		unsigned type_attr;
 		uint64_t num_fields;
+		uint64_t type_size;
 		const char* name;
 		union {
 			const RtType* elem_type;
