@@ -439,10 +439,12 @@ namespace volvox {
 			}
 				break;
 			case llvm::Type::IntegerTyID: {
+				if (!(ft->type_attr & A_signed))
+					flags |= FMT_UNSIGNED;
 				if (ft->SubclassData <= 32) {
 					int val = va_arg(ap, int);
 					const char* fmt = getFmtInt(flags);
-					fprintf(stderr, "\nfmt: %s\n", fmt);
+					fprintf(stderr, "\nflags: %02x fmt: %s\n", flags, fmt);
 					fflush(stderr);
 					int expected_nchar = max(abs(w)+1, 21+1);
 					while (space < expected_nchar) {

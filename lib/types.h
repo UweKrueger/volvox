@@ -6,6 +6,14 @@
 #include <llvm/IR/DerivedTypes.h>
 #include <llvm/IR/DebugInfoMetadata.h>
 
+// Type Attributes
+#define A_signed (1U<<0) // also used for imaginary, string
+#define A_const  (1U<<1)
+#define A_shared (1U<<2)
+#define A_iso    (1U<<3)
+#define A_atomic (1U<<4)
+#define A_packed (1U<<5)
+
 namespace volvox {
 
 #if defined (_MSC_VER)

@@ -128,8 +128,8 @@ public:
 					ft->elem_type = el_type;
 				else
 					ft->elem_type = MakeType(Elements[0]->ft, Elements[0]->is_unknown_type);
-				if (!ft->elem_type)
-					eprt("Could not find i32 type!\n");
+				if (ft->elem_type)
+					eprt("Have Elem type %u %u %u\n", ft->elem_type->type->getTypeID(), ft->elem_type->type->getIntegerBitWidth(), ft->elem_type->type_attr);
 				ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
 				ft->num_fields = Elements.size();
 				// TODO... nrows = Elements.size();
