@@ -476,12 +476,30 @@ namespace volvox {
 				break;
 			case llvm::Type::ArrayTyID: {
 				char* elem_ptr = va_arg(ap, char*);
-				int elem_size;
+				int elem_size = ft->elem_type->type_size;
 				fprintf(stderr, "\nArray: %" PRIu64 "\n", ft->num_fields);
 				fflush(stderr);
 				if (ft->num_fields) {
-					for (uint64_t i = 0; i < ft->num_fields; i++)
-						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((int*)elem_ptr + i), nullptr, nullptr);
+					for (uint64_t i = 0; i < ft->num_fields; i++) {
+						if (ft->elem_type->ID == llvm::Type::FloatTyID) {
+							sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, (double)*((float*)elem_ptr + i), nullptr, nullptr);
+						} else if (ft->elem_type->ID == llvm::Type::IntegerTyID && elem_size <= 4) {
+							unsigned elem = 0;
+							memcpy(&elem, (char*)elem_ptr + i * elem_size, elem_size);
+							if (elem_size < 4 && (ft->elem_type->type_attr & A_signed)) {
+								// sign expand integer using logic left and arithmetic right shifts
+								unsigned shift = 8 * (4 - elem_size);
+								elem = (unsigned)((int)(elem << shift) >> shift);
+							}
+							sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, elem, nullptr, nullptr);
+						} else if (ft->elem_type->ID == llvm::Type::IntegerTyID) {
+							sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((uint64_t*)elem_ptr + i), nullptr, nullptr);
+						} else if (ft->elem_type->ID == llvm::Type::DoubleTyID) {
+							sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((double*)elem_ptr + i), nullptr, nullptr);
+						} else {
+							prtstring(s, cap, pos, "<unsupported type>");
+						}
+					}
 					prtstring(s, cap, pos, " ]");
 				} else {
 					prtstring(s, cap, pos, "[]");
