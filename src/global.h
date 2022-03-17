@@ -92,14 +92,6 @@ extern llvm::Type* llvm_size_type;
 
 extern unsigned anon_struct_nr;
 
-// Type Attributes
-#define A_signed (1U<<0) // also used for imaginary, string
-#define A_const  (1U<<1)
-#define A_shared (1U<<2)
-#define A_iso    (1U<<3)
-#define A_atomic (1U<<4)
-#define A_packed (1U<<5)
-
 extern std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap);
 extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
