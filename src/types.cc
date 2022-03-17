@@ -301,6 +301,19 @@ std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeTyp
 		return { type, NoConversion, false };
 }
 
+volvox::FullType* MakeType(volvox::FullType* base, bool is_unknown_type) {
+	if (is_unknown_type && base->type->isIntegerTy()) {
+		volvox::FullType* new_type = type_table.get_full("i32");
+		if (!new_type)
+			eprt("Could not find i32 type!\n");
+		else
+			dprt("i32 type found: %p\n", new_type);
+		return new_type;
+	} else {
+		return base;
+	}
+}
+
 const char* AggregateExprAST::KindName() {
 	switch(kind) {
 	case FixedArray:
@@ -339,7 +352,7 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)key));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)ft->type_attr));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uint64_t)ft->num_fields));
-	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
+	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name, "", 0, TheModule.get()) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
 	if (llvmtype.ID == llvm::Type::ArrayTyID) {
 		fields.push_back(getRtType(ft->elem_type));
 	}
