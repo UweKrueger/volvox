@@ -272,7 +272,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 			Expect(')', true);
 			auto Args = SplitExprList(std::move(Arg));
 			auto call_expr = std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
-			if (!call_expr->ft->type) // Used to signal failure, e.g. IdName was not found
+			if (!call_expr || !call_expr->ft || !call_expr->ft->type) // Used to signal failure, e.g. IdName was not found
 				return nullptr;
 			return call_expr;
 		} else {
@@ -688,10 +688,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		getNextToken();
 		if (CurTok.kind == ')')
 			break;
-		Eat(',', true);
+		Eat(',');
 	}
 noargs:
-	getNextToken(true); // eat ')'.
+	getNextToken(); // eat ')'.
 	// parse return type(s)
 	std::vector<volvox::FullType*> RetTypes;
 	while (CurTok.kind != ';') {
