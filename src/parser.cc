@@ -258,12 +258,12 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 
 	getNextToken(true); // eat identifier.
 
-	if (CurTok.kind != '(') { // Simple variable ref.
+	//if (CurTok.kind != '(') { // Simple variable ref.
 		auto var_expr = std::make_unique<VariableExprAST>(LitLoc, IdName);
 		// if (!var_expr->type) // variable name not found
 		//	return nullptr;
 		return var_expr;
-	}
+		//}
 
 	// Call.
 	getNextToken(); // eat '('
@@ -728,10 +728,11 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 		}
 	}
 	auto ProtoRef = Proto.get();
-	FunctionProtos[Proto->getName()] = std::move(Proto);
+	//FunctionProtos[Proto->getName()] = std::move(Proto);
+	RegisterProto(Proto.get());
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetTypes[0]->type, ProtoRef->RetTypes[0]->type_attr);
 	if (Elist.first.size()) {
-		return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
+		return std::make_unique<FunctionAST>(std::move(Proto), std::move(Elist.first), Elist.second);
 	}
 	return nullptr;
 }
@@ -778,9 +779,9 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		auto print_call = std::make_unique<CallExprAST>(FnLoc, volvox_println, std::move(PrintArgs));
 		std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 		GlobalExprList.push_back(std::move(print_call));
-		auto ProtoRef = Proto.get();
-		FunctionProtos[Proto->getName()] = std::move(Proto);
-		auto tmp_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
+		// FunctionProtos[Proto->getName()] = std::move(Proto);
+		RegisterProto(Proto.get(), true);
+		auto tmp_function = std::make_unique<FunctionAST>(std::move(Proto), std::move(GlobalExprList), tok_return);
 		return tmp_function;
 	}
 	return nullptr;

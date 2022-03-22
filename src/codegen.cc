@@ -50,16 +50,19 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 	return nullptr;
 }
 
-std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
-	auto FI = FunctionProtos.find(Name);
-	if (FI == FunctionProtos.end())
-		return { nullptr, nullptr };
-	// See if the function has already been added to the current module.
-	if (auto F = TheModule->getFunction(Name))
-		return { F, FI->second.get() };
-
-	// codegen the declaration from the existing prototype.
-	return { FI->second->codegen(), FI->second.get() };
+// TODO: this should disappear in favour of a general check about the callee
+FullVar* getFunction(std::string Name) {
+	auto FV = lookup_var(Name.c_str());
+	if (FV.first->ft.type->getTypeID() != llvm::Type::FunctionTyID) {
+		eprt("`%s` is not a function\n", Name.c_str());
+		return nullptr;
+	}
+	auto F = TheModule->getFunction(Name);
+	if (!F) {
+		eprt("no such function in module: %s!\n", Name.c_str());
+		return nullptr;
+	}
+	return FV.first;
 }
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
@@ -218,10 +221,10 @@ llvm::Value *UnaryExprAST::codegen() {
 		}
 	default:
 		auto F = getFunction(std::string("unary") + Opcode);
-		if (!F.first)
+		if (!F)
 			return LogErrorV("Unknown unary operator");
 		// TODO: operand types
-		return Builder->CreateCall(F.first, OperandV, "unop");
+		return F->val; // Builder->CreateCall(F.first, OperandV, "unop")
 	}
 }
 
@@ -291,9 +294,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					auto memcpy_call = std::make_unique<CallExprAST>(CurLoc, memcpy_sym, std::move(MemCpyArgs));
 					std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 					GlobalExprList.push_back(std::move(memcpy_call));
-					auto ProtoRef = Proto.get();
-					FunctionProtos[Proto->getName()] = std::move(Proto);
-					auto FnAST = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
+					// FunctionProtos[Proto->getName()] = std::move(Proto);
+					RegisterProto(Proto.get(), true);
+					auto FnAST = std::make_unique<FunctionAST>(std::move(Proto), std::move(GlobalExprList), tok_return);
 					auto anon_expr = FnAST->codegen();
 #if LLVM_VERSION_MAJOR >= 12
 					// Create a ResourceTracker to track JIT'd memory allocated to our
@@ -371,8 +374,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			ft.type = type;
 			ft.type_attr = is_signed ? 1U : 0U;
 			FullVar fv = {
-				.ft = ft,
 				.val = GV,
+				.ft = ft,
 			};
 			globals_table.insert(varname, fv);
 			dprt("Inserted %s to globals table\n", varname);
@@ -759,10 +762,10 @@ conv_done:
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
 	auto F = getFunction(std::string("binary") + Op);
-	assert(F.first && "binary operator not found!");
+	assert(F && "binary operator not found!");
 
 	llvm::Value *Ops[] = {L, R};
-	return Builder->CreateCall(F.first, Ops, "binop");
+	return F->val; // Builder->CreateCall(F.first, Ops, "binop");
 }
 
 llvm::Value *CallExprAST::codegen() {
@@ -771,35 +774,35 @@ llvm::Value *CallExprAST::codegen() {
 	}
 	// Look up the name in the global module table.
 	auto CalleeF = getFunction(Callee);
-	if (!CalleeF.first)
+	if (!CalleeF)
 		return LogErrorV("Unknown function referenced");
 
 	// If argument mismatch error.
-	if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())
+	if (CalleeF->ft.type->getFunctionNumParams() > Args.size() || CalleeF->ft.type->getFunctionNumParams() < Args.size() && !CalleeF->ft.type->isFunctionVarArg())
 		return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<llvm::Value *> ArgsV;
-	for (unsigned i = 0, e = Args.size(), v = CalleeF.second->Args.size(); i != e; ++i) {
-		if (i < v && (CalleeF.second->ArgTypes[i]->type->isIntegerTy() || CalleeF.second->ArgTypes[i]->type->isFloatingPointTy())) {
+	for (unsigned i = 0, e = Args.size(), v = CalleeF->ft.type->getFunctionNumParams(); i != e; ++i) {
+		if (i < v && (CalleeF->ft.type->getFunctionParamType(i)->isIntegerTy() || CalleeF->ft.type->getFunctionParamType(i)->isFloatingPointTy())) {
 			dprt("Try to get conversion\n");
 			auto conversion = getConv(
-				Args[i]->ft->type, CalleeF.second->ArgTypes[i]->type,
-				Args[i]->ft->type_attr, CalleeF.second->ArgTypes[i]->type_attr,
+				Args[i]->ft->type, CalleeF->ft.type->getFunctionParamType(i),
+				Args[i]->ft->type_attr, (CalleeF->ft.elem_type + 1 + i)->type_attr,
 				Args[i]->Loc, false, Args[i]->is_unknown_type);
 			if (!conversion)
 				return nullptr;
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
-			if (i < v && Args[i]->ft->type->getTypeID() != CalleeF.second->ArgTypes[i]->type->getTypeID())
+			if (i < v && Args[i]->ft->type->getTypeID() != CalleeF->ft.type->getFunctionParamType(i)->getTypeID())
 				// TODO: better check compatibility
-				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->ft->type->getTypeID(), CalleeF.second->ArgTypes[i]->type->getTypeID());
+				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->ft->type->getTypeID(), CalleeF->ft.type->getFunctionParamType(i)->getTypeID());
 			ArgsV.push_back(Args[i]->codegen());
 		}
 		if (!ArgsV.back())
 			return nullptr;
 	}
 	
-	return Builder->CreateCall(CalleeF.first, ArgsV, "calltmp");
+	return Builder->CreateCall(llvm::cast<llvm::FunctionType>(CalleeF->ft.type), CalleeF->val, ArgsV, "calltmp");
 }
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
@@ -935,11 +938,11 @@ llvm::Value *ForExprAST::codegen() {
 		OldVal = Alloca;
 	} else {
 		FullVar fv = {
+			.val = Alloca,
 			.ft = {
 				.type = AllocaT,
 				.type_attr = AllocaF
 			},
-			.val = Alloca,
 		};
 		locals_table.back().insert(VarName.c_str(), fv);
 	}
@@ -995,13 +998,13 @@ llvm::Value *ForExprAST::codegen() {
 	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*Context.getContext()));
 }
 
-llvm::Function *PrototypeAST::codegen() {
+std::pair <llvm::FunctionType*, llvm::Function*> PrototypeAST::codegen() {
 	// Make the function type:  double(double,double) etc.
 	// TODO: support returning multiple objects
 	auto RetType = RetTypes.size() == 1 ?
 		RetTypes[0]->type : llvm::Type::getVoidTy(*Context.getContext());
 	if (!RetType) // RetTypes[0] exists but type could not be derived
-		return nullptr;
+		return { nullptr, nullptr };
 	llvm::FunctionType *FT =
 		llvm::FunctionType::get(RetType, LLVMArgTypes, IsVarArgs);
 
@@ -1013,15 +1016,14 @@ llvm::Function *PrototypeAST::codegen() {
 	for (auto &Arg : F->args())
 		Arg.setName(Args[Idx++]);
 
-	return F;
+	return { FT, F };
 }
 
 llvm::Function *FunctionAST::codegen() {
 	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
-	auto CalleeF = getFunction(P.getName());
-	llvm::Function* TheFunction = CalleeF.first;
+	llvm::Function* TheFunction = llvm::cast<llvm::Function>(Proto->theFunction->val);
 	if (!TheFunction) {
 		for (auto& expr : Body)
 			llvm::Value *RetVal = expr->codegen();
@@ -1121,4 +1123,39 @@ llvm::Function *FunctionAST::codegen() {
 		TheFPM->run(*TheFunction);
 	}
 	return TheFunction;
+}
+
+bool RegisterProto(PrototypeAST* ProtoAST, bool allow_replace) {
+	unsigned add_size = sizeof(volvox::FullType*) * ProtoAST->ArgTypes.size();
+	// The new map node is created on the stack and later copied to the heap by globals_table.insert()
+	// TODO: this could be optimized by direcly creating the MapNode on the heap -> low prio
+	auto GV = (FullVar*)alloca(sizeof(FullVar) + add_size);
+	auto type_fn = ProtoAST->codegen();
+	if (type_fn.second) {
+		if (comp_mode != comp_dbg) {
+			eprt("Read declaration: ");
+			type_fn.second->print(llvm::errs());
+			eprt("\n");
+		}
+	} else {
+		eprt("Error reading declaration\n");
+		return false;
+	}
+	// FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
+	// handle function definition as a global variable
+	GV->val = type_fn.second;
+	GV->ft.type = type_fn.first;
+	GV->ft.type_attr = 0;
+	GV->ft.num_fields = ProtoAST->ArgTypes.size();
+	GV->ft.type_name = nullptr;
+	GV->ft.ditype = nullptr;
+	GV->ft.elem_type = ProtoAST->RetTypes[0];
+	memcpy(&GV->ft.elem_type + 1, ProtoAST->ArgTypes.data(), ProtoAST->ArgTypes.size()*sizeof(volvox::FullType*));
+	auto res = globals_table.insert(ProtoAST->getName().c_str(), *GV, add_size);
+	if (!res && !allow_replace) {
+		eprt("global symbol %s already exists\n", ProtoAST->getName().c_str());
+		return false;
+	}
+	ProtoAST->theFunction = res;
+	return true;
 }

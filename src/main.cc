@@ -27,7 +27,7 @@ llvm::Type* llvm_size_type;
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
-std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+// std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
@@ -163,19 +163,10 @@ static void HandleDefinition() {
 
 static void HandleExtern() {
 	if (auto ProtoAST = ParseExtern()) {
-		if (auto *FnIR = ProtoAST->codegen()) {
-			if (comp_mode != comp_dbg) {
-				eprt("Read extern: ");
-				FnIR->print(llvm::errs());
-				eprt("\n");
-			}
-			FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
-		} else {
-			eprt("Error reading extern");
-		}
+		RegisterProto(ProtoAST.get());
 	} else {
 		// Skip token for error recovery.
-		getNextToken();
+		purgeLine();
 	}
 }
 

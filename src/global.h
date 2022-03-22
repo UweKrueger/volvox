@@ -98,6 +98,7 @@ extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
+extern bool RegisterProto(PrototypeAST* ProtoAST, bool allow_replace = false);
 
 static inline void dprt(const char* fmt, ...) {
 	va_list args;
@@ -131,8 +132,8 @@ struct int_val_type_t {
 };
 
 struct FullVar {
-	volvox::FullType ft;
 	llvm::Value* val;
+	volvox::FullType ft;
 };
 
 // small hack to access protected method
@@ -272,7 +273,7 @@ protected:
 };
 
 extern TypeTable type_table;
-extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+// extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 class VarTable {
 protected:
@@ -284,10 +285,12 @@ public:
 		map_destroy(table);
 		table = map_string_new_map();
 	}
-	bool insert(const char* key, const FullVar& value) {
+	// return true if symbol had not already been defined
+	FullVar* insert(const char* key, const FullVar& value, unsigned plus_size = 0, bool allow_replace = false) {
 		MapValue mv = { .src_ptr = const_cast<FullVar*>(&value) };
-		auto res = map_string_insert(&table, key, mv, sizeof(FullVar), false);
-		return res;
+		auto node = map_string_insert(&table, key, mv, sizeof(FullVar) + plus_size, allow_replace);
+		node = (MapNode*)((uintptr_t)node & ~1ULL);
+		return node ? (FullVar*)((char*)&node->value + node->value.offset) : nullptr;
 	}
 	FullVar* operator[](const char* key) {
 		MapValue* node = map_string_get(table, key);
@@ -347,6 +350,10 @@ public:
 		}
 	ExprAST(volvox::FullType& full_type, SourceLocation Loc = CurLoc, volvox::FullType desired = {}, bool is_unknown_type = false) :
 		ft(new_FullType(full_type)), Loc(Loc), desired_type(desired.type), desired_type_attr(desired.type_attr),
+		desired_type_name(desired.type_name),
+		is_unknown_type(is_unknown_type) {}
+	ExprAST(volvox::FullType* full_type, SourceLocation Loc = CurLoc, volvox::FullType desired = {}, bool is_unknown_type = false) :
+		ft(full_type), Loc(Loc), desired_type(desired.type), desired_type_attr(desired.type_attr),
 		desired_type_name(desired.type_name),
 		is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}

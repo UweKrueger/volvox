@@ -18,6 +18,13 @@ public:
 	llvm::Value* codegen() { return val; }
 };
 
+class EmptyExpr : public ExprAST {
+public:
+	EmptyExpr(SourceLocation Loc = CurLoc)
+		: ExprAST(type_table.get_full("void"), Loc) {}
+	llvm::Value* codegen() { return (llvm::Value*)nullptr; }
+};
+
 // Class for all literals - 1.2, 3u, "str"
 class LiteralExprAST : public ExprAST {
 
@@ -240,7 +247,8 @@ public:
 	std::vector<std::string> Args;
 	std::vector<volvox::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
-	std::vector<volvox::FullType*> RetTypes;
+	std::vector<volvox::FullType*> RetTypes; // TODO - make this scalar
+	FullVar* theFunction; // after prototype has been registered
 	bool IsVarArgs;
 	bool IsOperator;
 	int Line;
@@ -251,7 +259,7 @@ public:
 	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
 		: Name(Name), Args(Args), IsOperator(IsOperator),
 		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {}
-	llvm::Function *codegen();
+	std::pair <llvm::FunctionType*, llvm::Function*> codegen();
 	const std::string &getName() const { return Name; }
 
 	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
@@ -274,21 +282,21 @@ public:
 	CallExprAST(SourceLocation Loc, const std::string &Callee,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
 		: ExprAST(nullptr, 0, Loc), Callee(Callee), Args(std::move(Args)) {
-		auto FI = FunctionProtos.find(Callee);
-		if (FI != FunctionProtos.end()) {
-			if (FI->second->RetTypes.size() == 0) {
-				ft->type = llvm::Type::getVoidTy(*Context.getContext());
-				ft->type_attr = 0;
-			} else if(FI->second->RetTypes.size() == 1) {
-				ft->type = FI->second->RetTypes[0]->type;
-				ft->type_attr = FI->second->RetTypes[0]->type_attr;
-			} else {
-				LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
-			}
-		} else {
-			// constructors have no return value so failure is signaled by type == nullptr
-			LogError("call to undeclared function %s()", Callee.c_str());
-		}
+		// auto FI = FunctionProtos.find(Callee);
+		// if (FI != FunctionProtos.end()) {
+		// 	if (FI->second->RetTypes.size() == 0) {
+		// 		ft->type = llvm::Type::getVoidTy(*Context.getContext());
+		// 		ft->type_attr = 0;
+		// 	} else if(FI->second->RetTypes.size() == 1) {
+		// 		ft->type = FI->second->RetTypes[0]->type;
+		// 		ft->type_attr = FI->second->RetTypes[0]->type_attr;
+		// 	} else {
+		// 		LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
+		// 	}
+		// } else {
+		// 	// constructors have no return value so failure is signaled by type == nullptr
+		// 	LogError("call to undeclared function %s()", Callee.c_str());
+		// }
 	}
 	llvm::Value *codegen() override;
 #ifndef NDEBUG
@@ -378,14 +386,14 @@ public:
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
 public:
-	PrototypeAST* Proto;
+	std::unique_ptr<PrototypeAST> Proto;
 	std::vector<std::unique_ptr<ExprAST>> Body;
 	int EndKind;
 	
-	FunctionAST(PrototypeAST* Proto,
+	FunctionAST(std::unique_ptr<PrototypeAST> Proto,
 	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind)
-		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind) {}
-	llvm::Function *codegen();
+		: Proto(std::move(Proto)), Body(std::move(Body)), EndKind(EndKind) {}
+	llvm::Function* codegen();
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		indent(out, ind) << "FunctionAST\n";
