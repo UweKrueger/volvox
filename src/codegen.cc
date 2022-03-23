@@ -59,8 +59,8 @@ FullVar* getFunction(std::string Name) {
 	}
 	auto F = TheModule->getFunction(Name);
 	if (!F) {
-		eprt("no such function in module: %s!\n", Name.c_str());
-		return nullptr;
+		F = llvm::Function::Create(llvm::cast<llvm::FunctionType>(FV.first->ft.type), llvm::Function::ExternalLinkage, Name, TheModule.get());
+		FV.first->val = F;
 	}
 	return FV.first;
 }
