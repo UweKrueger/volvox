@@ -1151,7 +1151,7 @@ bool RegisterProto(PrototypeAST* ProtoAST, bool allow_replace) {
 	GV->ft.ditype = nullptr;
 	GV->ft.elem_type = ProtoAST->RetTypes[0];
 	memcpy(&GV->ft.elem_type + 1, ProtoAST->ArgTypes.data(), ProtoAST->ArgTypes.size()*sizeof(volvox::FullType*));
-	auto res = globals_table.insert(ProtoAST->getName().c_str(), *GV, add_size);
+	auto res = globals_table.insert(ProtoAST->getName().c_str(), *GV, add_size, allow_replace);
 	if (!res && !allow_replace) {
 		eprt("global symbol %s already exists\n", ProtoAST->getName().c_str());
 		return false;
