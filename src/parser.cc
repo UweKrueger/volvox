@@ -536,6 +536,16 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				eprt("left operand of \":=\" must be a variable\n");
 				return nullptr;
 			}
+		} else if (!LHS_type) {
+			if (auto V = dynamic_cast<VariableExprAST*>(LHS.get())) {
+				if (BinOp[0] == '\0') {
+					auto Args = SplitExprList(std::move(RHS));
+					LHS = std::make_unique<CallExprAST>(V->Loc, V->Name, std::move(Args));
+					continue;
+				}
+			}
+			eprt("Binary Expr: Type of LHS unknown\n");
+			return nullptr;
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
 		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr,
