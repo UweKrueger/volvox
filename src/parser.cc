@@ -537,13 +537,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				return nullptr;
 			}
 		}
-		if (LHS_type->isFunctionTy()) {
+		if (LHS_type && LHS_type->isFunctionTy()) {
 			if (BinOp[0] != '\0') { // mybe allow sin^2(x)
 				dprt("Unexpected Operand `%s` after function\n", BinOp.c_str());
 				return nullptr;
 			}
 			auto LitLoc = LHS->Loc;
-			auto Args = SplitExprList(std::move(LHS));
+			auto Args = SplitExprList(std::move(RHS));
 			LHS = std::make_unique<CallExprAST>(LitLoc, std::move(LHS), std::move(Args));
 			if (!LHS || !LHS->ft || !LHS->ft->type) // Used to signal failure, e.g. IdName was not found
 				return nullptr;
