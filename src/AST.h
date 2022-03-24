@@ -259,7 +259,7 @@ public:
 	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
 		: Name(Name), Args(Args), IsOperator(IsOperator),
 		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {}
-	std::pair <llvm::FunctionType*, llvm::Function*> codegen();
+	std::pair <llvm::FunctionType*, llvm::Function*> codegen(bool doGen = false);
 	const std::string &getName() const { return Name; }
 
 	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }

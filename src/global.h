@@ -98,7 +98,7 @@ extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
-extern bool RegisterProto(PrototypeAST* ProtoAST, bool allow_replace = false);
+extern bool RegisterProto(PrototypeAST* ProtoAST, bool allow_replace = false, bool doGen = false);
 
 static inline void dprt(const char* fmt, ...) {
 	va_list args;

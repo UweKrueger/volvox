@@ -50,19 +50,23 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 	return nullptr;
 }
 
-// TODO: this should disappear in favour of a general check about the callee
-FullVar* getFunction(std::string Name) {
-	auto FV = lookup_var(Name.c_str());
-	if (FV.first->ft.type->getTypeID() != llvm::Type::FunctionTyID) {
+FullVar* getFunction(FullVar* FV, std::string Name) {
+	if (FV->ft.type->getTypeID() != llvm::Type::FunctionTyID) {
 		eprt("`%s` is not a function\n", Name.c_str());
 		return nullptr;
 	}
 	auto F = TheModule->getFunction(Name);
 	if (!F) {
-		F = llvm::Function::Create(llvm::cast<llvm::FunctionType>(FV.first->ft.type), llvm::Function::ExternalLinkage, Name, TheModule.get());
-		FV.first->val = F;
+		F = llvm::Function::Create(llvm::cast<llvm::FunctionType>(FV->ft.type), llvm::Function::ExternalLinkage, Name, TheModule.get());
+		FV->val = F;
 	}
-	return FV.first;
+	return FV;
+}
+
+// TODO: this should disappear in favour of a general check about the callee
+FullVar* getFunction(std::string Name) {
+	auto FV = lookup_var(Name.c_str());
+	return getFunction(FV.first, Name);
 }
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
@@ -283,7 +287,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					llvm::Constant* DstPtr = llvm::ConstantExpr::getIntToPtr(DstAddr, GInit->getValueType()->getPointerTo());
 					llvm::Constant* cStoreSize = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), StoreSize);
 					std::vector<volvox::FullType*> TheType = { type_table.get_full("string") };
-					auto Proto = std::make_unique<PrototypeAST>(CurLoc, "__anon_expr",
+					auto Proto = std::make_unique<PrototypeAST>(CurLoc, "__anon_expr2",
 					                                            std::vector<std::string>(),
 					                                            false, TheType);
 					std::vector<std::unique_ptr<ExprAST>> MemCpyArgs;
@@ -313,10 +317,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					InitializeModuleAndPassManager();
 					// Search the JIT for the __anon_expr symbol.
 #if LLVM_VERSION_MAJOR >= 12
-					auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
+					auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr2"));
 #define UNWRAP(x) (x)
 #else
-					auto ExprSymbol = TheJIT->findSymbol("__anon_expr");
+					auto ExprSymbol = TheJIT->findSymbol("__anon_expr2");
 					assert(ExprSymbol && "Function not found");
 #define UNWRAP(x) cantFail(x)
 #endif
@@ -1008,7 +1012,7 @@ llvm::Value *ForExprAST::codegen() {
 	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*Context.getContext()));
 }
 
-std::pair <llvm::FunctionType*, llvm::Function*> PrototypeAST::codegen() {
+std::pair <llvm::FunctionType*, llvm::Function*> PrototypeAST::codegen(bool doGen) {
 	// Make the function type:  double(double,double) etc.
 	// TODO: support returning multiple objects
 	auto RetType = RetTypes.size() == 1 ?
@@ -1018,14 +1022,17 @@ std::pair <llvm::FunctionType*, llvm::Function*> PrototypeAST::codegen() {
 	llvm::FunctionType *FT =
 		llvm::FunctionType::get(RetType, LLVMArgTypes, IsVarArgs);
 
-	llvm::Function *F =
-		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
+	llvm::Function* F;
+	if (doGen) {
+		F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
 
-	// Set names for all arguments.
-	unsigned Idx = 0;
-	for (auto &Arg : F->args())
-		Arg.setName(Args[Idx++]);
-
+		// Set names for all arguments.
+		unsigned Idx = 0;
+		for (auto &Arg : F->args())
+			Arg.setName(Args[Idx++]);
+	} else {
+		F = nullptr;
+	}
 	return { FT, F };
 }
 
@@ -1033,8 +1040,9 @@ llvm::Function *FunctionAST::codegen() {
 	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
-	llvm::Function* TheFunction = llvm::cast<llvm::Function>(Proto->theFunction->val);
+	llvm::Function* TheFunction = llvm::cast<llvm::Function>(getFunction(Proto->theFunction, Proto->Name)->val);
 	if (!TheFunction) {
+		dprt("FunctionAST::codegen: !TheFunction\n");
 		for (auto& expr : Body)
 			llvm::Value *RetVal = expr->codegen();
 		return nullptr;
@@ -1099,6 +1107,7 @@ llvm::Function *FunctionAST::codegen() {
 	Body.back()->desired_type_attr = P.RetTypes[0]->type_attr;
 	llvm::Value* RetVal;
 	for (auto& Expr : Body) {
+		dprt("creating body expr...\n");
 		if ((RetVal = Expr->codegen())) {
 			if (comp_mode == comp_dbg) {
 				KSDbgInfo.emitLocation(Expr.get());
@@ -1135,22 +1144,23 @@ llvm::Function *FunctionAST::codegen() {
 	return TheFunction;
 }
 
-bool RegisterProto(PrototypeAST* ProtoAST, bool allow_replace) {
+bool RegisterProto(PrototypeAST* ProtoAST, bool allow_replace, bool doGen) {
 	unsigned add_size = sizeof(volvox::FullType*) * ProtoAST->ArgTypes.size();
 	// The new map node is created on the stack and later copied to the heap by globals_table.insert()
 	// TODO: this could be optimized by direcly creating the MapNode on the heap -> low prio
 	auto GV = (FullVar*)alloca(sizeof(FullVar) + add_size);
-	auto type_fn = ProtoAST->codegen();
+	auto type_fn = ProtoAST->codegen(doGen);
 	if (type_fn.second) {
 		if (comp_mode != comp_dbg) {
 			eprt("Read declaration: ");
 			type_fn.second->print(llvm::errs());
 			eprt("\n");
 		}
-	} else {
-		eprt("Error reading declaration\n");
-		return false;
 	}
+	// } else {
+	// 	eprt("Error reading declaration\n");
+	// 	return false;
+	// }
 	// FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
 	// handle function definition as a global variable
 	GV->val = type_fn.second;

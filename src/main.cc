@@ -163,7 +163,7 @@ static void HandleDefinition() {
 
 static void HandleExtern() {
 	if (auto ProtoAST = ParseExtern()) {
-		RegisterProto(ProtoAST.get());
+		RegisterProto(ProtoAST.get(), false, true);
 	} else {
 		// Skip token for error recovery.
 		purgeLine();
