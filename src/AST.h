@@ -275,33 +275,32 @@ public:
 
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
-	std::string Callee;
+	// std::string Callee;
+	std::unique_ptr<ExprAST> Callee;
 	std::vector<std::unique_ptr<ExprAST>> Args;
 
 public:
-	CallExprAST(SourceLocation Loc, const std::string &Callee,
+	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
-		: ExprAST(nullptr, 0, Loc), Callee(Callee), Args(std::move(Args)) {
-		// auto FI = FunctionProtos.find(Callee);
-		// if (FI != FunctionProtos.end()) {
-		// 	if (FI->second->RetTypes.size() == 0) {
-		// 		ft->type = llvm::Type::getVoidTy(*Context.getContext());
-		// 		ft->type_attr = 0;
-		// 	} else if(FI->second->RetTypes.size() == 1) {
-		// 		ft->type = FI->second->RetTypes[0]->type;
-		// 		ft->type_attr = FI->second->RetTypes[0]->type_attr;
-		// 	} else {
-		// 		LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
-		// 	}
-		// } else {
-		// 	// constructors have no return value so failure is signaled by type == nullptr
-		// 	LogError("call to undeclared function %s()", Callee.c_str());
-		// }
+		: ExprAST(nullptr, 0, Loc), Callee(std::move(Callee_)), Args(std::move(Args)) {
+		if (Callee) {
+			if (auto FuncT = llvm::dyn_cast<llvm::FunctionType>(Callee->ft->type)) {
+				ft->type = FuncT->getReturnType();
+				//dprt("call with return type %p %u\n", Callee->ft.elem_type->type, Callee->ft.elem_type->type ? Callee->ft.elem_type->type->getTypeID() : 0);
+				ft->type_attr = Callee->ft->elem_type->type_attr;
+			} else {
+				LogError("callee is not a function");
+			}
+		} else {
+			// constructors have no return value so failure is signaled by type == nullptr
+			LogError("call to undeclared function");
+		}
 	}
 	llvm::Value *codegen() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "call " << Callee, ind);
+		ExprAST::dump(out << "call ", ind);
+		Callee->dump(indent(out, ind + 1), ind + 1);
 		for (const auto &Arg : Args)
 			Arg->dump(indent(out, ind + 1), ind + 1);
 		return out;

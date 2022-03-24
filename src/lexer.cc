@@ -121,6 +121,12 @@ Token Lexer::gettok(bool expectBinary) {
 	// Binary Operators
 	if (expectBinary) {
 		switch(CurChar) {
+		case '(': // call expression
+			IdentifierStr = "";
+			// no advance - keep '(' for next time when expectBinary=false
+			return Token(tok_);
+		case ')':
+			goto anychar;
 		case ':':
 			CurChar = advance();
 			if (CurChar == '=') {
@@ -335,6 +341,7 @@ Token Lexer::gettok(bool expectBinary) {
 		}
 		// else passthrough
 	default:
+	anychar:
 		// Otherwise, just return the character as its ascii value.
 		int ThisChar = CurChar;
 		CurChar = advance();

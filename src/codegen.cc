@@ -291,7 +291,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					MemCpyArgs.push_back(std::move(std::make_unique<ConstExprAST>(InitPtr)));
 					MemCpyArgs.push_back(std::move(std::make_unique<ConstExprAST>(cStoreSize)));
 					std::string memcpy_sym = "memcpy";
-					auto memcpy_call = std::make_unique<CallExprAST>(CurLoc, memcpy_sym, std::move(MemCpyArgs));
+					std::unique_ptr<ExprAST> memcpy_callee = std::make_unique<VariableExprAST>(CurLoc, memcpy_sym);
+					auto memcpy_call = std::make_unique<CallExprAST>(CurLoc, std::move(memcpy_callee), std::move(MemCpyArgs));
 					std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 					GlobalExprList.push_back(std::move(memcpy_call));
 					// FunctionProtos[Proto->getName()] = std::move(Proto);
@@ -397,6 +398,10 @@ llvm::Value *BinaryExprAST::codegen() {
 	dprt("Binary Codegen\n");
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
+	}
+	if (Op[0] == '\0') {
+		dprt("Found call expr\n");
+		return llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uint64_t)42);
 	}
 	bool is_bool = desired_type == llvm::Type::getInt1Ty(*Context.getContext()) || ft->type == llvm::Type::getInt1Ty(*Context.getContext());
 	OpKind kind;
@@ -585,7 +590,6 @@ conv_done:
 		}
 		break;
 	case '*':
-	case '\0':
 		switch(typeclass) {
 		case is_int:
 			result = Builder->CreateMul(L, R, "multmp");
@@ -773,7 +777,13 @@ llvm::Value *CallExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Look up the name in the global module table.
-	auto CalleeF = getFunction(Callee);
+	FullVar* CalleeF;
+	if (auto V = dynamic_cast<VariableExprAST*>(Callee.get())) {
+		CalleeF = V->full_var.first;
+	} else {
+		eprt("Call of non lit function not implemented, yet\n");
+		return nullptr;
+	}
 	if (!CalleeF)
 		return LogErrorV("Unknown function referenced");
 
