@@ -79,15 +79,9 @@ Token Lexer::gettok(bool expectBinary) {
 	CurLoc = LexLoc;
 
 	if (isalpha(CurChar) || CurChar == '_') { // identifier: [a-zA-Z_][a-zA-Z0-9_]*
-		if (expectBinary) {
-			IdentifierStr = "";
-			return Token(tok_);
-		}
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
-		if (expectBinary)
-			dprt("*** expected binary but got identifier >%s<\n", IdentifierStr.c_str());
 		if (IdentifierStr == "fn")
 			return Token(tok_fn);
 		if (IdentifierStr == "extern")
@@ -121,12 +115,6 @@ Token Lexer::gettok(bool expectBinary) {
 	// Binary Operators
 	if (expectBinary) {
 		switch(CurChar) {
-		case '(': // call expression
-			IdentifierStr = "";
-			// no advance - keep '(' for next time when expectBinary=false
-			return Token(tok_);
-		case ')':
-			goto anychar;
 		case ':':
 			CurChar = advance();
 			if (CurChar == '=') {
@@ -251,8 +239,6 @@ Token Lexer::gettok(bool expectBinary) {
 				return tok_mult;
 			}
 		}
-		default:
-			dprt("*** expected binary but got >%c<\n", CurChar);
 		}
 	}
 	// Number Literal
@@ -261,10 +247,6 @@ Token Lexer::gettok(bool expectBinary) {
 	    (CurChar == '+' || CurChar == '-') &&
 	    (isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
 	     linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
-		if (expectBinary) {
-			IdentifierStr = "";
-			return Token(tok_);
-		}
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
 		LexLoc.Col = (n_ptr - linebuf);
@@ -341,7 +323,6 @@ Token Lexer::gettok(bool expectBinary) {
 		}
 		// else passthrough
 	default:
-	anychar:
 		// Otherwise, just return the character as its ascii value.
 		int ThisChar = CurChar;
 		CurChar = advance();

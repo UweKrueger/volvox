@@ -263,11 +263,6 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 {
 	if (!left_type || Op[0] == ',') // variable declaration, i.e. := operator
 		return {{ nullptr, nullptr, nullptr, 0, false, nullptr }, { nullptr, nullptr, nullptr, 0, false, nullptr }};
-	if (left_type->isFunctionTy()) {
-		dprt("Left is function type\n");
-		llvm::Type* ret_type = llvm::cast<llvm::FunctionType>(left_type)->getReturnType();
-		return {{ nullptr, nullptr, ret_type, 0, false, nullptr }, { nullptr, nullptr, ret_type, 0, false, nullptr }};
-	}
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
 	bool left_is_float = left_descr.second;
