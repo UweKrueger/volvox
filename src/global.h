@@ -33,11 +33,12 @@ enum TokenKind {
 	tok_cmp = -8, // >=, >, ==, !=, <, <=, <=>
 	tok_add = -9, // +, -, ~
 	tok_mult = -10, // *, /, %, <<, >>
-	tok_unary = -11, // +, -, !, ~, &, <-
-	tok_pow = -12, // **
-	tok_postfix = -13, // ++, -- (return old result)
-	tok_selector = -14, // . (struct.field, module.ident)
-	tok_last_op = -15, // only used for comparisons to identify operators
+	tok_ = -11, // invisible operator in `sin x` or `2a` or `sin 2 x`
+	tok_unary = -12, // +, -, !, ~, &, <-
+	tok_pow = -13, // **
+	tok_postfix = -14, // ++, -- (return old result)
+	tok_selector = -15, // . (struct.field, module.ident)
+	tok_last_op = -16, // only used for comparisons to identify operators
 
 	tok_eof = -20,
 

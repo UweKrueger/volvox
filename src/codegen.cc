@@ -582,6 +582,7 @@ conv_done:
 		}
 		break;
 	case '*':
+	case '\0':
 		switch(typeclass) {
 		case is_int:
 			result = Builder->CreateMul(L, R, "multmp");
