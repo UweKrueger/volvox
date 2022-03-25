@@ -362,6 +362,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 						memcpy(__volvox_jit_tls_ptr + var_offset, &fn_name, StoreSize);
 						type = expr->RHS->ft->type;
 						dprt("function %s (%" PRIu64 " stored in global variable\n", fn_name, StoreSize);
+						GV = (llvm::GlobalVariable*)Var->full_var.first->val;
 					}
 				} else {
 					eprt("unsupported type (size: %u) for global\n", (unsigned)StoreSize);
@@ -783,7 +784,7 @@ llvm::Value *CallExprAST::codegen() {
 	// Look up the name in the global module table.
 	auto CalleeF = getFunction(Callee);
 	if (!CalleeF.first)
-		return LogErrorV("Unknown function referenced");
+		return LogErrorV("Unknown function referenced: %s", Callee.c_str());
 
 	// If argument mismatch error.
 	if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())

@@ -287,20 +287,33 @@ public:
 	CallExprAST(SourceLocation Loc, const std::string &Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
 		: ExprAST(nullptr, 0, Loc), Callee(Callee_), Args(std::move(Args)) {
+		PrototypeAST* Proto;
 		auto FI = FunctionProtos.find(Callee);
 		if (FI != FunctionProtos.end()) {
-			if (FI->second->RetTypes.size() == 0) {
-				ft->type = llvm::Type::getVoidTy(*Context.getContext());
-				ft->type_attr = 0;
-			} else if(FI->second->RetTypes.size() == 1) {
-				ft->type = FI->second->RetTypes[0]->type;
-				ft->type_attr = FI->second->RetTypes[0]->type_attr;
- 			} else {
-				LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
-			}
+			Proto = FI->second.get();
 		} else {
-			// constructors have no return value so failure is signaled by type == nullptr
-			LogError("call to undeclared function %s()", Callee.c_str());
+			auto FV = lookup_var(Callee.c_str());
+			if (FV.first) {
+				if (FV.first->ft.type->isFunctionTy()) {
+					Proto = (PrototypeAST*)FV.first->val;
+				} else {
+					LogError("`%s` is not a function", Callee.c_str());
+					return;
+				}
+			} else {
+				// constructors have no return value so failure is signaled by type == nullptr
+				LogError("call to undeclared function %s()", Callee.c_str());
+				return;
+			}
+		}
+		if (Proto->RetTypes.size() == 0) {
+			ft->type = llvm::Type::getVoidTy(*Context.getContext());
+			ft->type_attr = 0;
+		} else if(Proto->RetTypes.size() == 1) {
+			ft->type = Proto->RetTypes[0]->type;
+			ft->type_attr = Proto->RetTypes[0]->type_attr;
+		} else {
+			LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), Proto->RetTypes.size());
 		}
 	}
 	llvm::Value *codegen() override;
