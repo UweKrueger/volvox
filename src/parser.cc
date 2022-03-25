@@ -11,6 +11,10 @@
 /// lexer and updates CurTok with its results.
 Lexer lex;
 Token CurTok;
+
+FVListElem* anon_fullvars = nullptr;
+FVListElem** anon_fullvars_end = &anon_fullvars;
+
 Token getNextToken(bool expectBinary) { return CurTok = lex.gettok(expectBinary); }
 Token purgeLine() { return CurTok = lex.purge_line(); }
 
@@ -544,8 +548,6 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 					continue;
 				}
 			}
-			eprt("Binary Expr: Type of LHS unknown\n");
-			return nullptr;
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
 		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr,

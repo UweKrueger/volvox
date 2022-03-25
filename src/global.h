@@ -135,6 +135,31 @@ struct FullVar {
 	llvm::Value* val;
 };
 
+struct FVListElem {
+	FVListElem* next;
+	FullVar fv;
+};
+
+extern FVListElem* anon_fullvars;
+extern FVListElem** anon_fullvars_end;
+
+inline FullVar* new_FullVar(llvm::Value* val, llvm::Type* type, unsigned type_attr, uint64_t num_fields = 0,
+                            const char* type_name = nullptr, llvm::DIType* ditype = nullptr,
+                            volvox::FullType* elem_type = nullptr) {
+	FVListElem* new_node = (FVListElem*)malloc(sizeof(FVListElem));
+	new_node->next = nullptr;
+	new_node->fv.val = val;
+	new_node->fv.ft.type = type;
+	new_node->fv.ft.type_attr = type_attr;
+	new_node->fv.ft.num_fields = num_fields;
+	new_node->fv.ft.type_name = type_name;
+	new_node->fv.ft.ditype = ditype;
+	new_node->fv.ft.elem_type = elem_type;
+	*anon_fullvars_end = new_node;
+	anon_fullvars_end = &new_node->next;
+	return &new_node->fv;
+};
+
 // small hack to access protected method
 class genType : protected llvm::Type {
 public:

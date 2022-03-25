@@ -62,7 +62,11 @@ public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: ExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
-			this->ft = new_FullType(full_var.first->ft);
+			ft = new_FullType(full_var.first->ft);
+		} else if (auto F = TheModule->getFunction(Name)) {
+			dprt("got function for name %s\n", Name.c_str());
+			ft->type = F->getType();
+			full_var = { new_FullVar(F, ft->type, 0), true };
 		}
 	}
 	const std::string &getName() const { return Name; }
