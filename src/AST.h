@@ -53,6 +53,45 @@ public:
 	llvm::Value *codegen() override;
 };
 
+/// PrototypeAST - This class represents the "prototype" for a function,
+/// which captures its name, and its argument names (thus implicitly the number
+/// of arguments the function takes), as well as if it is an operator.
+class PrototypeAST {
+
+public:
+	std::vector<std::string> Args;
+	std::vector<volvox::FullType*> ArgTypes;
+	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
+	std::vector<volvox::FullType*> RetTypes;
+	llvm::FunctionType* FT;
+	bool IsVarArgs;
+	bool IsOperator;
+	int Line;
+	std::string Name;
+	PrototypeAST(SourceLocation Loc, const std::string &Name,
+	             std::vector<std::string> Args, bool IsOperator = false,
+	             std::vector<volvox::FullType*> RetTypes = {}, std::vector<volvox::FullType*> ArgTypes = {},
+	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
+		: Name(Name), Args(Args), IsOperator(IsOperator),
+		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {
+		auto RetType = RetTypes.size() == 1 ?
+			RetTypes[0]->type : llvm::Type::getVoidTy(*Context.getContext());
+		FT = llvm::FunctionType::get(RetType, LLVMArgTypes, IsVarArgs);
+	}
+	llvm::Function *codegen();
+	const std::string &getName() const { return Name; }
+
+	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
+	bool isBinaryOp() const { return IsOperator && Args.size() == 2; }
+
+	char getOperatorName() const {
+		assert(isUnaryOp() || isBinaryOp());
+		return Name[Name.size() - 1];
+	}
+
+	int getLine() const { return Line; }
+};
+
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public ExprAST {
 
@@ -63,10 +102,14 @@ public:
 		: ExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
 			ft = new_FullType(full_var.first->ft);
-		} else if (auto F = TheModule->getFunction(Name)) {
-			dprt("got function for name %s\n", Name.c_str());
-			ft->type = F->getType();
-			full_var = { new_FullVar(F, ft->type, 0), true };
+		} else {
+			auto F = FunctionProtos.find(Name);
+			if (F != FunctionProtos.end()) {
+				dprt("got function for name %s\n", Name.c_str());
+				ft->type = F->second->FT;
+				full_var = { new_FullVar((llvm::Value *)F->second.get(), ft->type, 0), true };
+				is_compile_time_const = true;
+			}
 		}
 	}
 	const std::string &getName() const { return Name; }
@@ -233,40 +276,6 @@ public:
 		return out;
 	}
 #endif
-};
-
-/// PrototypeAST - This class represents the "prototype" for a function,
-/// which captures its name, and its argument names (thus implicitly the number
-/// of arguments the function takes), as well as if it is an operator.
-class PrototypeAST {
-
-public:
-	std::vector<std::string> Args;
-	std::vector<volvox::FullType*> ArgTypes;
-	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
-	std::vector<volvox::FullType*> RetTypes;
-	bool IsVarArgs;
-	bool IsOperator;
-	int Line;
-	std::string Name;
-	PrototypeAST(SourceLocation Loc, const std::string &Name,
-	             std::vector<std::string> Args, bool IsOperator = false,
-	             std::vector<volvox::FullType*> RetTypes = {}, std::vector<volvox::FullType*> ArgTypes = {},
-	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
-		: Name(Name), Args(Args), IsOperator(IsOperator),
-		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {}
-	llvm::Function *codegen();
-	const std::string &getName() const { return Name; }
-
-	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
-	bool isBinaryOp() const { return IsOperator && Args.size() == 2; }
-
-	char getOperatorName() const {
-		assert(isUnaryOp() || isBinaryOp());
-		return Name[Name.size() - 1];
-	}
-
-	int getLine() const { return Line; }
 };
 
 /// CallExprAST - Expression class for function calls.

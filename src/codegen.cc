@@ -117,9 +117,13 @@ llvm::Value *AggregateExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
-	dprt("load variable %s\n", Name.c_str());
+	dprt("load variable %s %u\n", Name.c_str(), full_var.first->ft.type ? full_var.first->ft.type->getTypeID() : 0xffff);
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
+	if (full_var.first->ft.type->isFunctionTy()) {
+		dprt("direct Function type\n");
+		return full_var.first->val;
+	}
 	if (full_var.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_var.first->val;
 		dprt("var offset: %llu %p\n", var_offset, &__volvox_jit_tls_ptr);
@@ -255,7 +259,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
-		if (llvm::Constant* initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
+		if (llvm::Constant* initializer = expr->RHS->ft->type->isFunctionTy() ? (llvm::Constant*)expr->RHS->codegen() : llvm::dyn_cast<llvm::Constant>(convertedVal)) {
 			dprt("type: %s %s\n", type_table.get_name(initializer->getType(), is_signed), expr->is_compile_time_const ? "ctc" : "var");
 			llvm::GlobalVariable* GV;
 			if (comp_mode == comp_jit) {
@@ -268,7 +272,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				GV = (llvm::GlobalVariable*)var_offset;
 				if (initializer->getType()->isAggregateType()) {
 					// There is no simple way to get the "normal" memory layout of LLVM array
-					// and struct constants. So create generate code in which memcpy() is used
+					// and struct constants. So create code in which memcpy() is used
 					auto *GInit = new llvm::GlobalVariable(*TheModule, initializer->getType(), true,
 					                                       llvm::GlobalValue::PrivateLinkage, initializer);
 					GInit->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
@@ -352,6 +356,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					}
 					else
 						dprt("bad\n");
+				} else if(expr->RHS->ft->type->isFunctionTy()) {
+					if (VariableExprAST* Var = dynamic_cast<VariableExprAST*>(expr->RHS.get())) {
+						memcpy(__volvox_jit_tls_ptr + var_offset, &initializer, StoreSize);
+						dprt("function %s stored in global variable\n", Var->Name.c_str());
+					}
 				} else {
 					eprt("unsupported type (size: %u) for global\n", (unsigned)StoreSize);
 				}
@@ -996,15 +1005,6 @@ llvm::Value *ForExprAST::codegen() {
 }
 
 llvm::Function *PrototypeAST::codegen() {
-	// Make the function type:  double(double,double) etc.
-	// TODO: support returning multiple objects
-	auto RetType = RetTypes.size() == 1 ?
-		RetTypes[0]->type : llvm::Type::getVoidTy(*Context.getContext());
-	if (!RetType) // RetTypes[0] exists but type could not be derived
-		return nullptr;
-	llvm::FunctionType *FT =
-		llvm::FunctionType::get(RetType, LLVMArgTypes, IsVarArgs);
-
 	llvm::Function *F =
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
 

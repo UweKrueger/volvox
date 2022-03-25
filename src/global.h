@@ -123,6 +123,7 @@ static inline void veprt(const char* fmt, va_list args) {
 extern volvox::FullType* ParseType(bool allow_attribute = false);
 extern llvm::Constant* getRtType(volvox::FullType* ft);
 extern llvm::Constant* getRtType(volvox::FullType* ft);
+extern std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name);
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
