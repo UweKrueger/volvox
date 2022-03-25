@@ -122,7 +122,7 @@ llvm::Value *VariableExprAST::codegen() {
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (full_var.first->ft.type->isFunctionTy()) {
 		dprt("direct Function type\n");
-		return full_var.first->val;
+		return Builder->CreateGlobalStringPtr(Name, "", 0, TheModule.get());
 	}
 	if (full_var.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_var.first->val;
@@ -358,8 +358,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 						dprt("bad\n");
 				} else if(expr->RHS->ft->type->isFunctionTy()) {
 					if (VariableExprAST* Var = dynamic_cast<VariableExprAST*>(expr->RHS.get())) {
-						memcpy(__volvox_jit_tls_ptr + var_offset, &initializer, StoreSize);
-						dprt("function %s stored in global variable\n", Var->Name.c_str());
+						const char* fn_name = strdup(Var->Name.c_str());
+						memcpy(__volvox_jit_tls_ptr + var_offset, &fn_name, StoreSize);
+						type = expr->RHS->ft->type;
+						dprt("function %s (%" PRIu64 " stored in global variable\n", fn_name, StoreSize);
 					}
 				} else {
 					eprt("unsupported type (size: %u) for global\n", (unsigned)StoreSize);

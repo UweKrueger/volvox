@@ -105,8 +105,8 @@ public:
 		} else {
 			auto F = FunctionProtos.find(Name);
 			if (F != FunctionProtos.end()) {
-				dprt("got function for name %s\n", Name.c_str());
 				ft->type = F->second->FT;
+				dprt("got function for name %s %u\n", Name.c_str(), ft->type->getTypeID());
 				full_var = { new_FullVar((llvm::Value *)F->second.get(), ft->type, 0), true };
 				is_compile_time_const = true;
 			}
@@ -284,9 +284,9 @@ class CallExprAST : public ExprAST {
 	std::vector<std::unique_ptr<ExprAST>> Args;
 
 public:
-	CallExprAST(SourceLocation Loc, const std::string &Callee,
+	CallExprAST(SourceLocation Loc, const std::string &Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
-		: ExprAST(nullptr, 0, Loc), Callee(Callee), Args(std::move(Args)) {
+		: ExprAST(nullptr, 0, Loc), Callee(Callee_), Args(std::move(Args)) {
 		auto FI = FunctionProtos.find(Callee);
 		if (FI != FunctionProtos.end()) {
 			if (FI->second->RetTypes.size() == 0) {
@@ -295,7 +295,7 @@ public:
 			} else if(FI->second->RetTypes.size() == 1) {
 				ft->type = FI->second->RetTypes[0]->type;
 				ft->type_attr = FI->second->RetTypes[0]->type_attr;
-			} else {
+ 			} else {
 				LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), FI->second->RetTypes.size());
 			}
 		} else {
