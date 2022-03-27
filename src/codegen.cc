@@ -57,8 +57,9 @@ std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 		return { nullptr, nullptr };
 	if (Name == "sin") {
 		if (sinF) {
-			dprt("#### reusing sinF %p %d\n", llvm::cast<llvm::Function>(sinF), llvm::cast<llvm::Function>(sinF)->arg_size());
-			return { llvm::cast<llvm::Function>(sinF), FI->second.get() };
+			llvm::Value* sinFV = Builder->CreateLoad(FI->second->FT, sinF, "sinl");
+			dprt("#### reusing sinF %p %d\n", llvm::cast<llvm::Function>(sinFV), llvm::cast<llvm::Function>(sinFV)->arg_size());
+			return { llvm::cast<llvm::Function>(sinFV), FI->second.get() };
 		}
 	}
 	// See if the function has already been added to the current module.
@@ -71,7 +72,11 @@ std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 	if (Name == "sin") {
 		if (!sinF) {
 			sinF = new llvm::GlobalVariable(*TheModule, FI->second->FT, true, llvm::GlobalValue::ExternalLinkage, F);
-			dprt("#### saving sinF %p %d\n", sinF, llvm::cast<llvm::Function>(sinF)->arg_size());
+			//InitializeModuleAndPassManager();
+			dprt("#### saving sinF %p\n", sinF);
+			llvm::Value* sinFV = Builder->CreateLoad(FI->second->FT, sinF, "sinl");
+			dprt("#### reusing sinF %p %d\n", llvm::cast<llvm::Function>(sinFV), llvm::cast<llvm::Function>(sinFV)->arg_size());
+			return { llvm::cast<llvm::Function>(sinFV), FI->second.get() };
 		}
 	}
 	return { F, FI->second.get() };
