@@ -51,15 +51,30 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 }
 
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
+	static llvm::Function* sinF = nullptr;
 	auto FI = FunctionProtos.find(Name);
 	if (FI == FunctionProtos.end())
 		return { nullptr, nullptr };
+	if (Name == "sin") {
+		if (sinF) {
+			dprt("#### reusing sinF %p %d\n", sinF, sinF->arg_size());
+			return { sinF, FI->second.get() };
+		}
+	}
 	// See if the function has already been added to the current module.
-	if (auto F = TheModule->getFunction(Name))
+	if (auto F = TheModule->getFunction(Name)) {
 		return { F, FI->second.get() };
-
+	}
+	
 	// codegen the declaration from the existing prototype.
-	return { FI->second->codegen(), FI->second.get() };
+	auto F = FI->second->codegen();
+	if (Name == "sin") {
+		if (!sinF) {
+			sinF = F;
+			dprt("#### saving sinF %p %d\n", sinF, sinF->arg_size());
+		}
+	}
+	return { F, FI->second.get() };
 }
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
@@ -785,7 +800,6 @@ llvm::Value *CallExprAST::codegen() {
 	auto CalleeF = getFunction(Callee);
 	if (!CalleeF.first)
 		return LogErrorV("Unknown function referenced: %s", Callee.c_str());
-
 	// If argument mismatch error.
 	if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())
 		return LogErrorV("Incorrect # arguments passed");
