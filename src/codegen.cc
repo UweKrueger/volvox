@@ -51,14 +51,14 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 }
 
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
-	static llvm::Function* sinF = nullptr;
+	static llvm::GlobalVariable* sinF = nullptr;
 	auto FI = FunctionProtos.find(Name);
 	if (FI == FunctionProtos.end())
 		return { nullptr, nullptr };
 	if (Name == "sin") {
 		if (sinF) {
-			dprt("#### reusing sinF %p %d\n", sinF, sinF->arg_size());
-			return { sinF, FI->second.get() };
+			dprt("#### reusing sinF %p %d\n", llvm::cast<llvm::Function>(sinF), llvm::cast<llvm::Function>(sinF)->arg_size());
+			return { llvm::cast<llvm::Function>(sinF), FI->second.get() };
 		}
 	}
 	// See if the function has already been added to the current module.
@@ -70,8 +70,8 @@ std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 	auto F = FI->second->codegen();
 	if (Name == "sin") {
 		if (!sinF) {
-			sinF = F;
-			dprt("#### saving sinF %p %d\n", sinF, sinF->arg_size());
+			sinF = new llvm::GlobalVariable(*TheModule, FI->second->FT, true, llvm::GlobalValue::ExternalLinkage, F);
+			dprt("#### saving sinF %p %d\n", sinF, llvm::cast<llvm::Function>(sinF)->arg_size());
 		}
 	}
 	return { F, FI->second.get() };
