@@ -267,6 +267,15 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			                              false, llvm::GlobalValue::ExternalLinkage,
 			                              initializer, varname, nullptr,
 			                              llvm::GlobalVariable::GeneralDynamicTLSModel);
+			if (comp_mode == comp_jit) {
+#if LLVM_VERSION_MAJOR >= 12
+				ExitOnErr(TheJIT->addModule(
+					          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+#else
+				TheJIT->addModule(std::move(TheModule));
+#endif
+				InitializeModuleAndPassManager();
+			}
 			volvox::FullType ft = *expr->RHS->ft;
 			ft.type = type;
 			ft.type_attr = is_signed ? 1U : 0U;
