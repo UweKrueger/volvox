@@ -50,16 +50,37 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 	return nullptr;
 }
 
+std::pair<llvm::Value*, PrototypeAST*> getFunctionPtr(std::string Name) {
+	auto Var = lookup_var(Name.c_str());
+	if (Var.first) {
+		dprt("#### found Variable for call %p\n", Var.first->val);
+		// this is a tmp hack that does not make sense in general...
+		auto FI = FunctionProtos.find("sin");
+		if (FI == FunctionProtos.end()) {
+			dprt("no prototype found\n");
+			return { nullptr, nullptr };
+		}
+		llvm::Value* sinFV = Builder->CreateLoad(Var.first->ft.type, Var.first->val);
+		dprt("#### reusing %p\n", sinFV);
+		return { sinFV, FI->second.get() };
+	} else {
+		dprt("@@@@ no function pointer for %s\n", Name.c_str());
+		return { nullptr, nullptr };
+	}
+}
+
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 	auto FI = FunctionProtos.find(Name);
 	if (FI == FunctionProtos.end())
 		return { nullptr, nullptr };
 	// See if the function has already been added to the current module.
-	if (auto F = TheModule->getFunction(Name))
+	if (auto F = TheModule->getFunction(Name)) {
 		return { F, FI->second.get() };
-
+	}
+	
 	// codegen the declaration from the existing prototype.
-	return { FI->second->codegen(), FI->second.get() };
+	auto F = FI->second->codegen();
+	return { F, FI->second.get() };
 }
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
@@ -121,10 +142,11 @@ llvm::Value *VariableExprAST::codegen() {
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (full_var.first->ft.type->isFunctionTy()) {
-		dprt("direct Function type\n");
-		return Builder->CreateGlobalStringPtr(Name, "", 0, TheModule.get());
+		auto theFunction = getFunction(Name);
+		dprt("direct Function type %s\n", Name.c_str());
+		return theFunction.first;
 	}
-	if (full_var.second && comp_mode == comp_jit) {
+	if (false && full_var.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_var.first->val;
 		dprt("var offset: %llu %p\n", var_offset, &__volvox_jit_tls_ptr);
 		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
@@ -152,7 +174,7 @@ llvm::Value *VariableExprAST::codegen_ref() {
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	auto PtrTy = full_var.first->ft.type->getPointerTo();
-	if (full_var.second && comp_mode == comp_jit) {
+	if (false && full_var.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_var.first->val;
 		dprt("var offset: %llu %p\n", var_offset, &__volvox_jit_tls_ptr);
 		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
@@ -259,10 +281,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
-		if (llvm::Constant* initializer = expr->RHS->ft->type->isFunctionTy() ? (llvm::Constant*)expr->RHS->codegen() : llvm::dyn_cast<llvm::Constant>(convertedVal)) {
-			dprt("type: %s %s\n", type_table.get_name(initializer->getType(), is_signed), expr->is_compile_time_const ? "ctc" : "var");
+		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
+			dprt("type: %u %u %s\n", initializer->getType()->getTypeID(), expr->RHS->ft->type->getTypeID(), expr->is_compile_time_const ? "ctc" : "var");
 			llvm::GlobalVariable* GV;
-			if (comp_mode == comp_jit) {
+			if (false && comp_mode == comp_jit) {
 				uint64_t StoreSize = TheModule->getDataLayout().getTypeStoreSize(type);
 				uint64_t AllocSize = TheModule->getDataLayout().getTypeAllocSize(type);
 				size_t var_offset = AllocSize * ((__volvox_jit_tls_size + AllocSize - 1) / AllocSize);
@@ -358,10 +380,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 						dprt("bad\n");
 				} else if(expr->RHS->ft->type->isFunctionTy()) {
 					if (VariableExprAST* Var = dynamic_cast<VariableExprAST*>(expr->RHS.get())) {
-						const char* fn_name = strdup(Var->Name.c_str());
-						memcpy(__volvox_jit_tls_ptr + var_offset, &fn_name, StoreSize);
+						//memcpy(__volvox_jit_tls_ptr + var_offset, &fn_name, StoreSize);
 						type = expr->RHS->ft->type;
-						dprt("function %s (%" PRIu64 " stored in global variable\n", fn_name, StoreSize);
+						dprt("function %s (%" PRIu64 " stored in global variable\n", Var->Name.c_str(), StoreSize);
 						GV = (llvm::GlobalVariable*)Var->full_var.first->val;
 					}
 				} else {
@@ -782,13 +803,20 @@ llvm::Value *CallExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Look up the name in the global module table.
-	auto CalleeF = getFunction(Callee);
-	if (!CalleeF.first)
-		return LogErrorV("Unknown function referenced: %s", Callee.c_str());
-
+	std::pair<llvm::Function*, PrototypeAST*> CalleeF;
+	llvm::Value* fptr = nullptr;
+	auto TTT = getFunctionPtr(Callee);
+	if (TTT.first) {
+		CalleeF.second = TTT.second;
+		fptr = TTT.first;
+	} else {
+		CalleeF = getFunction(Callee);
+	}
+	//if (!CalleeF.first)
+	//	return LogErrorV("Unknown function referenced: %s", Callee.c_str());
 	// If argument mismatch error.
-	if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())
-		return LogErrorV("Incorrect # arguments passed");
+	// if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())
+	//	return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(), v = CalleeF.second->Args.size(); i != e; ++i) {
@@ -810,7 +838,10 @@ llvm::Value *CallExprAST::codegen() {
 		if (!ArgsV.back())
 			return nullptr;
 	}
-	
+	if (fptr) {
+		dprt("++++ call %s via pointer\n", Callee.c_str());
+		return Builder->CreateCall(CalleeF.second->FT, fptr, ArgsV, "callptrtmp");
+	}
 	return Builder->CreateCall(CalleeF.first, ArgsV, "calltmp");
 }
 

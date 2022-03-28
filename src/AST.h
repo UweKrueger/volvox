@@ -294,11 +294,19 @@ public:
 		} else {
 			auto FV = lookup_var(Callee.c_str());
 			if (FV.first) {
-				if (FV.first->ft.type->isFunctionTy()) {
-					Proto = (PrototypeAST*)FV.first->val;
-				} else {
-					LogError("`%s` is not a function", Callee.c_str());
+				// this is a tmp hack that does not make sense in general...
+				auto FI = FunctionProtos.find("sin");
+				if (FI == FunctionProtos.end()) {
+					dprt("no prototype found\n");
 					return;
+				}
+				Proto = FI->second.get();
+				dprt("found variable %s for call expr\n", Callee.c_str());
+				if (FV.first->ft.type->isFunctionTy()) { // TODO: make this work
+					// Proto = (PrototypeAST*)FV.first->val;
+				} else {
+					//LogError("`%s` is not a function", Callee.c_str());
+					// return;
 				}
 			} else {
 				// constructors have no return value so failure is signaled by type == nullptr
