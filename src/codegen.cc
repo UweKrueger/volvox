@@ -145,10 +145,11 @@ llvm::Value *VariableExprAST::codegen() {
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (full_var.first->ft.type->isFunctionTy()) {
-		dprt("direct Function type\n");
-		return Builder->CreateGlobalStringPtr(Name, "", 0, TheModule.get());
+		auto theFunction = getFunction(Name);
+		dprt("direct Function type %s\n", Name.c_str());
+		return theFunction.first;
 	}
-	if (full_var.second && comp_mode == comp_jit) {
+	if (false && full_var.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_var.first->val;
 		dprt("var offset: %llu %p\n", var_offset, &__volvox_jit_tls_ptr);
 		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
@@ -176,7 +177,7 @@ llvm::Value *VariableExprAST::codegen_ref() {
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	auto PtrTy = full_var.first->ft.type->getPointerTo();
-	if (full_var.second && comp_mode == comp_jit) {
+	if (false && full_var.second && comp_mode == comp_jit) {
 		size_t var_offset = (size_t)full_var.first->val;
 		dprt("var offset: %llu %p\n", var_offset, &__volvox_jit_tls_ptr);
 		auto Offset = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), var_offset);
@@ -283,10 +284,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
-		if (llvm::Constant* initializer = expr->RHS->ft->type->isFunctionTy() ? (llvm::Constant*)expr->RHS->codegen() : llvm::dyn_cast<llvm::Constant>(convertedVal)) {
-			dprt("type: %s %s\n", type_table.get_name(initializer->getType(), is_signed), expr->is_compile_time_const ? "ctc" : "var");
+		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
+			dprt("type: %u %u %s\n", initializer->getType()->getTypeID(), expr->RHS->ft->type->getTypeID(), expr->is_compile_time_const ? "ctc" : "var");
 			llvm::GlobalVariable* GV;
-			if (comp_mode == comp_jit) {
+			if (false && comp_mode == comp_jit) {
 				uint64_t StoreSize = TheModule->getDataLayout().getTypeStoreSize(type);
 				uint64_t AllocSize = TheModule->getDataLayout().getTypeAllocSize(type);
 				size_t var_offset = AllocSize * ((__volvox_jit_tls_size + AllocSize - 1) / AllocSize);
@@ -382,10 +383,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 						dprt("bad\n");
 				} else if(expr->RHS->ft->type->isFunctionTy()) {
 					if (VariableExprAST* Var = dynamic_cast<VariableExprAST*>(expr->RHS.get())) {
-						const char* fn_name = strdup(Var->Name.c_str());
-						memcpy(__volvox_jit_tls_ptr + var_offset, &fn_name, StoreSize);
+						//memcpy(__volvox_jit_tls_ptr + var_offset, &fn_name, StoreSize);
 						type = expr->RHS->ft->type;
-						dprt("function %s (%" PRIu64 " stored in global variable\n", fn_name, StoreSize);
+						dprt("function %s (%" PRIu64 " stored in global variable\n", Var->Name.c_str(), StoreSize);
 						GV = (llvm::GlobalVariable*)Var->full_var.first->val;
 					}
 				} else {
