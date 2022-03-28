@@ -53,17 +53,29 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 extern llvm::GlobalVariable* sinF;
 extern llvm::Type* sinFT;
 
-std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
+std::pair<llvm::Value*, PrototypeAST*> getFunctionPtr(std::string Name) {
 	auto FI = FunctionProtos.find(Name);
 	if (FI == FunctionProtos.end())
 		return { nullptr, nullptr };
 	if (Name == "sin") {
 		if (sinF) {
-			llvm::Value* sinFV = Builder->CreateLoad(sinFT, sinF, "sinl");
+			llvm::Value* sinFV = Builder->CreateLoad(sinFT, sinF);
 			dprt("#### reusing sinF %p\n", sinFV);
-			return { llvm::cast<llvm::Function>(sinFV), FI->second.get() };
+			return { sinFV, FI->second.get() };
+		} else {
+			dprt("@@@@ no function pointer for %s\n", Name.c_str());
+			return { nullptr, nullptr };
 		}
+	} else {
+		dprt("@@@@ wrong function %s\n", Name.c_str());
+		return { nullptr, nullptr };
 	}
+}
+
+std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
+	auto FI = FunctionProtos.find(Name);
+	if (FI == FunctionProtos.end())
+		return { nullptr, nullptr };
 	// See if the function has already been added to the current module.
 	if (auto F = TheModule->getFunction(Name)) {
 		return { F, FI->second.get() };
@@ -794,12 +806,20 @@ llvm::Value *CallExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Look up the name in the global module table.
-	auto CalleeF = getFunction(Callee);
-	if (!CalleeF.first)
-		return LogErrorV("Unknown function referenced: %s", Callee.c_str());
+	std::pair<llvm::Function*, PrototypeAST*> CalleeF;
+	llvm::Value* fptr = nullptr;
+	if (Callee == "sin") {
+		auto TTT = getFunctionPtr(Callee);
+		CalleeF.second = TTT.second;
+		fptr = TTT.first;
+	} else {
+		CalleeF = getFunction(Callee);
+	}
+	//if (!CalleeF.first)
+	//	return LogErrorV("Unknown function referenced: %s", Callee.c_str());
 	// If argument mismatch error.
-	if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())
-		return LogErrorV("Incorrect # arguments passed");
+	// if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())
+	//	return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(), v = CalleeF.second->Args.size(); i != e; ++i) {
@@ -821,7 +841,10 @@ llvm::Value *CallExprAST::codegen() {
 		if (!ArgsV.back())
 			return nullptr;
 	}
-	
+	if (fptr) {
+		dprt("++++ call %s via pointer\n", Callee.c_str());
+		return Builder->CreateCall(CalleeF.second->FT, fptr, ArgsV, "callptrtmp");
+	}
 	return Builder->CreateCall(CalleeF.first, ArgsV, "calltmp");
 }
 
