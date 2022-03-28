@@ -173,7 +173,7 @@ static void HandleExtern() {
 				eprt("\n");
 				if (ProtoAST->Name == "sin") {
 					sinFT = FnIR->getType();
-					sinF = new llvm::GlobalVariable(*TheModule, sinFT, true, llvm::GlobalValue::PrivateLinkage, FnIR);
+					sinF = new llvm::GlobalVariable(*TheModule, sinFT, true, llvm::GlobalValue::ExternalLinkage, FnIR, "sinPtr");
 					sinF->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 					sinF->setAlignment(llvm::Align(8));
 #if LLVM_VERSION_MAJOR >= 12
