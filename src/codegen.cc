@@ -50,24 +50,21 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 	return nullptr;
 }
 
-extern llvm::GlobalVariable* sinF;
-extern llvm::Type* sinFT;
-
 std::pair<llvm::Value*, PrototypeAST*> getFunctionPtr(std::string Name) {
-	auto FI = FunctionProtos.find(Name);
-	if (FI == FunctionProtos.end())
-		return { nullptr, nullptr };
-	if (Name == "sin") {
-		if (sinF) {
-			llvm::Value* sinFV = Builder->CreateLoad(sinFT, sinF);
-			dprt("#### reusing sinF %p\n", sinFV);
-			return { sinFV, FI->second.get() };
-		} else {
-			dprt("@@@@ no function pointer for %s\n", Name.c_str());
+	auto Var = lookup_var(Name.c_str());
+	if (Var.first) {
+		dprt("#### found Variable for call %p\n", Var.first->val);
+		// this is a tmp hack that does not make sense in general...
+		auto FI = FunctionProtos.find("sin");
+		if (FI == FunctionProtos.end()) {
+			dprt("no prototype found\n");
 			return { nullptr, nullptr };
 		}
+		llvm::Value* sinFV = Builder->CreateLoad(Var.first->ft.type, Var.first->val);
+		dprt("#### reusing %p\n", sinFV);
+		return { sinFV, FI->second.get() };
 	} else {
-		dprt("@@@@ wrong function %s\n", Name.c_str());
+		dprt("@@@@ no function pointer for %s\n", Name.c_str());
 		return { nullptr, nullptr };
 	}
 }
@@ -808,8 +805,8 @@ llvm::Value *CallExprAST::codegen() {
 	// Look up the name in the global module table.
 	std::pair<llvm::Function*, PrototypeAST*> CalleeF;
 	llvm::Value* fptr = nullptr;
-	if (Callee == "sin") {
-		auto TTT = getFunctionPtr(Callee);
+	auto TTT = getFunctionPtr(Callee);
+	if (TTT.first) {
 		CalleeF.second = TTT.second;
 		fptr = TTT.first;
 	} else {
