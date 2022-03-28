@@ -146,7 +146,22 @@ llvm::Value *VariableExprAST::codegen() {
 		dprt("direct Function type %s\n", Name.c_str());
 		return theFunction.first;
 	}
-	llvm::Value *V = full_var.first->val;
+	llvm::Value* V;
+	if (full_var.second) { // global variable
+		V = TheModule->getGlobalVariable(Name, true);
+		if (!V) {
+			V = new llvm::GlobalVariable(*TheModule, ft->type,
+			                             false, llvm::GlobalValue::ExternalLinkage,
+			                             nullptr, Name, nullptr,
+			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
+			                             llvm::None, true);
+			dprt("Re-create %s %p\n", Name.c_str(), V);
+		} else {
+			dprt("use existing %s from module %p\n", Name.c_str(), V);
+		}
+	} else {
+		V = full_var.first->val;
+	}
 
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
