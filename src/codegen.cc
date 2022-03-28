@@ -138,6 +138,12 @@ llvm::Value *AggregateExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
+	auto V = codegen_ref();
+	// Load the value.
+	return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
+}
+
+llvm::Value *VariableExprAST::codegen_ref() {
 	dprt("load variable %s %u\n", Name.c_str(), full_var.first->ft.type ? full_var.first->ft.type->getTypeID() : 0xffff);
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
@@ -166,21 +172,6 @@ llvm::Value *VariableExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	// Load the value.
-	return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
-}
-
-llvm::Value *VariableExprAST::codegen_ref() {
-	dprt("create pointer to variable %s\n", Name.c_str());
-	if (!full_var.first)
-		return LogErrorV("Unknown variable name1 %s", Name.c_str());
-	auto PtrTy = full_var.first->ft.type->getPointerTo();
-	llvm::Value *V = full_var.first->val;
-
-	if (comp_mode == comp_dbg) {
-		KSDbgInfo.emitLocation(this);
-	}
-	// Load the value.
 	return V;
 }
 
