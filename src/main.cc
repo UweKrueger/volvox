@@ -418,8 +418,13 @@ const char* builtin_file_name = "builtin.vx";
 int input_fd = 0;
 int cur_input_fd;
 
+// Windows has no CLOEXEC
+#if !defined(O_CLOEXEC)
+#define O_CLOEXEC 0
+#endif
+
 int main(int argc, char* argv[]) {
-	printf("%lu %lu\n", sizeof(volvox::RtType), sizeof(volvox::FullType));
+	printf("%" PRIu64 " %" PRIu64 "\n", sizeof(volvox::RtType), sizeof(volvox::FullType));
 	fflush(stdout);
 	if (argc == 1) {
 		comp_mode = comp_jit;

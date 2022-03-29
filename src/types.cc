@@ -338,6 +338,8 @@ const char* AggregateExprAST::KindName() {
 		return "Matrix";
 	case AnyDyn:
 		return "AnyDyn";
+	default:
+		return "<Internal Error>";
 	}
 }
 

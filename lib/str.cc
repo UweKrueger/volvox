@@ -1,6 +1,10 @@
 #include <stdio.h>
 #include <inttypes.h>
+#if defined (_MSC_VER)
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 #include <stdarg.h>
 #include "types.h"
 #include "str.h"
