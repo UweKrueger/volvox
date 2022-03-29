@@ -388,6 +388,8 @@ emutls_get_address_array(uintptr_t index) {
 // A more robust solution would be to create a separate shared library for
 // emulated TLS, to ensure a single copy of its state.
 __attribute__((visibility("default"), weak))
+#else
+__declspec(dllexport)
 #endif
 void *__emutls_get_address(__emutls_control *control) {
   uintptr_t index = emutls_get_index(control);
