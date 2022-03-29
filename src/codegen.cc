@@ -60,7 +60,20 @@ std::pair<llvm::Value*, PrototypeAST*> getFunctionPtr(std::string Name) {
 			dprt("no prototype found\n");
 			return { nullptr, nullptr };
 		}
-		llvm::Value* sinFV = Builder->CreateLoad(Var.first->ft.type, Var.first->val);
+		llvm::Value* V;
+		if (Var.second) { // global variable
+			V = TheModule->getGlobalVariable(Name, true);
+			if (!V) {
+				V = new llvm::GlobalVariable(*TheModule, Var.first->ft.type,
+				                             false, llvm::GlobalValue::ExternalLinkage,
+				                             nullptr, Name, nullptr,
+				                             llvm::GlobalVariable::GeneralDynamicTLSModel,
+				                             llvm::None, true);
+			}
+		} else {
+			V = Var.first->val;
+		}
+		llvm::Value* sinFV = Builder->CreateLoad(Var.first->ft.type, V);
 		dprt("#### reusing %p\n", sinFV);
 		return { sinFV, FI->second.get() };
 	} else {
@@ -138,12 +151,6 @@ llvm::Value *AggregateExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
-	auto V = codegen_ref();
-	// Load the value.
-	return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
-}
-
-llvm::Value *VariableExprAST::codegen_ref() {
 	dprt("load variable %s %u\n", Name.c_str(), full_var.first->ft.type ? full_var.first->ft.type->getTypeID() : 0xffff);
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
@@ -152,6 +159,12 @@ llvm::Value *VariableExprAST::codegen_ref() {
 		dprt("direct Function type %s\n", Name.c_str());
 		return theFunction.first;
 	}
+	auto V = codegen_ref();
+	// Load the value.
+	return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
+}
+
+llvm::Value *VariableExprAST::codegen_ref() {
 	llvm::Value* V;
 	if (full_var.second) { // global variable
 		V = TheModule->getGlobalVariable(Name, true);
