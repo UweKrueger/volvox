@@ -68,7 +68,7 @@ std::pair<llvm::Value*, PrototypeAST*> getFunctionPtr(std::string Name) {
 				                             false, llvm::GlobalValue::ExternalLinkage,
 				                             nullptr, Name, nullptr,
 				                             llvm::GlobalVariable::GeneralDynamicTLSModel,
-				                             llvm::None, true);
+				                             0, true);
 			}
 		} else {
 			V = Var.first->val;
@@ -173,7 +173,7 @@ llvm::Value *VariableExprAST::codegen_ref() {
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, Name, nullptr,
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
-			                             llvm::None, true);
+			                             0, true);
 			dprt("Re-create %s %p\n", Name.c_str(), V);
 		} else {
 			dprt("use existing %s from module %p\n", Name.c_str(), V);
