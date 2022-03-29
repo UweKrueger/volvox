@@ -5,14 +5,20 @@
 #include <stdbool.h>
 #include "map.h"
 
+#if defined (_MSC_VER)
+#define _DECL __declspec(dllexport)
+#else
+#define _DECL
+#endif
+
 /* balace factor of nodes require only 2 bits and parent pointer is
  * aligned to 8 bytes so these two can share a 64 bit value */
 
 #define PARENT(node) ((MapNode*)((uintptr_t)node->parent & ~0x03))
 #define SET_PARENT(node, p) node->parent = (MapNode*)((uintptr_t)p | node->u_bf)
 
-MapNode* map_string_new_map() { return NULL; }
-MapNode* map_num_new_map() { return NULL; }
+_DECL MapNode* map_string_new_map() { return NULL; }
+_DECL MapNode* map_num_new_map() { return NULL; }
 
 // value_size: length including 0 when string values
 
@@ -326,7 +332,7 @@ DEFINE_MAP_FIND_FOR(i32)
 DEFINE_MAP_FIND_FOR(f32)
 DEFINE_MAP_FIND_FOR(f64)
 
-MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace) {
+_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace) {
 	bool use_tag = false;
 	if ((uintptr_t)root_ptr & 0x01)
 		root_ptr = (MapNode**)((uintptr_t)root_ptr & ~1ULL);
@@ -351,11 +357,11 @@ MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag
 	}
 }
 
-MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace) {
+_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace) {
 	return map_string_tag_insert((MapNode**)((uintptr_t)root_ptr | 0x01), key, 0, value, value_size, allow_replace);
 }
 
-#define DEFINE_MAP_INSERT_FOR(typ) MapNode* map_ ## typ ## _insert(MapNode** root_ptr, typ key, MapValue value, int value_size, bool allow_replace) { \
+#define DEFINE_MAP_INSERT_FOR(typ) _DECL MapNode* map_ ## typ ## _insert(MapNode** root_ptr, typ key, MapValue value, int value_size, bool allow_replace) { \
 	NodePosition insert_pos = map_ ## typ ## _find(root_ptr, key); \
 	if(insert_pos.is_parent) { \
 		MapNode* node = map_ ## typ ## _new_node(key, value, value_size); \
@@ -382,7 +388,7 @@ DEFINE_MAP_INSERT_FOR(i32)
 DEFINE_MAP_INSERT_FOR(f32)
 DEFINE_MAP_INSERT_FOR(f64)
 
-void map_dump_priv(MapNode* curr, char* indent, bool is_right, map_node_printer* prt) {
+_DECL void map_dump_priv(MapNode* curr, char* indent, bool is_right, map_node_printer* prt) {
 	if (!curr) return;
 	int cur_len = strlen(indent);
 	if (curr->leftChild) {
@@ -424,24 +430,24 @@ void map_dump_priv(MapNode* curr, char* indent, bool is_right, map_node_printer*
 	}
 }
 
-void map_dump(MapNode* root, map_node_printer* prt) {
+_DECL void map_dump(MapNode* root, map_node_printer* prt) {
 	char buf[256] = "";
 	map_dump_priv(root, buf, false, prt);
 }
 
-void map_prt_str_int(int bf, MapKey* key, MapValue* value) {
+_DECL void map_prt_str_int(int bf, MapKey* key, MapValue* value) {
 	fputs(" \"", stdout);
 	fputs(key->string, stdout);
 	printf("\": %d %d\n", bf, value->i32);
 }
 
-void map_prt_str_str(int bf, MapKey* key, MapValue* value) {
+_DECL void map_prt_str_str(int bf, MapKey* key, MapValue* value) {
 	fputs(" \"", stdout);
 	fputs(key->string, stdout);
 	printf("\": %d \"%s\"\n", bf, (const char*)value + value->offset);
 }
 
-void map_prt_str_tag(int bf, MapKey* key, MapValue* value) {
+_DECL void map_prt_str_tag(int bf, MapKey* key, MapValue* value) {
 	fputs(" \"", stdout);
 	fputs(key->string, stdout);
 	printf("\": %d %u \"%s\"\n", bf, *(unsigned*)((const char*)value + value->offset), (const char*)value + value->offset + 4);
@@ -601,12 +607,12 @@ static bool map_delete_priv(MapNode** root_ptr, MapNode* curr) {
 	return true;
 }
 
-bool map_string_delete(MapNode** root_ptr, const char* key) {
+_DECL bool map_string_delete(MapNode** root_ptr, const char* key) {
 	NodePosition pos = map_string_find(root_ptr, key);
 	return pos.is_parent ? false : map_delete_priv(root_ptr, pos.node);
 }
 
-#define DEFINE_MAP_DELETE_FOR(typ) bool map_ ## typ ## _delete(MapNode** root_ptr, typ key) { \
+#define DEFINE_MAP_DELETE_FOR(typ) _DECL bool map_ ## typ ## _delete(MapNode** root_ptr, typ key) { \
 	NodePosition pos = map_ ## typ ## _find(root_ptr, key); \
 	return pos.is_parent ? false : map_delete_priv(root_ptr, pos.node); \
 }
@@ -628,12 +634,12 @@ static void map_destroy_priv(MapNode* node) {
 	free(node);
 }
 
-void map_destroy(MapNode* root) {
+_DECL void map_destroy(MapNode* root) {
 	if (root)
 		map_destroy_priv(root);
 }
 
-int map_check_avl_get_depth(MapNode* node) {
+_DECL int map_check_avl_get_depth(MapNode* node) {
 	if (!node)
 		return 0;
 	int left = map_check_avl_get_depth(node->leftChild);
@@ -667,7 +673,7 @@ int map_check_avl_get_depth(MapNode* node) {
 	return ((right > left) ? right : left) + 1;
 }
 
-MapNode* map_min(MapNode* node) {
+_DECL MapNode* map_min(MapNode* node) {
 	if (!node) {
 		return node;
 	}
@@ -676,7 +682,7 @@ MapNode* map_min(MapNode* node) {
 	return node;
 }
 
-MapNode* map_max(MapNode* node) {
+_DECL MapNode* map_max(MapNode* node) {
 	if (!node) {
 		return node;
 	}
@@ -685,7 +691,7 @@ MapNode* map_max(MapNode* node) {
 	return node;
 }
 
-MapNode* map_iter_up(MapNode* elem) {
+_DECL MapNode* map_iter_up(MapNode* elem) {
 	if (elem->rightChild) {
 		elem = elem->rightChild;
 		while (elem->leftChild)
@@ -700,7 +706,7 @@ MapNode* map_iter_up(MapNode* elem) {
 	return elem;
 }
 
-MapNode* map_iter_down(MapNode* elem) {
+_DECL MapNode* map_iter_down(MapNode* elem) {
 	if (elem->leftChild) {
 		elem = elem->leftChild;
 		while (elem->rightChild)
@@ -715,7 +721,7 @@ MapNode* map_iter_down(MapNode* elem) {
 	return elem;
 }
 
-MapValue* map_string_get(MapNode* root, const char* key) {
+_DECL MapValue* map_string_get(MapNode* root, const char* key) {
 	NodePosition pos =  map_string_find(&root, key);
 	return pos.is_parent ? NULL : &pos.node->value; 
 }

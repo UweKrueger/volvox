@@ -448,7 +448,6 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	volvox::is_compiler = true;
 	int len = strlen(input_file_name);
 	auto output_file = (char*)malloc(len + 3);
 	strcpy(output_file, input_file_name);

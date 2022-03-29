@@ -9,6 +9,12 @@
 #include "types.h"
 #include "str.h"
 
+#if defined (_MSC_VER)
+#define _DECL __declspec(dllexport)
+#else
+#define _DECL
+#endif
+
 double qwertz(double x) {
 	double y = x*x;
 	printf("Result of mult: >%g<\n", y);
@@ -16,8 +22,6 @@ double qwertz(double x) {
 }
 
 namespace volvox {
-
-	bool is_compiler = false;
 
 	const char* i1::str() { return v ? "true" : "false"; }
 
@@ -556,6 +560,7 @@ namespace volvox {
 		free(s);
 		return n == bytes_to_write;
 	}
+
 #ifndef _MSC_VER
 	bool fprint(int fd, const char* pre, const RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
@@ -597,7 +602,7 @@ namespace volvox {
 // MSVC++ used it's own mangling scheme - however, if we use this
 // compiler we can provide mangled functions as "C" functions
 extern "C" {
-	bool _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(int fd, const char* pre, const volvox::RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	_DECL bool _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(int fd, const char* pre, const volvox::RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = volvox::vfprint(fd, false, pre, ft, ap);
@@ -605,7 +610,7 @@ extern "C" {
 		return has_succeeded;
 	}
 
-	bool _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(int fd, const char* pre, const volvox::RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	_DECL bool _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(int fd, const char* pre, const volvox::RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = volvox::vfprint(fd, true, pre, ft, ap);
@@ -613,7 +618,7 @@ extern "C" {
 		return has_succeeded;
 	}
 
-	bool _ZN6volvox5printEPKcPKNS_6RtTypeEz(const char* pre, const volvox::RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	_DECL bool _ZN6volvox5printEPKcPKNS_6RtTypeEz(const char* pre, const volvox::RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = volvox::vfprint(1, false, pre, ft, ap);
@@ -621,7 +626,7 @@ extern "C" {
 		return has_succeeded;
 	}
 
-	bool _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(const char* pre, const volvox::RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	_DECL bool _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(const char* pre, const volvox::RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = volvox::vfprint(1, true, pre, ft, ap);

@@ -3,6 +3,16 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#if defined (_MSC_VER)
+#define EXTERN __declspec(dllexport)
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+#else
+#define EXTERN extern
+#endif
+
 typedef uint64_t u64;
 typedef int64_t i64;
 typedef uint32_t u32;
@@ -58,39 +68,45 @@ typedef struct NodePosition {
 
 typedef void (map_node_printer)(int bf, MapKey* key, MapValue* value); 
 
-extern MapNode* map_string_new_map();
-extern MapNode* map_num_new_map();
+EXTERN MapNode* map_string_new_map();
+EXTERN MapNode* map_num_new_map();
 
 // value_size: size of generic value (including 0 for strings)
 // return address of inserted node with lowest bit set if existing node has been replaced
 
-extern MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace);
-extern MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace);
-extern MapNode* map_u64_insert(MapNode** root_ptr, u64 key, MapValue value, int value_size, bool allow_replace);
-extern MapNode* map_i64_insert(MapNode** root_ptr, i64 key, MapValue value, int value_size, bool allow_replace);
-extern MapNode* map_u32_insert(MapNode** root_ptr, u32 key, MapValue value, int value_size, bool allow_replace);
-extern MapNode* map_i32_insert(MapNode** root_ptr, i32 key, MapValue value, int value_size, bool allow_replace);
-extern MapNode* map_f32_insert(MapNode** root_ptr, f32 key, MapValue value, int value_size, bool allow_replace);
-extern MapNode* map_f64_insert(MapNode** root_ptr, f64 key, MapValue value, int value_size, bool allow_replace);
+EXTERN MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace);
+EXTERN MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace);
+EXTERN MapNode* map_u64_insert(MapNode** root_ptr, u64 key, MapValue value, int value_size, bool allow_replace);
+EXTERN MapNode* map_i64_insert(MapNode** root_ptr, i64 key, MapValue value, int value_size, bool allow_replace);
+EXTERN MapNode* map_u32_insert(MapNode** root_ptr, u32 key, MapValue value, int value_size, bool allow_replace);
+EXTERN MapNode* map_i32_insert(MapNode** root_ptr, i32 key, MapValue value, int value_size, bool allow_replace);
+EXTERN MapNode* map_f32_insert(MapNode** root_ptr, f32 key, MapValue value, int value_size, bool allow_replace);
+EXTERN MapNode* map_f64_insert(MapNode** root_ptr, f64 key, MapValue value, int value_size, bool allow_replace);
 
-extern bool map_string_delete(MapNode** root_ptr, const char* key);
-extern bool map_u64_delete(MapNode** root_ptr, u64 key);
-extern bool map_i64_delete(MapNode** root_ptr, i64 key);
-extern bool map_u32_delete(MapNode** root_ptr, u32 key);
-extern bool map_i32_delete(MapNode** root_ptr, i32 key);
-extern bool map_f32_delete(MapNode** root_ptr, f32 key);
-extern bool map_f64_delete(MapNode** root_ptr, f64 key);
+EXTERN bool map_string_delete(MapNode** root_ptr, const char* key);
+EXTERN bool map_u64_delete(MapNode** root_ptr, u64 key);
+EXTERN bool map_i64_delete(MapNode** root_ptr, i64 key);
+EXTERN bool map_u32_delete(MapNode** root_ptr, u32 key);
+EXTERN bool map_i32_delete(MapNode** root_ptr, i32 key);
+EXTERN bool map_f32_delete(MapNode** root_ptr, f32 key);
+EXTERN bool map_f64_delete(MapNode** root_ptr, f64 key);
 
-extern void map_destroy(MapNode* root);
+EXTERN void map_destroy(MapNode* root);
 
-extern void map_dump(MapNode* root, map_node_printer* prt);
-extern int map_check_avl_get_depth(MapNode* node);
-extern MapNode* map_min(MapNode* node);
-extern MapNode* map_max(MapNode* node);
-extern MapNode* map_iter_up(MapNode* elem);
-extern MapNode* map_iter_down(MapNode* elem);
-extern MapValue* map_string_get(MapNode* root, const char* key);
+EXTERN void map_dump(MapNode* root, map_node_printer* prt);
+EXTERN int map_check_avl_get_depth(MapNode* node);
+EXTERN MapNode* map_min(MapNode* node);
+EXTERN MapNode* map_max(MapNode* node);
+EXTERN MapNode* map_iter_up(MapNode* elem);
+EXTERN MapNode* map_iter_down(MapNode* elem);
+EXTERN MapValue* map_string_get(MapNode* root, const char* key);
 
-extern void map_prt_str_int(int bf, MapKey* key, MapValue* value);
-extern void map_prt_str_str(int bf, MapKey* key, MapValue* value);
-extern void map_prt_str_tag(int bf, MapKey* key, MapValue* value);
+EXTERN void map_prt_str_int(int bf, MapKey* key, MapValue* value);
+EXTERN void map_prt_str_str(int bf, MapKey* key, MapValue* value);
+EXTERN void map_prt_str_tag(int bf, MapKey* key, MapValue* value);
+
+#if defined (_MSC_VER)
+#ifdef __cplusplus
+}
+#endif
+#endif

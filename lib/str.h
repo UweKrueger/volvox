@@ -3,6 +3,12 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
+#if defined (_MSC_VER)
+#define _DECL_EXTERN extern __declspec(dllexport)
+#else
+#define _DECL_EXTERN extern
+#endif
+
 // format flags
 
 #define FMT_PREFIX_MASK 3U
@@ -27,7 +33,7 @@
 
 namespace volvox {
 
-	extern bool is_compiler;
+	_DECL_EXTERN bool is_compiler;
 
 	class i1 {
 	public:
