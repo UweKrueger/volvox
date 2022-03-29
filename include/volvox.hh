@@ -50,6 +50,10 @@
 #include <string.h>
 #include <inttypes.h>
 #include <sys/types.h>
+#if defined (_MSC_VER)
+#include <io.h>
+#else
 #include <unistd.h>
+#endif
 #include <sys/stat.h>
 #include <fcntl.h>
