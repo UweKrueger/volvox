@@ -771,32 +771,33 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		}
 		dprt("anonymous expression - TypeID: %u\n", E->ft->type->getTypeID());
 		// Make an anonymous proto.
-		uint64_t res_size = TheModule->getDataLayout().getTypeStoreSize(E->ft->type);
-		if (res_size > 8) {
-			uint64_t alloc_size = TheModule->getDataLayout().getTypeAllocSize(E->ft->type);
-		}
 		volvox::FullType* TheType = type_table.get_full("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, TheType);
-		llvm::Constant* rttype_ptr = getRtType(E->ft);
-		if (E->ft->type->isAggregateType())
-			// pass by reference
-			E = std::make_unique<UnaryExprAST>("&", std::move(E));
-		std::string volvox_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
-		std::vector<std::unique_ptr<ExprAST>> PrintArgs;
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
-		PrintArgs.push_back(std::move(std::make_unique<ConstExprAST>(rttype_ptr)));
-		// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		PrintArgs.push_back(std::move(E));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-		auto print_call = std::make_unique<CallExprAST>(FnLoc, volvox_println, std::move(PrintArgs));
 		std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
-		GlobalExprList.push_back(std::move(print_call));
+		if (E->ft->type->isVoidTy()) {
+			GlobalExprList.push_back(std::move(E));
+			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(false))));
+		} else {
+			llvm::Constant* rttype_ptr = getRtType(E->ft);
+			if (E->ft->type->isAggregateType())
+				// pass by reference
+				E = std::make_unique<UnaryExprAST>("&", std::move(E));
+			std::string volvox_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
+			std::vector<std::unique_ptr<ExprAST>> PrintArgs;
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
+			PrintArgs.push_back(std::move(std::make_unique<ConstExprAST>(rttype_ptr)));
+			// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+			PrintArgs.push_back(std::move(E));
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
+			auto print_call = std::make_unique<CallExprAST>(FnLoc, volvox_println, std::move(PrintArgs));
+			GlobalExprList.push_back(std::move(print_call));
+		}
 		auto ProtoRef = Proto.get();
 		FunctionProtos[Proto->getName()] = std::move(Proto);
 		auto tmp_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
