@@ -174,6 +174,7 @@ llvm::Value *VariableExprAST::codegen_ref() {
 			                             nullptr, Name, nullptr,
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
 			                             0, true);
+			full_var.first->val = V;
 			dprt("Re-create %s %p\n", Name.c_str(), V);
 		} else {
 			dprt("use existing %s from module %p\n", Name.c_str(), V);
@@ -372,9 +373,10 @@ llvm::Value *BinaryExprAST::codegen() {
 		if (kind == decl_assign_op) {
 			return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
 		} else {
-			auto Variable = full_var->val;
+			auto Variable = LHSE->codegen_ref();
 			auto OldVal = Builder->CreateLoad(full_var->ft.type, Variable, varname);
 			Builder->CreateStore(Val, Variable);
+			dprt("Created store for %s\n", varname);
 			return OldVal;
 		}
 	not_found:
