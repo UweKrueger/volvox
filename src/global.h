@@ -229,7 +229,6 @@ public:
 				gen_type = { .ID = ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
 			}
 			key32_table[key] = ft->type;
-			dprt("inserted %u %p %s\n", key, ft->type, name);
 			if (ft->type_attr & A_signed)
 				typeptr_table[(llvm::Type*)((uintptr_t)ft->type | A_signed)] = { name, ft->ditype };
 			else

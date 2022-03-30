@@ -517,9 +517,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		auto RHS_type = RHS->ft->type;
 		auto RHS_attr = RHS->ft->type_attr;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
-		dprt("LHS: %s RHS: %s\n", type_table.get_name(LHS_type, LHS_attr & A_signed), type_table.get_name(RHS_type, RHS_attr & A_signed));
 		if (inside_function && BinOp == ":=") {
-			dprt("got :=\n");
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
 				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				llvm::Type* type = std::get<0>(type_descr);
@@ -533,8 +531,6 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
 					eprt("variable %s already exists in current scope\n", VarL->Name.c_str());
 					return nullptr;
-				} else {
-					dprt("inserted local %s\n", VarL->Name.c_str());
 				}
 			} else {
 				eprt("left operand of \":=\" must be a variable\n");
@@ -769,7 +765,6 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				return nullptr;
 			}
 		}
-		dprt("anonymous expression - TypeID: %u\n", E->ft->type->getTypeID());
 		// Make an anonymous proto.
 		volvox::FullType* TheType = type_table.get_full("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",

@@ -123,7 +123,6 @@ Token Lexer::gettok(eXpect expect) {
 		switch(CurChar) {
 		case '\n':
 			IdentifierStr = CurChar;
-			dprt("@@@ got >%s< as ';'\n", IdentifierStr.c_str());
 			return ';';
 		case ':':
 			CurChar = advance();
@@ -270,11 +269,9 @@ Token Lexer::gettok(eXpect expect) {
 		switch (expect) {
 		case eComma:
 			IdentifierStr = CurChar;
-			dprt("@@@ got >%s< as ','\n", IdentifierStr.c_str());
 			return ',';
 		case eColon:
 			IdentifierStr = CurChar;
-			dprt("@@@ got >%s< as ';'\n", IdentifierStr.c_str());
 			return ';';
 		default:
 			dprt("Internal lexer error\n");

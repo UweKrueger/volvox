@@ -104,7 +104,6 @@ public:
 			auto F = FunctionProtos.find(Name);
 			if (F != FunctionProtos.end()) {
 				ft->type = F->second->FT;
-				dprt("got function for name %s %u\n", Name.c_str(), ft->type->getTypeID());
 				full_var = { new_FullVar((llvm::Value *)F->second.get(), ft->type, 0), true };
 				is_compile_time_const = true;
 			}
@@ -167,7 +166,6 @@ public:
 		ExprAST(nullptr, type_attr, Loc), Elements(std::move(_Elements)),
 		kind(k)
 		{
-			dprt("AggregateExpr, kind: %d\n", int(kind));
 			if (kind == FixedArray) {
 				if (el_type)
 					ft->elem_type = el_type;
@@ -185,7 +183,6 @@ public:
 						is_compile_time_const = false;
 						break;
 					}
-				dprt("CTC: %s\n", is_compile_time_const ? "true" : "false");
 			}
 		}
 	const char* KindName();
@@ -295,11 +292,9 @@ public:
 				// this is a tmp hack that does not make sense in general...
 				auto FI = FunctionProtos.find("sin");
 				if (FI == FunctionProtos.end()) {
-					dprt("no prototype found\n");
 					return;
 				}
 				Proto = FI->second.get();
-				dprt("found variable %s for call expr\n", Callee.c_str());
 				if (FV.first->ft.type->isFunctionTy()) { // TODO: make this work
 					// Proto = (PrototypeAST*)FV.first->val;
 				} else {

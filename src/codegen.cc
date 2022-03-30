@@ -74,10 +74,8 @@ std::pair<llvm::Value*, PrototypeAST*> getFunctionPtr(std::string Name) {
 			V = Var.first->val;
 		}
 		llvm::Value* sinFV = Builder->CreateLoad(Var.first->ft.type, V);
-		dprt("#### reusing %p\n", sinFV);
 		return { sinFV, FI->second.get() };
 	} else {
-		dprt("@@@@ no function pointer for %s\n", Name.c_str());
 		return { nullptr, nullptr };
 	}
 }
@@ -151,12 +149,10 @@ llvm::Value *AggregateExprAST::codegen() {
 }
 
 llvm::Value *VariableExprAST::codegen() {
-	dprt("load variable %s %u\n", Name.c_str(), full_var.first->ft.type ? full_var.first->ft.type->getTypeID() : 0xffff);
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
 	if (full_var.first->ft.type->isFunctionTy()) {
 		auto theFunction = getFunction(Name);
-		dprt("direct Function type %s\n", Name.c_str());
 		return theFunction.first;
 	}
 	auto V = codegen_ref();
@@ -175,9 +171,6 @@ llvm::Value *VariableExprAST::codegen_ref() {
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
 			                             0, true);
 			full_var.first->val = V;
-			dprt("Re-create %s %p\n", Name.c_str(), V);
-		} else {
-			dprt("use existing %s from module %p\n", Name.c_str(), V);
 		}
 	} else {
 		V = full_var.first->val;
@@ -263,7 +256,6 @@ enum OpKind {
 };
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
-	dprt("Global variable declaration %s\n", expr->RHS->is_compile_time_const ? "ctc" : "var");
 	if (!expr->RHS->is_compile_time_const)
 		goto nonconst;
 	if (auto Val = expr->RHS->codegen()) {
@@ -276,7 +268,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
-			dprt("type: %u %u %s\n", initializer->getType()->getTypeID(), expr->RHS->ft->type->getTypeID(), expr->is_compile_time_const ? "ctc" : "var");
 			llvm::GlobalVariable* GV;
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
@@ -304,10 +295,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				.val = GV,
 			};
 			globals_table.insert(varname, fv);
-			dprt("Inserted %s to globals table\n", varname);
 			return nullptr;
 		} else {
-			dprt("Global: non-LLVM const initializer");
 			goto nonconst;
 		}
 	} else {
@@ -320,7 +309,6 @@ nonconst:
 }
 
 llvm::Value *BinaryExprAST::codegen() {
-	dprt("Binary Codegen\n");
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -376,7 +364,6 @@ llvm::Value *BinaryExprAST::codegen() {
 			auto Variable = LHSE->codegen_ref();
 			auto OldVal = Builder->CreateLoad(full_var->ft.type, Variable, varname);
 			Builder->CreateStore(Val, Variable);
-			dprt("Created store for %s\n", varname);
 			return OldVal;
 		}
 	not_found:
@@ -384,7 +371,6 @@ llvm::Value *BinaryExprAST::codegen() {
 		if (kind != decl_assign_op)
 			return LogErrorV("unknown variable name %s", varname);
 		// variable declaration
-		dprt("%s not found\n", varname);
 		if (inside_function) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			auto type_descr = MakeType(Val->getType(), RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
@@ -405,7 +391,6 @@ llvm::Value *BinaryExprAST::codegen() {
 										llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
 										Builder->GetInsertBlock());
 			}
-			dprt("Added storage of %s to locals table\n", varname);
 			Builder->CreateStore(convertedVal, Alloca);
 			return convertedVal;
 		} else {
@@ -434,7 +419,6 @@ llvm::Value *BinaryExprAST::codegen() {
 		return nullptr;
 	if (desired_type && !conv.ideal.err_msg) {
 		auto ana = analyze_types({ conv.ideal.res_type, conv.ideal.res_attr }, { desired_type, desired_type_attr });
-		// dprt("desired_type: %s %d %d\n", type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_type_attr & A_signed))), ana.first, (ana.second && !conv.compat.err_msg));
 		if (ana.first || (ana.second && !conv.compat.err_msg)) {
 			if (conv.ideal.LHS)
 				L = conv.ideal.LHS(L);
@@ -658,13 +642,12 @@ conv_done:
 		break;
 	}
 	if (result) {
-		dprt("Got Result %p\n", (void*)result);
 		auto conv = getConv(ft->type, desired_type, ft->type_attr, desired_type_attr, Loc, true, is_unknown_type);
 		if (conv) {
-			dprt("converted result of binop from %s to %s (%s)\n",
-			       type_table.get_name(ft->type, ft->type_attr & A_signed),
-			       type_table.get_name(desired_type, desired_type_attr & A_signed),
-			       is_unknown_type ? "literal" : "explicit type");
+			// dprt("converted result of binop from %s to %s (%s)\n",
+			//        type_table.get_name(ft->type, ft->type_attr & A_signed),
+			//        type_table.get_name(desired_type, desired_type_attr & A_signed),
+			//        is_unknown_type ? "literal" : "explicit type");
 			result = conv(result);
 		}
 		return result;
@@ -701,7 +684,6 @@ llvm::Value *CallExprAST::codegen() {
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(), v = CalleeF.second->Args.size(); i != e; ++i) {
 		if (i < v && (CalleeF.second->ArgTypes[i]->type->isIntegerTy() || CalleeF.second->ArgTypes[i]->type->isFloatingPointTy())) {
-			dprt("Try to get conversion\n");
 			auto conversion = getConv(
 				Args[i]->ft->type, CalleeF.second->ArgTypes[i]->type,
 				Args[i]->ft->type_attr, CalleeF.second->ArgTypes[i]->type_attr,
@@ -719,7 +701,6 @@ llvm::Value *CallExprAST::codegen() {
 			return nullptr;
 	}
 	if (fptr) {
-		dprt("++++ call %s via pointer\n", Callee.c_str());
 		return Builder->CreateCall(CalleeF.second->FT, fptr, ArgsV, "callptrtmp");
 	}
 	return Builder->CreateCall(CalleeF.first, ArgsV, "calltmp");
@@ -1020,7 +1001,6 @@ llvm::Function *FunctionAST::codegen() {
 	}
 	// Finish off the function.
 	if (P.RetType->type->isVoidTy()) {
-		dprt("FnAST: create void return\n");
 		Builder->CreateRetVoid();
 	} else {
 		auto ret_type = RetVal->getType();
