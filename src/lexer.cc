@@ -74,15 +74,15 @@ Token Lexer::purge_line() {
 Token Lexer::gettok(bool expectBinary) {
 
 	// Skip any whitespace but recorgnize newline as it could be a separator
-	while (expectBinary ? isblank(CurChar) : isspace(CurChar))
+	while (isblank(CurChar))
 		CurChar = advance();
 	CurLoc = LexLoc;
 
 	if (isalpha(CurChar) || CurChar == '_') { // identifier: [a-zA-Z_][a-zA-Z0-9_]*
-		if (expectBinary) {
-			IdentifierStr = "";
-			return Token(tok_);
-		}
+		// if (expectBinary) {
+		// 	IdentifierStr = "";
+		// 	return Token(tok_);
+		// }
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
@@ -118,6 +118,14 @@ Token Lexer::gettok(bool expectBinary) {
 			return Token((void*)0);
 		return Token(tok_identifier);
 	}
+	if (CurChar == '\n' || CurChar == ';' || CurChar == '\0') {
+		IdentifierStr = CurChar;
+		CurChar = advance();
+		dprt("@@@ got >%s< as ';'\n", IdentifierStr.c_str());
+		return ';';
+	} else {
+		dprt("@@@ got >%c< as '%d'\n", CurChar, CurChar);
+	}
 	// Binary Operators
 	if (expectBinary) {
 		switch(CurChar) {
@@ -135,11 +143,6 @@ Token Lexer::gettok(bool expectBinary) {
 			IdentifierStr = CurChar;
 			CurChar = advance();
 			return tok_comma;
-		case '\n':
-		case '\r':
-		case ';':
-			IdentifierStr = CurChar;
-			return ';';
 		case '=':
 			CurChar = advance();
 			if (CurChar == '=') {
@@ -255,10 +258,10 @@ Token Lexer::gettok(bool expectBinary) {
 	    (CurChar == '+' || CurChar == '-') &&
 	    (isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
 	     linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
-		if (expectBinary) {
-			IdentifierStr = "";
-			return Token(tok_);
-		}
+		// if (expectBinary) {
+		// 	IdentifierStr = "";
+		// 	return Token(tok_);
+		// }
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
 		LexLoc.Col = (n_ptr - linebuf);

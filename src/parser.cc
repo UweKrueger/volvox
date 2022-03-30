@@ -703,7 +703,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		Eat(',');
 	}
 noargs:
-	getNextToken(); // eat ')'.
+	Eat(')'); //getNextToken(); // eat ')'.
 	// parse return type(s)
 	volvox::FullType* RetType = nullptr;
 	while (CurTok.kind != ';') {
@@ -715,7 +715,7 @@ noargs:
 		RetType = type;
 		getNextToken(true);
 	}
-	getNextToken();
+	// getNextToken();
 	// Verify right number of names for operator.
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
