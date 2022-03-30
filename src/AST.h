@@ -70,10 +70,10 @@ public:
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, bool IsOperator = false,
-	             volvox::FullType* RetType = nullptr, std::vector<volvox::FullType*> ArgTypes = {},
+	             volvox::FullType* RetType_ = nullptr, std::vector<volvox::FullType*> ArgTypes = {},
 	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
 		: Name(Name), Args(Args), IsOperator(IsOperator),
-		  Line(Loc.Line), RetType(RetType ? RetType : void_type), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {
+		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {
 		FT = llvm::FunctionType::get(RetType->type, LLVMArgTypes, IsVarArgs);
 	}
 	llvm::Function *codegen();
