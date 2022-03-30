@@ -425,8 +425,6 @@ namespace volvox {
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
-			fprintf(stderr, "\nID: %u\n", ft->ID);
-			fflush(stderr);
 			switch (ft->ID) {
 			case llvm::Type::BFloatTyID:
 			case llvm::Type::FloatTyID:
@@ -453,8 +451,6 @@ namespace volvox {
 				if (ft->SubclassData <= 32) {
 					int val = va_arg(ap, int);
 					const char* fmt = getFmtInt(flags);
-					fprintf(stderr, "\nflags: %02x fmt: %s\n", flags, fmt);
-					fflush(stderr);
 					int expected_nchar = max(abs(w)+1, 21+1);
 					while (space < expected_nchar) {
 						*cap += expected_nchar + (*cap >> 1);
@@ -468,8 +464,6 @@ namespace volvox {
 				} else {
 					long long int val = va_arg(ap, long long int);
 					const char* fmt = getFmtLong(flags);
-					fprintf(stderr, "\nfmtL: %s\n", fmt);
-					fflush(stderr);
 					int expected_nchar = max(abs(w)+1, 11+1);
 					while (space < expected_nchar) {
 						*cap += expected_nchar + (*cap >> 1);
@@ -486,8 +480,6 @@ namespace volvox {
 			case llvm::Type::ArrayTyID: {
 				char* elem_ptr = va_arg(ap, char*);
 				int elem_size = ft->elem_type->type_size;
-				fprintf(stderr, "\nArray: %" PRIu64 "\n", ft->num_fields);
-				fflush(stderr);
 				if (ft->num_fields) {
 					for (uint64_t i = 0; i < ft->num_fields; i++) {
 						if (ft->elem_type->ID == llvm::Type::FloatTyID) {

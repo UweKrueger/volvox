@@ -212,7 +212,6 @@ static void HandleTypeDef() {
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
-		dprt("top level expr parsed\n");
 		auto RetType = FnAST->Proto->RetType->type;
 		unsigned ret_type_attr = FnAST->Proto->RetType->type_attr;
 		auto anon_expr = FnAST->codegen();
@@ -221,10 +220,6 @@ static void HandleTopLevelExpression() {
 			auto RetTypeID = RetType->getTypeID();
 			unsigned IntBitWidth = RetTypeID == llvm::Type::IntegerTyID ?
 				RetType->getIntegerBitWidth() : 0;
-			eprt("ExprType: %u BitWidth: %u Volvox: %u, %u, %u\n",
-			        ret_type->getTypeID(), ret_type->isIntegerTy() ? ret_type->getIntegerBitWidth() : 0,
-			        RetType->getTypeID(), RetType->isIntegerTy() ? RetType->getIntegerBitWidth() : 0,
-			        ret_type_attr);
 			if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
 				// Create a ResourceTracker to track JIT'd memory allocated to our
@@ -424,8 +419,6 @@ int cur_input_fd;
 #endif
 
 int main(int argc, char* argv[]) {
-	printf("%" PRIu64 " %" PRIu64 "\n", sizeof(volvox::RtType), sizeof(volvox::FullType));
-	fflush(stdout);
 	if (argc == 1) {
 		comp_mode = comp_jit;
 	} else {
@@ -495,7 +488,6 @@ int main(int argc, char* argv[]) {
 			"Volvox Compiler", 0, "", 0);
 	}
 	init();
-	dprt("%u %u\n", (unsigned)sizeof(volvox::gen_val_type_t), (unsigned)sizeof(int_val_type_t));
 	// Prime the first token.
 	getNextToken();
 	// Run the main "interpreter loop" now.

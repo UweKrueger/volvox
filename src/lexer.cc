@@ -86,8 +86,6 @@ Token Lexer::gettok(eXpect expect) {
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
-		if (expect == eBinOp)
-			dprt("*** expected binary but got identifier >%s<\n", IdentifierStr.c_str());
 		if (IdentifierStr == "fn")
 			return Token(tok_fn);
 		if (IdentifierStr == "extern")
@@ -244,7 +242,7 @@ Token Lexer::gettok(eXpect expect) {
 			}
 		}
 		default:
-			dprt("*** expected binary but got >%c<\n", CurChar);
+			;
 		}
 	}
 	// Number Literal

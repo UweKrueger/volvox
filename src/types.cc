@@ -306,8 +306,6 @@ volvox::FullType* MakeType(volvox::FullType* base, bool is_unknown_type) {
 		volvox::FullType* new_type = type_table.get_full("i32");
 		if (!new_type)
 			eprt("Could not find i32 type!\n");
-		else
-			dprt("i32 type found: %p\n", new_type);
 		return new_type;
 	} else {
 		return base;
@@ -349,7 +347,6 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 		unsigned key;
 	};
 	llvmtype = volvox::gen_val_type_t{ .ID = ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
-	dprt("Array props: %llu %u\n", ft->num_fields, ft->type_attr);
 	llvm::SmallVector<llvm::Constant*, 16> fields;
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)key));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)ft->type_attr));
