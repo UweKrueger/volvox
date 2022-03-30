@@ -994,9 +994,10 @@ llvm::Function *FunctionAST::codegen() {
 		// Add storage to variable in symbol table.
 		mapitem->val = Alloca;
 	}
-
-	Body.back()->desired_type = P.RetType->type;
-	Body.back()->desired_type_attr = P.RetType->type_attr;
+	if (!P.RetType->type->isVoidTy()) {
+		Body.back()->desired_type = P.RetType->type;
+		Body.back()->desired_type_attr = P.RetType->type_attr;
+	}
 	llvm::Value* RetVal;
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {
@@ -1016,12 +1017,14 @@ llvm::Function *FunctionAST::codegen() {
 		}
 	}
 	// Finish off the function.
-	auto ret_type = RetVal->getType();
-	//type = ret_type; // TODO: hande conversion if != proto->type;
-	if (EndKind == tok_return)
-		Builder->CreateRet(CheckTailCall(RetVal));
-	else
+	if (P.RetType->type->isVoidTy()) {
+		dprt("FnAST: create void return\n");
 		Builder->CreateRetVoid();
+	} else {
+		auto ret_type = RetVal->getType();
+		//type = ret_type; // TODO: hande conversion if != proto->type;
+		Builder->CreateRet(CheckTailCall(RetVal));
+	}		
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function.
 		KSDbgInfo.LexicalBlocks.pop_back();

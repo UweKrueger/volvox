@@ -573,8 +573,13 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn(llvm::Type* de
 	auto kind = CurTok.kind;
 	if (kind == tok_return || kind == tok_else || kind == tok_end) {
 		if (kind == tok_return) {
-			getNextToken();
-			return { ParseExpression(desired_type, desired_attrib), kind };
+			if (desired_type->isVoidTy()) {
+				getNextToken(eColon);
+				return { nullptr, kind };
+			} else {
+				getNextToken();
+				return { ParseExpression(desired_type, desired_attrib), kind };
+			}
 		}
 		else
 			return { nullptr, kind };
