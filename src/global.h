@@ -121,7 +121,17 @@ static inline void veprt(const char* fmt, va_list args) {
 	fflush(stderr);
 }
 
-extern volvox::FullType* ParseType(bool allow_attribute = false);
+// classification for next token
+// in general how newline is translated
+// eBinOp decides if a following operator is unary or binary
+enum eXpect {
+	eNone,
+	eBinOp, // newline translates to ;
+	eComma,
+	eColon
+};
+
+extern volvox::FullType* ParseType(bool allow_attribute = false, eXpect expect = eComma);
 extern llvm::Constant* getRtType(volvox::FullType* ft);
 extern llvm::Constant* getRtType(volvox::FullType* ft);
 extern std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name);
@@ -493,9 +503,9 @@ public:
 		}
 	}
 };
-	
+
 extern Token CurTok;
-extern Token getNextToken(bool expectBinary = false);
+extern Token getNextToken(eXpect expect = eNone);
 extern Token purgeLine();
 
 class Lexer {
@@ -504,7 +514,7 @@ public:
 		: bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
 	virtual ~Lexer() { free(linebuf); }
 	int advance();
-	Token gettok(bool expectBinary = false);
+	Token gettok(eXpect expect = eNone);
 	Token purge_line();
 	ssize_t linelen;
 	size_t bufsize;

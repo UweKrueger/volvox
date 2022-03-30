@@ -71,10 +71,10 @@ Token Lexer::purge_line() {
 	return ';';
 }
 
-Token Lexer::gettok(bool expectBinary) {
+Token Lexer::gettok(eXpect expect) {
 
 	// Skip any whitespace but recorgnize newline as it could be a separator
-	while (isblank(CurChar))
+	while (expect == eNone ? isspace(CurChar) : isblank(CurChar))
 		CurChar = advance();
 	CurLoc = LexLoc;
 
@@ -86,7 +86,7 @@ Token Lexer::gettok(bool expectBinary) {
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
-		if (expectBinary)
+		if (expect == eBinOp)
 			dprt("*** expected binary but got identifier >%s<\n", IdentifierStr.c_str());
 		if (IdentifierStr == "fn")
 			return Token(tok_fn);
@@ -118,17 +118,13 @@ Token Lexer::gettok(bool expectBinary) {
 			return Token((void*)0);
 		return Token(tok_identifier);
 	}
-	if (CurChar == '\n' || CurChar == ';' || CurChar == '\0') {
-		IdentifierStr = CurChar;
-		CurChar = advance();
-		dprt("@@@ got >%s< as ';'\n", IdentifierStr.c_str());
-		return ';';
-	} else {
-		dprt("@@@ got >%c< as '%d'\n", CurChar, CurChar);
-	}
 	// Binary Operators
-	if (expectBinary) {
+	if (expect == eBinOp) {
 		switch(CurChar) {
+		case '\n':
+			IdentifierStr = CurChar;
+			dprt("@@@ got >%s< as ';'\n", IdentifierStr.c_str());
+			return ';';
 		case ':':
 			CurChar = advance();
 			if (CurChar == '=') {
@@ -270,6 +266,19 @@ Token Lexer::gettok(bool expectBinary) {
 	}
 
 	switch (CurChar) {
+	case '\n':
+		switch (expect) {
+		case eComma:
+			IdentifierStr = CurChar;
+			dprt("@@@ got >%s< as ','\n", IdentifierStr.c_str());
+			return ',';
+		case eColon:
+			IdentifierStr = CurChar;
+			dprt("@@@ got >%s< as ';'\n", IdentifierStr.c_str());
+			return ';';
+		default:
+			dprt("Internal lexer error\n");
+		}
 	case '"': {
 		std::string StrLit = "";
 		for (;;) {

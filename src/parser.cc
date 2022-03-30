@@ -15,7 +15,7 @@ Token CurTok;
 FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
 
-Token getNextToken(bool expectBinary) { return CurTok = lex.gettok(expectBinary); }
+Token getNextToken(eXpect expect) { return CurTok = lex.gettok(expect); }
 Token purgeLine() { return CurTok = lex.purge_line(); }
 
 /// GetTokPrecedence - Get the precedence of the pending binary operator token.
@@ -47,26 +47,26 @@ static std::unique_ptr<PrototypeAST> LogErrorP(const char *Str, ...) {
 	return nullptr;
 }
 
-static bool Expect(int tok, bool expectBinary = false) {
+static bool Expect(int tok, eXpect expect = eNone) {
 	bool res = CurTok.kind == tok;
 	if (res) {
-		getNextToken(expectBinary);
+		getNextToken(expect);
 	} else {
 		LogErrorP("unexpected `%s` - expected `%s`", CurTok.str().c_str(), Token::tokName(tok).c_str());
 	}
 	return res;
 }
 
-static void Eat(int tok, bool expectBinary = false) {
+static void Eat(int tok, eXpect expect = eNone) {
 	if (CurTok.kind == tok) {
-		getNextToken(expectBinary);
+		getNextToken(expect);
 	}
 }
 
 static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
                                                 unsigned desired_attrib = 0u);
 
-volvox::FullType* ParseType(bool allow_attribute) {
+volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
 		if (allow_attribute) {
@@ -147,7 +147,7 @@ volvox::FullType* ParseType(bool allow_attribute) {
 					return nullptr;
 				}
 				FieldNames.push_back(IdentifierStr);
-				getNextToken();
+				getNextToken(eComma);
 				auto type = ParseType(true);
 				if (!type) {
 					LogErrorP("Unexpected `%s` in struct declaration - type name expected\n", CurTok.str().c_str());
@@ -158,7 +158,7 @@ volvox::FullType* ParseType(bool allow_attribute) {
 				getNextToken();
 				if (CurTok.kind == '}')
 					break;
-				Eat(',', true);
+				Eat(',', eBinOp);
 			}
 			getNextToken();
 			llvm::Type* struct_type = llvm::StructType::get(*Context.getContext(), LLVMFieldTypes, (bool)(attribs & A_packed));
@@ -177,7 +177,7 @@ volvox::FullType* ParseType(bool allow_attribute) {
 		case '&':
 			do {
 				attribs = (attribs & 0xffff) | ((attribs & 0xffff0000) + 0x10000);
-				getNextToken(true);
+				getNextToken(eBinOp);
 			} while (CurTok.kind == '&');
 			if (CurTok.kind == tok_identifier)
 				break;
@@ -186,7 +186,7 @@ volvox::FullType* ParseType(bool allow_attribute) {
 			LogErrorP("Unexpected `%s` - type name expected", CurTok.str().c_str());
 			return nullptr;
 		}
-		getNextToken(true);
+		getNextToken(eBinOp);
 	}
 	auto type = type_table.get_full(IdentifierStr.c_str());
 	if (!type) {
@@ -202,19 +202,19 @@ volvox::FullType* ParseType(bool allow_attribute) {
 static std::unique_ptr<ExprAST> ParseNumberExpr(llvm::Type* desired_type = nullptr,
                                                 unsigned desired_attrib = 0u) {
 	auto Result = std::make_unique<LiteralExprAST>(CurTok);
-	getNextToken(true); // consume the number
+	getNextToken(eBinOp); // consume the number
 	return Result;
 }
 
 static std::unique_ptr<ExprAST> ParseStringExpr() {
 	auto Result = std::make_unique<LiteralExprAST>(CurTok);
-	getNextToken(true); // consume the string
+	getNextToken(eBinOp); // consume the string
 	return Result;
 }
 
 static std::unique_ptr<ExprAST> ParsePointerExpr() {
 	auto Result = std::make_unique<LiteralExprAST>(CurTok);
-	getNextToken(true); // consume the pointer
+	getNextToken(eBinOp); // consume the pointer
 	return Result;
 }
 
@@ -228,7 +228,7 @@ static std::unique_ptr<ExprAST> ParseParenExpr(llvm::Type* desired_type = nullpt
 
 	if (CurTok.kind != ')')
 		return LogError("expected ')'");
-	getNextToken(true); // eat ).
+	getNextToken(eBinOp); // eat ).
 	return V;
 }
 
@@ -260,7 +260,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 
 	SourceLocation LitLoc = CurLoc;
 
-	getNextToken(true); // eat identifier.
+	getNextToken(eBinOp); // eat identifier.
 
 	if (CurTok.kind != '(') { // Simple variable ref.
 		auto var_expr = std::make_unique<VariableExprAST>(LitLoc, IdName);
@@ -273,7 +273,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	getNextToken(); // eat '('
 	if (CurTok.kind != ')') {
 		if (auto Arg = ParseExpression()) {
-			Expect(')', true);
+			Expect(')', eBinOp);
 			auto Args = SplitExprList(std::move(Arg));
 			auto call_expr = std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
 			if (!call_expr || !call_expr->ft || !call_expr->ft->type) // Used to signal failure, e.g. IdName was not found
@@ -284,7 +284,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 		}
 	} else {
 		// no call arguments
-		getNextToken(true); // eat ')';
+		getNextToken(eBinOp); // eat ')';
 		return std::make_unique<CallExprAST>(LitLoc, IdName);
 	}
 }
@@ -311,12 +311,12 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 	SourceLocation loc = CurLoc;
 	getNextToken(); // eat '{'/'['
 	if (CurTok.kind == closing) {
-		getNextToken(true);
+		getNextToken(eBinOp);
 		// TODO: parse type and given elements
 		return std::make_unique<AggregateExprAST>(loc, kind);
 	}
 	if (auto Elem = ParseExpression()) {
-		Expect(closing, true);
+		Expect(closing, eBinOp);
 		auto Elems = SplitExprList(std::move(Elem));
 		dprt("Array initialized with %d elements\n", Elems.size());
 		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(Elems[0].get())) {
@@ -388,7 +388,7 @@ static std::unique_ptr<ExprAST> ParseForExpr() {
 		return LogError("expected identifier after for");
 
 	std::string IdName = IdentifierStr;
-	getNextToken(true); // eat identifier.
+	getNextToken(eBinOp); // eat identifier.
 
 	if (CurTok.kind != tok_assign)
 		return LogError("expected '=' after for");
@@ -703,7 +703,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		Eat(',');
 	}
 noargs:
-	Eat(')'); //getNextToken(); // eat ')'.
+	Eat(')', eColon); //getNextToken(); // eat ')'.
 	// parse return type(s)
 	volvox::FullType* RetType = nullptr;
 	while (CurTok.kind != ';') {
@@ -713,7 +713,7 @@ noargs:
 		else if (RetType)
 			return LogErrorP("functions returning multiple objecs is not implemented, yet");
 		RetType = type;
-		getNextToken(true);
+		getNextToken(eColon);
 	}
 	// getNextToken();
 	// Verify right number of names for operator.
