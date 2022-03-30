@@ -954,7 +954,7 @@ llvm::Function *FunctionAST::codegen() {
 		unsigned ScopeLine = LineNo;
 		SP = DBuilder->createFunction(
 			FContext, P.getName(), llvm::StringRef(), Unit, LineNo,
-			CreateFunctionType(P.RetTypes[0], P.ArgTypes, Unit), ScopeLine,
+			CreateFunctionType(P.RetType, P.ArgTypes, Unit), ScopeLine,
 			llvm::DINode::FlagPrototyped, llvm::DISubprogram::SPFlagDefinition);
 		TheFunction->setSubprogram(SP);
 	  
@@ -995,8 +995,8 @@ llvm::Function *FunctionAST::codegen() {
 		mapitem->val = Alloca;
 	}
 
-	Body.back()->desired_type = P.RetTypes[0]->type;
-	Body.back()->desired_type_attr = P.RetTypes[0]->type_attr;
+	Body.back()->desired_type = P.RetType->type;
+	Body.back()->desired_type_attr = P.RetType->type_attr;
 	llvm::Value* RetVal;
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {

@@ -62,7 +62,7 @@ public:
 	std::vector<std::string> Args;
 	std::vector<volvox::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
-	std::vector<volvox::FullType*> RetTypes;
+	volvox::FullType* RetType;
 	llvm::FunctionType* FT;
 	bool IsVarArgs;
 	bool IsOperator;
@@ -70,13 +70,11 @@ public:
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, bool IsOperator = false,
-	             std::vector<volvox::FullType*> RetTypes = {}, std::vector<volvox::FullType*> ArgTypes = {},
+	             volvox::FullType* RetType = void_type, std::vector<volvox::FullType*> ArgTypes = {},
 	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
 		: Name(Name), Args(Args), IsOperator(IsOperator),
-		  Line(Loc.Line), RetTypes(RetTypes), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {
-		auto RetType = RetTypes.size() == 1 ?
-			RetTypes[0]->type : llvm::Type::getVoidTy(*Context.getContext());
-		FT = llvm::FunctionType::get(RetType, LLVMArgTypes, IsVarArgs);
+		  Line(Loc.Line), RetType(RetType), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {
+		FT = llvm::FunctionType::get(RetType->type, LLVMArgTypes, IsVarArgs);
 	}
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
@@ -314,15 +312,8 @@ public:
 				return;
 			}
 		}
-		if (Proto->RetTypes.size() == 0) {
-			ft->type = llvm::Type::getVoidTy(*Context.getContext());
-			ft->type_attr = 0;
-		} else if(Proto->RetTypes.size() == 1) {
-			ft->type = Proto->RetTypes[0]->type;
-			ft->type_attr = Proto->RetTypes[0]->type_attr;
-		} else {
-			LogError("call of function %s() returning %d objects is not implemented, yet", Callee.c_str(), Proto->RetTypes.size());
-		}
+		ft->type = Proto->RetType->type;
+		ft->type_attr = Proto->RetType->type_attr;
 	}
 	llvm::Value *codegen() override;
 #ifndef NDEBUG

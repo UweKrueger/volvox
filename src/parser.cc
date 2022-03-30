@@ -705,12 +705,14 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 noargs:
 	getNextToken(); // eat ')'.
 	// parse return type(s)
-	std::vector<volvox::FullType*> RetTypes;
+	volvox::FullType* RetType = nullptr;
 	while (CurTok.kind != ';') {
 		auto type = ParseType(true);
 		if (!type)
 			return LogErrorP("error parsing return type of function prototype");
-		RetTypes.push_back(type);
+		else if (RetType)
+			return LogErrorP("functions returning multiple objecs is not implemented, yet");
+		RetType = type;
 		getNextToken(true);
 	}
 	getNextToken();
@@ -718,7 +720,7 @@ noargs:
 	if (Kind && ArgNames.size() != Kind)
 		return LogErrorP("Invalid number of operands for operator");
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetTypes, ArgTypes, LLVMArgTypes, isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetType, ArgTypes, LLVMArgTypes, isVarArgs);
 }
 
 /// definition ::= 'fn' prototype expression
@@ -741,7 +743,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	}
 	auto ProtoRef = Proto.get();
 	FunctionProtos[Proto->getName()] = std::move(Proto);
-	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetTypes[0]->type, ProtoRef->RetTypes[0]->type_attr);
+	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetType->type, ProtoRef->RetType->type_attr);
 	if (Elist.first.size()) {
 		return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
 	}
@@ -768,7 +770,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		if (res_size > 8) {
 			uint64_t alloc_size = TheModule->getDataLayout().getTypeAllocSize(E->ft->type);
 		}
-		std::vector<volvox::FullType*> TheType = { type_table.get_full("bool") };
+		volvox::FullType* TheType = type_table.get_full("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            false, TheType);

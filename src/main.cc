@@ -23,6 +23,7 @@ char* __volvox_jit_tls_inits = nullptr;
 // useful definitions
 llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
+volvox::FullType* void_type;
 
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
@@ -70,6 +71,8 @@ void init() {
 	type_table.add("real", llvm::Type::getDoubleTy(*Context.getContext()), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 #endif
 	type_table.add("void", llvm::Type::getVoidTy(*Context.getContext()), nullptr);
+	// TODO: make .add() return FullType*
+	void_type = type_table.get_full("void");
 	type_table.add("bool", llvm::Type::getInt1Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
 	type_table.add("i8", llvm::Type::getInt8Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	type_table.add("i16", llvm::Type::getInt16Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("i16", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
@@ -210,11 +213,8 @@ static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
 		dprt("top level expr parsed\n");
-		auto RetType = FnAST->Proto->RetTypes.size() == 1 ?
-			FnAST->Proto->RetTypes[0]->type :
-			llvm::Type::getVoidTy(*Context.getContext());
-		unsigned ret_type_attr = FnAST->Proto->RetTypes.size() == 1 ?
-			FnAST->Proto->RetTypes[0]->type_attr : 0;
+		auto RetType = FnAST->Proto->RetType->type;
+		unsigned ret_type_attr = FnAST->Proto->RetType->type_attr;
 		auto anon_expr = FnAST->codegen();
 		if (anon_expr) {
 			auto ret_type = anon_expr->getReturnType();

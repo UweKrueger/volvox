@@ -90,6 +90,7 @@ extern bool inside_function;
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
+extern volvox::FullType* void_type;
 
 extern unsigned anon_struct_nr;
 
