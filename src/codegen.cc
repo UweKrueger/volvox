@@ -152,6 +152,13 @@ llvm::Value *VariableExprAST::codegen_ref() {
 	return V;
 }
 
+llvm::Value* FunctionExprAST::codegen() {
+	if (auto F = TheModule->getFunction(Name)) {
+		return F;
+	}
+	return ft->proto->codegen();
+}
+
 llvm::Value *UnaryExprAST::codegen() {
 	if (Opcode[0] == '&') {
 		if (auto V = dynamic_cast<VariableExprAST*>(Operand.get())) {
