@@ -745,10 +745,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	auto ProtoRef = Proto.get();
 	FunctionProtos[Proto->getName()] = std::move(Proto);
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetType->type, ProtoRef->RetType->type_attr);
-	if (Elist.first.size()) {
-		return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
-	}
-	return nullptr;
+	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
 }
 
 std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
