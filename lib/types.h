@@ -14,6 +14,8 @@
 #define A_atomic (1U<<4)
 #define A_packed (1U<<5)
 
+class PrototypeAST;
+
 namespace volvox {
 
 #if defined (_MSC_VER)
@@ -35,7 +37,8 @@ namespace volvox {
 		llvm::DIType* ditype;
 		union {
 			FullType* elem_type; // for array or tuples
-			MapNode* fields;
+			PrototypeAST* proto; // for functions
+			MapNode* fields;     // for structs
 		};
 	};
 

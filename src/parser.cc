@@ -261,32 +261,13 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	SourceLocation LitLoc = CurLoc;
 
 	getNextToken(eBinOp); // eat identifier.
-
-	if (CurTok.kind != '(') { // Simple variable ref.
-		auto var_expr = std::make_unique<VariableExprAST>(LitLoc, IdName);
-		// if (!var_expr->type) // variable name not found
-		//	return nullptr;
-		return var_expr;
+	// first try to find a function with this name
+	auto F = FunctionProtos.find(IdName);
+	if (F != FunctionProtos.end()) {
+		return std::make_unique<FunctionExprAST>(LitLoc, IdName, F->second.get());
 	}
-
-	// Call.
-	getNextToken(); // eat '('
-	if (CurTok.kind != ')') {
-		if (auto Arg = ParseExpression()) {
-			Expect(')', eBinOp);
-			auto Args = SplitExprList(std::move(Arg));
-			auto call_expr = std::make_unique<CallExprAST>(LitLoc, IdName, std::move(Args));
-			if (!call_expr || !call_expr->ft || !call_expr->ft->type) // Used to signal failure, e.g. IdName was not found
-				return nullptr;
-			return call_expr;
-		} else {
-			return nullptr;
-		}
-	} else {
-		// no call arguments
-		getNextToken(eBinOp); // eat ')';
-		return std::make_unique<CallExprAST>(LitLoc, IdName);
-	}
+	
+	return std::make_unique<VariableExprAST>(LitLoc, IdName);
 }
 
 static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nullptr,
@@ -540,7 +521,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 			if (auto V = dynamic_cast<VariableExprAST*>(LHS.get())) {
 				if (BinOp[0] == '\0') {
 					auto Args = SplitExprList(std::move(RHS));
-					LHS = std::make_unique<CallExprAST>(V->Loc, V->Name, std::move(Args));
+					LHS = std::make_unique<CallExprAST>(V->Loc, std::move(LHS), std::move(Args));
 					continue;
 				}
 			}
@@ -776,7 +757,13 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			if (E->ft->type->isAggregateType())
 				// pass by reference
 				E = std::make_unique<UnaryExprAST>("&", std::move(E));
-			std::string volvox_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
+			std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
+			auto println_proto = FunctionProtos.find(mangled_println);
+			if (println_proto == FunctionProtos.end()) {
+				eprt("Fatal error: could not find `println` function\n");
+				return nullptr;
+			}
+			auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto->second.get());
 			std::vector<std::unique_ptr<ExprAST>> PrintArgs;
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
 			PrintArgs.push_back(std::move(std::make_unique<ConstExprAST>(rttype_ptr)));
@@ -787,7 +774,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			PrintArgs.push_back(std::move(E));
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-			auto print_call = std::make_unique<CallExprAST>(FnLoc, volvox_println, std::move(PrintArgs));
+			auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
 			GlobalExprList.push_back(std::move(print_call));
 		}
 		auto ProtoRef = Proto.get();

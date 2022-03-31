@@ -379,6 +379,7 @@ public:
 	        unsigned desired_type_attr = 0, bool is_compile_time_const = false) :
 		ft(type_table.get_full(key)), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr), is_unknown_type(is_unknown_type), is_compile_time_const(is_compile_time_const)
 		{
+			abort(); // find out where this is used
 			ft->type_attr |= add_attr;
 		}
 	ExprAST(volvox::FullType& full_type, SourceLocation Loc = CurLoc, volvox::FullType desired = {}, bool is_unknown_type = false) :

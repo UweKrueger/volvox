@@ -50,36 +50,6 @@ llvm::Value *LogErrorV(const char *Str, ...) {
 	return nullptr;
 }
 
-std::pair<llvm::Value*, PrototypeAST*> getFunctionPtr(std::string Name) {
-	auto Var = lookup_var(Name.c_str());
-	if (Var.first) {
-		dprt("#### found Variable for call %p\n", Var.first->val);
-		// this is a tmp hack that does not make sense in general...
-		auto FI = FunctionProtos.find("sin");
-		if (FI == FunctionProtos.end()) {
-			dprt("no prototype found\n");
-			return { nullptr, nullptr };
-		}
-		llvm::Value* V;
-		if (Var.second) { // global variable
-			V = TheModule->getGlobalVariable(Name, true);
-			if (!V) {
-				V = new llvm::GlobalVariable(*TheModule, Var.first->ft.type,
-				                             false, llvm::GlobalValue::ExternalLinkage,
-				                             nullptr, Name, nullptr,
-				                             llvm::GlobalVariable::GeneralDynamicTLSModel,
-				                             0, true);
-			}
-		} else {
-			V = Var.first->val;
-		}
-		llvm::Value* sinFV = Builder->CreateLoad(Var.first->ft.type, V);
-		return { sinFV, FI->second.get() };
-	} else {
-		return { nullptr, nullptr };
-	}
-}
-
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 	auto FI = FunctionProtos.find(Name);
 	if (FI == FunctionProtos.end())
@@ -666,44 +636,48 @@ llvm::Value *CallExprAST::codegen() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Look up the name in the global module table.
-	std::pair<llvm::Function*, PrototypeAST*> CalleeF;
-	llvm::Value* fptr = nullptr;
-	auto TTT = getFunctionPtr(Callee);
-	if (TTT.first) {
-		CalleeF.second = TTT.second;
-		fptr = TTT.first;
-	} else {
-		CalleeF = getFunction(Callee);
-	}
+	PrototypeAST* Proto = Callee->ft->proto;
+	llvm::Value* theFunction = Callee->codegen();
+	// std::pair<llvm::Function*, PrototypeAST*> CalleeF;
+	// llvm::Value* theFunction = nullptr;
+	// auto TTT = getFunctionPtr(Callee);
+	// if (TTT.first) {
+	// 	CalleeF.second = TTT.second;
+	// 	theFunction = TTT.first;
+	// } else {
+	// 	CalleeF = getFunction(Callee);
+	// }
 	//if (!CalleeF.first)
 	//	return LogErrorV("Unknown function referenced: %s", Callee.c_str());
 	// If argument mismatch error.
-	// if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !CalleeF.second->IsVarArgs || CalleeF.first->arg_size() != CalleeF.second->Args.size())
+	// if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !Proto->IsVarArgs || CalleeF.first->arg_size() != Proto->Args.size())
 	//	return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<llvm::Value *> ArgsV;
-	for (unsigned i = 0, e = Args.size(), v = CalleeF.second->Args.size(); i != e; ++i) {
-		if (i < v && (CalleeF.second->ArgTypes[i]->type->isIntegerTy() || CalleeF.second->ArgTypes[i]->type->isFloatingPointTy())) {
+	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
+		if (i < v && (Proto->ArgTypes[i]->type->isIntegerTy() || Proto->ArgTypes[i]->type->isFloatingPointTy())) {
 			auto conversion = getConv(
-				Args[i]->ft->type, CalleeF.second->ArgTypes[i]->type,
-				Args[i]->ft->type_attr, CalleeF.second->ArgTypes[i]->type_attr,
+				Args[i]->ft->type, Proto->ArgTypes[i]->type,
+				Args[i]->ft->type_attr, Proto->ArgTypes[i]->type_attr,
 				Args[i]->Loc, false, Args[i]->is_unknown_type);
 			if (!conversion)
 				return nullptr;
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
-			if (i < v && Args[i]->ft->type->getTypeID() != CalleeF.second->ArgTypes[i]->type->getTypeID())
+			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i]->type->getTypeID())
 				// TODO: better check compatibility
-				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->ft->type->getTypeID(), CalleeF.second->ArgTypes[i]->type->getTypeID());
+				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->ft->type->getTypeID(), Proto->ArgTypes[i]->type->getTypeID());
 			ArgsV.push_back(Args[i]->codegen());
 		}
 		if (!ArgsV.back())
 			return nullptr;
 	}
-	if (fptr) {
-		return Builder->CreateCall(CalleeF.second->FT, fptr, ArgsV, "callptrtmp");
+	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
+		return Builder->CreateCall(F, ArgsV, "calltmp");
+	} else {
+		// theFunction is a function pointer
+		return Builder->CreateCall(llvm::cast<llvm::FunctionType>(Callee->ft->type), theFunction, ArgsV, "callptrtmp");
 	}
-	return Builder->CreateCall(CalleeF.first, ArgsV, "calltmp");
 }
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {

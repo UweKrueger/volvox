@@ -99,11 +99,13 @@ public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: ExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
-			ft = new_FullType(full_var.first->ft);
+			ft = new_FullType(full_var.first->ft); // TODO: don't create a new instance (?)
 		} else {
 			auto F = FunctionProtos.find(Name);
 			if (F != FunctionProtos.end()) {
 				ft->type = F->second->FT;
+				dprt("got function for name %s %u\n", Name.c_str(), ft->type->getTypeID());
+				// TODO: unify handling of full_var and FunctionProtos - maybe even 1 single database
 				full_var = { new_FullVar((llvm::Value *)F->second.get(), ft->type, 0), true };
 				is_compile_time_const = true;
 			}
@@ -112,6 +114,25 @@ public:
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
 	llvm::Value *codegen_ref(); // create reference to this variable
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		return ExprAST::dump(out << Name, ind);
+	}
+#endif
+};
+
+/// FunctionExprAST - classic named functions (not function pointers)
+class FunctionExprAST : public ExprAST {
+
+public:
+	std::string Name;
+	FunctionExprAST(SourceLocation Loc, const std::string &Name, PrototypeAST* Proto)
+		: ExprAST(Loc), Name(Name) {
+		ft = new_FullType(Proto->FT, 0);
+		ft->proto = Proto;
+	}
+	const std::string &getName() const { return Name; }
+	llvm::Value *codegen() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);
@@ -275,45 +296,18 @@ public:
 
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
-	std::string Callee;
+	std::unique_ptr<ExprAST> Callee;
 	std::vector<std::unique_ptr<ExprAST>> Args;
 
 public:
-	CallExprAST(SourceLocation Loc, const std::string &Callee_,
+	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
-		: ExprAST(nullptr, 0, Loc), Callee(Callee_), Args(std::move(Args)) {
-		PrototypeAST* Proto;
-		auto FI = FunctionProtos.find(Callee);
-		if (FI != FunctionProtos.end()) {
-			Proto = FI->second.get();
-		} else {
-			auto FV = lookup_var(Callee.c_str());
-			if (FV.first) {
-				// this is a tmp hack that does not make sense in general...
-				auto FI = FunctionProtos.find("sin");
-				if (FI == FunctionProtos.end()) {
-					return;
-				}
-				Proto = FI->second.get();
-				if (FV.first->ft.type->isFunctionTy()) { // TODO: make this work
-					// Proto = (PrototypeAST*)FV.first->val;
-				} else {
-					//LogError("`%s` is not a function", Callee.c_str());
-					// return;
-				}
-			} else {
-				// constructors have no return value so failure is signaled by type == nullptr
-				LogError("call to undeclared function %s()", Callee.c_str());
-				return;
-			}
-		}
-		ft->type = Proto->RetType->type;
-		ft->type_attr = Proto->RetType->type_attr;
-	}
+		: ExprAST(Callee_->ft->proto->FT, 0, Loc), Callee(std::move(Callee_)), Args(std::move(Args)) {}
 	llvm::Value *codegen() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "call " << Callee, ind);
+		ExprAST::dump(out << "call", ind);
+		Callee->dump(out, ind);
 		for (const auto &Arg : Args)
 			Arg->dump(indent(out, ind + 1), ind + 1);
 		return out;
