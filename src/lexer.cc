@@ -79,10 +79,10 @@ Token Lexer::gettok(eXpect expect) {
 	CurLoc = LexLoc;
 
 	if (isalpha(CurChar) || CurChar == '_') { // identifier: [a-zA-Z_][a-zA-Z0-9_]*
-		// if (expectBinary) {
-		// 	IdentifierStr = "";
-		// 	return Token(tok_);
-		// }
+		if (expect == eBinOp) {
+			IdentifierStr = "";
+			return Token(tok_);
+		}
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
@@ -251,10 +251,10 @@ Token Lexer::gettok(eXpect expect) {
 	    (CurChar == '+' || CurChar == '-') &&
 	    (isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
 	     linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
-		// if (expectBinary) {
-		// 	IdentifierStr = "";
-		// 	return Token(tok_);
-		// }
+		if (expect == eBinOp) {
+			IdentifierStr = "";
+			return Token(tok_);
+		}
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
 		LexLoc.Col = (n_ptr - linebuf);

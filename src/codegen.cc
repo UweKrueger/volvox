@@ -233,8 +233,6 @@ enum OpKind {
 };
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
-	if (!expr->RHS->is_compile_time_const)
-		goto nonconst;
 	if (auto Val = expr->RHS->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
@@ -645,6 +643,7 @@ llvm::Value *CallExprAST::codegen() {
 	// Look up the name in the global module table.
 	PrototypeAST* Proto = Callee->ft->proto;
 	llvm::Value* theFunction = Callee->codegen();
+	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// std::pair<llvm::Function*, PrototypeAST*> CalleeF;
 	// llvm::Value* theFunction = nullptr;
 	// auto TTT = getFunctionPtr(Callee);
@@ -657,8 +656,8 @@ llvm::Value *CallExprAST::codegen() {
 	//if (!CalleeF.first)
 	//	return LogErrorV("Unknown function referenced: %s", Callee.c_str());
 	// If argument mismatch error.
-	// if (CalleeF.first->arg_size() > Args.size() || CalleeF.first->arg_size() < Args.size() && !Proto->IsVarArgs || CalleeF.first->arg_size() != Proto->Args.size())
-	//	return LogErrorV("Incorrect # arguments passed");
+	if (FT->getNumParams() > Args.size() || FT->getNumParams() < Args.size() && !Proto->IsVarArgs || FT->getNumParams() != Proto->Args.size())
+		return LogErrorV("Incorrect # arguments passed");
 
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
@@ -680,10 +679,11 @@ llvm::Value *CallExprAST::codegen() {
 			return nullptr;
 	}
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
+		dprt("create normal call to %s %u\n", dynamic_cast<FunctionExprAST*>(Callee.get())->Name.c_str(), ArgsV.size());
 		return Builder->CreateCall(F, ArgsV, "calltmp");
 	} else {
 		// theFunction is a function pointer
-		return Builder->CreateCall(llvm::cast<llvm::FunctionType>(Callee->ft->type), theFunction, ArgsV, "callptrtmp");
+		return Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
 	}
 }
 

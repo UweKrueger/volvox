@@ -264,6 +264,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	// first try to find a function with this name
 	auto F = FunctionProtos.find(IdName);
 	if (F != FunctionProtos.end()) {
+		dprt("Function %s parsed\n", IdName.c_str());
 		return std::make_unique<FunctionExprAST>(LitLoc, IdName, F->second.get());
 	}
 	
@@ -517,14 +518,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				eprt("left operand of \":=\" must be a variable\n");
 				return nullptr;
 			}
-		} else if (!LHS_type) {
-			if (auto V = dynamic_cast<VariableExprAST*>(LHS.get())) {
-				if (BinOp[0] == '\0') {
-					auto Args = SplitExprList(std::move(RHS));
-					LHS = std::make_unique<CallExprAST>(V->Loc, std::move(LHS), std::move(Args));
-					continue;
-				}
-			}
+		} else if (LHS_type && LHS_type->isFunctionTy() && BinOp[0] == '\0') {
+			auto Args = SplitExprList(std::move(RHS));
+			LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
+			dprt("create call expr %u\n", dynamic_cast<CallExprAST*>(LHS.get())->Callee->ft->type->getTypeID());
+			continue;
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
 		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr,
@@ -732,6 +730,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = ParseExpression()) {
+		dprt("Expression parsed\n");
 		if (!E->ft || !E->ft->type) {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
 				if (B->conv.compat.err_msg)

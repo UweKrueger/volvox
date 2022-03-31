@@ -171,20 +171,6 @@ static void HandleExtern() {
 				eprt("Read extern: ");
 				FnIR->print(llvm::errs());
 				eprt("\n");
-// 				if (ProtoAST->Name == "sin") {
-// 					sinFT = FnIR->getType();
-// 					sinF = new llvm::GlobalVariable(*TheModule, sinFT, true, llvm::GlobalValue::ExternalLinkage, FnIR, "sinPtr");
-// 					sinF->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
-// 					sinF->setAlignment(llvm::Align(8));
-// #if LLVM_VERSION_MAJOR >= 12
-// 					ExitOnErr(TheJIT->addModule(
-// 						          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
-// #else
-// 					TheJIT->addModule(std::move(TheModule));
-// #endif
-// 					InitializeModuleAndPassManager();
-// 					dprt("#### # saving sinF %p\n", sinF);
-// 				}
 			}
 			FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
 		} else {
