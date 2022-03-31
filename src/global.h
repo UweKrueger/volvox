@@ -143,8 +143,8 @@ struct int_val_type_t {
 };
 
 struct FullVar {
-	volvox::FullType ft;
 	llvm::Value* val;
+	volvox::FullType ft;
 };
 
 struct FVListElem {

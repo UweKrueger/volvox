@@ -291,8 +291,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			ft.type = type;
 			ft.type_attr = is_signed ? 1U : 0U;
 			FullVar fv = {
-				.ft = ft,
 				.val = GV,
+				.ft = ft,
 			};
 			globals_table.insert(varname, fv);
 			return nullptr;
@@ -839,11 +839,11 @@ llvm::Value *ForExprAST::codegen() {
 		OldVal = Alloca;
 	} else {
 		FullVar fv = {
+			.val = Alloca,
 			.ft = {
 				.type = AllocaT,
 				.type_attr = AllocaF
 			},
-			.val = Alloca,
 		};
 		locals_table.back().insert(VarName.c_str(), fv);
 	}
