@@ -121,13 +121,17 @@ llvm::Value *AggregateExprAST::codegen() {
 llvm::Value *VariableExprAST::codegen() {
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
-	if (full_var.first->ft.type->isFunctionTy()) {
-		auto theFunction = getFunction(Name);
-		return theFunction.first;
-	}
+	// if (full_var.first->ft.type->isFunctionTy()) {
+	// 	auto theFunction = getFunction(Name);
+	// 	return theFunction.first;
+	// }
 	auto V = codegen_ref();
 	// Load the value.
-	return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
+	if (full_var.second) { // global variable
+		return Builder->CreateLoad(full_var.first->storage_type, V, Name.c_str());
+	} else {
+		return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
+	}
 }
 
 llvm::Value *VariableExprAST::codegen_ref() {
@@ -135,12 +139,11 @@ llvm::Value *VariableExprAST::codegen_ref() {
 	if (full_var.second) { // global variable
 		V = TheModule->getGlobalVariable(Name, true);
 		if (!V) {
-			V = new llvm::GlobalVariable(*TheModule, ft->type,
+			V = new llvm::GlobalVariable(*TheModule, full_var.first->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, Name, nullptr,
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
 			                             0, true);
-			full_var.first->val = V;
 		}
 	} else {
 		V = full_var.first->val;
@@ -237,7 +240,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
 		llvm::Type* val_type = Val->getType();
-		auto type_descr = MakeType(val_type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
+		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
 		llvm::Type* type = std::get<0>(type_descr);
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
@@ -266,7 +269,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			ft.type = type;
 			ft.type_attr = is_signed ? 1U : 0U;
 			FullVar fv = {
-				.val = GV,
+				.storage_type = initializer->getType(),
 				.ft = ft,
 			};
 			globals_table.insert(varname, fv);

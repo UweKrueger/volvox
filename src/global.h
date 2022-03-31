@@ -143,7 +143,10 @@ struct int_val_type_t {
 };
 
 struct FullVar {
-	llvm::Value* val;
+	union {
+		llvm::Value* val;
+		llvm::Type* storage_type; // for global variables
+	};
 	volvox::FullType ft;
 };
 
