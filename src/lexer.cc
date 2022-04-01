@@ -73,7 +73,7 @@ Token Lexer::purge_line() {
 
 Token Lexer::gettok(eXpect expect) {
 
-	// Skip any whitespace but recorgnize newline as it could be a separator
+	// Skip any whitespace but recorgnize newline if it could be a separator
 	while (expect == eNone ? isspace(CurChar) : isblank(CurChar))
 		CurChar = advance();
 	CurLoc = LexLoc;
@@ -241,6 +241,10 @@ Token Lexer::gettok(eXpect expect) {
 				return tok_mult;
 			}
 		}
+		case '(':
+			// function call
+			IdentifierStr = "";
+			return Token(tok_);
 		default:
 			;
 		}
