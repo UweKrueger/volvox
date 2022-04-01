@@ -18,6 +18,13 @@ public:
 	llvm::Value* codegen() { return val; }
 };
 
+// empty parameter list in calls like "f()"
+class EmptyExprAST : public ExprAST {
+public:
+	EmptyExprAST(SourceLocation Loc = CurLoc) : ExprAST(Loc) {}
+	llvm::Value* codegen() { return nullptr; }
+};
+
 // Class for all literals - 1.2, 3u, "str"
 class LiteralExprAST : public ExprAST {
 

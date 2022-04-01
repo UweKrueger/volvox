@@ -439,6 +439,8 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
 		return ParsePointerExpr();
 	case '(':
 		return ParseParenExpr();
+	case ')':
+		return std::make_unique<EmptyExprAST>();
 	case '{':
 	case '[':
 		return ParseAggregateExpr();
