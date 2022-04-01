@@ -647,17 +647,6 @@ llvm::Value *CallExprAST::codegen() {
 	PrototypeAST* Proto = Callee->ft->proto;
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
-	// std::pair<llvm::Function*, PrototypeAST*> CalleeF;
-	// llvm::Value* theFunction = nullptr;
-	// auto TTT = getFunctionPtr(Callee);
-	// if (TTT.first) {
-	// 	CalleeF.second = TTT.second;
-	// 	theFunction = TTT.first;
-	// } else {
-	// 	CalleeF = getFunction(Callee);
-	// }
-	//if (!CalleeF.first)
-	//	return LogErrorV("Unknown function referenced: %s", Callee.c_str());
 	// If argument mismatch error.
 	if (FT->getNumParams() > Args.size() || FT->getNumParams() < Args.size() && !Proto->IsVarArgs || FT->getNumParams() != Proto->Args.size())
 		return LogErrorV("Incorrect # arguments passed");
@@ -674,7 +663,7 @@ llvm::Value *CallExprAST::codegen() {
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
 			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i]->type->getTypeID())
-				// TODO: better check compatibility
+				// TODO: better check compatibility and make error message human readable
 				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->ft->type->getTypeID(), Proto->ArgTypes[i]->type->getTypeID());
 			ArgsV.push_back(Args[i]->codegen());
 		}
@@ -682,10 +671,10 @@ llvm::Value *CallExprAST::codegen() {
 			return nullptr;
 	}
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
-		dprt("create normal call to %s %u\n", dynamic_cast<FunctionExprAST*>(Callee.get())->Name.c_str(), ArgsV.size());
+		// Callee was a function symbol like `sin`
 		return Builder->CreateCall(F, ArgsV, "calltmp");
 	} else {
-		// theFunction is a function pointer
+		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
 		return Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
 	}
 }
