@@ -23,6 +23,15 @@ static inline int GetTokPrecedence() {
 	return (CurTok.kind < 0 && CurTok.kind > tok_last_op) ? (-CurTok.kind) << 8 : -256;
 }
 
+// same as above but take into account that some operators are right binding
+static inline int NextTokPrecedence() {
+	int prec = GetTokPrecedence();
+	// assignments and the invisible operator are right binding
+	if (CurTok.kind == tok_assign || CurTok.kind == tok_)
+		prec++;
+	return prec;
+}
+
 /// LogError* - These are little helper functions for error handling.
 std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap) {
 	eprt("Error: ");
@@ -484,9 +493,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 
 		// If BinOp binds less tightly with RHS than the operator after RHS, let
 		// the pending operator take RHS as its LHS.
-		int NextPrec = GetTokPrecedence();
-		if (TokPrec < NextPrec) {
-			RHS = ParseBinOpRHS(TokPrec + ((CurTok.kind == tok_assign) ? -1 : 1), std::move(RHS));
+		if (TokPrec < NextTokPrecedence()) {
+			RHS = ParseBinOpRHS(TokPrec, std::move(RHS));
 			if (!RHS)
 				return nullptr;
 		}
