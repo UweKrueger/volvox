@@ -34,12 +34,11 @@ enum TokenKind {
 	tok_add = -9, // +, -, ~
 	tok_mult = -10, // *, /, %, <<, >>
 	tok_ = -11, // invisible operator in `sin x` or `2a` or `sin 2x` = `sin(2x)` - right binding
-	tok__ = -12, // invisible operator in `sin(x)` - so `sin(x)a` = `(sin(x))a
-	tok_unary = -13, // +, -, !, ~, &, <-
-	tok_pow = -14, // **
-	tok_postfix = -15, // ++, -- (return old result)
-	tok_selector = -16, // . (struct.field, module.ident)
-	tok_last_op = -17, // only used for comparisons to identify operators
+	tok_unary = -12, // +, -, !, ~, &, <-
+	tok_pow = -13, // **
+	tok_postfix = -14, // ++, -- (return old result)
+	tok_selector = -15, // . (struct.field, module.ident), invisible operator in `sin(x)` - so `sin(x)a` = `(sin(x))a
+	tok_last_op = -16, // only used for comparisons to identify operators
 
 	tok_eof = -20,
 
