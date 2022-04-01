@@ -1,4 +1,5 @@
 extern sin(x f64) f64
+extern cos(x f64) f64
 type _ZN6volvox6RtTypeE packed {
 	key u32
 	attr u32

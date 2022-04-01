@@ -287,6 +287,9 @@ public:
 				ft->type = conv.ideal.res_type;
 				ft->type_attr = 0;
 			}
+		} else if (conv.ideal.res_type == LHS->ft->type) {
+			// copy full left type if no conversion
+			*ft = *LHS->ft;
 		}
 		strcpy(Op, _Op);
 	}

@@ -764,6 +764,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			GlobalExprList.push_back(std::move(E));
 			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(false))));
 		} else {
+			dprt("Expression type: %p\n", E->ft->type);
 			llvm::Constant* rttype_ptr = getRtType(E->ft);
 			if (E->ft->type->isAggregateType()) {
 				// pass by reference

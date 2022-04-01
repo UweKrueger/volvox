@@ -263,6 +263,9 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 {
 	if (!left_type || Op[0] == ',') // variable declaration, i.e. := operator
 		return {{ nullptr, nullptr, nullptr, 0, false, nullptr }, { nullptr, nullptr, nullptr, 0, false, nullptr }};
+	if (!strcmp(Op, "=")) {
+	    return {{ nullptr, nullptr, left_type, left_attr, false, nullptr }, { nullptr, nullptr, left_type, left_attr, false, nullptr }};
+	}
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
 	bool left_is_float = left_descr.second;
