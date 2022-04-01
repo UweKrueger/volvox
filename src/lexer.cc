@@ -244,7 +244,7 @@ Token Lexer::gettok(eXpect expect) {
 		case '(':
 			// function call
 			IdentifierStr = "";
-			return Token(tok_);
+			return Token(tok__);
 		default:
 			;
 		}

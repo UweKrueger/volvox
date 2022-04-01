@@ -243,6 +243,10 @@ static std::unique_ptr<ExprAST> ParseParenExpr(llvm::Type* desired_type = nullpt
 
 static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprAST> Arg) {
 	std::vector<std::unique_ptr<ExprAST>> Args;
+	// If we have an EmptyExprAST just return the empty list
+	if (auto empty_expr = dynamic_cast<EmptyExprAST*>(Arg.get())) {
+		return Args;
+	}
 	// The arguments are parsed as a tree of binary expressions (Op=',') where
 	// all objects are in the leaves.
 	// Due to operator precedence rules the tree is stricly left-heavy and can be
