@@ -508,7 +508,19 @@ namespace volvox {
 				space = *cap - *pos;
 			}
 				break;
+			case llvm::Type::PointerTyID: {
+				char* str = va_arg(ap, char*);
+				prtstring(s, cap, pos, str);
+			}
+				break;
+			case llvm::Type::FunctionTyID: {
+				char* fn = va_arg(ap, char*);
+				prtstring(s, cap, pos, "function ");
+				prtstring(s, cap, pos, fn);
+			}
+				break;
 			default:
+				fprintf(stderr, "TypeID: %u\n", ft->ID);
 				abort();
 			}
 			const char* post = va_arg(ap, char*);
