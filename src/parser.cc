@@ -764,19 +764,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			GlobalExprList.push_back(std::move(E));
 			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(false))));
 		} else {
-			dprt("Expression type: %p\n", E->ft->type);
 			llvm::Constant* rttype_ptr = getRtType(E->ft);
 			if (E->ft->type->isAggregateType()) {
 				// pass by reference
 				E = std::make_unique<UnaryExprAST>("&", std::move(E));
-			} else if (E->ft->type->isFunctionTy()) {
-				if (auto V = dynamic_cast<VariableExprAST*>(E.get()))
-					E = std::make_unique<LiteralExprAST>(Token(std::string("<pointer>")));
-				else if (auto F = dynamic_cast<FunctionExprAST*>(E.get()))
-					E = std::make_unique<LiteralExprAST>(Token(F->Name));
-				else
-					GlobalExprList.push_back(std::move(E));
-					E = std::make_unique<LiteralExprAST>(Token(std::string("<address value>")));
 			}
 			std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
 			auto println_proto = FunctionProtos.find(mangled_println);

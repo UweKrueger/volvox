@@ -355,7 +355,7 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)ft->type_attr));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uint64_t)ft->num_fields));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uint64_t)(
-		                                        ft->type->isFunctionTy() ? sizeof(void*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
+		                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
 	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name, "", 0, TheModule.get()) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
 	if (llvmtype.ID == llvm::Type::ArrayTyID) {
 		fields.push_back(getRtType(ft->elem_type));

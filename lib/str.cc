@@ -515,8 +515,16 @@ namespace volvox {
 				break;
 			case llvm::Type::FunctionTyID: {
 				char* fn = va_arg(ap, char*);
-				prtstring(s, cap, pos, "function ");
-				prtstring(s, cap, pos, fn);
+				int expected_nchar = max(abs(w)+1, 30+1);
+				while (space < expected_nchar) {
+					*cap += expected_nchar + (*cap >> 1);
+					*s = (char*)realloc(*s, *cap);
+					space = *cap - *pos;
+				}
+				*pos += sprintf(*s + *pos, "function: <%p>", fn);
+				space = *cap - *pos;
+				if (space < 1)
+					abort(); // error in calculation 
 			}
 				break;
 			default:
