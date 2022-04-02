@@ -107,20 +107,15 @@ public:
 		: ExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
 			ft = new_FullType(full_var.first->ft); // TODO: don't create a new instance (?)
-		} else {
-			auto F = FunctionProtos.find(Name);
-			if (F != FunctionProtos.end()) {
-				ft->type = F->second->FT;
-				dprt("got function for name %s %u\n", Name.c_str(), ft->type->getTypeID());
-				// TODO: unify handling of full_var and FunctionProtos - maybe even 1 single database
-				full_var = { new_FullVar((llvm::Value *)F->second.get(), ft->type, 0), true };
-				is_compile_time_const = true;
-			}
 		}
+		// if the variable name has not found in the database we don't generate
+		// an error message here because this VariableExprAST could be the LHS of
+		// an initialization e.g. `a := 42`
 	}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
-	llvm::Value *codegen_ref(); // create reference to this variable
+	// create reference to this variable - second result is the storage_type
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref();
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);

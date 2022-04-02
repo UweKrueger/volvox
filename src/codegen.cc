@@ -121,21 +121,14 @@ llvm::Value *AggregateExprAST::codegen() {
 llvm::Value *VariableExprAST::codegen() {
 	if (!full_var.first)
 		return LogErrorV("Unknown variable name1 %s", Name.c_str());
-	// if (full_var.first->ft.type->isFunctionTy()) {
-	// 	auto theFunction = getFunction(Name);
-	// 	return theFunction.first;
-	// }
 	auto V = codegen_ref();
 	// Load the value.
-	if (full_var.second) { // global variable
-		return Builder->CreateLoad(full_var.first->storage_type, V, Name.c_str());
-	} else {
-		return Builder->CreateLoad(full_var.first->ft.type, V, Name.c_str());
-	}
+	return Builder->CreateLoad(V.first, V.second, Name.c_str());
 }
 
-llvm::Value *VariableExprAST::codegen_ref() {
+std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref() {
 	llvm::Value* V;
+	llvm::Type* storage_type;
 	if (full_var.second) { // global variable
 		V = TheModule->getGlobalVariable(Name, true);
 		if (!V) {
@@ -145,14 +138,16 @@ llvm::Value *VariableExprAST::codegen_ref() {
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
 			                             0, true);
 		}
+		storage_type = full_var.first->storage_type;
 	} else {
 		V = full_var.first->val;
+		storage_type = full_var.first->val->getType();
 	}
 
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	return V;
+	return { storage_type, V };
 }
 
 llvm::Value* FunctionExprAST::codegen() {
@@ -165,7 +160,7 @@ llvm::Value* FunctionExprAST::codegen() {
 llvm::Value *UnaryExprAST::codegen() {
 	if (Opcode[0] == '&') {
 		if (auto V = dynamic_cast<VariableExprAST*>(Operand.get())) {
-			return V->codegen_ref();
+			return V->codegen_ref().second;
 		} else {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
@@ -340,8 +335,8 @@ llvm::Value *BinaryExprAST::codegen() {
 			return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
 		} else {
 			auto Variable = LHSE->codegen_ref();
-			auto OldVal = Builder->CreateLoad(full_var->ft.type, Variable, varname);
-			Builder->CreateStore(Val, Variable);
+			auto OldVal = Builder->CreateLoad(Variable.first, Variable.second, varname);
+			Builder->CreateStore(Val, Variable.second);
 			return OldVal;
 		}
 	not_found:
