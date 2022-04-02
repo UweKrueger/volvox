@@ -775,6 +775,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				else if (auto F = dynamic_cast<FunctionExprAST*>(E.get()))
 					E = std::make_unique<LiteralExprAST>(Token(F->Name));
 				else
+					GlobalExprList.push_back(std::move(E));
 					E = std::make_unique<LiteralExprAST>(Token(std::string("<address value>")));
 			}
 			std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
