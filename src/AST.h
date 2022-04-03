@@ -101,18 +101,19 @@ public:
 class LvalueExprAST : public ExprAST {
 
 public:
-	LvalueExprAST(SourceLocation Loc) : ExprAST(Loc) {}
+	std::string Name;
+	LvalueExprAST(SourceLocation Loc, std::string Name = "") : ExprAST(Loc), Name(Name) {}
 	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref() = 0;
+	llvm::Value* codegen() override;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public LvalueExprAST {
 
 public:
-	std::string Name;
 	std::pair<FullVar*, bool> full_var; // and if it's global
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: LvalueExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
+		: LvalueExprAST(Loc, Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
 			ft = new_FullType(full_var.first->ft); // TODO: don't create a new instance (?)
 		}
@@ -121,7 +122,6 @@ public:
 		// an initialization e.g. `a := 42`
 	}
 	const std::string &getName() const { return Name; }
-	llvm::Value *codegen() override;
 	// create reference to this variable - second result is the storage_type
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref() override;
 #ifndef NDEBUG
@@ -151,16 +151,16 @@ public:
 };
 
 // IndexExprAST - Expressions like x[2] or y["key"]
-class IndexExprAST : public ExprAST {
+class IndexExprAST : public LvalueExprAST {
 
 public:
 	std::unique_ptr<ExprAST> Field, Index;
-	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field,
-	             std::unique_ptr<ExprAST> Index,
-	             llvm::Type* desired_type = nullptr,
-	             unsigned desired_attrib = 0)
-		: ExprAST(*Field) {}
-	llvm::Value* codegen() override;
+	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
+	             std::unique_ptr<ExprAST> Index_)
+		: LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_)) {
+		ft = Field->ft->elem_type;
+	}
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "index", ind);
@@ -188,9 +188,10 @@ enum AggregateKind {
 };
 
 class AggregateExprAST : public ExprAST {
+
+public:
 	std::vector<std::unique_ptr<ExprAST>> Elements;
 	AggregateKind kind;
-public:
 	AggregateExprAST(SourceLocation Loc, AggregateKind k,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 unsigned type_attr = 0, volvox::FullType* el_type = nullptr) :

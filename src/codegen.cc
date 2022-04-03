@@ -118,15 +118,17 @@ llvm::Value *AggregateExprAST::codegen() {
 	return llvm::ConstantArray::get(reinterpret_cast<llvm::ArrayType*>(ft->type), Initializers);
 }
 
-llvm::Value *VariableExprAST::codegen() {
-	if (!full_var.first)
-		return LogErrorV("Unknown variable name1 %s", Name.c_str());
+llvm::Value* LvalueExprAST::codegen() {
 	auto V = codegen_ref();
 	// Load the value.
 	return Builder->CreateLoad(V.first, V.second, Name.c_str());
 }
 
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref() {
+	if (!full_var.first) {
+		eprt("Unknown variable name1 %s", Name.c_str());
+		return { nullptr, nullptr };
+	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
 	if (full_var.second) { // global variable
@@ -150,6 +152,34 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref() {
 	return { storage_type, V };
 }
 
+std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
+	llvm::Value* field_ptr;
+	llvm::Type* elem_type;
+	if (!Field->ft->type || !Field->ft->type->isArrayTy()) {
+		eprt("LHS of index expression must be an array (or map)\n");
+		return { nullptr, nullptr };
+	} else {
+		elem_type = Field->ft->elem_type->type;
+	}
+	if (auto fld = dynamic_cast<LvalueExprAST*>(Field.get())) {
+		field_ptr = fld->codegen_ref().second;
+	} else {
+		eprt("LHS of index expression must be an lvalue\n");
+		return { nullptr, nullptr };
+	}
+	if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
+		if (aggr->Elements.size() != 1) {
+			eprt("exactly one index expected (for now)\n");
+			return { nullptr, nullptr };
+		}
+		llvm::Value* idx = aggr->Elements[0]->codegen();
+		return { elem_type, Builder->CreateInBoundsGEP(elem_type, field_ptr, idx) };
+	} else {
+		eprt("internal compiler error\n");
+		return { nullptr, nullptr };
+	}
+}
+
 llvm::Value* FunctionExprAST::codegen() {
 	if (auto F = TheModule->getFunction(Name)) {
 		return F;
@@ -159,7 +189,7 @@ llvm::Value* FunctionExprAST::codegen() {
 
 llvm::Value *UnaryExprAST::codegen() {
 	if (Opcode[0] == '&') {
-		if (auto V = dynamic_cast<VariableExprAST*>(Operand.get())) {
+		if (auto V = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 			return V->codegen_ref().second;
 		} else {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();

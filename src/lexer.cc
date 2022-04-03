@@ -244,7 +244,7 @@ Token Lexer::gettok(eXpect expect) {
 		case '(':
 		case '[':
 			// function call
-			IdentifierStr = "";
+			IdentifierStr = CurChar;
 			// We do not advance here but return the empty (binary) operator
 			// the token is handled the nex time when no binary is expected.
 			// "tok_selector" has a very high priority so sin(x)^2 = (sin(x))^2
