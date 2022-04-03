@@ -97,14 +97,22 @@ public:
 	int getLine() const { return Line; }
 };
 
+// Expressions that can the the LHS of an assignmen: `a = 1`, `b[3] = 4.5`, `s.a = 9`
+class LvalueExprAST : public ExprAST {
+
+public:
+	LvalueExprAST(SourceLocation Loc) : ExprAST(Loc) {}
+	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref() = 0;
+};
+
 /// VariableExprAST - Expression class for referencing a variable, like "a".
-class VariableExprAST : public ExprAST {
+class VariableExprAST : public LvalueExprAST {
 
 public:
 	std::string Name;
 	std::pair<FullVar*, bool> full_var; // and if it's global
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: ExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
+		: LvalueExprAST(Loc), Name(Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
 			ft = new_FullType(full_var.first->ft); // TODO: don't create a new instance (?)
 		}
@@ -115,7 +123,7 @@ public:
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen() override;
 	// create reference to this variable - second result is the storage_type
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref();
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);
