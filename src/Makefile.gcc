@@ -1,0 +1,77 @@
+# do 'make distclean' when changing optimization options or compiler version
+# OPT := -O3
+OPT := -O0 -ggdb
+
+SHELL := bash
+RM = rm -f
+LINKEXTRAFLAGS :=
+TARGETDIR := ../
+ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
+    SUFFIX :=
+else
+ifeq ($(shell test -x /usr/local/bin/clang++12 && echo -n true),true)
+    SUFFIX := 12
+else
+ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
+    SUFFIX := -13
+else
+ifeq ($(shell test -x /usr/bin/clang++-12 && echo -n true),true)
+    SUFFIX := -12
+endif
+endif
+endif
+endif
+CC := gcc
+CXX := g++
+LLVMCONFIG := llvm-config$(SUFFIX)
+LLVMVERSION := $(shell clang++$(SUFFIX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
+
+CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -frtti
+LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
+PRJH = ../include/volvox-$(LLVMVERSION).hh
+
+PCH = $(PRJH:%.hh=%.hh.gch)
+
+PROG = $(TARGETDIR)volvox
+
+OBJS := main.o lexer.o parser.o token.o codegen.o types.o
+
+LIB := map.o str.o
+
+LIBLIB := libvolvox.so.0
+
+SRCS := $(OBJS:%.o=%.cc)
+
+LIBSRC := $(LIB:%.o=../lib/%.cc)
+
+%.o: %.cc $(PCH)
+	$(CXX) -c $(CXXFLAGS) $(OPT) -include ../include/volvox-$(LLVMVERSION).hh $<
+
+%.o: ../lib/%.cc
+	$(CXX) -c $(CXXFLAGS) -fPIC $(OPT) $<
+
+all: $(PROG)
+
+$(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh
+	$(CXX) -o $@ -x c++-header $(CXXFLAGS) $(OPT) $<
+
+$(LIBLIB): $(LIB)
+	$(CXX) -shared -fPIC -Wl,-soname,$(LIBLIB) -o $(LIBLIB) $(LIB)
+	ln -sf $(LIBLIB) libvolvox.so
+
+$(PROG): $(OBJS) $(LIBLIB)
+	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L. -lvolvox -Wl,-rpath,$(shell pwd) $(LINKEXTRAFLAGS)
+
+.PHONY: clean
+clean:
+	rm -f $(OBJS)
+
+.PHONY: distclean
+distclean:
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIB) $(LIBLIB) *~ ../include/*~ ../include/*.gch .depend
+
+.depend:
+	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
+	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
+
+-include .depend

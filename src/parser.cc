@@ -146,11 +146,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			}
 			//auto array_elem_type = new volvox::FullType
 			//memcpy(array_elem_type, &elem_type, sizeof(volvox::FullType));
-			return new volvox::FullType{
-				.type = array_type,
-				.size = Dim,
-				.elem_type = elem_type
-			};
+			return new_FullType(array_type, 0, nullptr, Dim, elem_type);
 		}
 			break;
 		case '{': {
