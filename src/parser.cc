@@ -101,13 +101,19 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			getNextToken();
 		switch (CurTok.kind) {
 		case '[': {
+			dprt("parsing indexed type\n");
 			getNextToken();
 			int64_t dim = -1;
+			llvm::Value* Dim = nullptr;
 			if (CurTok.kind == ']') {
 				getNextToken();
 			} else {
-				auto e = ParseExpression(llvm::Type::getInt64Ty(*Context.getContext()), A_signed);
-				if (auto Dim = e->codegen()) {
+				if (auto e = ParseExpression(llvm::Type::getInt64Ty(*Context.getContext()), A_signed)) {
+					Dim = e->codegen();
+					if (!Dim) {
+						eprt("cannot generate code for index\n");
+						return nullptr;
+					}
 					if (llvm::ConstantInt* d = llvm::dyn_cast<llvm::ConstantInt>(Dim)) {
 						dim = d->getSExtValue();
 					} else {
@@ -118,9 +124,11 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 					LogErrorP("cannot parse dimension expression");
 					return nullptr;
 				}
-				if (!Expect(']'))
+				if (!Expect(']')) {
+					eprt("'[' expected\n");
 					return nullptr;
-				if (dim <= 0 || dim > INT_MAX) {
+				}
+				if (dim < 0) {
 					LogErrorP("dimension must be a positive int (not %lld)", dim);
 					return nullptr;
 				}
@@ -129,18 +137,19 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			if (!elem_type)
 				return nullptr;
 			llvm::Type* array_type;
-			if (dim > 0) {
+			if (dim >= 0) {
+				dprt("create array type\n");
 				array_type = llvm::ArrayType::get(elem_type->type, dim);
 			} else {
 				llvm::Type* ptr = llvm::PointerType::get(elem_type->type, 0);
 				array_type = llvm::StructType::get(ptr, llvm_int_type);
 			}
-			void* array_elem_type = malloc(sizeof(volvox::FullType));
-			memcpy(array_elem_type, &elem_type, sizeof(volvox::FullType));
+			//auto array_elem_type = new volvox::FullType
+			//memcpy(array_elem_type, &elem_type, sizeof(volvox::FullType));
 			return new volvox::FullType{
 				.type = array_type,
-				// .nrows = (int)dim,
-				.elem_type = (volvox::FullType*)array_elem_type
+				.size = Dim,
+				.elem_type = elem_type
 			};
 		}
 			break;
