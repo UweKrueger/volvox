@@ -523,11 +523,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				llvm::Type* type = std::get<0>(type_descr);
 				bool is_signed = std::get<2>(type_descr);
 				FullVar fv = {
-					.ft = {
-						.type = type,
-						.type_attr = is_signed ? 1U : 0U
-					}
+					.ft = *RHS->ft
 				};
+				fv.ft.type = type;
+				fv.ft.type_attr = is_signed ? 1U : 0U;
+
 				if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
 					eprt("variable %s already exists in current scope\n", VarL->Name.c_str());
 					return nullptr;

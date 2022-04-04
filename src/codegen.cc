@@ -143,9 +143,10 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref() {
 		storage_type = full_var.first->storage_type;
 	} else {
 		V = full_var.first->val;
+		// storage_type = full_var.first->ft.type;
 		storage_type = full_var.first->val->getType();
 	}
-
+	dprt("Storage type: %u\n", storage_type->getTypeID());
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -155,6 +156,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref() {
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 	llvm::Value* field_ptr;
 	llvm::Type* elem_type;
+	llvm::Type* field_type;
 	if (!Field->ft->type || !Field->ft->type->isArrayTy()) {
 		eprt("LHS of index expression must be an array (or map)\n");
 		return { nullptr, nullptr };
@@ -162,7 +164,12 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 		elem_type = Field->ft->elem_type->type;
 	}
 	if (auto fld = dynamic_cast<LvalueExprAST*>(Field.get())) {
-		field_ptr = fld->codegen_ref().second;
+		auto LV = fld->codegen_ref();
+		field_type = LV.first;
+		if (field_type->isPointerTy())
+			field_ptr = Builder->CreateLoad(llvm::cast<llvm::PointerType>(field_type)->getElementType(), LV.second);
+		else
+			field_ptr = LV.second;
 	} else {
 		eprt("LHS of index expression must be an lvalue\n");
 		return { nullptr, nullptr };
@@ -354,7 +361,7 @@ llvm::Value *BinaryExprAST::codegen() {
 		llvm::Value *Val = RHS->codegen();
 		if (!Val)
 			return nullptr;
-
+		dprt("RHS: TypeID: %u\n", Val->getType()->getTypeID());
 		// Look up the name.
 		const char* varname = LHSE->getName().c_str();
 		FullVar* full_var = LHSE->full_var.first;
