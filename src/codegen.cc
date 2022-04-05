@@ -162,6 +162,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 	llvm::Value* field_ptr;
 	llvm::Type* elem_type;
 	llvm::Type* field_type;
+	llvm::Value* idx;
 	if (!Field->ft->type || !Field->ft->type->isArrayTy()) {
 		eprt("LHS of index expression must be an array (or map)\n");
 		return { nullptr, nullptr };
@@ -170,6 +171,16 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 	}
 	if (auto fld = dynamic_cast<LvalueExprAST*>(Field.get())) {
 		auto LV = fld->codegen_ref();
+		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
+			if (aggr->Elements.size() != 1) {
+				eprt("exactly one index expected (for now)\n");
+				return { nullptr, nullptr };
+			}
+			idx = aggr->Elements[0]->codegen();
+		} else {
+			eprt("internal compiler error\n");
+			return { nullptr, nullptr };
+		}
 		field_type = LV.first;
 		field_ptr = LV.second;
 		if (field_type->isPointerTy()) {
@@ -190,17 +201,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 		eprt("LHS of index expression must be an lvalue\n");
 		return { nullptr, nullptr };
 	}
-	if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
-		if (aggr->Elements.size() != 1) {
-			eprt("exactly one index expected (for now)\n");
-			return { nullptr, nullptr };
-		}
-		llvm::Value* idx = aggr->Elements[0]->codegen();
-		return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
-	} else {
-		eprt("internal compiler error\n");
-		return { nullptr, nullptr };
-	}
+	return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
 }
 
 llvm::Value* FunctionExprAST::codegen() {
