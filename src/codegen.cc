@@ -190,9 +190,11 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 			// TODO: add index
 			
 			dprt("Created Field Ptr for type %u: %u %u %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID(), llvm::cast<llvm::PointerType>(field_ptr->getType())->getElementType()->getTypeID(), elem_type->getTypeID());
-			field_ptr = Builder->CreateIntToPtr(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(*Context.getContext())), elem_type->getPointerTo());
+			auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), TheModule->getDataLayout().getTypeAllocSize(elem_type));
+			auto offset = Builder->CreateMul(elem_size, idx);
+			auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(*Context.getContext())), offset), elem_type->getPointerTo());
 			dprt("2. Created Field Ptr for type %u: %u %u %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID(), llvm::cast<llvm::PointerType>(field_ptr->getType())->getElementType()->getTypeID(), elem_type->getTypeID());
-			return { elem_type, field_ptr };
+			return { elem_type, elem_ptr };
 		} else {
 			dprt("**## Index: non-ptr\n");
 		}
