@@ -166,7 +166,7 @@ inline FullVar* new_FullVar(llvm::Value* val, llvm::Type* type, unsigned type_at
 	new_node->fv.val = val;
 	new_node->fv.ft.type = type;
 	new_node->fv.ft.type_attr = type_attr;
-	new_node->fv.ft.num_fields = num_fields;
+	new_node->fv.ft.size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), num_fields);
 	new_node->fv.ft.type_name = type_name;
 	new_node->fv.ft.ditype = ditype;
 	new_node->fv.ft.elem_type = elem_type;
@@ -190,7 +190,7 @@ inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm
 	new_node->next = nullptr;
 	new_node->ft.type = type;
 	new_node->ft.type_attr = type_attr;
-	new_node->ft.num_fields = num_fields;
+	new_node->ft.size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), num_fields);
 	new_node->ft.type_name = nullptr; // it's an anonymous type
 	new_node->ft.ditype = ditype;
 	new_node->ft.elem_type = elem_type;
