@@ -70,11 +70,12 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
                                                 llvm::StringRef VarName, llvm::Type* type) {
 	llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 	                       TheFunction->getEntryBlock().begin());
-	// if (auto arr_type = llvm::dyn_cast<llvm::ArrayType>(type)) {
-	// 	dprt("*** Array alloca\n");
-	// 	return TmpB.CreateAlloca(arr_type->getElementType(), llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), arr_type->getNumElements()), VarName);
-	// }
-	// else
+	if (auto arr_type = llvm::dyn_cast<llvm::ArrayType>(type)) {
+		dprt("*** Array alloca\n");
+		auto array_type = llvm::ArrayType::get(arr_type->getElementType(), 1);
+		return TmpB.CreateAlloca(array_type, llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), arr_type->getNumElements()), VarName);
+	}
+	else
 		return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
