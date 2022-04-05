@@ -200,7 +200,7 @@ inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm
 }
 
 inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype,
-                                      llvm::Value* size, volvox::FullType* elem_type = nullptr) {
+                                      llvm::ConstantInt* size, volvox::FullType* elem_type = nullptr) {
 	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
 	new_node->next = nullptr;
 	new_node->ft.type = type;

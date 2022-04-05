@@ -34,7 +34,7 @@ namespace volvox {
 		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
 		union {
 			uint64_t num_fields; // #fields for structs or tuples
-			llvm::Value* size; // #elements for arrays
+			llvm::ConstantInt* size; // #elements for arrays
 		};
 		const char* type_name; // maybe NULL for anonymous types
 		llvm::DIType* ditype;
