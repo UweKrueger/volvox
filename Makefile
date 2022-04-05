@@ -1,5 +1,9 @@
 all: volvox
 
+.PHONY: gcc
+gcc:
+	cd src && make -f Makefile.gcc
+
 volvox: srcdir
 
 .PHONY: srcdir

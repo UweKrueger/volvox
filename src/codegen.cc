@@ -70,7 +70,12 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
                                                 llvm::StringRef VarName, llvm::Type* type) {
 	llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 	                       TheFunction->getEntryBlock().begin());
-	return TmpB.CreateAlloca(type, nullptr, VarName);
+	// if (auto arr_type = llvm::dyn_cast<llvm::ArrayType>(type)) {
+	// 	dprt("*** Array alloca\n");
+	// 	return TmpB.CreateAlloca(arr_type->getElementType(), llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), arr_type->getNumElements()), VarName);
+	// }
+	// else
+		return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
 llvm::Value *LiteralExprAST::codegen() {
@@ -146,7 +151,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref() {
 		// storage_type = full_var.first->ft.type;
 		storage_type = full_var.first->val->getType();
 	}
-	dprt("Storage type: %u\n", storage_type->getTypeID());
+	dprt("Storage type: %u Var: %u\n", storage_type->getTypeID(), V->getType()->getTypeID());
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -166,10 +171,21 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 	if (auto fld = dynamic_cast<LvalueExprAST*>(Field.get())) {
 		auto LV = fld->codegen_ref();
 		field_type = LV.first;
-		if (field_type->isPointerTy())
-			field_ptr = Builder->CreateLoad(llvm::cast<llvm::PointerType>(field_type)->getElementType(), LV.second);
-		else
-			field_ptr = LV.second;
+		field_ptr = LV.second;
+		if (field_type->isPointerTy()) {
+			field_type = llvm::cast<llvm::PointerType>(field_type)->getElementType();
+			//field_ptr = Builder->CreateLoad(field_type, LV.second);
+			dprt("**## Index: pointer\n");
+			// TODO: add index
+			
+			dprt("Created Field Ptr for type %u: %u %u %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID(), llvm::cast<llvm::PointerType>(field_ptr->getType())->getElementType()->getTypeID(), elem_type->getTypeID());
+			field_ptr = Builder->CreateIntToPtr(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(*Context.getContext())), elem_type->getPointerTo());
+			dprt("2. Created Field Ptr for type %u: %u %u %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID(), llvm::cast<llvm::PointerType>(field_ptr->getType())->getElementType()->getTypeID(), elem_type->getTypeID());
+			return { elem_type, field_ptr };
+		} else {
+			dprt("**## Index: non-ptr\n");
+		}
+		dprt("Created Field Ptr for type %u: %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID());
 	} else {
 		eprt("LHS of index expression must be an lvalue\n");
 		return { nullptr, nullptr };
@@ -180,7 +196,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 			return { nullptr, nullptr };
 		}
 		llvm::Value* idx = aggr->Elements[0]->codegen();
-		return { elem_type, Builder->CreateInBoundsGEP(elem_type, field_ptr, idx) };
+		return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
 	} else {
 		eprt("internal compiler error\n");
 		return { nullptr, nullptr };
@@ -389,6 +405,7 @@ llvm::Value *BinaryExprAST::codegen() {
 			bool is_signed = std::get<2>(type_descr);
 			auto convertedVal = conversion(Val);
 			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, type);
+			dprt("Created Alloca for type %u: %u\n", type->getTypeID(), llvm::cast<llvm::PointerType>(Alloca->getType())->getElementType()->getTypeID());
 			// Entry has already been created by parser
 			locals_table.back()[varname]->val = Alloca;
 			if (comp_mode == comp_dbg) {
