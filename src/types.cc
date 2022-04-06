@@ -371,7 +371,11 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 }
 
 void volvox::FullType::dump(int fd) {
-	llvm::raw_fd_ostream eout(fd, false, true, llvm::raw_ostream::OStreamKind::OK_FDStream);
+	llvm::raw_fd_ostream eout(fd, false, true
+#if LLVM_VERSION_MAJOR >= 12
+	                          , llvm::raw_ostream::OStreamKind::OK_FDStream
+#endif
+		);
 	eout << "FullType " << (type_name ? type_name : "<anonymous>") << "\n";
 	eout << "LLVMType: ";
 	if (type)
