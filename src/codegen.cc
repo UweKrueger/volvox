@@ -130,7 +130,7 @@ llvm::Value* LvalueExprAST::codegen() {
 	return Builder->CreateLoad(V.first, V.second, Name.c_str());
 }
 
-std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref() {
+std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
 	if (!full_var.first) {
 		eprt("Unknown variable name1 %s", Name.c_str());
 		return { nullptr, nullptr };
@@ -159,7 +159,49 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref() {
 	return { storage_type, V };
 }
 
-std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
+llvm::Value* IndexExprAST::codegen() {
+	// first try to get a reference to the element ...
+	auto V = codegen_ref(true);
+	// ... and load the value.
+	if (V.second)
+		return Builder->CreateLoad(V.first, V.second, Name.c_str());
+	if (V.first) {
+		// Field is an rvalue
+		auto fld = Field->codegen();
+		llvm::Value* idx;
+		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
+			if (aggr->Elements.size() != 1) {
+				eprt("exactly one index expected (for now)\n");
+				return nullptr;
+			}
+			idx = aggr->Elements[0]->codegen();
+		} else {
+			eprt("internal compiler error\n");
+			return nullptr;
+		}
+		if (!fld)
+			return nullptr;
+		if (fld->getType()->isArrayTy()) {
+			if (auto Idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
+				unsigned i = Idx->getSExtValue();
+				llvm::SmallVector<unsigned, 1> fields;
+				fields.push_back(i);
+				return Builder->CreateExtractValue(fld, fields);
+			} else {
+				eprt("indices must be constexprs if array is an rvalue\n");
+				return nullptr;
+			}
+		} else {
+			eprt("LHS of index expression mus be an array\n");
+			return nullptr;
+		}
+	} else {
+		eprt("cound not create code for index expression\n");
+		return nullptr;
+	}
+}
+
+std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
 	llvm::Value* field_ptr;
 	llvm::Type* elem_type;
 	llvm::Type* field_type;
@@ -201,8 +243,9 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref() {
 		}
 		dprt("Created Field Ptr for type %u: %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID());
 	} else {
-		eprt("LHS of index expression must be an lvalue\n");
-		return { nullptr, nullptr };
+		if (!silent_fail)
+			eprt("LHS of index expression must be an lvalue\n");
+		return { elem_type, nullptr };
 	}
 	return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
 }

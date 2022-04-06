@@ -103,7 +103,10 @@ class LvalueExprAST : public ExprAST {
 public:
 	std::string Name;
 	LvalueExprAST(SourceLocation Loc, std::string Name = "") : ExprAST(Loc), Name(Name) {}
-	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref() = 0;
+	// get a reference to the value
+	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
+	// but the llvm::Value is NULL
+	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) = 0;
 	llvm::Value* codegen() override;
 };
 
@@ -123,7 +126,7 @@ public:
 	}
 	const std::string &getName() const { return Name; }
 	// create reference to this variable - second result is the storage_type
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref() override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);
@@ -160,7 +163,8 @@ public:
 		: LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_)) {
 		ft = Field->ft->elem_type;
 	}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref() override;
+	llvm::Value *codegen() override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "index", ind);
