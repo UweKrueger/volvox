@@ -184,13 +184,14 @@ public:
 extern volvox::FTListElem* anon_types;
 extern volvox::FTListElem** anon_types_end;
 
+// struct types
 inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
                               uint64_t num_fields = 0, volvox::FullType* elem_type = nullptr) {
 	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
 	new_node->next = nullptr;
 	new_node->ft.type = type;
 	new_node->ft.type_attr = type_attr;
-	new_node->ft.size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), num_fields);
+	new_node->ft.num_fields = num_fields;
 	new_node->ft.type_name = nullptr; // it's an anonymous type
 	new_node->ft.ditype = ditype;
 	new_node->ft.elem_type = elem_type;
@@ -199,6 +200,7 @@ inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm
 	return &new_node->ft;
 }
 
+// array types
 inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype,
                                       llvm::ConstantInt* size, volvox::FullType* elem_type = nullptr) {
 	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
