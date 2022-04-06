@@ -16,6 +16,8 @@ extern memcpy(dest string, src string, n u64) string
 
 a := [3.4, 6.7, -12.3, 6.7, -13.1]
 
+a
+
 fn f() f64
 	z := 3
 	return a[3] + z
@@ -42,6 +44,10 @@ fn u() [5]f64
 
 a = u()
 
+fn v() [5]i32
+	p := [3, 8, -17, 123, 97, -1074]
+	return p
+
 fn r(x [5]f64) f64
 	v := x[3]
 	return v
@@ -49,3 +55,5 @@ fn r(x [5]f64) f64
 r(u())
 
 u()
+
+v()
