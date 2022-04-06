@@ -359,6 +359,8 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name, "", 0, TheModule.get()) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
 	if (llvmtype.ID == llvm::Type::ArrayTyID) {
 		fields.push_back(getRtType(ft->elem_type));
+	} else {
+		fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
 	}
 	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(*Context.getContext(), fields, true);
 	auto *GV = new llvm::GlobalVariable(*TheModule, rt_const->getType(), true, llvm::GlobalValue::PrivateLinkage, rt_const);
@@ -366,4 +368,19 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 	llvm::Constant *Indices[] = {Zero, Zero};
 	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV,
 	                                                    Indices);
+}
+
+void volvox::FullType::dump(int fd) {
+	llvm::raw_fd_ostream eout(fd, false, true, llvm::raw_ostream::OStreamKind::OK_FDStream);
+	eout << "FullType " << (type_name ? type_name : "<anonymous>") << "\n";
+	eout << "LLVMType: ";
+	if (type)
+		type->print(eout);
+	else
+		eout << "<nil>";
+	eout << "\nAttr: " << type_attr << "\n";
+	if (type && type->isArrayTy()) {
+		eout << "Elements:\n";
+		elem_type->dump();
+	}
 }

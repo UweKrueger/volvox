@@ -43,6 +43,7 @@ namespace volvox {
 			PrototypeAST* proto; // for functions
 			MapNode* fields;     // for structs
 		};
+		void dump(int fd = 2);
 	};
 
 	/* Named types can be kept in a map using the name as key.

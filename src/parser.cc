@@ -759,6 +759,8 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 					return HandleGlobalVariable(B);
 			} else {
 				eprt("Could not deduce type of expression\n");
+				if (E->ft)
+					E->ft->dump();
 				return nullptr;
 			}
 		}
@@ -768,6 +770,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		                                            std::vector<std::string>(),
 		                                            false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
+		E->ft->dump();
 		if (E->ft->type->isVoidTy()) {
 			GlobalExprList.push_back(std::move(E));
 			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(false))));
