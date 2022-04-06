@@ -47,3 +47,5 @@ fn r(x [5]f64) f64
 	return v
 
 r(u())
+
+u()

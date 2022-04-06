@@ -206,7 +206,7 @@ public:
 				if (ft->elem_type)
 					eprt("Have Elem type %u %u\n", ft->elem_type->type->getTypeID(), ft->elem_type->type_attr);
 				ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
-				ft->size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), Elements.size());
+				ft->num_fields = Elements.size();
 				// TODO... nrows = Elements.size();
 				is_compile_time_const = true;
 				// dprt("CTC: true, nrows: %d\n", nrows);
