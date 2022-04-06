@@ -121,7 +121,12 @@ llvm::Value *AggregateExprAST::codegen() {
 		} else {
 			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
 		}
-	return llvm::ConstantArray::get(reinterpret_cast<llvm::ArrayType*>(ft->type), Initializers);
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
+		return llvm::ConstantArray::get(array_type, Initializers);
+	} else {
+		eprt("Internal compiler error\n");
+		abort();
+	}
 }
 
 llvm::Value* LvalueExprAST::codegen() {
@@ -181,9 +186,16 @@ llvm::Value* IndexExprAST::codegen() {
 		}
 		if (!fld)
 			return nullptr;
-		if (fld->getType()->isArrayTy()) {
+		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(fld->getType())) {
 			if (auto Idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
-				unsigned i = Idx->getSExtValue();
+				uint64_t i = Idx->getSExtValue();
+				if (i >= UINT_MAX) {
+					eprt("constant index must be > 0 and < %" PRIu64 "\n", (uint64_t)UINT_MAX);
+					return nullptr;
+				} else if (i >= array_type->getNumElements()) {
+					eprt("constant index (%" PRIu64 ") must be < array size (%" PRIu64 ")\n", i, (uint64_t)array_type->getNumElements());
+					return nullptr;
+				}
 				llvm::SmallVector<unsigned, 1> fields;
 				fields.push_back(i);
 				return Builder->CreateExtractValue(fld, fields);
