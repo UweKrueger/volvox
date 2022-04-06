@@ -233,21 +233,12 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		field_type = LV.first;
 		field_ptr = LV.second;
 		if (field_type->isPointerTy()) {
-			field_type = llvm::cast<llvm::PointerType>(field_type)->getElementType();
-			//field_ptr = Builder->CreateLoad(field_type, LV.second);
 			dprt("**## Index: pointer\n");
-			// TODO: add index
-			
-			dprt("Created Field Ptr for type %u: %u %u %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID(), llvm::cast<llvm::PointerType>(field_ptr->getType())->getElementType()->getTypeID(), elem_type->getTypeID());
 			auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), TheModule->getDataLayout().getTypeAllocSize(elem_type));
 			auto offset = Builder->CreateMul(elem_size, idx);
 			auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(*Context.getContext())), offset), elem_type->getPointerTo());
-			dprt("2. Created Field Ptr for type %u: %u %u %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID(), llvm::cast<llvm::PointerType>(field_ptr->getType())->getElementType()->getTypeID(), elem_type->getTypeID());
 			return { elem_type, elem_ptr };
-		} else {
-			dprt("**## Index: non-ptr\n");
 		}
-		dprt("Created Field Ptr for type %u: %u\n", field_type->getTypeID(), field_ptr->getType()->getTypeID());
 	} else {
 		if (!silent_fail)
 			eprt("LHS of index expression must be an lvalue\n");
@@ -458,7 +449,6 @@ llvm::Value *BinaryExprAST::codegen() {
 			bool is_signed = std::get<2>(type_descr);
 			auto convertedVal = conversion(Val);
 			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, type);
-			dprt("Created Alloca for type %u: %u\n", type->getTypeID(), llvm::cast<llvm::PointerType>(Alloca->getType())->getElementType()->getTypeID());
 			// Entry has already been created by parser
 			locals_table.back()[varname]->val = Alloca;
 			if (comp_mode == comp_dbg) {
