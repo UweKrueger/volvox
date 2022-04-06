@@ -41,3 +41,9 @@ fn u() [5]f64
 	return p
 
 a = u()
+
+fn r(x [5]f64) f64
+	v := x[3]
+	return v
+
+r(u())
