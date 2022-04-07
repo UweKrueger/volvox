@@ -5,12 +5,14 @@
 
 #if defined (_MSC_VER)
 #define EXTERN __declspec(dllexport)
+#define EXTERNVAR extern  __declspec(dllexport)
 #ifdef __cplusplus
 extern "C"
 {
 #endif
 #else
 #define EXTERN extern
+#define EXTERNVAR extern
 #endif
 
 typedef uint64_t u64;
@@ -121,8 +123,8 @@ extern "C" {
 		char data[8]; // dynamically extended
 	} global_var_shadow;
 
-	EXTERN global_var_shadow* global_list;
-	EXTERN global_var_shadow** global_list_end;
+	extern EXTERN global_var_shadow* global_list;
+	extern EXTERN global_var_shadow** global_list_end;
 #ifdef __cplusplus
 }
 #endif

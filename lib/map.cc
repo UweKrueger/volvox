@@ -731,7 +731,7 @@ _DECL MapValue* map_string_get(MapNode* root, const char* key) {
 extern "C" {
 #endif
 
-	global_var_shadow* global_list = nullptr;
+	global_var_shadow* global_list = NULL;
 	global_var_shadow** global_list_end = &global_list;
 
 	_DECL void new_global_var_shadow(void* adr, size_t size) {
@@ -739,7 +739,7 @@ extern "C" {
 		if (size > 8)
 			alloc_size = alloc_size - 8 + size;
 		global_var_shadow* V = (global_var_shadow*)malloc(alloc_size);
-		V->next = nullptr;
+		V->next = NULL;
 		V->adr = adr;
 		V->size = size;
 		memcpy(V->data, V->adr, size);
