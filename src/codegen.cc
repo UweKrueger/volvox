@@ -381,7 +381,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				auto V = std::make_unique<VariableExprAST>(CurLoc, varname);
 				auto Vref = std::make_unique<UnaryExprAST>("&", std::move(V));
 				ShadowArgs.push_back(std::move(Vref));
-				ShadowArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((long long int)storage_sz))));
+				ShadowArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((long long unsigned int)storage_sz))));
 				auto shadow_call = std::make_unique<CallExprAST>(CurLoc, std::move(volvox_shadow), std::move(ShadowArgs));
 				GlobalExprList.push_back(std::move(shadow_call));
 				auto ProtoRef = Proto.get();
@@ -810,7 +810,8 @@ llvm::Value *CallExprAST::codegen() {
 				return nullptr;
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
-			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i]->type->getTypeID())
+			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i]->type->getTypeID()
+			    && !Proto->ArgTypes[i]->type->isPointerTy())
 				// TODO: better check compatibility and make error message human readable
 				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->ft->type->getTypeID(), Proto->ArgTypes[i]->type->getTypeID());
 			ArgsV.push_back(Args[i]->codegen());

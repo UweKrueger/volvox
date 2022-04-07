@@ -313,17 +313,6 @@ static void MainLoop() {
 #define DLLEXPORT
 #endif
 
-extern "C" DLLEXPORT void new_global_var_shadow(void* adr, size_t size) {
-	size_t alloc_size = sizeof(global_var_shadow);
-	if (size > 8)
-		alloc_size = alloc_size - 8 + size;
-	global_var_shadow* V = (global_var_shadow*)malloc(alloc_size);
-	V->next = nullptr;
-	V->adr = adr;
-	V->size = size;
-	memcpy(V->data, V->adr, size);
-}
-
 /// putchard - putchar that takes a double and returns 0.
 extern "C" DLLEXPORT double putchard(double X) {
 	fputc((char)X, stderr);
