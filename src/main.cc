@@ -195,6 +195,27 @@ static void HandleTypeDef() {
 	type_table.add(type_name.c_str(), ft);
 }
 
+// __anon_exp returns bool but thread return values are system dependent
+// it's void* on Unix but DWORD, i.e. unsigned on Windows
+#if defined (_MSC_VER)
+#define THREAD_RETURN DWORD
+#else
+#define THREAD_RETURN void*
+#endif
+
+static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
+	bool (*expr)() = (bool (*)())expr_ptr;
+	return (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
+}
+
+static bool spawn_bool_expr(bool (*expr)()) {
+	pthread_t thread;
+	int res = pthread_create(&thread, NULL, anon_expr_wrapper, (void*)expr);
+	void* retval;
+	res = pthread_join(thread, &retval);
+	return !(!retval);
+}
+
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
