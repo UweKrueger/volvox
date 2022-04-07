@@ -123,8 +123,8 @@ extern "C" {
 		char data[8]; // dynamically extended
 	} global_var_shadow;
 
-	extern EXTERN global_var_shadow* global_list;
-	extern EXTERN global_var_shadow** global_list_end;
+	EXTERNVAR global_var_shadow* global_list;
+	EXTERNVAR global_var_shadow** global_list_end;
 #ifdef __cplusplus
 }
 #endif
