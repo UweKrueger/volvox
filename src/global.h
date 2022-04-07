@@ -184,6 +184,20 @@ public:
 extern volvox::FTListElem* anon_types;
 extern volvox::FTListElem** anon_types_end;
 
+struct global_var_shadow {
+	global_var_shadow* next;
+	void* adr;
+	size_t size;
+	char data[8]; // dynamically extended
+};
+
+extern global_var_shadow* global_list;
+extern global_var_shadow** global_list_end;
+
+extern "C" {
+	extern void new_global_var_shadow(void* adr, size_t size);
+}
+
 inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
                               uint64_t num_fields = 0, volvox::FullType* elem_type = nullptr) {
 	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));

@@ -365,6 +365,62 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				.ft = ft,
 			};
 			globals_table.insert(varname, fv);
+			if (comp_mode == comp_jit) {
+				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(initializer->getType());
+				auto Proto = std::make_unique<PrototypeAST>(CurLoc, "__anon_shadow",
+				                                            std::vector<std::string>(),
+				                                            false, void_type);
+				auto shadow_proto = FunctionProtos.find("new_global_var_shadow");
+				if (shadow_proto == FunctionProtos.end()) {
+					eprt("Fatal error: could not find `new_global_var_shadow` function\n");
+					exit(1);
+				}
+				auto volvox_shadow = std::make_unique<FunctionExprAST>(CurLoc, "new_global_var_shadow", shadow_proto->second.get());
+				std::vector<std::unique_ptr<ExprAST>> ShadowArgs;
+				std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
+				auto V = std::make_unique<VariableExprAST>(CurLoc, varname);
+				auto Vref = std::make_unique<UnaryExprAST>("&", std::move(V));
+				ShadowArgs.push_back(std::move(Vref));
+				ShadowArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((long long int)storage_sz))));
+				auto shadow_call = std::make_unique<CallExprAST>(CurLoc, std::move(volvox_shadow), std::move(ShadowArgs));
+				GlobalExprList.push_back(std::move(shadow_call));
+				auto ProtoRef = Proto.get();
+				FunctionProtos[Proto->getName()] = std::move(Proto);
+				auto FnAST = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
+				if (auto anon_expr = FnAST->codegen()) {
+#if LLVM_VERSION_MAJOR >= 12
+					// Create a ResourceTracker to track JIT'd memory allocated to our
+					// anonymous expression -- that way we can free it after executing.
+					auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), Context);
+					ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+#else
+					// JIT the module containing the anonymous expression, keeping a handle so
+					// we can free it later.
+					auto H = TheJIT->addModule(std::move(TheModule));
+#endif
+					InitializeModuleAndPassManager();
+#if LLVM_VERSION_MAJOR >= 12
+					auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_shadow"));
+#define UNWRAP(x) (x)
+#else
+					auto ExprSymbol = TheJIT->findSymbol("__anon_shadow");
+					assert(ExprSymbol && "Function not found");
+#define UNWRAP(x) cantFail(x)
+#endif
+					void (*VOID)() = (void (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					VOID();
+#if LLVM_VERSION_MAJOR >= 12
+					// Delete the anonymous expression module from the JIT.
+					ExitOnErr(RT->remove());
+#else
+					// Delete the anonymous expression module from the JIT.
+					TheJIT->removeModule(H);
+#endif
+				} else {
+					eprt("Unable to generate code for global shadow call\n");
+				}
+			}
 			return nullptr;
 		} else {
 			goto nonconst;
