@@ -20,9 +20,6 @@ thread_local char* __volvox_jit_tls_ptr = nullptr;
 thread_local size_t __volvox_jit_tls_size = 0;
 char* __volvox_jit_tls_inits = nullptr;
 
-global_var_shadow* global_list = nullptr;
-global_var_shadow** global_list_end = &global_list;
-
 thread_local global_var_shadow* tl_global_list = nullptr;	
 
 // useful definitions
