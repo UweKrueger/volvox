@@ -194,11 +194,11 @@ llvm::Value* IndexExprAST::codegen() {
 				fields.push_back(i);
 				return Builder->CreateExtractValue(fld, fields);
 			} else {
-				eprt("indices must be constexprs if array is an rvalue\n");
+				eprt("non-constexpr-indices for rvalue arrays not supported, yet\n");
 				return nullptr;
 			}
 		} else {
-			eprt("LHS of index expression mus be an array\n");
+			eprt("LHS of index expression must be an array\n");
 			return nullptr;
 		}
 	} else {

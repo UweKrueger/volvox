@@ -198,14 +198,12 @@ static void HandleTypeDef() {
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
-		auto RetType = FnAST->Proto->RetType->type;
-		unsigned ret_type_attr = FnAST->Proto->RetType->type_attr;
-		auto anon_expr = FnAST->codegen();
-		if (anon_expr) {
+		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();
-			auto RetTypeID = RetType->getTypeID();
-			unsigned IntBitWidth = RetTypeID == llvm::Type::IntegerTyID ?
-				RetType->getIntegerBitWidth() : 0;
+			if (!anon_expr->getReturnType()->isIntegerTy() || !anon_expr->getReturnType()->getIntegerBitWidth() == 1) {
+				eprt("internal error: anonymous function does not return `bool`\n");
+				return;
+			}
 			if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
 				// Create a ResourceTracker to track JIT'd memory allocated to our
@@ -230,99 +228,10 @@ static void HandleTopLevelExpression() {
 #define UNWRAP(x) cantFail(x)
 #endif
 				// Get the symbol's address and cast it to the right type (takes no
-				// arguments, returns a double) so we can call it as a native function.
-				//std::vector<llvm::GenericValue> Args;
-				//llvm::GenericValue gv = TheJIT->runFunction(anon_expr, Args);
-				switch (RetTypeID) {
-				case llvm::Type::HalfTyID:
-				case llvm::Type::BFloatTyID:
-				case llvm::Type::FloatTyID: {
-					float (*FP)() = (float (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					eprt("Evaluated to %.7g\n", FP());
-					break;
-				}
-				case llvm::Type::DoubleTyID: {
-					double (*FP)() = (double (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					eprt("Evaluated to %.15g\n", FP());
-					break;
-				}
-				case llvm::Type::IntegerTyID: {
-					if (ret_type_attr & A_signed) {
-						switch (IntBitWidth) {
-						case 1: { // this should actually be unsigned - put it here, too, just in case
-							bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							bool b = BOOL();
-							eprt("Evaluated to %s\n", b ? "true(s)" : "false(s)");
-							break;
-						}
-						case 8: {
-							int8_t (*INT8)() = (int8_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							int8_t c = INT8();
-							eprt("Evaluated to %" PRId8 " ('%c')\n", c, c);
-							break;
-						}
-						case 16: {
-							short (*INT16)() = (short (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							eprt("Evaluated to %" PRId16 "\n", INT16());
-							break;
-						}
-						case 32: {
-							int32_t (*INT32)() = (int32_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							eprt("Evaluated to %" PRId32 "\n", INT32());
-							break;
-						}
-						case 64: {
-							int64_t (*INT64)() = (int64_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							eprt("Evaluated to %" PRId64 "\n", INT64());
-							break;
-						}
-						default:
-							eprt("Expression has unsupported integer bit width %u\n", IntBitWidth);
-						}
-					} else {
-						switch (IntBitWidth) {
-						case 1: {
-							bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							bool b = BOOL();
-							eprt("Evaluated to %s\n", b ? "true" : "false");
-							break;
-						}
-						case 8: {
-							uint8_t (*UINT8)() = (uint8_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							uint8_t c = UINT8();
-							eprt("Evaluated to %" PRIu8 " ('%c')\n", c, c);
-							break;
-						}
-						case 16: {
-							uint16_t (*UINT16)() = (uint16_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							eprt("Evaluated to %" PRIu16 "\n", UINT16());
-							break;
-						}
-						case 32: {
-							uint32_t (*UINT32)() = (uint32_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							eprt("Evaluated to %" PRIu32 "\n", UINT32());
-							break;
-						}
-						case 64: {
-							uint64_t (*UINT64)() = (uint64_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-							eprt("Evaluated to %" PRIu64 "\n", UINT64());
-							break;
-						}
-						default:
-							eprt("Expression has unsupported integer bit width %u\n", IntBitWidth);
-						}
-					}
-					break;
-				}
-				case llvm::Type::PointerTyID: { // should be more sophisticated
-					const char* (*SP)() = (const char* (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					eprt("Evaluated to >%s<\n", SP());
-					break;
-				}
-				default:
-					eprt("unknown expression type %d\n", RetTypeID);
-				}
-			
+				// arguments, returns a bool) so we can call it as a native function.
+				bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+				bool b = BOOL();
+				eprt("Evaluated to %s\n", b ? "true" : "false");
 #if LLVM_VERSION_MAJOR >= 12
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
