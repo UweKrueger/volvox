@@ -20,6 +20,29 @@ thread_local char* __volvox_jit_tls_ptr = nullptr;
 thread_local size_t __volvox_jit_tls_size = 0;
 char* __volvox_jit_tls_inits = nullptr;
 
+struct global_var_shadow {
+	global_var_shadow* next;
+	void* adr;
+	size_t size;
+	char data[8]; // dynamically extended
+};
+
+global_var_shadow* global_list = nullptr;
+global_var_shadow** global_list_end = &global_list;
+
+void new_global_var_shadow(void* adr, size_t size, void* init) {
+	size_t alloc_size = sizeof(global_var_shadow);
+	if (size > 8)
+		alloc_size = alloc_size - 8 + size;
+	global_var_shadow* V = (global_var_shadow*)malloc(alloc_size);
+	V->next = nullptr;
+	V->adr = adr;
+	V->size = size;
+	memcpy(V->data, init, size);
+}
+
+thread_local global_var_shadow* tl_global_list = nullptr;	
+
 // useful definitions
 llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
@@ -251,7 +274,7 @@ static void HandleTopLevelExpression() {
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
 				bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-				bool b = BOOL();
+				bool b = spawn_bool_expr(BOOL);
 				eprt("Evaluated to %s\n", b ? "true" : "false");
 #if LLVM_VERSION_MAJOR >= 12
 				// Delete the anonymous expression module from the JIT.
