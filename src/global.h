@@ -545,3 +545,10 @@ extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);
 extern std::nullptr_t Error(SourceLocation Loc, const char *Str, ...);
 extern std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type);
 extern volvox::FullType* MakeType(volvox::FullType* base, bool is_unknown_type);
+
+struct global_var_shadow {
+	struct global_var_shadow* next;
+	void* adr;
+	size_t size;
+	char data[8]; // dynamically extended
+};

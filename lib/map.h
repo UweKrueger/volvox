@@ -113,18 +113,3 @@ EXTERN void map_prt_str_tag(int bf, MapKey* key, MapValue* value);
 }
 #endif
 #endif
-#ifdef __cplusplus
-extern "C" {
-#endif
-	typedef struct global_var_shadow {
-		struct global_var_shadow* next;
-		void* adr;
-		size_t size;
-		char data[8]; // dynamically extended
-	} global_var_shadow;
-
-	EXTERNVAR global_var_shadow* global_list;
-	EXTERNVAR global_var_shadow** global_list_end;
-#ifdef __cplusplus
-}
-#endif

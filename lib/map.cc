@@ -726,27 +726,3 @@ _DECL MapValue* map_string_get(MapNode* root, const char* key) {
 	NodePosition pos =  map_string_find(&root, key);
 	return pos.is_parent ? NULL : &pos.node->value; 
 }
-
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-	global_var_shadow* global_list = NULL;
-	global_var_shadow** global_list_end = &global_list;
-
-	_DECL void new_global_var_shadow(void* adr, size_t size) {
-		size_t alloc_size = sizeof(global_var_shadow);
-		if (size > 8)
-			alloc_size = alloc_size - 8 + size;
-		global_var_shadow* V = (global_var_shadow*)malloc(alloc_size);
-		V->next = NULL;
-		V->adr = adr;
-		V->size = size;
-		memcpy(V->data, V->adr, size);
-		fprintf(stderr, "Saved %016" PRIx64 "\n", *(uintptr_t*)V->data);
-		*global_list_end = V;
-		global_list_end = &V->next;
-	}
-#ifdef __cplusplus
-}
-#endif

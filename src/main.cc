@@ -22,6 +22,8 @@ std::unique_ptr<llvm::Module> TheModule;
 std::unique_ptr<llvm::IRBuilder<>> Builder;
 static llvm::ExitOnError ExitOnErr;
 
+global_var_shadow* global_list = NULL;
+global_var_shadow** global_list_end = &global_list;
 thread_local global_var_shadow* tl_global_list = nullptr;	
 
 // useful definitions
@@ -347,6 +349,20 @@ extern "C" DLLEXPORT double putchard(double X) {
 extern "C" DLLEXPORT double printd(double X) {
 	eprt("%f\n", X);
 	return 0;
+}
+
+extern "C" DLLEXPORT void new_global_var_shadow(void* adr, size_t size) {
+	size_t alloc_size = sizeof(global_var_shadow);
+	if (size > 8)
+		alloc_size = alloc_size - 8 + size;
+	global_var_shadow* V = (global_var_shadow*)malloc(alloc_size);
+	V->next = NULL;
+	V->adr = adr;
+	V->size = size;
+	memcpy(V->data, V->adr, size);
+	fprintf(stderr, "Saved %016" PRIx64 "\n", *(uintptr_t*)V->data);
+	*global_list_end = V;
+	global_list_end = &V->next;
 }
 
 //===----------------------------------------------------------------------===//
