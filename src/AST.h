@@ -13,6 +13,10 @@ class ConstExprAST : public ExprAST {
 	llvm::Constant* val;
 public:
 	ConstExprAST(llvm::Constant* val) : val(val) {
+		if (!val)
+			eprt("ConstExprAST: no valid value\n");
+		else
+			dprt("ConstExprAST: got value\n");
 		ft->type = val->getType();
 	}
 	llvm::Value* codegen() { return val; }

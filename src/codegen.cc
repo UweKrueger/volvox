@@ -418,8 +418,28 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					// Delete the anonymous expression module from the JIT.
 					TheJIT->removeModule(H);
 #endif
-					auto saver = std::string("__") + varname + "saver";
-					auto restorer = std::string("__") + varname + "saver";
+					auto saver = std::string("__") + varname + "_saver";
+					auto restorer = std::string("__") + varname + "_restorer";
+					auto llvmGVadr = llvm::dyn_cast<llvm::Constant>(Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), adrShadow, false), llvm::Type::getInt8PtrTy(*Context.getContext())));
+					auto GVadr = std::make_unique<ConstExprAST>(llvmGVadr);
+					auto saver_proto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
+					std::vector<std::unique_ptr<ExprAST>> saver_body;
+					auto Sz = std::make_unique<ConstExprAST>(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), storage_sz));
+					auto memcpy_proto = FunctionProtos.find("memcpy");
+					if (memcpy_proto == FunctionProtos.end()) {
+						eprt("Fatal error: could not find `memcpy` function\n");
+						return nullptr;
+					}
+					auto volvox_memcpy = std::make_unique<FunctionExprAST>(CurLoc, "memcpy", memcpy_proto->second.get());
+					std::vector<std::unique_ptr<ExprAST>> MemCpyArgs;
+					V = std::make_unique<VariableExprAST>(CurLoc, varname);
+					Vref = std::make_unique<UnaryExprAST>("&", std::move(V));
+					MemCpyArgs.push_back(std::move(GVadr));
+					MemCpyArgs.push_back(std::move(Vref));
+					MemCpyArgs.push_back(std::move(Sz));
+					auto memcpy_call = std::make_unique<CallExprAST>(CurLoc, std::move(volvox_memcpy), std::move(MemCpyArgs));
+					saver_body.push_back(std::move(memcpy_call));
+					
 				} else {
 					eprt("Unable to generate code for global shadow call\n");
 				}
