@@ -208,8 +208,23 @@ static void HandleTypeDef() {
 #endif
 
 static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
+	global_var_shadow* elem = tl_global_list = global_list;
+	if (!elem)
+		dprt("############# no global list\n");
+	while (elem) {
+		memcpy(elem->adr, elem->data, elem->size);
+		dprt("restored %016llx\n", *(uintptr_t*)elem->adr);
+		elem = elem->next;
+	}
 	bool (*expr)() = (bool (*)())expr_ptr;
-	return (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
+	THREAD_RETURN res = (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
+	elem = tl_global_list;
+	while (elem) {
+		memcpy(elem->data, elem->adr, elem->size);
+		dprt("copied %016llx\n", *(uintptr_t*)elem->data);
+		elem = elem->next;
+	}
+	return res;
 }
 
 #if defined (_MSC_VER)

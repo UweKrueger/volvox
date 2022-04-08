@@ -744,6 +744,8 @@ extern "C" {
 		V->size = size;
 		memcpy(V->data, V->adr, size);
 		fprintf(stderr, "Saved %016" PRIx64 "\n", *(uintptr_t*)V->data);
+		*global_list_end = V;
+		global_list_end = &V->next;
 	}
 #ifdef __cplusplus
 }
