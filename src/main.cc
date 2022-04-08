@@ -209,6 +209,11 @@ static void HandleTypeDef() {
 #define THREAD_RETURN void*
 #endif
 
+static THREAD_RETURN anon_expr_wrapper_simple(void* expr_ptr) {
+	bool (*expr)() = (bool (*)())expr_ptr;
+	return (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
+}
+
 static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 	global_var_shadow* elem = tl_global_list = global_list;
 	if (!elem)
@@ -230,17 +235,17 @@ static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 }
 
 #if defined (_MSC_VER)
-static bool spawn_bool_expr(bool (*expr)()) {
-	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
+bool spawn_bool_expr(bool (*expr)(), bool simple) {
+	HANDLE thread = CreateThread(NULL, 0, simple ? anon_expr_wrapper_simple : anon_expr_wrapper, (void*)expr, 0, NULL);
 	WaitForSingleObject(thread, INFINITE);
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
 	return !(!retval);
 }
 #else
-static bool spawn_bool_expr(bool (*expr)()) {
+bool spawn_bool_expr(bool (*expr)(), bool simple) {
 	pthread_t thread;
-	int res = pthread_create(&thread, NULL, anon_expr_wrapper, (void*)expr);
+	int res = pthread_create(&thread, NULL, simple ? anon_expr_wrapper_simple : anon_expr_wrapper, (void*)expr);
 	void* retval;
 	res = pthread_join(thread, &retval);
 	return !(!retval);
@@ -351,13 +356,13 @@ extern "C" DLLEXPORT double printd(double X) {
 	return 0;
 }
 
-extern "C" DLLEXPORT bool new_global_var_shadow(void* adr, size_t size) {
+extern "C" DLLEXPORT void* new_global_var_shadow(void* adr, size_t size) {
 	size_t alloc_size = sizeof(global_var_shadow);
 	if (size > 8)
 		alloc_size = alloc_size - 8 + size;
 	global_var_shadow* V = (global_var_shadow*)malloc(alloc_size);
 	if (!V)
-		return false;
+		return nullptr;
 	V->next = NULL;
 	V->adr = adr;
 	V->size = size;
@@ -365,7 +370,7 @@ extern "C" DLLEXPORT bool new_global_var_shadow(void* adr, size_t size) {
 	fprintf(stderr, "Saved %016" PRIx64 " adr: %" PRIu64 "\n", *(uintptr_t*)V->data, (uintptr_t)V->adr);
 	*global_list_end = V;
 	global_list_end = &V->next;
-	return true;
+	return (void*)V->data;
 }
 
 //===----------------------------------------------------------------------===//

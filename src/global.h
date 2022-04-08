@@ -99,6 +99,7 @@ extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
+extern bool spawn_bool_expr(bool (*expr)(), bool simple = false);
 
 static inline void dprt(const char* fmt, ...) {
 	va_list args;

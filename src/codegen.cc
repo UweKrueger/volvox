@@ -10,6 +10,8 @@
 std::unique_ptr<llvm::DIBuilder> DBuilder;
 bool inside_function = false;
 static llvm::ExitOnError ExitOnErr;
+static const char* last_shadow_saver;
+static const char* last_shadow_restorer;
 
 void DebugInfo::emitLocation(ExprAST *AST) {
 	if (!AST)
@@ -406,8 +408,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					assert(ExprSymbol && "Function not found");
 #define UNWRAP(x) cantFail(x)
 #endif
-					bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					BOOL();
+					void* (*PTR)() = (void* (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					auto adrShadow = (uintptr_t)PTR();
+					eprt("Shadow evaluated to %" PRIx64 "\n", adrShadow);
 #if LLVM_VERSION_MAJOR >= 12
 					// Delete the anonymous expression module from the JIT.
 					ExitOnErr(RT->remove());
@@ -415,6 +418,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					// Delete the anonymous expression module from the JIT.
 					TheJIT->removeModule(H);
 #endif
+					auto saver = std::string("__") + varname + "saver";
+					auto restorer = std::string("__") + varname + "saver";
 				} else {
 					eprt("Unable to generate code for global shadow call\n");
 				}
