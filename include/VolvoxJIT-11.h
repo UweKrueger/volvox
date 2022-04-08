@@ -80,6 +80,8 @@ public:
     return findMangledSymbol(mangle(Name));
   }
 
+  const DataLayout &getDataLayout() const { return DL; }
+
 private:
   std::string mangle(const std::string &Name) {
     std::string MangledName;
