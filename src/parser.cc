@@ -780,6 +780,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				// pass by reference
 				E = std::make_unique<UnaryExprAST>("&", std::move(E));
 			}
+			if (auto V = dynamic_cast<VariableExprAST*>(E.get()))
+				if (auto ty = llvm::dyn_cast<llvm::IntegerType>(E->ft->type))
+					if (ty->getBitWidth() == 64)
+						E = std::make_unique<UnaryExprAST>("&", std::move(E));
 			std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
 			auto println_proto = FunctionProtos.find(mangled_println);
 			if (println_proto == FunctionProtos.end()) {

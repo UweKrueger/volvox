@@ -223,7 +223,7 @@ static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 	elem = tl_global_list;
 	while (elem) {
 		memcpy(elem->data, elem->adr, elem->size);
-		dprt("copied %016llx\n", *(uintptr_t*)elem->data);
+		dprt("copied %016llx from address %" PRIu64 "\n", *(uintptr_t*)elem->adr, (uintptr_t)elem->adr);
 		elem = elem->next;
 	}
 	return res;
