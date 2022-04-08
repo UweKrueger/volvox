@@ -348,15 +348,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			                              false, llvm::GlobalValue::ExternalLinkage,
 			                              initializer, varname, nullptr,
 			                              llvm::GlobalVariable::GeneralDynamicTLSModel);
-			if (comp_mode == comp_jit) {
-#if LLVM_VERSION_MAJOR >= 12
-				ExitOnErr(TheJIT->addModule(
-					          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
-#else
-				TheJIT->addModule(std::move(TheModule));
-#endif
-				InitializeModuleAndPassManager();
-			}
 			volvox::FullType ft = *expr->RHS->ft;
 			ft.type = type;
 			ft.type_attr = is_signed ? 1U : 0U;
@@ -367,6 +358,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			globals_table.insert(varname, fv);
 			if (comp_mode == comp_jit) {
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(initializer->getType());
+#if LLVM_VERSION_MAJOR >= 12
+				ExitOnErr(TheJIT->addModule(
+					          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+#else
+				TheJIT->addModule(std::move(TheModule));
+#endif
+				InitializeModuleAndPassManager();
 				auto Proto = std::make_unique<PrototypeAST>(CurLoc, "__anon_shadow",
 				                                            std::vector<std::string>(),
 				                                            false, void_type);
