@@ -1,6 +1,11 @@
 #include "../include/volvox.hh"
 #include "global.h"
 #include "AST.h"
+#if defined (_MSC_VER)
+#include <windows.h>
+#include <synchapi.h>
+#include <processthreadsapi.h>
+#endif
 
 CompModes comp_mode = comp_obj;
 
@@ -210,6 +215,15 @@ static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 	return (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
 }
 
+#if defined (_MSC_VER)
+static bool spawn_bool_expr(bool (*expr)()) {
+	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
+	WaitForSingleObject(thread, INFINITE);
+	DWORD retval;
+	GetExitCodeThread(thread, &retval);
+	return !(!retval);
+}
+#else
 static bool spawn_bool_expr(bool (*expr)()) {
 	pthread_t thread;
 	int res = pthread_create(&thread, NULL, anon_expr_wrapper, (void*)expr);
@@ -217,6 +231,7 @@ static bool spawn_bool_expr(bool (*expr)()) {
 	res = pthread_join(thread, &retval);
 	return !(!retval);
 }
+#endif
 
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
