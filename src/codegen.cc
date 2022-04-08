@@ -406,8 +406,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					assert(ExprSymbol && "Function not found");
 #define UNWRAP(x) cantFail(x)
 #endif
-					void (*VOID)() = (void (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					VOID();
+					bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					BOOL();
 #if LLVM_VERSION_MAJOR >= 12
 					// Delete the anonymous expression module from the JIT.
 					ExitOnErr(RT->remove());

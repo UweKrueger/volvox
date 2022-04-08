@@ -13,7 +13,7 @@ extern _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...
 extern _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
 extern _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
 extern memcpy(dest string, src string, n u64) string
-extern new_global_var_shadow(adr string, sz u64)
+extern new_global_var_shadow(adr string, sz u64) bool
 
 a := [3.4, 6.7, -12.3, 6.7, -13.1]
 
