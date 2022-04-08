@@ -21,16 +21,25 @@ endif
 endif
 endif
 endif
-CC := clang$(SUFFIX)
-CXX := clang++$(SUFFIX)
+
+CC = clang$(SUFFIX)
+
 LLVMCONFIG := llvm-config$(SUFFIX)
-LLVMVERSION := $(shell $(CXX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
+LLVMVERSION := $(shell clang++$(SUFFIX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
 
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -frtti
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
 PRJH = ../include/volvox-$(LLVMVERSION).hh
 
 PCH = $(PRJH:%.hh=%.hh.gch)
+
+ifeq ($(CC),gcc)
+	CXX := g++
+	INCPCH := -include $(PRJH)
+else
+	CXX := clang++$(SUFFIX)
+	INCPCH := -include-pch $(PCH)
+endif
 
 PROG = $(TARGETDIR)volvox
 
@@ -45,7 +54,7 @@ SRCS := $(OBJS:%.o=%.cc)
 LIBSRC := $(LIB:%.o=../lib/%.cc)
 
 %.o: %.cc $(PCH)
-	$(CXX) -c $(CXXFLAGS) $(OPT) -include-pch $(PCH) $<
+	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $<
 
 %.o: ../lib/%.cc
 	$(CXX) -c $(CXXFLAGS) -fPIC $(OPT) $<
@@ -53,7 +62,11 @@ LIBSRC := $(LIB:%.o=../lib/%.cc)
 all: $(PROG)
 
 $(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh
+ifeq ($(CC),gcc)
+	$(CXX) -o $@ -x c++-header $(CXXFLAGS) $(OPT) $<
+else
 	$(CXX) $(CXXFLAGS) $(OPT) $<
+endif
 
 $(LIBLIB): $(LIB)
 	$(CXX) -shared -fPIC -Wl,-soname,$(LIBLIB) -o $(LIBLIB) $(LIB)

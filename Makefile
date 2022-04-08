@@ -2,7 +2,7 @@ all: volvox
 
 .PHONY: gcc
 gcc:
-	cd src && make -f Makefile.gcc
+	cd src && $(MAKE) CC=gcc
 
 volvox: srcdir
 
