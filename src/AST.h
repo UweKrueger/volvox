@@ -142,6 +142,7 @@ public:
 	FunctionExprAST(SourceLocation Loc, const std::string &Name, PrototypeAST* Proto)
 		: ExprAST(Loc), Name(Name) {
 		ft = new_FullType(Proto->FT, 0);
+		dprt("Created FunctionExpr for %s %s with ID: %u\n", Proto->Name.c_str(), Name.c_str(), ft->type->getTypeID());
 		ft->proto = Proto;
 	}
 	const std::string &getName() const { return Name; }

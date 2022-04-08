@@ -536,7 +536,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				eprt("left operand of \":=\" must be a variable\n");
 				return nullptr;
 			}
-		} else if (LHS_type && LHS_type->isFunctionTy() && BinOp[0] == '(') {
+		} else if (LHS_type && LHS_type->isFunctionTy() && (BinOp[0] == '(' || BinOp[0] == '\0')) {
 			auto Args = SplitExprList(std::move(RHS));
 			LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
 			// dprt("create call expr %u\n", dynamic_cast<CallExprAST*>(LHS.get())->Callee->ft->type->getTypeID());
