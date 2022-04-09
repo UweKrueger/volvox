@@ -91,6 +91,8 @@ extern bool inside_function;
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
 extern volvox::FullType* void_type;
+extern const char* last_shadow_saver;
+extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 
@@ -99,7 +101,7 @@ extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
-extern bool spawn_bool_expr(bool (*expr)(), bool simple = false);
+extern bool spawn_bool_expr(bool (*expr)());
 
 static inline void dprt(const char* fmt, ...) {
 	va_list args;

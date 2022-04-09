@@ -209,33 +209,13 @@ static void HandleTypeDef() {
 #define THREAD_RETURN void*
 #endif
 
-static THREAD_RETURN anon_expr_wrapper_simple(void* expr_ptr) {
+static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 	bool (*expr)() = (bool (*)())expr_ptr;
 	return (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
 }
 
-static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
-	global_var_shadow* elem = tl_global_list = global_list;
-	if (!elem)
-		dprt("############# no global list\n");
-	while (elem) {
-		memcpy(elem->adr, elem->data, elem->size);
-		dprt("restored %016llx\n", *(uintptr_t*)elem->adr);
-		elem = elem->next;
-	}
-	bool (*expr)() = (bool (*)())expr_ptr;
-	THREAD_RETURN res = (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
-	elem = tl_global_list;
-	while (elem) {
-		memcpy(elem->data, elem->adr, elem->size);
-		dprt("copied %016llx from address %" PRIu64 "\n", *(uintptr_t*)elem->adr, (uintptr_t)elem->adr);
-		elem = elem->next;
-	}
-	return res;
-}
-
 #if defined (_MSC_VER)
-bool spawn_bool_expr(bool (*expr)(), bool simple) {
+bool spawn_bool_expr(bool (*expr)()) {
 	HANDLE thread = CreateThread(NULL, 0, simple ? anon_expr_wrapper_simple : anon_expr_wrapper, (void*)expr, 0, NULL);
 	WaitForSingleObject(thread, INFINITE);
 	DWORD retval;
@@ -243,9 +223,9 @@ bool spawn_bool_expr(bool (*expr)(), bool simple) {
 	return !(!retval);
 }
 #else
-bool spawn_bool_expr(bool (*expr)(), bool simple) {
+bool spawn_bool_expr(bool (*expr)()) {
 	pthread_t thread;
-	int res = pthread_create(&thread, NULL, simple ? anon_expr_wrapper_simple : anon_expr_wrapper, (void*)expr);
+	int res = pthread_create(&thread, NULL, anon_expr_wrapper, (void*)expr);
 	void* retval;
 	res = pthread_join(thread, &retval);
 	return !(!retval);

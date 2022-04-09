@@ -10,8 +10,8 @@
 std::unique_ptr<llvm::DIBuilder> DBuilder;
 bool inside_function = false;
 static llvm::ExitOnError ExitOnErr;
-static const char* last_shadow_saver;
-static const char* last_shadow_restorer;
+const char* last_shadow_saver;
+const char* last_shadow_restorer;
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))

@@ -771,9 +771,19 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		                                            false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 		// E->ft->dump();
+		if (last_shadow_restorer) {
+			auto restorer_proto = FunctionProtos.find(last_shadow_restorer);
+			if (restorer_proto == FunctionProtos.end()) {
+				eprt("could not find restorer `%s`\n", last_shadow_restorer);
+			} else {
+				auto restorer = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_restorer, restorer_proto->second.get());
+				auto restorer_call = std::make_unique<CallExprAST>(FnLoc, std::move(restorer), std::move(std::vector<std::unique_ptr<ExprAST>>()));
+				GlobalExprList.push_back(std::move(restorer_call));
+			}
+		}
 		if (E->ft->type->isVoidTy()) {
 			GlobalExprList.push_back(std::move(E));
-			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(false))));
+			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 		} else {
 			llvm::Constant* rttype_ptr = getRtType(E->ft);
 			if (E->ft->type->isAggregateType()) {
@@ -803,6 +813,17 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 			auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
 			GlobalExprList.push_back(std::move(print_call));
+		}
+		if (last_shadow_saver) {
+			auto saver_proto = FunctionProtos.find(last_shadow_saver);
+			if (saver_proto == FunctionProtos.end()) {
+				eprt("could not find saver `%s`\n", last_shadow_saver);
+			} else {
+				auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, saver_proto->second.get());
+				auto saver_call = std::make_unique<CallExprAST>(FnLoc, std::move(saver), std::move(std::vector<std::unique_ptr<ExprAST>>()));
+				GlobalExprList.push_back(std::move(saver_call));
+				GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+			}
 		}
 		auto ProtoRef = Proto.get();
 		FunctionProtos[Proto->getName()] = std::move(Proto);
