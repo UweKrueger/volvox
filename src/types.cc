@@ -37,6 +37,7 @@ static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llv
 
 static llvm::Value* NoConversion(llvm::Value* v) { return v; }
 
+// returns { significant_bits, is_float }
 std::pair<unsigned, bool> getBitWidth(llvm::Type* type) {
 	switch(type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
@@ -263,8 +264,8 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 {
 	if (!left_type || Op[0] == ',') // variable declaration, i.e. := operator
 		return {{ nullptr, nullptr, nullptr, 0, false, nullptr }, { nullptr, nullptr, nullptr, 0, false, nullptr }};
-	if (!strcmp(Op, "=")) {
-	    return {{ nullptr, nullptr, left_type, left_attr, false, nullptr }, { nullptr, nullptr, left_type, left_attr, false, nullptr }};
+	if (!left_type->isSingleValueType() || !right_type->isSingleValueType()) {
+		return {{ nullptr, nullptr, left_type, left_attr, false, nullptr }, { nullptr, nullptr, left_type, left_attr, false, nullptr }};
 	}
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;

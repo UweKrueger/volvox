@@ -535,29 +535,34 @@ llvm::Value *BinaryExprAST::codegen() {
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
 	if (kind != other_op && !(kind == assign_op && false /*is_bool */)) {
+		const char* varname = nullptr;
 		// Assignment requires the LHS to be an identifier.
 		// This assume we're building without RTTI because LLVM builds that way by
 		// default.  If you build LLVM with RTTI this can be changed to a
 		// dynamic_cast for automatic error checking.
-		VariableExprAST *LHSE = static_cast<VariableExprAST *>(LHS.get());
+		LvalueExprAST *LHSE = dynamic_cast<LvalueExprAST*>(LHS.get());
 		if (!LHSE)
-			return LogErrorV("destination of '=' must be a variable");
+			return LogErrorV("destination of '=' must be an lvalue");
 		// Codegen the RHS.
-		llvm::Value *Val = RHS->codegen();
+		llvm::Value* Val = RHS->codegen();
 		if (!Val)
 			return nullptr;
+		if (conv.compat.RHS)
+			Val = conv.compat.RHS(Val);
 		dprt("RHS: TypeID: %u\n", Val->getType()->getTypeID());
 		// Look up the name.
-		const char* varname = LHSE->getName().c_str();
-		FullVar* full_var = LHSE->full_var.first;
-		bool is_global = LHSE->full_var.second;
-		if (!full_var)
-			goto not_found;
+		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
+			varname = RegularVar->getName().c_str();
+			FullVar* full_var = RegularVar->full_var.first;
+		// bool is_global = LHSE->full_var.second;
+			if (!full_var)
+				goto not_found;
+		}
 		if (kind == decl_assign_op) {
-			return LogErrorV("cannot initialize existing variable %s", LHSE->getName().c_str());
+			return LogErrorV("cannot initialize existing variable");
 		} else {
 			auto Variable = LHSE->codegen_ref();
-			auto OldVal = Builder->CreateLoad(Variable.first, Variable.second, varname);
+			auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 			Builder->CreateStore(Val, Variable.second);
 			return OldVal;
 		}
