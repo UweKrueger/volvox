@@ -146,15 +146,6 @@ static void HandleDefinition() {
 				eprt("Read function definition:\n");
 				FnIR->print(llvm::errs());
 				eprt("\n");
-				if (comp_mode == comp_jit) {
-#if LLVM_VERSION_MAJOR >= 12
-					ExitOnErr(TheJIT->addModule(
-						          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
-#else
-					TheJIT->addModule(std::move(TheModule));
-#endif
-					InitializeModuleAndPassManager();
-				}
 			}
 			success = true;
 		} else {
@@ -236,6 +227,15 @@ bool spawn_bool_expr(bool (*expr)()) {
 
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
+	if (comp_mode == comp_jit) {
+#if LLVM_VERSION_MAJOR >= 12
+		ExitOnErr(TheJIT->addModule(
+			          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+#else
+		TheJIT->addModule(std::move(TheModule));
+#endif
+		InitializeModuleAndPassManager();
+	}
 	if (auto FnAST = ParseTopLevelExpr()) {
 		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();

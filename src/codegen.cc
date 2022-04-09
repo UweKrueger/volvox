@@ -479,13 +479,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 					last_shadow_restorer = restorerProto->Name.c_str();
 					FunctionProtos[restorer] = std::move(restorerProto);
-#if LLVM_VERSION_MAJOR >= 12
-					ExitOnErr(TheJIT->addModule(
-						          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
-#else
-					TheJIT->addModule(std::move(TheModule));
-#endif
-					InitializeModuleAndPassManager();
 				} else {
 					eprt("Unable to generate code for global shadow call\n");
 				}
