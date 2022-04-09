@@ -376,7 +376,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				InitializeModuleAndPassManager();
 				auto Proto = std::make_unique<PrototypeAST>(CurLoc, "__anon_shadow",
 				                                            std::vector<std::string>(),
-				                                            false, void_type);
+				                                            false, uintptr_type);
 				auto shadow_proto = FunctionProtos.find("new_global_var_shadow");
 				if (shadow_proto == FunctionProtos.end()) {
 					eprt("Fatal error: could not find `new_global_var_shadow` function\n");
@@ -416,7 +416,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 #define UNWRAP(x) cantFail(x)
 #endif
 					uintptr_t (*PTR)() = (uintptr_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					auto dummy = PTR();
+					auto adrShadow = PTR();
 					eprt("Shadow evaluated to %" PRIx64 "\n", adrShadow);
 #if LLVM_VERSION_MAJOR >= 12
 					// Delete the anonymous expression module from the JIT.

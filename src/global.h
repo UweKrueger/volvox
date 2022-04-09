@@ -86,11 +86,12 @@ extern const char* input_file_name;
 extern llvm::orc::ThreadSafeContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
-extern uintptr_t adrShadow;
+
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
 extern volvox::FullType* void_type;
+extern volvox::FullType* uintptr_type;
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
 

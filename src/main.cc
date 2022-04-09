@@ -12,7 +12,7 @@ CompModes comp_mode = comp_obj;
 DebugInfo KSDbgInfo;
 
 TypeTable type_table;
-uintptr_t adrShadow = 0;
+
 //===----------------------------------------------------------------------===//
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
@@ -30,6 +30,7 @@ thread_local global_var_shadow* tl_global_list = nullptr;
 llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
 volvox::FullType* void_type;
+volvox::FullType* uintptr_type;
 
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
@@ -74,6 +75,7 @@ void init() {
 	type_table.add("usize", llvm::Type::getInt64Ty(*Context.getContext()), DBuilder ? DBuilder->createBasicType("usize", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt64Ty(*Context.getContext());
 #endif
+	uintptr_type = type_table.get_full("usize");
 	type_table.add("real", llvm::Type::getDoubleTy(*Context.getContext()), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 #endif
 	type_table.add("void", llvm::Type::getVoidTy(*Context.getContext()), nullptr);
@@ -347,10 +349,8 @@ extern "C" DLLEXPORT uintptr_t new_global_var_shadow(void* adr, size_t size) {
 	V->adr = adr;
 	V->size = size;
 	memcpy(V->data, V->adr, size);
-	fprintf(stderr, "Saved %016" PRIx64 " adr: %" PRIu64 "\n", (uintptr_t)V->data, (uintptr_t)V->adr);
 	*global_list_end = V;
 	global_list_end = &V->next;
-	adrShadow = (uintptr_t)V->data;
 	return (uintptr_t)V->data;
 }
 
