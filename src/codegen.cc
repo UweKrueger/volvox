@@ -13,6 +13,12 @@ static llvm::ExitOnError ExitOnErr;
 static const char* last_shadow_saver;
 static const char* last_shadow_restorer;
 
+inline static llvm::Value* CheckTailCall(llvm::Value* V) {
+	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
+		C->setTailCall();
+	return V;
+}
+
 void DebugInfo::emitLocation(ExprAST *AST) {
 	if (!AST)
 		return Builder->SetCurrentDebugLocation(llvm::DebugLoc());
@@ -359,7 +365,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			};
 			globals_table.insert(varname, fv);
 			if (comp_mode == comp_jit) {
-				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(initializer->getType());
+				llvm::Type* V_type = initializer->getType();
+				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 #if LLVM_VERSION_MAJOR >= 12
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
@@ -421,25 +428,64 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					auto saver = std::string("__") + varname + "_saver";
 					auto restorer = std::string("__") + varname + "_restorer";
 					auto llvmGVadr = llvm::dyn_cast<llvm::Constant>(Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), adrShadow, false), llvm::Type::getInt8PtrTy(*Context.getContext())));
-					auto GVadr = std::make_unique<ConstExprAST>(llvmGVadr);
-					auto saver_proto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
-					std::vector<std::unique_ptr<ExprAST>> saver_body;
-					auto Sz = std::make_unique<ConstExprAST>(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), storage_sz));
-					auto memcpy_proto = FunctionProtos.find("memcpy");
-					if (memcpy_proto == FunctionProtos.end()) {
-						eprt("Fatal error: could not find `memcpy` function\n");
-						return nullptr;
+					auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), storage_sz);
+					auto memcpy_proto = getFunction("memcpy");
+					auto V = TheModule->getGlobalVariable(varname, true);
+					if (!V) {
+						V = new llvm::GlobalVariable(*TheModule, V_type,
+						                             false, llvm::GlobalValue::ExternalLinkage,
+						                             nullptr, varname, nullptr,
+						                             llvm::GlobalVariable::GeneralDynamicTLSModel,
+						                             0, true);
 					}
-					auto volvox_memcpy = std::make_unique<FunctionExprAST>(CurLoc, "memcpy", memcpy_proto->second.get());
-					std::vector<std::unique_ptr<ExprAST>> MemCpyArgs;
-					V = std::make_unique<VariableExprAST>(CurLoc, varname);
-					Vref = std::make_unique<UnaryExprAST>("&", std::move(V));
-					MemCpyArgs.push_back(std::move(GVadr));
-					MemCpyArgs.push_back(std::move(Vref));
-					MemCpyArgs.push_back(std::move(Sz));
-					auto memcpy_call = std::make_unique<CallExprAST>(CurLoc, std::move(volvox_memcpy), std::move(MemCpyArgs));
-					saver_body.push_back(std::move(memcpy_call));
-					
+					llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(*Context.getContext()), {}, false);
+
+					llvm::Function* Fsaver = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, saver, TheModule.get());
+					llvm::BasicBlock* BB = llvm::BasicBlock::Create(*Context.getContext(), "entry", Fsaver);
+					Builder->SetInsertPoint(BB);
+					std::vector<llvm::Value*> ArgsV = { llvmGVadr, V, sz_const };
+					Builder->CreateCall(memcpy_proto.second->FT, memcpy_proto.first, ArgsV, "callmcpy");
+					if (last_shadow_saver) {
+						auto last_saver = getFunction(last_shadow_saver);
+						Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver.second->FT, last_saver.first, std::vector<llvm::Value*>(), "callold")));
+					} else {
+						Builder->CreateRetVoid();
+					}
+					verifyFunction(*Fsaver);
+					TheFPM->run(*Fsaver);
+					eprt("Read function definition:\n");
+					Fsaver->print(llvm::errs());
+					eprt("\n");
+					auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
+					last_shadow_saver = saverProto->Name.c_str();
+					FunctionProtos[saver] = std::move(saverProto);
+
+					llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
+					BB = llvm::BasicBlock::Create(*Context.getContext(), "entry", Frestorer);
+					Builder->SetInsertPoint(BB);
+					ArgsV = { V, llvmGVadr, sz_const };
+					Builder->CreateCall(memcpy_proto.second->FT, memcpy_proto.first, ArgsV, "callmcpy");
+					if (last_shadow_restorer) {
+						auto last_restorer = getFunction(last_shadow_restorer);
+						Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer.second->FT, last_restorer.first, std::vector<llvm::Value*>(), "callold")));
+					} else {
+						Builder->CreateRetVoid();
+					}
+					verifyFunction(*Frestorer);
+					TheFPM->run(*Frestorer);
+					eprt("Read function definition:\n");
+					Frestorer->print(llvm::errs());
+					eprt("\n");
+					auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
+					last_shadow_restorer = restorerProto->Name.c_str();
+					FunctionProtos[restorer] = std::move(restorerProto);
+#if LLVM_VERSION_MAJOR >= 12
+					ExitOnErr(TheJIT->addModule(
+						          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+#else
+					TheJIT->addModule(std::move(TheModule));
+#endif
+					InitializeModuleAndPassManager();
 				} else {
 					eprt("Unable to generate code for global shadow call\n");
 				}
@@ -849,12 +895,6 @@ llvm::Value *CallExprAST::codegen() {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
 		return Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
 	}
-}
-
-inline static llvm::Value* CheckTailCall(llvm::Value* V) {
-	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
-		C->setTailCall();
-	return V;
 }
 
 llvm::Value *IfExprAST::codegen() {
