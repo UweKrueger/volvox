@@ -57,13 +57,13 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 	if (is_float && bitwidth > 1) // bitwidth = 1 is always bool, i.e. u1
 		if (bitwidth > 8)
 			if (bitwidth > 24)
-				return llvm::Type::getDoubleTy(*Context.getContext());
+				return llvm::Type::getDoubleTy(Context);
 			else
-				return llvm::Type::getFloatTy(*Context.getContext());
+				return llvm::Type::getFloatTy(Context);
 		else
-			return llvm::Type::getBFloatTy(*Context.getContext());
+			return llvm::Type::getBFloatTy(Context);
 	else
-		return llvm::IntegerType::get(*Context.getContext(), bitwidth);
+		return llvm::IntegerType::get(Context, bitwidth);
 }
 
 // is the definition area bigger (not the precision)
@@ -300,7 +300,7 @@ std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeTyp
 	if(!is_unknown_type)
 		return { type, NoConversion, is_signed };
 	if (type->isIntegerTy())
-		return { llvm::Type::getInt32Ty(*Context.getContext()), [=](llvm::Value* v) { return Builder->CreateSExtOrTrunc(v, llvm::Type::getInt32Ty(*Context.getContext()), "contintinit"); } , true };
+		return { llvm::Type::getInt32Ty(Context), [=](llvm::Value* v) { return Builder->CreateSExtOrTrunc(v, llvm::Type::getInt32Ty(Context), "contintinit"); } , true };
 	else
 		return { type, NoConversion, false };
 }
@@ -352,20 +352,20 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 	};
 	llvmtype = volvox::gen_val_type_t{ .ID = ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
 	llvm::SmallVector<llvm::Constant*, 16> fields;
-	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)key));
-	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), (uint64_t)ft->type_attr));
-	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), ft->num_fields));
-	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), (uint64_t)(
+	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)key));
+	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)ft->type_attr));
+	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), ft->num_fields));
+	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), (uint64_t)(
 		                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
-	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name, "", 0, TheModule.get()) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
+	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name, "", 0, TheModule.get()) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 	if (llvmtype.ID == llvm::Type::ArrayTyID) {
 		fields.push_back(getRtType(ft->elem_type));
 	} else {
-		fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(*Context.getContext())));
+		fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 	}
-	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(*Context.getContext(), fields, true);
+	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(Context, fields, true);
 	auto *GV = new llvm::GlobalVariable(*TheModule, rt_const->getType(), true, llvm::GlobalValue::PrivateLinkage, rt_const);
-	llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(*Context.getContext()), 0);
+	llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);
 	llvm::Constant *Indices[] = {Zero, Zero};
 	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV,
 	                                                    Indices);

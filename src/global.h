@@ -83,7 +83,7 @@ struct SourceLocation {
 // Types
 
 extern const char* input_file_name;
-extern llvm::orc::ThreadSafeContext Context;
+extern llvm::LLVMContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
 
@@ -372,7 +372,7 @@ public:
 
 	// construct from type and attributes
 	ExprAST(SourceLocation Loc) : ft(new_FullType(nullptr, 0)), Loc(Loc) {}
-	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(*Context.getContext()), unsigned type_attr = 0,
+	ExprAST(llvm::Type* type = llvm::Type::getDoubleTy(Context), unsigned type_attr = 0,
 	        SourceLocation Loc = CurLoc, llvm::Type* desired_type = nullptr, unsigned desired_type_attr = 0,
 	        bool is_unknown_type = false, bool is_compile_time_const = false) :
 		ft(new_FullType(type, type_attr)), Loc(Loc), desired_type(desired_type), desired_type_attr(desired_type_attr),

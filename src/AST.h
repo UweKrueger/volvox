@@ -295,8 +295,8 @@ public:
 		          _RHS->is_unknown_type && _LHS->is_unknown_type,
 		          _RHS->is_compile_time_const && (_LHS->is_compile_time_const || !strcmp(Op, ":"))),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
-		if (!desired_type && _Op[0] != '=' || desired_type && desired_type == llvm::Type::getInt1Ty(*Context.getContext())) {
-			if (conv.ideal.res_type == llvm::Type::getInt1Ty(*Context.getContext())) {
+		if (!desired_type && _Op[0] != '=' || desired_type && desired_type == llvm::Type::getInt1Ty(Context)) {
+			if (conv.ideal.res_type == llvm::Type::getInt1Ty(Context)) {
 				ft->type = conv.ideal.res_type;
 				ft->type_attr = 0;
 			}
@@ -351,7 +351,7 @@ public:
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind)
 		: ExprAST(_Then.back()->ft->type, _Then.back()->ft->type_attr, Loc),
-		  is_void(_Then.back()->ft->type == llvm::Type::getVoidTy(*Context.getContext()) || !_Else.size()
+		  is_void(_Then.back()->ft->type == llvm::Type::getVoidTy(Context) || !_Else.size()
 		          || _Else.back()->ft->type != _Then.back()->ft->type
 		          || (_Else.back()->ft->type_attr & A_signed) != (_Then.back()->ft->type_attr & A_signed)),
 		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
@@ -362,7 +362,7 @@ public:
 				       Then.back()->ft->type_attr, Else.back()->ft->type_attr,
 				       type_table.get_name(Then.back()->ft->type, Then.back()->ft->type_attr & A_signed),
 				       type_table.get_name(Else.back()->ft->type, Else.back()->ft->type_attr & A_signed));
-				ft->type = llvm::Type::getInt1Ty(*Context.getContext());
+				ft->type = llvm::Type::getInt1Ty(Context);
 				ft->type_attr = 0;
 			}
 		}

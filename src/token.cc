@@ -124,13 +124,13 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 }
 				
 Token::Token(const std::string& str) : kind(tok_str_lit) {
-	auto llvmtype = llvm::Type::getInt8PtrTy(*Context.getContext());
+	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
 	gen_type = { .ID = llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 	Val.Str = strdup(str.c_str());
 }
 
 Token::Token(void* ptr) : kind(tok_ptr_lit) {
 	Val.Ptr = ptr;
-	auto llvmtype = llvm::Type::getInt8PtrTy(*Context.getContext());
+	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
 	gen_type = { .ID = llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 }

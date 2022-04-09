@@ -108,7 +108,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			if (CurTok.kind == ']') {
 				getNextToken();
 			} else {
-				if (auto e = ParseExpression(llvm::Type::getInt64Ty(*Context.getContext()), A_signed)) {
+				if (auto e = ParseExpression(llvm::Type::getInt64Ty(Context), A_signed)) {
 					auto Vdim = e->codegen();
 					if (!Vdim) {
 						eprt("cannot generate code for index\n");
@@ -175,7 +175,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 				Eat(',', eBinOp);
 			}
 			getNextToken();
-			llvm::Type* struct_type = llvm::StructType::get(*Context.getContext(), LLVMFieldTypes, (bool)(attribs & A_packed));
+			llvm::Type* struct_type = llvm::StructType::get(Context, LLVMFieldTypes, (bool)(attribs & A_packed));
 			MapNode* fields = map_string_new_map();
 			for (int i=0; i<FieldNames.size(); i++) {
 				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = FieldTypes[i] }, 0, false);
@@ -350,7 +350,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	getNextToken(); // eat the if.
 
 	// condition - expect bool.
-	auto Cond = ParseExpression(llvm::Type::getInt1Ty(*Context.getContext()));
+	auto Cond = ParseExpression(llvm::Type::getInt1Ty(Context));
 	if (!Cond)
 		return nullptr;
 

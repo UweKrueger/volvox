@@ -87,18 +87,18 @@ llvm::Value *LiteralExprAST::codegen() {
 	}
 	switch (ft->type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		return llvm::ConstantInt::get(*Context.getContext(), llvm::APInt(ft->type->getIntegerBitWidth(), Val.Uint, ft->type_attr & A_signed));
+		return llvm::ConstantInt::get(Context, llvm::APInt(ft->type->getIntegerBitWidth(), Val.Uint, ft->type_attr & A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
 		eprt("Warning: 16 bit floats are not supported, yet\n");
 		// passthrough to 32 bit float for now - but expect problems...
 	case llvm::Type::FloatTyID:
-		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat((float)Val.Float));
+		return llvm::ConstantFP::get(Context, llvm::APFloat((float)Val.Float));
 	case llvm::Type::DoubleTyID:
-		return llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(Val.Float));
+		return llvm::ConstantFP::get(Context, llvm::APFloat(Val.Float));
 	case llvm::Type::PointerTyID:
 		if (ft->type_attr & A_signed)
-			return Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), Val.Uint, false), llvm::Type::getInt8PtrTy(*Context.getContext()));
+			return Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), Val.Uint, false), llvm::Type::getInt8PtrTy(Context));
 		else
 			return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
 	default:
@@ -242,9 +242,9 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		field_ptr = LV.second;
 		if (field_type->isPointerTy()) {
 			dprt("**## Index: pointer\n");
-			auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), TheModule->getDataLayout().getTypeAllocSize(elem_type));
+			auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), TheModule->getDataLayout().getTypeAllocSize(elem_type));
 			auto offset = Builder->CreateMul(elem_size, idx);
-			auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(*Context.getContext())), offset), elem_type->getPointerTo());
+			auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(Context)), offset), elem_type->getPointerTo());
 			return { elem_type, elem_ptr };
 		}
 	} else {
@@ -427,8 +427,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 #endif
 					auto saver = std::string("__") + varname + "_saver";
 					auto restorer = std::string("__") + varname + "_restorer";
-					auto llvmGVadr = llvm::dyn_cast<llvm::Constant>(Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), adrShadow, false), llvm::Type::getInt8PtrTy(*Context.getContext())));
-					auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(*Context.getContext()), storage_sz);
+					auto llvmGVadr = llvm::dyn_cast<llvm::Constant>(Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), adrShadow, false), llvm::Type::getInt8PtrTy(Context)));
+					auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), storage_sz);
 					auto memcpy_proto = getFunction("memcpy");
 					auto V = TheModule->getGlobalVariable(varname, true);
 					if (!V) {
@@ -438,10 +438,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 						                             llvm::GlobalVariable::GeneralDynamicTLSModel,
 						                             0, true);
 					}
-					llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(*Context.getContext()), {}, false);
+					llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
 
 					llvm::Function* Fsaver = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, saver, TheModule.get());
-					llvm::BasicBlock* BB = llvm::BasicBlock::Create(*Context.getContext(), "entry", Fsaver);
+					llvm::BasicBlock* BB = llvm::BasicBlock::Create(Context, "entry", Fsaver);
 					Builder->SetInsertPoint(BB);
 					std::vector<llvm::Value*> ArgsV = { llvmGVadr, V, sz_const };
 					Builder->CreateCall(memcpy_proto.second->FT, memcpy_proto.first, ArgsV, "callmcpy");
@@ -461,7 +461,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					FunctionProtos[saver] = std::move(saverProto);
 
 					llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
-					BB = llvm::BasicBlock::Create(*Context.getContext(), "entry", Frestorer);
+					BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
 					Builder->SetInsertPoint(BB);
 					ArgsV = { V, llvmGVadr, sz_const };
 					Builder->CreateCall(memcpy_proto.second->FT, memcpy_proto.first, ArgsV, "callmcpy");
@@ -500,7 +500,7 @@ llvm::Value *BinaryExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	bool is_bool = desired_type == llvm::Type::getInt1Ty(*Context.getContext()) || ft->type == llvm::Type::getInt1Ty(*Context.getContext());
+	bool is_bool = desired_type == llvm::Type::getInt1Ty(Context) || ft->type == llvm::Type::getInt1Ty(Context);
 	OpKind kind;
 	if (Op[0] == '=')
 		kind = assign_op;
@@ -904,16 +904,16 @@ llvm::Value *IfExprAST::codegen() {
 		return nullptr;
 
 	// Convert condition to a bool by comparing non-equal to 0.0.
-	if (CondV->getType() != llvm::Type::getInt1Ty(*Context.getContext()))
+	if (CondV->getType() != llvm::Type::getInt1Ty(Context))
 		return Error(Cond->Loc, "bool type expected as \"if\" condition");
 
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(*Context.getContext(), "then", TheFunction);
-	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(*Context.getContext(), "else");
-	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(*Context.getContext(), "ifcont");
+	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(Context, "then", TheFunction);
+	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(Context, "else");
+	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(Context, "ifcont");
 
 	Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 
@@ -931,7 +931,7 @@ llvm::Value *IfExprAST::codegen() {
 		Builder->CreateBr(MergeBB);
 	}
 	if (is_void)
-		ThenV = llvm::ConstantInt::getTrue(*Context.getContext());
+		ThenV = llvm::ConstantInt::getTrue(Context);
 	
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
@@ -951,7 +951,7 @@ llvm::Value *IfExprAST::codegen() {
 		Builder->CreateBr(MergeBB);
 	}
 	if (is_void)
-		ElseV = llvm::ConstantInt::getFalse(*Context.getContext());
+		ElseV = llvm::ConstantInt::getFalse(Context);
 
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();
@@ -989,7 +989,7 @@ llvm::Value *ForExprAST::codegen() {
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create an alloca for the variable in the entry block.
-	llvm::Type* AllocaT = llvm::Type::getInt32Ty(*Context.getContext());
+	llvm::Type* AllocaT = llvm::Type::getInt32Ty(Context);
 	unsigned AllocaF = A_signed;
 	llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName, AllocaT);
 
@@ -1006,7 +1006,7 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Make the new basic block for the loop header, inserting after current
 	// block.
-	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(*Context.getContext(), "loop", TheFunction);
+	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(Context, "loop", TheFunction);
 
 	// Insert an explicit fall through from the current block to the LoopBB.
 	Builder->CreateBr(LoopBB);
@@ -1044,7 +1044,7 @@ llvm::Value *ForExprAST::codegen() {
 			return nullptr;
 	} else {
 		// If not specified, use 1.0.
-		StepVal = llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(1.0));
+		StepVal = llvm::ConstantFP::get(Context, llvm::APFloat(1.0));
 	}
 
 	// Compute the end condition.
@@ -1054,18 +1054,18 @@ llvm::Value *ForExprAST::codegen() {
 
 	// Reload, increment, and restore the alloca.  This handles the case where
 	// the body of the loop mutates the variable.
-	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(*Context.getContext()), Alloca,
+	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), Alloca,
 	                                          VarName.c_str());
 	llvm::Value *NextVar = Builder->CreateFAdd(CurVar, StepVal, "nextvar");
 	Builder->CreateStore(NextVar, Alloca);
 
 	// Convert condition to a bool by comparing non-equal to 0.0.
 	EndCond = Builder->CreateFCmpONE(
-		EndCond, llvm::ConstantFP::get(*Context.getContext(), llvm::APFloat(0.0)), "loopcond");
+		EndCond, llvm::ConstantFP::get(Context, llvm::APFloat(0.0)), "loopcond");
 
 	// Create the "after loop" block and insert it.
 	llvm::BasicBlock *AfterBB =
-		llvm::BasicBlock::Create(*Context.getContext(), "afterloop", TheFunction);
+		llvm::BasicBlock::Create(Context, "afterloop", TheFunction);
 
 	// Insert the conditional branch into the end of LoopEndBB.
 	Builder->CreateCondBr(EndCond, LoopBB, AfterBB);
@@ -1079,7 +1079,7 @@ llvm::Value *ForExprAST::codegen() {
 	else
 		locals_table.back().erase(VarName.c_str());
 	// for expr always returns 0.0.
-	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(*Context.getContext()));
+	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(Context));
 }
 
 llvm::Function *PrototypeAST::codegen() {
@@ -1106,7 +1106,7 @@ llvm::Function *FunctionAST::codegen() {
 		return nullptr;
 	}
 	// Create a new basic block to start insertion into.
-	llvm::BasicBlock *BB = llvm::BasicBlock::Create(*Context.getContext(), "entry", TheFunction);
+	llvm::BasicBlock *BB = llvm::BasicBlock::Create(Context, "entry", TheFunction);
 	Builder->SetInsertPoint(BB);
 	// llvm::DISubprogram *SP; - make static
 	// llvm::DIFile *Unit;
