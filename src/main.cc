@@ -216,7 +216,7 @@ static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 
 #if defined (_MSC_VER)
 bool spawn_bool_expr(bool (*expr)()) {
-	HANDLE thread = CreateThread(NULL, 0, simple ? anon_expr_wrapper_simple : anon_expr_wrapper, (void*)expr, 0, NULL);
+	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
 	WaitForSingleObject(thread, INFINITE);
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
