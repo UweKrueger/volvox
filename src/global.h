@@ -1,6 +1,9 @@
 #pragma once
 #if defined (_MSC_VER)
 #include "../include/volvox-14.hh"
+#include <windows.h>
+#include <synchapi.h>
+#include <processthreadsapi.h>
 #endif
 #include "../lib/map.h"
 #include "../lib/types.h"

@@ -1,11 +1,6 @@
 #include "../include/volvox.hh"
 #include "global.h"
 #include "AST.h"
-#if defined (_MSC_VER)
-#include <windows.h>
-#include <synchapi.h>
-#include <processthreadsapi.h>
-#endif
 
 CompModes comp_mode = comp_obj;
 

@@ -174,8 +174,8 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandstmp"); };
 }
 
-inline static unsigned max(unsigned a, unsigned b) { return (a > b) ? a : b; }
-inline static unsigned min(unsigned a, unsigned b) { return (a < b) ? a : b; }
+inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }
+inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
 // min result, ideal result, result is signed, errormessage
 std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
@@ -183,9 +183,9 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	unsigned right_bitwidth, bool right_is_float, bool right_is_signed, bool right_is_unknown_type, const char* Op)
 {
 	unsigned res_bitwidth_min = right_is_unknown_type ?
-		left_is_unknown_type ? min(right_bitwidth, left_bitwidth) : left_bitwidth
+		left_is_unknown_type ? Min(right_bitwidth, left_bitwidth) : left_bitwidth
 		:
-		left_is_unknown_type ? right_bitwidth : max(right_bitwidth, left_bitwidth);
+		left_is_unknown_type ? right_bitwidth : Max(right_bitwidth, left_bitwidth);
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
 	unsigned res_is_float = left_is_float || right_is_float;
 	bool res_is_signed = !res_is_float && (
