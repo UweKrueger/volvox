@@ -17,7 +17,11 @@ TypeTable type_table;
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
 
+#if LLVM_VERSION_MAJOR >= 12
+llvm::orc::ThreadSafeContext TS_Context;
+#else
 llvm::LLVMContext Context;
+#endif
 std::unique_ptr<llvm::Module> TheModule;
 std::unique_ptr<llvm::IRBuilder<>> Builder;
 static llvm::ExitOnError ExitOnErr;
@@ -230,7 +234,7 @@ static void HandleTopLevelExpression() {
 	if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
 		ExitOnErr(TheJIT->addModule(
-			          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+			          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
 #else
 		TheJIT->addModule(std::move(TheModule));
 #endif
@@ -248,7 +252,7 @@ static void HandleTopLevelExpression() {
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), Context);
+				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 #else
 				// JIT the module containing the anonymous expression, keeping a handle so
@@ -416,6 +420,9 @@ int main(int argc, char* argv[]) {
 		std::make_unique<llvm::orc::VolvoxJIT>();
 #endif
 	}
+#if LLVM_VERSION_MAJOR >= 12
+	TS_Context = llvm::orc::ThreadSafeContext(std::move(std::make_unique<llvm::LLVMContext>()));
+#endif
 
 	InitializeModuleAndPassManager();
 

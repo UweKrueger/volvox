@@ -369,7 +369,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 #if LLVM_VERSION_MAJOR >= 12
 				ExitOnErr(TheJIT->addModule(
-					          llvm::orc::ThreadSafeModule(std::move(TheModule), Context)));
+					          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
 #else
 				TheJIT->addModule(std::move(TheModule));
 #endif
@@ -399,7 +399,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					// Create a ResourceTracker to track JIT'd memory allocated to our
 					// anonymous expression -- that way we can free it after executing.
 					auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), Context);
+					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 					ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 #else
 					// JIT the module containing the anonymous expression, keeping a handle so

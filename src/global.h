@@ -83,7 +83,12 @@ struct SourceLocation {
 // Types
 
 extern const char* input_file_name;
+#if LLVM_VERSION_MAJOR >= 12
+extern llvm::orc::ThreadSafeContext TS_Context;
+#define Context *TS_Context.getContext()
+#else
 extern llvm::LLVMContext Context;
+#endif
 extern SourceLocation CurLoc;
 extern bool inside_function;
 
