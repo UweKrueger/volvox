@@ -12,7 +12,7 @@ CompModes comp_mode = comp_obj;
 DebugInfo KSDbgInfo;
 
 TypeTable type_table;
-
+uintptr_t adrShadow = 0;
 //===----------------------------------------------------------------------===//
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
@@ -336,21 +336,22 @@ extern "C" DLLEXPORT double printd(double X) {
 	return 0;
 }
 
-extern "C" DLLEXPORT void* new_global_var_shadow(void* adr, size_t size) {
+extern "C" DLLEXPORT uintptr_t new_global_var_shadow(void* adr, size_t size) {
 	size_t alloc_size = sizeof(global_var_shadow);
 	if (size > 8)
 		alloc_size = alloc_size - 8 + size;
 	global_var_shadow* V = (global_var_shadow*)malloc(alloc_size);
 	if (!V)
-		return nullptr;
+		return 0;
 	V->next = NULL;
 	V->adr = adr;
 	V->size = size;
 	memcpy(V->data, V->adr, size);
-	fprintf(stderr, "Saved %016" PRIx64 " adr: %" PRIu64 "\n", *(uintptr_t*)V->data, (uintptr_t)V->adr);
+	fprintf(stderr, "Saved %016" PRIx64 " adr: %" PRIu64 "\n", (uintptr_t)V->data, (uintptr_t)V->adr);
 	*global_list_end = V;
 	global_list_end = &V->next;
-	return (void*)V->data;
+	adrShadow = (uintptr_t)V->data;
+	return (uintptr_t)V->data;
 }
 
 //===----------------------------------------------------------------------===//

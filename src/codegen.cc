@@ -415,8 +415,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					assert(ExprSymbol && "Function not found");
 #define UNWRAP(x) cantFail(x)
 #endif
-					void* (*PTR)() = (void* (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					auto adrShadow = (uintptr_t)PTR();
+					uintptr_t (*PTR)() = (uintptr_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					auto dummy = PTR();
 					eprt("Shadow evaluated to %" PRIx64 "\n", adrShadow);
 #if LLVM_VERSION_MAJOR >= 12
 					// Delete the anonymous expression module from the JIT.
