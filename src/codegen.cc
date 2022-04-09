@@ -9,7 +9,7 @@
 
 std::unique_ptr<llvm::DIBuilder> DBuilder;
 bool inside_function = false;
-static llvm::ExitOnError ExitOnErr;
+extern llvm::ExitOnError ExitOnErr;
 const char* last_shadow_saver;
 const char* last_shadow_restorer;
 

@@ -19,7 +19,7 @@ llvm::LLVMContext Context;
 #endif
 std::unique_ptr<llvm::Module> TheModule;
 std::unique_ptr<llvm::IRBuilder<>> Builder;
-static llvm::ExitOnError ExitOnErr;
+llvm::ExitOnError ExitOnErr;
 
 global_var_shadow* global_list = NULL;
 global_var_shadow** global_list_end = &global_list;
@@ -226,15 +226,6 @@ bool spawn_bool_expr(bool (*expr)()) {
 
 static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
-	if (comp_mode == comp_jit) {
-#if LLVM_VERSION_MAJOR >= 12
-		ExitOnErr(TheJIT->addModule(
-			          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
-#else
-		TheJIT->addModule(std::move(TheModule));
-#endif
-		InitializeModuleAndPassManager();
-	}
 	if (auto FnAST = ParseTopLevelExpr()) {
 		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();

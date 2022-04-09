@@ -14,6 +14,7 @@ Token CurTok;
 
 FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
+extern llvm::ExitOnError ExitOnErr;
 
 Token getNextToken(eXpect expect) { return CurTok = lex.gettok(expect); }
 Token purgeLine() { return CurTok = lex.purge_line(); }
@@ -763,6 +764,15 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 					E->ft->dump();
 				return nullptr;
 			}
+		}
+		if (comp_mode == comp_jit) {
+#if LLVM_VERSION_MAJOR >= 12
+			ExitOnErr(TheJIT->addModule(
+				          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
+#else
+			TheJIT->addModule(std::move(TheModule));
+#endif
+			InitializeModuleAndPassManager();
 		}
 		// Make an anonymous proto.
 		volvox::FullType* TheType = type_table.get_full("bool");
