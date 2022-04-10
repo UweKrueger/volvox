@@ -8,6 +8,7 @@ std::vector<std::string> include_files = {};
 std::vector<std::string> source_files = {};
 int include_index = 0;
 int source_index = 0;
+int prompt_indent = 0;
 
 DebugInfo KSDbgInfo;
 

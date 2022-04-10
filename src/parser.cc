@@ -728,6 +728,7 @@ noargs:
 std::unique_ptr<FunctionAST> ParseDefinition() {
 	getNextToken(); // eat fn.
 	auto Proto = ParsePrototype();
+	prompt_indent++;
 	if (!Proto)
 		return nullptr;
 	auto sz = Proto->Args.size();
@@ -745,6 +746,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	auto ProtoRef = Proto.get();
 	FunctionProtos[Proto->getName()] = std::move(Proto);
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetType->type, ProtoRef->RetType->type_attr);
+	prompt_indent = 0;
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
 }
 

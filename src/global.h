@@ -95,6 +95,7 @@ extern llvm::LLVMContext Context;
 #endif
 extern SourceLocation CurLoc;
 extern bool inside_function;
+extern int prompt_indent;
 
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
