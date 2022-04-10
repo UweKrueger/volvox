@@ -17,7 +17,7 @@
 *
 ******************************************************************/
 
-#include "getopt.h"
+#include "../include/getopt.h"
 #include <windows.h>
 
 char* optarg = NULL;
