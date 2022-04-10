@@ -54,6 +54,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 SourceLocation CurLoc;
 SourceLocation LexLoc;
 static int CurChar = ' ';
+static std::string KeepIdentifierStr = "";
 
 int Lexer::advance() {
 	if (LexLoc.Col >= linelen) {
@@ -83,17 +84,17 @@ Token Lexer::purge_line() {
 }
 
 Token Lexer::gettok(eXpect expect) {
-
+	if (KeepIdentifierStr != "") {
+		IdentifierStr = KeepIdentifierStr;
+		KeepIdentifierStr = "";
+		return Token(tok_identifier);
+	}
 	// Skip any whitespace but recorgnize newline if it could be a separator
 	while (expect == eNone ? isspace(CurChar) : isblank(CurChar))
 		CurChar = advance();
 	CurLoc = LexLoc;
 
 	if (isalpha(CurChar) || CurChar == '_') { // identifier: [a-zA-Z_][a-zA-Z0-9_]*
-		if (expect == eBinOp) {
-			IdentifierStr = "";
-			return Token(tok_);
-		}
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
@@ -125,6 +126,11 @@ Token Lexer::gettok(eXpect expect) {
 			return Token(tok_packed);
 		if (IdentifierStr == "nullptr")
 			return Token((void*)0);
+		if (expect == eBinOp) {
+			KeepIdentifierStr = IdentifierStr;
+			IdentifierStr = "";
+			return Token(tok_);
+		}
 		return Token(tok_identifier);
 	}
 	// Binary Operators
