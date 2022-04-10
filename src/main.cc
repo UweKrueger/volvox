@@ -146,19 +146,18 @@ static void HandleDefinition() {
 				FnIR->print(llvm::errs());
 				eprt("\n");
 			}
-			success = true;
+			goto cleanup;
 		} else {
 			eprt("Error compiling function definition\n");
 		}
 	} else {
 		eprt("Error parsing function definition\n");
-		// Skip token for error recovery.
-		purgeLine();
 	}
+	// Skip remaining tokens for error recovery.
+	purgeLine();
+cleanup:
 	locals_table[0].clear();
 	locals_table = {};
-	if (success)
-		dprt("definition successfully handled\n");
 	inside_function = false;
 }
 

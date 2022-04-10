@@ -16,8 +16,7 @@ public:
 		if (!val)
 			eprt("ConstExprAST: no valid value\n");
 		else
-			dprt("ConstExprAST: got value\n");
-		ft->type = val->getType();
+			ft->type = val->getType();
 	}
 	llvm::Value* codegen() { return val; }
 };
@@ -146,7 +145,6 @@ public:
 	FunctionExprAST(SourceLocation Loc, const std::string &Name, PrototypeAST* Proto)
 		: ExprAST(Loc), Name(Name) {
 		ft = new_FullType(Proto->FT, 0);
-		dprt("Created FunctionExpr for %s %s with ID: %u\n", Proto->Name.c_str(), Name.c_str(), ft->type->getTypeID());
 		ft->proto = Proto;
 	}
 	const std::string &getName() const { return Name; }
@@ -212,8 +210,8 @@ public:
 					ft->elem_type = el_type;
 				else
 					ft->elem_type = MakeType(Elements[0]->ft, Elements[0]->is_unknown_type);
-				if (ft->elem_type)
-					eprt("Have Elem type %u %u\n", ft->elem_type->type->getTypeID(), ft->elem_type->type_attr);
+				// if (ft->elem_type)
+				// 	eprt("Have Elem type %u %u\n", ft->elem_type->type->getTypeID(), ft->elem_type->type_attr);
 				ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
 				ft->num_fields = Elements.size();
 				// TODO... nrows = Elements.size();

@@ -159,7 +159,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 		// storage_type = full_var.first->ft.type;
 		storage_type = full_var.first->val->getType();
 	}
-	dprt("Storage type: %u Var: %u\n", storage_type->getTypeID(), V->getType()->getTypeID());
+	// dprt("Storage type: %u Var: %u\n", storage_type->getTypeID(), V->getType()->getTypeID());
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -241,7 +241,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		field_type = LV.first;
 		field_ptr = LV.second;
 		if (field_type->isPointerTy()) {
-			dprt("**## Index: pointer\n");
+			// dprt("**## Index: pointer\n");
 			auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), TheModule->getDataLayout().getTypeAllocSize(elem_type));
 			auto offset = Builder->CreateMul(elem_size, idx);
 			auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(Context)), offset), elem_type->getPointerTo());
@@ -543,12 +543,10 @@ llvm::Value *BinaryExprAST::codegen() {
 			return nullptr;
 		if (conv.compat.RHS)
 			Val = conv.compat.RHS(Val);
-		dprt("RHS: TypeID: %u\n", Val->getType()->getTypeID());
 		// Look up the name.
 		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
 			varname = RegularVar->getName().c_str();
 			FullVar* full_var = RegularVar->full_var.first;
-		// bool is_global = LHSE->full_var.second;
 			if (!full_var)
 				goto not_found;
 		}

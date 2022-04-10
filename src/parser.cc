@@ -102,7 +102,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			getNextToken();
 		switch (CurTok.kind) {
 		case '[': {
-			dprt("parsing indexed type\n");
+			// dprt("parsing indexed type\n");
 			getNextToken();
 			int64_t dim = -1;
 			llvm::ConstantInt* Dim = nullptr;
@@ -139,7 +139,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 				return nullptr;
 			llvm::Type* array_type;
 			if (dim >= 0) {
-				dprt("create array type\n");
+				// dprt("create array type\n");
 				array_type = llvm::ArrayType::get(elem_type->type, dim);
 			} else {
 				llvm::Type* ptr = llvm::PointerType::get(elem_type->type, 0);
@@ -318,7 +318,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, eBinOp);
 		auto Elems = SplitExprList(std::move(Elem));
-		dprt("Array initialized with %d elements\n", Elems.size());
 		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(Elems[0].get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map
 				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
