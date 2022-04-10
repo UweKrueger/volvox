@@ -495,8 +495,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		}
 	} else {
 		eprt("Could not generate assigned expression\n");
-		return nullptr;
 	}
+	return nullptr;
 nonconst:
 	eprt("global variable must be initialized with compile time const\n");
 	return nullptr;
