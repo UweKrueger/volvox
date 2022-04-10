@@ -146,7 +146,7 @@ static void HandleDefinition() {
 	bool success = false;
 	if (auto FnAST = ParseDefinition()) {
 		if (auto *FnIR = FnAST->codegen()) {
-			if (comp_mode != comp_dbg) {
+			if (dump_IR) {
 				eprt("Read function definition:\n");
 				FnIR->print(llvm::errs());
 				eprt("\n");
@@ -169,7 +169,7 @@ cleanup:
 static void HandleExtern() {
 	if (auto ProtoAST = ParseExtern()) {
 		if (auto *FnIR = ProtoAST->codegen()) {
-			if (comp_mode != comp_dbg) {
+			if (dump_IR) {
 				eprt("Read extern: ");
 				FnIR->print(llvm::errs());
 				eprt("\n");

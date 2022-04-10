@@ -395,9 +395,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				Builder->CreateRet(CheckTailCall(Builder->CreateCall(shadow_fn.second->FT, shadow_fn.first, { V, sz_const }, "callshadow")));
 				verifyFunction(*Fshadow);
 				TheFPM->run(*Fshadow);
-				eprt("Read function definition:\n");
-				Fshadow->print(llvm::errs());
-				eprt("\n");
+				if (dump_IR) {
+					eprt("Read function definition:\n");
+					Fshadow->print(llvm::errs());
+					eprt("\n");
+				}
 
 #if LLVM_VERSION_MAJOR >= 12
 				// Create a ResourceTracker to track JIT'd memory allocated to our
@@ -421,7 +423,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 #endif
 				uintptr_t (*PTR)() = (uintptr_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 				auto adrShadow = PTR();
-				eprt("Shadow evaluated to %" PRIx64 "\n", adrShadow);
 #if LLVM_VERSION_MAJOR >= 12
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
@@ -456,9 +457,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				}
 				verifyFunction(*Fsaver);
 				TheFPM->run(*Fsaver);
-				eprt("Read function definition:\n");
-				Fsaver->print(llvm::errs());
-				eprt("\n");
+				if (dump_IR) {
+					eprt("Read function definition:\n");
+					Fsaver->print(llvm::errs());
+					eprt("\n");
+				}
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 				last_shadow_saver = saverProto->Name.c_str();
 				FunctionProtos[saver] = std::move(saverProto);
@@ -476,9 +479,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				}
 				verifyFunction(*Frestorer);
 				TheFPM->run(*Frestorer);
-				eprt("Read function definition:\n");
-				Frestorer->print(llvm::errs());
-				eprt("\n");
+				if (dump_IR) {
+					eprt("Read function definition:\n");
+					Frestorer->print(llvm::errs());
+					eprt("\n");
+				}
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
 				FunctionProtos[restorer] = std::move(restorerProto);
