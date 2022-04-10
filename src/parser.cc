@@ -811,14 +811,21 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			}
 			auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto->second.get());
 			std::vector<std::unique_ptr<ExprAST>> PrintArgs;
-			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("Result: >")))));
+			bool is_string = E->ft->type->isPointerTy();
+			if (is_string)
+				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string(E->ft->type->isPointerTy() ? "\"" : "")))));
+			else
+				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 			PrintArgs.push_back(std::move(std::make_unique<ConstExprAST>(rttype_ptr)));
 			// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 			PrintArgs.push_back(std::move(E));
-			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("<")))));
+			if (is_string)
+				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("\"")))));
+			else
+				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 			auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
 			GlobalExprList.push_back(std::move(print_call));

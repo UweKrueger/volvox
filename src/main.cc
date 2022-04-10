@@ -264,7 +264,8 @@ static void HandleTopLevelExpression() {
 				// arguments, returns a bool) so we can call it as a native function.
 				bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 				bool b = spawn_bool_expr(BOOL);
-				eprt("Evaluated to %s\n", b ? "true" : "false");
+				if (!b)
+					eprt("... aborted\n");
 #if LLVM_VERSION_MAJOR >= 12
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
