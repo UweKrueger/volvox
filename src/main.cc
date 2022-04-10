@@ -286,9 +286,6 @@ static void HandleTopLevelExpression() {
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	while (true) {
-		if (comp_mode == comp_jit && cur_input_fd == 0) {
-			eprt(CurTok.kind == tok_eof ? "\n" : "ready> ");
-		}
 		switch (CurTok.kind) {
 		case tok_eof:
 			return;
@@ -394,6 +391,9 @@ bool jit_repl = false;
 char* output_file = nullptr;
 
 int main(int argc, char* argv[]) {
+	llvm::outs().SetUnbuffered();
+	llvm::errs().SetUnbuffered();
+
 	int opt;
 	while ((opt = getopt(argc, argv, "vdcgji:o:t:")) != -1) {
 		switch (opt) {
@@ -496,7 +496,8 @@ int main(int argc, char* argv[]) {
 		eprt("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
 		exit(1);
 	}
-
+	CurLoc = {builtin_file_name, 1, 0};
+	LexLoc = {builtin_file_name, 1, 0};
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();
 		llvm::InitializeNativeTargetAsmPrinter();

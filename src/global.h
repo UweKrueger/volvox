@@ -79,6 +79,7 @@ enum TokenKind {
 };
 
 struct SourceLocation {
+	const char* File;
 	int Line;
 	int Col;
 };

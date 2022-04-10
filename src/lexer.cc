@@ -21,8 +21,9 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    // This was just the initialization file for builtins
 				    // now switch to real input
 				    cur_input_fd = input_fd;
+				    LexLoc = { input_file_name, 1, 0 };
 				    if (comp_mode == comp_jit && cur_input_fd == 0) {
-					    eprt("ready> ");
+					    llvm::outs() << llvm::format("%03d> ", LexLoc.Line);
 				    }
 				    c = '\r'; // abuse Windows logic to repeat read
 			    } else {
@@ -45,12 +46,15 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
     return offset;
 }
 
-SourceLocation CurLoc = {0, 0};
-SourceLocation LexLoc = {0, 0};
+SourceLocation CurLoc;
+SourceLocation LexLoc;
 static int CurChar = ' ';
 
 int Lexer::advance() {
 	if (LexLoc.Col >= linelen) {
+		if (comp_mode == comp_jit && cur_input_fd == 0) {
+			llvm::outs() << llvm::format("%03d> ", LexLoc.Line);
+		}
 		linelen = fdgetline(&linebuf, &bufsize);
 		if (linelen <= 0) {
 			return EOF;
