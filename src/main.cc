@@ -2,7 +2,12 @@
 #include "global.h"
 #include "AST.h"
 
-CompModes comp_mode = comp_obj;
+CompModes comp_mode = comp_undefined;
+LinkModes link_mode = link_undefined;
+std::vector<std::string> include_files = {};
+std::vector<std::string> source_files = {};
+int include_index = 0;
+int source_index = 0;
 
 DebugInfo KSDbgInfo;
 
@@ -357,22 +362,133 @@ int cur_input_fd;
 #define O_CLOEXEC 0
 #endif
 
+static void usage(const char* prog) {
+	eprt("Usage: %s [-v] [-d] [-c] [-g] [-i file] [-o file] [[-t] file [...]]\n", prog);
+	eprt(" -v ........ verbose output (may be repeated for even more verbosity)\n");
+	eprt(" -d ........ dump generated LLVM IR-code\n");
+	eprt(" -c ........ compile to optimized object file\n");
+	eprt(" -g ........ compile with debug information\n");
+	eprt(" -j ........ start interactive JIT session despite provided file(s)\n");
+	eprt(" -i file ... include \"file\" in advance\n");
+	eprt(" -o file ... output compiled result to \"file\"\n");
+	eprt(" -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n");
+	eprt(" file ...... file(s) to compile (if none interactive session is started\n");
+	exit(1);
+}
+
+static void compile_mode_conflict(const char* prog) {
+	eprt("The flags '-c' or '-g' cannot be given for a JIT session (flag '-j')!\n");
+	usage(prog);
+}
+
+static void debug_mode_conflict(const char* prog) {
+	eprt("The flags '-d' cannot be given for debug output (flag '-g')!\n");
+	usage(prog);
+}
+
+int verbosity = 0;
+bool dump_IR = false;
+bool do_test = false;
+bool jit_repl = false;
+char* output_file = nullptr;
+
 int main(int argc, char* argv[]) {
-	if (argc == 1) {
-		comp_mode = comp_jit;
-	} else {
-		if ((argc == 3) && std::string(argv[1]) == "-g") {
+	int opt;
+	while ((opt = getopt(argc, argv, "vdcgji:o:t:")) != -1) {
+		switch (opt) {
+		case 'v':
+			verbosity++;;
+			break;
+		case 'd':
+			if (comp_mode == comp_dbg)
+				debug_mode_conflict(argv[0]);
+			dump_IR = true;
+			break;
+		case 'c':
+			if (comp_mode == comp_jit)
+				compile_mode_conflict(argv[0]);
+			link_mode = dont_link;
+			if (!comp_mode)
+				comp_mode = comp_obj;
+			break;
+		case 'g':
+			if (dump_IR)
+				debug_mode_conflict(argv[0]);
+			if (comp_mode == comp_jit)
+				compile_mode_conflict(argv[0]);
 			comp_mode = comp_dbg;
-			input_file_name = argv[2];
-		} else {
-			input_file_name = argv[1];
+			break;
+		case 'j':
+			if (comp_mode && comp_mode != comp_jit)
+				compile_mode_conflict(argv[0]);
+			comp_mode = comp_jit;
+			break;
+		case 'i':
+			include_files.push_back(optarg);
+		case 'o':
+			if (output_file) {
+				eprt("at most one output filename may be specified\n");
+				usage(argv[0]);
+			}
+			output_file = optarg;
+			break;
+		case 't':
+			do_test = true;
+			source_files.push_back(optarg);
+			break;
+		default:
+			eprt("unknown option '-%c'\n", opt);
+			usage(argv[0]);
 		}
+	}
+	for (;optind < argc; optind++)
+		source_files.push_back(argv[optind]);
+	if (!comp_mode) {
+		if (source_files.size())
+			comp_mode = comp_obj;
+		else
+			comp_mode = comp_jit;
+	}
+	if (!link_mode) {
+		if (comp_mode == comp_jit)
+			link_mode = dont_link;
+		else
+			link_mode = do_link;
+	}
+	if (output_file) {
+		if (comp_mode == comp_jit) {
+			eprt("output file ('-o ...') not supported for JIT compilation\n");
+			usage(argv[0]);
+		}
+	} else {
+		if (comp_mode != comp_jit) {
+			if (source_files.size() != 1) {
+				eprt("output file name (-o ...) required if %s input file provided\n",
+				     source_files.size() ? "more than one" : "no");
+				usage(argv[0]);
+			}
+			int len = strlen(input_file_name);
+			output_file = (char*)malloc(len + 3);
+			strcpy(output_file, input_file_name);
+			if(output_file[len-3]=='.' && output_file[len-2]=='v' && output_file[len-1]=='x') {
+				output_file[len-2] = 'o';
+				output_file[len-1] = '\0';
+			} else {
+				output_file[len] = '.';
+				output_file[len+1] = 'o';
+				output_file[len+2] = '\0';
+			}
+		}
+	}
+	if (source_index < source_files.size()) {
+		input_file_name = source_files[source_index++].c_str();
 		input_fd = open(input_file_name, O_CLOEXEC);
 		if (input_fd < 0) {
 			eprt("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
 			exit(1);
 		}
 	}
+
 	// always read builtin definitions first
 	cur_input_fd = open(builtin_file_name, O_CLOEXEC);
 	if (cur_input_fd < 0) {
@@ -380,17 +496,6 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 
-	int len = strlen(input_file_name);
-	auto output_file = (char*)malloc(len + 3);
-	strcpy(output_file, input_file_name);
-	if(output_file[len-3]=='.' && output_file[len-2]=='v' && output_file[len-1]=='x') {
-		output_file[len-2] = 'o';
-		output_file[len-1] = '\0';
-	} else {
-		output_file[len] = '.';
-		output_file[len+1] = 'o';
-		output_file[len+2] = '\0';
-	}
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();
 		llvm::InitializeNativeTargetAsmPrinter();

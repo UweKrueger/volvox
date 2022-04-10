@@ -422,12 +422,20 @@ struct DebugInfo {
 extern DebugInfo KSDbgInfo;
 
 enum CompModes {
+	comp_undefined = 0,
 	comp_jit,
 	comp_obj,
-	comp_dbg
+	comp_dbg,
+};
+
+enum LinkModes {
+	link_undefined = 0,
+	do_link,
+	dont_link,
 };
 
 extern CompModes comp_mode;
+extern LinkModes link_mode;
 extern SourceLocation LexLoc;
 extern std::string IdentifierStr; // Filled in if tok_identifier
 extern std::unique_ptr<llvm::Module> TheModule;
