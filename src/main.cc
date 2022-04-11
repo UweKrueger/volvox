@@ -392,6 +392,7 @@ bool jit_repl = false;
 char* output_file = nullptr;
 
 int main(int argc, char* argv[]) {
+	setlocale(LC_CTYPE, "");
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
 

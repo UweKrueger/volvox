@@ -21,8 +21,12 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 		    if (use_readline) {
 			    free(*lineptr);
 			    *lineptr = readline(prompt);
-			    if (!*lineptr)
+			    if (!*lineptr) {
+#if !defined (_MSC_VER)
+				    outs() << "\n";
+#endif
 				    return -1;
+			    }
 			    *n = strlen(*lineptr);
 			    if (*n)
 				    add_history(*lineptr);
