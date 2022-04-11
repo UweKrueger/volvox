@@ -4,7 +4,7 @@ OPT := -O0 -ggdb
 
 SHELL := bash
 RM = rm -f
-LINKEXTRAFLAGS := -lpthread -rdynamic
+LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
 TARGETDIR := ../
 ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
     SUFFIX :=

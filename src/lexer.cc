@@ -1,9 +1,13 @@
+#include <editline/readline.h>
 #include "../include/volvox.hh"
 #include "global.h"
 
 //===----------------------------------------------------------------------===//
 // Lexer
 //===----------------------------------------------------------------------===//
+
+static char prompt[1024];
+bool use_readline = false;
 
 static ssize_t fdgetline(char **lineptr, size_t *n) {
     if (!(*lineptr)) {
@@ -14,18 +18,31 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
     for (;;) {
 	    int c;
 	    do {
+		    if (use_readline) {
+			    free(*lineptr);
+			    *lineptr = readline(prompt);
+			    if (!*lineptr)
+				    return -1;
+			    *n = strlen(*lineptr);
+			    if (*n)
+				    add_history(*lineptr);
+			    return *n;
+		    }
 		    c = 0;
-		    int n = read(cur_input_fd, &c, 1);
-		    if (n != 1) {
+		    int m = read(cur_input_fd, &c, 1);
+		    if (m != 1) {
 			    if (cur_input_fd != input_fd) {
 				    // This was just the initialization file for builtins
 				    // now switch to real input
 				    cur_input_fd = input_fd;
 				    LexLoc = { input_file_name, 0, 0 };
 				    if (comp_mode == comp_jit && cur_input_fd == 0) {
-					    outs() << llvm::format("%03d> ", LexLoc.Line + 1);
-					    for (int i=0; i<prompt_indent; i++)
-						    outs() << "    ";
+					    sprintf(prompt, "%03d> ", LexLoc.Line + 1);
+					    for (int i=0; i<prompt_indent && i<200; i++)
+						    strcat(prompt, "    ");
+					    use_readline = true;
+					    rl_initialize();
+					    *n = 0;
 				    }
 				    c = '\r'; // abuse Windows logic to repeat read
 			    } else {
@@ -57,11 +74,11 @@ static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
 int Lexer::advance() {
-	if (LexLoc.Col >= linelen) {
-		if (comp_mode == comp_jit && cur_input_fd == 0) {
-			outs() << llvm::format("%03d> ", LexLoc.Line + 1);
-			for (int i=0; i<prompt_indent; i++)
-				outs() << "    ";
+	if (LexLoc.Col > linelen || !use_readline && LexLoc.Col >= linelen) {
+		if (use_readline) {
+			sprintf(prompt, "%03d> ", LexLoc.Line + 1);
+			for (int i=0; i<prompt_indent && i<200; i++)
+				strcat(prompt, "    ");
 		}
 		linelen = fdgetline(&linebuf, &bufsize);
 		if (linelen <= 0) {
@@ -70,7 +87,10 @@ int Lexer::advance() {
 		LexLoc.Line++;
 		LexLoc.Col = 0;
 	}
-	return linebuf[LexLoc.Col++];
+	int c = linebuf[LexLoc.Col++];
+	if (!c && use_readline)
+		c = '\n';
+	return c;
 }
 
 std::string IdentifierStr; // Filled in if tok_identifier
