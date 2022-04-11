@@ -1,6 +1,6 @@
-#include <editline/readline.h>
 #include "../include/volvox.hh"
 #include "global.h"
+#include <editline/readline.h>
 
 //===----------------------------------------------------------------------===//
 // Lexer
@@ -41,7 +41,9 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 					    for (int i=0; i<prompt_indent && i<200; i++)
 						    strcat(prompt, "    ");
 					    use_readline = true;
+#if !defined (_MSC_VER)
 					    rl_initialize();
+#endif
 					    *n = 0;
 				    }
 				    c = '\r'; // abuse Windows logic to repeat read
