@@ -497,8 +497,7 @@ int main(int argc, char* argv[]) {
 		eprt("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
 		exit(1);
 	}
-	CurLoc = {builtin_file_name, 1, 0};
-	LexLoc = {builtin_file_name, 1, 0};
+	CurLoc = LexLoc = { builtin_file_name, 0, 0 };
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();
 		llvm::InitializeNativeTargetAsmPrinter();

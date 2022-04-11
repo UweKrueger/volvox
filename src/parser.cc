@@ -759,6 +759,14 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);
 				if (!strcmp(B->Op, ":="))
 					return HandleGlobalVariable(B);
+				if (!strcmp(B->Op, "="))
+					if (auto leftVar = dynamic_cast<VariableExprAST*>(B->LHS.get()))
+						if (!leftVar->full_var.first) {
+							llvm::errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
+							return nullptr;
+						}
+				llvm::errs() << "cannot evalute expression\n";
+				return nullptr;
 			} else {
 				eprt("Could not deduce type of expression\n");
 				if (E->ft)
