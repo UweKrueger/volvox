@@ -151,6 +151,10 @@ struct SourceLocation {
 	int Col;
 };
 
+inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
+	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;
+}
+
 // Types
 
 extern const char* input_file_name;
@@ -174,33 +178,10 @@ extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 
-extern std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap);
-extern std::unique_ptr<ExprAST> LogError(const char *Str, ...);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 extern bool spawn_bool_expr(bool (*expr)());
-
-static inline void dprt(const char* fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-	vprintf(fmt, args);
-	va_end(args);
-	fflush(stdout);
-}
-
-static inline void eprt(const char* fmt, ...) {
-	va_list args;
-	va_start(args, fmt);
-	vfprintf(stderr, fmt, args);
-	va_end(args);
-	fflush(stderr);
-}
-
-static inline void veprt(const char* fmt, va_list args) {
-	vfprintf(stderr, fmt, args);
-	fflush(stderr);
-}
 
 // classification for next token
 // in general how newline is translated
@@ -294,8 +275,10 @@ public:
 	TypeTable() : name_table(map_string_new_map()) {}
 	unsigned add(const char* name, volvox::FullType* ft) {
 		bool is_int = ft->type->isIntegerTy();
-		if ((ft->type_attr & A_signed) && !is_int)
-			LogError("non-int type %s cannot be signed", name);
+		if ((ft->type_attr & A_signed) && !is_int) {
+			errs() << "non-int type '" << name << "' aka " << *ft->type << " cannot be signed\n";
+			return 0;
+		}
 		MapValue val = {
 			.src_ptr = ft
 		};
@@ -319,7 +302,7 @@ public:
 				typeptr_table[ft->type] = { name, ft->ditype };
 			return key;
 		} else {
-			eprt("Cannot add new type `%s` - name already exists\n", name);
+			errs() << "Cannot add new type '" << name << "' - name already exists\n";
 			return 0;
 		}
 	}
@@ -591,7 +574,7 @@ public:
 			case llvm::Type::DoubleTyID:
 				return std::to_string(Val.Float);
 			default:
-				eprt("internal compiler error: cannot print numeric literal of type %d\n", int_type.ID);
+				errs() << "internal compiler error: cannot print numeric literal of TypeID " << int_type.ID << "\n";
 				return "";
 			}
 		case tok_str_lit:

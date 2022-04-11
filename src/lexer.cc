@@ -298,7 +298,7 @@ Token Lexer::gettok(eXpect expect) {
 			IdentifierStr = CurChar;
 			return ';';
 		default:
-			dprt("Internal lexer error\n");
+			errs() << "Internal lexer error\n";
 		}
 	case '"': {
 		std::string StrLit = "";
@@ -312,7 +312,7 @@ Token Lexer::gettok(eXpect expect) {
 				CurChar = advance();
 				return Token(StrLit);
 			case EOF:
-				eprt("unexpected EOF in string literal\n");
+				errs() << "unexpected EOF in string literal\n";
 				return EOF;
 			default:
 			add_letter:

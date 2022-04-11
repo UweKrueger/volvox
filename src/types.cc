@@ -11,28 +11,26 @@ unsigned anon_struct_nr = 0;
 volvox::FTListElem* anon_types = nullptr;
 volvox::FTListElem** anon_types_end = &anon_types;
 
-std::nullptr_t Error(SourceLocation Loc, const char *Str, ...) {
-	eprt("%s:%d:%d: ", input_file_name, Loc.Line, Loc.Col);
-	va_list ap;
-	va_start(ap, Str);
-	veprt(Str, ap);
-	va_end(ap);
-	eprt("\n");
-	return nullptr;
-}
-
 std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               unsigned expr_attr, unsigned desired_attr, const char* reason) {
-	return Error(Loc, "cannot automatically convert %s / %s - %s",
-	             type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))),
-	             type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))), reason);
+	errs() << Loc << ": cannot automatically convert "
+	       << type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
+	       << type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed)));
+	if (reason)
+		errs() << reason;
+	errs() << "\n";
+	return nullptr;
 }
 
 static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                                   unsigned expr_attr, unsigned desired_attr, const char* reason) {
-	return Error(Loc, "Cannot convert %s to %s (%s)",
-	             type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))),
-	             type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))), reason);
+	errs() << Loc << ": cannot convert "
+	       << type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
+	       << type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed)));
+	if (reason)
+		errs() << reason;
+	errs() << "\n";
+	return nullptr;
 }
 
 static llvm::Value* NoConversion(llvm::Value* v) { return v; }
@@ -308,8 +306,10 @@ std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeTyp
 volvox::FullType* MakeType(volvox::FullType* base, bool is_unknown_type) {
 	if (is_unknown_type && base->type->isIntegerTy()) {
 		volvox::FullType* new_type = type_table.get_full("i32");
-		if (!new_type)
-			eprt("Could not find i32 type!\n");
+		if (!new_type) {
+			errs() <<"Fatal: Could not find i32 type!\n";
+			return nullptr;
+		}
 		return new_type;
 	} else {
 		return base;

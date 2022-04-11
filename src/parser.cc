@@ -33,36 +33,12 @@ static inline int NextTokPrecedence() {
 	return prec;
 }
 
-/// LogError* - These are little helper functions for error handling.
-std::unique_ptr<ExprAST> LogErrorGen(const char *Str, va_list ap) {
-	eprt("Error: ");
-	veprt(Str, ap);
-	eprt("\n");
-	return nullptr;
-}
-
-std::unique_ptr<ExprAST> LogError(const char *Str, ...) {
-	va_list ap;
-	va_start(ap, Str);
-	LogErrorGen(Str, ap);
-	va_end(ap);
-	return nullptr;
-}
-
-static std::unique_ptr<PrototypeAST> LogErrorP(const char *Str, ...) {
-	va_list ap;
-	va_start(ap, Str);
-	LogErrorGen(Str, ap);
-	va_end(ap);
-	return nullptr;
-}
-
 static bool Expect(int tok, eXpect expect = eNone) {
 	bool res = CurTok.kind == tok;
 	if (res) {
 		getNextToken(expect);
 	} else {
-		LogErrorP("unexpected `%s` - expected `%s`", CurTok.str().c_str(), Token::tokName(tok).c_str());
+		errs() << "unexpected '" << CurTok.str() << "' - expected '" << Token::tokName(tok) << "'\n";
 	}
 	return res;
 }
@@ -102,7 +78,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			getNextToken();
 		switch (CurTok.kind) {
 		case '[': {
-			// dprt("parsing indexed type\n");
+			dbgs() << "parsing indexed type\n";
 			getNextToken();
 			int64_t dim = -1;
 			llvm::ConstantInt* Dim = nullptr;
@@ -112,25 +88,25 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 				if (auto e = ParseExpression(llvm::Type::getInt64Ty(Context), A_signed)) {
 					auto Vdim = e->codegen();
 					if (!Vdim) {
-						eprt("cannot generate code for index\n");
+						errs() << "cannot generate code for index\n";
 						return nullptr;
 					}
 					if (Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
 						dim = Dim->getSExtValue();
 					} else {
-						LogErrorP("dimension must be constant int");
+						errs() << "dimension must be constant int\n";
 						return nullptr;
 					}
 				} else {
-					LogErrorP("cannot parse dimension expression");
+					errs() << "cannot parse dimension expression\n";
 					return nullptr;
 				}
 				if (!Expect(']')) {
-					eprt("'[' expected\n");
+					errs() << "'[' expected\n";
 					return nullptr;
 				}
 				if (dim < 0) {
-					LogErrorP("dimension must be a positive int (not %lld)", dim);
+					errs() << "dimension must be a positive int (not " << dim << "\n";
 					return nullptr;
 				}
 			} 
@@ -139,14 +115,11 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 				return nullptr;
 			llvm::Type* array_type;
 			if (dim >= 0) {
-				// dprt("create array type\n");
 				array_type = llvm::ArrayType::get(elem_type->type, dim);
 			} else {
 				llvm::Type* ptr = llvm::PointerType::get(elem_type->type, 0);
 				array_type = llvm::StructType::get(ptr, llvm_int_type);
 			}
-			//auto array_elem_type = new volvox::FullType
-			//memcpy(array_elem_type, &elem_type, sizeof(volvox::FullType));
 			return new_FullType(array_type, 0, nullptr, dim, elem_type);
 		}
 			break;
@@ -158,14 +131,14 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			std::vector<llvm::Type*> LLVMFieldTypes;
 			for (;;) {
 				if (CurTok.kind != tok_identifier) {
-					LogErrorP("Unexpected `%s` in struct declaration - field name expected\n", CurTok.str().c_str());
+					errs () << "Unexpected '" << CurTok.str() << "' in struct declaration - field name expected\n";
 					return nullptr;
 				}
 				FieldNames.push_back(IdentifierStr);
 				getNextToken(eComma);
 				auto type = ParseType(true);
 				if (!type) {
-					LogErrorP("Unexpected `%s` in struct declaration - type name expected\n", CurTok.str().c_str());
+					errs() << "Unexpected '" << CurTok.str() << "' in struct declaration - type name expected\n";
 					return nullptr;
 				}
 				FieldTypes.push_back(type);
@@ -181,7 +154,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			for (int i=0; i<FieldNames.size(); i++) {
 				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = FieldTypes[i] }, 0, false);
 				if (!new_node) {
-					LogErrorP("Duplicat field name `%s` in struct declaration\n", FieldNames[i].c_str());
+					errs() << "Duplicate field name '" << FieldNames[i] << "' in struct declaration\n";
 					return nullptr;
 				}
 			}
@@ -198,14 +171,14 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 				break;
 			// else fallthough to error
 		default:
-			LogErrorP("Unexpected `%s` - type name expected", CurTok.str().c_str());
+			errs() << "Unexpected '" << CurTok.str() << "' - type name expected\n";
 			return nullptr;
 		}
 		getNextToken(eBinOp);
 	}
 	auto type = type_table.get_full(IdentifierStr.c_str());
 	if (!type) {
-		LogErrorP("Unknown type `%s`", IdentifierStr.c_str());
+		errs() << "Unknown type '" << IdentifierStr << "'\n";
 		return nullptr;
 	}
 	//if (type.type_attr)
@@ -241,9 +214,7 @@ static std::unique_ptr<ExprAST> ParseParenExpr(llvm::Type* desired_type = nullpt
 	if (!V)
 		return nullptr;
 
-	if (CurTok.kind != ')')
-		return LogError("expected ')'");
-	getNextToken(eBinOp); // eat ).
+	Eat(')', eBinOp);
 	return V;
 }
 
@@ -306,7 +277,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 		closing = (TokenKind)']';
 		break;
 	default:
-		return LogError("AggregateExpr: unexpected \"%s%\" (expected '{' or '[')", CurTok.str().c_str());
+		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected '{' or '[')\n";
+		return nullptr;
 	}
 	SourceLocation loc = CurLoc;
 	getNextToken(); // eat '{'/'['
@@ -330,13 +302,15 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 				} else if (auto key = dynamic_cast<LiteralExprAST*>(bin_expr->LHS.get())) {
 					kind = is_dynamic ? Map : FixedArray;
 				} else {
-					return LogError("AggregateExpr: illegal expression before ':'");
+					errs() << "AggregateExpr: illegal expression before ':'\n";
+					return nullptr;
 				}
 			}
 		}
 		return std::make_unique<AggregateExprAST>(loc, /* kind */ FixedArray, std::move(Elems));
 	} else {
-		return LogError("AggregateExpr: unexpected \"%s%\" (expected expression)", CurTok.str().c_str());
+		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
+		return nullptr;
 	}
 }
 
@@ -354,8 +328,10 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	if (!Cond)
 		return nullptr;
 
-	if (CurTok.kind != tok_then)
-		return LogError("expected then");
+	if (CurTok.kind != tok_then) {
+		errs() << "expected then\n";
+		return nullptr;
+	}
 	getNextToken(); // eat the then
 
 	auto Then = ParseExprList(desired_type, desired_attr);
@@ -368,8 +344,10 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	}
 	if (Then.second != tok_else)
 		getNextToken();
-	if (CurTok.kind != tok_else)
-	 	return LogError("expected else");
+	if (CurTok.kind != tok_else) {
+		errs() << "expected else\n";
+		return nullptr;
+	}
 	getNextToken();
 
 	auto Else = ParseExprList(desired_type, desired_attr);
@@ -383,21 +361,27 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 static std::unique_ptr<ExprAST> ParseForExpr() {
 	getNextToken(); // eat the for.
 
-	if (CurTok.kind != tok_identifier)
-		return LogError("expected identifier after for");
+	if (CurTok.kind != tok_identifier) {
+		errs() << "expected identifier after for\n";
+		return nullptr;
+	}
 
 	std::string IdName = IdentifierStr;
 	getNextToken(eBinOp); // eat identifier.
 
-	if (CurTok.kind != tok_assign)
-		return LogError("expected '=' after for");
+	if (CurTok.kind != tok_assign) {
+		errs() << "expected '=' after for\n";
+		return nullptr;
+	}
 	getNextToken(); // eat '='.
 
 	auto Start = ParseExpression();
 	if (!Start)
 		return nullptr;
-	if (CurTok.kind != ',')
-		return LogError("expected ',' after for start value");
+	if (CurTok.kind != ',') {
+		errs() << "expected ',' after for start value\n";
+		return nullptr;
+	}
 	getNextToken();
 
 	auto End = ParseExpression();
@@ -413,8 +397,10 @@ static std::unique_ptr<ExprAST> ParseForExpr() {
 			return nullptr;
 	}
 
-	if (CurTok.kind != tok_in)
-		return LogError("expected 'in' after for");
+	if (CurTok.kind != tok_in) {
+		errs() << "expected 'in' after for\n";
+		return nullptr;
+	}
 	getNextToken(); // eat 'in'.
 
 	auto Body = ParseExpression();
@@ -436,7 +422,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
                                              unsigned desired_attrib = 0u) {
 	switch (CurTok.kind) {
 	case tok_eof:
-		eprt("EOF when expecting an expression\n");
+		errs() << "EOF when expecting an expression\n";
 		exit(1);
 	case tok_identifier:
 		return ParseIdentifierExpr();
@@ -458,9 +444,9 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
 	case tok_for:
 		return ParseForExpr();
 	default:
-		auto err = LogError("unknown token %d '%s' when expecting an expression", CurTok.kind, CurTok.str().c_str());
+		errs() << "unknown token '" << CurTok.kind << "' '" << CurTok.str() << "' when expecting an expression\n";;
 		purgeLine();
-		return err;
+		return nullptr;
 	}
 }
 
@@ -529,17 +515,18 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 				fv.ft.type_attr = is_signed ? 1U : 0U;
 
 				if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
-					eprt("variable %s already exists in current scope\n", VarL->Name.c_str());
+					errs() << "variable " << VarL->Name << " already exists in current scope\n";
 					return nullptr;
 				}
 			} else {
-				eprt("left operand of \":=\" must be a variable\n");
+				errs() << "left operand of \":=\" must be a variable\n";
 				return nullptr;
 			}
 		} else if (LHS_type && LHS_type->isFunctionTy() && (BinOp[0] == '(' || BinOp[0] == '\0')) {
 			auto Args = SplitExprList(std::move(RHS));
 			LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
-			// dprt("create call expr %u\n", dynamic_cast<CallExprAST*>(LHS.get())->Callee->ft->type->getTypeID());
+			if (verbosity >= 4)
+				dbgs() << "create call expr " << *dynamic_cast<CallExprAST*>(LHS.get())->Callee->ft->type << "\n";
 			continue;
 		} else if (LHS_type && LHS_type->isAggregateType() && BinOp[0] == '[') {
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
@@ -624,13 +611,15 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		unsigned attribs = 0;
 		getNextToken();
 		if (CurTok.kind != tok_identifier) {
-			return LogErrorP("Unexpected `%s` in method prototype - receiver name expected", CurTok.str().c_str());
+			errs() << "Unexpected '" << CurTok.str() << "' in method prototype - receiver name expected\n";
+			return nullptr;
 		}
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		auto type = ParseType(true);
 		if (!type->type) {
-			return LogErrorP("Unexpected `%s` in method prototype - type name expected", CurTok.str().c_str());
+			errs() << "Unexpected '" << CurTok.str() << "' in method prototype - type name expected\n";
+			return nullptr;
 		}
 		ArgTypes.push_back(type);
 		LLVMArgTypes.push_back(type->type);
@@ -648,8 +637,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		break;
 	case tok_unary:
 		getNextToken();
-		if (!isascii(CurTok.kind))
-			return LogErrorP("Expected unary operator");
+		if (!isascii(CurTok.kind)) {
+			errs() << "Expected unary operator\n";
+			return nullptr;
+		}
 		FnName = "unary";
 		FnName += (char)CurTok.kind;
 		Kind = 1;
@@ -657,8 +648,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		break;
 	case tok_colon: // ... not really
 		getNextToken();
-		if (!isascii(CurTok.kind))
-			return LogErrorP("Expected binary operator");
+		if (!isascii(CurTok.kind)) {
+			errs() << "Expected binary operator\n";
+			return nullptr;
+		}
 		FnName = "binary";
 		FnName += (char)CurTok.kind;
 		Kind = 2;
@@ -666,14 +659,17 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 
 		// Read the precedence if present.
 		if (CurTok.kind == tok_number) {
-			if (CurTok.Val.Int < 1 || CurTok.Val.Int > 100)
-				return LogErrorP("Invalid precedence: must be 1..100");
+			if (CurTok.Val.Int < 1 || CurTok.Val.Int > 100) {
+				errs() << "Invalid precedence: must be 1..100\n";
+				return nullptr;
+			}
 			BinaryPrecedence = (unsigned)CurTok.Val.Int;
 			getNextToken();
 		}
 		break;
 	default:
-		return LogErrorP("Expected function name in prototype");
+		errs() << "Expected function name in prototype\n";
+		return nullptr;
 	}
 	if (!Expect('(')) return nullptr;
 	if (CurTok.kind == ')')
@@ -683,18 +679,22 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			if (CurTok.kind == tok_ellipsis) {
 				isVarArgs = true;
 				getNextToken();
-				if (CurTok.kind != ')')
-					return LogErrorP("Unexpected `%s` after `...` - `)` expected\n", CurTok.str().c_str());
+				if (CurTok.kind != ')') {
+					errs() << "Unexpected '" << CurTok.str() << "' after '...' - ')' expected\n";
+					return nullptr;
+				}
 				else
 					break;
 			}
-			return LogErrorP("Unexpected `%s` in function arg list - arg name expected\n", CurTok.str().c_str());
+			errs() << "Unexpected '" << CurTok.str() << "' in function arg list - arg name expected\n";
+			return nullptr;
 		}	
 		ArgNames.push_back(IdentifierStr);
 		getNextToken();
 		auto type = ParseType(true);
 		if (!type) {
-			return LogErrorP("Unexpected `%s` in function arg list - type name expected\n", CurTok.str().c_str());
+			errs() << "Unexpected '" << CurTok.str() << "' in function arg list - type name expected\n";
+			return nullptr;
 		}
 		ArgTypes.push_back(type);
 		LLVMArgTypes.push_back(type->type);
@@ -709,17 +709,22 @@ noargs:
 	volvox::FullType* RetType = nullptr;
 	while (CurTok.kind != ';') {
 		auto type = ParseType(true);
-		if (!type)
-			return LogErrorP("error parsing return type of function prototype");
-		else if (RetType)
-			return LogErrorP("functions returning multiple objecs is not implemented, yet");
+		if (!type) {
+			errs() << "error parsing return type of function prototype\n";
+			return nullptr;
+		} else if (RetType) {
+			errs() << "functions returning multiple objecs is not implemented, yet\n";
+			return nullptr;
+		}
 		RetType = type;
 		getNextToken(eColon);
 	}
 	// getNextToken();
 	// Verify right number of names for operator.
-	if (Kind && ArgNames.size() != Kind)
-		return LogErrorP("Invalid number of operands for operator");
+	if (Kind && ArgNames.size() != Kind) {
+		errs() << "Invalid number of operands for operator\n";
+		return nullptr;
+	}
 
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetType, ArgTypes, LLVMArgTypes, isVarArgs);
 }
@@ -739,7 +744,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 		};
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);
 		if (!is_new) {
-			LogError("duplicat function arg \"%s\"\n", Proto->Args[i].c_str());
+			errs() << "duplicat function arg '" << Proto->Args[i] << "'\n";
 			return nullptr;
 		}
 	}
@@ -768,7 +773,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				errs() << "cannot evalute expression\n";
 				return nullptr;
 			} else {
-				eprt("Could not deduce type of expression\n");
+				errs() << "Could not deduce type of expression\n";
 				if (E->ft)
 					E->ft->dump();
 				return nullptr;
@@ -793,7 +798,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		if (last_shadow_restorer) {
 			auto restorer_proto = FunctionProtos.find(last_shadow_restorer);
 			if (restorer_proto == FunctionProtos.end()) {
-				eprt("could not find restorer `%s`\n", last_shadow_restorer);
+				errs() << "could not find restorer '" << last_shadow_restorer << "'\n";
 			} else {
 				auto restorer = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_restorer, restorer_proto->second.get());
 				auto restorer_call = std::make_unique<CallExprAST>(FnLoc, std::move(restorer), std::move(std::vector<std::unique_ptr<ExprAST>>()));
@@ -816,7 +821,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
 			auto println_proto = FunctionProtos.find(mangled_println);
 			if (println_proto == FunctionProtos.end()) {
-				eprt("Fatal error: could not find `println` function\n");
+				errs() << "Fatal error: could not find 'println' function\n";
 				return nullptr;
 			}
 			auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto->second.get());
@@ -843,7 +848,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		if (last_shadow_saver) {
 			auto saver_proto = FunctionProtos.find(last_shadow_saver);
 			if (saver_proto == FunctionProtos.end()) {
-				eprt("could not find saver `%s`\n", last_shadow_saver);
+				errs() << "could not find saver '" << last_shadow_saver << "\n";
 			} else {
 				auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, saver_proto->second.get());
 				auto saver_call = std::make_unique<CallExprAST>(FnLoc, std::move(saver), std::move(std::vector<std::unique_ptr<ExprAST>>()));

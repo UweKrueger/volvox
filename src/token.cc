@@ -58,7 +58,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	if (errno != 0) {
 		Val.Int = errno;
 		*s_ptr = endptr;
-		LogError("cannot parse numeric token: %s", strerror(Val.Int));
+		errs() << llvm::format("cannot parse numeric token: %s", strerror(Val.Int));
 		return;
 	}
 	// try to parse same number as float
@@ -107,20 +107,20 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 				gen_type = { .ID = llvm::Type::DoubleTyID };
 				break;
 			default:
-				LogError("unsupported bit size %lu for float literal", bits);
+				errs() << "unsupported bit size " << bits << " for float literal\n";
 			}
 			break;
 		case 'i':
 		case 'u':
 			if (bits != 8 && bits != 16 && bits != 32 && bits != 64)
-				LogError("unsupported bit size %lu for integer literal", bits);
+				errs() << "unsupported bit size " << bits << " for integer literal\n";
 			int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = (unsigned)bits, .is_signed = (t == 'i') };
 			break;
 		}
 	}
 	if (gen_type.ID == llvm::Type::IntegerTyID && int_type.is_signed && !sign && Val.Int < 0)
 		// TODO: further checks for bit sizes
-		LogError("%u exceeds maximum maximum possible signed value");
+		errs() << Val.Uint << " exceeds maximum maximum possible signed value\n";
 }
 				
 Token::Token(const std::string& str) : kind(tok_str_lit) {

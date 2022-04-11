@@ -148,16 +148,16 @@ static void HandleDefinition() {
 	if (auto FnAST = ParseDefinition()) {
 		if (auto *FnIR = FnAST->codegen()) {
 			if (dump_IR) {
-				eprt("Read function definition:\n");
+				errs() << "Read function definition:\n";
 				FnIR->print(errs());
-				eprt("\n");
+				errs() << "\n";
 			}
 			goto cleanup;
 		} else {
-			eprt("Error compiling function definition\n");
+			errs() << "Error compiling function definition\n";
 		}
 	} else {
-		eprt("Error parsing function definition\n");
+		errs() << "Error parsing function definition\n";
 	}
 	// Skip remaining tokens for error recovery.
 	purgeLine();
@@ -171,13 +171,13 @@ static void HandleExtern() {
 	if (auto ProtoAST = ParseExtern()) {
 		if (auto *FnIR = ProtoAST->codegen()) {
 			if (dump_IR) {
-				eprt("Read extern: ");
+				errs() << "Read extern: ";
 				FnIR->print(errs());
-				eprt("\n");
+				errs() << "\n";
 			}
 			FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
 		} else {
-			eprt("Error reading extern");
+			errs() << "Error reading extern\n";
 		}
 	} else {
 		// Skip token for error recovery.
@@ -188,7 +188,7 @@ static void HandleExtern() {
 static void HandleTypeDef() {
 	getNextToken(); // eat type
 	if (CurTok.kind != tok_identifier) {
-		eprt("unexpected `%` in type declaration - type name expected\n", CurTok.str().c_str());
+		errs() << "unexpected '" << CurTok.str() << "' in type declaration - type name expected\n";
 		purgeLine();
 		return;
 	}
@@ -235,7 +235,7 @@ static void HandleTopLevelExpression() {
 		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();
 			if (!anon_expr->getReturnType()->isIntegerTy() || !anon_expr->getReturnType()->getIntegerBitWidth() == 1) {
-				eprt("internal error: anonymous function does not return `bool`\n");
+				errs() << "internal error: anonymous function does not return `bool`\n";
 				return;
 			}
 			if (comp_mode == comp_jit) {
@@ -266,7 +266,7 @@ static void HandleTopLevelExpression() {
 				bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
 				bool b = spawn_bool_expr(BOOL);
 				if (!b)
-					eprt("... aborted\n");
+					errs() << "... aborted\n";
 #if LLVM_VERSION_MAJOR >= 12
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
@@ -276,7 +276,7 @@ static void HandleTopLevelExpression() {
 #endif
 			}
 		} else {
-			eprt("Error generating code for top level expr\n");
+			errs() << "Error generating code for top level expr\n";
 		}
 	} else {
 		// Skip rest for error recovery.
@@ -327,7 +327,7 @@ extern "C" DLLEXPORT double putchard(double X) {
 
 /// printd - printf that takes a double prints it as "%f\n", returning 0.
 extern "C" DLLEXPORT double printd(double X) {
-	eprt("%f\n", X);
+	errs() << X << "\n";
 	return 0;
 }
 
@@ -362,26 +362,26 @@ int cur_input_fd;
 #endif
 
 static void usage(const char* prog) {
-	eprt("Usage: %s [-v] [-d] [-c] [-g] [-i file] [-o file] [[-t] file [...]]\n", prog);
-	eprt(" -v ........ verbose output (may be repeated for even more verbosity)\n");
-	eprt(" -d ........ dump generated LLVM IR-code\n");
-	eprt(" -c ........ compile to optimized object file\n");
-	eprt(" -g ........ compile with debug information\n");
-	eprt(" -j ........ start interactive JIT session despite provided file(s)\n");
-	eprt(" -i file ... include \"file\" in advance\n");
-	eprt(" -o file ... output compiled result to \"file\"\n");
-	eprt(" -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n");
-	eprt(" file ...... file(s) to compile (if none interactive session is started\n");
+	errs() << "Usage: " << prog << " [-v] [-d] [-c] [-g] [-i file] [-o file] [[-t] file [...]]\n";
+	errs() << " -v ........ verbose output (may be repeated for even more verbosity)\n";
+	errs() << " -d ........ dump generated LLVM IR-code\n";
+	errs() << " -c ........ compile to optimized object file\n";
+	errs() << " -g ........ compile with debug information\n";
+	errs() << " -j ........ start interactive JIT session despite provided file(s)\n";
+	errs() << " -i file ... include \"file\" in advance\n";
+	errs() << " -o file ... output compiled result to \"file\"\n";
+	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
+	errs() << " file ...... file(s) to compile (if none interactive session is started\n";
 	exit(1);
 }
 
 static void compile_mode_conflict(const char* prog) {
-	eprt("The flags '-c' or '-g' cannot be given for a JIT session (flag '-j')!\n");
+	errs() << "The flags '-c' or '-g' cannot be given for a JIT session (flag '-j')!\n";
 	usage(prog);
 }
 
 static void debug_mode_conflict(const char* prog) {
-	eprt("The flags '-d' cannot be given for debug output (flag '-g')!\n");
+	errs() << "The flags '-d' cannot be given for debug output (flag '-g')!\n";
 	usage(prog);
 }
 
@@ -429,7 +429,7 @@ int main(int argc, char* argv[]) {
 			include_files.push_back(optarg);
 		case 'o':
 			if (output_file) {
-				eprt("at most one output filename may be specified\n");
+				errs() << "at most one output filename may be specified\n";
 				usage(argv[0]);
 			}
 			output_file = optarg;
@@ -439,7 +439,7 @@ int main(int argc, char* argv[]) {
 			source_files.push_back(optarg);
 			break;
 		default:
-			eprt("unknown option '-%c'\n", opt);
+			errs() << "unknown option '-" << opt << "'\n";
 			usage(argv[0]);
 		}
 	}
@@ -459,14 +459,15 @@ int main(int argc, char* argv[]) {
 	}
 	if (output_file) {
 		if (comp_mode == comp_jit) {
-			eprt("output file ('-o ...') not supported for JIT compilation\n");
+			errs() << "output file ('-o ...') not supported for JIT compilation\n";
 			usage(argv[0]);
 		}
 	} else {
 		if (comp_mode != comp_jit) {
 			if (source_files.size() != 1) {
-				eprt("output file name (-o ...) required if %s input file provided\n",
-				     source_files.size() ? "more than one" : "no");
+				errs() << "output file name (-o ...) required if "
+				       << (source_files.size() ? "more than one" : "no")
+				       << " input file provided\n";
 				usage(argv[0]);
 			}
 			int len = strlen(input_file_name);
@@ -486,7 +487,7 @@ int main(int argc, char* argv[]) {
 		input_file_name = source_files[source_index++].c_str();
 		input_fd = open(input_file_name, O_CLOEXEC);
 		if (input_fd < 0) {
-			eprt("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
+			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
 			exit(1);
 		}
 	}
@@ -494,7 +495,7 @@ int main(int argc, char* argv[]) {
 	// always read builtin definitions first
 	cur_input_fd = open(builtin_file_name, O_CLOEXEC);
 	if (cur_input_fd < 0) {
-		eprt("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
+		errs() << llvm::format("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
 		exit(1);
 	}
 	CurLoc = LexLoc = { builtin_file_name, 0, 0 };

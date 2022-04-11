@@ -50,14 +50,6 @@ static llvm::DISubroutineType *CreateFunctionType(volvox::FullType* RetType, std
 static llvm::DISubprogram *SP;
 static llvm::DIFile *Unit;
 
-llvm::Value *LogErrorV(const char *Str, ...) {
-	va_list ap;
-	va_start(ap, Str);
-	LogErrorGen(Str, ap);
-	va_end(ap);
-	return nullptr;
-}
-
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 	auto FI = FunctionProtos.find(Name);
 	if (FI == FunctionProtos.end())
@@ -90,7 +82,8 @@ llvm::Value *LiteralExprAST::codegen() {
 		return llvm::ConstantInt::get(Context, llvm::APInt(ft->type->getIntegerBitWidth(), Val.Uint, ft->type_attr & A_signed));
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
-		eprt("Warning: 16 bit floats are not supported, yet\n");
+		errs() << "Sorry, 16 bit floats are not supported, yet\n";
+		return nullptr;
 		// passthrough to 32 bit float for now - but expect problems...
 	case llvm::Type::FloatTyID:
 		return llvm::ConstantFP::get(Context, llvm::APFloat((float)Val.Float));
@@ -102,7 +95,7 @@ llvm::Value *LiteralExprAST::codegen() {
 		else
 			return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
 	default:
-		eprt("internal compiler error: unhandled literal type %d\n", ft->type->getTypeID());
+		errs() << "internal compiler error: unhandled literal type " << *ft->type << "\n";
 		return nullptr;
 	}
 }
@@ -116,7 +109,7 @@ llvm::Value *AggregateExprAST::codegen() {
 		if (is_compile_time_const) {
 			auto conversion = getConv(e->ft->type, ft->elem_type->type, e->ft->type_attr, ft->elem_type->type_attr, Loc, false, false);
 			if (!conversion) {
-				eprt("Cannot convert array element\n");
+				errs() << "Cannot convert array element\n";
 				return nullptr;
 			}
 			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(conversion(e->codegen())));
@@ -126,7 +119,7 @@ llvm::Value *AggregateExprAST::codegen() {
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
 		return llvm::ConstantArray::get(array_type, Initializers);
 	} else {
-		eprt("Internal compiler error\n");
+		errs() << "Internal compiler error\n";
 		abort();
 	}
 }
@@ -139,7 +132,7 @@ llvm::Value* LvalueExprAST::codegen() {
 
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
 	if (!full_var.first) {
-		eprt("Unknown variable name1 %s", Name.c_str());
+		errs() << "Unknown variable name " << Name << "\n";
 		return { nullptr, nullptr };
 	}
 	llvm::Value* V;
@@ -156,10 +149,8 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 		storage_type = full_var.first->storage_type;
 	} else {
 		V = full_var.first->val;
-		// storage_type = full_var.first->ft.type;
 		storage_type = full_var.first->val->getType();
 	}
-	// dprt("Storage type: %u Var: %u\n", storage_type->getTypeID(), V->getType()->getTypeID());
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -178,12 +169,12 @@ llvm::Value* IndexExprAST::codegen() {
 		llvm::Value* idx;
 		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
 			if (aggr->Elements.size() != 1) {
-				eprt("exactly one index expected (for now)\n");
+				errs() << "exactly one index expected (for now)\n";
 				return nullptr;
 			}
 			idx = aggr->Elements[0]->codegen();
 		} else {
-			eprt("internal compiler error\n");
+			errs() << "internal compiler error\n";
 			return nullptr;
 		}
 		if (!fld)
@@ -191,26 +182,26 @@ llvm::Value* IndexExprAST::codegen() {
 		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(fld->getType())) {
 			if (auto Idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
 				uint64_t i = Idx->getSExtValue();
-				if (i >= UINT_MAX) {
-					eprt("constant index must be > 0 and < %" PRIu64 "\n", (uint64_t)UINT_MAX);
+				if (i > UINT_MAX) {
+					errs() << "(constexpr) index must be >= 0 and < " << (uint64_t)UINT_MAX + 1 << "\n";
 					return nullptr;
 				} else if (i >= array_type->getNumElements()) {
-					eprt("constant index (%" PRIu64 ") must be < array size (%" PRIu64 ")\n", i, (uint64_t)array_type->getNumElements());
+					errs() << "index (" << i << ") must be < array size (" << array_type->getNumElements() << "\n";
 					return nullptr;
 				}
 				llvm::SmallVector<unsigned, 1> fields;
 				fields.push_back(i);
 				return Builder->CreateExtractValue(fld, fields);
 			} else {
-				eprt("non-constexpr-indices for rvalue arrays not supported, yet\n");
+				errs() << "non-constexpr-indices for rvalue arrays not supported, yet\n";
 				return nullptr;
 			}
 		} else {
-			eprt("LHS of index expression must be an array\n");
+			errs() << "LHS of index expression must be an array\n";
 			return nullptr;
 		}
 	} else {
-		eprt("cound not create code for index expression\n");
+		errs() << "cound not create code for index expression\n";
 		return nullptr;
 	}
 }
@@ -221,7 +212,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 	llvm::Type* field_type;
 	llvm::Value* idx;
 	if (!Field->ft->type || !Field->ft->type->isArrayTy()) {
-		eprt("LHS of index expression must be an array (or map)\n");
+		errs() << "LHS of index expression must be an array (or map)\n";
 		return { nullptr, nullptr };
 	} else {
 		elem_type = Field->ft->elem_type->type;
@@ -230,18 +221,17 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		auto LV = fld->codegen_ref();
 		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
 			if (aggr->Elements.size() != 1) {
-				eprt("exactly one index expected (for now)\n");
+				errs() << "exactly one index expected (for now)\n";
 				return { nullptr, nullptr };
 			}
 			idx = aggr->Elements[0]->codegen();
 		} else {
-			eprt("internal compiler error\n");
+			errs() << "internal compiler error\n";
 			return { nullptr, nullptr };
 		}
 		field_type = LV.first;
 		field_ptr = LV.second;
 		if (field_type->isPointerTy()) {
-			// dprt("**## Index: pointer\n");
 			auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), TheModule->getDataLayout().getTypeAllocSize(elem_type));
 			auto offset = Builder->CreateMul(elem_size, idx);
 			auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(Context)), offset), elem_type->getPointerTo());
@@ -249,7 +239,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		}
 	} else {
 		if (!silent_fail)
-			eprt("LHS of index expression must be an lvalue\n");
+			errs() << "LHS of index expression must be an lvalue\n";
 		return { elem_type, nullptr };
 	}
 	return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
@@ -294,11 +284,14 @@ llvm::Value *UnaryExprAST::codegen() {
 			return Builder->CreateFNeg(OperandV, "negftmp");
 		// TODO: case '&'
 		default:
-			return LogErrorV("unary operator '%c' undefined for floats", Opcode[0]);
+			errs() << "unary operator '" << Opcode[0] << "' undefined for floats";
+			return nullptr;
 		}
 	case llvm::Type::IntegerTyID:
-		if (Opcode[0] != '!' && OperandV->getType()->getIntegerBitWidth() == 1)
-			return LogErrorV("unary operator '%c' undefined for bool", Opcode[0]);
+		if (Opcode[0] != '!' && OperandV->getType()->getIntegerBitWidth() == 1) {
+			errs() << "unary operator '" << Opcode[0] << "' undefined for bool";
+			return nullptr;
+		}
 		switch (Opcode[0]) {
 		case '+':
 			return OperandV;
@@ -307,12 +300,15 @@ llvm::Value *UnaryExprAST::codegen() {
 		case '!':
 			return Builder->CreateNot(OperandV, "nottmp");
 		default:
-			return LogErrorV("unary operator '%c' undefined for integers", Opcode[0]);
+			errs() << "unary operator '" << Opcode[0] << "' undefined for integers";
+			return nullptr;
 		}
 	default:
 		auto F = getFunction(std::string("unary") + Opcode);
-		if (!F.first)
-			return LogErrorV("Unknown unary operator");
+		if (!F.first) {
+			errs() << "Unknown unary operator";
+			return nullptr;
+		}
 		// TODO: operand types
 		return Builder->CreateCall(F.first, OperandV, "unop");
 	}
@@ -396,9 +392,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				verifyFunction(*Fshadow);
 				TheFPM->run(*Fshadow);
 				if (dump_IR) {
-					eprt("Read function definition:\n");
+					errs() << "Read function definition:\n";
 					Fshadow->print(errs());
-					eprt("\n");
+					errs() << "\n";
 				}
 
 #if LLVM_VERSION_MAJOR >= 12
@@ -458,9 +454,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				verifyFunction(*Fsaver);
 				TheFPM->run(*Fsaver);
 				if (dump_IR) {
-					eprt("Read function definition:\n");
+					errs() << "Read function definition:\n";
 					Fsaver->print(errs());
-					eprt("\n");
+					errs() << "\n";
 				}
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 				last_shadow_saver = saverProto->Name.c_str();
@@ -480,25 +476,25 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				verifyFunction(*Frestorer);
 				TheFPM->run(*Frestorer);
 				if (dump_IR) {
-					eprt("Read function definition:\n");
+					errs() << "Read function definition:\n";
 					Frestorer->print(errs());
-					eprt("\n");
+					errs() << "\n";
 				}
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
 				FunctionProtos[restorer] = std::move(restorerProto);
 			} else {
-				eprt("Unable to generate code for global shadow call\n");
+				errs() << "Unable to generate code for global shadow call\n";
 			}
 		} else {
 			goto nonconst;
 		}
 	} else {
-		eprt("Could not generate assigned expression\n");
+		errs() << "Could not generate assigned expression\n";
 	}
 	return nullptr;
 nonconst:
-	eprt("global variable must be initialized with compile time const\n");
+	errs() << "global variable must be initialized with compile time const\n";
 	return nullptr;
 }
 
@@ -540,8 +536,10 @@ llvm::Value *BinaryExprAST::codegen() {
 		// default.  If you build LLVM with RTTI this can be changed to a
 		// dynamic_cast for automatic error checking.
 		LvalueExprAST *LHSE = dynamic_cast<LvalueExprAST*>(LHS.get());
-		if (!LHSE)
-			return LogErrorV("destination of '=' must be an lvalue");
+		if (!LHSE) {
+			errs() << "destination of '=' must be an lvalue";
+			return nullptr;
+		}
 		// Codegen the RHS.
 		llvm::Value* Val = RHS->codegen();
 		if (!Val)
@@ -556,7 +554,8 @@ llvm::Value *BinaryExprAST::codegen() {
 				goto not_found;
 		}
 		if (kind == decl_assign_op) {
-			return LogErrorV("cannot initialize existing variable");
+			errs() << "cannot initialize existing variable";
+			return nullptr;
 		} else {
 			auto Variable = LHSE->codegen_ref();
 			auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
@@ -565,8 +564,10 @@ llvm::Value *BinaryExprAST::codegen() {
 		}
 	not_found:
 		llvm::Value* Variable = nullptr;
-		if (kind != decl_assign_op)
-			return LogErrorV("unknown variable name %s", varname);
+		if (kind != decl_assign_op) {
+			errs() << "unknown variable name '" << varname << "'\n";
+			return nullptr;
+		}
 		// variable declaration
 		if (inside_function) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
@@ -660,7 +661,7 @@ conv_done:
 			result = Builder->CreateFAdd(L, R, "addtmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '-':
@@ -672,7 +673,7 @@ conv_done:
 			result = Builder->CreateFSub(L, R, "subtmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '*':
@@ -685,7 +686,7 @@ conv_done:
 			result = Builder->CreateFMul(L, R, "multmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '/':
@@ -700,7 +701,7 @@ conv_done:
 			result = Builder->CreateFDiv(L, R, "divtmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '%':
@@ -715,7 +716,7 @@ conv_done:
 			result = Builder->CreateFRem(L, R, "remtmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '&':
@@ -724,7 +725,7 @@ conv_done:
 			result = Builder->CreateAnd(L, R, "andtmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '|':
@@ -733,7 +734,7 @@ conv_done:
 			result = Builder->CreateOr(L, R, "ortmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '^':
@@ -742,7 +743,7 @@ conv_done:
 			result = Builder->CreateXor(L, R, "xortmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '!':
@@ -751,7 +752,7 @@ conv_done:
 			result = Builder->CreateNot(Builder->CreateXor(L, R, "xortmp"), "nxortmp");
 			break;
 		default:
-			LogError(operr, Op);
+			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '<':
@@ -767,7 +768,7 @@ conv_done:
 				result = Builder->CreateFCmpOLE(L, R, "leftmp");
 				break;
 			default:
-				LogError(operr, Op);
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 			}
 		} else if (Op[1] == '<') {
 			switch(typeclass) {
@@ -775,7 +776,7 @@ conv_done:
 				result = Builder->CreateShl(L, R, "remtmp");
 				break;
 			default:
-				LogError(operr, Op);
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 			}
 			break;
 		} else {
@@ -790,7 +791,7 @@ conv_done:
 				result = Builder->CreateFCmpOLT(L, R, "ltftmp");
 				break;
 			default:
-				LogError(operr, Op);
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 			}
 		}
 		break;
@@ -807,7 +808,7 @@ conv_done:
 				result = Builder->CreateFCmpOGE(L, R, "geftmp");
 				break;
 			default:
-				LogError(operr, Op);
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 			}
 		} else if (Op[1] == '>') {
 			switch(typeclass) {
@@ -818,7 +819,7 @@ conv_done:
 					result = Builder->CreateLShr(L, R, "remtmp");
 				break;
 			default:
-				LogError(operr, Op);
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 			}
 			break;
 		} else {
@@ -833,7 +834,7 @@ conv_done:
 				result = Builder->CreateFCmpOGT(L, R, "gtftmp");
 				break;
 			default:
-				LogError(operr, Op);
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 			}
 		}
 		break;
@@ -841,13 +842,16 @@ conv_done:
 	if (result) {
 		auto conv = getConv(ft->type, desired_type, ft->type_attr, desired_type_attr, Loc, true, is_unknown_type);
 		if (conv) {
-			// dprt("converted result of binop from %s to %s (%s)\n",
-			//        type_table.get_name(ft->type, ft->type_attr & A_signed),
-			//        type_table.get_name(desired_type, desired_type_attr & A_signed),
-			//        is_unknown_type ? "literal" : "explicit type");
+			if (verbosity >= 4)
+				errs() << "converted result of binop from "
+				       << *ft->type << " signed: " << !(!(ft->type_attr & A_signed)) << " to "
+				       << *desired_type << " signed: " << !(!(desired_type_attr & A_signed))
+				       << (is_unknown_type ? " literal" : " explicit type") << "\n";
 			result = conv(result);
 		}
 		return result;
+	} else {
+		return nullptr;
 	}
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
@@ -867,8 +871,11 @@ llvm::Value *CallExprAST::codegen() {
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// If argument mismatch error.
-	if (FT->getNumParams() > Args.size() || FT->getNumParams() < Args.size() && !Proto->IsVarArgs || FT->getNumParams() != Proto->Args.size())
-		return LogErrorV("Incorrect # arguments passed");
+	if (FT->getNumParams() > Args.size() || FT->getNumParams() < Args.size() && !Proto->IsVarArgs || FT->getNumParams() != Proto->Args.size()) {
+		errs() << "Incorrect number of arguments passed: expected " << FT->getNumParams() << (Proto->IsVarArgs ? "+" : "")
+		       << ", got " << Args.size() << "\n";
+		return nullptr;
+	}
 
 	std::vector<llvm::Value *> ArgsV;
 	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
@@ -882,9 +889,11 @@ llvm::Value *CallExprAST::codegen() {
 			ArgsV.push_back(conversion(Args[i]->codegen()));
 		} else {
 			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i]->type->getTypeID()
-			    && !Proto->ArgTypes[i]->type->isPointerTy())
+			    && !Proto->ArgTypes[i]->type->isPointerTy()) {
 				// TODO: better check compatibility and make error message human readable
-				return LogErrorV("Wrong type passed for function arg #%d %u %u", i, Args[i]->ft->type->getTypeID(), Proto->ArgTypes[i]->type->getTypeID());
+				errs() << "Wrong type passed for function arg #" << i + 1 << ": expected " << *Proto->ArgTypes[i]->type << ", got " << *Args[i]->ft->type << "\n";
+				return nullptr;
+			}
 			ArgsV.push_back(Args[i]->codegen());
 		}
 		if (!ArgsV.back())
@@ -908,9 +917,10 @@ llvm::Value *IfExprAST::codegen() {
 		return nullptr;
 
 	// Convert condition to a bool by comparing non-equal to 0.0.
-	if (CondV->getType() != llvm::Type::getInt1Ty(Context))
-		return Error(Cond->Loc, "bool type expected as \"if\" condition");
-
+	if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
+		errs() << Cond->Loc << ": bool type expected as \"if\" condition\n";
+		return nullptr;
+	}
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
@@ -959,8 +969,6 @@ llvm::Value *IfExprAST::codegen() {
 
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();
-	// eprt("IfType: %s\n",
-	//         type_table.get_name((llvm::Type*)((uintptr_t)type | (type_attr & A_signed))));
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
@@ -1144,7 +1152,7 @@ llvm::Function *FunctionAST::codegen() {
 		// get reference to argument in symbol table
 		FullVar* mapitem = locals_table.back()[Arg.getName().str().c_str()];
 		if (!mapitem) {
-			eprt("internal compiler error: arg not found in table");
+			errs() << "internal compiler error: arg not found in table";
 			exit(1);
 		}
 		llvm::Type* type = mapitem->ft.type;

@@ -14,7 +14,7 @@ class ConstExprAST : public ExprAST {
 public:
 	ConstExprAST(llvm::Constant* val) : val(val) {
 		if (!val)
-			eprt("ConstExprAST: no valid value\n");
+			errs() << "ConstExprAST: no valid value\n";
 		else
 			ft->type = val->getType();
 	}
@@ -55,7 +55,7 @@ public:
 			else
 				return ExprAST::dump(out << Val.Str, ind);
 		default:
-			eprt("internal compiler error: unhandled literal type %d\n", ft->type->getTypeID());
+			errs() << "internal compiler error: unhandled literal type '" << *ft->type << "'\n";
 			return out;
 		}
 	}
@@ -210,13 +210,16 @@ public:
 					ft->elem_type = el_type;
 				else
 					ft->elem_type = MakeType(Elements[0]->ft, Elements[0]->is_unknown_type);
-				// if (ft->elem_type)
-				// 	eprt("Have Elem type %u %u\n", ft->elem_type->type->getTypeID(), ft->elem_type->type_attr);
+				if (verbosity >= 4) {
+					if (ft->elem_type)
+						errs() << "Have Elem type '" << *ft->elem_type->type << "' attr: " << ft->elem_type->type_attr << "\n";
+					else
+						errs() << "Have no Elem type\n";
+				}
 				ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
 				ft->num_fields = Elements.size();
 				// TODO... nrows = Elements.size();
 				is_compile_time_const = true;
-				// dprt("CTC: true, nrows: %d\n", nrows);
 				for (auto& e: Elements)
 					if (!e->is_compile_time_const) {
 						is_compile_time_const = false;
@@ -356,10 +359,9 @@ public:
 		  ElseEndKind(ElseEndKind)
 		{
 			if (is_void) {
-				dprt("void IfExpr: %p %p %u %u %s %s\n", Then.back()->ft->type, Else.back()->ft->type,
-				       Then.back()->ft->type_attr, Else.back()->ft->type_attr,
-				       type_table.get_name(Then.back()->ft->type, Then.back()->ft->type_attr & A_signed),
-				       type_table.get_name(Else.back()->ft->type, Else.back()->ft->type_attr & A_signed));
+				if (verbosity >= 4)
+					errs() << "void IfExpr: " << *Then.back()->ft->type << " " << *Else.back()->ft->type << " "
+					       << Then.back()->ft->type_attr << " " << Else.back()->ft->type_attr << "\n";
 				ft->type = llvm::Type::getInt1Ty(Context);
 				ft->type_attr = 0;
 			}
