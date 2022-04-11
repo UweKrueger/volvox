@@ -108,12 +108,41 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Colors color) {
 	return out.changeColor(color.col, color.bold);
 }
 
+// some handy output stream definitions
+// these just bring LLVM's definitions into the global namespace
 inline llvm::raw_ostream& errs() {
 	return llvm::errs();
 }
 
 inline llvm::raw_ostream& outs() {
 	return llvm::outs();
+}
+
+// the following output streams only output on stderr if one or more '-v' options were given  
+extern int verbosity;
+
+// hints to possibe problems that might be interesting for debugging the program being compiled
+inline llvm::raw_ostream& hints() {
+	if (verbosity >= 1)
+		return llvm::errs();
+	else
+		return llvm::nulls();
+}
+
+// infos that should not be relevant for finding problems
+inline llvm::raw_ostream& infos() {
+	if (verbosity >= 2)
+		return llvm::errs();
+	else
+		return llvm::nulls();
+}
+
+// infos that are only useful for debugging the Volvox compiler
+inline llvm::raw_ostream& dbgs() {
+	if (verbosity >= 3)
+		return llvm::errs();
+	else
+		return llvm::nulls();
 }
 
 struct SourceLocation {
