@@ -397,7 +397,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				TheFPM->run(*Fshadow);
 				if (dump_IR) {
 					eprt("Read function definition:\n");
-					Fshadow->print(llvm::errs());
+					Fshadow->print(errs());
 					eprt("\n");
 				}
 
@@ -459,7 +459,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				TheFPM->run(*Fsaver);
 				if (dump_IR) {
 					eprt("Read function definition:\n");
-					Fsaver->print(llvm::errs());
+					Fsaver->print(errs());
 					eprt("\n");
 				}
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
@@ -481,7 +481,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				TheFPM->run(*Frestorer);
 				if (dump_IR) {
 					eprt("Read function definition:\n");
-					Frestorer->print(llvm::errs());
+					Frestorer->print(errs());
 					eprt("\n");
 				}
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());

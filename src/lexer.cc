@@ -23,9 +23,9 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    cur_input_fd = input_fd;
 				    LexLoc = { input_file_name, 0, 0 };
 				    if (comp_mode == comp_jit && cur_input_fd == 0) {
-					    llvm::outs() << llvm::format("%03d> ", LexLoc.Line + 1);
+					    outs() << llvm::format("%03d> ", LexLoc.Line + 1);
 					    for (int i=0; i<prompt_indent; i++)
-						    llvm::outs() << "    ";
+						    outs() << "    ";
 				    }
 				    c = '\r'; // abuse Windows logic to repeat read
 			    } else {
@@ -35,7 +35,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 	    } while (c == '\r');
 	    if (c == EOF) {
 		    if (cur_input_fd == 0)
-			    llvm::outs() << "\n";
+			    outs() << "\n";
 		    return -1;
 	    }
 	    if (offset >= (*n - 1)) {
@@ -59,9 +59,9 @@ static std::string KeepIdentifierStr = "";
 int Lexer::advance() {
 	if (LexLoc.Col >= linelen) {
 		if (comp_mode == comp_jit && cur_input_fd == 0) {
-			llvm::outs() << llvm::format("%03d> ", LexLoc.Line + 1);
+			outs() << llvm::format("%03d> ", LexLoc.Line + 1);
 			for (int i=0; i<prompt_indent; i++)
-				llvm::outs() << "    ";
+				outs() << "    ";
 		}
 		linelen = fdgetline(&linebuf, &bufsize);
 		if (linelen <= 0) {

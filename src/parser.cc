@@ -762,10 +762,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				if (!strcmp(B->Op, "="))
 					if (auto leftVar = dynamic_cast<VariableExprAST*>(B->LHS.get()))
 						if (!leftVar->full_var.first) {
-							llvm::errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
+							errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
 							return nullptr;
 						}
-				llvm::errs() << "cannot evalute expression\n";
+				errs() << "cannot evalute expression\n";
 				return nullptr;
 			} else {
 				eprt("Could not deduce type of expression\n");

@@ -78,6 +78,44 @@ enum TokenKind {
 	tok_self = -70,
 };
 
+// Colors - we map those from llvm::raw_ostream but add boldness where needed
+// Foreground Colors:
+struct Colors {
+	llvm::raw_ostream::Colors col;
+	bool bold;
+};
+
+static constexpr Colors BLACK = { llvm::raw_ostream::Colors::BLACK, false };
+static constexpr Colors GRAY = { llvm::raw_ostream::Colors::BLACK, true };
+static constexpr Colors RED = { llvm::raw_ostream::Colors::RED, true };
+static constexpr Colors DARKRED = { llvm::raw_ostream::Colors::RED, false };
+static constexpr Colors GREEN = { llvm::raw_ostream::Colors::GREEN, true };
+static constexpr Colors DARKGREEN = { llvm::raw_ostream::Colors::GREEN, false };
+static constexpr Colors YELLOW = { llvm::raw_ostream::Colors::YELLOW, true };
+static constexpr Colors BROWN = { llvm::raw_ostream::Colors::YELLOW, false };
+static constexpr Colors BLUE = { llvm::raw_ostream::Colors::BLUE, true };
+static constexpr Colors DARKBLUE = { llvm::raw_ostream::Colors::BLUE, false };
+static constexpr Colors MAGENTA = { llvm::raw_ostream::Colors::MAGENTA, true };
+static constexpr Colors DARKMAGENTA = { llvm::raw_ostream::Colors::MAGENTA, false };
+static constexpr Colors CYAN = { llvm::raw_ostream::Colors::CYAN, true };
+static constexpr Colors DARKCYAN = { llvm::raw_ostream::Colors::CYAN, false };
+static constexpr Colors WHITE = { llvm::raw_ostream::Colors::WHITE, true };
+static constexpr Colors DARKWHITE = { llvm::raw_ostream::Colors::WHITE, false };
+static constexpr llvm::raw_ostream::Colors SAVEDCOLOR = llvm::raw_ostream::Colors::SAVEDCOLOR;
+static constexpr llvm::raw_ostream::Colors RESET = llvm::raw_ostream::Colors::RESET;
+
+inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Colors color) {
+	return out.changeColor(color.col, color.bold);
+}
+
+inline llvm::raw_ostream& errs() {
+	return llvm::errs();
+}
+
+inline llvm::raw_ostream& outs() {
+	return llvm::outs();
+}
+
 struct SourceLocation {
 	const char* File;
 	int Line;

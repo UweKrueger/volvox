@@ -149,7 +149,7 @@ static void HandleDefinition() {
 		if (auto *FnIR = FnAST->codegen()) {
 			if (dump_IR) {
 				eprt("Read function definition:\n");
-				FnIR->print(llvm::errs());
+				FnIR->print(errs());
 				eprt("\n");
 			}
 			goto cleanup;
@@ -172,7 +172,7 @@ static void HandleExtern() {
 		if (auto *FnIR = ProtoAST->codegen()) {
 			if (dump_IR) {
 				eprt("Read extern: ");
-				FnIR->print(llvm::errs());
+				FnIR->print(errs());
 				eprt("\n");
 			}
 			FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
@@ -392,8 +392,8 @@ bool jit_repl = false;
 char* output_file = nullptr;
 
 int main(int argc, char* argv[]) {
-	llvm::outs().SetUnbuffered();
-	llvm::errs().SetUnbuffered();
+	outs().SetUnbuffered();
+	errs().SetUnbuffered();
 
 	int opt;
 	while ((opt = getopt(argc, argv, "vdcgji:o:t:")) != -1) {
@@ -557,7 +557,7 @@ int main(int argc, char* argv[]) {
 		// This generally occurs if we've forgotten to initialise the
 		// TargetRegistry or we have a bogus target triple.
 		if (!Target) {
-			llvm::errs() << Error;
+			errs() << Error;
 			return 1;
 		}
 
@@ -575,7 +575,7 @@ int main(int argc, char* argv[]) {
 		llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
 
 		if (EC) {
-			llvm::errs() << "Could not open file: " << EC.message();
+			errs() << "Could not open file: " << EC.message();
 			return 1;
 		}
 	  
@@ -583,19 +583,19 @@ int main(int argc, char* argv[]) {
 		auto FileType = llvm::CGFT_ObjectFile;
 	  
 		if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
-			llvm::errs() << "TheTargetMachine can't emit a file of this type";
+			errs() << "TheTargetMachine can't emit a file of this type";
 			return 1;
 		}
 	  
 		pass.run(*TheModule);
 		dest.flush();
 	  
-		llvm::outs() << "Wrote " << Filename << "\n";
+		outs() << "Wrote " << Filename << "\n";
 	} else if (comp_mode == comp_dbg) {
 		// Finalize the debug info.
 		DBuilder->finalize();
 		// Print out all of the generated code.
-		TheModule->print(llvm::errs(), nullptr);
+		TheModule->print(errs(), nullptr);
 	}
 	return 0;
 }
