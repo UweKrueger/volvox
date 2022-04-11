@@ -390,9 +390,16 @@ bool dump_IR = false;
 bool do_test = false;
 bool jit_repl = false;
 char* output_file = nullptr;
+#if defined (_MSC_VER)
+unsigned old_cp;
+#endif
 
 int main(int argc, char* argv[]) {
-	setlocale(LC_CTYPE, "");
+#if defined (_MSC_VER)
+	old_cp = GetConsoleOutputCP();
+	SetConsoleOutputCP(CP_UTF8);
+#endif
+	setlocale(LC_ALL, "en_US.UTF-8");
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
 
@@ -599,5 +606,8 @@ int main(int argc, char* argv[]) {
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
 	}
+#if defined (_MSC_VER)
+	SetConsoleOutputCP(old_cp);
+#endif
 	return 0;
 }
