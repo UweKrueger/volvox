@@ -80,6 +80,9 @@ static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
 int Lexer::advance() {
+	// unfortunately readline does not return the trailing \n whereas
+	// getline (and fdgetline from above) do. We catch this here by
+	// handling line endings different when use_readline is set
 	if (LexLoc.Col > linelen || !use_readline && LexLoc.Col >= linelen) {
 		if (use_readline) {
 			sprintf(prompt, "%03d> ", LexLoc.Line + 1);
@@ -87,7 +90,7 @@ int Lexer::advance() {
 				strcat(prompt, "    ");
 		}
 		linelen = fdgetline(&linebuf, &bufsize);
-		if (linelen <= 0) {
+		if (linelen < 0 || !use_readline && linelen <= 0) {
 			return EOF;
 		}
 		LexLoc.Line++;
