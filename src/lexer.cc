@@ -341,6 +341,9 @@ Token Lexer::gettok(eXpect expect) {
 				CurChar = advance();
 				return Token(StrLit);
 			case EOF:
+#if defined (_MSC_VER)
+			case 26:
+#endif
 				errs() << "unexpected EOF in string literal\n";
 				return EOF;
 			default:
@@ -353,9 +356,17 @@ Token Lexer::gettok(eXpect expect) {
 		// Comment until end of line.
 		do
 			CurChar = advance();
-		while (CurChar != EOF && CurChar != '\n' && CurChar != '\r');
+		while (CurChar != EOF
+#if defined (_MSC_VER)
+		       && CurChar != 26
+#endif
+		       && CurChar != '\n' && CurChar != '\r');
 
-		if (CurChar != EOF) {
+		if (CurChar != EOF
+#if defined (_MSC_VER)
+		       && CurChar != 26
+#endif
+			) {
 			IdentifierStr = CurChar;
 			return ';';
 		}
@@ -363,6 +374,9 @@ Token Lexer::gettok(eXpect expect) {
 	}
 		// Check for end of file.  Don't eat the EOF.
 	case EOF:
+#if defined (_MSC_VER)
+	case 26:
+#endif
 		return tok_eof;
 		// unary operators
 	case '+':
