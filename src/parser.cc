@@ -335,12 +335,11 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	getNextToken(); // eat the then
 
 	auto Then = ParseExprList(desired_type, desired_attr);
-	if (Then.first.size()) {
-		desired_type = Then.first.back()->ft->type;
-		desired_attr = Then.first.back()->ft->type_attr;
-	} else {
-		desired_type = nullptr;
-		desired_attr = 0;
+	if (!desired_type) {
+		if (Then.first.size()) {
+			desired_type = Then.first.back()->ft->type;
+			desired_attr = Then.first.back()->ft->type_attr;
+		}
 	}
 	if (Then.second != tok_else)
 		getNextToken();
@@ -352,7 +351,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 
 	auto Else = ParseExprList(desired_type, desired_attr);
 	if (Else.second == tok_end)
-		getNextToken();
+		getNextToken(eBinOp);
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second);
 }
