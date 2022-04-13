@@ -946,10 +946,12 @@ llvm::Value *IfExprAST::codegen() {
 	} else {
 		Builder->CreateBr(MergeBB);
 	}
+	dbgs() << "raw Then type: " << *ThenV->getType() << '\n';
 	if (ft->type->isVoidTy())
 		ThenV = llvm::UndefValue::get(ft->type);
 	else if (conv.compat.LHS)
 		ThenV = conv.compat.LHS(ThenV);
+	dbgs() << "conv Then type: " << *ThenV->getType() << '\n';
 	
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
@@ -961,10 +963,13 @@ llvm::Value *IfExprAST::codegen() {
 	llvm::Value* ElseV = nullptr;
 	for (auto& expr : Else)
 		ElseV = expr->codegen();
+	if (ElseV)
+		dbgs() << Else.size() << " raw Else type: " << *ElseV->getType() << '\n';
 	if (ft->type->isVoidTy() && (!ElseV || !ElseV->getType()->isVoidTy()))
 		ElseV = llvm::UndefValue::get(ft->type);
 	else if(conv.compat.RHS)
 		ElseV = conv.compat.RHS(ElseV);
+	dbgs() << "conv Else type: " << *ElseV->getType() << '\n';
 	if (ElseEndKind == tok_return) {
 		Builder->CreateRet(CheckTailCall(ElseV));
 	} else {
