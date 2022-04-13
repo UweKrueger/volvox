@@ -601,6 +601,8 @@ llvm::Value *BinaryExprAST::codegen() {
 		desired_type = ft->type;
 		desired_type_attr = ft->type_attr;
 	}
+	LHS->desired_type = RHS->desired_type = desired_type;
+	LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
 	if (!is_bool) {
 		if (auto BinL = dynamic_cast<BinaryExprAST*>(LHS.get())) {
 			BinL->desired_type = desired_type;
