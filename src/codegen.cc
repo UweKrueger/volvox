@@ -961,17 +961,15 @@ llvm::Value *IfExprAST::codegen() {
 	llvm::Value* ElseV = nullptr;
 	for (auto& expr : Else)
 		ElseV = expr->codegen();
-	if (!ElseV)
-		return nullptr;
+	if (ft->type->isVoidTy() && (!ElseV || !ElseV->getType()->isVoidTy()))
+		ElseV = llvm::UndefValue::get(ft->type);
+	else if(conv.compat.RHS)
+		ElseV = conv.compat.RHS(ElseV);
 	if (ElseEndKind == tok_return) {
 		Builder->CreateRet(CheckTailCall(ElseV));
 	} else {
 		Builder->CreateBr(MergeBB);
 	}
-	if (ft->type->isVoidTy())
-		ElseV = llvm::UndefValue::get(ft->type);
-	else if(conv.compat.RHS)
-		ElseV = conv.compat.RHS(ElseV);
 
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();

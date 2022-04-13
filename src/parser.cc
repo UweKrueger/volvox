@@ -329,17 +329,20 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	getNextToken(); // eat the then
 
 	auto Then = ParseExprList();
-	if (Then.second != tok_else)
+	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
+	bool have_else = false;
+	if (CurTok.kind == tok_else) {
+		have_else = true;
 		getNextToken();
-	if (CurTok.kind != tok_else) {
-		errs() << "expected else\n";
+		Else = ParseExprList();
+	} else {
+		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
+	}
+	if (CurTok.kind != tok_end) {
+		errs() << "unexpected token " << CurTok.kind << " (expected " << (have_else ? "'end'\n" : "'else'\n");
 		return nullptr;
 	}
-	getNextToken();
-
-	auto Else = ParseExprList();
-	if (Else.second == tok_end)
-		getNextToken(eBinOp);
+	getNextToken(eBinOp);
 	auto conv = Else.first.size() ? convBinOp(Then.first.back()->ft->type, Else.first.back()->ft->type,
 	                                          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
 	                                          Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type,

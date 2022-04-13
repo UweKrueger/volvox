@@ -233,6 +233,11 @@ static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
 		if (auto anon_expr = FnAST->codegen()) {
+			if (dump_IR) {
+				errs() << "Created temporary top level anon_expr definition:\n";
+				anon_expr->print(errs());
+				errs() << "\n";
+			}
 			auto ret_type = anon_expr->getReturnType();
 			if (!anon_expr->getReturnType()->isIntegerTy() || !anon_expr->getReturnType()->getIntegerBitWidth() == 1) {
 				errs() << "internal error: anonymous function does not return `bool`\n";

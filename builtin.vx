@@ -66,3 +66,13 @@ r(u())
 u()
 
 v()
+
+pp := 12.3
+
+fn kk()
+	pp=pp+1
+	return
+
+l := true
+
+if l then kk() end
