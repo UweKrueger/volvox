@@ -35,7 +35,7 @@ public:
 	union LitValue Val;
 	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
 		  (((tok.int_type.ID == llvm::Type::IntegerTyID &&
-		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type, nullptr, 0, true), Val(tok.Val) {}
+		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type, true), Val(tok.Val) {}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (ft->type->getTypeID()) {
@@ -290,13 +290,12 @@ public:
 	std::unique_ptr<ExprAST> LHS, RHS;
 	BinOpConvSet conv;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
-	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv = {},
-	              llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0)
-		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc, desired_type, desired_attrib,
+	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv = {})
+		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc,
 		          _RHS->is_unknown_type && _LHS->is_unknown_type,
 		          _RHS->is_compile_time_const && (_LHS->is_compile_time_const || !strcmp(Op, ":"))),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
-		if (!desired_type && _Op[0] != '=' || desired_type && desired_type == llvm::Type::getInt1Ty(Context)) {
+		if (_Op[0] != '=') {
 			if (conv.ideal.res_type == llvm::Type::getInt1Ty(Context)) {
 				ft->type = conv.ideal.res_type;
 				ft->type_attr = 0;
@@ -304,6 +303,9 @@ public:
 		} else if (conv.ideal.res_type == LHS->ft->type) {
 			// copy full left type if no conversion
 			*ft = *LHS->ft;
+		} else if (conv.ideal.res_type == RHS->ft->type) {
+			// copy full left type if no conversion
+			*ft = *RHS->ft;
 		}
 		strcpy(Op, _Op);
 	}

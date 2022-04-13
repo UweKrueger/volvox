@@ -49,8 +49,7 @@ static void Eat(int tok, eXpect expect = eNone) {
 	}
 }
 
-static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type = nullptr,
-                                                unsigned desired_attrib = 0u);
+static std::unique_ptr<ExprAST> ParseExpression();
 
 volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 	unsigned attribs = 0;
@@ -85,7 +84,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			if (CurTok.kind == ']') {
 				getNextToken();
 			} else {
-				if (auto e = ParseExpression(llvm::Type::getInt64Ty(Context), A_signed)) {
+				if (auto e = ParseExpression()) {
 					auto Vdim = e->codegen();
 					if (!Vdim) {
 						errs() << "cannot generate code for index\n";
@@ -187,8 +186,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 }
 
 /// numberexpr ::= number
-static std::unique_ptr<ExprAST> ParseNumberExpr(llvm::Type* desired_type = nullptr,
-                                                unsigned desired_attrib = 0u) {
+static std::unique_ptr<ExprAST> ParseNumberExpr() {
 	auto Result = std::make_unique<LiteralExprAST>(CurTok);
 	getNextToken(eBinOp); // consume the number
 	return Result;
@@ -207,8 +205,7 @@ static std::unique_ptr<ExprAST> ParsePointerExpr() {
 }
 
 /// parenexpr ::= '(' expression ')'
-static std::unique_ptr<ExprAST> ParseParenExpr(llvm::Type* desired_type = nullptr,
-                                               unsigned desired_attrib = 0u) {
+static std::unique_ptr<ExprAST> ParseParenExpr() {
 	getNextToken(); // eat (.
 	auto V = ParseExpression();
 	if (!V)
@@ -244,8 +241,7 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
-static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = nullptr,
-                                                    unsigned desired_attrib = 0u) {
+static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	std::string IdName = IdentifierStr;
 
 	SourceLocation LitLoc = CurLoc;
@@ -260,8 +256,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(llvm::Type* desired_type = n
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
 }
 
-static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nullptr,
-                                                   unsigned desired_attrib = 0u) {
+static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	bool is_dynamic;
 	AggregateKind kind;
 	TokenKind closing;
@@ -314,17 +309,16 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(llvm::Type* desired_type = nu
 	}
 }
 
-static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList(llvm::Type* desired_type, unsigned desired_attr);
+static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList();
 
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
-static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
-                                            unsigned desired_attr = 0u) {
+static std::unique_ptr<ExprAST> ParseIfExpr() {
 	SourceLocation IfLoc = CurLoc;
 
 	getNextToken(); // eat the if.
 
 	// condition - expect bool.
-	auto Cond = ParseExpression(llvm::Type::getInt1Ty(Context));
+	auto Cond = ParseExpression();
 	if (!Cond)
 		return nullptr;
 
@@ -334,13 +328,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	}
 	getNextToken(); // eat the then
 
-	auto Then = ParseExprList(desired_type, desired_attr);
-	if (!desired_type) {
-		if (Then.first.size()) {
-			desired_type = Then.first.back()->ft->type;
-			desired_attr = Then.first.back()->ft->type_attr;
-		}
-	}
+	auto Then = ParseExprList();
 	if (Then.second != tok_else)
 		getNextToken();
 	if (CurTok.kind != tok_else) {
@@ -349,7 +337,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(llvm::Type* desired_type = nullptr,
 	}
 	getNextToken();
 
-	auto Else = ParseExprList(desired_type, desired_attr);
+	auto Else = ParseExprList();
 	if (Else.second == tok_end)
 		getNextToken(eBinOp);
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
@@ -417,8 +405,7 @@ static std::unique_ptr<ExprAST> ParseForExpr() {
 ///   ::= ifexpr
 ///   ::= forexpr
 ///   ::= varexpr
-static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
-                                             unsigned desired_attrib = 0u) {
+static std::unique_ptr<ExprAST> ParsePrimary() {
 	switch (CurTok.kind) {
 	case tok_eof:
 		errs() << "EOF when expecting an expression\n";
@@ -452,8 +439,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(llvm::Type* desired_type = nullptr,
 /// unary
 ///   ::= primary
 ///   ::= '!' unary
-static std::unique_ptr<ExprAST> ParseUnary(llvm::Type* desired_type = nullptr,
-                                           unsigned desired_attrib = 0u) {
+static std::unique_ptr<ExprAST> ParseUnary() {
 	// If the current token is not an operator, it must be a primary expr.
 	if (CurTok.kind != tok_unary || CurTok.kind == '(' || CurTok.kind == ',')
 		return ParsePrimary();
@@ -468,8 +454,7 @@ static std::unique_ptr<ExprAST> ParseUnary(llvm::Type* desired_type = nullptr,
 
 /// binoprhs
 ///   ::= ('+' unary)*
-static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
-                                              std::unique_ptr<ExprAST> LHS, llvm::Type* desired_type = nullptr, unsigned desired_attrib = 0) {
+static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS) {
 	// If this is a binop, find its precedence.
 	while (true) {
 		int TokPrec = GetTokPrecedence();
@@ -533,48 +518,45 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec,
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
 		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr,
-		                                                LHS_is_unknown_type, RHS_is_unknown_type, BinOp.c_str()),
-		                                      desired_type, desired_attrib);
+		                                                LHS_is_unknown_type, RHS_is_unknown_type, BinOp.c_str()));
 	}
 }
 
 /// expression
 ///   ::= unary binoprhs
 ///
-static std::unique_ptr<ExprAST> ParseExpression(llvm::Type* desired_type, unsigned desired_attrib) {
-	auto LHS = ParseUnary(desired_type, desired_attrib);
+static std::unique_ptr<ExprAST> ParseExpression() {
+	auto LHS = ParseUnary();
 	if (!LHS)
 		return nullptr;
 
-	return ParseBinOpRHS(0, std::move(LHS), desired_type, desired_attrib);
+	return ParseBinOpRHS(0, std::move(LHS));
 }
 
-static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn(llvm::Type* desired_type, unsigned desired_attrib) {
+static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	while (CurTok.kind == ';')
 		getNextToken();
 	auto kind = CurTok.kind;
 	if (kind == tok_return || kind == tok_else || kind == tok_end) {
 		if (kind == tok_return) {
-			if (desired_type->isVoidTy()) {
-				getNextToken(eColon);
+			getNextToken(eColon);
+			if (CurTok.kind == ';') 
 				return { nullptr, kind };
-			} else {
-				getNextToken();
-				return { ParseExpression(desired_type, desired_attrib), kind };
-			}
+			else
+				return { ParseExpression(), kind };
 		}
 		else
 			return { nullptr, kind };
 	} else {
-		return { ParseExpression(nullptr, 0), 0 };
+		return { ParseExpression(), 0 };
 	}
 }
 
-static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList(llvm::Type* desired_type, unsigned desired_attr) {
+static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 	std::vector<std::unique_ptr<ExprAST>> expr_list;
 	int end_kind = 0;
 	while (!end_kind) {
-		auto expr = ParseExprOrReturn(desired_type, desired_attr);
+		auto expr = ParseExprOrReturn();
 		end_kind = expr.second;
 		if (expr.first) {
 			if (!end_kind)
@@ -749,7 +731,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	}
 	auto ProtoRef = Proto.get();
 	FunctionProtos[Proto->getName()] = std::move(Proto);
-	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList(ProtoRef->RetType->type, ProtoRef->RetType->type_attr);
+	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList();
 	prompt_indent = 0;
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
 }
