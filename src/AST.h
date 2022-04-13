@@ -344,30 +344,21 @@ public:
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond;
-	bool is_void; // no consistent result in branches -> will return bool
 	std::vector<std::unique_ptr<ExprAST>> Then, Else;
+	BinOpConvSet conv;
 
 public:
 	int ThenEndKind, ElseEndKind; // maybe tok_else, tok_end, tok_return, ...
 
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
-	          int ThenEndKind, int ElseEndKind)
-		: ExprAST(_Then.back()->ft->type, _Then.back()->ft->type_attr, Loc),
-		  is_void(_Then.back()->ft->type == llvm::Type::getVoidTy(Context) || !_Else.size()
-		          || _Else.back()->ft->type != _Then.back()->ft->type
-		          || (_Else.back()->ft->type_attr & A_signed) != (_Then.back()->ft->type_attr & A_signed)),
+	          int ThenEndKind, int ElseEndKind, BinOpConvSet conv = {})
+		: ExprAST(_Else.size() ? conv.compat.res_type : llvm::Type::getVoidTy(Context), conv.compat.res_attr, Loc,
+		          _Else.size() && _Then.back()->is_unknown_type & _Else.back()->is_unknown_type,
+		          _Else.size() && _Then.back()->is_compile_time_const && _Else.back()->is_compile_time_const),
 		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
-		  ElseEndKind(ElseEndKind)
-		{
-			if (is_void) {
-				if (verbosity >= 4)
-					errs() << "void IfExpr: " << *Then.back()->ft->type << " " << *Else.back()->ft->type << " "
-					       << Then.back()->ft->type_attr << " " << Else.back()->ft->type_attr << "\n";
-				ft->type = llvm::Type::getInt1Ty(Context);
-				ft->type_attr = 0;
-			}
-		}
+		  ElseEndKind(ElseEndKind), conv(conv)
+		{}
 	llvm::Value *codegen() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

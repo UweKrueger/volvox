@@ -929,7 +929,7 @@ llvm::Value *IfExprAST::codegen() {
 	// end of the function.
 	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(Context, "then", TheFunction);
 	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(Context, "else");
-	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(Context, "ifcont");
+	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(Context, "ifcond");
 
 	Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 
@@ -946,8 +946,10 @@ llvm::Value *IfExprAST::codegen() {
 	} else {
 		Builder->CreateBr(MergeBB);
 	}
-	if (is_void)
-		ThenV = llvm::ConstantInt::getTrue(Context);
+	if (ft->type->isVoidTy())
+		ThenV = llvm::UndefValue::get(ft->type);
+	else if (conv.compat.LHS)
+		ThenV = conv.compat.LHS(ThenV);
 	
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
@@ -966,8 +968,10 @@ llvm::Value *IfExprAST::codegen() {
 	} else {
 		Builder->CreateBr(MergeBB);
 	}
-	if (is_void)
-		ElseV = llvm::ConstantInt::getFalse(Context);
+	if (ft->type->isVoidTy())
+		ElseV = llvm::UndefValue::get(ft->type);
+	else if(conv.compat.RHS)
+		ElseV = conv.compat.RHS(ElseV);
 
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();

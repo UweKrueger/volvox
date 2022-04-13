@@ -340,8 +340,12 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	auto Else = ParseExprList();
 	if (Else.second == tok_end)
 		getNextToken(eBinOp);
+	auto conv = Else.first.size() ? convBinOp(Then.first.back()->ft->type, Else.first.back()->ft->type,
+	                                          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
+	                                          Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type,
+	                                          "-") : BinOpConvSet{};
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), Then.second, Else.second);
+	                                   std::move(Else.first), Then.second, Else.second, conv);
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
