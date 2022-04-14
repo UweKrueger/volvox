@@ -175,7 +175,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
-// min result, ideal result, result is signed, errormessage
+// min result, ideal result, result is signed, result has unknown type, errormessage
 std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 	unsigned left_bitwidth, bool left_is_float, bool left_is_signed, bool left_is_unknown_type,
 	unsigned right_bitwidth, bool right_is_float, bool right_is_signed, bool right_is_unknown_type, const char* Op)
@@ -192,6 +192,7 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 		|| left_is_unknown_type && right_is_unknown_type);
 	bool is_shift = false;
 	bool is_logical = false;
+	llvm::Type* res_type;
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {
@@ -231,9 +232,10 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 			// <<, >> TODO: forbid float
 			is_shift = true; // to allow signed / unsigend mismatch
 			res_bitwidth_min = left_bitwidth;
+			res_bitwidth = Op[0] == '<' ? 64 : res_bitwidth_min;
 			res_is_signed = left_is_signed;
 		} else {
-			// res_bitwidth = 1; - this would be the truth, but we don't need it, yet
+			res_bitwidth = 1;
 			if (Op[0] == '=') {
 				// this is an assignment by default, i.e. if no bool result is expected
 				res_bitwidth_min = left_bitwidth;
@@ -280,30 +282,32 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	bool right_is_signed = right_attr & A_signed;
 
 	// TODO: use C++-17 structured bindings instead of anonymous tuple in the future - for now:
-	// std::get<0>(res_t): minimum (natual) result type
-	// std::get<1>(res_t): ideal result type that avoids overflow, e.g i32*i32->i64
+	// std::get<0>(res_t): minimum (natual) type to convert operands to
+	// std::get<1>(res_t): ideal result type that avoids overflow in the result, e.g i32*i32->i64
 	// std::get<2>(res_t): if the result is signed
 	// std::get<3>(res_t): if the result type is unknown (i.e. consists of number literals, only)
-	// std::get<4>(res_t): error message if error has ovccured
-	// std::get<5>(res_t): minimum (natual) result type
+	// std::get<4>(res_t): error message if error has occured
 	std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> res_t = getResType(
 		left_bitwidth, left_is_float, left_is_signed, left_is_unknown_type,
 		right_bitwidth, right_is_float, right_is_signed, right_is_unknown_type, Op);
+	llvm::Type* res_type_min = std::get<0>(res_t);
+	llvm::Type* res_type = std::get<1>(res_t);
+	bool res_is_signed = std::get<2>(res_t);
 	bool res_is_unknown_type = std::get<3>(res_t);
-	if (std::get<4>(res_t))
-		return {{ nullptr, nullptr, nullptr, 0, false, std::get<4>(res_t) }, { nullptr, nullptr, nullptr, 0, false, std::get<4>(res_t) }};
-	unsigned res_bitwidth_min = getBitWidth(std::get<0>(res_t)).first;
-	unsigned res_bitwidth = getBitWidth(std::get<1>(res_t)).first;
-	auto left_conv = getConv(left_type, std::get<0>(res_t), left_attr, std::get<2>(res_t), Loc, false, left_is_unknown_type);
-	auto right_conv = getConv(right_type, std::get<0>(res_t), right_attr, std::get<2>(res_t), Loc, false, right_is_unknown_type);
-	if (res_bitwidth < res_bitwidth_min) // downgrading operation, e.g. comparison with bool result
-		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t), std::get<3>(res_t) },
-		        { left_conv, right_conv, std::get<1>(res_t), std::get<2>(res_t), std::get<3>(res_t) }};
-	else
-		return {{ left_conv, right_conv, std::get<0>(res_t), std::get<2>(res_t), std::get<3>(res_t) },
-		        { getConv(left_type, std::get<1>(res_t), left_attr, std::get<2>(res_t), Loc, false, left_is_unknown_type),
-		          getConv(right_type, std::get<1>(res_t), right_attr, std::get<2>(res_t), Loc, false, right_is_unknown_type),
-		          std::get<1>(res_t), std::get<2>(res_t), std::get<3>(res_t) }};
+	const char* err_msg = std::get<4>(res_t);
+	unsigned res_bitwidth_min = getBitWidth(res_type_min).first;
+	unsigned res_bitwidth = getBitWidth(res_type).first;
+	auto left_conv_min = getConv(left_type, res_type_min, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type);
+	auto right_conv_min = getConv(right_type, res_type_min, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type);
+	if (res_bitwidth < res_bitwidth_min) { // downgrading operation, e.g. comparison with bool result
+		return {{ left_conv_min, right_conv_min, res_type, res_is_signed, res_is_unknown_type, err_msg },
+		        { left_conv_min, right_conv_min, res_type, res_is_signed, res_is_unknown_type, err_msg }};
+	} else {
+		auto left_conv = getConv(left_type, res_type, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type);
+		auto right_conv = getConv(right_type, res_type, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type);
+		return {{ left_conv_min, right_conv_min, res_type_min, res_is_signed, res_is_unknown_type, err_msg },
+		        { left_conv, right_conv, res_type, res_is_signed, res_is_unknown_type, nullptr }};
+	}
 }
 
 std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
