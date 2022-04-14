@@ -176,7 +176,7 @@ inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
 // min result, ideal result, result is signed, errormessage
-std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
+std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 	unsigned left_bitwidth, bool left_is_float, bool left_is_signed, bool left_is_unknown_type,
 	unsigned right_bitwidth, bool right_is_float, bool right_is_signed, bool right_is_unknown_type, const char* Op)
 {
@@ -191,6 +191,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 		|| right_is_signed && !right_is_unknown_type
 		|| left_is_unknown_type && right_is_unknown_type);
 	bool is_shift = false;
+	bool is_logical = false;
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {
@@ -221,6 +222,8 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 		res_bitwidth = left_bitwidth;
 		break;
 	case '>':
+		if (Op[1] == '<')
+			goto op_xor;
 	case '<':
 	case '=':
 	comparison:
@@ -230,7 +233,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 			res_bitwidth_min = left_bitwidth;
 			res_is_signed = left_is_signed;
 		} else {
-			res_bitwidth = 1;
+			// res_bitwidth = 1; - this would be the truth, but we don't need it, yet
 			if (Op[0] == '=') {
 				// this is an assignment by default, i.e. if no bool result is expected
 				res_bitwidth_min = left_bitwidth;
@@ -240,13 +243,15 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 		break;
 	case '&':
 	case '|':
-	case '^':
+	op_xor:
+		res_is_signed = left_is_signed && right_is_signed; // default to unsigned for (possibly bitwise) &, |, ><
+		break;
 	default:
 		;
 	}
 calc_types:
-	bool left_is_promoted = res_bitwidth_min > left_bitwidth || res_is_signed != left_is_signed && !left_is_unknown_type || res_is_float && !left_is_float;
-	bool right_is_promoted = (res_bitwidth_min > right_bitwidth || res_is_signed != right_is_signed && !right_is_unknown_type) && !is_shift || res_is_float && !right_is_float;
+	bool left_is_promoted = (res_bitwidth_min > left_bitwidth || res_is_float && !left_is_float) && !left_is_unknown_type;
+	bool right_is_promoted = (res_bitwidth_min > right_bitwidth || res_is_float && !right_is_float) && !is_shift && !left_is_unknown_type;
 	llvm::Type* def_type = (left_is_promoted && right_is_promoted) ?
 		nullptr : // forbid both-side promotion as default
 		getFittingType(res_bitwidth_min, res_is_float);
@@ -273,8 +278,15 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	unsigned right_bitwidth = right_descr.first;
 	bool right_is_float = right_descr.second;
 	bool right_is_signed = right_attr & A_signed;
-	// TODO: use C++-17 structured bindings instead of anonymous tuple in the future
-	std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> res_t = getResType(
+
+	// TODO: use C++-17 structured bindings instead of anonymous tuple in the future - for now:
+	// std::get<0>(res_t): minimum (natual) result type
+	// std::get<1>(res_t): ideal result type that avoids overflow, e.g i32*i32->i64
+	// std::get<2>(res_t): if the result is signed
+	// std::get<3>(res_t): if the result type is unknown (i.e. consists of number literals, only)
+	// std::get<4>(res_t): error message if error has ovccured
+	// std::get<5>(res_t): minimum (natual) result type
+	std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> res_t = getResType(
 		left_bitwidth, left_is_float, left_is_signed, left_is_unknown_type,
 		right_bitwidth, right_is_float, right_is_signed, right_is_unknown_type, Op);
 	bool res_is_unknown_type = std::get<3>(res_t);
