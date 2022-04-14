@@ -914,10 +914,14 @@ llvm::Value *IfExprAST::codegen() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	Cond->desired_type = llvm::Type::getInt1Ty(Context);
 	llvm::Value *CondV = Cond->codegen();
 	if (!CondV)
 		return nullptr;
-
+	if (desired_type) {
+		Then.back()->desired_type = desired_type;
+		Else.back()->desired_type = desired_type;
+	}
 	// Convert condition to a bool by comparing non-equal to 0.0.
 	if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
 		errs() << Cond->Loc << ": bool type expected as \"if\" condition\n";
@@ -941,17 +945,28 @@ llvm::Value *IfExprAST::codegen() {
 		ThenV = expr->codegen();
 	if (!ThenV)
 		return nullptr;
+	if (ft->type->isVoidTy()) {
+		if (ThenEndKind == tok_return)
+			Builder->CreateRetVoid();
+		else
+			ThenV = llvm::UndefValue::get(ft->type);
+	} else {
+		auto thenPreConv = getBestPreConv(Then.back()->Loc, desired_type, conv.compat.res_type,
+		                                  conv.ideal.res_type, conv.compat.LHS, conv.ideal.LHS,
+		                                  conv.ideal.res_attr & A_signed);
+		if (!thenPreConv)
+			return nullptr;
+		ThenV = thenPreConv(ThenV);
+	}
+	// TODO: handle void return
 	if (ThenEndKind == tok_return) {
+		// auto thenPostConv = getConv(ThenV->getType, desired_type, func_ret_type, func_ret_attr, func_ret_attr,
+		//                             Loc, false, false);
+		// ThenV = thenPostConv(ThenV);
 		Builder->CreateRet(CheckTailCall(ThenV));
 	} else {
 		Builder->CreateBr(MergeBB);
 	}
-	dbgs() << "raw Then type: " << *ThenV->getType() << '\n';
-	if (ft->type->isVoidTy())
-		ThenV = llvm::UndefValue::get(ft->type);
-	else if (conv.compat.LHS)
-		ThenV = conv.compat.LHS(ThenV);
-	dbgs() << "conv Then type: " << *ThenV->getType() << '\n';
 	
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
@@ -963,19 +978,29 @@ llvm::Value *IfExprAST::codegen() {
 	llvm::Value* ElseV = nullptr;
 	for (auto& expr : Else)
 		ElseV = expr->codegen();
-	if (ElseV)
-		dbgs() << Else.size() << " raw Else type: " << *ElseV->getType() << '\n';
-	if (ft->type->isVoidTy() && (!ElseV || !ElseV->getType()->isVoidTy()))
-		ElseV = llvm::UndefValue::get(ft->type);
-	else if(conv.compat.RHS)
-		ElseV = conv.compat.RHS(ElseV);
-	dbgs() << "conv Else type: " << *ElseV->getType() << '\n';
-	if (ElseEndKind == tok_return) {
-		Builder->CreateRet(CheckTailCall(ElseV));
+	if (ft->type->isVoidTy()) {
+		if (ElseEndKind == tok_return)
+			Builder->CreateRetVoid();
+		else
+			if (!ElseV || !ElseV->getType()->isVoidTy())
+				ElseV = llvm::UndefValue::get(ft->type);
 	} else {
-		Builder->CreateBr(MergeBB);
+		dbgs() << Else.size() << " raw Else type: " << *ElseV->getType() << '\n';
+		auto elsePreConv = getBestPreConv(Else.back()->Loc, desired_type, conv.compat.res_type,
+		                                  conv.ideal.res_type, conv.compat.RHS, conv.ideal.RHS,
+		                                  conv.ideal.res_attr & A_signed);
+		if (!elsePreConv)
+			return nullptr;
+		ElseV = elsePreConv(ElseV);
+		if (ElseEndKind == tok_return) {
+			// auto elsePostConv = getConv(ElseV->getType, desired_type, func_ret_type, func_ret_attr, func_ret_attr,
+			//                             Loc, false, false);
+			// ElseV = elsePostConv(ElseV);
+			Builder->CreateRet(CheckTailCall(ElseV));
+		} else {
+			Builder->CreateBr(MergeBB);
+		}
 	}
-
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();
 	// Emit merge block.
@@ -984,7 +1009,13 @@ llvm::Value *IfExprAST::codegen() {
 	llvm::PHINode *PN = Builder->CreatePHI(ft->type, 2, "iftmp");
 	PN->addIncoming(ThenV, ThenBB);
 	PN->addIncoming(ElseV, ElseBB);
-	return PN;
+	if (!PN->getType()->isVoidTy() && desired_type) {
+		auto postConv = getConv(PN->getType(), desired_type, conv.ideal.res_attr, desired_type_attr,
+		                        Loc, true, false);
+		return postConv(PN);
+	} else {
+		return PN;
+	}
 }
 
 // Output for-loop as:

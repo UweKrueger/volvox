@@ -607,6 +607,11 @@ extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::
 extern std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
 	SourceLocation Loc = CurLoc, bool is_explicit = false, bool is_unknown_type = false);
+extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation Loc, llvm::Type* desired_type,
+                                                                llvm::Type* min_type, llvm::Type* ideal_type,
+                                                                std::function<llvm::Value*(llvm::Value*)> min_conv,
+                                                                std::function<llvm::Value*(llvm::Value*)> ideal_conv,
+                                                                bool is_signed);
 extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr);
 extern void InitializeModuleAndPassManager();
 extern std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;

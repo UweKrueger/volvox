@@ -172,6 +172,25 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandstmp"); };
 }
 
+std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation Loc, llvm::Type* desired_type, llvm::Type* min_type, llvm::Type* ideal_type,
+                                                      std::function<llvm::Value*(llvm::Value*)> min_conv,
+                                                      std::function<llvm::Value*(llvm::Value*)> ideal_conv, bool is_signed) {
+	if (!desired_type || desired_type == min_type)
+		return min_conv;
+	auto ana_min = analyze_types({min_type, is_signed}, {desired_type, is_signed});
+	auto ana_ideal = analyze_types({ideal_type, is_signed}, {desired_type, is_signed});
+	if (ana_ideal.first)
+		return ideal_conv;
+	if (!ana_min.first) {
+		if (ana_ideal.second)
+			return ideal_conv;
+		else
+			return min_conv;
+	}
+	errs() << Loc << " cannot convert " << *min_type << " to " << *desired_type << '\n';
+	return nullptr;
+}
+
 inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
