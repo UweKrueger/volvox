@@ -19,9 +19,9 @@ zz := 34.53
 
 zz
 
-# zz = 3
+zz = 3.2
 
-# zz
+zz
 
 a := [3.4, 6.7, -12.3, 6.7, -13.1]
 
@@ -40,12 +40,10 @@ fn g() f64
 
 g()
 
-# extern u() [5]f64
-
-# fn h() f64
-# 	u := f
-# 	q := u()
-# 	return q
+fn h() f64
+	u := f
+	q := u()
+	return q
 
 # h()
 
@@ -53,11 +51,11 @@ fn u() [5]f64
 	p := [3.3, 1.2, -4.5, 3.1, 8.08e12]
 	return p
 
-a = u()
+# a = u()
 
-fn v() [5]i32
-	p := [3, 8, -17, 123, 97, -1074]
-	return p
+# fn v() [5]i32
+# 	p := [3, 8, -17, 123, 97, -1074]
+# 	return p
 
 # fn r(x [5]f64) f64
 # 	w := x[3]
@@ -67,14 +65,14 @@ fn v() [5]i32
 
 # u()
 
-v()
+# v()
 
-pp := 12.3
+# pp := 12.3
 
-fn kk()
-	pp=pp+1
-	return
+# fn kk()
+# 	pp=pp+1
+# 	return
 
-l := true
+# l := true
 
 # if l then kk() end

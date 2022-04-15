@@ -295,18 +295,6 @@ public:
 		          _RHS->is_unknown_type && _LHS->is_unknown_type,
 		          _RHS->is_compile_time_const && (_LHS->is_compile_time_const || !strcmp(Op, ":"))),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
-		if (_Op[0] != '=') {
-			if (conv.ideal.res_type == llvm::Type::getInt1Ty(Context)) {
-				ft->type = conv.ideal.res_type;
-				ft->type_attr = 0;
-			}
-		} else if (conv.ideal.res_type == LHS->ft->type) {
-			// copy full left type if no conversion
-			*ft = *LHS->ft;
-		} else if (conv.ideal.res_type == RHS->ft->type) {
-			// copy full left type if no conversion
-			*ft = *RHS->ft;
-		}
 		strcpy(Op, _Op);
 	}
 	llvm::Value *codegen_raw() override;

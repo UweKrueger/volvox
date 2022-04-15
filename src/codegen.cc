@@ -529,7 +529,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (kind != other_op && !(kind == assign_op && false /*is_bool */)) {
+	if (kind != other_op && !(kind == assign_op && is_bool)) {
 		const char* varname = nullptr;
 		// Assignment requires the LHS to be an identifier.
 		// This assume we're building without RTTI because LLVM builds that way by

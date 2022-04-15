@@ -215,9 +215,11 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {
-		if (Op[0] == '>' || Op[0] == '<' || Op[0] == '!')
+		if (Op[0] == '>' || Op[0] == '<' || Op[0] == '!') {
+			res_bitwidth = res_bitwidth_min = 1;
 			goto comparison;
-		res_bitwidth = left_bitwidth;
+		}
+		res_bitwidth_min = res_bitwidth = left_bitwidth;
 		if ((right_bitwidth > left_bitwidth && !right_is_unknown_type)
 		    || !left_is_float &&
 		    (right_is_float ||
@@ -258,7 +260,10 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 			if (Op[0] == '=') {
 				// this is an assignment by default, i.e. if no bool result is expected
 				res_bitwidth_min = left_bitwidth;
+				res_is_float = left_is_float;
 				res_is_signed = left_is_signed;
+			} else {
+				res_bitwidth_min = 1;
 			}
 		}
 		break;
@@ -318,15 +323,10 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	unsigned res_bitwidth = getBitWidth(res_type).first;
 	auto left_conv_min = getConv(left_type, res_type_min, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type);
 	auto right_conv_min = getConv(right_type, res_type_min, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type);
-	if (res_bitwidth < res_bitwidth_min) { // downgrading operation, e.g. comparison with bool result
-		return {{ left_conv_min, right_conv_min, res_type, res_is_signed, res_is_unknown_type, err_msg },
-		        { left_conv_min, right_conv_min, res_type, res_is_signed, res_is_unknown_type, err_msg }};
-	} else {
-		auto left_conv = getConv(left_type, res_type, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type);
-		auto right_conv = getConv(right_type, res_type, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type);
-		return {{ left_conv_min, right_conv_min, res_type_min, res_is_signed, res_is_unknown_type, err_msg },
-		        { left_conv, right_conv, res_type, res_is_signed, res_is_unknown_type, nullptr }};
-	}
+	auto left_conv = res_bitwidth_min <= res_bitwidth ? getConv(left_type, res_type, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type) : nullptr;
+	auto right_conv = res_bitwidth_min <= res_bitwidth ? getConv(right_type, res_type, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type) : nullptr;
+	return {{ left_conv_min, right_conv_min, res_type_min, res_is_signed, res_is_unknown_type, err_msg },
+	        { left_conv, right_conv, res_type, res_is_signed, res_is_unknown_type, nullptr }};
 }
 
 std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
