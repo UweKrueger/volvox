@@ -151,12 +151,6 @@ struct SourceLocation {
 	int Col;
 };
 
-inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
-	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;
-}
-
-// Types
-
 extern const char* input_file_name;
 #if LLVM_VERSION_MAJOR >= 12
 extern llvm::orc::ThreadSafeContext TS_Context;
@@ -167,6 +161,22 @@ extern llvm::LLVMContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
+
+inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
+	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;
+}
+
+extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
+                              unsigned expr_attr, unsigned desired_attr, const char* reason);
+extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b);
+extern std::function<llvm::Value*(llvm::Value*)> getConv(
+	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
+	SourceLocation Loc = CurLoc, bool is_explicit = false, bool is_unknown_type = false);
+extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation Loc, llvm::Type* desired_type,
+                                                                llvm::Type* min_type, llvm::Type* ideal_type,
+                                                                std::function<llvm::Value*(llvm::Value*)> min_conv,
+                                                                std::function<llvm::Value*(llvm::Value*)> ideal_conv,
+                                                                bool is_signed);
 
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
@@ -450,7 +460,17 @@ public:
 	ExprAST(volvox::FullType& full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
 		: ft(new_FullType(full_type)), Loc(Loc), is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
-	virtual llvm::Value *codegen() = 0;
+	virtual llvm::Value *codegen_raw() = 0;
+	llvm::Value* codegen() {
+		auto rawV = codegen_raw();
+		if (desired_type && !rawV->getType()->isVoidTy()) {
+			auto postConv = getConv(rawV->getType(), desired_type, ft->type_attr, desired_type_attr,
+			                        Loc, true, is_unknown_type);
+			return postConv(rawV);
+		} else {
+			return rawV;
+		}
+	}	
 	int getLine() const { return Loc.Line; }
 	int getCol() const { return Loc.Col; }
 #ifndef NDEBUG
@@ -601,17 +621,6 @@ public:
 extern Lexer lex;
 extern int input_fd;
 extern int cur_input_fd;
-extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
-                              unsigned expr_attr, unsigned desired_attr, const char* reason);
-extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b);
-extern std::function<llvm::Value*(llvm::Value*)> getConv(
-	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
-	SourceLocation Loc = CurLoc, bool is_explicit = false, bool is_unknown_type = false);
-extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation Loc, llvm::Type* desired_type,
-                                                                llvm::Type* min_type, llvm::Type* ideal_type,
-                                                                std::function<llvm::Value*(llvm::Value*)> min_conv,
-                                                                std::function<llvm::Value*(llvm::Value*)> ideal_conv,
-                                                                bool is_signed);
 extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr);
 extern void InitializeModuleAndPassManager();
 extern std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;

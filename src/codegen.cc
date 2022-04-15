@@ -73,7 +73,7 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
 	return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
-llvm::Value *LiteralExprAST::codegen() {
+llvm::Value *LiteralExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -100,7 +100,7 @@ llvm::Value *LiteralExprAST::codegen() {
 	}
 }
 
-llvm::Value *AggregateExprAST::codegen() {
+llvm::Value *AggregateExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -112,7 +112,7 @@ llvm::Value *AggregateExprAST::codegen() {
 				errs() << "Cannot convert array element\n";
 				return nullptr;
 			}
-			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(conversion(e->codegen())));
+			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(conversion(e->codegen_raw())));
 		} else {
 			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
 		}
@@ -124,7 +124,7 @@ llvm::Value *AggregateExprAST::codegen() {
 	}
 }
 
-llvm::Value* LvalueExprAST::codegen() {
+llvm::Value* LvalueExprAST::codegen_raw() {
 	auto V = codegen_ref();
 	// Load the value.
 	return Builder->CreateLoad(V.first, V.second, Name.c_str());
@@ -157,7 +157,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	return { storage_type, V };
 }
 
-llvm::Value* IndexExprAST::codegen() {
+llvm::Value* IndexExprAST::codegen_raw() {
 	// first try to get a reference to the element ...
 	auto V = codegen_ref(true);
 	// ... and load the value.
@@ -245,14 +245,14 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 	return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
 }
 
-llvm::Value* FunctionExprAST::codegen() {
+llvm::Value* FunctionExprAST::codegen_raw() {
 	if (auto F = TheModule->getFunction(Name)) {
 		return F;
 	}
 	return ft->proto->codegen();
 }
 
-llvm::Value *UnaryExprAST::codegen() {
+llvm::Value *UnaryExprAST::codegen_raw() {
 	if (Opcode[0] == '&') {
 		if (auto V = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 			return V->codegen_ref().second;
@@ -498,7 +498,7 @@ nonconst:
 	return nullptr;
 }
 
-llvm::Value *BinaryExprAST::codegen() {
+llvm::Value *BinaryExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -864,7 +864,7 @@ conv_done:
 	return Builder->CreateCall(F.first, Ops, "binop");
 }
 
-llvm::Value *CallExprAST::codegen() {
+llvm::Value *CallExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -910,7 +910,7 @@ llvm::Value *CallExprAST::codegen() {
 	}
 }
 
-llvm::Value *IfExprAST::codegen() {
+llvm::Value *IfExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -942,7 +942,7 @@ llvm::Value *IfExprAST::codegen() {
 
 	llvm::Value* ThenV = nullptr;
 	for (auto& expr : Then)
-		ThenV = expr->codegen();
+		ThenV = expr->codegen_raw();
 	if (!ThenV)
 		return nullptr;
 	if (ft->type->isVoidTy()) {
@@ -977,7 +977,7 @@ llvm::Value *IfExprAST::codegen() {
 
 	llvm::Value* ElseV = nullptr;
 	for (auto& expr : Else)
-		ElseV = expr->codegen();
+		ElseV = expr->codegen_raw();
 	if (ft->type->isVoidTy()) {
 		if (ElseEndKind == tok_return)
 			Builder->CreateRetVoid();
@@ -1009,13 +1009,7 @@ llvm::Value *IfExprAST::codegen() {
 	llvm::PHINode *PN = Builder->CreatePHI(ft->type, 2, "iftmp");
 	PN->addIncoming(ThenV, ThenBB);
 	PN->addIncoming(ElseV, ElseBB);
-	if (!PN->getType()->isVoidTy() && desired_type) {
-		auto postConv = getConv(PN->getType(), desired_type, conv.ideal.res_attr, desired_type_attr,
-		                        Loc, true, false);
-		return postConv(PN);
-	} else {
-		return PN;
-	}
+	return PN;
 }
 
 // Output for-loop as:
@@ -1037,7 +1031,7 @@ llvm::Value *IfExprAST::codegen() {
 //   store nextvar -> var
 //   br endcond, loop, endloop
 // outloop:
-llvm::Value *ForExprAST::codegen() {
+llvm::Value *ForExprAST::codegen_raw() {
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create an alloca for the variable in the entry block.

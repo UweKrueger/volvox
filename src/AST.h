@@ -18,14 +18,14 @@ public:
 		else
 			ft->type = val->getType();
 	}
-	llvm::Value* codegen() { return val; }
+	llvm::Value* codegen_raw() { return val; }
 };
 
 // empty parameter list in calls like "f()"
 class EmptyExprAST : public ExprAST {
 public:
 	EmptyExprAST(SourceLocation Loc = CurLoc) : ExprAST(Loc) {}
-	llvm::Value* codegen() { return nullptr; }
+	llvm::Value* codegen_raw() { return nullptr; }
 };
 
 // Class for all literals - 1.2, 3u, "str"
@@ -60,7 +60,7 @@ public:
 		}
 	}
 #endif
-	llvm::Value *codegen() override;
+	llvm::Value *codegen_raw() override;
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -110,7 +110,7 @@ public:
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
 	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) = 0;
-	llvm::Value* codegen() override;
+	llvm::Value* codegen_raw() override;
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".
@@ -148,7 +148,7 @@ public:
 		ft->proto = Proto;
 	}
 	const std::string &getName() const { return Name; }
-	llvm::Value *codegen() override;
+	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);
@@ -166,7 +166,7 @@ public:
 		: LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_)) {
 		ft = Field->ft->elem_type;
 	}
-	llvm::Value *codegen() override;
+	llvm::Value *codegen_raw() override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -228,7 +228,7 @@ public:
 			}
 		}
 	const char* KindName();
-	llvm::Value* codegen() override;
+	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "aggregate type " << KindName(), ind);
@@ -249,7 +249,7 @@ public:
 		: ExprAST(Operand->ft->type, Operand->ft->type_attr), Operand(std::move(Operand)) {
 		strcpy(Opcode, Op); 
 	}
-	llvm::Value *codegen() override;
+	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "unary" << Opcode, ind);
@@ -309,7 +309,7 @@ public:
 		}
 		strcpy(Op, _Op);
 	}
-	llvm::Value *codegen() override;
+	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "binary" << Op, ind);
@@ -329,7 +329,7 @@ public:
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
 		: ExprAST(*Callee_->ft->proto->RetType, Loc), Callee(std::move(Callee_)), Args(std::move(Args)) {}
-	llvm::Value *codegen() override;
+	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call", ind);
@@ -359,7 +359,7 @@ public:
 		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
 		  ElseEndKind(ElseEndKind), conv(conv)
 		{}
-	llvm::Value *codegen() override;
+	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
@@ -392,7 +392,7 @@ public:
 	           std::unique_ptr<ExprAST> Body, SourceLocation Loc = CurLoc)
 		: ExprAST(Loc), VarName(VarName), Start(std::move(Start)), End(std::move(End)),
 		  Step(std::move(Step)), Body(std::move(Body)) {}
-	llvm::Value *codegen() override;
+	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "for", ind);
