@@ -296,6 +296,12 @@ public:
 		          _RHS->is_compile_time_const && (_LHS->is_compile_time_const || !strcmp(Op, ":"))),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
 		strcpy(Op, _Op);
+		if (strcmp(Op, ":=")) {
+			if (LHS->ft->type && !LHS->ft->type->isSingleValueType())
+				ft = LHS->ft;
+			else if (RHS->ft->type && !RHS->ft->type->isSingleValueType())
+				ft = RHS->ft;
+		}
 	}
 	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG

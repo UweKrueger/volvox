@@ -40,22 +40,22 @@ fn g() f64
 
 g()
 
-fn h() f64
-	u := f
-	q := u()
-	return q
-
-# h()
-
 fn u() [5]f64
 	p := [3.3, 1.2, -4.5, 3.1, 8.08e12]
 	return p
 
-# a = u()
+a = u()
 
-# fn v() [5]i32
-# 	p := [3, 8, -17, 123, 97, -1074]
-# 	return p
+fn h() [5]f64
+	v := u
+	q := v()
+	return q
+
+h()
+
+fn v() [5]i32
+	p := [3, 8, -17, 123, 97, -1074]
+	return p
 
 # fn r(x [5]f64) f64
 # 	w := x[3]
@@ -63,16 +63,18 @@ fn u() [5]f64
 
 # r(u())
 
-# u()
+u()
 
-# v()
+v()
 
-# pp := 12.3
+pp := 12.3
 
-# fn kk()
-# 	pp=pp+1
-# 	return
+fn kk()
+	pp=pp+1
+	return
 
-# l := true
+kk()
+
+l := true
 
 # if l then kk() end

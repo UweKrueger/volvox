@@ -540,6 +540,8 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			errs() << "destination of '=' must be an lvalue";
 			return nullptr;
 		}
+		RHS->desired_type = LHSE->ft->type;
+		RHS->desired_type_attr = LHSE->ft->type_attr;
 		// Codegen the RHS.
 		llvm::Value* Val = RHS->codegen();
 		if (!Val)
