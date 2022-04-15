@@ -127,6 +127,7 @@ llvm::Value *AggregateExprAST::codegen_raw() {
 llvm::Value* LvalueExprAST::codegen_raw() {
 	auto V = codegen_ref();
 	// Load the value.
+	dbgs() << "Load variable " << Name << " type " << *V.first << '\n';
 	return Builder->CreateLoad(V.first, V.second, Name.c_str());
 }
 
@@ -149,7 +150,9 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 		storage_type = full_var.first->storage_type;
 	} else {
 		V = full_var.first->val;
-		storage_type = full_var.first->val->getType();
+		storage_type = ft->type; //full_var.first->val->getType();
+		if (Name == "ooi")
+			storage_type = llvm::Type::getDoubleTy(Context);
 	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -502,7 +505,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	bool is_bool = desired_type == llvm::Type::getInt1Ty(Context) || ft->type == llvm::Type::getInt1Ty(Context);
+	bool is_bool = desired_type == llvm::Type::getInt1Ty(Context);
 	OpKind kind;
 	if (Op[0] == '=')
 		kind = assign_op;
@@ -565,7 +568,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			return OldVal;
 		}
 	not_found:
-		llvm::Value* Variable = nullptr;
 		if (kind != decl_assign_op) {
 			errs() << "unknown variable name '" << varname << "'\n";
 			return nullptr;
@@ -579,8 +581,13 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			bool is_signed = std::get<2>(type_descr);
 			auto convertedVal = conversion(Val);
 			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, type);
+			dbgs() << "created alloca for type " << *type << ' ' << *Alloca->getType() << '\n';
 			// Entry has already been created by parser
-			locals_table.back()[varname]->val = Alloca;
+			FullVar* entry = locals_table.back()[varname];
+			entry->val = Alloca;
+			entry->ft.type = type;
+			entry->ft.type_attr = is_signed ? A_signed : 0;
+			dbgs() << "Inserted " << varname << " type: " << *(locals_table.back()[varname]->ft.type) << '\n';
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
@@ -592,7 +599,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 										Builder->GetInsertBlock());
 			}
 			Builder->CreateStore(convertedVal, Alloca);
-			return convertedVal;
+			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		} else {
 			return Val;
 		}

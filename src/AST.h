@@ -121,6 +121,7 @@ public:
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: LvalueExprAST(Loc, Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
+			dbgs() << "found variable " << Name << " type " << *full_var.first->ft.type << '\n';
 			ft = new_FullType(full_var.first->ft); // TODO: don't create a new instance (?)
 		}
 		// if the variable name has not found in the database we don't generate
@@ -301,6 +302,8 @@ public:
 				ft = LHS->ft;
 			else if (RHS->ft->type && !RHS->ft->type->isSingleValueType())
 				ft = RHS->ft;
+		} else {
+			LHS->ft = RHS->ft;
 		}
 	}
 	llvm::Value *codegen_raw() override;
