@@ -46,12 +46,14 @@ fn u() [5]f64
 
 a = u()
 
-fn h() [5]f64
-	v := u
-	q := v()
-	return q
+a
 
-h()
+# fn h() [5]f64
+# 	v := u
+# 	q := v()
+# 	return q
+
+# h()
 
 fn v() [5]i32
 	p := [3, 8, -17, 123, 97, -1074]
@@ -77,4 +79,12 @@ kk()
 
 l := true
 
-# if l then kk() end
+if l then kk() end
+
+pp
+
+l = false
+
+if l then kk() else kk(); kk() end
+
+pp

@@ -931,7 +931,6 @@ llvm::Value *IfExprAST::codegen_raw() {
 		Then.back()->desired_type = desired_type;
 		Else.back()->desired_type = desired_type;
 	}
-	// Convert condition to a bool by comparing non-equal to 0.0.
 	if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
 		errs() << Cond->Loc << ": bool type expected as \"if\" condition\n";
 		return nullptr;
@@ -954,29 +953,28 @@ llvm::Value *IfExprAST::codegen_raw() {
 		ThenV = expr->codegen_raw();
 	if (!ThenV)
 		return nullptr;
-	if (ft->type->isVoidTy()) {
+	if (ft->type->isVoidTy() && !(ThenV && ThenV->getType()->isVoidTy())) {
 		if (ThenEndKind == tok_return)
 			Builder->CreateRetVoid();
-		else
+		else {
 			ThenV = llvm::UndefValue::get(ft->type);
+			Builder->CreateBr(MergeBB);
+		}
 	} else {
-		auto thenPreConv = getBestPreConv(Then.back()->Loc, desired_type, conv.compat.res_type,
-		                                  conv.ideal.res_type, conv.compat.LHS, conv.ideal.LHS,
-		                                  conv.ideal.res_attr & A_signed);
-		if (!thenPreConv)
-			return nullptr;
-		ThenV = thenPreConv(ThenV);
+		if (!ft->type->isVoidTy()) {
+			auto thenPreConv = getBestPreConv(Then.back()->Loc, desired_type, conv.compat.res_type,
+			                                  conv.ideal.res_type, conv.compat.LHS, conv.ideal.LHS,
+			                                  conv.ideal.res_attr & A_signed);
+			if (!thenPreConv)
+				return nullptr;
+			ThenV = thenPreConv(ThenV);
+		}
+		if (ThenEndKind == tok_return) {
+			Builder->CreateRet(CheckTailCall(ThenV));
+		} else {
+			Builder->CreateBr(MergeBB);
+		}
 	}
-	// TODO: handle void return
-	if (ThenEndKind == tok_return) {
-		// auto thenPostConv = getConv(ThenV->getType, desired_type, func_ret_type, func_ret_attr, func_ret_attr,
-		//                             Loc, false, false);
-		// ThenV = thenPostConv(ThenV);
-		Builder->CreateRet(CheckTailCall(ThenV));
-	} else {
-		Builder->CreateBr(MergeBB);
-	}
-	
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
 
@@ -987,24 +985,24 @@ llvm::Value *IfExprAST::codegen_raw() {
 	llvm::Value* ElseV = nullptr;
 	for (auto& expr : Else)
 		ElseV = expr->codegen_raw();
-	if (ft->type->isVoidTy()) {
+	if (ft->type->isVoidTy() && !(ElseV && ElseV->getType()->isVoidTy())) {
 		if (ElseEndKind == tok_return)
 			Builder->CreateRetVoid();
-		else
-			if (!ElseV || !ElseV->getType()->isVoidTy())
-				ElseV = llvm::UndefValue::get(ft->type);
+		else {
+			ElseV = llvm::UndefValue::get(ft->type);
+			Builder->CreateBr(MergeBB);
+		}
 	} else {
 		dbgs() << Else.size() << " raw Else type: " << *ElseV->getType() << '\n';
-		auto elsePreConv = getBestPreConv(Else.back()->Loc, desired_type, conv.compat.res_type,
-		                                  conv.ideal.res_type, conv.compat.RHS, conv.ideal.RHS,
-		                                  conv.ideal.res_attr & A_signed);
-		if (!elsePreConv)
-			return nullptr;
-		ElseV = elsePreConv(ElseV);
+		if (!ft->type->isVoidTy()) {
+			auto elsePreConv = getBestPreConv(Else.back()->Loc, desired_type, conv.compat.res_type,
+			                                  conv.ideal.res_type, conv.compat.RHS, conv.ideal.RHS,
+			                                  conv.ideal.res_attr & A_signed);
+			if (!elsePreConv)
+				return nullptr;
+			ElseV = elsePreConv(ElseV);
+		}
 		if (ElseEndKind == tok_return) {
-			// auto elsePostConv = getConv(ElseV->getType, desired_type, func_ret_type, func_ret_attr, func_ret_attr,
-			//                             Loc, false, false);
-			// ElseV = elsePostConv(ElseV);
 			Builder->CreateRet(CheckTailCall(ElseV));
 		} else {
 			Builder->CreateBr(MergeBB);
