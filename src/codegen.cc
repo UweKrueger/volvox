@@ -505,6 +505,10 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	dbgs() << "binary desired type: ";
+	if (desired_type)
+		dbgs() << *desired_type;
+	dbgs() << '\n';
 	bool is_bool = desired_type == llvm::Type::getInt1Ty(Context);
 	OpKind kind;
 	if (Op[0] == '=')
@@ -612,22 +616,16 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		desired_type = ft->type;
 		desired_type_attr = ft->type_attr;
 	}
-	LHS->desired_type = RHS->desired_type = desired_type;
-	LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
 	if (!is_bool) {
-		if (auto BinL = dynamic_cast<BinaryExprAST*>(LHS.get())) {
-			BinL->desired_type = desired_type;
-			BinL->desired_type_attr = desired_type_attr;
-		}
-		if (auto BinR = dynamic_cast<BinaryExprAST*>(RHS.get())) {
-			BinR->desired_type = desired_type;
-			BinR->desired_type_attr = desired_type_attr;
-		}
+		LHS->desired_type = RHS->desired_type = desired_type;
+		LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
 	}
 	llvm::Value *L = LHS->codegen();
 	llvm::Value *R = RHS->codegen();
 	if (!L || !R)
 		return nullptr;
+	llvm::Type* OperandType;
+	bool OperandSigned;
 	if (desired_type && !conv.ideal.err_msg) {
 		auto ana = analyze_types({ conv.ideal.res_type, conv.ideal.res_attr }, { desired_type, desired_type_attr });
 		if (ana.first || (ana.second && !conv.compat.err_msg)) {
@@ -635,6 +633,9 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				L = conv.ideal.LHS(L);
 			if (conv.ideal.RHS)
 				R = conv.ideal.RHS(R);
+			OperandType = conv.ideal.res_type;
+			OperandSigned = conv.ideal.res_attr | A_signed;
+			dbgs() << "using ideal conversions: " << *conv.ideal.res_type << ' ' << *L->getType() << ' ' << *R->getType() << '\n';
 			goto conv_done;
 		}
 			
@@ -645,10 +646,10 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		L = conv.compat.LHS(L);
 	if (conv.compat.RHS)
 		R = conv.compat.RHS(R);
+	OperandType = conv.compat.res_type;
+	OperandSigned = conv.compat.res_attr | A_signed;
 conv_done:
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
-	llvm::Type* OperandType = conv.compat.res_type;
-	bool OperandSigned = conv.compat.res_attr | A_signed;
 	TypeClass typeclass = is_unknown;
 	switch(OperandType->getTypeID()) {
 	case llvm::Type::IntegerTyID:

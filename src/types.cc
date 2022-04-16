@@ -204,7 +204,8 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 		:
 		left_is_unknown_type ? right_bitwidth : Max(right_bitwidth, left_bitwidth);
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
-	unsigned res_is_float = left_is_float || right_is_float;
+	bool res_is_float = left_is_float || right_is_float;
+	bool res_ideal_is_float = false;
 	bool res_is_signed = !res_is_float && (
 		left_is_signed && !left_is_unknown_type
 		|| right_is_signed && !right_is_unknown_type
@@ -240,6 +241,7 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 		}
 		// fallthrough for **
 	case '/':
+		res_ideal_is_float = true;
 	case '%':
 		res_bitwidth = left_bitwidth;
 		break;
@@ -276,12 +278,13 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 		;
 	}
 calc_types:
+	res_ideal_is_float = res_ideal_is_float || res_is_float;
 	bool left_is_promoted = (res_bitwidth_min > left_bitwidth || res_is_float && !left_is_float) && !left_is_unknown_type;
 	bool right_is_promoted = (res_bitwidth_min > right_bitwidth || res_is_float && !right_is_float) && !is_shift && !left_is_unknown_type;
 	llvm::Type* def_type = (left_is_promoted && right_is_promoted) ?
 		nullptr : // forbid both-side promotion as default
 		getFittingType(res_bitwidth_min, res_is_float);
-	return { def_type, getFittingType(res_bitwidth, res_is_float), res_is_signed,
+	return { def_type, getFittingType(res_bitwidth, res_ideal_is_float), res_is_signed,
 		left_is_unknown_type && (right_is_unknown_type || is_shift),
 		def_type ? nullptr : "would require promotions on both sides" };
 }
