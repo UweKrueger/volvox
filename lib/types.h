@@ -13,6 +13,7 @@
 #define A_iso    (1U<<3)
 #define A_atomic (1U<<4)
 #define A_packed (1U<<5)
+#define A_dirty  (1U<<6)
 
 class PrototypeAST;
 

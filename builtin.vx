@@ -88,3 +88,7 @@ l = false
 if l then kk() else kk(); kk() end
 
 pp
+
+qq := -23i16
+
+vv := 36u16

@@ -15,7 +15,7 @@ std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* de
                               unsigned expr_attr, unsigned desired_attr, const char* reason) {
 	errs() << Loc << ": cannot automatically convert "
 	       << type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
-	       << type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed)));
+	       << type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))) << ' ';
 	if (reason)
 		errs() << reason;
 	errs() << "\n";
@@ -195,7 +195,7 @@ inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
 // min result, ideal result, result is signed, result has unknown type, errormessage
-std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
+std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	unsigned left_bitwidth, bool left_is_float, bool left_is_signed, bool left_is_unknown_type,
 	unsigned right_bitwidth, bool right_is_float, bool right_is_signed, bool right_is_unknown_type, const char* Op)
 {
@@ -206,14 +206,15 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
 	bool res_is_float = left_is_float || right_is_float;
 	bool res_ideal_is_float = false;
-	bool res_is_signed = left_is_signed || right_is_signed;
+	unsigned res_is_signed = (left_is_signed || right_is_signed) ? A_signed : 0; 
 	bool is_shift = false;
 	bool is_logical = false;
+	unsigned signed_unsigned_mismatch = 0;
 	llvm::Type* res_type;
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {
-		if (Op[0] == '>' || Op[0] == '<' || Op[0] == '!') {
+		if (Op[0] == '>' || Op[0] == '<' || Op[0] == '!' || Op[0] == '=') {
 			res_bitwidth = res_bitwidth_min = 1;
 			goto comparison;
 		}
@@ -230,6 +231,10 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 	case '+':
 	case '-':
 		res_bitwidth++;
+		if (!res_is_float
+			&& (left_is_signed && !right_is_signed && right_bitwidth >= left_bitwidth
+			    || right_is_signed && !left_is_signed && left_bitwidth >= right_bitwidth))
+			signed_unsigned_mismatch = A_dirty;
 		break;
 	case '*':
 		if (Op[1] != '*') {
@@ -285,7 +290,7 @@ calc_types:
 	llvm::Type* def_type = (left_is_promoted && right_is_promoted && res_bitwidth != 1) ?
 		nullptr : // forbid both-side promotion as default
 		getFittingType(res_bitwidth_min, res_is_float);
-	return { def_type, getFittingType(res_bitwidth, res_ideal_is_float), res_is_signed,
+	return { def_type, getFittingType(res_bitwidth, res_ideal_is_float), res_is_signed | signed_unsigned_mismatch,
 		left_is_unknown_type && (right_is_unknown_type || is_shift),
 		def_type ? nullptr : "would require promotions on both sides" };
 }
@@ -300,7 +305,6 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 		abort();
 	}
 	if (!left_type || Op[0] == ',') {// variable declaration, i.e. := operator
-		dbgs() << "### no conversion\n";
 		return {{ nullptr, nullptr, nullptr, 0, false, nullptr }, { nullptr, nullptr, nullptr, 0, false, nullptr }};
 	}
 	if (!left_type->isSingleValueType() || !right_type->isSingleValueType()) {
