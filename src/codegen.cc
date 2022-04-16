@@ -332,6 +332,7 @@ enum OpKind {
 	assign_op,
 	decl_assign_op,
 	modification_op,
+	comparison_op
 };
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
@@ -509,11 +510,25 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 	if (desired_type)
 		dbgs() << *desired_type;
 	dbgs() << '\n';
-	bool is_bool = desired_type == llvm::Type::getInt1Ty(Context);
+	bool is_bool = false;
 	OpKind kind;
-	if (Op[0] == '=')
-		kind = assign_op;
-	else if (Op[1] == '=')
+	switch (Op[1]) {
+	case '\0':
+		switch (Op[0]) {
+		case '=':
+			kind = assign_op;
+			is_bool = desired_type == llvm::Type::getInt1Ty(Context);
+			break;
+		case '>':
+		case '<':
+			kind = comparison_op;
+			is_bool = true;
+			break;
+		default:
+			kind = other_op;
+		}
+		break;
+	case '=':
 		switch (Op[0]) {
 		case ':':
 			kind = decl_assign_op;
@@ -528,15 +543,23 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		case '^':
 			kind = modification_op;
 			break;
+		case '>':
+		case '<':
+		case '!':
+		case '=':
+			kind = comparison_op;
+			is_bool = true;
+			break;
 		default:
 			kind = other_op;
 		}
-	else
+		break;
+	default:
 		kind = other_op;
-			
+	}
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (kind != other_op && !(kind == assign_op && is_bool)) {
+	if (kind == decl_assign_op || kind == assign_op && !is_bool) {
 		const char* varname = nullptr;
 		// Assignment requires the LHS to be an identifier.
 		// This assume we're building without RTTI because LLVM builds that way by
@@ -612,10 +635,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		return Val;
 	}
 	llvm::Value* result;
-	if (!desired_type) {
-		desired_type = ft->type;
-		desired_type_attr = ft->type_attr;
-	}
 	if (!is_bool) {
 		LHS->desired_type = RHS->desired_type = desired_type;
 		LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
@@ -626,7 +645,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		return nullptr;
 	llvm::Type* OperandType;
 	bool OperandSigned;
-	if (desired_type && !conv.ideal.err_msg) {
+	if (desired_type && !is_bool && !conv.ideal.err_msg) {
 		auto ana = analyze_types({ conv.ideal.res_type, conv.ideal.res_attr }, { desired_type, desired_type_attr });
 		if (ana.first || (ana.second && !conv.compat.err_msg)) {
 			if (conv.ideal.LHS)
@@ -854,14 +873,16 @@ conv_done:
 		break;
 	}
 	if (result) {
-		auto conv = getConv(ft->type, desired_type, ft->type_attr, desired_type_attr, Loc, true, is_unknown_type);
-		if (conv) {
-			if (verbosity >= 4)
-				errs() << "converted result of binop from "
-				       << *ft->type << " signed: " << !(!(ft->type_attr & A_signed)) << " to "
-				       << *desired_type << " signed: " << !(!(desired_type_attr & A_signed))
-				       << (is_unknown_type ? " literal" : " explicit type") << "\n";
-			result = conv(result);
+		if (!is_bool) {
+			auto conv = getConv(ft->type, desired_type, ft->type_attr, desired_type_attr, Loc, true, is_unknown_type);
+			if (conv) {
+				if (verbosity >= 4)
+					errs() << "converted result of binop from " << *result->getType() << ' '
+					       << *ft->type << " signed: " << !(!(ft->type_attr & A_signed)) << " to "
+					       << *desired_type << " signed: " << !(!(desired_type_attr & A_signed))
+					       << (is_unknown_type ? " literal" : " explicit type") << "\n";
+				result = conv(result);
+			}
 		}
 		return result;
 	} else {
