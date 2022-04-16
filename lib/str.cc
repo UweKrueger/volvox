@@ -450,6 +450,12 @@ namespace volvox {
 					flags |= FMT_UNSIGNED;
 				if (ft->SubclassData <= 32) {
 					int val = va_arg(ap, int);
+					if (ft->SubclassData < 32)
+						// extend upper bits according to signedness
+						if (ft->type_attr & A_signed)
+							val = (int)((unsigned)val << (32 - ft->SubclassData)) >> (32 - ft->SubclassData);
+						else
+							val = (int)(((unsigned)val << (32 - ft->SubclassData)) >> (32 - ft->SubclassData));
 					const char* fmt = getFmtInt(flags);
 					int expected_nchar = max(abs(w)+1, 21+1);
 					while (space < expected_nchar) {
