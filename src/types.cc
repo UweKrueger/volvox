@@ -293,7 +293,7 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 {
 	if (!strcmp(Op, ":=") && left_type) {
 		errs() << "internal error\n";
-		exit(1);
+		abort();
 	}
 	if (!left_type || Op[0] == ',') {// variable declaration, i.e. := operator
 		dbgs() << "### no conversion\n";
@@ -339,7 +339,7 @@ std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeTyp
 	if(!is_unknown_type)
 		return { type, NoConversion, is_signed };
 	if (type->isIntegerTy())
-		return { llvm::Type::getInt32Ty(Context), [=](llvm::Value* v) { return Builder->CreateSExtOrTrunc(v, llvm::Type::getInt32Ty(Context), "contintinit"); } , true };
+		return { llvm::Type::getInt32Ty(Context), [=](llvm::Value* v) { return Builder->CreateSExtOrTrunc(v, llvm::Type::getInt32Ty(Context), "convintinit"); } , true };
 	else
 		return { type, NoConversion, false };
 }

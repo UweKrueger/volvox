@@ -150,9 +150,9 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 		storage_type = full_var.first->storage_type;
 	} else {
 		V = full_var.first->val;
-		storage_type = ft->type; //full_var.first->val->getType();
-		if (Name == "ooi")
-			storage_type = llvm::Type::getDoubleTy(Context);
+		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
+		if (storage_type->isFunctionTy())
+			storage_type = storage_type->getPointerTo();
 	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -551,6 +551,8 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			return nullptr;
 		if (conv.compat.RHS)
 			Val = conv.compat.RHS(Val);
+		if (Val->getType()->isFunctionTy())
+			errs() << "RHS for " << Op << " - function " << *Val->getType() << '\n';
 		// Look up the name.
 		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
 			varname = RegularVar->getName().c_str();
@@ -575,18 +577,16 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		// variable declaration
 		if (inside_function) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-			auto type_descr = MakeType(Val->getType(), RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
+			auto type_descr = MakeType(RHS->ft->type, RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
 			llvm::Type* type = std::get<0>(type_descr);
 			auto conversion = std::get<1>(type_descr);
 			bool is_signed = std::get<2>(type_descr);
 			auto convertedVal = conversion(Val);
-			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, type);
+			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, convertedVal->getType());
 			dbgs() << "created alloca for type " << *type << ' ' << *Alloca->getType() << '\n';
 			// Entry has already been created by parser
 			FullVar* entry = locals_table.back()[varname];
 			entry->val = Alloca;
-			entry->ft.type = type;
-			entry->ft.type_attr = is_signed ? A_signed : 0;
 			dbgs() << "Inserted " << varname << " type: " << *(locals_table.back()[varname]->ft.type) << '\n';
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
@@ -598,7 +598,9 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 										llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
 										Builder->GetInsertBlock());
 			}
+			dbgs() << "Create store for " << *convertedVal->getType() << ' ' << *Alloca->getType() << '\n';
 			Builder->CreateStore(convertedVal, Alloca);
+			ft->type = llvm::Type::getVoidTy(Context);
 			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		} else {
 			return Val;

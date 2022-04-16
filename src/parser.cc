@@ -500,6 +500,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				llvm::Type* type = std::get<0>(type_descr);
 				bool is_signed = std::get<2>(type_descr);
 				FullVar fv = {
+					.val = nullptr,
 					.ft = *RHS->ft
 				};
 				fv.ft.type = type;
