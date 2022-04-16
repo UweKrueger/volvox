@@ -59,11 +59,11 @@ fn v() [5]i32
 	p := [3, 8, -17, 123, 97, -1074]
 	return p
 
-# fn r(x [5]f64) f64
-# 	w := x[3]
-# 	return w
+fn r(x [5]f64) f64
+	w := x[3]
+	return w
 
-# r(u())
+r(u())
 
 u()
 

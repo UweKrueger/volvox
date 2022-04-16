@@ -234,7 +234,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		}
 		field_type = LV.first;
 		field_ptr = LV.second;
-		if (field_type->isPointerTy()) {
+		if (field_type->isPointerTy() || field_ptr->getType()->isPointerTy()) {
 			auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), TheModule->getDataLayout().getTypeAllocSize(elem_type));
 			auto offset = Builder->CreateMul(elem_size, idx);
 			auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(Context)), offset), elem_type->getPointerTo());
