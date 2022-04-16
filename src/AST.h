@@ -357,6 +357,7 @@ public:
 		  ElseEndKind(ElseEndKind), conv(conv)
 		{}
 	llvm::Value *codegen_raw() override;
+	llvm::Value* createCondBranch(llvm::BasicBlock *MergeBB, bool isElse);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);

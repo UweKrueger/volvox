@@ -919,6 +919,40 @@ llvm::Value *CallExprAST::codegen_raw() {
 	}
 }
 
+llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock *MergeBB, bool isElse) {
+	int EndKind = isElse ? ElseEndKind : ThenEndKind;
+	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
+	llvm::Value* BranchV = nullptr;
+	for (auto& expr : Branch)
+		BranchV = expr->codegen_raw();
+	if (!BranchV && !isElse)
+		return nullptr;
+	if (ft->type->isVoidTy() && !(BranchV && BranchV->getType()->isVoidTy())) {
+		if (EndKind == tok_return)
+			Builder->CreateRetVoid();
+		else {
+			BranchV = llvm::UndefValue::get(ft->type);
+			Builder->CreateBr(MergeBB);
+		}
+	} else {
+		if (!ft->type->isVoidTy()) {
+			auto PreConv = getBestPreConv(Branch.back()->Loc, desired_type, conv.compat.res_type,
+			                              conv.ideal.res_type, isElse ? conv.compat.RHS : conv.compat.LHS,
+			                              isElse ? conv.ideal.RHS : conv.ideal.LHS,
+			                              conv.ideal.res_attr & A_signed);
+			if (!PreConv)
+				return nullptr;
+			BranchV = PreConv(BranchV);
+		}
+		if (EndKind == tok_return) {
+			Builder->CreateRet(CheckTailCall(BranchV));
+		} else {
+			Builder->CreateBr(MergeBB);
+		}
+	}
+	return BranchV;
+}
+
 llvm::Value *IfExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -948,33 +982,9 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit then value.
 	Builder->SetInsertPoint(ThenBB);
 
-	llvm::Value* ThenV = nullptr;
-	for (auto& expr : Then)
-		ThenV = expr->codegen_raw();
+	llvm::Value* ThenV = createCondBranch(MergeBB, false);
 	if (!ThenV)
 		return nullptr;
-	if (ft->type->isVoidTy() && !(ThenV && ThenV->getType()->isVoidTy())) {
-		if (ThenEndKind == tok_return)
-			Builder->CreateRetVoid();
-		else {
-			ThenV = llvm::UndefValue::get(ft->type);
-			Builder->CreateBr(MergeBB);
-		}
-	} else {
-		if (!ft->type->isVoidTy()) {
-			auto thenPreConv = getBestPreConv(Then.back()->Loc, desired_type, conv.compat.res_type,
-			                                  conv.ideal.res_type, conv.compat.LHS, conv.ideal.LHS,
-			                                  conv.ideal.res_attr & A_signed);
-			if (!thenPreConv)
-				return nullptr;
-			ThenV = thenPreConv(ThenV);
-		}
-		if (ThenEndKind == tok_return) {
-			Builder->CreateRet(CheckTailCall(ThenV));
-		} else {
-			Builder->CreateBr(MergeBB);
-		}
-	}
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
 
@@ -982,32 +992,9 @@ llvm::Value *IfExprAST::codegen_raw() {
 	TheFunction->getBasicBlockList().push_back(ElseBB);
 	Builder->SetInsertPoint(ElseBB);
 
-	llvm::Value* ElseV = nullptr;
-	for (auto& expr : Else)
-		ElseV = expr->codegen_raw();
-	if (ft->type->isVoidTy() && !(ElseV && ElseV->getType()->isVoidTy())) {
-		if (ElseEndKind == tok_return)
-			Builder->CreateRetVoid();
-		else {
-			ElseV = llvm::UndefValue::get(ft->type);
-			Builder->CreateBr(MergeBB);
-		}
-	} else {
-		dbgs() << Else.size() << " raw Else type: " << *ElseV->getType() << '\n';
-		if (!ft->type->isVoidTy()) {
-			auto elsePreConv = getBestPreConv(Else.back()->Loc, desired_type, conv.compat.res_type,
-			                                  conv.ideal.res_type, conv.compat.RHS, conv.ideal.RHS,
-			                                  conv.ideal.res_attr & A_signed);
-			if (!elsePreConv)
-				return nullptr;
-			ElseV = elsePreConv(ElseV);
-		}
-		if (ElseEndKind == tok_return) {
-			Builder->CreateRet(CheckTailCall(ElseV));
-		} else {
-			Builder->CreateBr(MergeBB);
-		}
-	}
+	llvm::Value* ElseV = createCondBranch(MergeBB, true);
+	if (!ElseV)
+		return nullptr;
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 	ElseBB = Builder->GetInsertBlock();
 	// Emit merge block.
