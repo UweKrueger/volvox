@@ -636,8 +636,20 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 	}
 	llvm::Value* result;
 	if (!is_bool) {
-		LHS->desired_type = RHS->desired_type = desired_type;
-		LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
+		if (desired_type) {
+			LHS->desired_type = RHS->desired_type = desired_type;
+			LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
+		} else {
+			if (conv.compat.res_type) {
+				LHS->desired_type = RHS->desired_type = conv.compat.res_type;
+				LHS->desired_type_attr = RHS->desired_type_attr = conv.compat.res_attr;
+			} else {
+				return nullptr;
+			}
+		}
+	} else {
+		LHS->desired_type = RHS->desired_type = conv.compat.res_type;
+		LHS->desired_type_attr = RHS->desired_type_attr = conv.compat.res_attr;
 	}
 	llvm::Value *L = LHS->codegen();
 	llvm::Value *R = RHS->codegen();
@@ -873,7 +885,7 @@ conv_done:
 		break;
 	}
 	if (result) {
-		if (!is_bool) {
+		if (!is_bool && desired_type) {
 			auto conv = getConv(ft->type, desired_type, ft->type_attr, desired_type_attr, Loc, true, is_unknown_type);
 			if (conv) {
 				if (verbosity >= 4)

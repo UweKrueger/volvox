@@ -305,6 +305,8 @@ public:
 		} else {
 			LHS->ft = RHS->ft;
 		}
+		if (!ft->type)
+			errs() << "### BinExpr: no type\n";
 	}
 	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
