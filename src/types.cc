@@ -209,7 +209,6 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	unsigned res_is_signed = (left_is_signed || right_is_signed) ? A_signed : 0; 
 	bool is_shift = false;
 	bool is_logical = false;
-	unsigned signed_unsigned_mismatch = 0;
 	llvm::Type* res_type;
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
@@ -231,10 +230,6 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	case '+':
 	case '-':
 		res_bitwidth++;
-		if (!res_is_float
-			&& (left_is_signed && !right_is_signed && right_bitwidth >= left_bitwidth
-			    || right_is_signed && !left_is_signed && left_bitwidth >= right_bitwidth))
-			signed_unsigned_mismatch = A_dirty;
 		break;
 	case '*':
 		if (Op[1] != '*') {
@@ -290,7 +285,7 @@ calc_types:
 	llvm::Type* def_type = (left_is_promoted && right_is_promoted && res_bitwidth != 1) ?
 		nullptr : // forbid both-side promotion as default
 		getFittingType(res_bitwidth_min, res_is_float);
-	return { def_type, getFittingType(res_bitwidth, res_ideal_is_float), res_is_signed | signed_unsigned_mismatch,
+	return { def_type, getFittingType(res_bitwidth, res_ideal_is_float), res_is_signed,
 		left_is_unknown_type && (right_is_unknown_type || is_shift),
 		def_type ? nullptr : "would require promotions on both sides" };
 }
