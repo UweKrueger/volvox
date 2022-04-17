@@ -451,6 +451,11 @@ namespace volvox {
 				if (ft->SubclassData <= 32) {
 					int val = va_arg(ap, int);
 					if (ft->SubclassData < 32)
+						if (ft->SubclassData == 1) {
+							// bool
+							prtstring(s, cap, pos, val & 1 ? "true" : "false");
+							break;
+						}
 						// extend upper bits according to signedness
 						if (ft->type_attr & A_signed)
 							val = (int)((unsigned)val << (32 - ft->SubclassData)) >> (32 - ft->SubclassData);
