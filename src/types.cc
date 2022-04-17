@@ -239,6 +239,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 		// fallthrough for **
 	case '/':
 		res_ideal_is_float = true;
+		res_bitwidth = 53; // double
 	case '%':
 		res_bitwidth = left_bitwidth;
 		break;
