@@ -941,7 +941,12 @@ llvm::Value *CallExprAST::codegen_raw() {
 				errs() << "Wrong type passed for function arg #" << i + 1 << ": expected " << *Proto->ArgTypes[i]->type << ", got " << *Args[i]->ft->type << "\n";
 				return nullptr;
 			}
-			ArgsV.push_back(Args[i]->codegen());
+			llvm::Value* arg = Args[i]->codegen();
+			if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
+				// C convention: variadic float args must be promoted to double
+				arg = Builder->CreateFPCast(arg, llvm::Type::getDoubleTy(Context), "convfptmp");
+			}
+			ArgsV.push_back(arg);
 		}
 		if (!ArgsV.back())
 			return nullptr;
