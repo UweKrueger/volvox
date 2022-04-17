@@ -192,6 +192,16 @@ Token Lexer::gettok(eXpect expect) {
 				IdentifierStr = "=";
 				return tok_assign;
 			}
+		case '!':
+			CurChar = advance();
+			if (CurChar == '=') {
+				IdentifierStr = "!=";
+				CurChar = advance();
+				return tok_cmp;
+			} else {
+				IdentifierStr = "!";
+				return tok_or;
+			}
 		case '>':
 		case '<':
 		{
@@ -226,7 +236,6 @@ Token Lexer::gettok(eXpect expect) {
 		}
 		case '|':
 		case '^':
-		case '!':
 		{
 			IdentifierStr = CurChar;
 			CurChar = advance();

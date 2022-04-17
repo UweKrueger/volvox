@@ -214,7 +214,6 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {
 		if (Op[0] == '>' || Op[0] == '<' || Op[0] == '!' || Op[0] == '=') {
-			res_bitwidth = res_bitwidth_min = 1;
 			goto comparison;
 		}
 		res_bitwidth_min = res_bitwidth = left_bitwidth;
@@ -249,7 +248,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	case '<':
 	case '=':
 	comparison:
-		if (Op[1] == Op[0]) {
+		if (Op[1] == Op[0] && Op[0] != '=') {
 			// <<, >> TODO: forbid float
 			is_shift = true; // to allow signed / unsigend mismatch
 			res_bitwidth_min = left_bitwidth;
@@ -257,7 +256,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 			res_is_signed = left_is_signed;
 		} else {
 			res_bitwidth = 1;
-			if (Op[0] == '=') {
+			if (Op[0] == '=' && !Op[1]) {
 				// this is an assignment by default, i.e. if no bool result is expected
 				res_bitwidth_min = left_bitwidth;
 				res_is_float = left_is_float;

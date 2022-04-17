@@ -778,9 +778,34 @@ conv_done:
 		}
 		break;
 	case '!':
+		if (Op[1] == '=') {
+			switch(typeclass) {
+			case is_int:
+				result = Builder->CreateICmpNE(L, R, "neitmp");
+				break;
+			case is_float:
+				result = Builder->CreateFCmpONE(L, R, "neftmp");
+				break;
+			default:
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			}
+		} else {
+			switch(typeclass) {
+			case is_int:
+				result = Builder->CreateNot(Builder->CreateXor(L, R, "xortmp"), "nxortmp");
+				break;
+			default:
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			}
+		}
+		break;
+	case '=':
 		switch(typeclass) {
 		case is_int:
-			result = Builder->CreateNot(Builder->CreateXor(L, R, "xortmp"), "nxortmp");
+			result = Builder->CreateICmpEQ(L, R, "eqitmp");
+			break;
+		case is_float:
+			result = Builder->CreateFCmpOEQ(L, R, "eqftmp");
 			break;
 		default:
 			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
