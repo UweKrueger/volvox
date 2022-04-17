@@ -31,9 +31,10 @@ global_var_shadow* global_list = NULL;
 global_var_shadow** global_list_end = &global_list;
 thread_local global_var_shadow* tl_global_list = nullptr;	
 
-// useful definitions
+// useful definitions - "Context-time" constants
 llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
+llvm::Type* llvm_bool_type;
 volvox::FullType* void_type;
 volvox::FullType* uintptr_type;
 
@@ -86,6 +87,7 @@ void init() {
 	type_table.add("void", llvm::Type::getVoidTy(Context), nullptr);
 	// TODO: make .add() return FullType*
 	void_type = type_table.get_full("void");
+	llvm_bool_type = llvm::Type::getInt1Ty(Context);
 	type_table.add("bool", llvm::Type::getInt1Ty(Context), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
 	type_table.add("i8", llvm::Type::getInt8Ty(Context), DBuilder ? DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	type_table.add("i16", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("i16", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);

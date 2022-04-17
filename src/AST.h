@@ -302,6 +302,12 @@ public:
 				ft = LHS->ft;
 			else if (RHS->ft->type && !RHS->ft->type->isSingleValueType())
 				ft = RHS->ft;
+			else if (conv.ideal.res_type && (!conv.compat.res_type || conv.ideal.res_type == llvm_bool_type)
+			         && strcmp(Op, "=")) { // '=' means assignment by default - compare if bool is expected
+				dbgs() << "setting expression type to " << *conv.ideal.res_type << '\n';
+				ft->type = conv.ideal.res_type;
+				ft->type_attr = conv.ideal.res_attr;
+			}
 		} else {
 			LHS->ft = RHS->ft;
 		}

@@ -648,6 +648,14 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
 		}
 	} else {
+		if (is_bool) {
+			if (desired_type) {
+				if (desired_type != llvm_bool_type) {
+					errs() << Loc << "boolean expression cannot be used where " << *desired_type << " is expected\n";
+					return nullptr;
+				}
+			}
+		}
 		LHS->desired_type = RHS->desired_type = conv.compat.res_type;
 		LHS->desired_type_attr = RHS->desired_type_attr = conv.compat.res_attr;
 	}

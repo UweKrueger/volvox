@@ -181,6 +181,7 @@ extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation L
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
+extern llvm::Type* llvm_bool_type;
 extern volvox::FullType* void_type;
 extern volvox::FullType* uintptr_type;
 extern const char* last_shadow_saver;
@@ -207,6 +208,7 @@ extern volvox::FullType* ParseType(bool allow_attribute = false, eXpect expect =
 extern llvm::Constant* getRtType(volvox::FullType* ft);
 extern llvm::Constant* getRtType(volvox::FullType* ft);
 extern std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name);
+extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
