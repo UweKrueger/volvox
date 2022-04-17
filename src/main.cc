@@ -233,7 +233,7 @@ static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
 		if (auto anon_expr = FnAST->codegen()) {
-			if (dump_IR) {
+			if (dump_IR >= 2) {
 				errs() << "Created temporary top level anon_expr definition:\n";
 				anon_expr->print(errs());
 				errs() << "\n";
@@ -369,7 +369,7 @@ int cur_input_fd;
 static void usage(const char* prog) {
 	errs() << "Usage: " << prog << " [-v] [-d] [-c] [-g] [-i file] [-o file] [[-t] file [...]]\n";
 	errs() << " -v ........ verbose output (may be repeated for even more verbosity)\n";
-	errs() << " -d ........ dump generated LLVM IR-code\n";
+	errs() << " -d ........ dump generated LLVM IR-code (repeat to dump more code)\n";
 	errs() << " -c ........ compile to optimized object file\n";
 	errs() << " -g ........ compile with debug information\n";
 	errs() << " -j ........ start interactive JIT session despite provided file(s)\n";
@@ -391,7 +391,7 @@ static void debug_mode_conflict(const char* prog) {
 }
 
 int verbosity = 0;
-bool dump_IR = false;
+unsigned dump_IR = 0;
 bool do_test = false;
 bool jit_repl = false;
 char* output_file = nullptr;
@@ -417,7 +417,7 @@ int main(int argc, char* argv[]) {
 		case 'd':
 			if (comp_mode == comp_dbg)
 				debug_mode_conflict(argv[0]);
-			dump_IR = true;
+			dump_IR++;
 			break;
 		case 'c':
 			if (comp_mode == comp_jit)

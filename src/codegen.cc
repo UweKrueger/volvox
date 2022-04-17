@@ -395,7 +395,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				Builder->CreateRet(CheckTailCall(Builder->CreateCall(shadow_fn.second->FT, shadow_fn.first, { V, sz_const }, "callshadow")));
 				verifyFunction(*Fshadow);
 				TheFPM->run(*Fshadow);
-				if (dump_IR) {
+				if (dump_IR >= 3) {
 					errs() << "Read function definition:\n";
 					Fshadow->print(errs());
 					errs() << "\n";
@@ -457,7 +457,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				}
 				verifyFunction(*Fsaver);
 				TheFPM->run(*Fsaver);
-				if (dump_IR) {
+				if (dump_IR >= 3) {
 					errs() << "Read function definition:\n";
 					Fsaver->print(errs());
 					errs() << "\n";
@@ -479,7 +479,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				}
 				verifyFunction(*Frestorer);
 				TheFPM->run(*Frestorer);
-				if (dump_IR) {
+				if (dump_IR >= 3) {
 					errs() << "Read function definition:\n";
 					Frestorer->print(errs());
 					errs() << "\n";
