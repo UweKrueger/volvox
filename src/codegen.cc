@@ -634,8 +634,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		}
 		return Val;
 	}
-	//if (conv.compat.err_msg)
-	//	return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
 	llvm::Value* result;
 	std::function<llvm::Value*(llvm::Value*)> convLHS = nullptr;
 	std::function<llvm::Value*(llvm::Value*)> convRHS = nullptr;
@@ -646,6 +644,8 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				return nullptr;
 			}
 		}
+		if (conv.compat.err_msg)
+			return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
 		LHS->desired_type = RHS->desired_type = conv.compat.res_type;
 		LHS->desired_type_attr = RHS->desired_type_attr = conv.compat.res_attr;
 		convLHS = conv.compat.LHS;
