@@ -465,7 +465,7 @@ public:
 	virtual llvm::Value *codegen_raw() = 0;
 	llvm::Value* codegen() {
 		auto rawV = codegen_raw();
-		if (desired_type && !rawV->getType()->isVoidTy()) {
+		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
 			auto postConv = getConv(rawV->getType(), desired_type, ft->type_attr, desired_type_attr,
 			                        Loc, true, is_unknown_type);
 			return postConv(rawV);

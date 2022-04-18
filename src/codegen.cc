@@ -634,37 +634,74 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		}
 		return Val;
 	}
-	if (conv.compat.err_msg)
-		return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
+	//if (conv.compat.err_msg)
+	//	return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
 	llvm::Value* result;
-	if (desired_type && !is_bool) {
-		auto ana_default = analyze_types({ conv.compat.res_type, conv.compat.res_attr }, { desired_type, desired_type_attr });
-		auto ana_ideal = analyze_types({ conv.ideal.res_type, conv.ideal.res_attr }, { desired_type, desired_type_attr });
-		if (ana_default.first && ana_ideal.second) {
-			LHS->desired_type = RHS->desired_type = conv.ideal.res_type;
-			LHS->desired_type_attr = RHS->desired_type_attr = conv.ideal.res_attr;
-		} else {
-			LHS->desired_type = RHS->desired_type = desired_type;
-			LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
-		}
-	} else {
-		if (is_bool) {
-			if (desired_type) {
-				if (desired_type != llvm_bool_type) {
-					errs() << Loc << "boolean expression cannot be used where " << *desired_type << " is expected\n";
-					return nullptr;
-				}
+	std::function<llvm::Value*(llvm::Value*)> convLHS = nullptr;
+	std::function<llvm::Value*(llvm::Value*)> convRHS = nullptr;
+	if (is_bool) {
+		if (desired_type) {
+			if (desired_type != llvm_bool_type) {
+				errs() << Loc << "boolean expression cannot be used where " << *desired_type << " is expected\n";
+				return nullptr;
 			}
 		}
 		LHS->desired_type = RHS->desired_type = conv.compat.res_type;
 		LHS->desired_type_attr = RHS->desired_type_attr = conv.compat.res_attr;
+		convLHS = conv.compat.LHS;
+		convRHS = conv.compat.RHS;
+	} else {
+		if (desired_type) {
+			auto ana_default = conv.compat.err_msg ? std::pair<bool, bool>{ false, false } : analyze_types({ conv.compat.res_type, conv.compat.res_attr }, { desired_type, desired_type_attr });
+			auto ana_ideal = analyze_types({ conv.ideal.res_type, conv.ideal.res_attr }, { desired_type, desired_type_attr });
+			if (ana_ideal.second) {
+				LHS->desired_type = RHS->desired_type = conv.ideal.res_type;
+				LHS->desired_type_attr = RHS->desired_type_attr = conv.ideal.res_attr;
+				convLHS = conv.ideal.LHS;
+				convRHS = conv.ideal.RHS;
+			} else {
+				LHS->desired_type = RHS->desired_type = desired_type;
+				LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
+				if (conv.compat.res_type) {
+					convLHS = conv.compat.LHS;
+					convRHS = conv.compat.RHS;
+				}
+			}
+		} else {
+			if (conv.compat.err_msg)
+				return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
+			LHS->desired_type = RHS->desired_type = conv.compat.res_type;
+			LHS->desired_type_attr = RHS->desired_type_attr = conv.compat.res_attr;
+			convLHS = conv.compat.LHS;
+			convRHS = conv.compat.RHS;
+		}
 	}
-	llvm::Value *L = LHS->codegen();
-	llvm::Value *R = RHS->codegen();
+	if (verbosity >= 4) {
+		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
+		if (RHS->desired_type) errs() << "RHS desired_type: " << *RHS->desired_type << ' ';
+		errs() << "expr: ";
+		if (desired_type)
+			errs() << *desired_type << '\n';
+		else
+			errs() << "none\n";
+	}
+	llvm::Value *L, *R;
+	if (convLHS) {
+		L = LHS->codegen_raw();
+		L = convLHS(L);
+	}
+	else
+		L = LHS->codegen();
+	if (convRHS) {
+		R = RHS->codegen_raw();
+		R = convRHS(R);
+	}
+	else
+		R = RHS->codegen();
 	if (!L || !R)
 		return nullptr;
-	llvm::Type* OperandType = LHS->desired_type;
-	bool OperandSigned = !(!(LHS->desired_type_attr & A_signed));
+	llvm::Type* OperandType = conv.compat.res_type ? conv.compat.res_type : conv.ideal.res_type;
+	bool OperandSigned = conv.compat.res_type ? !(!(conv.compat.res_attr & A_signed)) : !(!(conv.ideal.res_attr & A_signed));
 conv_done:
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
 	TypeClass typeclass = is_unknown;
