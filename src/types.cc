@@ -108,7 +108,8 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 			else
 				return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "float truncation");
 		else
-			if (is_explicit || is_unknown_type || desired_bitwidth >= expr_bitwidth)
+			if (is_explicit || is_unknown_type || desired_bitwidth >= expr_bitwidth
+			    || desired_bitwidth >= 53) // always allow conversion to f64
 				if (expr_attr & A_signed)
 					return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, desired_type, "convsfptmp"); };
 				else
