@@ -160,7 +160,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, true, "expandstmp"); };
 				else
 					// unsigned -> signed
-					if (desired_bitwidth <= expr_bitwidth)
+					if (desired_bitwidth < expr_bitwidth)
 						if (is_explicit || is_unknown_type)
 							if (desired_bitwidth == expr_bitwidth)
 								return NoConversion;
@@ -328,10 +328,10 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	bool res_is_signed = std::get<2>(res_t);
 	bool res_is_unknown_type = std::get<3>(res_t);
 	const char* err_msg = std::get<4>(res_t);
-	unsigned res_bitwidth_min = getBitWidth(res_type_min).first;
+	unsigned res_bitwidth_min = res_type_min ? getBitWidth(res_type_min).first : 0;
 	unsigned res_bitwidth = getBitWidth(res_type).first;
-	auto left_conv_min = getConv(left_type, res_type_min, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type);
-	auto right_conv_min = getConv(right_type, res_type_min, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type);
+	auto left_conv_min = res_type_min ? getConv(left_type, res_type_min, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type) : nullptr;
+	auto right_conv_min = res_type_min ? getConv(right_type, res_type_min, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type) : nullptr;
 	auto left_conv = res_bitwidth_min <= res_bitwidth ? getConv(left_type, res_type, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type) : nullptr;
 	auto right_conv = res_bitwidth_min <= res_bitwidth ? getConv(right_type, res_type, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type) : nullptr;
 	return {{ left_conv_min, right_conv_min, res_type_min, res_is_signed, res_is_unknown_type, err_msg },

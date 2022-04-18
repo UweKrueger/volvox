@@ -953,6 +953,8 @@ llvm::Value *CallExprAST::codegen_raw() {
 				return nullptr;
 			}
 			llvm::Value* arg = Args[i]->codegen();
+			if (!arg)
+				return nullptr;
 			if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
 				// C convention: variadic float args must be promoted to double
 				arg = Builder->CreateFPCast(arg, llvm::Type::getDoubleTy(Context), "convfptmp");
