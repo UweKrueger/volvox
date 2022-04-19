@@ -665,13 +665,40 @@ extern "C" {
 }
 #endif
 
+extern "C" _DECL bool enableColorANSI(int fd) {
+#if defined (_MSC_VER)
+	static bool is_set = false;
+	if (!is_set) {
+		HANDLE h = (HANDLE)_get_osfhandle(fd);
+		if ((intptr_t)h == -1)
+			return false;
+		DWORD mode;
+		if (!GetConsoleMode(h, &mode)) {
+			errno = ENOTTY;
+			return false;
+		}
+		mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+		if (!SetConsoleMode(h, mode)) {
+			errno = ENOTTY;
+			return false;
+		}
+		is_set = true;
+	}
+	return true;
+#else
+	return isatty(fd));
+#endif
+}
+
 extern "C" _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 6)
 		width = 6;
+	bool have_color = enableColorANSI(fd);
+
 	char* buf = (char*)alloca(width+2+9);
 	snprintf(buf, width-4, "%*s", -width+5, testcase);
-	strcpy(buf+width-5, result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n");
-	write(fd, buf, width+10);
+	strcpy(buf+width-5, have_color ? (result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n") : (result ? " PASS\n" : " FAIL\n"));
+	write(fd, buf, width + (have_color ? 10 : 1));
 }
 
 // find out the terminal size #rows are stored in the lower 16 bits
