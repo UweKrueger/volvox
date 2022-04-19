@@ -1,15 +1,18 @@
 #include <stdio.h>
 #include <inttypes.h>
+#include "types.h"
+#include "str.h"
 #if defined (_MSC_VER)
+#include <windows.h>
 #include <io.h>
+#include <malloc.h>
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
 #include <termios.h>
+#include <alloca.h>
 #endif
 #include <stdarg.h>
-#include "types.h"
-#include "str.h"
 
 #if defined (_MSC_VER)
 #define _DECL __declspec(dllexport)
@@ -391,7 +394,7 @@ namespace volvox {
 	}
 
 // find maximum of 2 numbers
-	static inline int max(int a, int b) {
+	static inline int Max(int a, int b) {
 		return a > b ? a : b;
 	}
 
@@ -435,7 +438,7 @@ namespace volvox {
 				double val = va_arg(ap, double);
 				const char* fmt = getFmtFlt(flags);
 				if (p <= 0) p = F64_DEFAULT_PRECISION;
-				int expected_nchar = max(abs(w)+1, p+7+1);
+				int expected_nchar = Max(abs(w)+1, p+7+1);
 				while (space < expected_nchar) {
 					*cap += expected_nchar + (*cap >> 1);
 					*s = (char*)realloc(*s, *cap);
@@ -464,7 +467,7 @@ namespace volvox {
 						else
 							val = (int)(((unsigned)val << (32 - ft->SubclassData)) >> (32 - ft->SubclassData));
 					const char* fmt = getFmtInt(flags);
-					int expected_nchar = max(abs(w)+1, 21+1);
+					int expected_nchar = Max(abs(w)+1, 21+1);
 					while (space < expected_nchar) {
 						*cap += expected_nchar + (*cap >> 1);
 						*s = (char*)realloc(*s, *cap);
@@ -477,7 +480,7 @@ namespace volvox {
 				} else {
 					long long int val = va_arg(ap, long long int);
 					const char* fmt = getFmtLong(flags);
-					int expected_nchar = max(abs(w)+1, 11+1);
+					int expected_nchar = Max(abs(w)+1, 11+1);
 					while (space < expected_nchar) {
 						*cap += expected_nchar + (*cap >> 1);
 						*s = (char*)realloc(*s, *cap);
@@ -528,7 +531,7 @@ namespace volvox {
 				break;
 			case llvm::Type::FunctionTyID: {
 				char* fn = va_arg(ap, char*);
-				int expected_nchar = max(abs(w)+1, 30+1);
+				int expected_nchar = Max(abs(w)+1, 30+1);
 				while (space < expected_nchar) {
 					*cap += expected_nchar + (*cap >> 1);
 					*s = (char*)realloc(*s, *cap);
@@ -665,7 +668,7 @@ extern "C" {
 extern "C" _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 6)
 		width = 6;
-	char buf[width+2+9];
+	char* buf = (char*)alloca(width+2+9);
 	snprintf(buf, width-4, "%*s", -width+5, testcase);
 	strcpy(buf+width-5, result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n");
 	write(fd, buf, width+10);

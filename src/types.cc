@@ -210,7 +210,6 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	unsigned res_is_signed = (left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type || left_is_signed && right_is_signed) ? A_signed : 0; 
 	bool is_shift = false;
 	bool is_logical = false;
-	llvm::Type* res_type;
 	// in simple cases one operand is converted to the type of the other
 	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
 	if (Op[1] == '=') {

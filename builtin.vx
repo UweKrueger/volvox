@@ -14,6 +14,8 @@ extern _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
 extern _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
 extern memcpy(dest string, src string, n u64) string
 extern new_global_var_shadow(adr string, sz u64) u64
+extern getTermSize(fd i32) i32
+extern showtestres(fd i32, width i32, testcase string, result bool)
 
 zz := 34.53
 

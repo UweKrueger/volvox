@@ -702,7 +702,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		return nullptr;
 	llvm::Type* OperandType = conv.compat.res_type ? conv.compat.res_type : conv.ideal.res_type;
 	bool OperandSigned = conv.compat.res_type ? !(!(conv.compat.res_attr & A_signed)) : !(!(conv.ideal.res_attr & A_signed));
-conv_done:
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
 	TypeClass typeclass = is_unknown;
 	switch(OperandType->getTypeID()) {
