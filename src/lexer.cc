@@ -11,10 +11,10 @@ bool use_readline = false;
 
 #if defined (_MSC_VER)
 // our patched version of wineditline recognizes ANSI escape sequences
-#define VOLVOX_PROMPT "\033[36m\033[48;2;50;50;50m%4d\033[34m>\033[0m "
+#define VOLVOX_PROMPT "\033[38;5;30m\033[48;5;236m% 4d\033[38;5;100m>\033[0m "
 #else
 // mainstream BSD libedit uses '\001' to toggle character counting
-#define VOLVOX_PROMPT "\001\033[36;100m\001%4d\001\033[34m\001>\001\033[0m\001 "
+#define VOLVOX_PROMPT "\001\033[38;5;30m\033[48;5;236m\001% 4d\001\033[38;5;100m\001>\001\033[0m\001 "
 #endif
 
 static ssize_t fdgetline(char **lineptr, size_t *n) {
