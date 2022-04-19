@@ -4,6 +4,8 @@
 #include <io.h>
 #else
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <termios.h>
 #endif
 #include <stdarg.h>
 #include "types.h"
@@ -668,3 +670,29 @@ extern "C" _DECL void showtestres(int fd, int width, const char* testcase, bool 
 	strcpy(buf+width-5, result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n");
 	write(fd, buf, width+10);
 }
+
+// find out the terminal size #rows are stored in the lower 16 bits
+// and #columns in the upper. In case of failure errno is set and -1 is returned
+extern "C" _DECL int getTermSize(int fd)
+{
+#if defined (_MSC_VER)
+	HANDLE h = (HANDLE)_get_osfhandle(fd);
+	if ((intptr_t)h == -1)
+		return -1;
+	CONSOLE_SCREEN_BUFFER_INFO info;
+	if (!GetConsoleScreenBufferInfo(h, &info)) {
+		errno = ENOTTY;
+		return -1;
+	}
+	else
+		return (int)(((info.srWindow.Bottom - info.srWindow.Top + 1) << 16)
+					 | (info.srWindow.Right - info.srWindow.Left + 1));
+#else
+	struct winsize ws;
+	int res = ioctl(fd, TIOCGWINSZ, &ws);
+	if (res < 0)
+		return res;
+	else
+		return (int)((ws.ws_col << 16) | ws.ws_row);
+#endif
+}		
