@@ -980,11 +980,22 @@ char *readline(const char *prompt)
     _el_clean_exit();
     return NULL;
   }
+  int _non_counting_esc = 0;
+  for (int k=0; rl_prompt[k]; k++) {
+	  if (rl_prompt[k] == '\033') {
+		  if (rl_prompt[++k] != '[')
+			  continue;
+		  _non_counting_esc += 2;
+		  for (char c = rl_prompt[++k]; c >= '0' && c <= '9' || c == ';'; c = rl_prompt[++k])
+			  _non_counting_esc++;
+		   _non_counting_esc++;
+	  }
+  }
   if (!_el_mb2w(rl_prompt, &_el_prompt)) {
     _el_clean_exit();
     return NULL;
   }
-  _el_prompt_len = (int)wcslen(_el_prompt);
+  _el_prompt_len = (int)wcslen(_el_prompt) - _non_counting_esc;
   /*
   get I/O handles for current console
   */
@@ -1036,7 +1047,7 @@ char *readline(const char *prompt)
   SetConsoleMode(_el_h_in, ENABLE_PROCESSED_INPUT
     | ENABLE_EXTENDED_FLAGS | ENABLE_INSERT_MODE
     | ENABLE_QUICK_EDIT_MODE);
-  SetConsoleMode(_el_h_out, ENABLE_PROCESSED_OUTPUT);
+  SetConsoleMode(_el_h_out, ENABLE_PROCESSED_OUTPUT | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
   SetConsoleCtrlHandler((PHANDLER_ROUTINE)
     _el_signal_handler, TRUE);
   rl_point = 0;

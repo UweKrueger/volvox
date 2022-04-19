@@ -686,7 +686,7 @@ extern "C" _DECL bool enableColorANSI(int fd) {
 	}
 	return true;
 #else
-	return isatty(fd));
+	return isatty(fd);
 #endif
 }
 

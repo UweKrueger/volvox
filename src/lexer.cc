@@ -41,7 +41,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    cur_input_fd = input_fd;
 				    LexLoc = { input_file_name, 0, 0 };
 				    if (comp_mode == comp_jit && cur_input_fd == 0) {
-					    sprintf(prompt, "%03d> ", LexLoc.Line + 1);
+					    sprintf(prompt, "\033[96m%03d\033[90m>\033[0m ", LexLoc.Line + 1);
 					    for (int i=0; i<prompt_indent && i<200; i++)
 						    strcat(prompt, "    ");
 					    use_readline = true;
@@ -85,7 +85,7 @@ int Lexer::advance() {
 	// handling line endings different when use_readline is set
 	if (LexLoc.Col > linelen || !use_readline && LexLoc.Col >= linelen) {
 		if (use_readline) {
-			sprintf(prompt, "%03d> ", LexLoc.Line + 1);
+			sprintf(prompt, "\033[96m%03d\033[90m>\033[0m ", LexLoc.Line + 1);
 			for (int i=0; i<prompt_indent && i<200; i++)
 				strcat(prompt, "    ");
 		}
