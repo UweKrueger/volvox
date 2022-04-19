@@ -695,7 +695,7 @@ extern "C" _DECL void showtestres(int fd, int width, const char* testcase, bool 
 		width = 6;
 	bool have_color = enableColorANSI(fd);
 
-	char* buf = (char*)alloca(width+2+9);
+	char* buf = (char*)alloca(width + (have_color ? 11 : 2));
 	snprintf(buf, width-4, "%*s", -width+5, testcase);
 	strcpy(buf+width-5, have_color ? (result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n") : (result ? " PASS\n" : " FAIL\n"));
 	write(fd, buf, width + (have_color ? 10 : 1));
