@@ -2,6 +2,10 @@
 #include "global.h"
 #include "AST.h"
 
+// some names for environment variables
+
+#define PROMPT_COL "VOLVOX_COLORS"
+
 CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 std::vector<std::string> include_files = {};
@@ -401,33 +405,35 @@ promptcolor_t p_col = { 30, 100, 236 };
 char* output_file = nullptr;
 
 bool parse_pcol(char* s) {
+	uint8_t new_col[3] = { p_col.number, p_col.greater, p_col.background };
 	for (int i=0; i<3; i++) {
 		errno = 0;
 		long long col = strtoll(s, &s, 0);
-		if (errno == EINVAL || errno == ERANGE || col < 0 || col >= 0x100)
+		if (errno == EINVAL || errno == ERANGE)
 			return false;
-		switch (i) {
-		case 0:
-			p_col.number = (uint8_t)col;
-			break;
-		case 1:
-			p_col.greater = (uint8_t)col;
-			break;
-		case 2:
-			p_col.background = (uint8_t)col;
-			break;
-		default:
-			;
+		if (col < 0 || col >= 0x100) {
+			errno = ERANGE;
+			return false;
 		}
+		new_col[i] = (uint8_t)col;
 		if (*s)
-			s++;
+			if (*s != ',' && *s != ' ') {
+				errno = EINVAL;
+				return false;
+			}
+			else
+				s++;
 		else
 			break;
 	}
-	if (*s)
+	if (*s) {
+		errno = EINVAL;
 		return false;
-	else
-		return true;
+	}
+	p_col.number = new_col[0];
+	p_col.greater = new_col[1];
+	p_col.background = new_col[2];
+	return true;
 }
 
 #if defined (_MSC_VER)
@@ -445,6 +451,10 @@ int main(int argc, char* argv[]) {
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
 
+	if (char* cols = getenv(PROMPT_COL))
+		if (!parse_pcol(cols))
+			errs() << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
+			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
 	while ((opt = getopt(argc, argv, "vdcgji:o:t:P:")) != -1) {
 		switch (opt) {
@@ -490,7 +500,7 @@ int main(int argc, char* argv[]) {
 			break;
 		case 'P':
 			if (!parse_pcol(optarg)) {
-				errs() << "unknown format for prompt colors: \"" << optarg << "\"\n";
+				errs() << llvm::format("Invalid value for prompt colors - \"%s\": %s\n", optarg, strerror(errno));
 				usage(argv[0]);
 			}
 			break;
