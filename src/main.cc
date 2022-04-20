@@ -400,6 +400,7 @@ static void debug_mode_conflict(const char* prog) {
 int verbosity = 0;
 unsigned dump_IR = 0;
 bool do_test = false;
+std::vector<std::string> TestFunctions = {};
 bool jit_repl = false;
 promptcolor_t p_col = { 30, 100, 236 };
 char* output_file = nullptr;

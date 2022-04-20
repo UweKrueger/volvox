@@ -72,18 +72,22 @@ public:
 	std::vector<std::string> Args;
 	std::vector<volvox::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
+	std::vector<SourceLocation> ArgPos;
 	volvox::FullType* RetType;
+	SourceLocation retLoc;
 	llvm::FunctionType* FT;
 	bool IsVarArgs;
 	bool IsOperator;
 	int Line;
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
-	             std::vector<std::string> Args, bool IsOperator = false,
+	             std::vector<std::string> Args, SourceLocation retLoc = CurLoc, bool IsOperator = false,
 	             volvox::FullType* RetType_ = nullptr, std::vector<volvox::FullType*> ArgTypes = {},
-	             std::vector<llvm::Type*> LLVMArgTypes = {}, bool IsVarArgs = false)
-		: Name(Name), Args(Args), IsOperator(IsOperator),
-		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(ArgTypes), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {
+	             std::vector<llvm::Type*> LLVMArgTypes = {}, std::vector<SourceLocation> _ArgPos = {},
+	             bool IsVarArgs = false)
+		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
+		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(ArgTypes),
+		  ArgPos(_ArgPos), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs) {
 		FT = llvm::FunctionType::get(RetType->type, LLVMArgTypes, IsVarArgs);
 	}
 	llvm::Function *codegen();

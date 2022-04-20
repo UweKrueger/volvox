@@ -591,6 +591,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	std::vector<std::string> ArgNames;
 	std::vector<volvox::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes;
+	std::vector<SourceLocation> ArgPos;
 	bool is_method;
 	bool isVarArgs = false;
 
@@ -604,6 +605,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			return nullptr;
 		}
 		ArgNames.push_back(IdentifierStr);
+		ArgPos.push_back(CurLoc);
 		getNextToken();
 		auto type = ParseType(true);
 		if (!type->type) {
@@ -679,6 +681,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 			return nullptr;
 		}	
 		ArgNames.push_back(IdentifierStr);
+		ArgPos.push_back(CurLoc);
 		getNextToken();
 		auto type = ParseType(true);
 		if (!type) {
@@ -696,6 +699,7 @@ noargs:
 	Eat(')', eColon); //getNextToken(); // eat ')'.
 	// parse return type(s)
 	volvox::FullType* RetType = nullptr;
+	SourceLocation retLoc = CurLoc;
 	while (CurTok.kind != ';') {
 		auto type = ParseType(true);
 		if (!type) {
@@ -715,17 +719,34 @@ noargs:
 		return nullptr;
 	}
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, Kind != 0, RetType, ArgTypes, LLVMArgTypes, isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, retLoc, Kind != 0, RetType, ArgTypes, LLVMArgTypes, ArgPos, isVarArgs);
 }
+
+#define TEST_FN_PREFIX "test_"
 
 /// definition ::= 'fn' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition() {
 	getNextToken(); // eat fn.
 	auto Proto = ParsePrototype();
 	prompt_indent++;
-	if (!Proto)
+	if (!Proto) {
+		prompt_indent = 0;
 		return nullptr;
+	}
 	auto sz = Proto->Args.size();
+	if (!strncmp(Proto->Name.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {
+		if (sz) {
+			errs() << Proto->ArgPos[0] << ": 'test_...()' functions must not have any arguments\n";
+			prompt_indent = 0;
+			return nullptr;
+		}
+		if (Proto->RetType->type != llvm_bool_type) {
+			errs() << Proto->retLoc << ": 'test_...()' functions must return 'bool'\n";
+			prompt_indent = 0;
+			return nullptr;
+		}
+		TestFunctions.push_back(Proto->Name);
+	}
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
 		FullVar fv = {
@@ -734,6 +755,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);
 		if (!is_new) {
 			errs() << "duplicat function arg '" << Proto->Args[i] << "'\n";
+			prompt_indent = 0;
 			return nullptr;
 		}
 	}
@@ -781,7 +803,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		volvox::FullType* TheType = type_table.get_full("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
-		                                            false, TheType);
+		                                            FnLoc, false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 		// E->ft->dump();
 		if (last_shadow_restorer) {

@@ -219,6 +219,9 @@ extern llvm::Constant* getRtType(volvox::FullType* ft);
 extern std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name);
 extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 
+extern std::vector<std::string> TestFunctions;
+extern bool do_test;
+
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
 	unsigned BitWidth : 23; // #bits for int types, 0 for default
