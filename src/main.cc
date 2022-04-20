@@ -378,7 +378,8 @@ static void usage(const char* prog) {
 	errs() << " -i file ... include \"file\" in advance\n";
 	errs() << " -o file ... output compiled result to \"file\"\n";
 	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
-	errs() << " file ...... file(s) to compile (if none interactive session is started\n";
+	errs() << " -C n,g,b .. set prompt colors (ANSI-256, default: 30,100,236)\n";
+	errs() << " file ...... file(s) to compile (default: interactive session is started)\n";
 	exit(1);
 }
 
@@ -399,7 +400,39 @@ bool jit_repl = false;
 promptcolor_t p_col = { 30, 100, 236 };
 char* output_file = nullptr;
 
+bool parse_pcol(char* s) {
+	for (int i=0; i<3; i++) {
+		errno = 0;
+		long long col = strtoll(s, &s, 0);
+		if (errno == EINVAL || errno == ERANGE || col < 0 || col >= 0x100)
+			return false;
+		switch (i) {
+		case 0:
+			p_col.number = (uint8_t)col;
+			break;
+		case 1:
+			p_col.greater = (uint8_t)col;
+			break;
+		case 2:
+			p_col.background = (uint8_t)col;
+			break;
+		default:
+			;
+		}
+		if (*s)
+			s++;
+		else
+			break;
+	}
+	if (*s)
+		return false;
+	else
+		return true;
+}
+
 #if defined (_MSC_VER)
+// We have to switch to code page 65001 to enable UTF-8. This
+// value here is used to restore the old state on exit
 unsigned old_cp;
 #endif
 
@@ -413,7 +446,7 @@ int main(int argc, char* argv[]) {
 	errs().SetUnbuffered();
 
 	int opt;
-	while ((opt = getopt(argc, argv, "vdcgji:o:t:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdcgji:o:t:P:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -454,6 +487,12 @@ int main(int argc, char* argv[]) {
 		case 't':
 			do_test = true;
 			source_files.push_back(optarg);
+			break;
+		case 'P':
+			if (!parse_pcol(optarg)) {
+				errs() << "unknown format for prompt colors: \"" << optarg << "\"\n";
+				usage(argv[0]);
+			}
 			break;
 		default:
 			errs() << "unknown option '-" << opt << "'\n";
