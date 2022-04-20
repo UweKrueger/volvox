@@ -487,8 +487,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
 				FunctionProtos[restorer] = std::move(restorerProto);
-			} else {
-				errs() << "Unable to generate code for global shadow call\n";
 			}
 		} else {
 			goto nonconst;

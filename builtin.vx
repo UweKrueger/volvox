@@ -82,13 +82,13 @@ kk()
 
 l := true
 
-if l then kk() end
+# if l then kk() end
 
 pp
 
 l = false
 
-if l then kk() else kk(); kk() end
+# if l then kk() else kk(); kk() end
 
 pp
 
