@@ -11,10 +11,10 @@ bool use_readline = false;
 
 #if defined (_MSC_VER)
 // our patched version of wineditline recognizes ANSI escape sequences
-#define VOLVOX_PROMPT "\033[38;5;30m\033[48;5;236m% 4d\033[38;5;100m>\033[0m "
+#define VOLVOX_PROMPT "\033[38;5;%" PRIu8 "m\033[48;5;%" PRIu8 "m% 4d\033[38;5;%" PRIu8 "m>\033[0m "
 #else
 // mainstream BSD libedit uses '\001' to toggle character counting
-#define VOLVOX_PROMPT "\001\033[38;5;30m\033[48;5;236m\001% 4d\001\033[38;5;100m\001>\001\033[0m\001 "
+#define VOLVOX_PROMPT "\001\033[38;5;%" PRIu8 "m\033[48;5;%" PRIu8 "m\001% 4d\001\033[38;5;%" PRIu8 "m\001>\001\033[0m\001 "
 #endif
 
 static ssize_t fdgetline(char **lineptr, size_t *n) {
@@ -49,7 +49,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    cur_input_fd = input_fd;
 				    LexLoc = { input_file_name, 0, 0 };
 				    if (comp_mode == comp_jit && cur_input_fd == 0) {
-					    sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
+					    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
 					    for (int i=0; i<prompt_indent && i<200; i++)
 						    strcat(prompt, "    ");
 					    use_readline = true;
@@ -93,7 +93,7 @@ int Lexer::advance() {
 	// handling line endings different when use_readline is set
 	if (LexLoc.Col > linelen || !use_readline && LexLoc.Col >= linelen) {
 		if (use_readline) {
-			sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
+			sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
 			for (int i=0; i<prompt_indent && i<200; i++)
 				strcat(prompt, "    ");
 		}

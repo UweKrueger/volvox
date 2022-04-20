@@ -396,7 +396,9 @@ int verbosity = 0;
 unsigned dump_IR = 0;
 bool do_test = false;
 bool jit_repl = false;
+promptcolor_t p_col = { 30, 100, 236 };
 char* output_file = nullptr;
+
 #if defined (_MSC_VER)
 unsigned old_cp;
 #endif

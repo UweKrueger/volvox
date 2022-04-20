@@ -118,6 +118,15 @@ inline llvm::raw_ostream& outs() {
 	return llvm::outs();
 }
 
+// 3 colors from the ANSI 256 color palette
+struct promptcolor_t {
+	uint8_t number;
+	uint8_t greater;
+	uint8_t background;
+};
+
+extern promptcolor_t p_col;
+
 // the following output streams only output on stderr if one or more '-v' options were given  
 extern int verbosity;
 
