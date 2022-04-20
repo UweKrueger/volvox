@@ -325,6 +325,18 @@ static std::unique_ptr<ExprAST> GetTopLevelExpression() {
 	}
 }
 
+std::unique_ptr<FunctionAST> CreateMain(const char* main_name) {
+	volvox::FullType* TheType = type_table.get_full("i32");
+	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
+	                                            std::vector<std::string>(),
+	                                            CurLoc, false, TheType);
+	GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+	auto ProtoRef = Proto.get();
+	FunctionProtos[Proto->getName()] = std::move(Proto);
+	auto main_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
+	return main_function;
+}
+
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	while (true) {
@@ -643,6 +655,22 @@ int main(int argc, char* argv[]) {
 	// Run the main "interpreter loop" now.
 	MainLoop();
 
+	if (comp_mode != comp_jit) {
+		if (auto FnAST = CreateMain("main")) {
+			if (auto *FnIR = FnAST->codegen()) {
+				if (dump_IR) {
+					errs() << "Read function definition:\n";
+					FnIR->print(errs());
+					errs() << "\n";
+				}
+			} else {
+				exit(1);
+			}
+		} else {
+			exit(1);
+		}
+	}
+	
 	if (comp_mode == comp_obj) {
 		// Initialize the target registry etc.
 		llvm::InitializeAllTargetInfos();
