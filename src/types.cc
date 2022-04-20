@@ -394,7 +394,7 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 		volvox::gen_val_type_t llvmtype;
 		unsigned key;
 	};
-	llvmtype = volvox::gen_val_type_t{ .ID = ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+	llvmtype = volvox::gen_val_type_t{ .ID = (volvox::TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
 	llvm::SmallVector<llvm::Constant*, 16> fields;
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)key));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)ft->type_attr));
@@ -402,7 +402,7 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), (uint64_t)(
 		                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
 	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name, "", 0, TheModule.get()) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
-	if (llvmtype.ID == llvm::Type::ArrayTyID) {
+	if (llvmtype.ID == volvox::ArrayTyID) {
 		fields.push_back(getRtType(ft->elem_type));
 	} else {
 		fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));

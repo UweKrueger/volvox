@@ -171,6 +171,35 @@ extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
 
+namespace volvox {
+
+	struct FullType {
+		llvm::Type* type; // used by compiler
+		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
+		uint64_t num_fields; // #fields for structs or tuples or #elements for arrays
+		const char* type_name; // maybe NULL for anonymous types
+		llvm::DIType* ditype;
+		union {
+			FullType* elem_type; // for array or tuples
+			PrototypeAST* proto; // for functions
+			MapNode* fields;     // for structs
+		};
+		void dump(int fd = 2);
+	};
+
+	/* Named types can be kept in a map using the name as key.
+	   anonymous types must be kept too - in a way that allows freeing
+	   them when not needed anymore.
+	   This can be done in a single linked list */
+
+	struct FTListElem {
+		FTListElem* next;
+		FullType ft;
+	};
+
+}
+
+
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
 	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;
 }
@@ -318,7 +347,7 @@ public:
 			if (is_int) {
 				int_type = { .ID = ft->type->getTypeID(), .BitWidth = ft->type->getIntegerBitWidth(), .is_signed = (bool)(ft->type_attr & A_signed) };
 			} else {
-				gen_type = { .ID = ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+				gen_type = { .ID = (volvox::TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
 			}
 			key32_table[key] = ft->type;
 			if (ft->type_attr & A_signed)
@@ -573,7 +602,7 @@ public:
 	}
 	Token(double x) : kind(tok_number) {
 		Val.Float = x;
-		gen_type = { .ID = llvm::Type::DoubleTyID };
+		gen_type = { .ID = volvox::DoubleTyID };
 	}
 	static std::string tokName(int kind);
 	std::string tokName() const { return tokName(kind); }

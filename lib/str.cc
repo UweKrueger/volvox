@@ -12,7 +12,9 @@
 #include <termios.h>
 #include <alloca.h>
 #endif
+#include <stdlib.h>
 #include <stdarg.h>
+#include <string.h>
 
 #if defined (_MSC_VER)
 #define _DECL __declspec(dllexport)
@@ -431,10 +433,10 @@ namespace volvox {
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
 			switch (ft->ID) {
-			case llvm::Type::BFloatTyID:
-			case llvm::Type::FloatTyID:
+			case BFloatTyID:
+			case FloatTyID:
 				if (p <= 0) p = F32_DEFAULT_PRECISION;
-			case llvm::Type::DoubleTyID: {
+			case DoubleTyID: {
 				double val = va_arg(ap, double);
 				const char* fmt = getFmtFlt(flags);
 				if (p <= 0) p = F64_DEFAULT_PRECISION;
@@ -450,7 +452,7 @@ namespace volvox {
 					abort(); // error in calculation 
 			}
 				break;
-			case llvm::Type::IntegerTyID: {
+			case IntegerTyID: {
 				if (!(ft->type_attr & A_signed))
 					flags |= FMT_UNSIGNED;
 				if (ft->SubclassData <= 32) {
@@ -493,14 +495,14 @@ namespace volvox {
 				}
 			}
 				break;
-			case llvm::Type::ArrayTyID: {
+			case ArrayTyID: {
 				char* elem_ptr = va_arg(ap, char*);
 				int elem_size = ft->elem_type->type_size;
 				if (ft->num_fields) {
 					for (uint64_t i = 0; i < ft->num_fields; i++) {
-						if (ft->elem_type->ID == llvm::Type::FloatTyID) {
+						if (ft->elem_type->ID == FloatTyID) {
 							sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, (double)*((float*)elem_ptr + i), nullptr, nullptr);
-						} else if (ft->elem_type->ID == llvm::Type::IntegerTyID && elem_size <= 4) {
+						} else if (ft->elem_type->ID == IntegerTyID && elem_size <= 4) {
 							unsigned elem = 0;
 							memcpy(&elem, (char*)elem_ptr + i * elem_size, elem_size);
 							if (elem_size < 4 && (ft->elem_type->type_attr & A_signed)) {
@@ -509,9 +511,9 @@ namespace volvox {
 								elem = (unsigned)((int)(elem << shift) >> shift);
 							}
 							sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, elem, nullptr, nullptr);
-						} else if (ft->elem_type->ID == llvm::Type::IntegerTyID) {
+						} else if (ft->elem_type->ID == IntegerTyID) {
 							sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((uint64_t*)elem_ptr + i), nullptr, nullptr);
-						} else if (ft->elem_type->ID == llvm::Type::DoubleTyID) {
+						} else if (ft->elem_type->ID == DoubleTyID) {
 							sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((double*)elem_ptr + i), nullptr, nullptr);
 						} else {
 							prtstring(s, cap, pos, "<unsupported type>");
@@ -524,12 +526,12 @@ namespace volvox {
 				space = *cap - *pos;
 			}
 				break;
-			case llvm::Type::PointerTyID: {
+			case PointerTyID: {
 				char* str = va_arg(ap, char*);
 				prtstring(s, cap, pos, str);
 			}
 				break;
-			case llvm::Type::FunctionTyID: {
+			case FunctionTyID: {
 				char* fn = va_arg(ap, char*);
 				int expected_nchar = Max(abs(w)+1, 30+1);
 				while (space < expected_nchar) {

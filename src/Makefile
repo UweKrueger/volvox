@@ -69,7 +69,7 @@ else
 endif
 
 $(LIBLIB): $(LIB)
-	$(CXX) -shared -fPIC -Wl,-soname,$(LIBLIB) -o $(LIBLIB) $(LIB)
+	$(CC) -shared -fPIC -Wl,-soname,$(LIBLIB) -o $(LIBLIB) $(LIB)
 	ln -sf $(LIBLIB) libvolvox.so
 
 $(PROG): $(OBJS) $(LIBLIB)

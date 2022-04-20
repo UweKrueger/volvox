@@ -2,9 +2,6 @@
 
 #include "map.h"
 #include <inttypes.h>
-#include <llvm/IR/Type.h>
-#include <llvm/IR/DerivedTypes.h>
-#include <llvm/IR/DebugInfoMetadata.h>
 
 // Type Attributes
 #define A_signed (1U<<0) // also used for imaginary, string
@@ -25,34 +22,41 @@ namespace volvox {
 #define PACK(s) s __attribute__((__packed__))
 #endif
 
+	// We do not want to include LLVM headers since this file
+	// is part of the run time system - so we mirror the definitions
+	// to have consistent ID numbers
+	enum TypeID {
+		// PrimitiveTypes
+		HalfTyID = 0,  ///< 16-bit floating point type
+		BFloatTyID,    ///< 16-bit floating point type (7-bit significand)
+		FloatTyID,     ///< 32-bit floating point type
+		DoubleTyID,    ///< 64-bit floating point type
+		X86_FP80TyID,  ///< 80-bit floating point type (X87)
+		FP128TyID,     ///< 128-bit floating point type (112-bit significand)
+		PPC_FP128TyID, ///< 128-bit floating point type (two 64-bits, PowerPC)
+		VoidTyID,      ///< type with no size
+		LabelTyID,     ///< Labels
+		MetadataTyID,  ///< Metadata
+		X86_MMXTyID,   ///< MMX vectors (64 bits, X86 specific)
+#if LLVM_VERSION_MAJOR >= 12
+		X86_AMXTyID,   ///< AMX vectors (8192 bits, X86 specific)
+#endif
+		TokenTyID,     ///< Tokens
+
+		// Derived types... see DerivedTypes.h file.
+		IntegerTyID,       ///< Arbitrary bit width integers
+		FunctionTyID,      ///< Functions
+		PointerTyID,       ///< Pointers
+		StructTyID,        ///< Structures
+		ArrayTyID,         ///< Arrays
+		FixedVectorTyID,   ///< Fixed width SIMD vector type
+		ScalableVectorTyID ///< Scalable SIMD vector type
+	};
+
 	PACK(struct gen_val_type_t {
-		llvm::Type::TypeID ID : 8; // base type
+		TypeID ID : 8; // base type
 		unsigned SubclassData : 24;
 	});
-
-	struct FullType {
-		llvm::Type* type; // used by compiler
-		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
-		uint64_t num_fields; // #fields for structs or tuples or #elements for arrays
-		const char* type_name; // maybe NULL for anonymous types
-		llvm::DIType* ditype;
-		union {
-			FullType* elem_type; // for array or tuples
-			PrototypeAST* proto; // for functions
-			MapNode* fields;     // for structs
-		};
-		void dump(int fd = 2);
-	};
-
-	/* Named types can be kept in a map using the name as key.
-	   anonymous types must be kept too - in a way that allows freeing
-	   them when not needed anymore.
-	   This can be done in a single linked list */
-
-	struct FTListElem {
-		FTListElem* next;
-		FullType ft;
-	};
 
 	/* The runtime type system has no LLVM infrastructure available
 	   so it is a somewhat stripped down version of the above */
@@ -62,7 +66,7 @@ namespace volvox {
 	PACK(struct RtType {
 		union {
 			struct {
-				llvm::Type::TypeID ID : 8; // base type
+				TypeID ID : 8; // base type
 				unsigned SubclassData : 24;
 			};
 			unsigned key;
