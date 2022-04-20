@@ -49,8 +49,6 @@ static void Eat(int tok, eXpect expect = eNone) {
 	}
 }
 
-static std::unique_ptr<ExprAST> ParseExpression();
-
 volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
@@ -533,7 +531,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 /// expression
 ///   ::= unary binoprhs
 ///
-static std::unique_ptr<ExprAST> ParseExpression() {
+std::unique_ptr<ExprAST> ParseExpression() {
 	auto LHS = ParseUnary();
 	if (!LHS)
 		return nullptr;
@@ -781,10 +779,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 							errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
 							return nullptr;
 						}
-				errs() << "cannot evalute expression\n";
+				errs() << E->Loc << ": Cannot evalute expression\n";
 				return nullptr;
 			} else {
-				errs() << "Could not deduce type of expression\n";
+				errs() << E->Loc << ": Cannot deduce type of expression\n";
 				if (E->ft)
 					E->ft->dump();
 				return nullptr;
@@ -804,7 +802,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            FnLoc, false, TheType);
-		std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
+		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		// E->ft->dump();
 		if (last_shadow_restorer) {
 			auto restorer_proto = FunctionProtos.find(last_shadow_restorer);
@@ -813,12 +811,12 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			} else {
 				auto restorer = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_restorer, restorer_proto->second.get());
 				auto restorer_call = std::make_unique<CallExprAST>(FnLoc, std::move(restorer), std::move(std::vector<std::unique_ptr<ExprAST>>()));
-				GlobalExprList.push_back(std::move(restorer_call));
+				ExprList.push_back(std::move(restorer_call));
 			}
 		}
 		if (E->ft->type->isVoidTy()) {
-			GlobalExprList.push_back(std::move(E));
-			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+			ExprList.push_back(std::move(E));
+			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 		} else {
 			llvm::Constant* rttype_ptr = getRtType(E->ft);
 			if (E->ft->type->isAggregateType()) {
@@ -850,7 +848,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 			auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
-			GlobalExprList.push_back(std::move(print_call));
+			ExprList.push_back(std::move(print_call));
 		}
 		if (last_shadow_saver) {
 			auto saver_proto = FunctionProtos.find(last_shadow_saver);
@@ -859,13 +857,13 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			} else {
 				auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, saver_proto->second.get());
 				auto saver_call = std::make_unique<CallExprAST>(FnLoc, std::move(saver), std::move(std::vector<std::unique_ptr<ExprAST>>()));
-				GlobalExprList.push_back(std::move(saver_call));
-				GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+				ExprList.push_back(std::move(saver_call));
+				ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 			}
 		}
 		auto ProtoRef = Proto.get();
 		FunctionProtos[Proto->getName()] = std::move(Proto);
-		auto tmp_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
+		auto tmp_function = std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return);
 		return tmp_function;
 	}
 	return nullptr;

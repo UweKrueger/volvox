@@ -10,6 +10,7 @@ CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 std::vector<std::string> include_files = {};
 std::vector<std::string> source_files = {};
+std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 int include_index = 0;
 int source_index = 0;
 int prompt_indent = 0;
@@ -295,6 +296,35 @@ static void HandleTopLevelExpression() {
 	}
 }
 
+static std::unique_ptr<ExprAST> GetTopLevelExpression() {
+	if (auto E = ParseExpression()) {
+		if (!E->ft || !E->ft->type) {
+			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
+				if (B->conv.compat.err_msg)
+					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);
+				if (!strcmp(B->Op, ":="))
+					return HandleGlobalVariable(B);
+				if (!strcmp(B->Op, "="))
+					if (auto leftVar = dynamic_cast<VariableExprAST*>(B->LHS.get()))
+						if (!leftVar->full_var.first) {
+							errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
+							return nullptr;
+						}
+				errs() << E->Loc << ": Cannot evalute expression\n";
+				return nullptr;
+			} else {
+				errs() << E->Loc << ": Cannot deduce type of expression\n";
+				if (E->ft)
+					E->ft->dump();
+				return nullptr;
+			}
+		}
+		return E;
+	} else {
+		return nullptr;
+	}
+}
+
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	while (true) {
@@ -314,8 +344,11 @@ static void MainLoop() {
 			HandleTypeDef();
 			break;
 		default:
-			HandleTopLevelExpression();
-			break;
+			if (comp_mode == comp_jit)
+				HandleTopLevelExpression();
+			else
+				if (auto expr = GetTopLevelExpression())
+					GlobalExprList.push_back(std::move(expr));
 		}
 	}
 }
@@ -548,6 +581,7 @@ int main(int argc, char* argv[]) {
 				output_file[len+1] = 'o';
 				output_file[len+2] = '\0';
 			}
+			GlobalExprList = std::vector<std::unique_ptr<ExprAST>>{};
 		}
 	}
 	if (source_index < source_files.size()) {

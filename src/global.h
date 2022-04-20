@@ -200,6 +200,7 @@ extern unsigned anon_struct_nr;
 
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
+extern std::unique_ptr<ExprAST> ParseExpression();
 extern std::unique_ptr<PrototypeAST> ParseExtern();
 extern bool spawn_bool_expr(bool (*expr)());
 
