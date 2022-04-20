@@ -82,13 +82,15 @@ kk()
 
 l := true
 
-# if l then kk() end
+if l then kk() end
 
 pp
 
 l = false
 
-# if l then kk() else kk(); kk() end
+if l then kk() else kk(); kk() end
+
+pp = if l then 22.7 else 56.3 end
 
 pp
 
@@ -97,3 +99,12 @@ qq := -23i16
 vv := 36u16
 
 2.3f64 * ((4000000000u32 - 13i32) + 0.1f32)
+
+fn mytest() bool
+	return 17 / 5 == 3
+
+enableColorANSI(1)
+
+mytname := "my test"
+
+showtestres(1, 79, mytname, mytest())

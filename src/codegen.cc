@@ -1035,6 +1035,8 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock *MergeBB, bool isElse)
 			if (!PreConv)
 				return nullptr;
 			BranchV = PreConv(BranchV);
+		} else {
+			BranchV = llvm::UndefValue::get(ft->type);
 		}
 		if (EndKind == tok_return) {
 			Builder->CreateRet(CheckTailCall(BranchV));

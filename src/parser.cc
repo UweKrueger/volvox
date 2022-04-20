@@ -341,10 +341,14 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 		return nullptr;
 	}
 	getNextToken(eBinOp);
-	auto conv = Else.first.size() ? convBinOp(Then.first.back()->ft->type, Else.first.back()->ft->type,
-	                                          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
-	                                          Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type,
-	                                          "-") : BinOpConvSet{};
+	auto conv = (Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
+	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
+		convBinOp(Then.first.back()->ft->type, Else.first.back()->ft->type,
+		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
+		          Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type,
+		          "-")
+		: BinOpConvSet{{ nullptr, nullptr, llvm::Type::getVoidTy(Context), 0, false, nullptr },
+		               { nullptr, nullptr, llvm::Type::getVoidTy(Context), 0, false, nullptr }};
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second, conv);
 }
