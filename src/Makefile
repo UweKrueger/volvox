@@ -57,7 +57,7 @@ LIBSRC := $(LIB:%.o=../lib/%.cc)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $<
 
 %.o: ../lib/%.cc
-	$(CXX) -c $(CXXFLAGS) -fPIC $(OPT) $<
+	$(CXX) -c $(CXXFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
 
 all: $(PROG)
 

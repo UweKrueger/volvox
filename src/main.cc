@@ -246,7 +246,7 @@ static void HandleTopLevelExpression() {
 				errs() << "\n";
 			}
 			auto ret_type = anon_expr->getReturnType();
-			if (!anon_expr->getReturnType()->isIntegerTy() || !anon_expr->getReturnType()->getIntegerBitWidth() == 1) {
+			if (!anon_expr->getReturnType()->isIntegerTy() || !(anon_expr->getReturnType()->getIntegerBitWidth() == 1)) {
 				errs() << "internal error: anonymous function does not return `bool`\n";
 				return;
 			}

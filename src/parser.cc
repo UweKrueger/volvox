@@ -78,7 +78,6 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			dbgs() << "parsing indexed type\n";
 			getNextToken();
 			int64_t dim = -1;
-			llvm::ConstantInt* Dim = nullptr;
 			if (CurTok.kind == ']') {
 				getNextToken();
 			} else {
@@ -88,7 +87,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect) {
 						errs() << "cannot generate code for index\n";
 						return nullptr;
 					}
-					if (Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
+					if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
 						dim = Dim->getSExtValue();
 					} else {
 						errs() << "dimension must be constant int\n";
