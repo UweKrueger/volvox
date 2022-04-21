@@ -340,13 +340,13 @@ public:
 			((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->type_name = new_node->key.string;
 			union {
 				int_val_type_t int_type;
-				volvox::gen_val_type_t gen_type;
+				VOLVOX_gen_val_type_t gen_type;
 				unsigned key;
 			};
 			if (is_int) {
 				int_type = { .ID = ft->type->getTypeID(), .BitWidth = ft->type->getIntegerBitWidth(), .is_signed = (bool)(ft->type_attr & A_signed) };
 			} else {
-				gen_type = { .ID = (volvox::TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+				gen_type = { .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
 			}
 			key32_table[key] = ft->type;
 			if (ft->type_attr & A_signed)
@@ -379,7 +379,7 @@ public:
 	static bool is_signed(unsigned _key) {
 		union {
 			int_val_type_t int_type;
-			volvox::gen_val_type_t gen_type;
+			VOLVOX_gen_val_type_t gen_type;
 			unsigned key;
 		};
 		key = _key;
@@ -392,7 +392,7 @@ public:
 	volvoxc::FullType* get_full(unsigned _key) {
 		union {
 			int_val_type_t int_type;
-			volvox::gen_val_type_t gen_type;
+			VOLVOX_gen_val_type_t gen_type;
 			unsigned key;
 		};
 		key = _key;
@@ -577,7 +577,7 @@ public:
 	int kind;
 	union {
 		int_val_type_t int_type;
-		volvox::gen_val_type_t gen_type;
+		VOLVOX_gen_val_type_t gen_type;
 		unsigned key;
 	};
 	union LitValue Val;
@@ -601,7 +601,7 @@ public:
 	}
 	Token(double x) : kind(tok_number) {
 		Val.Float = x;
-		gen_type = { .ID = volvox::DoubleTyID };
+		gen_type = { .ID = VOLVOX_DoubleTyID };
 	}
 	static std::string tokName(int kind);
 	std::string tokName() const { return tokName(kind); }

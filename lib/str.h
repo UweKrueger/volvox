@@ -3,12 +3,6 @@
 #include <inttypes.h>
 #include <stdbool.h>
 
-#if defined (_MSC_VER)
-#define _DECL_EXTERN extern __declspec(dllexport)
-#else
-#define _DECL_EXTERN extern
-#endif
-
 // format flags
 
 #define FMT_PREFIX_MASK 3U
@@ -30,24 +24,3 @@
 
 #define F32_DEFAULT_PRECISION 8
 #define F64_DEFAULT_PRECISION 17
-
-namespace volvox {
-
-	_DECL_EXTERN bool is_compiler;
-
-	class i1 {
-	public:
-		bool v;
-		i1() : v(false) {}
-		i1(bool v) : v(v) {}
-		operator bool() const { return v; }
-
-		static const char* fmt;
-		static const char* fmt_w;
-		static const char* fmt_wp;
-
-		const char* str();
-		void str(char** s, unsigned cap, unsigned pos);
-	};
-
-}

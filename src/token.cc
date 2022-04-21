@@ -77,7 +77,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 				}
 			}
 		}
-		gen_type = { .ID = volvox::DoubleTyID };
+		gen_type = { .ID = VOLVOX_DoubleTyID };
 		Val.Float = f;
 		*s_ptr = endptr_f;
 	} else {
@@ -98,13 +98,13 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 		case 'f':
 			switch (bits) {
 			case 16: // not really supported, yet
-				gen_type = { .ID = volvox::BFloatTyID };
+				gen_type = { .ID = VOLVOX_BFloatTyID };
 				break;
 			case 32:
-				gen_type = { .ID = volvox::FloatTyID };
+				gen_type = { .ID = VOLVOX_FloatTyID };
 				break;
 			case 64:
-				gen_type = { .ID = volvox::DoubleTyID };
+				gen_type = { .ID = VOLVOX_DoubleTyID };
 				break;
 			default:
 				errs() << "unsupported bit size " << bits << " for float literal\n";
@@ -118,19 +118,19 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 			break;
 		}
 	}
-	if (gen_type.ID == volvox::IntegerTyID && int_type.is_signed && !sign && Val.Int < 0)
+	if (gen_type.ID == VOLVOX_IntegerTyID && int_type.is_signed && !sign && Val.Int < 0)
 		// TODO: further checks for bit sizes
 		errs() << Val.Uint << " exceeds maximum maximum possible signed value\n";
 }
 				
 Token::Token(const std::string& str) : kind(tok_str_lit) {
 	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
-	gen_type = { .ID = (volvox::TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
+	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 	Val.Str = strdup(str.c_str());
 }
 
 Token::Token(void* ptr) : kind(tok_ptr_lit) {
 	Val.Ptr = ptr;
 	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
-	gen_type = { .ID = (volvox::TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
+	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 }
