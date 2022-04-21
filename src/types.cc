@@ -8,8 +8,8 @@
 
 unsigned anon_struct_nr = 0;
 
-volvox::FTListElem* anon_types = nullptr;
-volvox::FTListElem** anon_types_end = &anon_types;
+volvoxc::FTListElem* anon_types = nullptr;
+volvoxc::FTListElem** anon_types_end = &anon_types;
 
 std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               unsigned expr_attr, unsigned desired_attr, const char* reason) {
@@ -347,9 +347,9 @@ std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeTyp
 		return { type, NoConversion, false };
 }
 
-volvox::FullType* MakeType(volvox::FullType* base, bool is_unknown_type) {
+volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 	if (is_unknown_type && base->type->isIntegerTy()) {
-		volvox::FullType* new_type = type_table.get_full("i32");
+		volvoxc::FullType* new_type = type_table.get_full("i32");
 		if (!new_type) {
 			errs() <<"Fatal: Could not find i32 type!\n";
 			return nullptr;
@@ -389,7 +389,7 @@ const char* AggregateExprAST::KindName() {
 	}
 }
 
-llvm::Constant* getRtType(volvox::FullType* ft) {
+llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	union {
 		volvox::gen_val_type_t llvmtype;
 		unsigned key;
@@ -415,7 +415,7 @@ llvm::Constant* getRtType(volvox::FullType* ft) {
 	                                                    Indices);
 }
 
-void volvox::FullType::dump(int fd) {
+void volvoxc::FullType::dump(int fd) {
 	llvm::raw_fd_ostream eout(fd, false, true
 #if LLVM_VERSION_MAJOR >= 12
 	                          , llvm::raw_ostream::OStreamKind::OK_FDStream

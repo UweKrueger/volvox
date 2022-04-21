@@ -171,7 +171,7 @@ extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
 
-namespace volvox {
+namespace volvoxc {
 
 	struct FullType {
 		llvm::Type* type; // used by compiler
@@ -199,7 +199,6 @@ namespace volvox {
 
 }
 
-
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
 	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;
 }
@@ -220,8 +219,8 @@ extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation L
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
-extern volvox::FullType* void_type;
-extern volvox::FullType* uintptr_type;
+extern volvoxc::FullType* void_type;
+extern volvoxc::FullType* uintptr_type;
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
 
@@ -243,9 +242,9 @@ enum eXpect {
 	eColon
 };
 
-extern volvox::FullType* ParseType(bool allow_attribute = false, eXpect expect = eComma);
-extern llvm::Constant* getRtType(volvox::FullType* ft);
-extern llvm::Constant* getRtType(volvox::FullType* ft);
+extern volvoxc::FullType* ParseType(bool allow_attribute = false, eXpect expect = eComma);
+extern llvm::Constant* getRtType(volvoxc::FullType* ft);
+extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name);
 extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 
@@ -263,7 +262,7 @@ struct FullVar {
 		llvm::Value* val;
 		llvm::Type* storage_type; // for global variables
 	};
-	volvox::FullType ft;
+	volvoxc::FullType ft;
 };
 
 struct FVListElem {
@@ -276,7 +275,7 @@ extern FVListElem** anon_fullvars_end;
 
 inline FullVar* new_FullVar(llvm::Value* val, llvm::Type* type, unsigned type_attr, uint64_t num_fields = 0,
                             const char* type_name = nullptr, llvm::DIType* ditype = nullptr,
-                            volvox::FullType* elem_type = nullptr) {
+                            volvoxc::FullType* elem_type = nullptr) {
 	FVListElem* new_node = (FVListElem*)malloc(sizeof(FVListElem));
 	new_node->next = nullptr;
 	new_node->fv.val = val;
@@ -297,12 +296,12 @@ public:
 	unsigned SubClassData() const { return getSubclassData(); }
 };
 
-extern volvox::FTListElem* anon_types;
-extern volvox::FTListElem** anon_types_end;
+extern volvoxc::FTListElem* anon_types;
+extern volvoxc::FTListElem** anon_types_end;
 
-inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
-                              uint64_t num_fields = 0, volvox::FullType* elem_type = nullptr) {
-	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
+inline volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
+                              uint64_t num_fields = 0, volvoxc::FullType* elem_type = nullptr) {
+	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem));
 	new_node->next = nullptr;
 	new_node->ft.type = type;
 	new_node->ft.type_attr = type_attr;
@@ -315,8 +314,8 @@ inline volvox::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm
 	return &new_node->ft;
 }
 
-inline volvox::FullType* new_FullType(const volvox::FullType& orig) {
-	volvox::FTListElem* new_node = (volvox::FTListElem*)malloc(sizeof(volvox::FTListElem));
+inline volvoxc::FullType* new_FullType(const volvoxc::FullType& orig) {
+	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem));
 	new_node->next = nullptr;
 	new_node->ft = orig;
 	*anon_types_end = new_node;
@@ -327,7 +326,7 @@ inline volvox::FullType* new_FullType(const volvox::FullType& orig) {
 class TypeTable {
 public:
 	TypeTable() : name_table(map_string_new_map()) {}
-	unsigned add(const char* name, volvox::FullType* ft) {
+	unsigned add(const char* name, volvoxc::FullType* ft) {
 		bool is_int = ft->type->isIntegerTy();
 		if ((ft->type_attr & A_signed) && !is_int) {
 			errs() << "non-int type '" << name << "' aka " << *ft->type << " cannot be signed\n";
@@ -336,9 +335,9 @@ public:
 		MapValue val = {
 			.src_ptr = ft
 		};
-		MapNode* new_node = map_string_insert(&name_table, name, val, sizeof(volvox::FullType), false);
+		MapNode* new_node = map_string_insert(&name_table, name, val, sizeof(volvoxc::FullType), false);
 		if (new_node) {
-			((volvox::FullType*)((char*)&(new_node->value) + new_node->value.offset))->type_name = new_node->key.string;
+			((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->type_name = new_node->key.string;
 			union {
 				int_val_type_t int_type;
 				volvox::gen_val_type_t gen_type;
@@ -361,7 +360,7 @@ public:
 		}
 	}
 	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr) {
-		volvox::FullType ft = {
+		volvoxc::FullType ft = {
 			.type = type,
 			.type_attr = type_attr,
 			.ditype = ditype,
@@ -371,11 +370,11 @@ public:
 	}
 	llvm::Type* get(const char* name) {
 		MapValue* val = map_string_get(name_table, name);
-		return ((volvox::FullType*)((char*)val + val->offset))->type;
+		return ((volvoxc::FullType*)((char*)val + val->offset))->type;
 	}
 	bool is_signed(const char* name) {
 		MapValue* val = map_string_get(name_table, name);
-		return (bool)(((volvox::FullType*)((char*)val + val->offset))->type_attr & A_signed);
+		return (bool)(((volvoxc::FullType*)((char*)val + val->offset))->type_attr & A_signed);
 	}
 	static bool is_signed(unsigned _key) {
 		union {
@@ -386,11 +385,11 @@ public:
 		key = _key;
 		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
-	volvox::FullType* get_full(const char* name) {
+	volvoxc::FullType* get_full(const char* name) {
 		MapValue* val = map_string_get(name_table, name);
-		return (volvox::FullType*)(val ? (char*)val + val->offset : nullptr);
+		return (volvoxc::FullType*)(val ? (char*)val + val->offset : nullptr);
 	}
-	volvox::FullType* get_full(unsigned _key) {
+	volvoxc::FullType* get_full(unsigned _key) {
 		union {
 			int_val_type_t int_type;
 			volvox::gen_val_type_t gen_type;
@@ -472,7 +471,7 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 class ExprAST {
 public:
 	SourceLocation Loc;
-	volvox::FullType* ft;
+	volvoxc::FullType* ft;
 	llvm::Type* desired_type = nullptr;
 	unsigned desired_type_attr = 0;
 	int desired_nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
@@ -501,7 +500,7 @@ public:
 			// abort(); - find out where this is used
 			ft->type_attr |= add_attr;
 		}
-	ExprAST(volvox::FullType& full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
+	ExprAST(volvoxc::FullType& full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
 		: ft(new_FullType(full_type)), Loc(Loc), is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen_raw() = 0;
@@ -672,7 +671,7 @@ extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);
 extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);
 extern std::nullptr_t Error(SourceLocation Loc, const char *Str, ...);
 extern std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type);
-extern volvox::FullType* MakeType(volvox::FullType* base, bool is_unknown_type);
+extern volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type);
 
 struct global_var_shadow {
 	struct global_var_shadow* next;

@@ -70,10 +70,10 @@ class PrototypeAST {
 
 public:
 	std::vector<std::string> Args;
-	std::vector<volvox::FullType*> ArgTypes;
+	std::vector<volvoxc::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
 	std::vector<SourceLocation> ArgPos;
-	volvox::FullType* RetType;
+	volvoxc::FullType* RetType;
 	SourceLocation retLoc;
 	llvm::FunctionType* FT;
 	bool IsVarArgs;
@@ -82,7 +82,7 @@ public:
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, SourceLocation retLoc = CurLoc, bool IsOperator = false,
-	             volvox::FullType* RetType_ = nullptr, std::vector<volvox::FullType*> ArgTypes = {},
+	             volvoxc::FullType* RetType_ = nullptr, std::vector<volvoxc::FullType*> ArgTypes = {},
 	             std::vector<llvm::Type*> LLVMArgTypes = {}, std::vector<SourceLocation> _ArgPos = {},
 	             bool IsVarArgs = false)
 		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
@@ -206,7 +206,7 @@ public:
 	AggregateKind kind;
 	AggregateExprAST(SourceLocation Loc, AggregateKind k,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 unsigned type_attr = 0, volvox::FullType* el_type = nullptr) :
+	                 unsigned type_attr = 0, volvoxc::FullType* el_type = nullptr) :
 		ExprAST(nullptr, type_attr, Loc), Elements(std::move(_Elements)),
 		kind(k)
 		{

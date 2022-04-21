@@ -40,8 +40,8 @@ thread_local global_var_shadow* tl_global_list = nullptr;
 llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
-volvox::FullType* void_type;
-volvox::FullType* uintptr_type;
+volvoxc::FullType* void_type;
+volvoxc::FullType* uintptr_type;
 
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
@@ -326,7 +326,7 @@ static std::unique_ptr<ExprAST> GetTopLevelExpression() {
 }
 
 std::unique_ptr<FunctionAST> CreateMain(const char* main_name) {
-	volvox::FullType* TheType = type_table.get_full("i32");
+	volvoxc::FullType* TheType = type_table.get_full("i32");
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
 	                                            std::vector<std::string>(),
 	                                            CurLoc, false, TheType);

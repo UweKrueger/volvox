@@ -49,7 +49,7 @@ static void Eat(int tok, eXpect expect = eNone) {
 	}
 }
 
-volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
+volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect) {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
 		if (allow_attribute) {
@@ -124,7 +124,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 			// struct type
 			getNextToken();
 			std::vector<std::string> FieldNames;
-			std::vector<volvox::FullType*> FieldTypes;
+			std::vector<volvoxc::FullType*> FieldTypes;
 			std::vector<llvm::Type*> LLVMFieldTypes;
 			for (;;) {
 				if (CurTok.kind != tok_identifier) {
@@ -156,7 +156,7 @@ volvox::FullType* ParseType(bool allow_attribute, eXpect expect) {
 				}
 			}
 				
-			return new_FullType(struct_type, attribs, nullptr /*DIType*/, FieldNames.size(), (volvox::FullType*)fields);
+			return new_FullType(struct_type, attribs, nullptr /*DIType*/, FieldNames.size(), (volvoxc::FullType*)fields);
 		}
 			break;
 		case '&':
@@ -591,7 +591,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary.
 	unsigned BinaryPrecedence = 30;
 	std::vector<std::string> ArgNames;
-	std::vector<volvox::FullType*> ArgTypes;
+	std::vector<volvoxc::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes;
 	std::vector<SourceLocation> ArgPos;
 	bool is_method;
@@ -700,7 +700,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 noargs:
 	Eat(')', eColon); //getNextToken(); // eat ')'.
 	// parse return type(s)
-	volvox::FullType* RetType = nullptr;
+	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc = CurLoc;
 	while (CurTok.kind != ';') {
 		auto type = ParseType(true);
@@ -802,7 +802,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			InitializeModuleAndPassManager();
 		}
 		// Make an anonymous proto.
-		volvox::FullType* TheType = type_table.get_full("bool");
+		volvoxc::FullType* TheType = type_table.get_full("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            FnLoc, false, TheType);
