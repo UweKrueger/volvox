@@ -10,7 +10,7 @@ del /q *.obj ..\volvox.* libvolvox.exp libvolvox.lib ..\libvolvox.dll
 @for %%f in (..\wineditline\editline.c ..\wineditline\history.c ..\wineditline\fn_complete.c getopt.c) do @call comp.bat %%f %%~nf.obj /TC
 @for %%f in (..\lib\map.cc ..\lib\str.cc ..\lib\emutls.c) do @call comp.bat %%f %%~nf.obj /DLL /TC /D"LLVM_VERSION_MAJOR=14"
 
-link /DLL /out:libvolvox.dll /EXPORT:map_string_new_map /EXPORT:map_string_insert /EXPORT:map_string_tag_insert /EXPORT:map_string_get /EXPORT:_ZN6volvox6fprintEiPKcPKNS_6RtTypeEz /EXPORT:_ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz /EXPORT:_ZN6volvox5printEPKcPKNS_6RtTypeEz /EXPORT:_ZN6volvox7printlnEPKcPKNS_6RtTypeEz str.obj map.obj
+link /DLL /out:libvolvox.dll str.obj map.obj
 
 move libvolvox.dll ..
 
