@@ -748,7 +748,7 @@ int main(int argc, char* argv[]) {
 			exit(1);
 		}
 	}
-	
+	int result = 0;
 	if (comp_mode == comp_obj) {
 		// Initialize the target registry etc.
 		llvm::InitializeAllTargetInfos();
@@ -797,8 +797,48 @@ int main(int argc, char* argv[]) {
 	  
 		pass.run(*TheModule);
 		dest.flush();
-	  
+
 		outs() << "Wrote " << Filename << "\n";
+		if (link_mode != dont_link) {
+			char* volvox_root = getenv("VOLVOX_ROOT");
+			if (volvox_root)
+				volvox_root = const_cast<char*>(".");
+			int lr = strlen(volvox_root);
+			char libpath[lr+32];
+			strcpy(libpath, volvox_root);
+#if defined(_MSC_VER)
+			strcat(libpath, "\\lib\\libvolvox.lib");
+			char* clang_exe = const_cast<char*>("clang.exe");
+#else
+			strcat(libpath, "/lib");
+			char* clang_exe = const_cast<char*>("clang");
+#endif
+			char* clang_argv[] = {
+				clang_exe, const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), output_file,
+#if defined(_MSC_VER)
+				libpath,
+#else
+				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"), const_cast<char*>("-Wl,-rpath"), libpath,
+#endif
+				nullptr
+			};
+#if _WIN32
+			result = (int)_swawnvp(_P_WAIT, clang_exe, clang_argv);
+#else
+			pid_t pid = fork();
+			if (pid) {
+				int status;
+				waitpid(pid, &status, 0);
+				result = WEXITSTATUS(status);
+			} else {
+				execvp(clang_exe, clang_argv);
+				exit(1);
+			}
+#endif
+			if (result) {
+				errs() << "Error calling clank for linking\n";
+			}
+		}
 	} else if (comp_mode == comp_dbg) {
 		// Finalize the debug info.
 		DBuilder->finalize();
@@ -808,5 +848,5 @@ int main(int argc, char* argv[]) {
 #if defined (_MSC_VER)
 	SetConsoleOutputCP(old_cp);
 #endif
-	return 0;
+	return result;
 }

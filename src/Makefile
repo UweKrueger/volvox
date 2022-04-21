@@ -71,9 +71,10 @@ endif
 $(LIBLIB): $(LIB)
 	$(CC) -shared -fPIC -Wl,-soname,$(LIBLIB) -o $(LIBLIB) $(LIB)
 	ln -sf $(LIBLIB) libvolvox.so
+	mv $(LIBLIB) libvolvox.so ../lib
 
 $(PROG): $(OBJS) $(LIBLIB)
-	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L. -lvolvox -Wl,-rpath,$(shell pwd) $(LINKEXTRAFLAGS)
+	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../lib -lvolvox -Wl,-rpath,$(shell pwd)/../lib $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:

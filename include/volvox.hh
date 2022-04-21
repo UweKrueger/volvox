@@ -55,6 +55,7 @@
 #include "getopt.h"
 #else
 #include <unistd.h>
+#include <sys/wait.h>
 #endif
 #include <sys/stat.h>
 #include <fcntl.h>
