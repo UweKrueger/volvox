@@ -8,8 +8,7 @@ del /q *.obj ..\volvox.* libvolvox.exp libvolvox.lib ..\libvolvox.dll
 :default
 @for %%f in (codegen.cc token.cc lexer.cc parser.cc types.cc main.cc) do @call comp.bat %%f %%~nf.obj /D"UNICODE" /D"_UNICODE"
 @for %%f in (..\wineditline\editline.c ..\wineditline\history.c ..\wineditline\fn_complete.c getopt.c) do @call comp.bat %%f %%~nf.obj /TC
-@for %%f in (..\lib\map.cc ..\lib\emutls.c) do @call comp.bat %%f %%~nf.obj /DLL /TC
-@for %%f in (..\lib\str.cc) do @call comp.bat %%f %%~nf.obj /DLL /D"UNICODE" /D"_UNICODE"
+@for %%f in (..\lib\map.cc ..\lib\str.cc ..\lib\emutls.c) do @call comp.bat %%f %%~nf.obj /DLL /TC /D"LLVM_VERSION_MAJOR=14"
 
 link /DLL /out:libvolvox.dll /EXPORT:map_string_new_map /EXPORT:map_string_insert /EXPORT:map_string_tag_insert /EXPORT:map_string_get /EXPORT:_ZN6volvox6fprintEiPKcPKNS_6RtTypeEz /EXPORT:_ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz /EXPORT:_ZN6volvox5printEPKcPKNS_6RtTypeEz /EXPORT:_ZN6volvox7printlnEPKcPKNS_6RtTypeEz str.obj map.obj
 

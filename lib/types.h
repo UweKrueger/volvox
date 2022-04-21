@@ -75,16 +75,26 @@ namespace volvox {
 		VOLVOX_FixedVectorTyID,   ///< Fixed width SIMD vector type
 		VOLVOX_ScalableVectorTyID ///< Scalable SIMD vector type
 	};
-
+#if defined(_MSC_VER)
+	typedef enum VOLVOX_TypeID VOLVOX_TypeID;
+#endif
 	PACK(struct VOLVOX_gen_val_type_t {
 		VOLVOX_TypeID ID : 8; // base type
 		unsigned SubclassData : 24;
 	});
+#if defined(_MSC_VER)
+	typedef struct VOLVOX_gen_val_type_t VOLVOX_gen_val_type_t;
+#endif
 
 	/* The runtime type system has no LLVM infrastructure available
 	   so it is a somewhat stripped down version of the above */
 
 	struct VOLVOX_RtStructField;
+#if defined(_MSC_VER)
+	typedef struct VOLVOX_RtStructField VOLVOX_RtStructField;
+	struct VOLVOX_RtType;
+	typedef struct VOLVOX_RtType VOLVOX_RtType;
+#endif
 
 	PACK(struct VOLVOX_RtType {
 		union {

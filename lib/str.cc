@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <io.h>
 #include <malloc.h>
+#define nullptr ((void*)0)
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -572,6 +573,7 @@ static bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* 
 
 #if defined (_MSC_VER)
 #define _DECL __declspec(dllexport)
+#define _CDECL __declspec(dllexport)
 // Volvox uses the Itanium mangling scheme for global symbols
 // which is also used by C++ compilers on most Unix-like systems.
 // MSVC++ used it's own mangling scheme - however, if we use this
@@ -582,6 +584,7 @@ static bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* 
 #define println _ZN6volvox7printlnEPKcPKNS_6RtTypeEz
 #else
 #define _DECL
+#define _CDECL extern "C"
 #undef VOLVOX_RtType
 #define VOLVOX_RtType RtType
 namespace volvox {
@@ -622,7 +625,7 @@ namespace volvox {
 }
 #endif
 
-extern "C" _DECL bool enableColorANSI(int fd) {
+_CDECL bool enableColorANSI(int fd) {
 #if defined (_MSC_VER)
 	static bool is_set = false;
 	if (!is_set) {
@@ -647,7 +650,7 @@ extern "C" _DECL bool enableColorANSI(int fd) {
 #endif
 }
 
-extern "C" _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
+_CDECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 6)
 		width = 6;
 	bool have_color = enableColorANSI(fd);
@@ -660,7 +663,7 @@ extern "C" _DECL void showtestres(int fd, int width, const char* testcase, bool 
 
 // find out the terminal size #rows are stored in the lower 16 bits
 // and #columns in the upper. In case of failure errno is set and -1 is returned
-extern "C" _DECL int getTermSize(int fd)
+_CDECL int getTermSize(int fd)
 {
 #if defined (_MSC_VER)
 	HANDLE h = (HANDLE)_get_osfhandle(fd);
