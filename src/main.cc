@@ -449,6 +449,7 @@ std::vector<std::string> TestFunctions = {};
 bool jit_repl = false;
 promptcolor_t p_col = { 30, 100, 236 };
 char* output_file = nullptr;
+char* exe_file = nullptr;
 
 bool parse_pcol(char* s) {
 	uint8_t new_col[3] = { p_col.number, p_col.greater, p_col.background };
@@ -480,6 +481,29 @@ bool parse_pcol(char* s) {
 	p_col.greater = new_col[1];
 	p_col.background = new_col[2];
 	return true;
+}
+
+// useful tools to clasify filenames
+
+inline bool is_obj(const char* file) {
+	int l = strlen(file);
+#if defined (_MSC_VER)
+	return file[l-4] == '.' && (file[l-3] == 'o' || file[l-3] == 'O')
+		&& (file[l-2] == 'b' || file[l-2] == 'B') && (file[l-1] == 'j' || file[l-1] == 'J');
+#else
+	return file[l-2] == '.' && file[l-1] == 'o';
+#endif
+}
+
+inline bool is_exe(const char* file) {
+	int l = strlen(file);
+#if defined (_MSC_VER)
+	return file[l-4] == '.' && (file[l-3] == 'e' || file[l-3] == 'E')
+		&& (file[l-2] == 'x' || file[l-2] == 'X') && (file[l-1] == 'e' || file[l-1] == 'E');
+#else
+	// on Unix systems executables can have any name - but we don't have to cut off the extension
+	return false;
+#endif
 }
 
 #if defined (_MSC_VER)
@@ -574,6 +598,43 @@ int main(int argc, char* argv[]) {
 			errs() << "output file ('-o ...') not supported for JIT compilation\n";
 			usage(argv[0]);
 		}
+		if (is_obj(output_file)) {
+			link_mode = dont_link;
+		} else if(is_exe(output_file)) {
+			exe_file = output_file;
+			output_file = strdup(exe_file);
+			int l = strlen(exe_file);
+			output_file[l-3] = 'o';
+			output_file[l-2] = 'b';
+			output_file[l-1] = 'j';
+		} else {
+			if (link_mode == dont_link) {
+				errs() << "Output file must have the extension '.o"
+#if defined(_MSC_VER)
+				       << "bj"
+#endif
+				       << "' if '-c' is given\n";
+				usage(argv[0]);
+			}
+			int l = strlen(output_file);
+#ifdef _WIN32
+			char* new_out = (char*)malloc(l+5);
+			exe_file = (char*)malloc(l+5);
+			strcpy(new_out, output_file);
+			strcpy(exe_file, output_file);
+			output_file = new_out;
+			strcat(exe_file, ".exe");
+#else
+			exe_file = output_file;
+			output_file = (char*)malloc(l+3);
+			strcpy(output_file, exe_file);
+#endif
+#if defined(_MSC_VER)
+			strcat(output_file, ".obj");
+#else
+			strcat(output_file, ".o");
+#endif
+		}
 	} else {
 		if (comp_mode != comp_jit) {
 			if (source_files.size() != 1) {
@@ -582,16 +643,33 @@ int main(int argc, char* argv[]) {
 				       << " input file provided\n";
 				usage(argv[0]);
 			}
-			int len = strlen(input_file_name);
-			output_file = (char*)malloc(len + 3);
-			strcpy(output_file, input_file_name);
+			int len = source_files[0].size();
+			output_file = (char*)malloc(len + 5);
+			strcpy(output_file, source_files[0].c_str());
 			if(output_file[len-3]=='.' && output_file[len-2]=='v' && output_file[len-1]=='x') {
-				output_file[len-2] = 'o';
-				output_file[len-1] = '\0';
+				output_file[len-3] = '\0';
+				if (link_mode != dont_link) {
+					exe_file = (char*)malloc(len+5);
+					strcpy(exe_file, output_file);
+#ifdef _WIN32
+					strcat(exe_file, ".exe");
+#endif
+				}
+#if defined(_MSC_VER)
+				strcat(output_file, ".obj");
+#else
+				strcat(output_file, ".o");
+#endif
 			} else {
-				output_file[len] = '.';
-				output_file[len+1] = 'o';
-				output_file[len+2] = '\0';
+#ifdef _WIN32
+				output_file = const_cast<char*>("a.obj");
+				if (link_mode != dont_link)
+					exe_file = const_cast<char*>("a.exe");
+#else
+				output_file = const_cast<char*>("a.o");
+				if (link_mode != dont_link)
+					exe_file = const_cast<char*>("a.out");
+#endif
 			}
 			GlobalExprList = std::vector<std::unique_ptr<ExprAST>>{};
 		}
@@ -705,7 +783,7 @@ int main(int argc, char* argv[]) {
 		llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
 
 		if (EC) {
-			errs() << "Could not open file: " << EC.message();
+			errs() << "Could not open output file \"" << Filename << "\": " << EC.message() << '\n';
 			return 1;
 		}
 	  
