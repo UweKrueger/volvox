@@ -103,8 +103,8 @@ vv := 36u16
 fn mytest() bool
 	return 17 / 5 == 3
 
-enableColorANSI(1)
+# enableColorANSI(1)
 
 mytname := "my test"
 
-showtestres(1, 79, mytname, mytest())
+# showtestres(1, 79, mytname, mytest())

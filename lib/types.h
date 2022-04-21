@@ -12,8 +12,6 @@
 #define A_packed (1U<<5)
 #define A_dirty  (1U<<6)
 
-class PrototypeAST;
-
 namespace volvox {
 
 #if defined (_MSC_VER)
