@@ -797,14 +797,14 @@ int main(int argc, char* argv[]) {
 	  
 		pass.run(*TheModule);
 		dest.flush();
-
-		outs() << "Wrote " << Filename << "\n";
+		dest.close();
+		hints() << "Wrote " << Filename << "\n";
 		if (link_mode != dont_link) {
 			char* volvox_root = getenv("VOLVOX_ROOT");
-			if (volvox_root)
+			if (!volvox_root)
 				volvox_root = const_cast<char*>(".");
 			int lr = strlen(volvox_root);
-			char libpath[lr+32];
+			char* libpath = (char*)alloca(lr+32);
 			strcpy(libpath, volvox_root);
 #if defined(_MSC_VER)
 			strcat(libpath, "\\lib\\libvolvox.lib");
@@ -820,10 +820,10 @@ int main(int argc, char* argv[]) {
 #else
 				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"), const_cast<char*>("-Wl,-rpath"), libpath,
 #endif
-				nullptr
+				verbosity ? const_cast<char*>("-v") : nullptr, nullptr
 			};
 #if _WIN32
-			result = (int)_swawnvp(_P_WAIT, clang_exe, clang_argv);
+			result = (int)_spawnvp(_P_WAIT, clang_exe, clang_argv);
 #else
 			pid_t pid = fork();
 			if (pid) {
@@ -836,7 +836,7 @@ int main(int argc, char* argv[]) {
 			}
 #endif
 			if (result) {
-				errs() << "Error calling clank for linking\n";
+				errs() << "Error calling clang for linking\n";
 			}
 		}
 	} else if (comp_mode == comp_dbg) {
