@@ -685,4 +685,88 @@ _CDECL int getTermSize(int fd)
 	else
 		return (int)((ws.ws_col << 16) | ws.ws_row);
 #endif
-}		
+}
+
+#if defined (_MSC_VER)
+bool wGlob(char* buf, int s_len, int cur_index, char* argv, char*** rets, int* n_rets, int* max_rets) {
+	bool found = false;
+	int last_slash = -1;
+	int new_index;
+	bool have_wildcard = false;
+	bool is_lastpart = false;
+	char slash = (cur_index && argv[cur_index-1] == '\\') ? '\\' : '/';
+	for (new_index = cur_index; argv[new_index]; new_index++) {
+		switch (argv[new_index]) {
+		case '*':
+		case '?':
+			have_wildcard = true;
+			break;
+		case '\\':
+		case '/':
+			slash = argv[new_index];
+			if (have_wildcard)
+				goto continue_search;
+			else
+				last_slash = new_index;
+			break;
+		default:
+			;
+		}
+	}
+	is_lastpart = true;
+continue_search:
+	int plus_len = new_index - cur_index;
+	if (s_len + plus_len + 2 > MAX_PATH) {
+		return false;
+	}
+	strncpy(buf + s_len, argv + cur_index, plus_len);
+	buf[s_len + plus_len] = '\0';
+	s_len += last_slash - cur_index;
+	WIN32_FIND_DATA wfd;
+	HANDLE h = FindFirstFile(buf, &wfd);
+	if (h == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	if (is_lastpart && !*rets) {
+		*max_rets = 8;
+		*n_rets = 0;
+		*rets = (char**)malloc(*max_rets * sizeof(char*));
+	}
+	do {
+		if (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+			if (!strcmp(wfd.cFileName, ".") || !strcmp(wfd.cFileName, ".."))
+				continue;
+			if (!is_lastpart) {
+				int dirname_len = strlen(wfd.cFileName);
+				if (dirname_len + s_len + 5 > MAX_PATH) {
+					return false;
+				}
+				strcpy(buf + s_len + 1, wfd.cFileName);
+				if (wGlob(buf, s_len + 1 + dirname_len, new_index, argv, rets, n_rets, max_rets))
+					found = true;
+			}
+		}
+		if (is_lastpart) {
+			plus_len = strlen(wfd.cFileName);
+			if (*n_rets >= *max_rets) {
+				*max_rets = *max_rets + (*max_rets >> 1);
+				*rets = (char**)realloc(*rets, *max_rets * sizeof(char*));
+			}
+			int full_len = s_len + 1 + plus_len + 1;
+			if (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)
+				full_len++;
+			(*rets)[*n_rets] = malloc(full_len);
+			strncpy((*rets)[*n_rets], buf, s_len + 1 );
+			strcpy((*rets)[*n_rets] + s_len + 1, wfd.cFileName);
+			if (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
+				(*rets)[*n_rets][s_len + 1 + plus_len] = slash;
+				(*rets)[*n_rets][s_len + 1 + plus_len + 1] = '\0';
+			}
+			(*n_rets)++;
+			found = true;
+		}
+	} while (FindNextFile(h, &wfd));
+	FindClose(h);
+	return found;
+}
+#endif
