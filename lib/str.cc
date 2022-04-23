@@ -687,8 +687,13 @@ _CDECL int getTermSize(int fd)
 #endif
 }
 
+typedef struct volvox_glob_t {
+	size_t size;
+	char** dirs;
+} volvox_glob_t;
+
 #if defined (_MSC_VER)
-bool wGlob(char* buf, int s_len, int cur_index, char* argv, char*** rets, int* n_rets, int* max_rets) {
+static bool Glob_impl(char* buf, int s_len, int cur_index, const char* argv, char*** rets, size_t* n_rets, size_t* max_rets) {
 	bool found = false;
 	int last_slash = -1;
 	int new_index;
@@ -742,7 +747,7 @@ continue_search:
 					return false;
 				}
 				strcpy(buf + s_len + 1, wfd.cFileName);
-				if (wGlob(buf, s_len + 1 + dirname_len, new_index, argv, rets, n_rets, max_rets))
+				if (Glob_impl(buf, s_len + 1 + dirname_len, new_index, argv, rets, n_rets, max_rets))
 					found = true;
 			}
 		}
@@ -770,3 +775,49 @@ continue_search:
 	return found;
 }
 #endif
+
+_CDECL void volvox_free_glob(volvox_glob_t* rets) {
+#if defined (_MSC_VER)
+	if (rets->dirs) {
+		for (size_t i=0; i < rets->size; i++)
+			free(rets->dirs[i]);
+		free(rets->dirs);
+	}
+#else
+	struct glob_t glob = {
+		.gl_pathc = rets->size,
+		.gl_pathv = rets->dirs,
+		.gl_offs = 0,
+	};
+	globfree(&glob);
+#endif
+	rets->dirs = nullptr;
+	rets->size = 0;
+}
+
+_CDECL volvox_glob_t volvox_glob(const char* pattern) {
+	volvox_glob_t rets = {
+		.size = 0,
+		.dirs = nullptr,
+	};
+#if defined (_MSC_VER)
+	char buf[MAX_PATH] = "";
+	size_t max_rets = 0;
+	if (!Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets))
+		return rets;
+	volvox_free_glob(&rets);
+#else
+	struct glob_t glob_rets = {
+		.gl_pathc = 0,
+		.gl_pathv = nullptr,
+		.gl_offs = 0,
+	};
+	int res = glob(pattern, GLOB_MARK, NULL, &glob_rets);
+	if (!res) {
+		rets.size = glob_rets.gl_pathc;
+		rets.dirs = glob_rets.gl_pathv;
+	}
+	// not clear if the glob_t struct must be freed in case of error... :-(
+#endif
+	return rets;
+}
