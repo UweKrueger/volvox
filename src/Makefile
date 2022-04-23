@@ -6,6 +6,9 @@ SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
 TARGETDIR := ../
+ifeq ($(shell test -x /usr/bin/clang++-14 && echo -n true),true)
+    SUFFIX := -14
+else
 ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
     SUFFIX :=
 else
@@ -17,6 +20,7 @@ ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
 else
 ifeq ($(shell test -x /usr/bin/clang++-12 && echo -n true),true)
     SUFFIX := -12
+endif
 endif
 endif
 endif

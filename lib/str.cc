@@ -12,6 +12,7 @@
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <alloca.h>
+#include <glob.h>
 #endif
 #include <stdlib.h>
 #include <stdarg.h>
@@ -784,7 +785,7 @@ _CDECL void volvox_free_glob(volvox_glob_t* rets) {
 		free(rets->dirs);
 	}
 #else
-	struct glob_t glob = {
+	glob_t glob = {
 		.gl_pathc = rets->size,
 		.gl_pathv = rets->dirs,
 		.gl_offs = 0,
@@ -807,7 +808,7 @@ _CDECL volvox_glob_t volvox_glob(const char* pattern) {
 		return rets;
 	volvox_free_glob(&rets);
 #else
-	struct glob_t glob_rets = {
+	glob_t glob_rets = {
 		.gl_pathc = 0,
 		.gl_pathv = nullptr,
 		.gl_offs = 0,
