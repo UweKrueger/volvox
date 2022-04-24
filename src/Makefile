@@ -27,11 +27,12 @@ endif
 endif
 
 CC = clang$(SUFFIX)
+LINKER := $(shell which $(CC))
 
 LLVMCONFIG := llvm-config$(SUFFIX)
 LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
 
-CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -frtti
+CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -DLINKER=\"$(LINKER)\" -frtti
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
 PRJH = ../include/volvox-$(LLVMVERSION).hh
 

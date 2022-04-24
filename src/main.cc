@@ -808,22 +808,33 @@ int main(int argc, char* argv[]) {
 			strcpy(libpath, volvox_root);
 #if defined(_MSC_VER)
 			strcat(libpath, "\\lib\\libvolvox.lib");
-			char* clang_exe = const_cast<char*>("clang.exe");
+			char* linker_exe = const_cast<char*>("clang.exe");
 #else
 			strcat(libpath, "/lib");
-			char* clang_exe = const_cast<char*>("clang");
+			char* rpath = (char*)alloca(lr+43);
+			strcpy(rpath, "-Wl,-rpath,");
+			strcat(rpath, libpath);
+			char* linker_exe = const_cast<char*>(LINKER);
 #endif
 			char* clang_argv[] = {
-				clang_exe, const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), output_file,
+				linker_exe, const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), output_file,
 #if defined(_MSC_VER)
 				libpath,
 #else
-				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"), const_cast<char*>("-Wl,-rpath"), libpath,
+				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"),rpath,
 #endif
 				verbosity ? const_cast<char*>("-v") : nullptr, nullptr
 			};
+			if (verbosity) {
+				for (int i=0; clang_argv[i]; i++) {
+					if (i)
+						errs() << ' ';
+					errs() << clang_argv[i];
+				}
+				errs() << '\n';
+			}
 #if _WIN32
-			result = (int)_spawnvp(_P_WAIT, clang_exe, clang_argv);
+			result = (int)_spawnvp(_P_WAIT, linker_exe, clang_argv);
 #else
 			pid_t pid = fork();
 			if (pid) {
@@ -831,12 +842,13 @@ int main(int argc, char* argv[]) {
 				waitpid(pid, &status, 0);
 				result = WEXITSTATUS(status);
 			} else {
-				execvp(clang_exe, clang_argv);
+				execvp(linker_exe, clang_argv);
+				errs() << "Fatal error: cannot execute \"" << LINKER << '\n';
 				exit(1);
 			}
 #endif
 			if (result) {
-				errs() << "Error calling clang for linking\n";
+				errs() << "Error calling \"" << LINKER << "\" for linking\n";
 			}
 		}
 	} else if (comp_mode == comp_dbg) {
