@@ -848,7 +848,7 @@ int main(int argc, char* argv[]) {
 			}
 #endif
 			if (result) {
-				errs() << "Error calling \"" << LINKER << "\" for linking\n";
+				errs() << "Error calling \"" << linker_exe << "\" for linking\n";
 			}
 		}
 	} else if (comp_mode == comp_dbg) {
