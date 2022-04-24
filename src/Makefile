@@ -6,19 +6,19 @@ SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
 TARGETDIR := ../
-ifeq ($(shell test -x /usr/bin/clang++-14 && echo -n true),true)
+ifeq ($(shell test -x /usr/bin/llvm-config-14 && echo -n true),true)
     SUFFIX := -14
 else
-ifeq ($(shell test -x /usr/bin/clang++ && echo -n true),true)
+ifeq ($(shell test -x /usr/bin/llvm-config && echo -n true),true)
     SUFFIX :=
 else
-ifeq ($(shell test -x /usr/local/bin/clang++12 && echo -n true),true)
+ifeq ($(shell test -x /usr/local/bin/llvm-config12 && echo -n true),true)
     SUFFIX := 12
 else
-ifeq ($(shell test -x /usr/bin/clang++-13 && echo -n true),true)
+ifeq ($(shell test -x /usr/bin/llvm-config-13 && echo -n true),true)
     SUFFIX := -13
 else
-ifeq ($(shell test -x /usr/bin/clang++-12 && echo -n true),true)
+ifeq ($(shell test -x /usr/bin/llvm-config-12 && echo -n true),true)
     SUFFIX := -12
 endif
 endif
@@ -29,7 +29,7 @@ endif
 CC = clang$(SUFFIX)
 
 LLVMCONFIG := llvm-config$(SUFFIX)
-LLVMVERSION := $(shell clang++$(SUFFIX) -v |& head -n 1 | cut -d. -f1 | rev | cut -d' ' -f1 | rev)
+LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
 
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -frtti
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
