@@ -20,6 +20,10 @@ class VarExprAST;
 class UnaryExprAST;
 class BinaryExprAST;
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#endif
+
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things.
 enum TokenKind {

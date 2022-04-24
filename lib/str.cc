@@ -573,8 +573,6 @@ static bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* 
 }
 
 #if defined (_MSC_VER)
-#define _DECL __declspec(dllexport)
-#define _CDECL __declspec(dllexport)
 // Volvox uses the Itanium mangling scheme for global symbols
 // which is also used by C++ compilers on most Unix-like systems.
 // MSVC++ used it's own mangling scheme - however, if we use this
@@ -584,8 +582,6 @@ static bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* 
 #define print _ZN6volvox5printEPKcPKNS_6RtTypeEz
 #define println _ZN6volvox7printlnEPKcPKNS_6RtTypeEz
 #else
-#define _DECL
-#define _CDECL extern "C"
 #undef VOLVOX_RtType
 #define VOLVOX_RtType RtType
 namespace volvox {
@@ -687,11 +683,6 @@ _CDECL int getTermSize(int fd)
 		return (int)((ws.ws_col << 16) | ws.ws_row);
 #endif
 }
-
-typedef struct volvox_glob_t {
-	size_t size;
-	char** dirs;
-} volvox_glob_t;
 
 #if defined (_MSC_VER)
 static bool Glob_impl(char* buf, int s_len, int cur_index, const char* argv, char*** rets, size_t* n_rets, size_t* max_rets) {
@@ -804,7 +795,7 @@ _CDECL volvox_glob_t volvox_glob(const char* pattern) {
 #if defined (_MSC_VER)
 	char buf[MAX_PATH] = "";
 	size_t max_rets = 0;
-	if (!Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets))
+	if (Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets))
 		return rets;
 	volvox_free_glob(&rets);
 #else

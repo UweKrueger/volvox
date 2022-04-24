@@ -24,3 +24,30 @@
 
 #define F32_DEFAULT_PRECISION 8
 #define F64_DEFAULT_PRECISION 17
+
+typedef struct volvox_glob_t {
+	size_t size;
+	char** dirs;
+} volvox_glob_t;
+
+#if defined (_MSC_VER)
+#define _DECL __declspec(dllexport)
+#define _CDECL __declspec(dllexport)
+#else
+#define _DECL
+#define _CDECL extern "C"
+#endif
+
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif
+
+	_DECL void volvox_free_glob(volvox_glob_t* rets);
+
+	_DECL volvox_glob_t volvox_glob(const char* pattern);
+
+#ifdef __cplusplus
+}
+#endif

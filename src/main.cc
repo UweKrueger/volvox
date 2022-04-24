@@ -510,6 +510,13 @@ inline bool is_exe(const char* file) {
 // We have to switch to code page 65001 to enable UTF-8. This
 // value here is used to restore the old state on exit
 unsigned old_cp;
+// glob patterns to search for linker and libraries
+#define LINKER "C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\link.exe"
+// patterns for library directories - file name is added to skip stale empty directories
+#define LIBDIRS { \
+	"C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\lib\\x64\\libcmt.lib", \
+	"C:\\Program Files*\\Windows Kits\\*\\Lib\\*\\ucrt\\x64\\libucrt.lib", \
+	"C:\\Program Files*\\Windows Kits\\*\\Lib\\*\\um\\x64\\ntdll.lib" }
 #endif
 
 int main(int argc, char* argv[]) {
@@ -808,7 +815,41 @@ int main(int argc, char* argv[]) {
 			strcpy(libpath, volvox_root);
 #if defined(_MSC_VER)
 			strcat(libpath, "\\lib\\libvolvox.lib");
-			char* linker_exe = const_cast<char*>("clang.exe");
+			volvox_glob_t linkers = volvox_glob(LINKER);
+			if (!linkers.size) {
+				errs() << "Unable to find 'link.exe' (searched as \"" << LINKER << "\"\n";
+				exit(1);
+			}
+			char* linker_exe = linkers.dirs[0];
+			const char* libpatterns[] = LIBDIRS;
+			char* libdirs[ARRAY_SIZE(libpatterns)];
+			for (int i=0; i<ARRAY_SIZE(libpatterns); i++) {
+				volvox_glob_t lib = volvox_glob(libpatterns[i]);
+				if (!linkers.size) {
+					errs() << "Unable to find Windows system library (searched as \"" << libpatterns[i] << "\"\n";
+					exit(1);
+				}
+				int strl = strlen(lib.dirs[0]) - 1;
+				if (lib.dirs[0][strl] == '\\' || lib.dirs[0][strl] == '/') {
+					errs() << "Unexpected directory name when searching for file: " << lib.dirs[0] << '\n';
+					exit(1);
+				}
+				while (lib.dirs[0][strl] != '\\' && lib.dirs[0][strl] != '/')
+					strl--;
+				libdirs[i] = (char*)alloca(strl + 12);
+				strcpy(libdirs[i], "-libpath:\"");
+				strncpy(libdirs[i] + 10, lib.dirs[0], strl); // don't copy trailing '\\'
+				libdirs[i][10 + strl] = '"';
+				libdirs[i][11 + strl] = '\0';
+				volvox_free_glob(&lib);
+			}
+			char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
+			strcpy(exe_out, "-out:");
+			strcat(exe_out, exe_file);
+			char* argv_link_exe = (char*)alloca(strlen(linker_exe) + 3);
+			strcpy(argv_link_exe, "\"");
+			strcat(argv_link_exe, linker_exe);
+			strcat(argv_link_exe, "\"");
 #else
 			strcat(libpath, "/lib");
 			char* rpath = (char*)alloca(lr+43);
@@ -817,13 +858,21 @@ int main(int argc, char* argv[]) {
 			char* linker_exe = const_cast<char*>(LINKER);
 #endif
 			char* clang_argv[] = {
-				linker_exe, const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), output_file,
 #if defined(_MSC_VER)
-				libpath,
+				argv_link_exe,
 #else
-				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"),rpath,
+				linker_exe,
 #endif
-				verbosity ? const_cast<char*>("-v") : nullptr, nullptr
+				output_file,
+#if defined(_MSC_VER)
+				exe_out, const_cast<char*>("-defaultlib:libcmt"), const_cast<char*>("-defaultlib:oldnames"),
+				libpath, libdirs[0], libdirs[1], libdirs[2], 
+#else
+				const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), 
+				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"), rpath,
+				verbosity ? const_cast<char*>("-v") : nullptr,
+#endif
+				nullptr
 			};
 			if (verbosity) {
 				for (int i=0; clang_argv[i]; i++) {
@@ -847,6 +896,7 @@ int main(int argc, char* argv[]) {
 				exit(1);
 			}
 #endif
+			volvox_free_glob(&linkers);
 			if (result) {
 				errs() << "Error calling \"" << linker_exe << "\" for linking\n";
 			}
