@@ -815,14 +815,46 @@ _CDECL volvox_glob_t volvox_glob(const char* pattern) {
 	return rets;
 }
 
+// dest must be 32767 bytes in size - maximum length of command line on Windows
+static bool getCmdLine(char* dest, int argc, const char* argv[]) {
+	int pos = 0;
+	for (int argidx = 0; argidx < argc; argidx++) {
+		if (pos > 32760)
+			goto error;
+		if (argidx)
+			dest[pos++] = ' ';
+		dest[pos++] = '"';
+		const char* arg = argv[argidx];
+		for (int i=0; arg[i]; i++) {
+			if (pos > 32760)
+				goto error;
+			char c = arg[i];
+			if (arg[i] == '"')
+				dest[pos++] = '\\';
+			dest[pos++] = c;
+		}
+	}
+	dest[pos++] = '\0';
+	return true;
+error:
+	errno = E2BIG;
+	return false;
+}
+
 _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* child_stderr,
-                         const char* cmd, int argc, const char* argv[]) {
+                         int argc, const char* argv[]) {
 #ifdef _WIN32
 	char cmd_path[MAX_PATH];
-	unsigned pathlen = SearchPath(NULL, cmd, ".exe", MAX_PATH, cmd_path, NULL);
+	char cmd_line[32768];
+	if (!argc || !argv) {
+		errno = EINVAL;
+		return false;
+	}
+	unsigned pathlen = SearchPath(NULL, argv[0], ".exe", MAX_PATH, cmd_path, NULL);
 	if (!pathlen)
 		goto error;
-	
+	if (!getCmdLine(cmd_line, argc, argv))
+		return false;
 	SECURITY_ATTRIBUTES saAttr = {
 		.nLength = sizeof(SECURITY_ATTRIBUTES), 
 		.lpSecurityDescriptor = NULL,
@@ -862,16 +894,16 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* chi
 	};
 	PROCESS_INFORMATION ProcInfo = {0};
 	if (CreateProcess(
-		    cmd_path,     // ApplicationName
-		    (char*)cmd,   // CommandLine
-		    NULL,         // ProcessAttributes
-		    NULL,         // ThreadAttributes
-		    true,         // InheritHandles
-		    0,            // CreationFlags
-		    NULL,         // Environment
-		    NULL,         // CurrentDirectory
-		    &StartInfo,   // StartupInfo
-		    &ProcInfo)    // ProcessInformation
+		    cmd_path,       // ApplicationName
+		    (char*)argv[0], // CommandLine
+		    NULL,           // ProcessAttributes
+		    NULL,           // ThreadAttributes
+		    true,           // InheritHandles
+		    0,              // CreationFlags
+		    NULL,           // Environment
+		    NULL,           // CurrentDirectory
+		    &StartInfo,     // StartupInfo
+		    &ProcInfo)      // ProcessInformation
 		) {
 		// get pid if desired, otherwise close the process handle to detach the process
 		if (pid)

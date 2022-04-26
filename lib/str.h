@@ -49,7 +49,7 @@ extern "C"
 	_DECL volvox_glob_t volvox_glob(const char* pattern);
 
 	_DECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* child_stderr,
-	                        const char* cmd, int argc, const char* argv[]);
+	                        int argc, const char* argv[]);
 
 #ifdef __cplusplus
 }
