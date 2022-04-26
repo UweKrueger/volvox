@@ -14,6 +14,7 @@
 #include <alloca.h>
 #include <glob.h>
 #endif
+#include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -815,6 +816,7 @@ _CDECL volvox_glob_t volvox_glob(const char* pattern) {
 	return rets;
 }
 
+#ifdef _WIN32
 // dest must be 32767 bytes in size - maximum length of command line on Windows
 static bool getCmdLine(char* dest, int argc, const char* argv[]) {
 	int pos = 0;
@@ -840,9 +842,10 @@ error:
 	errno = E2BIG;
 	return false;
 }
+#endif
 
 _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* child_stderr,
-                         int argc, const char* argv[]) {
+                         int argc, char* const argv[]) {
 #ifdef _WIN32
 	char cmd_path[MAX_PATH];
 	char cmd_line[32768];
@@ -929,6 +932,54 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* chi
 error:
    // this is not correct - TODO: map/merge Windows errors / POSIX arrows
    errno = GetLastError();
+#else
+   int inpipefd[2];
+   if (child_stdin)
+	   if(pipe(inpipefd))
+		   return false;
+   int outpipefd[2];
+   if (child_stdout)
+	   if(pipe(outpipefd))
+		   return false;
+   int errpipefd[2];
+   if (child_stderr)
+	   if(pipe(errpipefd))
+		   return false;
+   pid_t childpid = fork();
+   if (childpid) { // parent process
+	   if (pid)
+		   *pid = childpid;
+	   if (child_stdin) {
+		   *child_stdin = inpipefd[1];
+		   close(inpipefd[0]);
+	   }
+	   if (child_stdout) {
+		   *child_stdout = outpipefd[0];
+		   close(outpipefd[1]);
+	   }
+	   if (child_stderr) {
+		   *child_stderr = errpipefd[0];
+		   close(errpipefd[1]);
+	   }
+	   return true;
+   } else { // child process
+	   if (child_stdin) {
+		   dup2(inpipefd[0], 0);
+		   close(inpipefd[1]);
+	   }
+	   if (child_stdout) {
+		   dup2(outpipefd[1], 1);
+		   close(outpipefd[0]);
+	   }
+	   if (child_stderr) {
+		   dup2(errpipefd[1], 2);
+		   close(errpipefd[0]);
+	   }
+	   if (execvp(argv[0], argv)) {
+		   fprintf(stderr, "Error calling '%s': %s\n", argv[0], strerror(errno));
+		   exit(1);
+	   }
+   }
 #endif
    return false;
 }

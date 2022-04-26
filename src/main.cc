@@ -884,6 +884,7 @@ int main(int argc, char* argv[]) {
 			}
 #if _WIN32
 			result = (int)_spawnvp(_P_WAIT, linker_exe, clang_argv);
+			volvox_free_glob(&linkers);
 #else
 			pid_t pid = fork();
 			if (pid) {
@@ -896,7 +897,6 @@ int main(int argc, char* argv[]) {
 				exit(1);
 			}
 #endif
-			volvox_free_glob(&linkers);
 			if (result) {
 				errs() << "Error calling \"" << linker_exe << "\" for linking\n";
 			}
