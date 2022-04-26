@@ -818,9 +818,9 @@ _CDECL volvox_glob_t volvox_glob(const char* pattern) {
 
 #ifdef _WIN32
 // dest must be 32767 bytes in size - maximum length of command line on Windows
-static bool getCmdLine(char* dest, int argc, char* const argv[]) {
+static bool getCmdLine(char* dest, char* const argv[]) {
 	int pos = 0;
-	for (int argidx = 0; argidx < argc; argidx++) {
+	for (int argidx = 0; argv[argidx]; argidx++) {
 		if (pos > 32760)
 			goto error;
 		if (argidx)
@@ -844,19 +844,19 @@ error:
 }
 #endif
 
-_CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* child_stderr,
-                         int argc, char* const argv[]) {
+_CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
+                         int* child_stderr, char* const argv[]) {
 #ifdef _WIN32
 	char cmd_path[MAX_PATH];
 	char cmd_line[32768];
-	if (!argc || !argv) {
+	if (!argv) {
 		errno = EINVAL;
 		return false;
 	}
 	unsigned pathlen = SearchPath(NULL, argv[0], ".exe", MAX_PATH, cmd_path, NULL);
 	if (!pathlen)
 		goto error;
-	if (!getCmdLine(cmd_line, argc, argv))
+	if (!getCmdLine(cmd_line, argv))
 		return false;
 	SECURITY_ATTRIBUTES saAttr = {
 		.nLength = sizeof(SECURITY_ATTRIBUTES), 

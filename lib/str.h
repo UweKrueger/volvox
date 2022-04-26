@@ -48,8 +48,8 @@ extern "C"
 
 	_DECL volvox_glob_t volvox_glob(const char* pattern);
 
-	_DECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* child_stderr,
-	                        int argc, char* const argv[]);
+	_DECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
+	                        int* child_stderr, char* const argv[]);
 
 #ifdef __cplusplus
 }
