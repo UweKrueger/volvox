@@ -818,7 +818,7 @@ _CDECL volvox_glob_t volvox_glob(const char* pattern) {
 
 #ifdef _WIN32
 // dest must be 32767 bytes in size - maximum length of command line on Windows
-static bool getCmdLine(char* dest, int argc, const char* argv[]) {
+static bool getCmdLine(char* dest, int argc, char* const argv[]) {
 	int pos = 0;
 	for (int argidx = 0; argidx < argc; argidx++) {
 		if (pos > 32760)
@@ -897,16 +897,16 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* chi
 	};
 	PROCESS_INFORMATION ProcInfo = {0};
 	if (CreateProcess(
-		    cmd_path,       // ApplicationName
-		    (char*)argv[0], // CommandLine
-		    NULL,           // ProcessAttributes
-		    NULL,           // ThreadAttributes
-		    true,           // InheritHandles
-		    0,              // CreationFlags
-		    NULL,           // Environment
-		    NULL,           // CurrentDirectory
-		    &StartInfo,     // StartupInfo
-		    &ProcInfo)      // ProcessInformation
+		    cmd_path,   // ApplicationName
+		    argv[0],    // CommandLine
+		    NULL,       // ProcessAttributes
+		    NULL,       // ThreadAttributes
+		    true,       // InheritHandles
+		    0,          // CreationFlags
+		    NULL,       // Environment
+		    NULL,       // CurrentDirectory
+		    &StartInfo, // StartupInfo
+		    &ProcInfo)  // ProcessInformation
 		) {
 		// get pid if desired, otherwise close the process handle to detach the process
 		if (pid)
