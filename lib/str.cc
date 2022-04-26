@@ -14,6 +14,7 @@
 #include <alloca.h>
 #include <glob.h>
 #endif
+#include <fcntl.h>
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
@@ -812,4 +813,90 @@ _CDECL volvox_glob_t volvox_glob(const char* pattern) {
 	// not clear if the glob_t struct must be freed in case of error... :-(
 #endif
 	return rets;
+}
+
+_CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout, int* child_stderr,
+                         const char* cmd, int argc, const char* argv[]) {
+#ifdef _WIN32
+	char cmd_path[MAX_PATH];
+	unsigned pathlen = SearchPath(NULL, cmd, ".exe", MAX_PATH, cmd_path, NULL);
+	if (!pathlen)
+		goto error;
+	
+	SECURITY_ATTRIBUTES saAttr = {
+		.nLength = sizeof(SECURITY_ATTRIBUTES), 
+		.lpSecurityDescriptor = NULL,
+		.bInheritHandle = true // for pipe handles to be inherited
+	};
+	// Create communication pipes and make sure the child's end is inherited
+	HANDLE h_child_stdin_r = NULL;
+	HANDLE h_child_stdin_w = NULL;
+	if (child_stdin) {
+		if (!CreatePipe(&h_child_stdin_r, &h_child_stdin_w, &saAttr, 0))
+			goto error; 
+		if (!SetHandleInformation(h_child_stdin_w, HANDLE_FLAG_INHERIT, 0))
+			goto error;
+	}
+	HANDLE h_child_stdout_r = NULL;
+	HANDLE h_child_stdout_w = NULL;
+	if (child_stdout) {
+		if (!CreatePipe(&h_child_stdout_r, &h_child_stdout_w, &saAttr, 0)) 
+			goto error;
+		if (!SetHandleInformation(h_child_stdout_r, HANDLE_FLAG_INHERIT, 0))
+			goto error;
+	}
+	HANDLE h_child_stderr_r = NULL;
+	HANDLE h_child_stderr_w = NULL;
+	if (child_stderr) {
+		if (!CreatePipe(&h_child_stderr_r, &h_child_stderr_w, &saAttr, 0)) 
+			goto error;
+		if (!SetHandleInformation(h_child_stderr_r, HANDLE_FLAG_INHERIT, 0))
+			goto error;
+	}
+	STARTUPINFO StartInfo = {
+		.cb = sizeof(STARTUPINFO),
+		.hStdInput = h_child_stdin_r,
+		.hStdOutput = h_child_stdout_w,
+		.hStdError = h_child_stderr_w,
+		.dwFlags = STARTF_USESTDHANDLES
+	};
+	PROCESS_INFORMATION ProcInfo = {0};
+	if (CreateProcess(
+		    cmd_path,     // ApplicationName
+		    (char*)cmd,   // CommandLine
+		    NULL,         // ProcessAttributes
+		    NULL,         // ThreadAttributes
+		    true,         // InheritHandles
+		    0,            // CreationFlags
+		    NULL,         // Environment
+		    NULL,         // CurrentDirectory
+		    &StartInfo,   // StartupInfo
+		    &ProcInfo)    // ProcessInformation
+		) {
+		// get pid if desired, otherwise close the process handle to detach the process
+		if (pid)
+			*pid = ProcInfo.dwProcessId;
+		else
+			CloseHandle(ProcInfo.hProcess);
+		CloseHandle(ProcInfo.hThread);
+		// close here in the parent those pipe ends that are used in the child
+		if (h_child_stdin_r)
+			CloseHandle(h_child_stdin_r);
+		if (h_child_stdout_w)
+			CloseHandle(h_child_stdout_w);
+		if (h_child_stderr_w)
+			CloseHandle(h_child_stderr_w);
+		if (child_stdin)
+			*child_stdin = _open_osfhandle((uintptr_t)h_child_stdin_w, _O_WRONLY);
+		if (child_stdout)
+			*child_stdout = _open_osfhandle((uintptr_t)h_child_stdout_r, _O_RDONLY);
+		if (child_stderr)
+			*child_stderr = _open_osfhandle((uintptr_t)h_child_stderr_r, _O_RDONLY);
+		return true;
+	}
+error:
+   // this is not correct - TODO: map/merge Windows errors / POSIX arrows
+   errno = GetLastError();
+#endif
+   return false;
 }
