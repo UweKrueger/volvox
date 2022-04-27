@@ -818,7 +818,7 @@ _CDECL volvox_glob_t volvox_glob(const char* pattern) {
 
 #ifdef _WIN32
 // dest must be 32767 bytes in size - maximum length of command line on Windows
-static bool getCmdLine(char* dest, char* const argv[]) {
+static bool getCmdLine(char* dest, const char* cmd, char* const argv[]) {
 	int pos = 0;
 	for (int argidx = 0; argv[argidx]; argidx++) {
 		if (pos > 32760)
@@ -826,7 +826,7 @@ static bool getCmdLine(char* dest, char* const argv[]) {
 		if (argidx)
 			dest[pos++] = ' ';
 		dest[pos++] = '"';
-		const char* arg = argv[argidx];
+		const char* arg = argidx ? argv[argidx] : cmd;
 		for (int i=0; arg[i]; i++) {
 			if (pos > 32760)
 				goto error;
@@ -835,6 +835,7 @@ static bool getCmdLine(char* dest, char* const argv[]) {
 				dest[pos++] = '\\';
 			dest[pos++] = c;
 		}
+		dest[pos++] = '"';
 	}
 	dest[pos++] = '\0';
 	return true;
@@ -856,8 +857,9 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 	unsigned pathlen = SearchPath(NULL, argv[0], ".exe", MAX_PATH, cmd_path, NULL);
 	if (!pathlen)
 		goto error;
-	if (!getCmdLine(cmd_line, argv))
+	if (!getCmdLine(cmd_line, cmd_path, argv))
 		return false;
+	fprintf(stderr, "Cmdline: >%s<\n", cmd_line);
 	SECURITY_ATTRIBUTES saAttr = {
 		.nLength = sizeof(SECURITY_ATTRIBUTES), 
 		.lpSecurityDescriptor = NULL,
@@ -867,7 +869,7 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 	HANDLE h_child_stdin_r = NULL;
 	HANDLE h_child_stdin_w = NULL;
 	if (child_stdin) {
-		if (!CreatePipe(&h_child_stdin_r, &h_child_stdin_w, &saAttr, 0))
+		if (!CreatePipe(&h_child_stdin_r, &h_child_stdin_w, &saAttr, 4096))
 			goto error; 
 		if (!SetHandleInformation(h_child_stdin_w, HANDLE_FLAG_INHERIT, 0))
 			goto error;
@@ -875,7 +877,7 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 	HANDLE h_child_stdout_r = NULL;
 	HANDLE h_child_stdout_w = NULL;
 	if (child_stdout) {
-		if (!CreatePipe(&h_child_stdout_r, &h_child_stdout_w, &saAttr, 0)) 
+		if (!CreatePipe(&h_child_stdout_r, &h_child_stdout_w, &saAttr, 4096)) 
 			goto error;
 		if (!SetHandleInformation(h_child_stdout_r, HANDLE_FLAG_INHERIT, 0))
 			goto error;
@@ -883,7 +885,7 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 	HANDLE h_child_stderr_r = NULL;
 	HANDLE h_child_stderr_w = NULL;
 	if (child_stderr) {
-		if (!CreatePipe(&h_child_stderr_r, &h_child_stderr_w, &saAttr, 0)) 
+		if (!CreatePipe(&h_child_stderr_r, &h_child_stderr_w, &saAttr, 4096)) 
 			goto error;
 		if (!SetHandleInformation(h_child_stderr_r, HANDLE_FLAG_INHERIT, 0))
 			goto error;
@@ -896,9 +898,10 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 		.dwFlags = STARTF_USESTDHANDLES
 	};
 	PROCESS_INFORMATION ProcInfo = {0};
+	fprintf(stderr, "About to start process\n");
 	if (CreateProcess(
 		    cmd_path,   // ApplicationName
-		    argv[0],    // CommandLine
+		    cmd_line,   // CommandLine
 		    NULL,       // ProcessAttributes
 		    NULL,       // ThreadAttributes
 		    true,       // InheritHandles
@@ -927,6 +930,7 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 			*child_stdout = _open_osfhandle((uintptr_t)h_child_stdout_r, _O_RDONLY);
 		if (child_stderr)
 			*child_stderr = _open_osfhandle((uintptr_t)h_child_stderr_r, _O_RDONLY);
+		fprintf(stderr, "... done\n");
 		return true;
 	}
 error:

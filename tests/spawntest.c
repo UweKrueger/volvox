@@ -28,11 +28,16 @@ int main(int argc, char* argv) {
 		write(2, MSG("Could not spawn process\n"));
 		exit(1);
 	}
+	write(2, MSG("process spawned\n"));
 	int n;
 	for (int k = 0; k < 3; k++) {
+		write(2, MSG("try to write msg\n"));
 		n = write(c_in, msgs[k], strlen(msgs[k]));
-		if (!n)
+		write(2, MSG("msg written\n"));
+		if (!n) {
+			write(2, MSG("Could not send message\n"));
 			exit(1);
+		}
 		else
 			write(2, MSG("Sent message\n"));
 		int i;
