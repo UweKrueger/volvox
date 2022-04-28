@@ -836,20 +836,15 @@ int main(int argc, char* argv[]) {
 				}
 				while (lib.dirs[0][strl] != '\\' && lib.dirs[0][strl] != '/')
 					strl--;
-				libdirs[i] = (char*)alloca(strl + 12);
-				strcpy(libdirs[i], "-libpath:\"");
-				strncpy(libdirs[i] + 10, lib.dirs[0], strl); // don't copy trailing '\\'
-				libdirs[i][10 + strl] = '"';
-				libdirs[i][11 + strl] = '\0';
+				libdirs[i] = (char*)alloca(strl + 10);
+				strcpy(libdirs[i], "-libpath:");
+				strncpy(libdirs[i] + 9, lib.dirs[0], strl); // don't copy trailing '\\'
+				libdirs[i][9 + strl] = '\0';
 				volvox_free_glob(&lib);
 			}
 			char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
 			strcpy(exe_out, "-out:");
 			strcat(exe_out, exe_file);
-			char* argv_link_exe = (char*)alloca(strlen(linker_exe) + 3);
-			strcpy(argv_link_exe, "\"");
-			strcat(argv_link_exe, linker_exe);
-			strcat(argv_link_exe, "\"");
 #else
 			strcat(libpath, "/lib");
 			char* rpath = (char*)alloca(lr+43);
@@ -858,16 +853,12 @@ int main(int argc, char* argv[]) {
 			char* linker_exe = const_cast<char*>(LINKER);
 #endif
 			char* clang_argv[] = {
-#if defined(_MSC_VER)
-				argv_link_exe,
-#else
 				linker_exe,
-#endif
 				output_file,
 #if defined(_MSC_VER)
 				exe_out, const_cast<char*>("-defaultlib:libcmt"), const_cast<char*>("-defaultlib:oldnames"),
 				libpath, libdirs[0], libdirs[1], libdirs[2],
-				verbosity ? const_cast<char*>("-verbose") : nullptr,
+				(verbosity >= 3) ? const_cast<char*>("-verbose") : const_cast<char*>("-nologo"),
 #else
 				const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), 
 				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"), rpath,
@@ -879,7 +870,15 @@ int main(int argc, char* argv[]) {
 				for (int i=0; clang_argv[i]; i++) {
 					if (i)
 						errs() << ' ';
-					errs() << clang_argv[i];
+					errs()
+#ifdef _WIN32
+						<< '"'
+#endif
+						<< clang_argv[i]
+#ifdef _WIN32
+						<< '"'
+#endif
+						;
 				}
 				errs() << '\n';
 			}

@@ -361,7 +361,7 @@ Token Lexer::gettok(eXpect expect) {
 					StrLit += '\b';
 					continue;
 				case 'e':
-					StrLit += '\e';
+					StrLit += '\033';
 					continue;
 				case 'f':
 					StrLit += '\f';
@@ -384,18 +384,25 @@ Token Lexer::gettok(eXpect expect) {
 				case '0':
 				case '1':
 				case '2':
-				case '3': {
+				case '3':
+				case '4':
+				case '5':
+				case '6':
+				case '7': {
 					// 3 octal digits
-					unsigned char sum = CurChar - '0';
+					unsigned sum = CurChar - '0';
 					CurChar = advance();
 					for (int l = 1; l<3; l++) {
-						if (CurChar < '0' || CurChar > '9') {
-							errs() << "error in octal character sequence\n";
-							continue;
-						}
-						sum = (sum << 3) | (CurChar - '0');
+						if (CurChar < '0' || CurChar > '9')
+							break;
+						else
+							sum = (sum << 3) | (CurChar - '0');
 					}
-					StrLit += sum;
+					if (sum >= 0x100) {
+						errs() << "Illegal octal character sequence\n";
+						continue;
+					}
+					StrLit += (char)sum;
 					continue;
 				}
 				default:
