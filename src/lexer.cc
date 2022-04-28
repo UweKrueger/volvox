@@ -348,8 +348,25 @@ Token Lexer::gettok(eXpect expect) {
 		}
 	case '"': {
 		std::string StrLit = "";
+		unsigned sum = 0;
+		unsigned nexpect = 0;
 		for (;;) {
 			CurChar = advance();
+			if (nexpect) {
+				if (CurChar >= '0' && CurChar < '8') {
+					sum = (sum << 3) | (CurChar - '0');
+					if (!--nexpect)
+						CurChar = advance();
+					else
+						continue;
+				} else {
+					nexpect = 0;
+				}
+				if (sum >= 0x100)
+					errs() << "Illegal octal character sequence\n";
+				else
+					StrLit += (char)sum;
+			}
 			switch (CurChar) {
 			case '\\':
 				CurChar = advance();
@@ -388,23 +405,11 @@ Token Lexer::gettok(eXpect expect) {
 				case '4':
 				case '5':
 				case '6':
-				case '7': {
+				case '7':
 					// 3 octal digits
-					unsigned sum = CurChar - '0';
-					CurChar = advance();
-					for (int l = 1; l<3; l++) {
-						if (CurChar < '0' || CurChar > '9')
-							break;
-						else
-							sum = (sum << 3) | (CurChar - '0');
-					}
-					if (sum >= 0x100) {
-						errs() << "Illegal octal character sequence\n";
-						continue;
-					}
-					StrLit += (char)sum;
+					sum = CurChar - '0';
+					nexpect = 2;
 					continue;
-				}
 				default:
 					goto add_letter;
 				}
