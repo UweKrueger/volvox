@@ -866,7 +866,8 @@ int main(int argc, char* argv[]) {
 				output_file,
 #if defined(_MSC_VER)
 				exe_out, const_cast<char*>("-defaultlib:libcmt"), const_cast<char*>("-defaultlib:oldnames"),
-				libpath, libdirs[0], libdirs[1], libdirs[2], 
+				libpath, libdirs[0], libdirs[1], libdirs[2],
+				verbosity ? const_cast<char*>("-verbose") : nullptr,
 #else
 				const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), 
 				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"), rpath,
@@ -882,23 +883,15 @@ int main(int argc, char* argv[]) {
 				}
 				errs() << '\n';
 			}
-#if _WIN32
-			result = (int)_spawnvp(_P_WAIT, linker_exe, clang_argv);
-			volvox_free_glob(&linkers);
-#else
-			pid_t pid = fork();
-			if (pid) {
-				int status;
-				waitpid(pid, &status, 0);
-				result = WEXITSTATUS(status);
+			int linker_pid;
+			if (!volvox_spawn(&linker_pid, nullptr, nullptr, nullptr, clang_argv)) {
+				errs() << llvm::format("Failed to link: %s\n", strerror(errno));
+				result = 1;
 			} else {
-				execvp(linker_exe, clang_argv);
-				errs() << "Fatal error: cannot execute \"" << LINKER << '\n';
-				exit(1);
-			}
-#endif
-			if (result) {
-				errs() << "Error calling \"" << linker_exe << "\" for linking\n";
+				result = volvox_wait(linker_pid);
+				if (result) {
+					errs() << "Linking failed\n";
+				}
 			}
 		}
 	} else if (comp_mode == comp_dbg) {
