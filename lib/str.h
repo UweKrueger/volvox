@@ -51,7 +51,6 @@ extern "C"
 	_DECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 	                        int* child_stderr, char* const argv[]);
 
-	_DECL bool volvox_getCmdLine(char* dest, const char* cmd, char* const argv[]);
 #ifdef __cplusplus
 }
 #endif
