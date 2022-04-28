@@ -36,6 +36,9 @@ typedef struct volvox_glob_t {
 #else
 #define _DECL
 #define _CDECL extern "C"
+#ifndef STILL_ACTIVE
+#define STILL_ACTIVE 0x103
+#endif
 #endif
 
 
@@ -50,6 +53,10 @@ extern "C"
 
 	_DECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 	                        int* child_stderr, char* const argv[]);
+
+	_CDECL int volvox_wait(int pid);
+
+	_CDECL int volvox_try_wait(int pid);
 
 #ifdef __cplusplus
 }

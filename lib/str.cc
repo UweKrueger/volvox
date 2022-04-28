@@ -990,3 +990,59 @@ error:
 #endif
    return false;
 }
+
+// Wait for a process to finish
+// Return exit code of process
+// return -1 and sets errno on failure
+_CDECL int volvox_wait(int pid) {
+#ifdef _WIN32
+	HANDLE p_handle = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+	if (!p_handle)
+		goto error;
+	unsigned res = WaitForSingleObject(p_handle, INFINITE);
+	if (res)
+		goto error;
+	DWORD ecode;
+	bool res2 = GetExitCodeProcess(p_handle, &ecode);
+	if (!res2)
+		goto error;
+	return (int)ecode;
+error:
+	errno = GetLastError();
+	return -1;
+#else
+	int status;
+	int res = waitpid(pid, &status, 0);
+	if (res <= 0 || !WIFEXITED(status))
+		return -1;
+	return WEXITSTATUS(status);
+#endif
+}
+
+// Checks if a process has finished
+// return STILL_ACTIVE (0x103, 259) if the process is still running
+// Return exit code of process
+// return -1 and sets errno on failure
+_CDECL int volvox_try_wait(int pid) {
+#ifdef _WIN32
+	HANDLE p_handle = OpenProcess(SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION, false, pid);
+	if (!p_handle)
+		goto error;
+	DWORD ecode;
+	bool res2 = GetExitCodeProcess(p_handle, &ecode);
+	if (!res2)
+		goto error;
+	return (int)ecode;
+error:
+	errno = GetLastError();
+	return -1;
+#else
+	int status;
+	int res = waitpid(pid, &status, WNOHANG);
+	if (!res)
+		return STILL_ACTIVE;
+	if (res < 0 || !WIFEXITED(status))
+		return -1;
+	return WEXITSTATUS(status);
+#endif
+}
