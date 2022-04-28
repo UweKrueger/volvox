@@ -10,6 +10,7 @@
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
+#include <sys/wait.h>
 #include <termios.h>
 #include <alloca.h>
 #include <glob.h>
