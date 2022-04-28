@@ -353,7 +353,54 @@ Token Lexer::gettok(eXpect expect) {
 			switch (CurChar) {
 			case '\\':
 				CurChar = advance();
-				goto add_letter;
+				switch (CurChar) {
+				case 'a':
+					StrLit += '\a';
+					continue;
+				case 'b':
+					StrLit += '\b';
+					continue;
+				case 'e':
+					StrLit += '\e';
+					continue;
+				case 'f':
+					StrLit += '\f';
+					continue;
+				case 'n':
+					StrLit += '\n';
+					continue;
+				case 'r':
+					StrLit += '\r';
+					continue;
+				case 't':
+					StrLit += '\t';
+					continue;
+				case 'v':
+					StrLit += '\v';
+					continue;
+				case '\\':
+					StrLit += '\\';
+					continue;
+				case '0':
+				case '1':
+				case '2':
+				case '3': {
+					// 3 octal digits
+					unsigned char sum = CurChar - '0';
+					CurChar = advance();
+					for (int l = 1; l<3; l++) {
+						if (CurChar < '0' || CurChar > '9') {
+							errs() << "error in octal character sequence\n";
+							continue;
+						}
+						sum = (sum << 3) | (CurChar - '0');
+					}
+					StrLit += sum;
+					continue;
+				}
+				default:
+					goto add_letter;
+				}
 			case '"':
 				CurChar = advance();
 				return Token(StrLit);
