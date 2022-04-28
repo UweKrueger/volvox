@@ -859,7 +859,6 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 		goto error;
 	if (!getCmdLine(cmd_line, cmd_path, argv))
 		return false;
-	fprintf(stderr, "Cmdline: >%s<\n", cmd_line);
 	SECURITY_ATTRIBUTES saAttr = {
 		.nLength = sizeof(SECURITY_ATTRIBUTES), 
 		.lpSecurityDescriptor = NULL,
@@ -873,6 +872,8 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 			goto error; 
 		if (!SetHandleInformation(h_child_stdin_w, HANDLE_FLAG_INHERIT, 0))
 			goto error;
+	} else {
+		h_child_stdin_r = (HANDLE)_get_osfhandle(_dup(0));
 	}
 	HANDLE h_child_stdout_r = NULL;
 	HANDLE h_child_stdout_w = NULL;
@@ -881,6 +882,8 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 			goto error;
 		if (!SetHandleInformation(h_child_stdout_r, HANDLE_FLAG_INHERIT, 0))
 			goto error;
+	} else {
+		h_child_stdout_w = (HANDLE)_get_osfhandle(_dup(1));
 	}
 	HANDLE h_child_stderr_r = NULL;
 	HANDLE h_child_stderr_w = NULL;
@@ -889,6 +892,8 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 			goto error;
 		if (!SetHandleInformation(h_child_stderr_r, HANDLE_FLAG_INHERIT, 0))
 			goto error;
+	} else {
+		h_child_stderr_w = (HANDLE)_get_osfhandle(_dup(2));
 	}
 	STARTUPINFO StartInfo = {
 		.cb = sizeof(STARTUPINFO),
@@ -898,7 +903,6 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 		.dwFlags = STARTF_USESTDHANDLES
 	};
 	PROCESS_INFORMATION ProcInfo = {0};
-	fprintf(stderr, "About to start process\n");
 	if (CreateProcess(
 		    cmd_path,   // ApplicationName
 		    cmd_line,   // CommandLine
@@ -930,7 +934,6 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 			*child_stdout = _open_osfhandle((uintptr_t)h_child_stdout_r, _O_RDONLY);
 		if (child_stderr)
 			*child_stderr = _open_osfhandle((uintptr_t)h_child_stderr_r, _O_RDONLY);
-		fprintf(stderr, "... done\n");
 		return true;
 	}
 error:

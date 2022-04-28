@@ -16,12 +16,14 @@ int main(int argc, char* argv) {
 	char buf[BSIZE] = RESP;
 	const char* msgs[3] = { "Hello there\n", "What's up?\n", "Bye!\n" };
 	int c_in, c_out;
-	char* const args[2] = {
+	char* const args[] = {
 #ifdef _WIN32
 		"echoer",
 #else
 		"./echoer",
 #endif
+		"1st argument",
+		"2nd-arg",
 		NULL };
 	write(2, MSG("starting other process\n"));
 	if (!volvox_spawn(NULL, &c_in, &c_out, NULL, args)) {
@@ -31,15 +33,14 @@ int main(int argc, char* argv) {
 	write(2, MSG("process spawned\n"));
 	int n;
 	for (int k = 0; k < 3; k++) {
-		write(2, MSG("try to write msg\n"));
+		write(2, MSG("Parent: Try to send msg\n"));
 		n = write(c_in, msgs[k], strlen(msgs[k]));
-		write(2, MSG("msg written\n"));
 		if (!n) {
 			write(2, MSG("Could not send message\n"));
 			exit(1);
 		}
 		else
-			write(2, MSG("Sent message\n"));
+			write(2, MSG("Message sent\n"));
 		int i;
 		for (i = RLEN; i < BSIZE; ) {
 			n = read(c_out, buf + i, 1);
