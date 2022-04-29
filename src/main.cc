@@ -325,16 +325,67 @@ static std::unique_ptr<ExprAST> GetTopLevelExpression() {
 	}
 }
 
-std::unique_ptr<FunctionAST> CreateMain(const char* main_name) {
+std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return = false) {
 	volvoxc::FullType* TheType = type_table.get_full("i32");
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
 	                                            std::vector<std::string>(),
 	                                            CurLoc, false, TheType);
-	GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+	if (!have_return)
+		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 	auto ProtoRef = Proto.get();
 	FunctionProtos[Proto->getName()] = std::move(Proto);
 	auto main_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
 	return main_function;
+}
+
+std::unique_ptr<FunctionAST> CreateTestRuns() {
+	// create (global) variables to collect Results
+	std::string single_test_result_name = "__test_result";
+	std::string collector_name = "__test_results_collect";
+	auto single_res_def = std::make_unique<BinaryExprAST>(
+		CurLoc, ":=",
+		std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
+		std::move(std::make_unique<LiteralExprAST>(Token(false))));
+	HandleGlobalVariable(single_res_def.get());
+	auto collector_def = std::make_unique<BinaryExprAST>(
+		CurLoc, ":=",
+		std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
+		std::move(std::make_unique<LiteralExprAST>(Token(true))));
+	HandleGlobalVariable(collector_def.get());
+	std::string showres = "showtestres";
+	auto show_res_fn = FunctionProtos.find(showres);
+	if (show_res_fn == FunctionProtos.end()) {
+		errs() << "Cannot find function to display test results: '" << showres << "()'\n";
+		return nullptr;
+	}
+	for (auto& tf: TestFunctions) {
+		auto F = FunctionProtos.find(tf);
+		if (F != FunctionProtos.end()) {
+			GlobalExprList.push_back(
+				std::make_unique<BinaryExprAST>(
+					CurLoc, "=",
+					std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
+					std::move(std::make_unique<CallExprAST>(
+						          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, tf, F->second.get())))));
+			std::vector<std::unique_ptr<ExprAST>> Args;
+			Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
+			Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
+			Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(tf))));
+			Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
+			GlobalExprList.push_back(
+				std::move(std::make_unique<CallExprAST>(
+					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn->second.get()),
+					          std::move(Args))));
+			GlobalExprList.push_back(
+				std::make_unique<BinaryExprAST>(
+					CurLoc, "=", std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
+					std::make_unique<BinaryExprAST>(
+						CurLoc, "|",
+						std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
+						std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)))));
+		}
+	}
+	return CreateMain(comp_mode == comp_jit ? "test_main" : "main");
 }
 
 /// top ::= definition | external | expression | ';'
@@ -740,8 +791,8 @@ int main(int argc, char* argv[]) {
 	// Run the main "interpreter loop" now.
 	MainLoop();
 
-	if (comp_mode != comp_jit) {
-		if (auto FnAST = CreateMain("main")) {
+	if (do_test || comp_mode != comp_jit) {
+		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
 			if (auto *FnIR = FnAST->codegen()) {
 				if (dump_IR) {
 					errs() << "Read function definition:\n";

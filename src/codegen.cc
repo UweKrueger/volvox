@@ -635,6 +635,15 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 	llvm::Value* result;
 	std::function<llvm::Value*(llvm::Value*)> convLHS = nullptr;
 	std::function<llvm::Value*(llvm::Value*)> convRHS = nullptr;
+	llvm::Type* OperandType;
+	bool OperandSigned;
+	if (!conv.compat.LHS && !conv.compat.RHS && !conv.ideal.LHS && !conv.ideal.RHS) {
+		OperandType = LHS->ft->type;
+		OperandSigned = LHS->ft->type_attr & A_signed;
+		goto no_conversion;
+	}
+	OperandType = conv.compat.res_type ? conv.compat.res_type : conv.ideal.res_type;
+	OperandSigned = conv.compat.res_type ? !(!(conv.compat.res_attr & A_signed)) : !(!(conv.ideal.res_attr & A_signed));
 	if (is_bool) {
 		if (desired_type) {
 			if (desired_type != llvm_bool_type) {
@@ -683,6 +692,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		else
 			errs() << "none\n";
 	}
+no_conversion:
 	llvm::Value *L, *R;
 	if (convLHS) {
 		L = LHS->codegen_raw();
@@ -698,8 +708,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		R = RHS->codegen();
 	if (!L || !R)
 		return nullptr;
-	llvm::Type* OperandType = conv.compat.res_type ? conv.compat.res_type : conv.ideal.res_type;
-	bool OperandSigned = conv.compat.res_type ? !(!(conv.compat.res_attr & A_signed)) : !(!(conv.ideal.res_attr & A_signed));
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
 	TypeClass typeclass = is_unknown;
 	switch(OperandType->getTypeID()) {

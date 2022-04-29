@@ -315,6 +315,10 @@ public:
 		} else {
 			LHS->ft = RHS->ft;
 		}
+		if (!ft->type && (!strcmp(Op, "|") || !strcmp(Op, "&"))) {
+			ft->type = LHS->ft->type;
+			ft->type_attr = LHS->ft->type_attr;
+		}
 	}
 	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
