@@ -15,3 +15,5 @@ fib(12)
 extern write(fd i32, buf string, n u32) i32
 
 write(1, zu, 10)
+
+write(1, "Ka gffd tre\n", 12)

@@ -72,6 +72,32 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
 	                       TheFunction->getEntryBlock().begin());
 	return TmpB.CreateAlloca(type, nullptr, VarName);
 }
+/// CreateGlobalString - Make a new global variable with an initializer that
+/// has array of i8 type filled in with the nul terminated string value
+/// specified.  If Name is specified, it is the name of the global variable
+/// created.
+llvm::GlobalVariable* volvoxCreateGlobalString(llvm::StringRef Str,
+                                               const llvm::Twine &Name,
+                                               unsigned AddressSpace,
+                                               llvm::Module *M) {
+	llvm::Constant *StrConstant = llvm::ConstantDataArray::getString(Context, Str);
+	auto *GV = new llvm::GlobalVariable(
+		*M, StrConstant->getType(), true, llvm::GlobalValue::ExternalLinkage,
+		StrConstant, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, AddressSpace);
+	GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+	GV->setAlignment(llvm::Align(1));
+	return GV;
+}
+
+llvm::Constant* volvoxCreateGlobalStringPtr(llvm::StringRef Str, const llvm::Twine &Name = "",
+                                  unsigned AddressSpace = 0,
+                                  llvm::Module *M = nullptr) {
+	llvm::GlobalVariable *GV = volvoxCreateGlobalString(Str, Name, AddressSpace, M);
+	llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);
+	llvm::Constant *Indices[] = {Zero, Zero};
+	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV,
+	                                                    Indices);
+}
 
 llvm::Value *LiteralExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
@@ -93,7 +119,7 @@ llvm::Value *LiteralExprAST::codegen_raw() {
 		if (ft->type_attr & A_signed)
 			return Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), Val.Uint, false), llvm::Type::getInt8PtrTy(Context));
 		else
-			return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
+			return volvoxCreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
 	default:
 		errs() << "internal compiler error: unhandled literal type " << *ft->type << "\n";
 		return nullptr;
