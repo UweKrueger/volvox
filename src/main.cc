@@ -473,6 +473,7 @@ static void usage(const char* prog) {
 	errs() << " -v ........ verbose output (may be repeated for even more verbosity)\n";
 	errs() << " -d ........ dump generated LLVM IR-code (repeat to dump more code)\n";
 	errs() << " -c ........ compile to optimized object file\n";
+	errs() << " -fPIC ..... generate position independent code\n";
 	errs() << " -g ........ compile with debug information\n";
 	errs() << " -j ........ start interactive JIT session despite provided file(s)\n";
 	errs() << " -i file ... include \"file\" in advance\n";
@@ -496,9 +497,10 @@ static void debug_mode_conflict(const char* prog) {
 int verbosity = 0;
 unsigned dump_IR = 0;
 bool do_test = false;
-std::vector<std::string> TestFunctions = {};
 bool jit_repl = false;
+bool gen_pic = false;
 promptcolor_t p_col = { 30, 100, 236 };
+std::vector<std::string> TestFunctions = {};
 char* output_file = nullptr;
 char* exe_file = nullptr;
 
@@ -584,7 +586,7 @@ int main(int argc, char* argv[]) {
 			errs() << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
-	while ((opt = getopt(argc, argv, "vdcgji:o:t:P:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdcgjf:i:o:t:P:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -612,6 +614,14 @@ int main(int argc, char* argv[]) {
 			if (comp_mode && comp_mode != comp_jit)
 				compile_mode_conflict(argv[0]);
 			comp_mode = comp_jit;
+			break;
+		case 'f':
+			if (!strcmp(optarg, "PIC"))
+				gen_pic = true;
+			else {
+				errs() << "Unknown option '-f" << optarg << '\n';
+				usage(argv[0]);
+			}
 			break;
 		case 'i':
 			include_files.push_back(optarg);
@@ -830,7 +840,7 @@ int main(int argc, char* argv[]) {
 		auto CPU = "generic";
 		auto Features = "";
 		llvm::TargetOptions opt;
-		auto RM = llvm::Optional<llvm::Reloc::Model>(llvm::Reloc::Model::PIC_);
+		auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
 		auto TheTargetMachine =
 			Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
 	  
