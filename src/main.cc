@@ -325,8 +325,8 @@ static std::unique_ptr<ExprAST> GetTopLevelExpression() {
 	}
 }
 
-std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return = false) {
-	volvoxc::FullType* TheType = type_table.get_full("i32");
+std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return = false, const char* ret_type = "i32") {
+	volvoxc::FullType* TheType = type_table.get_full(ret_type);
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
 	                                            std::vector<std::string>(),
 	                                            CurLoc, false, TheType);
@@ -380,12 +380,17 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 				std::make_unique<BinaryExprAST>(
 					CurLoc, "=", std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 					std::make_unique<BinaryExprAST>(
-						CurLoc, "|",
+						CurLoc, "&",
 						std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 						std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)))));
 		}
 	}
-	return CreateMain(comp_mode == comp_jit ? "test_main" : "main");
+	if (comp_mode == comp_jit) {
+		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
+		return CreateMain("test_main", true, "bool");
+	} else {
+		return CreateMain("main", true, "i32");
+	}
 }
 
 /// top ::= definition | external | expression | ';'
@@ -846,9 +851,9 @@ int main(int argc, char* argv[]) {
 #endif
 					// Get the symbol's address and cast it to the right type (takes no
 					// arguments, returns a bool) so we can call it as a native function.
-					int (*INT)() = (int (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
-					int ret = spawn_bool_expr(INT);
-					if (!ret)
+					bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					bool ret = spawn_bool_expr(BOOL);
+					if (ret)
 						errs() << "All test cases passed\n";
 					else
 						errs() << "Some test cases failed\n";
