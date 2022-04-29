@@ -12,6 +12,6 @@ fn fib(x u64) u64
 
 fib(12)
 
-extern write(fd i32, buf string, n u32) i32
+extern _write(fd i32, buf string, n u32) i32
 
-write(1, zu, 10)
+_write(1, zu, 10)

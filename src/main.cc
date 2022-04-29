@@ -475,6 +475,7 @@ static void usage(const char* prog) {
 	errs() << " -c ........ compile to optimized object file\n";
 	errs() << " -fPIC ..... generate position independent code\n";
 	errs() << " -g ........ compile with debug information\n";
+	errs() << " -r ........ run compiled program\n";
 	errs() << " -j ........ start interactive JIT session despite provided file(s)\n";
 	errs() << " -i file ... include \"file\" in advance\n";
 	errs() << " -o file ... output compiled result to \"file\"\n";
@@ -499,6 +500,7 @@ unsigned dump_IR = 0;
 bool do_test = false;
 bool jit_repl = false;
 bool gen_pic = false;
+bool run_program = false;
 promptcolor_t p_col = { 30, 100, 236 };
 std::vector<std::string> TestFunctions = {};
 char* output_file = nullptr;
@@ -586,7 +588,7 @@ int main(int argc, char* argv[]) {
 			errs() << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
-	while ((opt = getopt(argc, argv, "vdcgjf:i:o:t:P:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdcgrjf:i:o:t:P:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -609,6 +611,9 @@ int main(int argc, char* argv[]) {
 			if (comp_mode == comp_jit)
 				compile_mode_conflict(argv[0]);
 			comp_mode = comp_dbg;
+			break;
+		case 'r':
+			run_program = true;
 			break;
 		case 'j':
 			if (comp_mode && comp_mode != comp_jit)
@@ -660,6 +665,14 @@ int main(int argc, char* argv[]) {
 			link_mode = dont_link;
 		else
 			link_mode = do_link;
+	}
+	if (run_program && dont_link) {
+		errs() << "Options '-c' and '-r' are mutually exclusive\n";
+		usage(argv[0]);
+	}
+	if (run_program && comp_mode == comp_jit) {
+		errs() << "Options '-r' makes no sense in JIT mode\n";
+		usage(argv[0]);
 	}
 	if (output_file) {
 		if (comp_mode == comp_jit) {
@@ -809,6 +822,44 @@ int main(int argc, char* argv[]) {
 					FnIR->print(errs());
 					errs() << "\n";
 				}
+				if (comp_mode == comp_jit) {
+					// call test_main()
+#if LLVM_VERSION_MAJOR >= 12
+					// Create a ResourceTracker to track JIT'd memory allocated to our
+					// anonymous expression -- that way we can free it after executing.
+					auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
+					ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+#else
+					// JIT the module containing the anonymous expression, keeping a handle so
+					// we can free it later.
+					auto H = TheJIT->addModule(std::move(TheModule));
+#endif
+					InitializeModuleAndPassManager();
+#if LLVM_VERSION_MAJOR >= 12
+					auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
+#define UNWRAP(x) (x)
+#else
+					auto ExprSymbol = TheJIT->findSymbol("test_main");
+					assert(ExprSymbol && "Function not found");
+#define UNWRAP(x) cantFail(x)
+#endif
+					// Get the symbol's address and cast it to the right type (takes no
+					// arguments, returns a bool) so we can call it as a native function.
+					int (*INT)() = (int (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					int ret = spawn_bool_expr(INT);
+					if (!ret)
+						errs() << "All test cases passed\n";
+					else
+						errs() << "Some test cases failed\n";
+#if LLVM_VERSION_MAJOR >= 12
+					// Delete the anonymous expression module from the JIT.
+					ExitOnErr(RT->remove());
+#else
+					// Delete the anonymous expression module from the JIT.
+					TheJIT->removeModule(H);
+#endif
+				}
 			} else {
 				exit(1);
 			}
@@ -951,6 +1002,17 @@ int main(int argc, char* argv[]) {
 				result = volvox_wait(linker_pid);
 				if (result) {
 					errs() << "Linking failed\n";
+				} else if (run_program) {
+					strcpy(exe_out, "./");
+					strcat(exe_out, exe_file);
+					char* prog_argv[] = { exe_out, nullptr };
+					int prog_pid;
+					if (!volvox_spawn(&prog_pid, nullptr, nullptr, nullptr, prog_argv)) {
+						errs() << llvm::format("Failed to run program: %s\n", strerror(errno));
+						result = 1;
+					} else {
+						result = volvox_wait(prog_pid);
+					}
 				}
 			}
 		}
