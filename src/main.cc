@@ -469,7 +469,7 @@ int cur_input_fd;
 #endif
 
 static void usage(const char* prog) {
-	errs() << "Usage: " << prog << " [-v] [-d] [-c] [-g] [-i file] [-o file] [[-t] file [...]]\n";
+	errs() << "Usage: " << prog << " [-v] [-d] [-c] [-fPIC] [-g] [-i file] [-o file] [[-t] file [...]]\n";
 	errs() << " -v ........ verbose output (may be repeated for even more verbosity)\n";
 	errs() << " -d ........ dump generated LLVM IR-code (repeat to dump more code)\n";
 	errs() << " -c ........ compile to optimized object file\n";
@@ -619,7 +619,7 @@ int main(int argc, char* argv[]) {
 			if (!strcmp(optarg, "PIC"))
 				gen_pic = true;
 			else {
-				errs() << "Unknown option '-f" << optarg << '\n';
+				errs() << "Unknown option '-f" << optarg << "'\n";
 				usage(argv[0]);
 			}
 			break;

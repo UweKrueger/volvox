@@ -39,12 +39,19 @@ int getopt(int argc, char *const argv[], const char *optstring)
     }
     if (p[1] == ':')
     {
-        optind++;
-        if (optind >= argc)
-        {
-            return '?';
-        }
-        optarg = argv[optind];
+	    if (argv[optind][2])
+	    {
+		    optarg = argv[optind] + 2;
+	    }
+	    else
+	    {
+		    optind++;
+		    if (optind >= argc)
+		    {
+			    return '?';
+		    }
+		    optarg = argv[optind];
+	    }
     }
     optind++;
     return opt;
