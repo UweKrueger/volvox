@@ -830,7 +830,7 @@ int main(int argc, char* argv[]) {
 		auto CPU = "generic";
 		auto Features = "";
 		llvm::TargetOptions opt;
-		auto RM = llvm::Optional<llvm::Reloc::Model>();
+		auto RM = llvm::Optional<llvm::Reloc::Model>(llvm::Reloc::Model::PIC_);
 		auto TheTargetMachine =
 			Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
 	  
