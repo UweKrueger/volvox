@@ -1,0 +1,22 @@
+fn fib(x u64) u64
+	t := if x < 3 then
+	    1u64
+	else
+	    fib(x - 2) + fib(x - 1)
+	end
+	return t
+
+fn test_fibonacci() bool
+	return fib(39) == 63245986
+
+fn factorial(n i64) i64
+	return if n > 1 then
+		n * factorial(n - 1)
+	else
+		1
+	end
+
+fn test_factorial() bool
+	return factorial(15) == 1307674368000i64
+
+	
