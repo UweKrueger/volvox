@@ -353,7 +353,6 @@ void PrepareTestFramework() {
 		std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(true))));
 	HandleGlobalVariable(collector_def.get());
-	errs() << "Testing framework prepaired\n";
 }
 
 void CallTestFunction() {
@@ -435,7 +434,7 @@ static void MainLoop() {
 			HandleTypeDef();
 			break;
 		default:
-			if (comp_mode == comp_jit)
+			if (comp_mode == comp_jit && !do_test)
 				HandleTopLevelExpression();
 			else
 				if (auto expr = GetTopLevelExpression())
