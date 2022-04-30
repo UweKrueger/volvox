@@ -46,6 +46,9 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    if (cur_input_fd != input_fd) {
 				    // This was just the initialization file for builtins
 				    // now switch to real input
+				    if (do_test)
+					    // this had to wait until definitions in 'builtin.vx' have been processed
+					    PrepareTestFramework();
 				    cur_input_fd = input_fd;
 				    LexLoc = { input_file_name, 0, 0 };
 				    if (comp_mode == comp_jit && cur_input_fd == 0) {

@@ -746,7 +746,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 			prompt_indent = 0;
 			return nullptr;
 		}
-		TestFunctions.push_back(Proto->Name);
+		TestFunction = Proto->Name.c_str();
 	}
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {

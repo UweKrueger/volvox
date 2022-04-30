@@ -10,7 +10,9 @@ CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 std::vector<std::string> include_files = {};
 std::vector<std::string> source_files = {};
-std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
+std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
+const std::string single_test_result_name = "__test_result";
+const std::string collector_name = "__test_results_collect";
 int include_index = 0;
 int source_index = 0;
 int prompt_indent = 0;
@@ -168,6 +170,7 @@ static void HandleDefinition() {
 	}
 	// Skip remaining tokens for error recovery.
 	purgeLine();
+	TestFunction = nullptr;
 cleanup:
 	locals_table[0].clear();
 	locals_table = {};
@@ -338,10 +341,8 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 	return main_function;
 }
 
-std::unique_ptr<FunctionAST> CreateTestRuns() {
+void PrepareTestFramework() {
 	// create (global) variables to collect Results
-	std::string single_test_result_name = "__test_result";
-	std::string collector_name = "__test_results_collect";
 	auto single_res_def = std::make_unique<BinaryExprAST>(
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
@@ -352,39 +353,44 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(true))));
 	HandleGlobalVariable(collector_def.get());
+	errs() << "Testing framework prepaired\n";
+}
+
+void CallTestFunction() {
 	std::string showres = "showtestres";
 	auto show_res_fn = FunctionProtos.find(showres);
 	if (show_res_fn == FunctionProtos.end()) {
 		errs() << "Cannot find function to display test results: '" << showres << "()'\n";
-		return nullptr;
+		return;
 	}
-	for (auto& tf: TestFunctions) {
-		auto F = FunctionProtos.find(tf);
-		if (F != FunctionProtos.end()) {
-			GlobalExprList.push_back(
-				std::make_unique<BinaryExprAST>(
-					CurLoc, "=",
-					std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
-					std::move(std::make_unique<CallExprAST>(
-						          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, tf, F->second.get())))));
-			std::vector<std::unique_ptr<ExprAST>> Args;
-			Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
-			Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
-			Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(tf))));
-			Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
-			GlobalExprList.push_back(
+	auto F = FunctionProtos.find(TestFunction);
+	if (F != FunctionProtos.end()) {
+		GlobalExprList.push_back(
+			std::make_unique<BinaryExprAST>(
+				CurLoc, "=",
+				std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 				std::move(std::make_unique<CallExprAST>(
-					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn->second.get()),
-					          std::move(Args))));
-			GlobalExprList.push_back(
+					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F->second.get())))));
+		std::vector<std::unique_ptr<ExprAST>> Args;
+		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
+		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
+		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string(TestFunction)))));
+		Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
+		GlobalExprList.push_back(
+			std::move(std::make_unique<CallExprAST>(
+				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn->second.get()),
+				          std::move(Args))));
+		GlobalExprList.push_back(
+			std::make_unique<BinaryExprAST>(
+				CurLoc, "=", std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 				std::make_unique<BinaryExprAST>(
-					CurLoc, "=", std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-					std::make_unique<BinaryExprAST>(
-						CurLoc, "&",
-						std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-						std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)))));
-		}
+					CurLoc, "&",
+					std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
+					std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)))));
 	}
+}
+
+std::unique_ptr<FunctionAST> CreateTestRuns() {
 	if (comp_mode == comp_jit) {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
 		return CreateMain("test_main", true, "bool");
@@ -416,6 +422,11 @@ static void MainLoop() {
 			break;
 		case tok_fn:
 			HandleDefinition();
+			if (TestFunction) {
+				if (do_test)
+					CallTestFunction();
+				TestFunction = nullptr;
+			}
 			break;
 		case tok_extern:
 			HandleExtern();
@@ -519,7 +530,7 @@ bool jit_repl = false;
 bool gen_pic = false;
 bool run_program = false;
 promptcolor_t p_col = { 30, 100, 236 };
-std::vector<std::string> TestFunctions = {};
+const char* TestFunction = nullptr;
 char* output_file = nullptr;
 char* exe_file = nullptr;
 
@@ -769,7 +780,6 @@ int main(int argc, char* argv[]) {
 					exe_file = const_cast<char*>("a.out");
 #endif
 			}
-			GlobalExprList = std::vector<std::unique_ptr<ExprAST>>{};
 		}
 	}
 	if (source_index < source_files.size()) {

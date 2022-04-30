@@ -251,8 +251,8 @@ extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name);
 extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
-
-extern std::vector<std::string> TestFunctions;
+extern void PrepareTestFramework();
+extern const char* TestFunction;
 extern bool do_test;
 
 struct int_val_type_t {
