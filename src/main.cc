@@ -1008,6 +1008,9 @@ int main(int argc, char* argv[]) {
 				if (result) {
 					errs() << "Linking failed\n";
 				} else if (run_program) {
+#ifndef _WIN32
+					char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
+#endif
 					strcpy(exe_out, "./");
 					strcat(exe_out, exe_file);
 					char* prog_argv[] = { exe_out, nullptr };
