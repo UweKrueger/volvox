@@ -482,10 +482,10 @@ public:
 	int desired_ncolumns;
 	int desired_nelem; // for struct
 	const char* desired_type_name = nullptr; // maybe NULL for anonymous types
-	MapNode* desired_elems; // element-name -> { index, FullType }
+	MapNode* desired_elems = nullptr; // element-name -> { index, FullType }
 
-	bool is_unknown_type;
-	bool is_compile_time_const;
+	bool is_unknown_type = false;
+	bool is_compile_time_const = false;
 
 	// construct from type and attributes
 	ExprAST(SourceLocation Loc) : ft(new_FullType(nullptr, 0)), Loc(Loc) {}
@@ -585,7 +585,7 @@ public:
 		unsigned key;
 	};
 	union LitValue Val;
-	bool is_unknown_type;
+	bool is_unknown_type = false;
 
 	Token(int kind = 0) : kind(kind) {}
 	Token(char** s_ptr);
@@ -598,6 +598,7 @@ public:
 	Token(long long n) : kind(tok_number) {
 		Val.Int = n;
 		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
+		is_unknown_type = true;
 	}
 	Token(unsigned long long n) : kind(tok_number) {
 		Val.Int = n;
@@ -606,6 +607,7 @@ public:
 	Token(double x) : kind(tok_number) {
 		Val.Float = x;
 		gen_type = { .ID = VOLVOX_DoubleTyID };
+		is_unknown_type = true;
 	}
 	static std::string tokName(int kind);
 	std::string tokName() const { return tokName(kind); }

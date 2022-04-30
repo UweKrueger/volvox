@@ -489,11 +489,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		}
 		// Merge LHS/RHS.
 		// save types befor objects are moved
-		auto LHS_type = LHS->ft->type;
-		auto LHS_attr = LHS->ft->type_attr;
+		auto LHS_type = LHS->ft ? LHS->ft->type : nullptr;
+		auto LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
 		auto LHS_is_unknown_type = LHS->is_unknown_type;
-		auto RHS_type = RHS->ft->type;
-		auto RHS_attr = RHS->ft->type_attr;
+		auto RHS_type = RHS->ft ? RHS->ft->type : nullptr;
+		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		if (inside_function && BinOp == ":=") {
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
