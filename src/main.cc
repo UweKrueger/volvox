@@ -389,6 +389,18 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
 		return CreateMain("test_main", true, "bool");
 	} else {
+		std::vector<std::unique_ptr<ExprAST>> _then;
+		_then.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		std::vector<std::unique_ptr<ExprAST>> _else;
+		_else.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
+		auto if_e = std::make_unique<IfExprAST>(
+				          CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
+				          std::move(_then), std::move(_else), tok_end, tok_end,
+				          convBinOp(llvm_int_type, llvm_int_type, A_signed, A_signed, false, false, "-"));
+		if_e->desired_type = llvm_int_type;
+		if_e->desired_type_attr = A_signed;
+		GlobalExprList.push_back(
+			std::move(if_e));
 		return CreateMain("main", true, "i32");
 	}
 }
@@ -671,7 +683,7 @@ int main(int argc, char* argv[]) {
 		else
 			link_mode = do_link;
 	}
-	if (run_program && dont_link) {
+	if (run_program && link_mode == dont_link) {
 		errs() << "Options '-c' and '-r' are mutually exclusive\n";
 		usage(argv[0]);
 	}

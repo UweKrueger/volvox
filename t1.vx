@@ -19,4 +19,4 @@ fn factorial(n i64) i64
 fn test_factorial() bool
 	return factorial(15) == 1307674368000i64
 
-	
+if true then 4 else 5 end

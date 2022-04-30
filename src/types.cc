@@ -33,7 +33,7 @@ static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llv
 	return nullptr;
 }
 
-static llvm::Value* NoConversion(llvm::Value* v) { return v; }
+llvm::Value* NoConversion(llvm::Value* v) { return v; }
 
 // returns { significant_bits, is_float }
 std::pair<unsigned, bool> getBitWidth(llvm::Type* type) {

@@ -361,13 +361,13 @@ class IfExprAST : public ExprAST {
 public:
 	int ThenEndKind, ElseEndKind; // maybe tok_else, tok_end, tok_return, ...
 
-	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Cond,
+	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind, BinOpConvSet conv = {})
 		: ExprAST(_Else.size() ? conv.compat.res_type : llvm::Type::getVoidTy(Context), conv.compat.res_attr, Loc,
 		          _Else.size() && _Then.back()->is_unknown_type & _Else.back()->is_unknown_type,
 		          _Else.size() && _Then.back()->is_compile_time_const && _Else.back()->is_compile_time_const),
-		  Cond(std::move(Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
+		  Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
 		  ElseEndKind(ElseEndKind), conv(conv)
 		{}
 	llvm::Value *codegen_raw() override;

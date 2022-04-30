@@ -218,7 +218,7 @@ extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation L
                                                                 std::function<llvm::Value*(llvm::Value*)> min_conv,
                                                                 std::function<llvm::Value*(llvm::Value*)> ideal_conv,
                                                                 bool is_signed);
-
+extern llvm::Value* NoConversion(llvm::Value* v);
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
