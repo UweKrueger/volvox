@@ -61,28 +61,37 @@ fn test_nested_call_with_array_result() bool
 pp := 12.4375
 
 fn kk()
-	pp=pp+1
+	pp=pp + 0.25
 	return
-
-kk()
 
 l := true
 
 if l then kk() end
 
-pp
-
 l = false
+
+if l then kk() end
+if l then kk() end
+
+fn test_if_then_no_else() bool
+	return pp == 12.6875
 
 if l then kk() else kk(); kk() end
 
-pp = if l then 22.7 else 56.3 end
+fn test_if_else_1() bool
+	return pp == 13.1875
 
-pp
+l = true
 
-qq := -23i16
+if l then kk() else kk(); kk() end
 
-vv := 36u16
+fn test_if_else_2() bool
+	return pp == 13.4375
+
+pp = if l then 22.75 else 56.3 end
+
+fn test_if_else_3() bool
+	return pp == 22.75
 
 fn test_type_propagation_1() bool
 	pr := 2.3f64 * ((4000000000u32 - 13i32) + 0.1f32)
