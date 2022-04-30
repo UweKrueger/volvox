@@ -1,0 +1,89 @@
+zz := 34.53
+
+zz
+
+zz = 3.2
+
+zz
+
+a := [3.4, 6.7, -12.3, 3.1, -13.1]
+
+fn u() [5]f64
+	p := [3.3, 1.2, -4.5, 6.75, 8.08e12]
+	return p
+
+a = u()
+
+fn f() f64
+	z := 3
+	return a[3] + z
+
+fn test_global_array_element_get() bool
+	r := f()
+	return r == 9.75
+
+fn g() f64
+	t := [-17.2, 4.5, -3.125, 9.34, 18.23e27, -5.0625, 4.3, -17.45, 19.4]
+	t[3] = t[2] + t[5]
+	return t[3]
+
+fn test_local_array_get_and_set() bool
+	r := g()
+	return r == -8.1875
+
+
+fn h() [5]f64
+	v := u
+	q := v()
+	return q
+
+fn test_function_literal() bool
+	la := h()
+	return la[2] == -4.5 & la[3] == 6.75
+
+fn v() [5]i32
+	p := [3, 8, -17, 123, -1074]
+	return p
+
+fn test_return_local_array() bool
+	z := v()
+	return z[0] == 3 & z[4] == -1074
+
+
+fn r(x [5]f64) f64
+	w := x[3]
+	return w
+
+fn test_nested_call_with_array_result() bool
+	wq := r(u())
+	return wq == 6.75
+
+pp := 12.4375
+
+fn kk()
+	pp=pp+1
+	return
+
+kk()
+
+l := true
+
+if l then kk() end
+
+pp
+
+l = false
+
+if l then kk() else kk(); kk() end
+
+pp = if l then 22.7 else 56.3 end
+
+pp
+
+qq := -23i16
+
+vv := 36u16
+
+fn test_type_propagation_1() bool
+	pr := 2.3f64 * ((4000000000u32 - 13i32) + 0.1f32)
+	return pr < 9199999970.33001 & pr > 9199999970.32999
