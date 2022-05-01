@@ -485,10 +485,11 @@ extern "C" DLLEXPORT uintptr_t new_global_var_shadow(void* adr, size_t size) {
 // Main driver code.
 //===----------------------------------------------------------------------===//
 
-const char* input_file_name = "/dev/stdin";
+const char* input_file_name = nullptr;
 const char* builtin_file_name = "builtin.vx";
-int input_fd = 0;
-int cur_input_fd;
+int builtin_input_fd = -1;
+int input_fd = -1;
+int cur_input_fd = -1;
 
 // Windows has no CLOEXEC
 #if !defined(O_CLOEXEC)
@@ -588,6 +589,20 @@ inline bool is_exe(const char* file) {
 #endif
 }
 
+bool next_input_file() {
+	if (source_index < source_files.size()) {
+		input_file_name = source_files[source_index++].c_str();
+		input_fd = open(input_file_name, O_CLOEXEC);
+		if (input_fd < 0) {
+			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
+			exit(1);
+		}
+		return true;
+	} else {
+		return false;
+	}
+}
+
 #if defined (_MSC_VER)
 // We have to switch to code page 65001 to enable UTF-8. This
 // value here is used to restore the old state on exit
@@ -615,7 +630,7 @@ int main(int argc, char* argv[]) {
 			errs() << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
-	while ((opt = getopt(argc, argv, "vdcgrjf:i:o:t:P:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdcgrjf:i:o:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -780,21 +795,17 @@ int main(int argc, char* argv[]) {
 			}
 		}
 	}
-	if (source_index < source_files.size()) {
-		input_file_name = source_files[source_index++].c_str();
-		input_fd = open(input_file_name, O_CLOEXEC);
-		if (input_fd < 0) {
-			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
-			exit(1);
-		}
+	if (!next_input_file()) {
+		input_file_name = "<stdin>";
+		input_fd = 0;
 	}
-
 	// always read builtin definitions first
-	cur_input_fd = open(builtin_file_name, O_CLOEXEC);
-	if (cur_input_fd < 0) {
+	builtin_input_fd = open(builtin_file_name, O_CLOEXEC);
+	if (builtin_input_fd < 0) {
 		errs() << llvm::format("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
 		exit(1);
 	}
+	cur_input_fd = builtin_input_fd;
 	CurLoc = LexLoc = { builtin_file_name, 0, 0 };
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();

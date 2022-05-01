@@ -42,36 +42,36 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 		    }
 		    c = 0;
 		    int m = read(cur_input_fd, &c, 1);
-		    if (m != 1) {
-			    if (cur_input_fd != input_fd) {
+		    if (m != 1 || c == '\004' || c == '\032') { // different incarnations of "End of File"
+			    if (cur_input_fd == builtin_input_fd) {
 				    // This was just the initialization file for builtins
 				    // now switch to real input
 				    if (do_test)
 					    // this had to wait until definitions in 'builtin.vx' have been processed
 					    PrepareTestFramework();
 				    cur_input_fd = input_fd;
-				    LexLoc = { input_file_name, 0, 0 };
-				    if (comp_mode == comp_jit && cur_input_fd == 0) {
-					    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
-					    for (int i=0; i<prompt_indent && i<200; i++)
-						    strcat(prompt, "    ");
-					    use_readline = true;
-#if !defined (_MSC_VER)
-					    rl_initialize();
-#endif
-					    *n = 0;
-				    }
-				    c = '\r'; // abuse Windows logic to repeat read
 			    } else {
-				    c = EOF;
+				    if (!next_input_file()) {
+					    c = EOF;
+					    if (cur_input_fd == 0)
+						    outs() << "\n";
+					    return -1;
+				    }
 			    }
+			    *n = 0;
+			    LexLoc = { input_file_name, 0, 0 };
+			    if (comp_mode == comp_jit && cur_input_fd == 0) {
+				    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
+				    for (int i=0; i<prompt_indent && i<200; i++)
+					    strcat(prompt, "    ");
+				    use_readline = true;
+#if !defined (_MSC_VER)
+				    rl_initialize();
+#endif
+			    }
+			    c = '\r'; // abuse Windows logic to repeat read
 		    }
 	    } while (c == '\r');
-	    if (c == EOF) {
-		    if (cur_input_fd == 0)
-			    outs() << "\n";
-		    return -1;
-	    }
 	    if (offset >= (*n - 1)) {
 		    *n += *n / 2;
 		    *lineptr = (char*)realloc(*lineptr, *n);

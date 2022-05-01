@@ -668,8 +668,10 @@ public:
 };
 
 extern Lexer lex;
-extern int input_fd;
+extern int builtin_input_fd;
 extern int cur_input_fd;
+extern int input_fd;
+extern bool next_input_file();
 extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr);
 extern void InitializeModuleAndPassManager();
 extern std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
