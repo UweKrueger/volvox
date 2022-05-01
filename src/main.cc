@@ -622,7 +622,7 @@ unsigned old_cp;
 
 int main(int argc, char* argv[]) {
 	std::vector<const char*> qqq = { "xyv", "rtz" };
-	std::vector<volvoxc::FullType*> sss = {};
+	std::vector<std::pair<volvoxc::FullType*,bool>> sss = {};
 	auto pppp = Mangle(qqq, sss);
 	auto ppp = pppp.str();
 	fprintf(stderr, "Mangled name (%" PRIu64 " bytes): >%s<\n", ppp.size(), ppp.data());
