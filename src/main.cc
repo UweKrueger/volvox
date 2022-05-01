@@ -666,7 +666,6 @@ int main(int argc, char* argv[]) {
 			break;
 		case 't':
 			do_test = true;
-			source_files.push_back(optarg);
 			break;
 		case 'P':
 			if (!parse_pcol(optarg)) {
