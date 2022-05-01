@@ -48,7 +48,7 @@ endif
 
 PROG = $(TARGETDIR)volvox
 
-OBJS := main.o lexer.o parser.o token.o codegen.o types.o
+OBJS := main.o lexer.o parser.o token.o codegen.o types.o mangler.o
 
 LIB := map.o str.o
 

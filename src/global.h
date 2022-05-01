@@ -230,6 +230,7 @@ extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 
+extern llvm::SmallString<128> Mangle(std::vector<const char*>& names, std::vector<volvoxc::FullType*>& arg_types);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<ExprAST> ParseExpression();
