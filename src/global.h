@@ -669,7 +669,6 @@ public:
 
 extern Lexer lex;
 extern int builtin_input_fd;
-extern int cur_input_fd;
 extern int input_fd;
 extern bool next_input_file();
 extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr);
