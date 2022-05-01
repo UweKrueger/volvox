@@ -30,6 +30,8 @@
 *.exe
 *.out
 *.app
+*.exp
+*.exe.manifest
 volvox
 
 # Backup files
