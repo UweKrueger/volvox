@@ -49,7 +49,7 @@ static void Eat(int tok, eXpect expect = eNone) {
 	}
 }
 
-volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect) {
+volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tname) {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
 		if (allow_attribute) {
@@ -114,7 +114,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect) {
 				array_type = llvm::ArrayType::get(elem_type->type, dim);
 			} else {
 				llvm::Type* ptr = llvm::PointerType::get(elem_type->type, 0);
-				array_type = llvm::StructType::get(ptr, llvm_int_type);
+				array_type = tname ? llvm::StructType::create(tname, ptr, llvm_int_type) : llvm::StructType::get(ptr, llvm_int_type);
 			}
 			return new_FullType(array_type, 0, nullptr, dim, elem_type);
 		}
@@ -145,7 +145,9 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect) {
 				Eat(',', eBinOp);
 			}
 			getNextToken();
-			llvm::Type* struct_type = llvm::StructType::get(Context, LLVMFieldTypes, (bool)(attribs & A_packed));
+			llvm::Type* struct_type = tname ?
+				llvm::StructType::create(Context, LLVMFieldTypes, tname, (bool)(attribs & A_packed)) :
+				llvm::StructType::get(Context, LLVMFieldTypes, (bool)(attribs & A_packed));
 			MapNode* fields = map_string_new_map();
 			for (int i=0; i<FieldNames.size(); i++) {
 				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = FieldTypes[i] }, 0, false);

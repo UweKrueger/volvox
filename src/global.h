@@ -247,7 +247,7 @@ enum eXpect {
 	eColon
 };
 
-extern volvoxc::FullType* ParseType(bool allow_attribute = false, eXpect expect = eComma);
+extern volvoxc::FullType* ParseType(bool allow_attribute = false, eXpect expect = eComma, const char* tname = nullptr);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name);
