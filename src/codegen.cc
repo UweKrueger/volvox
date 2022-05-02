@@ -54,6 +54,9 @@ std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 	auto FI = FunctionProtos.find(Name);
 	if (FI == FunctionProtos.end())
 		return { nullptr, nullptr };
+	// else
+	// 	for (auto FF = FI; FF != FunctionProtos.end(); ++FF)
+	// 		errs() << "Function " << FF->second->Name << '\n';
 	// See if the function has already been added to the current module.
 	if (auto F = TheModule->getFunction(Name)) {
 		return { F, FI->second.get() };

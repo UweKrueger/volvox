@@ -32,7 +32,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::pair<volvoxc::FullTyp
 	return out;
 }
 
-llvm::SmallString<128> Mangle(std::vector<const char*>& names, std::vector<std::pair<volvoxc::FullType*,bool>>& arg_types) {
+llvm::SmallString<128> MangleBase(std::vector<const char*>& names) {
 	llvm::SmallString<128> buf = llvm::StringRef("_Z");
 	llvm::raw_svector_ostream mangled(buf);
 	if (names.size() > 1)
@@ -41,6 +41,12 @@ llvm::SmallString<128> Mangle(std::vector<const char*>& names, std::vector<std::
 		mangled << strlen(name) << name;
 	if (names.size() > 1)
 		mangled << 'E';
+	return buf;
+}
+
+llvm::SmallString<128> Mangle(std::vector<const char*>& names, std::vector<std::pair<volvoxc::FullType*,bool>>& arg_types) {
+	llvm::SmallString<128> buf = MangleBase(names);
+	llvm::raw_svector_ostream mangled(buf);
 	if (arg_types.size() > 0)
 		for (auto type : arg_types)
 			mangled << type;
