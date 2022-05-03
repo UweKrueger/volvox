@@ -299,35 +299,6 @@ static void HandleTopLevelExpression() {
 	}
 }
 
-static std::unique_ptr<ExprAST> GetTopLevelExpression() {
-	if (auto E = ParseExpression()) {
-		if (!E->ft || !E->ft->type) {
-			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
-				if (B->conv.compat.err_msg)
-					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);
-				if (!strcmp(B->Op, ":="))
-					return HandleGlobalVariable(B);
-				if (!strcmp(B->Op, "="))
-					if (auto leftVar = dynamic_cast<VariableExprAST*>(B->LHS.get()))
-						if (!leftVar->full_var.first) {
-							errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
-							return nullptr;
-						}
-				errs() << E->Loc << ": Cannot evalute expression\n";
-				return nullptr;
-			} else {
-				errs() << E->Loc << ": Cannot deduce type of expression\n";
-				if (E->ft)
-					E->ft->dump();
-				return nullptr;
-			}
-		}
-		return E;
-	} else {
-		return nullptr;
-	}
-}
-
 std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return = false, const char* ret_type = "i32") {
 	volvoxc::FullType* TheType = type_table.get_full(ret_type);
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,

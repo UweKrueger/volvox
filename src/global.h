@@ -232,6 +232,7 @@ extern unsigned anon_struct_nr;
 extern llvm::SmallString<128> MangleBase(std::vector<const char*>& names);
 extern llvm::SmallString<128> Mangle(std::vector<const char*>& names, std::vector<std::pair<volvoxc::FullType*,bool>>& arg_types);
 extern std::unique_ptr<FunctionAST> ParseDefinition();
+extern std::unique_ptr<ExprAST> GetTopLevelExpression();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
 extern std::unique_ptr<ExprAST> ParseExpression();
 extern std::unique_ptr<PrototypeAST> ParseExtern();

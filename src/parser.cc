@@ -769,8 +769,7 @@ std::unique_ptr<FunctionAST> ParseDefinition() {
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
 }
 
-std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
-	SourceLocation FnLoc = CurLoc;
+std::unique_ptr<ExprAST> GetTopLevelExpression() {
 	if (auto E = ParseExpression()) {
 		if (!E->ft || !E->ft->type) {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
@@ -784,7 +783,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 							errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
 							return nullptr;
 						}
-				errs() << E->Loc << ": Cannot evalute expression\n";
+				errs() << E->Loc << ' ' << B->Op << ": Cannot evaluate expression\n";
 				return nullptr;
 			} else {
 				errs() << E->Loc << ": Cannot deduce type of expression\n";
@@ -793,6 +792,15 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				return nullptr;
 			}
 		}
+		return E;
+	} else {
+		return nullptr;
+	}
+}
+
+std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
+	SourceLocation FnLoc = CurLoc;
+	if (auto E = GetTopLevelExpression()) {
 		if (comp_mode == comp_jit) {
 #if LLVM_VERSION_MAJOR >= 12
 			ExitOnErr(TheJIT->addModule(
