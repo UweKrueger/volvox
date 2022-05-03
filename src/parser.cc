@@ -144,7 +144,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 					break;
 				Eat(',', eBinOp);
 			}
-			getNextToken();
+			getNextToken(eColon);
 			llvm::Type* struct_type = tname ?
 				llvm::StructType::create(Context, LLVMFieldTypes, tname, (bool)(attribs & A_packed)) :
 				llvm::StructType::get(Context, LLVMFieldTypes, (bool)(attribs & A_packed));

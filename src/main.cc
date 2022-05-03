@@ -191,7 +191,7 @@ static void HandleExtern() {
 		}
 	} else {
 		// Skip token for error recovery.
-		getNextToken();
+		purgeLine();
 	}
 }
 
