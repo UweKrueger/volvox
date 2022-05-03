@@ -54,6 +54,7 @@ llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
 }
 VarTable globals_table;
+NameTable name_table;
 std::vector<VarTable> locals_table; // including function arguments
 
 //===----------------------------------------------------------------------===//

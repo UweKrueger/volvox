@@ -473,6 +473,48 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 	return { globals_table[Name], true };
 }
 
+enum NameKind {
+	NK_Module,
+	NK_Type,
+	NK_FunctionAlias,
+	NK_VariableAlias
+};
+
+struct NsItem {
+	NameKind kind;
+	union {
+		volvoxc::FullType* ft;
+		PrototypeAST* proto;
+		FullVar* var;
+	};
+};
+
+class NameTable {
+protected:
+		MapNode* table;
+public:
+	NameTable() : table(map_string_new_map()) {}
+	~NameTable() { map_destroy(table); }
+	void clear() {
+		map_destroy(table);
+		table = map_string_new_map();
+	}
+	bool insert(const char* key, const NsItem& value) {
+		MapValue mv = { .src_ptr = const_cast<NsItem*>(&value) };
+		auto res = map_string_insert(&table, key, mv, sizeof(NsItem), false);
+		return res;
+	}
+	NsItem* operator[](const char* key) {
+		MapValue* node = map_string_get(table, key);
+		return node ? (NsItem*)((char*)node + node->offset) : nullptr;
+	}
+	bool erase(const char* name) {
+		return map_string_delete(&table, name);
+	}
+};
+
+extern NameTable name_table;
+
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
 public:
