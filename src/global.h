@@ -54,6 +54,9 @@ enum TokenKind {
 	tok_fn = -30,
 	tok_extern = -31,
 	tok_type = -32,
+	tok_import = -33,
+	tok_from = -34,
+	tok_as = -35,
 
 	// primary
 	tok_identifier = -40,
@@ -245,7 +248,8 @@ enum eXpect {
 	eNone,
 	eBinOp, // newline translates to ;
 	eComma,
-	eColon
+	eColon,
+	ePath
 };
 
 extern volvoxc::FullType* ParseType(bool allow_attribute = false, eXpect expect = eComma, const char* tname = nullptr);

@@ -137,6 +137,14 @@ Token Lexer::gettok(eXpect expect) {
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
+		if (IdentifierStr == "import")
+			return Token(tok_import);
+		if (expect == ePath) {
+			if (IdentifierStr == "as")
+				return Token(tok_as);
+			else
+				return Token(tok_identifier);
+		}
 		if (IdentifierStr == "fn")
 			return Token(tok_fn);
 		if (IdentifierStr == "extern")
@@ -343,6 +351,7 @@ Token Lexer::gettok(eXpect expect) {
 			IdentifierStr = CurChar;
 			return ',';
 		case eColon:
+		case ePath:
 			IdentifierStr = CurChar;
 			return ';';
 		default:

@@ -10,6 +10,7 @@ CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 std::vector<std::string> include_files = {};
 std::vector<std::string> source_files = {};
+std::vector<std::string> import_path = {};
 std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
 const std::string single_test_result_name = "__test_result";
 const std::string collector_name = "__test_results_collect";
@@ -209,6 +210,28 @@ static void HandleTypeDef() {
 	type_table.add(type_name.c_str(), ft);
 }
 
+static void HandleImport() {
+	bool from = CurTok.kind == tok_from;
+	do {
+		getNextToken(ePath);
+		if (CurTok.kind != tok_identifier) {
+			errs() << "unexpected token in import " << CurTok.kind << '\n';
+			purgeLine();
+			return;
+		}
+		import_path.push_back(IdentifierStr);
+		getNextToken(ePath);
+	} while (CurTok.kind == tok_selector);
+	if (CurTok.kind == ';') {
+		for (int j=0; j<import_path.size(); j++)
+			errs() << (j ? "/" : "Import path: ") << import_path[j];
+		errs() << '\n';
+		import_path = {};
+		return;
+	}
+	errs() << "unexpected identifier\n";
+}
+
 // __anon_exp returns bool but thread return values are system dependent
 // it's void* on Unix but DWORD, i.e. unsigned on Windows
 #if defined (_MSC_VER)
@@ -401,6 +424,10 @@ static void MainLoop() {
 			break;
 		case tok_extern:
 			HandleExtern();
+			break;
+		case tok_import:
+		case tok_from:
+			HandleImport();
 			break;
 		case tok_type:
 			HandleTypeDef();
