@@ -17,6 +17,7 @@ const std::string collector_name = "__test_results_collect";
 int include_index = 0;
 int source_index = 0;
 int prompt_indent = 0;
+bool is_pub = false;
 
 DebugInfo KSDbgInfo;
 
@@ -408,6 +409,12 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	while (true) {
+		if (CurTok.kind == tok_pub) {
+			is_pub = true;
+			getNextToken();
+		}
+		else
+			is_pub = false;
 		switch (CurTok.kind) {
 		case tok_eof:
 			return;

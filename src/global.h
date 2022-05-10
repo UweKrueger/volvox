@@ -57,6 +57,7 @@ enum TokenKind {
 	tok_import = -33,
 	tok_from = -34,
 	tok_as = -35,
+	tok_pub = -36,
 
 	// primary
 	tok_identifier = -40,
@@ -230,6 +231,7 @@ extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* uintptr_type;
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
+extern bool is_pub;
 
 extern unsigned anon_struct_nr;
 extern llvm::SmallString<128> MangleBase(std::vector<const char*>& names);

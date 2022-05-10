@@ -78,6 +78,7 @@ public:
 	llvm::FunctionType* FT;
 	bool IsVarArgs;
 	bool IsOperator;
+	llvm::GlobalValue::LinkageTypes link_type;
 	int Line;
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,

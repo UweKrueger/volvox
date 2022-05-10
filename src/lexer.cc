@@ -147,6 +147,8 @@ Token Lexer::gettok(eXpect expect) {
 		}
 		if (IdentifierStr == "fn")
 			return Token(tok_fn);
+		if (IdentifierStr == "pub")
+			return Token(tok_pub);
 		if (IdentifierStr == "extern")
 			return Token(tok_extern);
 		if (IdentifierStr == "type")

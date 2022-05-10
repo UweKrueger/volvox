@@ -348,6 +348,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
+		llvm::GlobalValue::LinkageTypes link_type = (is_pub || comp_mode == comp_jit) ?
+			llvm::GlobalValue::ExternalLinkage :
+			llvm::GlobalValue::InternalLinkage;
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
 			llvm::GlobalVariable* GV;
 			if (comp_mode == comp_dbg) {
@@ -356,7 +359,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					SP, varname, varname, Unit, expr->Loc.Line, type_table.get_diType(type, is_signed), false);
 			}
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-			                              false, llvm::GlobalValue::ExternalLinkage,
+			                              false, link_type,
 			                              initializer, varname, nullptr,
 			                              llvm::GlobalVariable::GeneralDynamicTLSModel);
 			volvoxc::FullType ft = *expr->RHS->ft;
@@ -381,7 +384,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				auto V = TheModule->getGlobalVariable(varname, true);
 				if (!V) {
 					V = new llvm::GlobalVariable(*TheModule, V_type,
-					                             false, llvm::GlobalValue::ExternalLinkage,
+					                             false, link_type,
 					                             nullptr, varname, nullptr,
 					                             llvm::GlobalVariable::GeneralDynamicTLSModel,
 					                             0, true);
