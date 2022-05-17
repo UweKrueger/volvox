@@ -12,8 +12,8 @@ else
 ifeq ($(shell test -x /usr/bin/llvm-config && echo -n true),true)
     SUFFIX :=
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config12 && echo -n true),true)
-    SUFFIX := 12
+ifeq ($(shell test -x /usr/local/bin/llvm-config14 && echo -n true),true)
+    SUFFIX := 14
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-13 && echo -n true),true)
     SUFFIX := -13
@@ -26,13 +26,21 @@ endif
 endif
 endif
 
+ifeq ($(shell uname),FreeBSD)
+	CPPEXTRAFLAGS :=  -I/usr/local/include -Wno-reorder-init-list
+	EXTRAOBJS := emutls.o
+else
+	CPPEXTRAFLAGS :=
+	EXTRAOBJS :=
+endif
+
 CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))
 
 LLVMCONFIG := llvm-config$(SUFFIX)
 LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
 
-CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -DLINKER=\"$(LINKER)\" -frtti
+CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
 PRJH = ../include/volvox-$(LLVMVERSION).hh
 
@@ -48,13 +56,16 @@ endif
 
 PROG = $(TARGETDIR)volvox
 
-OBJS := main.o lexer.o parser.o token.o codegen.o types.o mangler.o
+CCOBJS :=  main.o lexer.o parser.o token.o codegen.o types.o mangler.o
+OBJS := $(CCOBJS) $(EXTRAOBJS)
 
 LIB := map.o str.o
 
 LIBLIB := libvolvox.so.0
 
-SRCS := $(OBJS:%.o=%.cc)
+SRCS := $(CCOBJS:%.o=%.cc)
+
+EXTRASRC := $(EXTRAOBJS:%.o=../lib/%.c)
 
 LIBSRC := $(LIB:%.o=../lib/%.cc)
 
@@ -63,6 +74,9 @@ LIBSRC := $(LIB:%.o=../lib/%.cc)
 
 %.o: ../lib/%.cc
 	$(CXX) -c $(CXXFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
+
+%.o: ../lib/%.c
+	$(CC) -c -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
 
 all: $(PROG)
 
@@ -91,6 +105,9 @@ distclean:
 
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
+ifneq ($(EXTRASRC),)
+	$(CC) -MM $(OPT) $(EXTRASRC) >> .depend
+endif
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
 
 -include .depend

@@ -12,8 +12,10 @@
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <termios.h>
-#include <alloca.h>
 #include <glob.h>
+#if defined(__linux__)
+#include <alloca.h>
+#endif
 #endif
 #include <errno.h>
 #include <fcntl.h>

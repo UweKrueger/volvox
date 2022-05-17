@@ -57,6 +57,7 @@
 #else
 #include <unistd.h>
 #include <sys/wait.h>
+#include <locale.h>
 #endif
 #include <sys/stat.h>
 #include <fcntl.h>
