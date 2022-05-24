@@ -251,7 +251,8 @@ enum eXpect {
 	eBinOp, // newline translates to ;
 	eComma,
 	eColon,
-	ePath
+	ePath,
+	eType
 };
 
 extern volvoxc::FullType* ParseType(bool allow_attribute = false, eXpect expect = eComma, const char* tname = nullptr);

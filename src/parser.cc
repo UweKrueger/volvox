@@ -79,7 +79,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 			getNextToken();
 			int64_t dim = -1;
 			if (CurTok.kind == ']') {
-				getNextToken();
+				getNextToken(eType);
 			} else {
 				if (auto e = ParseExpression()) {
 					auto Vdim = e->codegen();
@@ -97,7 +97,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 					errs() << "cannot parse dimension expression\n";
 					return nullptr;
 				}
-				if (!Expect(']')) {
+				if (!Expect(']', eType)) {
 					errs() << "'[' expected\n";
 					return nullptr;
 				}
@@ -131,7 +131,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 					return nullptr;
 				}
 				FieldNames.push_back(IdentifierStr);
-				getNextToken(eComma);
+				getNextToken(eType);
 				auto type = ParseType(true);
 				if (!type) {
 					errs() << "Unexpected '" << CurTok.str() << "' in struct declaration - type name expected\n";
@@ -172,7 +172,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 			errs() << "Unexpected '" << CurTok.str() << "' - type name expected\n";
 			return nullptr;
 		}
-		getNextToken(eBinOp);
+		getNextToken(expect);
 	}
 	auto type = type_table.get_full(IdentifierStr.c_str());
 	if (!type) {
@@ -609,7 +609,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}
 		ArgNames.push_back(IdentifierStr);
 		ArgPos.push_back(CurLoc);
-		getNextToken();
+		getNextToken(eType);
 		auto type = ParseType(true);
 		if (!type->type) {
 			errs() << "Unexpected '" << CurTok.str() << "' in method prototype - type name expected\n";
@@ -685,7 +685,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}	
 		ArgNames.push_back(IdentifierStr);
 		ArgPos.push_back(CurLoc);
-		getNextToken();
+		getNextToken(eType);
 		auto type = ParseType(true);
 		if (!type) {
 			errs() << "Unexpected '" << CurTok.str() << "' in function arg list - type name expected\n";
@@ -704,7 +704,7 @@ noargs:
 	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc = CurLoc;
 	while (CurTok.kind != ';') {
-		auto type = ParseType(true);
+		auto type = ParseType(true, eColon);
 		if (!type) {
 			errs() << "error parsing return type of function prototype\n";
 			return nullptr;

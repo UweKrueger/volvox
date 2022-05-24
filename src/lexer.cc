@@ -468,11 +468,15 @@ Token Lexer::gettok(eXpect expect) {
 #endif
 		return tok_eof;
 		// unary operators
+	case '&':
+		if (expect == eType) {
+			IdentifierStr = '&';
+			return '&';
+		}
 	case '+':
 	case '-':
 	case '!':
 	case '~':
-	case '&':
 		IdentifierStr = CurChar;
 		CurChar = advance();
 		return tok_unary;

@@ -206,7 +206,7 @@ static void HandleTypeDef() {
 		return;
 	}
 	auto type_name = IdentifierStr;
-	getNextToken();
+	getNextToken(eType);
 	auto ft = ParseType(false, eComma, type_name.c_str());
 	type_table.add(type_name.c_str(), ft);
 }

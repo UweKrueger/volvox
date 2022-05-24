@@ -8,6 +8,11 @@ type _ZN6volvox6RtTypeE packed {
 	name string
 	fields string
 }
+type ArrayNode {
+	data string
+	size u64
+}
+extern _Z15array_new_arrayP9ArrayNodemm(a &ArrayNode, nelem u64, obj_size u64)
 extern _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
 extern _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
 extern _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
