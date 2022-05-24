@@ -8,9 +8,9 @@ del /q *.obj ..\volvox.* libvolvox.exp ..\lib\libvolvox.lib ..\libvolvox.dll
 :default
 @for %%f in (codegen.cc token.cc lexer.cc parser.cc types.cc main.cc) do @call comp.bat %%f %%~nf.obj /D"UNICODE" /D"_UNICODE"
 @for %%f in (..\wineditline\editline.c ..\wineditline\history.c ..\wineditline\fn_complete.c getopt.c) do @call comp.bat %%f %%~nf.obj /TC
-@for %%f in (..\lib\map.cc ..\lib\str.cc ..\lib\emutls.c) do @call comp.bat %%f %%~nf.obj /DLL /TC /D"LLVM_VERSION_MAJOR=14"
+@for %%f in (..\lib\map.cc ..\lib\str.cc ..\lib\array.cc ..\lib\emutls.c) do @call comp.bat %%f %%~nf.obj /DLL /TC /D"LLVM_VERSION_MAJOR=14"
 
-link /DLL /out:libvolvox.dll str.obj map.obj
+link /DLL /out:libvolvox.dll str.obj map.obj array.obj
 
 move libvolvox.dll ..
 move libvolvox.lib ..\lib

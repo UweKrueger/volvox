@@ -59,7 +59,7 @@ PROG = $(TARGETDIR)volvox
 CCOBJS :=  main.o lexer.o parser.o token.o codegen.o types.o mangler.o
 OBJS := $(CCOBJS) $(EXTRAOBJS)
 
-LIB := map.o str.o
+LIB := map.o str.o array.o
 
 LIBLIB := libvolvox.so.0
 
