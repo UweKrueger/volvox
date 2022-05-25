@@ -5,7 +5,7 @@ extern "C" void* realloc(void* ptr, size_t new_size);
 extern "C" void free(void* ptr);
 extern "C" void* memcpy(void* dest, void* src, size_t sz);
 
-_DECL ArrayNode::ArrayNode(size_t nelem, size_t obj_size) :
+_DECL ArrayNode::ArrayNode(size_t nelem, uint64_t obj_size) :
 	data(calloc(nelem, obj_size)), size(nelem) {}
 
 _DECL ArrayNode::~ArrayNode() {
