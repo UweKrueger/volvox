@@ -71,6 +71,11 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 			if (CurTok.kind == tok_packed)
 				attribs |= A_packed;
 		}
+		if (CurTok.kind == '&') {
+			attribs = (attribs & 0xffff) | ((attribs & 0xffff0000) + 0x10000);
+			getNextToken(eType);
+			continue;
+		}
 		if (attribs)
 			getNextToken();
 		switch (CurTok.kind) {
@@ -160,14 +165,6 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 			return new_FullType(struct_type, attribs, nullptr /*DIType*/, FieldNames.size(), (volvoxc::FullType*)fields);
 		}
 			break;
-		case '&':
-			do {
-				attribs = (attribs & 0xffff) | ((attribs & 0xffff0000) + 0x10000);
-				getNextToken(eBinOp);
-			} while (CurTok.kind == '&');
-			if (CurTok.kind == tok_identifier)
-				break;
-			// else fallthough to error
 		default:
 			errs() << "Unexpected '" << CurTok.str() << "' - type name expected\n";
 			return nullptr;

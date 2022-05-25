@@ -470,7 +470,8 @@ Token Lexer::gettok(eXpect expect) {
 		// unary operators
 	case '&':
 		if (expect == eType) {
-			IdentifierStr = '&';
+			IdentifierStr = CurChar;
+			CurChar = advance();
 			return '&';
 		}
 	case '+':
