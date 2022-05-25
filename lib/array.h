@@ -1,31 +1,16 @@
 #pragma once
+#include <stddef.h>
 
-#include <stdint.h>
-#include <stdbool.h>
-
-#if defined (_MSC_VER)
-#define EXTERN __declspec(dllexport)
-#ifdef __cplusplus
-extern "C"
-{
-#endif
+#if defined (_WIN32)
+#define _DECL __declspec(dllexport)
 #else
-#define EXTERN extern
+#define _DECL
 #endif
 
-typedef struct ArrayNode {
+class ArrayNode {
 	void* data;
 	size_t size;
-} ArrayNode;
-
-EXTERN void array_new_array(ArrayNode* a, size_t nelem, size_t obj_size);
-
-EXTERN void array_destroy(ArrayNode* a);
-
-EXTERN void array_pushback(ArrayNode* a, char* obj, size_t obj_size);
-
-#if defined (_MSC_VER)
-#ifdef __cplusplus
-}
-#endif
-#endif
+	_DECL ArrayNode(size_t nelem, size_t obj_size);
+	_DECL ~ArrayNode();
+	_DECL void pushback(char* obj, size_t obj_size);
+};

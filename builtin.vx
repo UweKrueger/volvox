@@ -12,7 +12,9 @@ type ArrayNode {
 	data string
 	size u64
 }
-extern _Z15array_new_arrayP9ArrayNodemm(a &ArrayNode, nelem u64, obj_size u64)
+extern _ZN9ArrayNodeC1Eyy(a &ArrayNode, nelem u64, obj_size u64)
+extern _ZN9ArrayNodeD1Ev(a &ArrayNode)
+extern _ZN9ArrayNode8pushbackEPcy(a &ArrayNode, s string, obj_size u64)
 extern _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
 extern _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
 extern _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
