@@ -8,10 +8,12 @@
 #define _DECL
 #endif
 
+typedef unsigned long long usize;
+
 class ArrayNode {
 	void* data;
 	size_t size;
-	_DECL ArrayNode(size_t nelem, uint64_t obj_size);
+	_DECL ArrayNode(usize nelem, usize obj_size);
 	_DECL ~ArrayNode();
-	_DECL void pushback(char* obj, size_t obj_size);
+	_DECL void pushback(char* obj, usize obj_size);
 };
