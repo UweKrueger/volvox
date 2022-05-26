@@ -1,8 +1,10 @@
 all: volvox
 
-.PHONY: gcc
-gcc:
-	cd src && $(MAKE) CC=gcc
+# do 'make distclean' when changing optimization options or compiler version
+
+.PHONY: debug
+debug:
+	cd src && $(MAKE) CC=gcc OPT="-O0 -ggdb"
 
 volvox: srcdir
 
