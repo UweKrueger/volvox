@@ -254,11 +254,11 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 
 /*
   [3, 7, 8] ............................. fixed size (stack) array
-  [n]f64{1, 3, init: -1}                               "
+  []f64{1, 3, init: -1, size: 50}
   {2, 7, 9} ............................. variable size (heap) array
-  {}f64{size: 20, cap: 100, init: 1.0}                  "
-  map{"abc": 12.3, "xyz": 9.5} .......... map[string]f64
-  map[i32]string{}                                "
+  {}f64{size: 20, cap: 100, init: 1.0}
+  {"abc": 12.3, "xyz": 9.5} ............. map[string]f64
+  map[i32]string{}
 */
 static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	bool is_dynamic = false;
