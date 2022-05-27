@@ -252,8 +252,16 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
 }
 
+/*
+  [3, 7, 8] ............................. fixed size (stack) array
+  [n]f64{1, 3, init: -1}                               "
+  {2, 7, 9} ............................. variable size (heap) array
+  {}f64{size: 20, cap: 100, init: 1.0}                  "
+  map{"abc": 12.3, "xyz": 9.5} .......... map[string]f64
+  map[i32]string{}                                "
+*/
 static std::unique_ptr<ExprAST> ParseAggregateExpr() {
-	bool is_dynamic;
+	bool is_dynamic = false;
 	AggregateKind kind;
 	TokenKind closing;
 	switch (CurTok.kind) {
@@ -274,7 +282,13 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	SourceLocation loc = CurLoc;
 	getNextToken(); // eat '{'/'['
 	if (CurTok.kind == closing) {
-		getNextToken(eBinOp);
+		if (closing == '}') {
+			// TODO: make empty map if expected type is known (?)
+			errs() << "invalid empty map literal\n";
+			return nullptr;
+		}
+		getNextToken(eType);
+		auto elem_type = ParseType(true);
 		// TODO: parse type and given elements
 		return std::make_unique<AggregateExprAST>(loc, kind);
 	}
@@ -448,7 +462,7 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 ///   ::= '!' unary
 static std::unique_ptr<ExprAST> ParseUnary() {
 	// If the current token is not an operator, it must be a primary expr.
-	if (CurTok.kind != tok_unary || CurTok.kind == '(' || CurTok.kind == ',')
+	if (CurTok.kind != tok_unary)
 		return ParsePrimary();
 	
 	// If this is a unary operator, read it.
