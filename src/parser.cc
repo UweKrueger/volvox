@@ -253,12 +253,36 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 }
 
 /*
-  [3, 7, 8] ............................. fixed size (stack) array
-  []f64{1, 3, init: -1, size: 50}
-  {2, 7, 9} ............................. variable size (heap) array
-  {}f64{size: 20, cap: 100, init: 1.0}
-  {"abc": 12.3, "xyz": 9.5} ............. map[string]f64
-  map[i32]string{}
+  Fixed Size (Stack) Arrays
+  =========================
+  [3, 7, 8]                        # [3]int - type from 1st element
+  []f64{init: -1, len: n + 3}      # explicit type - size determined at run time
+  []i32{-4, 2, 7: b}               # size: 8 - index/key always compile time const
+  []f64{}                          # empty fixed array - only useful as function parameter
+  
+  Variable Size Arrays
+  ====================
+  {2, 7, 9}                        # {}int - type from 1st element
+  {}u64{55, 3, 5: 9, 13: 8}
+  {}f64{len: 5, cap: 100, init: 1.5}
+  {}f64{}                          # empty array - to be enlarged
+
+  Maps
+  ====
+  map{"abc": 12.3, "xyz": 9.5}     # map[string]f64 - types from 1st element
+  map[u64]string{2: "qw", 54: "tz"}
+  map[string]f64{}                 # empty map
+
+  Sets
+  ====
+  set{12.5, -11, 5.75}             # set of f64 - type from 1st element
+  set[u64]{3, 12, 7}               # set of integers - map of keys without values
+  set[i32]{}                       # empty set of integers
+
+  Channels
+  ========
+  chan[f64]{}                      # unbuffered channel
+  chan[u64]{cap: 5}                # buffer size 5
 */
 static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	bool is_dynamic = false;
