@@ -113,12 +113,16 @@ int Lexer::advance() {
 }
 
 char Lexer::peek() {
-	int max_i = linelen - LexLoc.Col + (use_readline ? 1 : 0);
-	char c = '\0';
-	for (int i=0; i<max_i; i++) {
-		c = linebuf[LexLoc.Col + i];
-		if (!isblank(c))
-			break;
+	if (CurChar & 0xff00)
+		return '\0';
+	char c = CurChar & 0xff;
+	if (isblank(c)) {
+		int max_i = linelen - LexLoc.Col + (use_readline ? 1 : 0);
+		for (int i = 0; i < max_i; i++) {
+			c = linebuf[LexLoc.Col + i];
+			if (!isblank(c))
+				break;
+		}
 	}
 	return c;
 }

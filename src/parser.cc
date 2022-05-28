@@ -295,11 +295,11 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		closing = ']';
 		// fallthrough
 	case '{':
-		explicit_type = lex.peek == closing; // {}i32{...}, []f64{...}
+		explicit_type = lex.peek() == closing; // {}i32{...}, []f64{...}
 		break;
 	case tok_map:
 	case tok_set:
-		explicit_type = lex.peek == '[';
+		explicit_type = lex.peek() == '[';
 		break;
 	case tok_chan:
 		explicit_type = true;
