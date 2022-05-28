@@ -285,27 +285,31 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
   chan[u64]{cap: 5}                # buffer size 5
 */
 static std::unique_ptr<ExprAST> ParseAggregateExpr() {
-	bool is_dynamic = false;
-	AggregateKind kind;
-	char closing = '\0';
+	bool is_dynamic = true;
+	char closing = '}';
 	volvoxc::FullType* ft = nullptr;
+	bool explicit_type = false;
+	int kind = CurTok.kind;
 	switch (CurTok.kind) {
-	case '{':
-		is_dynamic = true;
-		kind = AnyDyn;
-		closing = '}';
-		break;
 	case '[':
-		is_dynamic = false;
-		kind = AnyFixed;
 		closing = ']';
+		// fallthrough
+	case '{':
+		explicit_type = lex.peek == closing; // {}i32{...}, []f64{...}
+		break;
+	case tok_map:
+	case tok_set:
+		explicit_type = lex.peek == '[';
+		break;
+	case tok_chan:
+		explicit_type = true;
 		break;
 	default:
-		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected '{' or '[')\n";
-		return nullptr;
+		// we should never get here
+		abort();
 	}
 	SourceLocation loc = CurLoc;
-	if (lex.peek() == closing) {
+	if (explicit_type) {
 		ft = ParseType(false);
 		Eat('{');
 	} else {
@@ -464,6 +468,9 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 		return std::make_unique<EmptyExprAST>();
 	case '{':
 	case '[':
+	case tok_map:
+	case tok_set:
+	case tok_chan:
 		return ParseAggregateExpr();
 	case tok_if:
 		return ParseIfExpr();
