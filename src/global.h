@@ -82,8 +82,12 @@ enum TokenKind {
 	tok_iso = -62,
 	tok_const = -63,
 	tok_packed = -64,
-	
+
+	// special (incomplete) types
 	tok_self = -70,
+	tok_map = -71,
+	tok_set = -72,
+	tok_chan = -73
 };
 
 // Colors - we map those from llvm::raw_ostream but add boldness where needed
@@ -713,6 +717,7 @@ public:
 	int advance();
 	Token gettok(eXpect expect = eNone);
 	Token purge_line();
+	char peek();
 	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;

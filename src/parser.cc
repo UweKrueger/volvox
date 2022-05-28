@@ -287,34 +287,29 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	bool is_dynamic = false;
 	AggregateKind kind;
-	TokenKind closing;
+	char closing = '\0';
+	volvoxc::FullType* ft = nullptr;
 	switch (CurTok.kind) {
 	case '{':
 		is_dynamic = true;
 		kind = AnyDyn;
-		closing = (TokenKind)'}';
+		closing = '}';
 		break;
 	case '[':
 		is_dynamic = false;
 		kind = AnyFixed;
-		closing = (TokenKind)']';
+		closing = ']';
 		break;
 	default:
 		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected '{' or '[')\n";
 		return nullptr;
 	}
 	SourceLocation loc = CurLoc;
-	getNextToken(); // eat '{'/'['
-	if (CurTok.kind == closing) {
-		if (closing == '}') {
-			// TODO: make empty map if expected type is known (?)
-			errs() << "invalid empty map literal\n";
-			return nullptr;
-		}
-		getNextToken(eType);
-		auto elem_type = ParseType(true);
-		// TODO: parse type and given elements
-		return std::make_unique<AggregateExprAST>(loc, kind);
+	if (lex.peek() == closing) {
+		ft = ParseType(false);
+		Eat('{');
+	} else {
+		getNextToken(); // eat '{'/'['
 	}
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, eBinOp);

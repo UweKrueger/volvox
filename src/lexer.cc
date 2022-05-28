@@ -112,6 +112,17 @@ int Lexer::advance() {
 	return c;
 }
 
+char Lexer::peek() {
+	int max_i = linelen - LexLoc.Col + (use_readline ? 1 : 0);
+	char c = '\0';
+	for (int i=0; i<max_i; i++) {
+		c = linebuf[LexLoc.Col + i];
+		if (!isblank(c))
+			break;
+	}
+	return c;
+}
+
 std::string IdentifierStr; // Filled in if tok_identifier
 
 Token Lexer::purge_line() {
@@ -173,6 +184,14 @@ Token Lexer::gettok(eXpect expect) {
 			return Token(false);
 		if (IdentifierStr == "packed")
 			return Token(tok_packed);
+		if (IdentifierStr == "self")
+			return Token(tok_self);
+		if (IdentifierStr == "map")
+			return Token(tok_map);
+		if (IdentifierStr == "set")
+			return Token(tok_set);
+		if (IdentifierStr == "chan")
+			return Token(tok_chan);
 		if (IdentifierStr == "nullptr")
 			return Token((void*)0);
 		if (expect == eBinOp) {
