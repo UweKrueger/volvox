@@ -346,10 +346,30 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	}
 	SourceLocation loc = CurLoc;
 	if (explicit_type) {
-		ft = ParseType(false);
-		Eat('{');
+		ft = ParseType(false, eNone);
+		getNextToken();
+		Expect('{');
+		closing = '}';
 	} else {
 		getNextToken(); // eat '{'/'['
+	}
+	if (CurTok.kind == '}') {
+		if (!explicit_type) {
+			errs() << CurLoc << ": empty initialization requires explicit type\n";
+			return nullptr;
+		}
+		getNextToken(eBinOp);
+		switch (kind) {
+		case '[':
+			return std::make_unique<FixedArrayExprAST>(loc, std::vector<std::unique_ptr<ExprAST>>{});
+		case '{':
+		case tok_map:
+		case tok_set:
+		case tok_chan:
+		case tok_identifier: // struct literal
+		default:
+			abort();
+		}
 	}
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, eBinOp);
