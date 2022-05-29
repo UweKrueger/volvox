@@ -286,15 +286,17 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 */
 static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	bool is_dynamic = true;
-	char closing = '}';
+	char closing = '}'; // for dynamic aray, map, set
 	volvoxc::FullType* ft = nullptr;
 	bool explicit_type = false;
 	int kind = CurTok.kind;
-	switch (CurTok.kind) {
+	switch (kind) {
 	case '[':
+		// fixed size array
 		closing = ']';
 		// fallthrough
 	case '{':
+		// dynamic size array
 		explicit_type = lex.peek() == closing; // {}i32{...}, []f64{...}
 		break;
 	case tok_map:
@@ -335,7 +337,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				}
 			}
 		}
-		return std::make_unique<AggregateExprAST>(loc, /* kind */ FixedArray, std::move(Elems));
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elems));
 	} else {
 		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
 		return nullptr;

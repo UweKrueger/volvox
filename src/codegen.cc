@@ -103,7 +103,7 @@ llvm::Value *LiteralExprAST::codegen_raw() {
 	}
 }
 
-llvm::Value *AggregateExprAST::codegen_raw() {
+llvm::Value *FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}

@@ -203,41 +203,46 @@ enum AggregateKind {
 class AggregateExprAST : public ExprAST {
 
 public:
-	std::vector<std::unique_ptr<ExprAST>> Elements;
-	AggregateKind kind;
-	AggregateExprAST(SourceLocation Loc, AggregateKind k,
+	std::vector<std::unique_ptr<ExprAST>> Elements; // x, y, z in type{x, y, z}
+	AggregateExprAST(SourceLocation Loc,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 unsigned type_attr = 0, volvoxc::FullType* el_type = nullptr) :
-		ExprAST(nullptr, type_attr, Loc), Elements(std::move(_Elements)),
-		kind(k)
+		ExprAST(nullptr, type_attr, Loc), Elements(std::move(_Elements)) {}
+};
+
+class FixedArrayExprAST : public AggregateExprAST {
+public:
+	std::unique_ptr<ExprAST> size = nullptr; // for run time size
+	size_t size_num = (size_t)(-1); // for compile time known size
+	FixedArrayExprAST(SourceLocation Loc,
+	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	                 unsigned type_attr = 0, volvoxc::FullType* el_type = nullptr) :
+		AggregateExprAST(Loc, std::move(_Elements), type_attr, el_type)
 		{
-			if (kind == FixedArray) {
-				if (el_type)
-					ft->elem_type = el_type;
+			if (el_type)
+				ft->elem_type = el_type;
+			else
+				ft->elem_type = MakeType(Elements[0]->ft, Elements[0]->is_unknown_type);
+			if (verbosity >= 4) {
+				if (ft->elem_type)
+					errs() << "Have Elem type '" << *ft->elem_type->type << "' attr: " << ft->elem_type->type_attr << "\n";
 				else
-					ft->elem_type = MakeType(Elements[0]->ft, Elements[0]->is_unknown_type);
-				if (verbosity >= 4) {
-					if (ft->elem_type)
-						errs() << "Have Elem type '" << *ft->elem_type->type << "' attr: " << ft->elem_type->type_attr << "\n";
-					else
-						errs() << "Have no Elem type\n";
-				}
-				ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
-				ft->num_fields = Elements.size();
-				// TODO... nrows = Elements.size();
-				is_compile_time_const = true;
-				for (auto& e: Elements)
-					if (!e->is_compile_time_const) {
-						is_compile_time_const = false;
-						break;
-					}
+					errs() << "Have no Elem type\n";
 			}
+			ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
+			ft->num_fields = Elements.size();
+			// TODO... nrows = Elements.size();
+			is_compile_time_const = true;
+			for (auto& e: Elements)
+				if (!e->is_compile_time_const) {
+					is_compile_time_const = false;
+					break;
+				}
 		}
-	const char* KindName();
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "aggregate type " << KindName(), ind);
+		ExprAST::dump(out << "Fixed Array size: " << size_num, ind);
 		for (const auto &Element : Elements)
 			Element->dump(indent(out, ind + 1), ind + 1);
 		return out;

@@ -360,35 +360,6 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 	}
 }
 
-const char* AggregateExprAST::KindName() {
-	switch(kind) {
-	case FixedArray:
-		return "FixedArray";
-	case Struct:
-		return "Struct";
-	case FixedMatrix:
-		return "FixedMatrix";
-	case FixedVector:
-		return "FixedVector";
-	case Interval:
-		return "Interval";
-	case AnyFixed:
-		return "AnyFixed";
-	case Array:
-		return "Array";
-	case Vector:
-		return "Vector";
-	case Map:
-		return "Map";
-	case Matrix:
-		return "Matrix";
-	case AnyDyn:
-		return "AnyDyn";
-	default:
-		return "<Internal Error>";
-	}
-}
-
 llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	union {
 		VOLVOX_gen_val_type_t llvmtype;
