@@ -184,22 +184,6 @@ public:
 #endif
 };
 
-enum AggregateKind {
-	// fixed size kinds - [ ... ]
-	FixedArray,
-	Struct,
-	FixedMatrix,
-	FixedVector,
-	Interval,
-	AnyFixed,
-	// dynamic size aggregates - { ... }
-	Array,
-	Vector,
-	Map,
-	Matrix,
-	AnyDyn
-};
-
 class AggregateExprAST : public ExprAST {
 
 public:

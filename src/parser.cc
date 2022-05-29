@@ -252,6 +252,30 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
 }
 
+static const char* aggr_kind_str(int kind) {
+	switch (kind) {
+	case '[':
+		return "fixed array";
+	case '{':
+		return "dynamic array";
+	case tok_map:
+		return "map";
+	case tok_set:
+		return "set";
+	case tok_chan:
+		return "chan";
+	case tok_identifier: // struct literal
+		return "struct";
+	default:
+		// we should never get here
+		abort();
+	}
+}
+
+static void aggr_prop_err(SourceLocation Loc, const char* prop, int kind) {
+	errs() << Loc << ": \"" << prop << "\" is not a valid property for a " << aggr_kind_str(kind) << '\n';
+}
+
 /*
   Fixed Size (Stack) Arrays
   =========================
@@ -285,7 +309,6 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
   chan[u64]{cap: 5}                # buffer size 5
 */
 static std::unique_ptr<ExprAST> ParseAggregateExpr() {
-	bool is_dynamic = true;
 	char closing = '}'; // for dynamic aray, map, set
 	volvoxc::FullType* ft = nullptr;
 	bool explicit_type = false;
@@ -300,10 +323,21 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		explicit_type = lex.peek() == closing; // {}i32{...}, []f64{...}
 		break;
 	case tok_map:
-	case tok_set:
-		explicit_type = lex.peek() == '[';
+	case tok_set: {
+		char next_char = lex.peek();
+		if (next_char == '[')
+			explicit_type = true; // e.g. map[string]f64
+		else {
+			getNextToken();
+			if (CurTok.kind != '{') {
+				errs() << CurLoc << ": unexpected char '" << CurTok.kind << "'\n";
+				return nullptr;
+			}
+		}
+	}
 		break;
 	case tok_chan:
+	case tok_identifier: // struct literal
 		explicit_type = true;
 		break;
 	default:
@@ -320,20 +354,37 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, eBinOp);
 		auto Elems = SplitExprList(std::move(Elem));
-		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(Elems[0].get())) {
-			if (bin_expr->Op[0] == ':') { // struct or map
-				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
-					if (is_dynamic) {
-						kind = Array;
-						
+		for (auto& elem: Elems) {
+			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
+				if (bin_expr->Op[0] == ':') { // struct or map
+					if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
+						if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
+							if (ident->Name == "len") {
+								if (kind != '[' && kind != '{') { // no array
+									aggr_prop_err(ident->Loc, "len", kind);
+									return nullptr;
+								}
+							} else if(ident->Name == "cap") {
+								if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
+									aggr_prop_err(ident->Loc, "cap", kind);
+									return nullptr;
+								}
+							} else if(ident->Name == "ini") {
+								if (kind != '[' && kind != '{') { // no array
+									aggr_prop_err(ident->Loc, "ini", kind);
+									return nullptr;
+								}
+							} else {
+								aggr_prop_err(ident->Loc, ident->Name.c_str(), kind);
+								return nullptr;
+							}
+						}
+					} else if (auto key = dynamic_cast<LiteralExprAST*>(bin_expr->LHS.get())) {
+						;
 					} else {
-						kind = Struct;
+						errs() << "AggregateExpr: illegal expression before ':'\n";
+						return nullptr;
 					}
-				} else if (auto key = dynamic_cast<LiteralExprAST*>(bin_expr->LHS.get())) {
-					kind = is_dynamic ? Map : FixedArray;
-				} else {
-					errs() << "AggregateExpr: illegal expression before ':'\n";
-					return nullptr;
 				}
 			}
 		}
