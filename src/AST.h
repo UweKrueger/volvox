@@ -190,18 +190,17 @@ public:
 	std::vector<std::unique_ptr<ExprAST>> Elements; // x, y, z in type{x, y, z}
 	AggregateExprAST(SourceLocation Loc,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 unsigned type_attr = 0, volvoxc::FullType* el_type = nullptr) :
-		ExprAST(nullptr, type_attr, Loc), Elements(std::move(_Elements)) {}
+	                 volvoxc::FullType* el_type = nullptr) :
+		ExprAST(nullptr, 0, Loc), Elements(std::move(_Elements)) {}
 };
 
 class FixedArrayExprAST : public AggregateExprAST {
 public:
-	std::unique_ptr<ExprAST> size = nullptr; // for run time size
-	size_t size_num = (size_t)(-1); // for compile time known size
+	std::unique_ptr<ExprAST> Len = nullptr; // for run time size, otherwise Elements.size() is used
 	FixedArrayExprAST(SourceLocation Loc,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 unsigned type_attr = 0, volvoxc::FullType* el_type = nullptr) :
-		AggregateExprAST(Loc, std::move(_Elements), type_attr, el_type)
+	                 volvoxc::FullType* el_type = nullptr) :
+		AggregateExprAST(Loc, std::move(_Elements), el_type)
 		{
 			if (el_type)
 				ft->elem_type = el_type;
@@ -223,10 +222,17 @@ public:
 					break;
 				}
 		}
+	FixedArrayExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Len, volvoxc::FullType* el_type,
+	                  std::unique_ptr<ExprAST> _Init = nullptr) :
+		AggregateExprAST(Loc, std::vector<std::unique_ptr<ExprAST>>{}), Len(std::move(_Len))
+		{
+			if (_Init)
+				Elements.push_back(std::move(_Init));
+		}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "Fixed Array size: " << size_num, ind);
+		ExprAST::dump(out << "Fixed Array size: " << Elements.size(), ind);
 		for (const auto &Element : Elements)
 			Element->dump(indent(out, ind + 1), ind + 1);
 		return out;
