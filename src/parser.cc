@@ -277,6 +277,10 @@ static void aggr_prop_err(SourceLocation Loc, const char* prop, int kind) {
 	errs() << Loc << ": \"" << prop << "\" is not a valid property for a " << aggr_kind_str(kind) << '\n';
 }
 
+static void aggr_prop_redefinition(SourceLocation Loc, const char* prop) {
+	errs() << Loc << ": property \"" << prop << "\" already defined\n";
+}
+
 /*
   Fixed Size (Stack) Arrays
   =========================
@@ -377,12 +381,15 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			abort();
 		}
 	}
+	llvm::Value* Len = nullptr;
+	std::unique_ptr<ExprAST> Init = nullptr;
+	std::unique_ptr<ExprAST> Cap = nullptr;
+	int64_t dim = -1;
 	if (auto Elem = ParseExpression()) {
 		if (!explicit_type && !is_index && Lexer::is_type_start(lex.peek_strict())) { // [3][4]f64{...} -> this was not the array, yet
 			// This code is very similar to corresponding part in ParseType
 			Expect(closing, eType);
 			auto Vdim = Elem->codegen();
-			int64_t dim = -1;
 			if (!Vdim) {
 				errs() << Elem->Loc << ": cannot generate code for index\n";
 				return nullptr;
@@ -390,9 +397,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
 				dim = Dim->getSExtValue();
 			} else {
-				errs() << "dimension must be constant int\n";
-				// TODO: allow compile time sized fixed arrays
-				return nullptr;
+				Len = Vdim;
 			}
 			auto elem_type = ParseType();
 			llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
@@ -419,16 +424,40 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 									aggr_prop_err(ident->Loc, "len", kind);
 									return nullptr;
 								}
+								if (dim >= 0 || Len) {
+									aggr_prop_redefinition(ident->Loc, "len");
+									return nullptr;
+								}
+								auto Vdim = bin_expr->RHS->codegen();
+								if (!Vdim) {
+									errs() << bin_expr->RHS->Loc << ": cannot generate code for index\n";
+									return nullptr;
+								}
+								if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
+									dim = Dim->getSExtValue();
+								} else {
+									Len = Vdim;
+								}
 							} else if(ident->Name == "cap") {
 								if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
 									aggr_prop_err(ident->Loc, "cap", kind);
 									return nullptr;
 								}
+								if (Cap) {
+									aggr_prop_redefinition(ident->Loc, "cap");
+									return nullptr;
+								}
+								Cap = std::move(bin_expr->RHS);
 							} else if(ident->Name == "ini") {
 								if (kind != '[' && kind != '{') { // no array
 									aggr_prop_err(ident->Loc, "ini", kind);
 									return nullptr;
 								}
+								if (Init) {
+									aggr_prop_redefinition(ident->Loc, "ini");
+									return nullptr;
+								}
+								Init = std::move(bin_expr->RHS);
 							} else {
 								aggr_prop_err(ident->Loc, ident->Name.c_str(), kind);
 								return nullptr;

@@ -196,7 +196,8 @@ public:
 
 class FixedArrayExprAST : public AggregateExprAST {
 public:
-	std::unique_ptr<ExprAST> Len = nullptr; // for run time size, otherwise Elements.size() is used
+	int len = -1; // known at compile time
+	llvm::Value* Len = nullptr; // known at run time
 	FixedArrayExprAST(SourceLocation Loc,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 volvoxc::FullType* el_type = nullptr) :
@@ -213,7 +214,7 @@ public:
 					errs() << "Have no Elem type\n";
 			}
 			ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
-			ft->num_fields = Elements.size();
+			ft->num_fields = len = Elements.size();
 			// TODO... nrows = Elements.size();
 			is_compile_time_const = true;
 			for (auto& e: Elements)
@@ -222,9 +223,16 @@ public:
 					break;
 				}
 		}
-	FixedArrayExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Len, volvoxc::FullType* el_type,
+	FixedArrayExprAST(SourceLocation Loc, llvm::Value* Len, volvoxc::FullType* el_type,
 	                  std::unique_ptr<ExprAST> _Init = nullptr) :
-		AggregateExprAST(Loc, std::vector<std::unique_ptr<ExprAST>>{}), Len(std::move(_Len))
+		AggregateExprAST(Loc, std::vector<std::unique_ptr<ExprAST>>{}), Len(Len)
+		{
+			if (_Init)
+				Elements.push_back(std::move(_Init));
+		}
+	FixedArrayExprAST(SourceLocation Loc, int len, volvoxc::FullType* el_type,
+	                  std::unique_ptr<ExprAST> _Init = nullptr) :
+		AggregateExprAST(Loc, std::vector<std::unique_ptr<ExprAST>>{}), len(len)
 		{
 			if (_Init)
 				Elements.push_back(std::move(_Init));
