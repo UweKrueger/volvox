@@ -378,10 +378,9 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		}
 	}
 	if (auto Elem = ParseExpression()) {
-		Expect(closing, eBinOp);
-		char next_char = lex.peek();
-		if (!explicit_type && !is_index && next_char == '[') { // [3][4]f64{...} -> this was not the array, yet
+		if (!explicit_type && !is_index && Lexer::is_type_start(lex.peek_strict())) { // [3][4]f64{...} -> this was not the array, yet
 			// This code is very similar to corresponding part in ParseType
+			Expect(closing, eType);
 			auto Vdim = Elem->codegen();
 			int64_t dim = -1;
 			if (!Vdim) {
@@ -407,8 +406,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			Elem = ParseExpression();
 			if (!Elem)
 				return nullptr;
-			Expect(closing, eBinOp);
 		}
+		Expect(closing, eBinOp);
 		auto Elems = SplitExprList(std::move(Elem));
 		for (auto& elem: Elems) {
 			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {

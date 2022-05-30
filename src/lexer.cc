@@ -113,7 +113,7 @@ int Lexer::advance() {
 	return c;
 }
 
-// get next character in current line that belongs to a token
+// get next character in current line that belongs to a token - blanks are ignored
 char Lexer::peek() {
 	if (CurChar & 0xff00)
 		return '\0';
@@ -129,7 +129,7 @@ char Lexer::peek() {
 	return c;
 }
 
-// get next character in current line - not treating "blank" special
+// get next character in current line - not treating blanks special
 // i.e. the character might not belong to a token
 // used to distinguish "[3]type" from "[3] vec2"
 char Lexer::peek_strict() {

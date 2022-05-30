@@ -723,10 +723,16 @@ public:
 	size_t bufsize;
 	char* linebuf;
 	int PreviousChar = 0;
-	// can c be the last char of an expression so the following "[n]" is an index
+	int CurChar = ' ';
+	// c can be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {
 		return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
 			|| c == ')' || c == ']' || c == '}' || c == '_';
+	}
+	// c can be the first char of a type so the previous "[n]" is a dimension
+	static bool is_type_start(int c) {
+		return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
+			|| c == '[' || c == '{' || c == '_';
 	}
 };
 
