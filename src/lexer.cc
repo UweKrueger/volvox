@@ -90,6 +90,7 @@ static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
 int Lexer::advance() {
+	PreviousChar = CurChar;
 	// unfortunately readline does not return the trailing \n whereas
 	// getline (and fdgetline from above) do. We catch this here by
 	// handling line endings different when use_readline is set
@@ -112,6 +113,7 @@ int Lexer::advance() {
 	return c;
 }
 
+// get next character in current line that belongs to a token
 char Lexer::peek() {
 	if (CurChar & 0xff00)
 		return '\0';
@@ -125,6 +127,16 @@ char Lexer::peek() {
 		}
 	}
 	return c;
+}
+
+// get next character in current line - not treating "blank" special
+// i.e. the character might not belong to a token
+// used to distinguish "[3]type" from "[3] vec2"
+char Lexer::peek_strict() {
+	if (CurChar & 0xff00)
+		return '\0';
+	else
+		return CurChar & 0xff;
 }
 
 std::string IdentifierStr; // Filled in if tok_identifier

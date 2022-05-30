@@ -309,10 +309,15 @@ static void aggr_prop_err(SourceLocation Loc, const char* prop, int kind) {
   chan[u64]{cap: 5}                # buffer size 5
 */
 static std::unique_ptr<ExprAST> ParseAggregateExpr() {
+	int kind = CurTok.kind;
+	// "[3]" can be a fixed array, an index ("a[3]", "f(x)[3]" or "a[4][3]") or
+	// part of the type of an aggregate literal ("[3]i32{...}" or [3][3]f64{...}".
+	// so spaces before and/or after "[3]" do matter:
+	// a [3] [4]f64{...} <---> a[3][4] <---> a[3] [4]f64{...}
+	bool is_index = kind == '[' && Lexer::is_expr_end(lex.PreviousChar);
 	char closing = '}'; // for dynamic aray, map, set
 	volvoxc::FullType* ft = nullptr;
 	bool explicit_type = false;
-	int kind = CurTok.kind;
 	switch (kind) {
 	case '[':
 		// fixed size array
@@ -373,6 +378,9 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	}
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, eBinOp);
+		char next_char = lex.peek();
+		if (next_char == '[') { // [3][4]f64{...} -> this was not the array, yet
+		}
 		auto Elems = SplitExprList(std::move(Elem));
 		for (auto& elem: Elems) {
 			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
