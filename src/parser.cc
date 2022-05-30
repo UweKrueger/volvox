@@ -96,6 +96,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 						dim = Dim->getSExtValue();
 					} else {
 						errs() << "dimension must be constant int\n";
+						// TODO: allow compile time sized fixed arrays
 						return nullptr;
 					}
 				} else {
@@ -379,7 +380,34 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	if (auto Elem = ParseExpression()) {
 		Expect(closing, eBinOp);
 		char next_char = lex.peek();
-		if (next_char == '[') { // [3][4]f64{...} -> this was not the array, yet
+		if (!explicit_type && !is_index && next_char == '[') { // [3][4]f64{...} -> this was not the array, yet
+			// This code is very similar to corresponding part in ParseType
+			auto Vdim = Elem->codegen();
+			int64_t dim = -1;
+			if (!Vdim) {
+				errs() << Elem->Loc << ": cannot generate code for index\n";
+				return nullptr;
+			}
+			if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
+				dim = Dim->getSExtValue();
+			} else {
+				errs() << "dimension must be constant int\n";
+				// TODO: allow compile time sized fixed arrays
+				return nullptr;
+			}
+			auto elem_type = ParseType();
+			llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
+			ft = new_FullType(array_type, 0, nullptr, dim, elem_type);
+			explicit_type = true;
+			getNextToken();
+			Expect('{');
+			closing = '}';
+			if (CurTok.kind == '}')
+				return std::make_unique<FixedArrayExprAST>(loc, std::vector<std::unique_ptr<ExprAST>>{});
+			Elem = ParseExpression();
+			if (!Elem)
+				return nullptr;
+			Expect(closing, eBinOp);
 		}
 		auto Elems = SplitExprList(std::move(Elem));
 		for (auto& elem: Elems) {

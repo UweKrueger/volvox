@@ -723,10 +723,10 @@ public:
 	size_t bufsize;
 	char* linebuf;
 	int PreviousChar = 0;
-	// can c be the last char of a sub-expression so the following "[n]" is an index
+	// can c be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {
 		return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
-			|| c == ')' || c == ']' || c == '_';
+			|| c == ')' || c == ']' || c == '}' || c == '_';
 	}
 };
 
