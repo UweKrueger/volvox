@@ -249,7 +249,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	case '=':
 	comparison:
 		if (Op[1] == Op[0] && Op[0] != '=') {
-			// <<, >> TODO: forbid float
+			// <<, >> TODO: forbid shift operations for floats
 			is_shift = true; // to allow signed / unsigend mismatch
 			res_bitwidth_min = left_bitwidth;
 			res_bitwidth = Op[0] == '<' ? 64 : res_bitwidth_min;
@@ -357,6 +357,61 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 		return new_type;
 	} else {
 		return base;
+	}
+}
+
+// get element type of an array
+std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
+	std::vector<std::unique_ptr<ExprAST>>& Elems) {
+	auto conv = std::vector<std::function<llvm::Value*(llvm::Value*)>>(Elems.size(), nullptr);
+	bool is_signed = false;
+	bool is_float = false;
+	unsigned bitwidth = 0;
+	SourceLocation MaxBWLoc;
+	volvoxc::FullType* res_ft = nullptr;
+	for (auto& elem: Elems) {
+		if (elem) {
+			if (res_ft) {
+				if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
+					errs() << elem->Loc << ": array element types do not match\n";
+					return { nullptr, conv };
+				}
+			} else {
+				if (elem->ft->type->isSingleValueType()) {
+					auto bw = getBitWidth(elem->ft->type);
+					if (bw.first > bitwidth) {
+						bitwidth = bw.first;
+						MaxBWLoc = elem->Loc;
+					}
+					is_float = is_float || bw.second;
+					is_signed = is_signed || (elem->ft->type_attr & A_signed);
+				} else {
+					res_ft = elem->ft;
+				}
+			}
+		}
+	}
+	if (res_ft) {
+		return { res_ft, conv };
+	} else {
+		if (!bitwidth) {
+			errs() << "no valid element in array initialization\n";
+			return { nullptr, conv };
+		} else {
+			if (is_float && bitwidth > 53) {
+				errs() << MaxBWLoc << ": 64 bit integer in array initialization not compatible with float type(s)\n";
+				return { nullptr, conv };
+			}
+			llvm::Type* res_type = getFittingType(bitwidth, is_float);
+			auto type_name = type_table.get_name(res_type, is_signed && !is_float);
+			int i = 0;
+			for (auto& elem : Elems) {
+				if (elem)
+					conv[i] = getConv(elem->ft->type, res_type, elem->ft->type_attr, (is_signed && !is_float) ? A_signed : 0, elem->Loc);
+				i++;
+			}
+			return { res_ft, conv };
+		}
 	}
 }
 

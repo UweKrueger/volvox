@@ -285,8 +285,8 @@ static void aggr_prop_redefinition(SourceLocation Loc, const char* prop) {
   Fixed Size (Stack) Arrays
   =========================
   [3, 7, 8]                        # [3]int - type from 1st element
-  []f64{init: -1, len: n + 3}      # explicit type - size determined at run time
-  []i32{-4, 2, 7: b}               # size: 8 - index/key always compile time const
+  []f64{init: -1, len: n + 3}      # explicit type - size determined at run time - deprecated
+  [n]i32{-4, 2, 7: b}              # size: n - index/key always compile time const
   []f64{}                          # empty fixed array - only useful as function parameter
   
   Variable Size Arrays
