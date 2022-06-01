@@ -185,13 +185,36 @@ public:
 };
 
 class AggregateExprAST : public ExprAST {
-
 public:
+	llvm::Type* key_type;
+	unsigned key_type_attr;
+	volvoxc::FullType* elem_ft;
 	std::vector<std::unique_ptr<ExprAST>> Elements; // x, y, z in type{x, y, z}
-	AggregateExprAST(SourceLocation Loc,
+	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
+	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 volvoxc::FullType* el_type = nullptr) :
-		ExprAST(nullptr, 0, Loc), Elements(std::move(_Elements)) {}
+		ExprAST(nullptr, 0, Loc), key_type(key_type),
+		key_type_attr(key_type_attr), Elements(std::move(_Elements)), elem_ft(el_type) {}
+};
+
+// map keys / array indices
+union AggregateKey {
+	uint64_t Uint;
+	int64_t Int;
+	double Double;
+	float Float;
+	llvm::Constant* String;
+};
+
+class MapExprAST : public AggregateExprAST {
+public:
+	std::vector<AggregateKey> Keys;
+	MapExprAST(SourceLocation Loc, llvm::Type* key_type, std::vector<AggregateKey> _Keys = {},
+	           volvoxc::FullType* elem_type = nullptr, std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	           unsigned key_type_attr = 0) :
+		AggregateExprAST(Loc, key_type, key_type_attr,
+		                 std::move(_Elements), elem_type), Keys(_Keys) {}
 };
 
 class FixedArrayExprAST : public AggregateExprAST {
@@ -201,7 +224,7 @@ public:
 	FixedArrayExprAST(SourceLocation Loc,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 volvoxc::FullType* el_type = nullptr) :
-		AggregateExprAST(Loc, std::move(_Elements), el_type)
+		AggregateExprAST(Loc, llvm_int_type, 0, std::move(_Elements), el_type)
 		{
 			if (el_type)
 				ft->elem_type = el_type;
@@ -225,14 +248,14 @@ public:
 		}
 	FixedArrayExprAST(SourceLocation Loc, llvm::Value* Len, volvoxc::FullType* el_type,
 	                  std::unique_ptr<ExprAST> _Init = nullptr) :
-		AggregateExprAST(Loc, std::vector<std::unique_ptr<ExprAST>>{}), Len(Len)
+		AggregateExprAST(Loc, llvm_int_type, 0, std::vector<std::unique_ptr<ExprAST>>{}, el_type), Len(Len)
 		{
 			if (_Init)
 				Elements.push_back(std::move(_Init));
 		}
 	FixedArrayExprAST(SourceLocation Loc, int len, volvoxc::FullType* el_type,
 	                  std::unique_ptr<ExprAST> _Init = nullptr) :
-		AggregateExprAST(Loc, std::vector<std::unique_ptr<ExprAST>>{}), len(len)
+		AggregateExprAST(Loc, llvm_int_type, 0, std::vector<std::unique_ptr<ExprAST>>{}, el_type), len(len)
 		{
 			if (_Init)
 				Elements.push_back(std::move(_Init));

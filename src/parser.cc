@@ -381,10 +381,10 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			abort();
 		}
 	}
-	llvm::Value* Len = nullptr;
+	int64_t dim = -1;           // if size of array is known at compile time
+	llvm::Value* Len = nullptr; // if size can only be determined at run time
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
-	int64_t dim = -1;
 	if (auto Elem = ParseExpression()) {
 		if (!explicit_type && !is_index && Lexer::is_type_start(lex.peek_strict())) { // [3][4]f64{...} -> this was not the array, yet
 			// This code is very similar to corresponding part in ParseType
@@ -430,7 +430,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 								}
 								auto Vdim = bin_expr->RHS->codegen();
 								if (!Vdim) {
-									errs() << bin_expr->RHS->Loc << ": cannot generate code for index\n";
+									errs() << bin_expr->RHS->Loc << ": cannot generate code for property\n";
 									return nullptr;
 								}
 								if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
@@ -463,11 +463,25 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 								return nullptr;
 							}
 						}
-					} else if (auto key = dynamic_cast<LiteralExprAST*>(bin_expr->LHS.get())) {
-						;
 					} else {
-						errs() << "AggregateExpr: illegal expression before ':'\n";
-						return nullptr;
+						// LHS of a:b must be a compile time const
+						if (llvm::Value* Key = bin_expr->LHS->codegen()) {
+							if (auto key = llvm::dyn_cast<llvm::Constant>(Key)) {
+								unsigned keyTID = key->getType()->getTypeID();
+								switch (keyTID) {
+								case llvm::Type::IntegerTyID:
+									break;
+								default:
+									;
+								}
+							} else {
+								errs() << bin_expr->LHS->Loc << ": key in aggregate literals must be a compile time const\n";
+								return nullptr;
+							}
+						} else {
+							errs() << bin_expr->LHS->Loc << ": cannot generate code for key\n";
+							return nullptr;
+						}
 					}
 				}
 			}
