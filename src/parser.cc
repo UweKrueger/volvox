@@ -220,7 +220,7 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
 	}
 	// The arguments are parsed as a tree of binary expressions (Op=',') where
 	// all objects are in the leaves.
-	// Due to operator precedence rules the tree is stricly left-heavy and can be
+	// Due to operator precedence rules the tree is stricly left-heavy ## this is wrong ## and can be
 	// processed right to left without the need for recursions. We just have to iterate
 	// through the binary nodes and front-push each right leave (RHS) to the Args list.
 	while (auto bin_expr = dynamic_cast<BinaryExprAST*>(Arg.get())) {
@@ -423,11 +423,17 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				return nullptr;
 		}
 		Expect(closing, eBinOp);
+		Elem->dump(errs(), 4);
 		auto Elems = SplitExprList(std::move(Elem));
 		std::vector<std::unique_ptr<ExprAST>> Elements = {};
+		uint64_t idx = 0;
 		for (auto& elem: Elems) {
+			errs() << "-->\n";
+			elem->dump(errs(), 4);
 			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
+				errs() << "found binop " << bin_expr->Op << "\n";
 				if (bin_expr->Op[0] == ':') { // struct or map
+					errs() << "found key\n";
 					if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 						if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
 							if (ident->Name == "len") {
@@ -479,15 +485,43 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 					} else {
 						// LHS of a:b is a general expression - we require it to be a compile time const
 						if (llvm::Value* Key = bin_expr->LHS->codegen()) {
-							if (auto key = llvm::dyn_cast<llvm::Constant>(Key)) {
-								unsigned keyTID = key->getType()->getTypeID();
-								switch (keyTID) {
-								case llvm::Type::IntegerTyID:
+							unsigned keyTID = Key->getType()->getTypeID();
+							errs() << "key of type "<< *Key->getType()<<'\n';
+							if (auto key = llvm::dyn_cast<llvm::ConstantInt>(Key)) {
+								switch (kind) {
+								case '[':
+								case '{':
+									idx = key->getZExtValue();
+									if (idx < Elements.size()) {
+										if (Elements[idx]) {
+											errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+											return nullptr;
+										}
+										Elements[idx++] = std::move(bin_expr->RHS);
+		errs() << "Array size: " << Elements.size() << '\n';
+									} else {
+										while (Elements.size() < idx)
+											Elements.push_back(nullptr);
+										Elements.push_back(std::move(bin_expr->RHS));
+		errs() << "Array size: " << Elements.size() << '\n';
+										idx++;
+									}
 									break;
+								default:
+									errs() << aggr_kind_str(kind) << " not implemented, yet\n";
+									return nullptr;
+								}
+							} else if (auto key = llvm::dyn_cast<llvm::ConstantFP>(Key)) {
+								switch (keyTID) {
 								case llvm::Type::FloatTyID:
 									break;
 								case llvm::Type::DoubleTyID:
 									break;
+								default:
+									;
+								}
+							} else if (auto key = llvm::dyn_cast<llvm::Constant>(Key)) {
+								switch (keyTID) {
 								case llvm::Type::PointerTyID:
 									break;
 								default:
@@ -511,13 +545,25 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			switch (kind) {
 			case '[':
 			case '{':
-				Elements.push_back(std::move(elem));
+				if (idx < Elements.size()) {
+					if (Elements[idx]) {
+						errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+						return nullptr;
+					}
+					Elements[idx++] = std::move(elem);
+				} else {
+					while (Elements.size() < idx)
+						Elements.push_back(nullptr);
+					Elements.push_back(std::move(elem));
+					idx++;
+				}
 				break;
 			default:
 				errs() << Elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
 				return nullptr;
 			}
 		}
+		errs() << "Array size: " << Elements.size() << '\n';
 		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements));
 	} else {
 		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
@@ -695,6 +741,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		}
 		// Okay, we know this is a binop.
 		std::string BinOp = IdentifierStr;
+		errs() << "parsed binop " << BinOp << '\n';
 		SourceLocation BinLoc = CurLoc;
 		getNextToken(); // eat binop
 		// Parse the unary expression after the binary operator.
