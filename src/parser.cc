@@ -321,8 +321,10 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	// a [3] [4]f64{...} <---> a[3][4] <---> a[3] [4]f64{...}
 	bool is_index = kind == '[' && Lexer::is_expr_end(lex.PreviousChar);
 	char closing = '}'; // for dynamic aray, map, set
-	volvoxc::FullType* ft = nullptr;
 	bool explicit_type = false;
+	volvoxc::FullType* ft = nullptr; // The type of this Aggregate
+	llvm::Type* key_type = nullptr;
+	bool key_is_signed = false;
 	switch (kind) {
 	case '[':
 		// fixed size array
@@ -360,6 +362,14 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		getNextToken();
 		Expect('{');
 		closing = '}';
+		switch (ft->type->getTypeID()) {
+		case llvm::Type::ArrayTyID:
+			key_type = llvm::Type::getInt64Ty(Context);
+			break;
+		default:
+			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
+			return nullptr;
+		}
 	} else {
 		getNextToken(); // eat '{'/'['
 	}
@@ -414,6 +424,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		}
 		Expect(closing, eBinOp);
 		auto Elems = SplitExprList(std::move(Elem));
+		std::vector<std::unique_ptr<ExprAST>> Elements = {};
 		for (auto& elem: Elems) {
 			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
 				if (bin_expr->Op[0] == ':') { // struct or map
@@ -462,17 +473,26 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 								aggr_prop_err(ident->Loc, ident->Name.c_str(), kind);
 								return nullptr;
 							}
+						} else {
+							; // handle struct element initializer
 						}
 					} else {
-						// LHS of a:b must be a compile time const
+						// LHS of a:b is a general expression - we require it to be a compile time const
 						if (llvm::Value* Key = bin_expr->LHS->codegen()) {
 							if (auto key = llvm::dyn_cast<llvm::Constant>(Key)) {
 								unsigned keyTID = key->getType()->getTypeID();
 								switch (keyTID) {
 								case llvm::Type::IntegerTyID:
 									break;
+								case llvm::Type::FloatTyID:
+									break;
+								case llvm::Type::DoubleTyID:
+									break;
+								case llvm::Type::PointerTyID:
+									break;
 								default:
-									;
+									errs() << bin_expr->LHS->Loc << ": unsupported type " << *bin_expr->LHS->ft->type << " for aggregate key\n";
+									return nullptr;
 								}
 							} else {
 								errs() << bin_expr->LHS->Loc << ": key in aggregate literals must be a compile time const\n";
@@ -483,10 +503,22 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 							return nullptr;
 						}
 					}
+					continue;
 				}
+				continue;
+			}
+			// simple element without key
+			switch (kind) {
+			case '[':
+			case '{':
+				Elements.push_back(std::move(elem));
+				break;
+			default:
+				errs() << Elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
+				return nullptr;
 			}
 		}
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elems));
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements));
 	} else {
 		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
 		return nullptr;
