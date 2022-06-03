@@ -736,12 +736,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		int TokPrec = GetTokPrecedence();
 		// If this is a binop that binds at least as tightly as the current binop,
 		// consume it, otherwise we are done.
-		if (TokPrec < ExprPrec) {
+		if (TokPrec <= ExprPrec) {
 			return LHS;
 		}
 		// Okay, we know this is a binop.
 		std::string BinOp = IdentifierStr;
-		errs() << "parsed binop " << BinOp << '\n';
 		SourceLocation BinLoc = CurLoc;
 		getNextToken(); // eat binop
 		// Parse the unary expression after the binary operator.
@@ -751,7 +750,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 
 		// If BinOp binds less tightly with RHS than the operator after RHS, let
 		// the pending operator take RHS as its LHS.
-		if (TokPrec < NextTokPrecedence()) {
+		if (TokPrec <= NextTokPrecedence()) {
 			RHS = ParseBinOpRHS(TokPrec, std::move(RHS));
 			if (!RHS)
 				return nullptr;
