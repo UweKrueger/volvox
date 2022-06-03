@@ -15,7 +15,7 @@ b := [1 + 2, 4 * 5, 2 * 2 + 1: 7 + 8, 1 + 2: 9 + 10]
 
 fn test_array_lit_with_expr_keys_and_values() bool
 	return b[0] == 3 & b[1] == 20 & b[2] == 0 & b[3] == 19 &
-		b[4] == 0 & b[5] == 15
+		b[4] == 0 & b[5] == 15 & b[227] == 0
 
 b
 

@@ -233,6 +233,18 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 				return { nullptr, nullptr };
 			}
 			idx = aggr->Elements[0]->codegen();
+			// For if both array size and index are known at compile time we can already
+			// check out of range errors
+			if (auto a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
+				if (auto c_idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
+					uint64_t array_size = a_type->getNumElements();
+					uint64_t u_idx = c_idx->getZExtValue();
+					if (u_idx >= array_size) {
+						errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << array_size << ")\n";
+						return { nullptr, nullptr };
+					}
+				}
+			}
 		} else {
 			errs() << "internal compiler error\n";
 			return { nullptr, nullptr };
@@ -704,12 +716,16 @@ no_conversion:
 	llvm::Value *L, *R;
 	if (convLHS) {
 		L = LHS->codegen_raw();
+		if (!L)
+			return nullptr;
 		L = convLHS(L);
 	}
 	else
 		L = LHS->codegen();
 	if (convRHS) {
 		R = RHS->codegen_raw();
+		if (!R)
+			return nullptr;
 		R = convRHS(R);
 	}
 	else
