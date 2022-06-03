@@ -241,7 +241,7 @@ public:
 			// TODO... nrows = Elements.size();
 			is_compile_time_const = true;
 			for (auto& e: Elements)
-				if (!e->is_compile_time_const) {
+				if (e && !e->is_compile_time_const) {
 					is_compile_time_const = false;
 					break;
 				}

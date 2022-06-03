@@ -109,7 +109,8 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	}
 	std::vector<llvm::Constant*> Initializers;
 	for (auto& e: Elements)
-		if (is_compile_time_const) {
+		if (e && is_compile_time_const) {
+			errs() << "push back elem\n";
 			auto conversion = getConv(e->ft->type, ft->elem_type->type, e->ft->type_attr, ft->elem_type->type_attr, Loc, false, false);
 			if (!conversion) {
 				errs() << "Cannot convert array element\n";
@@ -117,6 +118,7 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 			}
 			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(conversion(e->codegen_raw())));
 		} else {
+			errs() << "push back null\n";
 			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
 		}
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {

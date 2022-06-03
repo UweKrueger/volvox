@@ -1,0 +1,26 @@
+a := [1, -7, 3, 4]
+
+fn test_simple_fixed_array_lit() bool
+	return a[0] == 1 & a[1] == -7 & a[2] == 3 & a[3] == 4
+
+c := [7, 2: -2, 1: 6, 5: 19]
+
+c
+
+fn test_array_lit_with_keys_and_holes() bool
+	return c[0] == 7 & c[1] == 6 & c[2] == -2 & c[3] == 0 &
+		c[4] == 0 & c[5] == 19
+
+b := [1 + 2, 4 * 5, 2 * 2 + 1: 7 + 8, 1 + 2: 9 + 10]
+
+fn test_array_lit_with_expr_keys_and_values() bool
+	return b[0] == 3 & b[1] == 20 & b[2] == 0 & b[3] == 19 &
+		b[4] == 0 & b[5] == 15
+
+b
+
+fn f(w i32, x i32, y i32, z i32) i32
+	return w + x + y + z
+
+fn test_fn_call_with_exprs() bool
+	return f(1 + 2, 4 * 5, 7 + 8, 9 + 10) == 57
