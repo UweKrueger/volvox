@@ -537,11 +537,12 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 							return nullptr;
 						}
 					}
-					continue;
-				}
+				} else
+					goto element_without_key;
 				continue;
 			}
 			// simple element without key
+		element_without_key:
 			switch (kind) {
 			case '[':
 			case '{':
