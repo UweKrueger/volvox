@@ -24,3 +24,9 @@ fn fc(w i32, x i32, y i32, z i32) i32
 
 fn test_fn_call_with_exprs() bool
 	return fc(1 + 2, 4 * 5, 7 + 8, 9 + 10) == 57
+
+fn test_array_elem_type_1() bool
+	ar1 := [-2, 9, 67, 7: 5.25]
+	ar1[2] = ar1[2] + 0.75
+	ar1[7] = ar1[7] + 0.125
+	return ar1[2] == 67.75 & ar1[7] == 5.375
