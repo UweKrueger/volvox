@@ -362,7 +362,7 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 
 // get element type of an array
 std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
-	std::vector<std::unique_ptr<ExprAST>>& Elems) {
+	std::vector<std::unique_ptr<ExprAST>>& Elems, llvm::Type* elem_type, unsigned elem_attr) {
 	auto conv = std::vector<std::function<llvm::Value*(llvm::Value*)>>(Elems.size(), nullptr);
 	bool is_signed = false;
 	bool is_float = false;
@@ -404,6 +404,8 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 			}
 			llvm::Type* res_type = getFittingType(bitwidth, is_float);
 			auto type_name = type_table.get_name(res_type, is_signed && !is_float);
+			// TODO: implement full type lookup that doesn't need getting name string
+			res_ft = type_table.get_full(type_name);
 			int i = 0;
 			for (auto& elem : Elems) {
 				if (elem)

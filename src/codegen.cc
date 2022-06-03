@@ -108,19 +108,17 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		KSDbgInfo.emitLocation(this);
 	}
 	std::vector<llvm::Constant*> Initializers;
-	for (auto& e: Elements)
+	int i = 0;
+	for (auto& e: Elements) {
 		if (e && is_compile_time_const) {
-			errs() << "push back elem\n";
-			auto conversion = getConv(e->ft->type, ft->elem_type->type, e->ft->type_attr, ft->elem_type->type_attr, Loc, false, false);
-			if (!conversion) {
-				errs() << "Cannot convert array element\n";
-				return nullptr;
-			}
-			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(conversion(e->codegen_raw())));
+			errs() << "push back elem " << *e->codegen_raw()->getType() << ' ' << *Elem_convs[i](e->codegen_raw())->getType() << "\n";
+			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(Elem_convs[i](e->codegen_raw())));
 		} else {
 			errs() << "push back null\n";
 			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
 		}
+		i++;
+	}
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
 		return llvm::ConstantArray::get(array_type, Initializers);
 	} else {

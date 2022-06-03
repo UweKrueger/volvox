@@ -189,13 +189,20 @@ public:
 	llvm::Type* key_type;
 	unsigned key_type_attr;
 	volvoxc::FullType* elem_ft;
+	std::vector<std::function<llvm::Value*(llvm::Value*)>> Elem_convs;
 	std::vector<std::unique_ptr<ExprAST>> Elements; // x, y, z in type{x, y, z}
 	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 volvoxc::FullType* el_type = nullptr) :
 		ExprAST(nullptr, 0, Loc), key_type(key_type),
-		key_type_attr(key_type_attr), Elements(std::move(_Elements)), elem_ft(el_type) {}
+		key_type_attr(key_type_attr), Elements(std::move(_Elements)), elem_ft(el_type)
+		{
+			std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> convs =
+				getArrayConv(Elements, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
+			elem_ft = convs.first;
+			Elem_convs = convs.second;
+		}
 };
 
 // map keys / array indices
@@ -226,25 +233,20 @@ public:
 	                 volvoxc::FullType* el_type = nullptr) :
 		AggregateExprAST(Loc, llvm_int_type, 0, std::move(_Elements), el_type)
 		{
-			if (el_type)
-				ft->elem_type = el_type;
-			else
-				ft->elem_type = MakeType(Elements[0]->ft, Elements[0]->is_unknown_type);
-			if (verbosity >= 4) {
-				if (ft->elem_type)
-					errs() << "Have Elem type '" << *ft->elem_type->type << "' attr: " << ft->elem_type->type_attr << "\n";
-				else
-					errs() << "Have no Elem type\n";
+			if (elem_ft) {
+				ft->elem_type = elem_ft;
+				ft->type = llvm::ArrayType::get(elem_ft->type, Elements.size());
+				ft->num_fields = len = Elements.size();
+				// TODO... nrows = Elements.size();
+				is_compile_time_const = true;
+				for (auto& e: Elements)
+					if (e && !e->is_compile_time_const) {
+						is_compile_time_const = false;
+						break;
+					}
+			} else {
+				ft = nullptr;
 			}
-			ft->type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
-			ft->num_fields = len = Elements.size();
-			// TODO... nrows = Elements.size();
-			is_compile_time_const = true;
-			for (auto& e: Elements)
-				if (e && !e->is_compile_time_const) {
-					is_compile_time_const = false;
-					break;
-				}
 		}
 	FixedArrayExprAST(SourceLocation Loc, llvm::Value* Len, volvoxc::FullType* el_type,
 	                  std::unique_ptr<ExprAST> _Init = nullptr) :

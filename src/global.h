@@ -226,6 +226,8 @@ extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation L
                                                                 std::function<llvm::Value*(llvm::Value*)> min_conv,
                                                                 std::function<llvm::Value*(llvm::Value*)> ideal_conv,
                                                                 bool is_signed);
+extern std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
+	std::vector<std::unique_ptr<ExprAST>>& Elems, llvm::Type* elem_type = nullptr, unsigned elem_attr = 0);
 extern llvm::Value* NoConversion(llvm::Value* v);
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
