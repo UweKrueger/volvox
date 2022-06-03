@@ -111,10 +111,8 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	int i = 0;
 	for (auto& e: Elements) {
 		if (e && is_compile_time_const) {
-			errs() << "push back elem " << *e->codegen_raw()->getType() << ' ' << *Elem_convs[i](e->codegen_raw())->getType() << "\n";
 			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(Elem_convs[i](e->codegen_raw())));
 		} else {
-			errs() << "push back null\n";
 			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
 		}
 		i++;

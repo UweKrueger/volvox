@@ -423,17 +423,12 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				return nullptr;
 		}
 		Expect(closing, eBinOp);
-		Elem->dump(errs(), 4);
 		auto Elems = SplitExprList(std::move(Elem));
 		std::vector<std::unique_ptr<ExprAST>> Elements = {};
 		uint64_t idx = 0;
 		for (auto& elem: Elems) {
-			errs() << "-->\n";
-			elem->dump(errs(), 4);
 			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
-				errs() << "found binop " << bin_expr->Op << "\n";
 				if (bin_expr->Op[0] == ':') { // struct or map
-					errs() << "found key\n";
 					if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 						if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
 							if (ident->Name == "len") {
@@ -486,7 +481,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 						// LHS of a:b is a general expression - we require it to be a compile time const
 						if (llvm::Value* Key = bin_expr->LHS->codegen()) {
 							unsigned keyTID = Key->getType()->getTypeID();
-							errs() << "key of type "<< *Key->getType()<<'\n';
 							if (auto key = llvm::dyn_cast<llvm::ConstantInt>(Key)) {
 								switch (kind) {
 								case '[':
@@ -498,12 +492,10 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 											return nullptr;
 										}
 										Elements[idx++] = std::move(bin_expr->RHS);
-		errs() << "Array size: " << Elements.size() << '\n';
 									} else {
 										while (Elements.size() < idx)
 											Elements.push_back(nullptr);
 										Elements.push_back(std::move(bin_expr->RHS));
-		errs() << "Array size: " << Elements.size() << '\n';
 										idx++;
 									}
 									break;
@@ -564,7 +556,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				return nullptr;
 			}
 		}
-		errs() << "Array size: " << Elements.size() << '\n';
 		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements));
 	} else {
 		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
@@ -1083,7 +1074,6 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		                                            std::vector<std::string>(),
 		                                            FnLoc, false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
-		// E->ft->dump();
 		if (last_shadow_restorer) {
 			auto restorer_proto = FunctionProtos.find(last_shadow_restorer);
 			if (restorer_proto == FunctionProtos.end()) {
