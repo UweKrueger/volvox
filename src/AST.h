@@ -226,17 +226,18 @@ public:
 
 class FixedArrayExprAST : public AggregateExprAST {
 public:
-	int len = -1; // known at compile time
-	llvm::Value* Len = nullptr; // known at run time
+	int len; // known at compile time
+	llvm::Value* Len; // known at run time
 	FixedArrayExprAST(SourceLocation Loc,
-	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 volvoxc::FullType* el_type = nullptr) :
+	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	                  volvoxc::FullType* el_type = nullptr, int len = -1, llvm::Value* Len = nullptr) :
 		AggregateExprAST(Loc, llvm_int_type, 0, std::move(_Elements), el_type)
 		{
 			if (elem_ft) {
 				ft->elem_type = elem_ft;
 				ft->type = llvm::ArrayType::get(elem_ft->type, Elements.size());
-				ft->num_fields = len = Elements.size();
+				if (len < 0 && !Len)
+					ft->num_fields = len = Elements.size();
 				// TODO... nrows = Elements.size();
 				is_compile_time_const = true;
 				for (auto& e: Elements)
@@ -245,22 +246,9 @@ public:
 						break;
 					}
 			} else {
+				errs() << "undefined element type\n";
 				ft = nullptr;
 			}
-		}
-	FixedArrayExprAST(SourceLocation Loc, llvm::Value* Len, volvoxc::FullType* el_type,
-	                  std::unique_ptr<ExprAST> _Init = nullptr) :
-		AggregateExprAST(Loc, llvm_int_type, 0, std::vector<std::unique_ptr<ExprAST>>{}, el_type), Len(Len)
-		{
-			if (_Init)
-				Elements.push_back(std::move(_Init));
-		}
-	FixedArrayExprAST(SourceLocation Loc, int len, volvoxc::FullType* el_type,
-	                  std::unique_ptr<ExprAST> _Init = nullptr) :
-		AggregateExprAST(Loc, llvm_int_type, 0, std::vector<std::unique_ptr<ExprAST>>{}, el_type), len(len)
-		{
-			if (_Init)
-				Elements.push_back(std::move(_Init));
 		}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG

@@ -364,29 +364,36 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
 	std::vector<std::unique_ptr<ExprAST>>& Elems, llvm::Type* elem_type, unsigned elem_attr) {
 	auto conv = std::vector<std::function<llvm::Value*(llvm::Value*)>>(Elems.size(), nullptr);
-	bool is_signed = false;
+	bool is_signed = elem_attr & A_signed;
 	bool is_float = false;
 	unsigned bitwidth = 0;
+	if (elem_type && elem_type->isSingleValueType()) {
+		auto bw = getBitWidth(elem_type);
+		bitwidth = bw.first;
+		is_float = bw.second;
+	}
 	SourceLocation MaxBWLoc;
 	volvoxc::FullType* res_ft = nullptr;
-	for (auto& elem: Elems) {
-		if (elem) {
-			if (res_ft) {
-				if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
-					errs() << elem->Loc << ": array element types do not match\n";
-					return { nullptr, conv };
-				}
-			} else {
-				if (elem->ft->type->isSingleValueType()) {
-					auto bw = getBitWidth(elem->ft->type);
-					if (bw.first > bitwidth) {
-						bitwidth = bw.first;
-						MaxBWLoc = elem->Loc;
+	if (!bitwidth) {
+		for (auto& elem: Elems) {
+			if (elem) {
+				if (res_ft) {
+					if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
+						errs() << elem->Loc << ": array element types do not match\n";
+						return { nullptr, conv };
 					}
-					is_float = is_float || bw.second;
-					is_signed = is_signed || (elem->ft->type_attr & A_signed);
 				} else {
-					res_ft = elem->ft;
+					if (elem->ft->type->isSingleValueType()) {
+						auto bw = getBitWidth(elem->ft->type);
+						if (bw.first > bitwidth) {
+							bitwidth = bw.first;
+							MaxBWLoc = elem->Loc;
+						}
+						is_float = is_float || bw.second;
+						is_signed = is_signed || (elem->ft->type_attr & A_signed);
+					} else {
+						res_ft = elem->ft;
+					}
 				}
 			}
 		}

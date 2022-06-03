@@ -395,6 +395,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	llvm::Value* Len = nullptr; // if size can only be determined at run time
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
+	SourceLocation LenLoc;
 	if (auto Elem = ParseExpression()) {
 		if (!explicit_type && !is_index && Lexer::is_type_start(lex.peek_strict())) { // [3][4]f64{...} -> this was not the array, yet
 			// This code is very similar to corresponding part in ParseType
@@ -404,6 +405,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				errs() << Elem->Loc << ": cannot generate code for index\n";
 				return nullptr;
 			}
+			LenLoc = Elem->Loc;
 			if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
 				dim = Dim->getSExtValue();
 			} else {
@@ -440,6 +442,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 									aggr_prop_redefinition(ident->Loc, "len");
 									return nullptr;
 								}
+								LenLoc = bin_expr->RHS->Loc;
 								auto Vdim = bin_expr->RHS->codegen();
 								if (!Vdim) {
 									errs() << bin_expr->RHS->Loc << ": cannot generate code for property\n";
@@ -556,7 +559,13 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				return nullptr;
 			}
 		}
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements));
+		if (dim >= 0) {
+			if (Elements.size() > dim) {
+				errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim <<'\n';
+				return nullptr;
+			}
+		}
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft ? ft->elem_type : nullptr, dim, Len);
 	} else {
 		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
 		return nullptr;
