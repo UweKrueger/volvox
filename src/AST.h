@@ -230,8 +230,8 @@ public:
 	llvm::Value* Len; // known at run time
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  volvoxc::FullType* el_type = nullptr, int len = -1, llvm::Value* Len = nullptr) :
-		AggregateExprAST(Loc, llvm_int_type, 0, std::move(_Elements), el_type)
+	                  volvoxc::FullType* el_type = nullptr, int _len = -1, llvm::Value* Len = nullptr) :
+		AggregateExprAST(Loc, llvm_int_type, 0, std::move(_Elements), el_type), len(_len), Len(Len)
 		{
 			if (elem_ft) {
 				ft->elem_type = elem_ft;

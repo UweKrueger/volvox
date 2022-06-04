@@ -117,6 +117,8 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		}
 		i++;
 	}
+	for(; i < len;  i++)
+		Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
 		return llvm::ConstantArray::get(array_type, Initializers);
 	} else {
