@@ -235,9 +235,14 @@ public:
 		{
 			if (elem_ft) {
 				ft->elem_type = elem_ft;
-				ft->type = llvm::ArrayType::get(elem_ft->type, Elements.size());
-				if (len < 0 && !Len)
-					ft->num_fields = len = Elements.size();
+				if (len < 0) {
+					if (Len)
+						len = 0;
+					else
+						len = Elements.size();
+				}
+				ft->num_fields = len;
+				ft->type = llvm::ArrayType::get(elem_ft->type, len); // TODO: handle RT Len
 				// TODO... nrows = Elements.size();
 				is_compile_time_const = true;
 				for (auto& e: Elements)
