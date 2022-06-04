@@ -230,7 +230,7 @@ public:
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1, llvm::Value* Len = nullptr) :
-		AggregateExprAST(Loc, llvm_int_type, 0, std::move(_Elements), el_type), Len(Len)
+		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type), Len(Len)
 		{
 			if (elem_ft) {
 				ft->elem_type = elem_ft;

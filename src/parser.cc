@@ -94,9 +94,12 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 					}
 					if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
 						dim = Dim->getSExtValue();
+						if (dim < 0) {
+							errs() << "dimension must be a positive int (not " << dim << "\n";
+							return nullptr;
+						}
 					} else {
 						errs() << "dimension must be constant int\n";
-						// TODO: allow compile time sized fixed arrays
 						return nullptr;
 					}
 				} else {
@@ -104,11 +107,6 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 					return nullptr;
 				}
 				if (!Expect(']', eType)) {
-					errs() << "'[' expected\n";
-					return nullptr;
-				}
-				if (dim < 0) {
-					errs() << "dimension must be a positive int (not " << dim << "\n";
 					return nullptr;
 				}
 			} 
@@ -119,10 +117,12 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 			if (dim >= 0) {
 				array_type = llvm::ArrayType::get(elem_type->type, dim);
 			} else {
-				llvm::Type* ptr = llvm::PointerType::get(elem_type->type, 0);
-				array_type = tname ? llvm::StructType::create(tname, ptr, llvm_int_type) : llvm::StructType::get(ptr, llvm_int_type);
+				llvm::Type* arr = llvm::ArrayType::get(elem_type->type, 0);
+				array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), arr);
 			}
-			return new_FullType(array_type, 0, nullptr, elem_type);
+			// errs() << "Array type: " << *array_type << ' '
+			//        << TheModule->getDataLayout().getTypeStoreSize(array_type) << '\n';
+			return new_FullType(array_type, A_rtlen, nullptr, elem_type);
 		}
 			break;
 		case '{': {
@@ -366,6 +366,11 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		case llvm::Type::ArrayTyID:
 			key_type = llvm::Type::getInt64Ty(Context);
 			break;
+		case llvm::Type::StructTyID:
+			if (ft->type_attr & A_rtlen) {
+				key_type = llvm::Type::getInt64Ty(Context);
+				break;
+			}
 		default:
 			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
 			return nullptr;
@@ -412,14 +417,21 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				Len = Vdim;
 			}
 			auto elem_type = ParseType();
-			llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
-			ft = new_FullType(array_type, 0, nullptr, elem_type);
+			if (dim >= 0) {
+				llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
+				ft = new_FullType(array_type, 0, nullptr, elem_type);
+			} else {
+				llvm::Type* array0_type = llvm::ArrayType::get(elem_type->type, 0);
+				llvm::Type* array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
+				ft = new_FullType(array_type, A_rtlen, nullptr, elem_type);
+			}
 			explicit_type = true;
 			getNextToken();
-			Expect('{');
+			if (!Expect('{'))
+				return nullptr;
 			closing = '}';
 			if (CurTok.kind == '}')
-				return std::make_unique<FixedArrayExprAST>(loc, std::vector<std::unique_ptr<ExprAST>>{});
+				return std::make_unique<FixedArrayExprAST>(loc, std::vector<std::unique_ptr<ExprAST>>{}, elem_type, dim, Len);
 			Elem = ParseExpression();
 			if (!Elem)
 				return nullptr;

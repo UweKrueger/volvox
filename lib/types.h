@@ -11,7 +11,9 @@
 #define A_atomic (1U<<4)
 #define A_packed (1U<<5)
 #define A_dirty  (1U<<6)
-#define A_map    (1U<<7) // llvm-type is key type
+#define A_rtlen  (1U<<8) // run time sized fixed array
+#define A_varlen (1U<<9) // variable size array
+#define A_map    (1U<<10) // llvm-type is key type
 
 #if defined (_MSC_VER)
 #define PACK(s) __pragma(pack(push,1)) s __pragma(pack(pop))
