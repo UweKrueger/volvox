@@ -107,8 +107,14 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
+	if (!array_type) {
+		errs() << "Internal compiler error\n";
+		abort();
+	}
+	uint64_t len = array_type->getNumElements();
 	std::vector<llvm::Constant*> Initializers;
-	int i = 0;
+	uint64_t i = 0;
 	for (auto& e: Elements) {
 		if (e && is_compile_time_const) {
 			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(Elem_convs[i](e->codegen_raw())));
@@ -119,12 +125,7 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	}
 	for(; i < len;  i++)
 		Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
-	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
-		return llvm::ConstantArray::get(array_type, Initializers);
-	} else {
-		errs() << "Internal compiler error\n";
-		abort();
-	}
+	return llvm::ConstantArray::get(array_type, Initializers);
 }
 
 llvm::Value* LvalueExprAST::codegen_raw() {
