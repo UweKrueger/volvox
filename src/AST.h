@@ -240,7 +240,6 @@ public:
 					else
 						len = Elements.size();
 				}
-				ft->num_fields = len;
 				ft->type = llvm::ArrayType::get(elem_ft->type, len); // TODO: handle RT Len
 				// TODO... nrows = Elements.size();
 				is_compile_time_const = true;

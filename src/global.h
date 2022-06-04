@@ -188,7 +188,7 @@ namespace volvoxc {
 	struct FullType {
 		llvm::Type* type; // used by compiler
 		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
-		uint64_t num_fields; // #fields for structs or tuples or #elements for arrays
+		// uint64_t num_fields; // #fields for structs or tuples or #elements for arrays
 		const char* type_name; // maybe NULL for anonymous types
 		llvm::DIType* ditype;
 		union {
@@ -292,7 +292,7 @@ struct FVListElem {
 extern FVListElem* anon_fullvars;
 extern FVListElem** anon_fullvars_end;
 
-inline FullVar* new_FullVar(llvm::Value* val, llvm::Type* type, unsigned type_attr, uint64_t num_fields = 0,
+inline FullVar* new_FullVar(llvm::Value* val, llvm::Type* type, unsigned type_attr,
                             const char* type_name = nullptr, llvm::DIType* ditype = nullptr,
                             volvoxc::FullType* elem_type = nullptr) {
 	FVListElem* new_node = (FVListElem*)malloc(sizeof(FVListElem));
@@ -300,7 +300,6 @@ inline FullVar* new_FullVar(llvm::Value* val, llvm::Type* type, unsigned type_at
 	new_node->fv.val = val;
 	new_node->fv.ft.type = type;
 	new_node->fv.ft.type_attr = type_attr;
-	new_node->fv.ft.num_fields = num_fields;
 	new_node->fv.ft.type_name = type_name;
 	new_node->fv.ft.ditype = ditype;
 	new_node->fv.ft.elem_type = elem_type;
@@ -319,12 +318,11 @@ extern volvoxc::FTListElem* anon_types;
 extern volvoxc::FTListElem** anon_types_end;
 
 inline volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
-                              uint64_t num_fields = 0, volvoxc::FullType* elem_type = nullptr) {
+                                       volvoxc::FullType* elem_type = nullptr) {
 	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem));
 	new_node->next = nullptr;
 	new_node->ft.type = type;
 	new_node->ft.type_attr = type_attr;
-	new_node->ft.num_fields = num_fields;
 	new_node->ft.type_name = nullptr; // it's an anonymous type
 	new_node->ft.ditype = ditype;
 	new_node->ft.elem_type = elem_type;

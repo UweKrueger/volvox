@@ -122,7 +122,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 				llvm::Type* ptr = llvm::PointerType::get(elem_type->type, 0);
 				array_type = tname ? llvm::StructType::create(tname, ptr, llvm_int_type) : llvm::StructType::get(ptr, llvm_int_type);
 			}
-			return new_FullType(array_type, 0, nullptr, dim, elem_type);
+			return new_FullType(array_type, 0, nullptr, elem_type);
 		}
 			break;
 		case '{': {
@@ -163,7 +163,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 				}
 			}
 				
-			return new_FullType(struct_type, attribs, nullptr /*DIType*/, FieldNames.size(), (volvoxc::FullType*)fields);
+			return new_FullType(struct_type, attribs, nullptr /*DIType*/, (volvoxc::FullType*)fields);
 		}
 			break;
 		default:
@@ -413,7 +413,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			}
 			auto elem_type = ParseType();
 			llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
-			ft = new_FullType(array_type, 0, nullptr, dim, elem_type);
+			ft = new_FullType(array_type, 0, nullptr, elem_type);
 			explicit_type = true;
 			getNextToken();
 			Expect('{');
