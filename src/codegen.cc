@@ -834,6 +834,7 @@ no_conversion:
 		}
 		break;
 	case '^':
+		// TODO: use '^' for pow()
 		switch(typeclass) {
 		case is_int:
 			result = Builder->CreateXor(L, R, "xortmp");
@@ -938,6 +939,15 @@ no_conversion:
 					result = Builder->CreateAShr(L, R, "remtmp");
 				else
 					result = Builder->CreateLShr(L, R, "remtmp");
+				break;
+			default:
+				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			}
+			break;
+		} else if (Op[1] == '<') {
+			switch(typeclass) {
+			case is_int:
+				result = Builder->CreateXor(L, R, "remtmp");
 				break;
 			default:
 				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";

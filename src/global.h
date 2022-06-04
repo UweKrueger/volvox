@@ -34,7 +34,7 @@ enum TokenKind {
 	tok_colon = -3,
 	tok_range = -4, // ..
 	tok_arrow = -5, // <-
-	tok_or = -6, // |, ^, ! (between bool or int, result: bool or int)
+	tok_or = -6, // |, >< (between bool or int, result: bool or int)
 	tok_and = -7, // & (between bool or int, result: bool or int)
 	// the following operators can be redfined for user types
 	tok_cmp = -8, // >=, >, ==, !=, <, <=, <=>

@@ -273,6 +273,10 @@ Token Lexer::gettok(eXpect expect) {
 				} else {
 					return tok_mult;
 				}
+			} else if (c0 == '>' && CurChar == '<') {
+				IdentifierStr += CurChar;
+				CurChar = advance();
+				return tok_or;
 			} else if (CurChar == '=') { // <=, >=
 				IdentifierStr += CurChar;
 				CurChar = advance();
