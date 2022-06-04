@@ -336,9 +336,9 @@ public:
 		} else {
 			LHS->ft = RHS->ft;
 		}
-		if (!ft->type && (!strcmp(Op, "|") || !strcmp(Op, "&"))) {
-			ft->type = LHS->ft->type;
-			ft->type_attr = LHS->ft->type_attr;
+		if (!strcmp(Op, "|") || !strcmp(Op, "&") || !strcmp(Op, "><")) {
+			if (!ft->type)
+				ft->type = LHS->ft->type;
 		}
 	}
 	llvm::Value *codegen_raw() override;

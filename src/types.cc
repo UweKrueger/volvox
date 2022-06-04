@@ -273,7 +273,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	case '&':
 	case '|':
 	op_xor:
-		res_is_signed = left_is_signed && right_is_signed; // default to unsigned for (possibly bitwise) &, |, ><
+		res_is_signed = false; // default to unsigned for (possibly bitwise) &, |, ><
 		break;
 	default:
 		;
@@ -335,7 +335,7 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
 	auto left_conv = res_bitwidth_min <= res_bitwidth ? getConv(left_type, res_type, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type) : nullptr;
 	auto right_conv = res_bitwidth_min <= res_bitwidth ? getConv(right_type, res_type, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type) : nullptr;
 	return {{ left_conv_min, right_conv_min, res_type_min, res_is_signed, res_is_unknown_type, err_msg },
-	        { left_conv, right_conv, res_type, res_is_signed, res_is_unknown_type, nullptr }};
+	        { left_conv, right_conv, res_type, res_is_signed && res_bitwidth > 1, res_is_unknown_type, nullptr }};
 }
 
 std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {

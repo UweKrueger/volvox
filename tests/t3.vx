@@ -38,5 +38,5 @@ fn test_explicit_array_type() bool
 
 fn test_explicit_array_len() bool
 	ar3 := [1.25, 2.75, len: 200]
-	return ar3[0] == 1.25 & ar3[1] == 2.75 & ar3[2] == 0. & ar3[101] == 0. & ar3[199] == 0.
+	return ar3[0] == 1.25 & ar3[1] == 2.75 & ar3[2] == 0. & ar3[101] == 0 & ar3[199] == 0.
 
