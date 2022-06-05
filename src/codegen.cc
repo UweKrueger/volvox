@@ -108,11 +108,22 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		KSDbgInfo.emitLocation(this);
 	}
 	errs() << "Array Type: " << *ft->type << '\n';
+	llvm::Value* LenVal = nullptr;
 	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
+	if (!array_type)
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type))
+			if (struct_type->getNumElements() == 2 && struct_type->getElementType(0)->isIntegerTy()) {
+				array_type = llvm::dyn_cast<llvm::ArrayType>(struct_type->getElementType(1));
+				LenVal = Len->codegen();
+				if (!LenVal) {
+					errs() << Len->Loc << ": cannot generate code\n";
+					return nullptr;
+				}
+			}
 	if (!array_type) {
 		errs() << "Internal compiler error\n";
 		abort();
-	}
+	} 
 	uint64_t len = array_type->getNumElements();
 	std::vector<llvm::Constant*> Initializers;
 	uint64_t i = 0;
