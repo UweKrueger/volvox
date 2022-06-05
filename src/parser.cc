@@ -396,8 +396,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			abort();
 		}
 	}
-	int64_t dim = -1;           // if size of array is known at compile time
-	llvm::Value* Len = nullptr; // if size can only be determined at run time
+	int64_t dim = -1;                       // if size of array is known at compile time
+	std::unique_ptr<ExprAST> Len = nullptr; // if size can only be determined at run time
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
 	SourceLocation LenLoc;
@@ -405,16 +405,17 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		if (!explicit_type && !is_index && Lexer::is_type_start(lex.peek_strict())) { // [3][4]f64{...} -> this was not the array, yet
 			// This code is very similar to corresponding part in ParseType
 			Expect(closing, eType);
-			auto Vdim = Elem->codegen();
-			if (!Vdim) {
-				errs() << Elem->Loc << ": cannot generate code for index\n";
-				return nullptr;
-			}
-			LenLoc = Elem->Loc;
-			if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
+			if (Elem->is_compile_time_const) {
+				LenLoc = Elem->Loc;
+				auto Vdim = Elem->codegen();
+				if (!Vdim) {
+					errs() << Elem->Loc << ": cannot generate code for index\n";
+					return nullptr;
+				}
+				auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
 				dim = Dim->getSExtValue();
 			} else {
-				Len = Vdim;
+				Len = std::move(Elem);;
 			}
 			auto elem_type = ParseType();
 			if (dim >= 0) {
@@ -431,7 +432,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				return nullptr;
 			closing = '}';
 			if (CurTok.kind == '}')
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, Len);
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len));
 			Elem = ParseExpression();
 			if (!Elem)
 				return nullptr;
@@ -454,16 +455,17 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 									aggr_prop_redefinition(ident->Loc, "len");
 									return nullptr;
 								}
-								LenLoc = bin_expr->RHS->Loc;
-								auto Vdim = bin_expr->RHS->codegen();
-								if (!Vdim) {
-									errs() << bin_expr->RHS->Loc << ": cannot generate code for property\n";
-									return nullptr;
-								}
-								if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
+								if (bin_expr->RHS->is_compile_time_const) {
+									LenLoc = bin_expr->RHS->Loc;
+									auto Vdim = bin_expr->RHS->codegen();
+									if (!Vdim) {
+										errs() << bin_expr->RHS->Loc << ": cannot generate code for property\n";
+										return nullptr;
+									}
+									auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
 									dim = Dim->getSExtValue();
 								} else {
-									Len = Vdim;
+									Len = std::move(bin_expr->RHS);
 								}
 							} else if(ident->Name == "cap") {
 								if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
@@ -584,7 +586,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 					abort();
 				}
 			} else {
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), Len);
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len));
 			}
 		}
 		if (dim >= 0) {

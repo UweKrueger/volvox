@@ -251,7 +251,7 @@ public:
 
 class FixedArrayExprAST : public AggregateExprAST {
 public:
-	llvm::Value* Len; // known at run time
+	std::unique_ptr<ExprAST> Len; // known at run time
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1) :
@@ -269,8 +269,10 @@ public:
 			}
 		}
 	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
-	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {}, llvm::Value* Len = nullptr) :
-		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)), Len(Len) {}
+	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	                  std::unique_ptr<ExprAST> _Len = nullptr) :
+		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)),
+		Len(std::move(_Len)) {}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
