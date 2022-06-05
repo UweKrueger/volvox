@@ -421,18 +421,21 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			if (dim >= 0) {
 				llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
 				ft = new_FullType(array_type, 0, nullptr, elem_type);
-			} else {
-				llvm::Type* array0_type = llvm::ArrayType::get(elem_type->type, 0);
-				llvm::Type* array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
-				ft = new_FullType(array_type, A_rtlen, nullptr, elem_type);
 			}
+			// else: run time sized - dim of literal will be determined by Elements.size()
 			explicit_type = true;
 			getNextToken();
 			if (!Expect('{'))
 				return nullptr;
 			closing = '}';
-			if (CurTok.kind == '}')
+			if (CurTok.kind == '}') {
+				if (!ft) {
+					llvm::Type* array0_type = llvm::ArrayType::get(elem_type->type, 0);
+					llvm::Type* array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
+					ft = new_FullType(array_type, A_rtlen, nullptr, elem_type);
+				}
 				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len));
+			}
 			Elem = ParseExpression();
 			if (!Elem)
 				return nullptr;
@@ -588,11 +591,16 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			} else {
 				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len));
 			}
-		}
-		if (dim >= 0) {
-			if (Elements.size() > dim) {
-				errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim << '\n';
-				return nullptr;
+		} else {
+			if (dim >= 0) {
+				if (Elements.size() > dim) {
+					errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim << '\n';
+					return nullptr;
+				} else {
+					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
+				}
+			} else {
+				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len));
 			}
 		}
 		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);

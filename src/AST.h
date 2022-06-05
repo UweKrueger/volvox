@@ -200,6 +200,10 @@ public:
 		{
 			std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> convs =
 				getArrayConv(Elements, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
+			if (!convs.first) {
+				ft = nullptr;
+				errs() << "internal problem when creating AggregateExprAST\n";
+			}
 			ft->elem_type = convs.first;
 			Elem_convs = convs.second;
 			// TODO: remove 'is_compile_time_const' property in favor of detection in 'codegen()'
@@ -217,8 +221,10 @@ public:
 		key_type_attr(key_type_attr), Elements(std::move(_Elements))
 		{
 			auto convs = getArrayConv(Elements, ft->elem_type->type, ft->elem_type->type_attr);
-			if (!convs.first)
+			if (!convs.first) {
 				ft = nullptr;
+				errs() << "internal problem creating AggregateExprAST\n";
+			}
 			else
 				Elem_convs = convs.second;
 			is_compile_time_const = true;
@@ -254,15 +260,22 @@ public:
 	std::unique_ptr<ExprAST> Len; // known at run time
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1) :
-		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type), Len(nullptr)
+	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1,
+	                  std::unique_ptr<ExprAST> _Len = nullptr) :
+		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type), Len(std::move(_Len))
 		{
+			// the AggregateExprAST constructor should have determined the element type if not
+			// given - we check this:
 			if (ft && ft->elem_type) {
-				if (len < 0) {
-					len = Elements.size();
+				if (Len) {
+					llvm::Type* array0_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
+					ft->type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
+					ft->type_attr = A_rtlen;
+				} else {
+					ft->type = llvm::ArrayType::get(
+						ft->elem_type->type,
+						len < 0 ? Elements.size() : len);
 				}
-				ft->type = llvm::ArrayType::get(ft->elem_type->type, len); // TODO: handle RT Len
-				// TODO... nrows = Elements.size();
 			} else {
 				errs() << "undefined element type\n";
 				ft = nullptr;
