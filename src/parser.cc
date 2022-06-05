@@ -431,7 +431,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				return nullptr;
 			closing = '}';
 			if (CurTok.kind == '}')
-				return std::make_unique<FixedArrayExprAST>(loc, std::vector<std::unique_ptr<ExprAST>>{}, elem_type, dim, Len);
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, Len);
 			Elem = ParseExpression();
 			if (!Elem)
 				return nullptr;
@@ -571,13 +571,29 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				return nullptr;
 			}
 		}
+		if (ft) {
+			if (dim >= 0) {
+				if (ft->type->isArrayTy()) {
+					errs() << "Array ft: " << *ft->type << " len: " << dim << '\n';
+					return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements));
+				} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+					errs() << "struct type: " << *struct_type << '\n';
+					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft->elem_type, dim);
+				} else {
+					errs() << "internal compiler error\n";
+					abort();
+				}
+			} else {
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), Len);
+			}
+		}
 		if (dim >= 0) {
 			if (Elements.size() > dim) {
-				errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim <<'\n';
+				errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim << '\n';
 				return nullptr;
 			}
 		}
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft ? ft->elem_type : nullptr, dim, Len);
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
 	} else {
 		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
 		return nullptr;

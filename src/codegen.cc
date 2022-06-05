@@ -107,6 +107,7 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	errs() << "Array Type: " << *ft->type << '\n';
 	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
 	if (!array_type) {
 		errs() << "Internal compiler error\n";

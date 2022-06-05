@@ -168,10 +168,11 @@ class IndexExprAST : public LvalueExprAST {
 public:
 	std::unique_ptr<ExprAST> Field, Index;
 	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
-	             std::unique_ptr<ExprAST> Index_)
-		: LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_)) {
-		ft = Field->ft->elem_type;
-	}
+	             std::unique_ptr<ExprAST> Index_) :
+		LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_))
+		{
+			ft = Field->ft->elem_type;
+		}
 	llvm::Value *codegen_raw() override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 #ifndef NDEBUG
@@ -188,7 +189,6 @@ class AggregateExprAST : public ExprAST {
 public:
 	llvm::Type* key_type;
 	unsigned key_type_attr;
-	volvoxc::FullType* elem_ft;
 	std::vector<std::function<llvm::Value*(llvm::Value*)>> Elem_convs;
 	std::vector<std::unique_ptr<ExprAST>> Elements; // x, y, z in type{x, y, z}
 	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
@@ -196,12 +196,37 @@ public:
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 volvoxc::FullType* el_type = nullptr) :
 		ExprAST(nullptr, 0, Loc), key_type(key_type),
-		key_type_attr(key_type_attr), Elements(std::move(_Elements)), elem_ft(el_type)
+		key_type_attr(key_type_attr), Elements(std::move(_Elements))
 		{
 			std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> convs =
 				getArrayConv(Elements, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
-			elem_ft = convs.first;
+			ft->elem_type = convs.first;
 			Elem_convs = convs.second;
+			// TODO: remove 'is_compile_time_const' property in favor of detection in 'codegen()'
+			is_compile_time_const = true;
+			for (auto& e: Elements)
+				if (e && !e->is_compile_time_const) {
+					is_compile_time_const = false;
+					break;
+				}
+		}
+	AggregateExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
+	                 unsigned key_type_attr = 0,
+	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
+		ExprAST(_ft, Loc), key_type(key_type),
+		key_type_attr(key_type_attr), Elements(std::move(_Elements))
+		{
+			auto convs = getArrayConv(Elements, ft->elem_type->type, ft->elem_type->type_attr);
+			if (!convs.first)
+				ft = nullptr;
+			else
+				Elem_convs = convs.second;
+			is_compile_time_const = true;
+			for (auto& e: Elements)
+				if (e && !e->is_compile_time_const) {
+					is_compile_time_const = false;
+					break;
+				}
 		}
 };
 
@@ -229,30 +254,23 @@ public:
 	llvm::Value* Len; // known at run time
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1, llvm::Value* Len = nullptr) :
-		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type), Len(Len)
+	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1) :
+		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type), Len(nullptr)
 		{
-			if (elem_ft) {
-				ft->elem_type = elem_ft;
+			if (ft && ft->elem_type) {
 				if (len < 0) {
-					if (Len) // run time sized array
-						len = 0;
-					else
-						len = Elements.size();
+					len = Elements.size();
 				}
-				ft->type = llvm::ArrayType::get(elem_ft->type, len); // TODO: handle RT Len
+				ft->type = llvm::ArrayType::get(ft->elem_type->type, len); // TODO: handle RT Len
 				// TODO... nrows = Elements.size();
-				is_compile_time_const = true;
-				for (auto& e: Elements)
-					if (e && !e->is_compile_time_const) {
-						is_compile_time_const = false;
-						break;
-					}
 			} else {
 				errs() << "undefined element type\n";
 				ft = nullptr;
 			}
 		}
+	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
+	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {}, llvm::Value* Len = nullptr) :
+		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)), Len(Len) {}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -359,7 +377,7 @@ public:
 
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
-		: ExprAST(*Callee_->ft->proto->RetType, Loc), Callee(std::move(Callee_)), Args(std::move(Args)) {}
+		: ExprAST(Callee_->ft->proto->RetType, Loc), Callee(std::move(Callee_)), Args(std::move(Args)) {}
 	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
