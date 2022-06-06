@@ -24,3 +24,12 @@ extern new_global_var_shadow(adr string, sz u64) u64
 extern getTermSize(fd i32) i32
 extern showtestres(fd i32, width i32, testcase string, result bool)
 extern enableColorANSI(fd i32) bool
+extern __signal_out_of_range()
+
+fn __check_array_index(index u64, length u64)
+	if index >= length then
+		__signal_out_of_range()
+		end
+	return
+
+		

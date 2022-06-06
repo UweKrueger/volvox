@@ -268,6 +268,7 @@ public:
 			// given - we check this:
 			if (ft && ft->elem_type) {
 				if (Len) {
+					is_compile_time_const = false;
 					llvm::Type* array0_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
 					ft->type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
 					ft->type_attr = A_rtlen;
@@ -285,7 +286,11 @@ public:
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                  std::unique_ptr<ExprAST> _Len = nullptr) :
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)),
-		Len(std::move(_Len)) {}
+		Len(std::move(_Len))
+		{
+			if (Len)
+				is_compile_time_const = false;
+		}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
