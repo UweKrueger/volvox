@@ -8,11 +8,6 @@
 #define _DECL
 #endif
 
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
-#endif
-#define WR_STRING(a) a, ARRAY_SIZE(a) - 1
-
 typedef unsigned long long usize;
 
 class ArrayNode {
