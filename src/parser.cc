@@ -593,7 +593,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			}
 		} else {
 			if (dim >= 0) {
-				if (Elements.size() > dim) {
+				if ((int64_t)Elements.size() > dim) {
 					errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim << '\n';
 					return nullptr;
 				} else {
