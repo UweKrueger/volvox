@@ -116,7 +116,7 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 				array_type = llvm::dyn_cast<llvm::ArrayType>(struct_type->getElementType(1));
 				LenVal = Builder->CreateIntCast(Len->codegen(), llvm::Type::getInt64Ty(Context), false);
 				if (!LenVal) {
-					errs() << Len->Loc << ": cannot generate code\n";
+					errs() << Len->Loc << ": cannot generate code for array length\n";
 					return nullptr;
 				}
 			}
@@ -149,8 +149,8 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 			align = 8U;
 		} else {
 			align = 1U;
-			uint64_t elsz = ElemSize >> 1;
-			while (elsz) {
+			uint64_t elsz = ElemSize;
+			while (!(elsz & 1U)) {
 				align <<= 1;
 				elsz >>= 1;
 			}
@@ -159,15 +159,7 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		llvm::Value* ArrayMem;
 		llvm::Value* ArrayAllocSize = Builder->CreateMul(
 			Builder->getInt64(ElemSize), LenVal ? LenVal : Builder->getInt64(len));
-		if (LenVal) {
-			SizePtr = Builder->Insert(new llvm::AllocaInst(llvm::Type::getInt8Ty(Context), TheModule->getDataLayout().getAllocaAddrSpace(),
-			                                               Builder->CreateAdd(Builder->getInt64(8), ArrayAllocSize), llvm::Align(align)));
-			Builder->CreateStore(LenVal, SizePtr);
-			ArrayMem = Builder->CreateBitCast(Builder->CreateGEP(llvm::Type::getInt8Ty(Context), SizePtr, Builder->getInt64(8)), elem_type->getPointerTo());
-		} else {
-			SizePtr = nullptr;
-			ArrayMem = Builder->CreateAlloca(elem_type, LenVal);
-		}
+		ArrayMem = Builder->CreateAlloca(elem_type, LenVal ? LenVal : Builder->getInt64(len));
 		errs() << "done: " << *ArrayMem->getType() << "\n";
 		// TODO: check Elements.size() <= LenVal at run time
 		Builder->CreateMemSet(ArrayMem, Builder->getInt8(0), ArrayAllocSize, llvm::MaybeAlign(align));
