@@ -127,18 +127,23 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	uint64_t len = array_type->getNumElements();
 	std::vector<llvm::Constant*> Initializers;
 	uint64_t i = 0;
-	if (is_compile_time_const) {
-		for (auto& e: Elements) {
-			if (e) {
-				Initializers.push_back(llvm::dyn_cast<llvm::Constant>(Elem_convs[i](e->codegen_raw())));
-			} else {
-				Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
-			}
-			i++;
+	llvm::Value* ini = llvm::UndefValue::get(array_type);
+	for (auto& e: Elements) {
+		if (e) {
+			ini = Builder->CreateInsertValue(ini, Elem_convs[i](e->codegen_raw()), i, "arrlit");
+		} else {
+			ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
 		}
-		for(; i < len;  i++)
-			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
-		return llvm::ConstantArray::get(array_type, Initializers);
+		i++;
+	}
+	for(; i < len;  i++)
+		ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
+	if (auto c = llvm::dyn_cast<llvm::Constant>(ini))
+		errs() << "Have const initializer " << *c << '\n';
+	else
+		errs() << "Have general initializer " << *ini << '\n';
+	if (!LenVal) {
+		return ini;
 	} else {
 		llvm::Type* elem_type = array_type->getElementType();
 		errs() << "allocating array of " << *elem_type << '\n';
