@@ -127,17 +127,61 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	uint64_t len = array_type->getNumElements();
 	std::vector<llvm::Constant*> Initializers;
 	uint64_t i = 0;
-	for (auto& e: Elements) {
-		if (e && is_compile_time_const) {
-			Initializers.push_back(llvm::dyn_cast<llvm::Constant>(Elem_convs[i](e->codegen_raw())));
-		} else {
-			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
+	if (is_compile_time_const) {
+		for (auto& e: Elements) {
+			if (e) {
+				Initializers.push_back(llvm::dyn_cast<llvm::Constant>(Elem_convs[i](e->codegen_raw())));
+			} else {
+				Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
+			}
+			i++;
 		}
-		i++;
+		for(; i < len;  i++)
+			Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
+		return llvm::ConstantArray::get(array_type, Initializers);
+	} else {
+		llvm::Type* elem_type = array_type->getElementType();
+		errs() << "allocating array of " << *elem_type << '\n';
+		// we have to store the array size - but only if we do not know it at compile time
+		uint64_t ElemSize = TheModule->getDataLayout().getTypeAllocSize(elem_type);
+		uint64_t align;
+		if (LenVal) {
+			align = 8U;
+		} else {
+			align = 1U;
+			uint64_t elsz = ElemSize >> 1;
+			while (elsz) {
+				align <<= 1;
+				elsz >>= 1;
+			}
+		}
+		llvm::Value* SizePtr;
+		llvm::Value* ArrayMem;
+		llvm::Value* ArrayAllocSize = Builder->CreateMul(
+			Builder->getInt64(ElemSize), LenVal ? LenVal : Builder->getInt64(len));
+		if (LenVal) {
+			SizePtr = Builder->Insert(new llvm::AllocaInst(llvm::Type::getInt8Ty(Context), TheModule->getDataLayout().getAllocaAddrSpace(),
+			                                               Builder->CreateAdd(Builder->getInt64(8), ArrayAllocSize), llvm::Align(align)));
+			Builder->CreateStore(LenVal, SizePtr);
+			ArrayMem = Builder->CreateBitCast(Builder->CreateGEP(llvm::Type::getInt8Ty(Context), SizePtr, Builder->getInt64(8)), elem_type->getPointerTo());
+		} else {
+			SizePtr = nullptr;
+			ArrayMem = Builder->CreateAlloca(elem_type, LenVal);
+		}
+		errs() << "done\n";
+		// TODO: check Elements.size() <= LenVal at run time
+		Builder->CreateMemSet(ArrayMem, Builder->getInt8(0), ArrayAllocSize, llvm::MaybeAlign(align));
+		for (auto& e: Elements) {
+			if (e) 
+				Builder->CreateStore(Elem_convs[i](e->codegen_raw()),
+				                     Builder->CreateGEP(elem_type, ArrayMem, Builder->getInt64(i)));
+			i++;
+		}
+		if (SizePtr)
+			return SizePtr;
+		else
+			return ArrayMem;
 	}
-	for(; i < len;  i++)
-		Initializers.push_back(llvm::Constant::getNullValue(ft->elem_type->type));
-	return llvm::ConstantArray::get(array_type, Initializers);
 }
 
 llvm::Value* LvalueExprAST::codegen_raw() {
