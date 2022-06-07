@@ -168,7 +168,7 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 			SizePtr = nullptr;
 			ArrayMem = Builder->CreateAlloca(elem_type, LenVal);
 		}
-		errs() << "done\n";
+		errs() << "done: " << *ArrayMem->getType() << "\n";
 		// TODO: check Elements.size() <= LenVal at run time
 		Builder->CreateMemSet(ArrayMem, Builder->getInt8(0), ArrayAllocSize, llvm::MaybeAlign(align));
 		for (auto& e: Elements) {

@@ -430,7 +430,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			closing = '}';
 			if (CurTok.kind == '}') {
 				if (!ft) {
-					llvm::Type* array0_type = llvm::ArrayType::get(elem_type->type, 0);
+					llvm::Type* array0_type = elem_type->type->getPointerTo();
 					llvm::Type* array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
 					ft = new_FullType(array_type, A_rtlen, nullptr, elem_type);
 				}

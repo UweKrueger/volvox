@@ -269,7 +269,7 @@ public:
 			if (ft && ft->elem_type) {
 				if (Len) {
 					is_compile_time_const = false;
-					llvm::Type* array0_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
+					llvm::Type* array0_type = ft->elem_type->type->getPointerTo();
 					ft->type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
 					ft->type_attr = A_rtlen;
 				} else {
