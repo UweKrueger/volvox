@@ -296,17 +296,46 @@ llvm::Value* FunctionExprAST::codegen_raw() {
 	return ft->proto->codegen();
 }
 
+static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
+	if (ft->type_attr & A_rtlen) { // fixed size array, len determined at run time, stored on stack
+		llvm::Value* ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
+		llvm::Value* ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
+		llvm::Type* arr_type = ArrData->getType();
+		auto the_array_type = llvm::dyn_cast<llvm::ArrayType>(arr_type);
+		if (!the_array_type) {
+			errs() << "fatal: array literal is not of array type\n";
+			abort();
+		}
+		llvm::Type* elem_type = the_array_type->getElementType();
+		unsigned nelem = the_array_type->getNumElements();
+		llvm::Value* ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
+		// TODO: Insert run time check that initialization values fit into allocation size
+		Builder->CreateStore(ArrData, ArrayAlloc);
+		Builder->CreateMemSet(
+			Builder->CreateGEP(elem_type, ArrayAlloc, Builder->getInt64(nelem)), Builder->getInt8(0),
+			Builder->CreateSub(ArrayLen, Builder->getInt64(nelem)),
+			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
+		llvm::Type* ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
+		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
+		ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
+		ret = Builder->CreateInsertValue(ret, ArrayAlloc, 1, "arrayalloc");
+		return ret;
+	} else {
+		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+		llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+		                       TheFunction->getEntryBlock().begin());
+		llvm::AllocaInst* Alloca = TmpB.CreateAlloca(ft->type);
+		Builder->CreateStore(val, Alloca);
+		return Alloca;
+	}
+}
+
 llvm::Value *UnaryExprAST::codegen_raw() {
 	if (Opcode[0] == '&') {
 		if (auto V = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 			return V->codegen_ref().second;
 		} else {
-			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
-			                       TheFunction->getEntryBlock().begin());
-			llvm::AllocaInst* Alloca = TmpB.CreateAlloca(Operand->ft->type);
-			Builder->CreateStore(Operand->codegen(), Alloca);
-			return Alloca;
+			return StoreValue(Operand->codegen(), Operand->ft);
 		}
 	}
 	llvm::Value *OperandV = Operand->codegen();
