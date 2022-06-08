@@ -107,7 +107,7 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	errs() << "Array Type: " << *ft->type << '\n';
+	dbgs() << "Array Type: " << *ft->type << '\n';
 	llvm::Value* LenVal = nullptr;
 	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
 	llvm::StructType* struct_type;
@@ -139,10 +139,6 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	}
 	for(; i < len;  i++)
 		ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
-	if (auto c = llvm::dyn_cast<llvm::Constant>(ini))
-		errs() << "Have const initializer " << *c << '\n';
-	else
-		errs() << "Have general initializer " << *ini << '\n';
 	if (!LenVal) {
 		return ini;
 	} else {
@@ -313,7 +309,9 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 		Builder->CreateStore(ArrData, ArrayAlloc);
 		Builder->CreateMemSet(
 			Builder->CreateGEP(elem_type, ArrayAlloc, Builder->getInt64(nelem)), Builder->getInt8(0),
-			Builder->CreateSub(ArrayLen, Builder->getInt64(nelem)),
+			Builder->CreateMul(
+				Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type)),
+				Builder->CreateSub(ArrayLen, Builder->getInt64(nelem))),
 			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
 		llvm::Type* ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
 		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);

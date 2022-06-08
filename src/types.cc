@@ -429,12 +429,15 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		VOLVOX_gen_val_type_t llvmtype;
 		unsigned key;
 	};
-	uint64_t len;
-	if (auto arr = llvm::dyn_cast<llvm::ArrayType>(ft->type))
-		len = arr->getNumElements();
-	else
-		len = 0;
-	llvmtype = VOLVOX_gen_val_type_t{ .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+	uint64_t len = 0;
+	// errs() << "RtType: " << *ft->type << ' ' << ft->type_attr << '\n';
+	if (ft->type_attr & A_rtlen) {
+		llvmtype = VOLVOX_gen_val_type_t{ .ID = (VOLVOX_TypeID)llvm::Type::ArrayTyID, .SubclassData = ((genType*)ft->type)->SubClassData() };
+	} else {
+		if (auto arr = llvm::dyn_cast<llvm::ArrayType>(ft->type))
+			len = arr->getNumElements();
+		llvmtype = VOLVOX_gen_val_type_t{ .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+	}
 	llvm::SmallVector<llvm::Constant*, 16> fields;
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)key));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)ft->type_attr));

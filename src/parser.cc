@@ -434,6 +434,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 					llvm::Type* array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
 					ft = new_FullType(array_type, A_rtlen, nullptr, elem_type);
 				}
+				getNextToken(eBinOp);
 				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len));
 			}
 			Elem = ParseExpression();
@@ -579,10 +580,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		if (ft) {
 			if (dim >= 0) {
 				if (ft->type->isArrayTy()) {
-					errs() << "Array ft: " << *ft->type << " len: " << dim << '\n';
 					return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements));
 				} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
-					errs() << "struct type: " << *struct_type << '\n';
 					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft->elem_type, dim);
 				} else {
 					errs() << "internal compiler error\n";
