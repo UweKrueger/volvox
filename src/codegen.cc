@@ -192,7 +192,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 		llvm::Type* arr_type = ArrData->getType();
 		auto the_array_type = llvm::dyn_cast<llvm::ArrayType>(arr_type);
 		if (!the_array_type) {
-			errs() << "fatal: array literal is not of array type\n";
+			errs() << "fatal: array literal is of type "  << *arr_type << " (not of array type)\n";
 			abort();
 		}
 		llvm::Type* elem_type = the_array_type->getElementType();
@@ -221,6 +221,21 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 	}
 }
 
+static std::pair<llvm::Value*, SourceLocation> GenIndex(ExprAST* Index) {
+	auto aggr = dynamic_cast<AggregateExprAST*>(Index);
+	if (aggr) {
+		if (aggr->Elements.size() != 1) {
+			errs() << (aggr->Elements.size() > 1 ? aggr->Elements[1]->Loc : Index->Loc)
+			       << ": exactly one index expected (for now)\n";
+			return { nullptr, {0} };
+		}
+		return { aggr->Elements[0]->codegen(), aggr->Elements[0]->Loc };
+	} else {
+		errs() << "internal compiler error\n";
+		return { nullptr, {0} };
+	}
+}
+
 llvm::Value* IndexExprAST::codegen_raw() {
 	// first try to get a reference to the element ...
 	auto V = codegen_ref(true);
@@ -230,18 +245,12 @@ llvm::Value* IndexExprAST::codegen_raw() {
 	if (V.first) {
 		// we know the type, but field is an rvalue
 		auto fld = Field->codegen();
-		llvm::Value* idx;
-		auto aggr = dynamic_cast<AggregateExprAST*>(Index.get());
-		if (aggr) {
-			if (aggr->Elements.size() != 1) {
-				errs() << "exactly one index expected (for now)\n";
-				return nullptr;
-			}
-			idx = aggr->Elements[0]->codegen();
-		} else {
-			errs() << "internal compiler error\n";
+		auto fld_save = fld;
+		auto idx_loc = GenIndex(Index.get());
+		auto idx = idx_loc.first;
+		if (!idx)
 			return nullptr;
-		}
+		auto IdxLoc = idx_loc.second;
 		if (!fld)
 			return nullptr;
 		int64_t len = -1;
@@ -267,9 +276,12 @@ llvm::Value* IndexExprAST::codegen_raw() {
 		// without having to allocate space to store the array
 		if (auto Idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
 			uint64_t i = Idx->getZExtValue();
-			if (Len)
+			if (Len) {
 				if (auto clen = llvm::dyn_cast<llvm::ConstantInt>(Len))
 					len = clen->getSExtValue();
+				else
+					goto run_time_len;
+			}
 			if (len < 0) {
 				errs() << LenLoc << ": array length must be non-negative\n";
 				return nullptr;
@@ -277,17 +289,20 @@ llvm::Value* IndexExprAST::codegen_raw() {
 				errs() << LenLoc << ": array length must be greater than any element index\n";
 				return nullptr;
 			} else if (i >= (uint64_t)len) {
-				errs() << aggr->Elements[0]->Loc << ": index out of range (should >= 0 and < "
+				errs() << IdxLoc << ": index out of range (should >= 0 and < "
 				       << len << ")\n";
 				return nullptr;
 			}
 			return Builder->CreateExtractValue(fld, i);
 		}
+	run_time_len:
 		// TODO: Insert run time check of index
-		auto ptr = StoreValue(fld, Field->ft);
+		auto ptr = StoreValue(fld_save, Field->ft);
+		Len = Builder->CreateExtractValue(ptr, 0);
+		auto Ptr = Builder->CreateExtractValue(ptr, 1);
 		return Builder->CreateLoad(
 			array_type->getElementType(),
-			Builder->CreateGEP(array_type->getElementType(), ptr, Len));
+			Builder->CreateGEP(array_type->getElementType(), Ptr, idx));
 	} else {
 		errs() << "cound not create code for index expression\n";
 		return nullptr;
@@ -299,7 +314,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 	llvm::Type* elem_type;
 	llvm::Type* field_type;
 	llvm::Value* idx;
-	if (!Field->ft->type || !Field->ft->type->isArrayTy()) {
+	if (!Field->ft->type || !(Field->ft->type->isArrayTy() || (Field->ft->type_attr & A_rtlen))) {
 		errs() << "LHS of index expression must be an array (or map)\n";
 		return { nullptr, nullptr };
 	} else {
