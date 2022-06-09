@@ -194,7 +194,7 @@ public:
 	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 volvoxc::FullType* el_type = nullptr) :
+	                 volvoxc::FullType* el_type = nullptr, SourceLocation LenLoc = {0}) :
 		ExprAST(nullptr, 0, Loc), key_type(key_type),
 		key_type_attr(key_type_attr), Elements(std::move(_Elements))
 		{
@@ -258,11 +258,13 @@ public:
 class FixedArrayExprAST : public AggregateExprAST {
 public:
 	std::unique_ptr<ExprAST> Len; // known at run time
+	SourceLocation LenLoc;
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1,
-	                  std::unique_ptr<ExprAST> _Len = nullptr) :
-		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type), Len(std::move(_Len))
+	                  std::unique_ptr<ExprAST> _Len = nullptr, SourceLocation LenLoc = {0}) :
+		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type),
+		Len(std::move(_Len)), LenLoc(LenLoc)
 		{
 			// the AggregateExprAST constructor should have determined the element type if not
 			// given - we check this:
@@ -284,9 +286,9 @@ public:
 		}
 	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  std::unique_ptr<ExprAST> _Len = nullptr) :
+	                  std::unique_ptr<ExprAST> _Len = nullptr, SourceLocation LenLoc = {0}) :
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)),
-		Len(std::move(_Len))
+		Len(std::move(_Len)), LenLoc(LenLoc)
 		{
 			if (Len)
 				is_compile_time_const = false;

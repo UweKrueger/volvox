@@ -435,7 +435,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 					ft = new_FullType(array_type, A_rtlen, nullptr, elem_type);
 				}
 				getNextToken(eBinOp);
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len));
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len), LenLoc);
 			}
 			Elem = ParseExpression();
 			if (!Elem)
@@ -588,7 +588,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 					abort();
 				}
 			} else {
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len));
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len), LenLoc);
 			}
 		} else {
 			if (dim >= 0) {
@@ -599,7 +599,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
 				}
 			} else {
-				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len));
+				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len), LenLoc);
 			}
 		}
 		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);

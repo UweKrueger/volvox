@@ -185,17 +185,54 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	return { storage_type, V };
 }
 
+static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
+	if (ft->type_attr & A_rtlen) { // fixed size array, len determined at run time, stored on stack
+		llvm::Value* ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
+		llvm::Value* ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
+		llvm::Type* arr_type = ArrData->getType();
+		auto the_array_type = llvm::dyn_cast<llvm::ArrayType>(arr_type);
+		if (!the_array_type) {
+			errs() << "fatal: array literal is not of array type\n";
+			abort();
+		}
+		llvm::Type* elem_type = the_array_type->getElementType();
+		unsigned nelem = the_array_type->getNumElements();
+		llvm::Value* ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
+		// TODO: Insert run time check that initialization values fit into allocation size
+		Builder->CreateStore(ArrData, ArrayAlloc);
+		Builder->CreateMemSet(
+			Builder->CreateGEP(elem_type, ArrayAlloc, Builder->getInt64(nelem)), Builder->getInt8(0),
+			Builder->CreateMul(
+				Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type)),
+				Builder->CreateSub(ArrayLen, Builder->getInt64(nelem))),
+			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
+		llvm::Type* ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
+		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
+		ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
+		ret = Builder->CreateInsertValue(ret, ArrayAlloc, 1, "arrayalloc");
+		return ret;
+	} else {
+		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+		llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+		                       TheFunction->getEntryBlock().begin());
+		llvm::AllocaInst* Alloca = TmpB.CreateAlloca(ft->type);
+		Builder->CreateStore(val, Alloca);
+		return Alloca;
+	}
+}
+
 llvm::Value* IndexExprAST::codegen_raw() {
 	// first try to get a reference to the element ...
 	auto V = codegen_ref(true);
 	// ... and load the value.
-	if (V.second)
+	if (V.second) // we have a reference and need a value - just load it...
 		return Builder->CreateLoad(V.first, V.second, Name.c_str());
 	if (V.first) {
-		// Field is an rvalue
+		// we know the type, but field is an rvalue
 		auto fld = Field->codegen();
 		llvm::Value* idx;
-		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
+		auto aggr = dynamic_cast<AggregateExprAST*>(Index.get());
+		if (aggr) {
 			if (aggr->Elements.size() != 1) {
 				errs() << "exactly one index expected (for now)\n";
 				return nullptr;
@@ -207,27 +244,50 @@ llvm::Value* IndexExprAST::codegen_raw() {
 		}
 		if (!fld)
 			return nullptr;
-		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(fld->getType())) {
-			if (auto Idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
-				uint64_t i = Idx->getSExtValue();
-				if (i > UINT_MAX) {
-					errs() << "(constexpr) index must be >= 0 and < " << (uint64_t)UINT_MAX + 1 << "\n";
-					return nullptr;
-				} else if (i >= array_type->getNumElements()) {
-					errs() << "index (" << i << ") must be < array size (" << array_type->getNumElements() << "\n";
-					return nullptr;
-				}
-				llvm::SmallVector<unsigned, 1> fields;
-				fields.push_back(i);
-				return Builder->CreateExtractValue(fld, fields);
-			} else {
-				errs() << "non-constexpr-indices for rvalue arrays not supported, yet\n";
+		int64_t len = -1;
+		llvm::Value* Len = nullptr;
+		llvm::ArrayType* array_type = llvm::dyn_cast<llvm::ArrayType>(fld->getType());
+		if (array_type)
+			len = array_type->getNumElements();
+		else
+			if (auto st = llvm::dyn_cast<llvm::StructType>(fld->getType())) {
+				Len = Builder->CreateExtractValue(fld, 0);
+				fld = Builder->CreateExtractValue(fld, 1);
+				array_type = llvm::dyn_cast<llvm::ArrayType>(fld->getType());
+			}
+		if (!array_type) {
+			// if it's no array it must be a pointer - but then this would be an lvalue
+			// and codegen_ref() above would have succeeded - so we should not get here
+			errs() << "internal compiler error\n";
+			abort();
+		}
+		auto FixedField = dynamic_cast<FixedArrayExprAST*>(Field.get());
+		SourceLocation LenLoc = FixedField ? FixedField->LenLoc : SourceLocation{0};
+		// if both the array size and the index are CT consts we can get the element
+		// without having to allocate space to store the array
+		if (auto Idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
+			uint64_t i = Idx->getZExtValue();
+			if (Len)
+				if (auto clen = llvm::dyn_cast<llvm::ConstantInt>(Len))
+					len = clen->getSExtValue();
+			if (len < 0) {
+				errs() << LenLoc << ": array length must be non-negative\n";
+				return nullptr;
+			} else if (len < array_type->getNumElements()) {
+				errs() << LenLoc << ": array length must be greater than any element index\n";
+				return nullptr;
+			} else if (i >= (uint64_t)len) {
+				errs() << aggr->Elements[0]->Loc << ": index out of range (should >= 0 and < "
+				       << len << ")\n";
 				return nullptr;
 			}
-		} else {
-			errs() << "LHS of index expression must be an array\n";
-			return nullptr;
+			return Builder->CreateExtractValue(fld, i);
 		}
+		// TODO: Insert run time check of index
+		auto ptr = StoreValue(fld, Field->ft);
+		return Builder->CreateLoad(
+			array_type->getElementType(),
+			Builder->CreateGEP(array_type->getElementType(), ptr, Len));
 	} else {
 		errs() << "cound not create code for index expression\n";
 		return nullptr;
@@ -290,42 +350,6 @@ llvm::Value* FunctionExprAST::codegen_raw() {
 		return F;
 	}
 	return ft->proto->codegen();
-}
-
-static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
-	if (ft->type_attr & A_rtlen) { // fixed size array, len determined at run time, stored on stack
-		llvm::Value* ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
-		llvm::Value* ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
-		llvm::Type* arr_type = ArrData->getType();
-		auto the_array_type = llvm::dyn_cast<llvm::ArrayType>(arr_type);
-		if (!the_array_type) {
-			errs() << "fatal: array literal is not of array type\n";
-			abort();
-		}
-		llvm::Type* elem_type = the_array_type->getElementType();
-		unsigned nelem = the_array_type->getNumElements();
-		llvm::Value* ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
-		// TODO: Insert run time check that initialization values fit into allocation size
-		Builder->CreateStore(ArrData, ArrayAlloc);
-		Builder->CreateMemSet(
-			Builder->CreateGEP(elem_type, ArrayAlloc, Builder->getInt64(nelem)), Builder->getInt8(0),
-			Builder->CreateMul(
-				Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type)),
-				Builder->CreateSub(ArrayLen, Builder->getInt64(nelem))),
-			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
-		llvm::Type* ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
-		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
-		ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
-		ret = Builder->CreateInsertValue(ret, ArrayAlloc, 1, "arrayalloc");
-		return ret;
-	} else {
-		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
-		                       TheFunction->getEntryBlock().begin());
-		llvm::AllocaInst* Alloca = TmpB.CreateAlloca(ft->type);
-		Builder->CreateStore(val, Alloca);
-		return Alloca;
-	}
 }
 
 llvm::Value *UnaryExprAST::codegen_raw() {
