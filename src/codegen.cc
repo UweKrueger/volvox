@@ -186,25 +186,44 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 }
 
 static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
+	llvm::Value* ArrayLen = nullptr;
+	llvm::Value* ArrData = nullptr;
+	llvm::ArrayType* array_type = nullptr;
 	if (ft->type_attr & A_rtlen) { // fixed size array, len determined at run time, stored on stack
-		llvm::Value* ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
-		llvm::Value* ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
-		llvm::Type* arr_type = ArrData->getType();
-		auto the_array_type = llvm::dyn_cast<llvm::ArrayType>(arr_type);
-		if (!the_array_type) {
-			errs() << "fatal: array literal is of type "  << *arr_type << " (not of array type)\n";
+		ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
+		ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
+		array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
+	} else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
+		ArrayLen = Builder->getInt64(array_type->getNumElements());
+		ArrData = val;
+	}
+	if (ArrData) {
+		if (!array_type) {
+			errs() << "fatal: array literal is not of array type\n";
 			abort();
 		}
-		llvm::Type* elem_type = the_array_type->getElementType();
-		unsigned nelem = the_array_type->getNumElements();
-		llvm::Value* ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
+		llvm::Type* elem_type = array_type->getElementType();
+		unsigned nelem = array_type->getNumElements();
+		llvm::Value* ArrayAlloc;
+		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(ArrayLen)) {
+			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
+			                       TheFunction->getEntryBlock().begin());
+			auto full_array_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
+			ArrayAlloc = Builder->CreateBitCast(TmpB.CreateAlloca(full_array_type), llvm::Type::getInt8PtrTy(Context));
+		} else {
+			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
+		}
 		// TODO: Insert run time check that initialization values fit into allocation size
 		Builder->CreateStore(ArrData, ArrayAlloc);
+		auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
 		Builder->CreateMemSet(
-			Builder->CreateGEP(elem_type, ArrayAlloc, Builder->getInt64(nelem)), Builder->getInt8(0),
+			Builder->CreateAdd(
+				ArrayAlloc, Builder->CreateMul(
+					ElemSize, Builder->getInt64(nelem))),
+			Builder->getInt8(0),
 			Builder->CreateMul(
-				Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type)),
-				Builder->CreateSub(ArrayLen, Builder->getInt64(nelem))),
+				ElemSize, Builder->CreateSub(ArrayLen, Builder->getInt64(nelem))),
 			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
 		llvm::Type* ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
 		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
