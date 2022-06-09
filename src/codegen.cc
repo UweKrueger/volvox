@@ -218,9 +218,9 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 		Builder->CreateStore(ArrData, ArrayAlloc);
 		auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
 		Builder->CreateMemSet(
-			Builder->CreateAdd(
-				ArrayAlloc, Builder->CreateMul(
-					ElemSize, Builder->getInt64(nelem))),
+			Builder->CreateIntToPtr(Builder->CreateAdd(
+				Builder->CreatePtrToInt(ArrayAlloc, llvm::Type::getInt64Ty(Context)), Builder->CreateMul(
+					ElemSize, Builder->getInt64(nelem))), llvm::Type::getInt8PtrTy(Context)),
 			Builder->getInt8(0),
 			Builder->CreateMul(
 				ElemSize, Builder->CreateSub(ArrayLen, Builder->getInt64(nelem))),
@@ -304,7 +304,7 @@ llvm::Value* IndexExprAST::codegen_raw() {
 			if (len < 0) {
 				errs() << LenLoc << ": array length must be non-negative\n";
 				return nullptr;
-			} else if (len < array_type->getNumElements()) {
+			} else if ((uint64_t)len < array_type->getNumElements()) {
 				errs() << LenLoc << ": array length must be greater than any element index\n";
 				return nullptr;
 			} else if (i >= (uint64_t)len) {
