@@ -49,7 +49,23 @@ static void Eat(int tok, eXpect expect = eNone) {
 	}
 }
 
-volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tname) {
+/* prarse a type - this function may be called by ParseAggregateExpr()
+   for the initial part of "type{...}" literals
+   it "type" starts with '[' there is an ambiguity
+   - "[n] x" - vector expression with 1 element "n" multiplied with "x"
+     in general this could be "[n, m, ...] x"
+   - "[n]x" - array type for "n" elements of type "x"
+     this could in general be "[n][m]x"
+
+   in both cases n, m, ... are returned in 'exprs' but - in the first
+   case ParseType() returns nullptr
+
+   when no literal is parsed ParseType with exprs = nullptr and only
+   the second case is considered
+ */
+volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
+                             const char* tname,
+                             std::vector<std::unique_ptr<ExprAST>>* exprs) {
 	unsigned attribs = 0;
 	while (CurTok.kind != tok_identifier) {
 		if (allow_attribute) {
@@ -87,27 +103,40 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 				getNextToken(eType);
 			} else {
 				if (auto e = ParseExpression()) {
-					auto Vdim = e->codegen();
-					if (!Vdim) {
-						errs() << "cannot generate code for index\n";
-						return nullptr;
-					}
-					if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
-						dim = Dim->getSExtValue();
-						if (dim < 0) {
-							errs() << "dimension must be a positive int (not " << dim << "\n";
+					if (exprs) {
+						if (!exprs.size() && !Lexer::is_type_start(lex.peek_strict())) {
+							if (!Expect(']', expect)) {
+								return nullptr;
+							}
+							// this is a vector - just return elements
+							exprs = SplitExprList(std::move(e));
+							return nullptr;
+						} else {
+							if (!Expect(']', eType)) {
+								return nullptr;
+							}
+							exprs.push_back(std::move(e));
+						}
+					} else {
+						auto Vdim = e->codegen();
+						if (!Vdim) {
+							errs() << "cannot generate code for index\n";
+							return nullptr;
+						}
+						if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
+							dim = Dim->getSExtValue();
+							if (dim <= 0) {
+								errs() << "dimension must be a positive int (not " << dim << "\n";
+								return nullptr;
+							}
+						} else {
+							errs() << "dimension must be constant int\n";
 							return nullptr;
 						}
 					} else {
-						errs() << "dimension must be constant int\n";
+						errs() << "cannot parse dimension expression\n";
 						return nullptr;
 					}
-				} else {
-					errs() << "cannot parse dimension expression\n";
-					return nullptr;
-				}
-				if (!Expect(']', eType)) {
-					return nullptr;
 				}
 			} 
 			auto elem_type = ParseType();
@@ -396,8 +425,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			abort();
 		}
 	}
-	int64_t dim = -1;                       // if size of array is known at compile time
-	std::unique_ptr<ExprAST> Len = nullptr; // if size can only be determined at run time
+	std::vector<std::unique_ptr<ExprAST>> Len = {}; // if size can only be determined at run time
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
 	SourceLocation LenLoc;
@@ -405,24 +433,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		if (!explicit_type && !is_index && Lexer::is_type_start(lex.peek_strict())) { // [3][4]f64{...} -> this was not the array, yet
 			// This code is very similar to corresponding part in ParseType
 			Expect(closing, eType);
-			if (Elem->is_compile_time_const) {
-				LenLoc = Elem->Loc;
-				auto Vdim = Elem->codegen();
-				if (!Vdim) {
-					errs() << Elem->Loc << ": cannot generate code for index\n";
-					return nullptr;
-				}
-				auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
-				dim = Dim->getSExtValue();
-			} else {
-				Len = std::move(Elem);;
-			}
+			Len = std::move(Elem);;
 			auto elem_type = ParseType();
-			if (dim >= 0) {
-				llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
-				ft = new_FullType(array_type, 0, nullptr, elem_type);
-			}
-			// else: run time sized - dim of literal will be determined by Elements.size()
 			explicit_type = true;
 			getNextToken();
 			if (!Expect('{'))
