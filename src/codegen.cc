@@ -115,9 +115,9 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		if ((struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)))
 			if (struct_type->getNumElements() == 2 && struct_type->getElementType(0)->isIntegerTy()) {
 				array_type = llvm::dyn_cast<llvm::ArrayType>(struct_type->getElementType(1));
-				LenVal = Builder->CreateIntCast(Len->codegen(), llvm::Type::getInt64Ty(Context), false);
+				LenVal = Builder->CreateIntCast(Lens[0]->codegen(), llvm::Type::getInt64Ty(Context), false);
 				if (!LenVal) {
-					errs() << Len->Loc << ": cannot generate code for array length\n";
+					errs() << Lens[0]->Loc << ": cannot generate code for array length\n";
 					return nullptr;
 				}
 			}

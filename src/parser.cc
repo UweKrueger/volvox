@@ -363,7 +363,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	// a [3] [4]f64{...} <---> a[3][4] <---> a[3] [4]f64{...}
 	bool is_index = kind == '[' && Lexer::is_expr_end(lex.PreviousChar);
 	char closing = '}'; // for dynamic aray, map, set
-	bool explicit_type = false;
+	// bool explicit_type = false;
 	volvoxc::FullType* ft = nullptr; // The type of this Aggregate
 	llvm::Type* key_type = nullptr;
 	bool key_is_signed = false;
@@ -371,16 +371,16 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	case '[':
 		// fixed size array
 		closing = ']';
-		// fallthrough
+		break;
 	case '{':
 		// dynamic size array
-		explicit_type = lex.peek() == closing; // {}i32{...}, []f64{...}
+		// explicit_type = lex.peek() == closing; // {}i32{...}, []f64{...}
 		break;
 	case tok_map:
 	case tok_set: {
 		char next_char = lex.peek();
 		if (next_char == '[')
-			explicit_type = true; // e.g. map[string]f64
+			; // explicit type
 		else {
 			getNextToken();
 			if (CurTok.kind != '{') {
@@ -392,246 +392,172 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		break;
 	case tok_chan:
 	case tok_identifier: // struct literal
-		explicit_type = true;
 		break;
 	default:
 		// we should never get here
 		abort();
 	}
 	SourceLocation loc = CurLoc;
-	if (explicit_type) {
-		ft = ParseType(false, eNone);
-		getNextToken();
-		Expect('{');
-		closing = '}';
-		switch (ft->type->getTypeID()) {
-		case llvm::Type::ArrayTyID:
-			key_type = llvm::Type::getInt64Ty(Context);
-			break;
-		case llvm::Type::StructTyID:
-			if (ft->type_attr & A_rtlen) {
-				key_type = llvm::Type::getInt64Ty(Context);
-				break;
+	SourceLocation LenLoc = {0};
+	std::vector<std::unique_ptr<ExprAST>> Dims = {};
+	std::vector<std::unique_ptr<ExprAST>> Elems = {};
+	ft = ParseType(false, eBinOp, nullptr, &Dims);
+	getNextToken();
+	if (ft) {
+		if (!Expect('{'))
+			return nullptr;
+		if (CurTok.kind != '}') {
+			if (auto Elem = ParseExpression()) {
+				Elems = SplitExprList(std::move(Elem));
+			} else {
+				errs() << CurLoc << ": Expression expected\n";
+				return nullptr;
 			}
-		default:
-			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
-			return nullptr;
 		}
+		if (!Expect('}', eBinOp))
+			return nullptr;
 	} else {
-		getNextToken(); // eat '{'/'['
-	}
-	if (CurTok.kind == '}') {
-		if (!explicit_type) {
-			errs() << CurLoc << ": empty initialization requires explicit type\n";
-			return nullptr;
-		}
+		// ParseType() has detected a siple array literal and saved the list elements in Dims
+		Elems = std::move(Dims);
+		Dims.clear();
 		getNextToken(eBinOp);
-		switch (kind) {
-		case '[':
-			return std::make_unique<FixedArrayExprAST>(loc, std::vector<std::unique_ptr<ExprAST>>{});
-		case '{':
-		case tok_map:
-		case tok_set:
-		case tok_chan:
-		case tok_identifier: // struct literal
-		default:
-			abort();
-		}
 	}
-	std::vector<std::unique_ptr<ExprAST>> Len = {}; // if size can only be determined at run time
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
-	SourceLocation LenLoc;
-	if (auto Elem = ParseExpression()) {
-		if (!explicit_type && !is_index && Lexer::is_type_start(lex.peek_strict())) { // [3][4]f64{...} -> this was not the array, yet
-			// This code is very similar to corresponding part in ParseType
-			Expect(closing, eType);
-			Len = std::move(Elem);;
-			auto elem_type = ParseType();
-			explicit_type = true;
-			getNextToken();
-			if (!Expect('{'))
-				return nullptr;
-			closing = '}';
-			if (CurTok.kind == '}') {
-				if (!ft) {
-					llvm::Type* array0_type = llvm::ArrayType::get(elem_type->type, 0);
-					llvm::Type* array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
-					ft = new_FullType(array_type, A_rtlen, nullptr, elem_type);
-				}
-				getNextToken(eBinOp);
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len), LenLoc);
-			}
-			Elem = ParseExpression();
-			if (!Elem)
-				return nullptr;
-		}
-		Expect(closing, eBinOp);
-		auto Elems = SplitExprList(std::move(Elem));
-		std::vector<std::unique_ptr<ExprAST>> Elements = {};
-		uint64_t idx = 0;
-		for (auto& elem: Elems) {
-			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
-				if (bin_expr->Op[0] == ':') { // struct or map
-					if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
-						if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
-							if (ident->Name == "len") {
-								if (kind != '[' && kind != '{') { // no array
-									aggr_prop_err(ident->Loc, "len", kind);
-									return nullptr;
-								}
-								if (dim >= 0 || Len) {
-									aggr_prop_redefinition(ident->Loc, "len");
-									return nullptr;
-								}
-								if (bin_expr->RHS->is_compile_time_const) {
-									LenLoc = bin_expr->RHS->Loc;
-									auto Vdim = bin_expr->RHS->codegen();
-									if (!Vdim) {
-										errs() << bin_expr->RHS->Loc << ": cannot generate code for property\n";
-										return nullptr;
-									}
-									auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
-									dim = Dim->getSExtValue();
-								} else {
-									Len = std::move(bin_expr->RHS);
-								}
-							} else if(ident->Name == "cap") {
-								if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
-									aggr_prop_err(ident->Loc, "cap", kind);
-									return nullptr;
-								}
-								if (Cap) {
-									aggr_prop_redefinition(ident->Loc, "cap");
-									return nullptr;
-								}
-								Cap = std::move(bin_expr->RHS);
-							} else if(ident->Name == "ini") {
-								if (kind != '[' && kind != '{') { // no array
-									aggr_prop_err(ident->Loc, "ini", kind);
-									return nullptr;
-								}
-								if (Init) {
-									aggr_prop_redefinition(ident->Loc, "ini");
-									return nullptr;
-								}
-								Init = std::move(bin_expr->RHS);
-							} else {
-								aggr_prop_err(ident->Loc, ident->Name.c_str(), kind);
+	std::vector<std::unique_ptr<ExprAST>> Elements = {};
+	uint64_t idx = 0;
+	for (auto& elem: Elems) {
+		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
+			if (bin_expr->Op[0] == ':') { // struct or map or explicit index
+				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
+					if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
+						if (ident->Name == "len") {
+							if (kind != '[' && kind != '{') { // no array
+								aggr_prop_err(ident->Loc, "len", kind);
 								return nullptr;
 							}
-						} else {
-							; // handle struct element initializer
-						}
-					} else {
-						// LHS of a:b is a general expression - we require it to be a compile time const
-						if (llvm::Value* Key = bin_expr->LHS->codegen()) {
-							unsigned keyTID = Key->getType()->getTypeID();
-							if (auto key = llvm::dyn_cast<llvm::ConstantInt>(Key)) {
-								switch (kind) {
-								case '[':
-								case '{':
-									idx = key->getZExtValue();
-									if (idx < Elements.size()) {
-										if (Elements[idx]) {
-											errs() << elem->Loc << ": value for index " << idx << " already defined\n";
-											return nullptr;
-										}
-										Elements[idx++] = std::move(bin_expr->RHS);
-									} else {
-										while (Elements.size() < idx)
-											Elements.push_back(nullptr);
-										Elements.push_back(std::move(bin_expr->RHS));
-										idx++;
-									}
-									break;
-								default:
-									errs() << aggr_kind_str(kind) << " not implemented, yet\n";
-									return nullptr;
-								}
-							} else if (auto key = llvm::dyn_cast<llvm::ConstantFP>(Key)) {
-								switch (keyTID) {
-								case llvm::Type::FloatTyID:
-									break;
-								case llvm::Type::DoubleTyID:
-									break;
-								default:
-									;
-								}
-							} else if (auto key = llvm::dyn_cast<llvm::Constant>(Key)) {
-								switch (keyTID) {
-								case llvm::Type::PointerTyID:
-									break;
-								default:
-									errs() << bin_expr->LHS->Loc << ": unsupported type " << *bin_expr->LHS->ft->type << " for aggregate key\n";
-									return nullptr;
-								}
-							} else {
-								errs() << bin_expr->LHS->Loc << ": key in aggregate literals must be a compile time const\n";
+							if (Dims.size()) { // disallow for now - TODO: handle multi dimensional arrays
+								aggr_prop_redefinition(ident->Loc, "len");
 								return nullptr;
 							}
+							LenLoc = bin_expr->RHS->Loc;
+							Dims.push_back(std::move(bin_expr->RHS));
+						} else if(ident->Name == "cap") {
+							if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
+								aggr_prop_err(ident->Loc, "cap", kind);
+								return nullptr;
+							}
+							if (Cap) {
+								aggr_prop_redefinition(ident->Loc, "cap");
+								return nullptr;
+							}
+							Cap = std::move(bin_expr->RHS);
+						} else if(ident->Name == "ini") {
+							if (kind != '[' && kind != '{') { // no array
+								aggr_prop_err(ident->Loc, "ini", kind);
+								return nullptr;
+							}
+							if (Init) {
+								aggr_prop_redefinition(ident->Loc, "ini");
+								return nullptr;
+							}
+							Init = std::move(bin_expr->RHS);
 						} else {
-							errs() << bin_expr->LHS->Loc << ": cannot generate code for key\n";
+							aggr_prop_err(ident->Loc, ident->Name.c_str(), kind);
 							return nullptr;
 						}
+					} else {
+						; // handle struct element initializer
 					}
-				} else
-					goto element_without_key;
-				continue;
-			}
-			// simple element without key
-		element_without_key:
-			switch (kind) {
-			case '[':
-			case '{':
-				if (idx < Elements.size()) {
-					if (Elements[idx]) {
-						errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+				} else {
+					// LHS of a:b is a general expression - we require it to be a compile time const
+					if (llvm::Value* Key = bin_expr->LHS->codegen()) {
+						unsigned keyTID = Key->getType()->getTypeID();
+						if (auto key = llvm::dyn_cast<llvm::ConstantInt>(Key)) {
+							switch (kind) {
+							case '[':
+							case '{':
+								idx = key->getZExtValue();
+								if (idx < Elements.size()) {
+									if (Elements[idx]) {
+										errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+										return nullptr;
+									}
+									Elements[idx++] = std::move(bin_expr->RHS);
+								} else {
+									while (Elements.size() < idx)
+										Elements.push_back(nullptr);
+									Elements.push_back(std::move(bin_expr->RHS));
+									idx++;
+								}
+								break;
+							default:
+								errs() << aggr_kind_str(kind) << " not implemented, yet\n";
+								return nullptr;
+							}
+						} else if (auto key = llvm::dyn_cast<llvm::ConstantFP>(Key)) {
+							switch (keyTID) {
+							case llvm::Type::FloatTyID:
+								break;
+							case llvm::Type::DoubleTyID:
+								break;
+							default:
+								;
+							}
+						} else if (auto key = llvm::dyn_cast<llvm::Constant>(Key)) {
+							switch (keyTID) {
+							case llvm::Type::PointerTyID:
+								break;
+							default:
+								errs() << bin_expr->LHS->Loc << ": unsupported type " << *bin_expr->LHS->ft->type << " for aggregate key\n";
+								return nullptr;
+							}
+						} else {
+							errs() << bin_expr->LHS->Loc << ": key in aggregate literals must be a compile time const\n";
+							return nullptr;
+						}
+					} else {
+						errs() << bin_expr->LHS->Loc << ": cannot generate code for key\n";
 						return nullptr;
 					}
-					Elements[idx++] = std::move(elem);
-				} else {
-					while (Elements.size() < idx)
-						Elements.push_back(nullptr);
-					Elements.push_back(std::move(elem));
-					idx++;
 				}
-				break;
-			default:
-				errs() << Elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
-				return nullptr;
-			}
+			} else
+				goto element_without_key;
+			continue;
 		}
-		if (ft) {
-			if (dim >= 0) {
-				if (ft->type->isArrayTy()) {
-					return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements));
-				} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
-					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft->elem_type, dim);
-				} else {
-					errs() << "internal compiler error\n";
-					abort();
-				}
-			} else {
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len), LenLoc);
-			}
-		} else {
-			if (dim >= 0) {
-				if ((int64_t)Elements.size() > dim) {
-					errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim << '\n';
+		// simple element without key
+	element_without_key:
+		switch (kind) {
+		case '[':
+		case '{':
+			if (idx < Elements.size()) {
+				if (Elements[idx]) {
+					errs() << elem->Loc << ": value for index " << idx << " already defined\n";
 					return nullptr;
-				} else {
-					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
 				}
+				Elements[idx++] = std::move(elem);
 			} else {
-				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len), LenLoc);
+				while (Elements.size() < idx)
+					Elements.push_back(nullptr);
+				Elements.push_back(std::move(elem));
+				idx++;
 			}
+			break;
+		default:
+			errs() << elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
+			return nullptr;
 		}
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
-	} else {
-		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
-		return nullptr;
 	}
+	if (ft) {
+		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Dims), LenLoc);
+	} else {
+		if (Dims.size() && Dims[0]) {
+			return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr);
+		} else {
+			return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, std::move(Dims), LenLoc);
+		}
+	}
+	return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr);
 }
 
 static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList();
