@@ -67,6 +67,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
                              const char* tname,
                              std::vector<std::unique_ptr<ExprAST>>* exprs) {
 	unsigned attribs = 0;
+	std::vector<uint64_t> dims = {};
 	while (CurTok.kind != tok_identifier) {
 		if (allow_attribute) {
 			switch (CurTok.kind) {
@@ -97,51 +98,60 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		switch (CurTok.kind) {
 		case '[': {
 			dbgs() << "parsing indexed type\n";
-			getNextToken();
-			int64_t dim = -1;
-			if (CurTok.kind == ']') {
-				getNextToken(eType);
-			} else {
-				if (auto e = ParseExpression()) {
-					if (exprs) {
-						if (!exprs.size() && !Lexer::is_type_start(lex.peek_strict())) {
-							if (!Expect(']', expect)) {
+			do {
+				getNextToken();
+				if (CurTok.kind == ']') {
+					getNextToken(eType);
+					if (elems)
+						elems->push_back(nullptr);
+					else
+						dims.push_back(0);
+				} else {
+					if (auto e = ParseExpression()) {
+						if (exprs) {
+							if (!exprs->size() && !Lexer::is_type_start(lex.peek_strict())) {
+								if (!Expect(']', expect)) {
+									return nullptr;
+								}
+								// this is a vector - just return elements
+								exprs = SplitExprList(std::move(e));
 								return nullptr;
-							}
-							// this is a vector - just return elements
-							exprs = SplitExprList(std::move(e));
-							return nullptr;
-						} else {
-							if (!Expect(']', eType)) {
-								return nullptr;
-							}
-							exprs.push_back(std::move(e));
-						}
-					} else {
-						auto Vdim = e->codegen();
-						if (!Vdim) {
-							errs() << "cannot generate code for index\n";
-							return nullptr;
-						}
-						if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
-							dim = Dim->getSExtValue();
-							if (dim <= 0) {
-								errs() << "dimension must be a positive int (not " << dim << "\n";
-								return nullptr;
+							} else {
+								if (!Expect(']', eType)) {
+									return nullptr;
+								}
+								exprs->push_back(std::move(e));
 							}
 						} else {
-							errs() << "dimension must be constant int\n";
-							return nullptr;
+							auto Vdim = e->codegen();
+							if (!Vdim) {
+								errs() << "cannot generate code for index\n";
+								return nullptr;
+							}
+							if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
+								dim = Dim->getSExtValue();
+								if (dim <= 0) {
+									errs() << "dimension must be a positive int (not " << dim << "\n";
+									return nullptr;
+								}
+							} else {
+								errs() << "dimension must be constant int\n";
+								return nullptr;
+							}
 						}
 					} else {
 						errs() << "cannot parse dimension expression\n";
 						return nullptr;
 					}
 				}
-			} 
+			} while (CurTok.kind == '[');
 			auto elem_type = ParseType();
-			if (!elem_type)
+			if (!elem_type) {
+				errs() << CurLoc << ": type expected\n";
+				if (elems)
+					*elems = std::vector<std::unique_ptr<ExprAST>>{};
 				return nullptr;
+			}
 			llvm::Type* array_type;
 			if (dim >= 0) {
 				array_type = llvm::ArrayType::get(elem_type->type, dim);
