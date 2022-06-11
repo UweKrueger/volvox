@@ -129,10 +129,12 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		} else {
 			ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
 		}
+		i++;
 	}
 	llvm::Value* varini = llvm::UndefValue::get(struct_type);
 	varini = Builder->CreateInsertValue(varini, dim_val, 0, "arrlen");
 	varini = Builder->CreateInsertValue(varini, ini, 1, "arrbeg");
+	errs() << "ini: " << *varini << '\n';
 	return varini;
 }
 
@@ -173,30 +175,28 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 }
 
 static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
+	errs() << "Store...\n";
 	llvm::Value* ArrayLen = nullptr;
 	llvm::Value* ArrData = nullptr;
 	llvm::ArrayType* array_type = nullptr;
-	if (ft->type_attr & A_rtlen) { // fixed size array, len determined at run time, stored on stack
-		ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
-		ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
-		array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
-	} else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
-		ArrayLen = Builder->getInt64(array_type->getNumElements());
-		ArrData = val;
+	if (auto nominal_array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
+		if (llvm::dyn_cast<llvm::StructType>(val->getType())) {
+			ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
+			ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
+			array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
+		}
 	}
 	if (ArrData) {
-		if (!array_type) {
-			errs() << "fatal: array literal is not of array type\n";
-			abort();
-		}
 		llvm::Type* elem_type = array_type->getElementType();
 		unsigned nelem = array_type->getNumElements();
 		llvm::Value* ArrayAlloc;
+		errs() << "ArrayLen: " << *ArrayLen << '\n';
 		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(ArrayLen)) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
 			auto full_array_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
+			errs() << "Fixed store " << *full_array_type << '\n';
 			ArrayAlloc = Builder->CreateBitCast(TmpB.CreateAlloca(full_array_type), llvm::Type::getInt8PtrTy(Context));
 		} else {
 			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
@@ -216,6 +216,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
 		ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
 		ret = Builder->CreateInsertValue(ret, ArrayAlloc, 1, "arrayalloc");
+		errs() << "returning " << *ret << '\n';
 		return ret;
 	} else {
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
