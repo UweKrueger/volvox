@@ -272,13 +272,18 @@ public:
 				errs() << "undefined element type\n";
 				ft = nullptr;
 			}
+			if (!ft->type)
+				ft->type = llvm::ArrayType::get(ft->elem_type->type, 0);
+			errs() << "constructor2 " << *ft->type << '\n';
 		}
 	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                  std::vector<std::unique_ptr<ExprAST>> _Lens = {}, SourceLocation LenLoc = {0}) :
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)),
 		Lens(std::move(_Lens)), LenLoc(LenLoc)
-		{}
+		{
+			errs() << "constructor " << ft << '\n';
+		}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

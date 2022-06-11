@@ -72,7 +72,7 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
 	return Args;
 }
 
-/* prarse a type - this function may be called by ParseAggregateExpr()
+/* parse a type - this function may be called by ParseAggregateExpr()
    for the initial part of "type{...}" literals
    it "type" starts with '[' there is an ambiguity
    - "[n] x" - vector expression with 1 element "n" multiplied with "x"
@@ -137,6 +137,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 								}
 								// this is a vector - just return elements
 								*exprs = SplitExprList(std::move(e));
+								errs() << "type: simple array " << exprs->size() << '\n';
 								return nullptr;
 							} else {
 								if (!Expect(']', eType)) {
@@ -402,7 +403,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
 	ft = ParseType(false, eBinOp, nullptr, &Dims);
-	getNextToken();
 	if (ft) {
 		if (!Expect('{'))
 			return nullptr;
@@ -417,10 +417,10 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		if (!Expect('}', eBinOp))
 			return nullptr;
 	} else {
-		// ParseType() has detected a siple array literal and saved the list elements in Dims
+		// ParseType() has detected a simple array literal and saved the list elements in Dims
 		Elems = std::move(Dims);
 		Dims.clear();
-		getNextToken(eBinOp);
+		errs() << "got " << Elems.size() << " elements\n";
 	}
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
@@ -552,9 +552,10 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Dims), LenLoc);
 	} else {
 		if (Dims.size() && Dims[0]) {
-			return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr);
-		} else {
 			return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, std::move(Dims), LenLoc);
+		} else {
+			errs() << "simple array " << Elements.size() << "\n";
+			return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr);
 		}
 	}
 	return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr);

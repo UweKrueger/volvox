@@ -110,43 +110,30 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	dbgs() << "Array Type: " << *ft->type << '\n';
 	llvm::Value* LenVal = nullptr;
 	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
-	llvm::StructType* struct_type;
-	if (!array_type)
-		if ((struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)))
-			if (struct_type->getNumElements() == 2 && struct_type->getElementType(0)->isIntegerTy()) {
-				array_type = llvm::dyn_cast<llvm::ArrayType>(struct_type->getElementType(1));
-				LenVal = Builder->CreateIntCast(Lens[0]->codegen(), llvm::Type::getInt64Ty(Context), false);
-				if (!LenVal) {
-					errs() << Lens[0]->Loc << ": cannot generate code for array length\n";
-					return nullptr;
-				}
-			}
 	if (!array_type) {
 		errs() << "Internal compiler error\n";
 		abort();
 	} 
-	uint64_t len = array_type->getNumElements();
-	std::vector<llvm::Constant*> Initializers;
+	llvm::Value* dim_val = nullptr;
+	if (Lens.size() && Lens[0])
+		dim_val = Builder->CreateIntCast(Lens[0]->codegen(), llvm::Type::getInt64Ty(Context), false);
+	else
+		dim_val = Builder->getInt64(Elements.size());
+	auto array_lit_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
+	auto struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array_lit_type);
+	llvm::Value* ini = llvm::UndefValue::get(array_lit_type);
 	uint64_t i = 0;
-	llvm::Value* ini = llvm::UndefValue::get(array_type);
 	for (auto& e: Elements) {
 		if (e) {
 			ini = Builder->CreateInsertValue(ini, Elem_convs[i](e->codegen_raw()), i, "arrlit");
 		} else {
 			ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
 		}
-		i++;
 	}
-	for(; i < len;  i++)
-		ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
-	if (!LenVal) {
-		return ini;
-	} else {
-		llvm::Value* varini = llvm::UndefValue::get(struct_type);
-		varini = Builder->CreateInsertValue(varini, Builder->CreateIntCast(LenVal, llvm::Type::getInt64Ty(Context), false), 0, "arrlen");
-		varini = Builder->CreateInsertValue(varini, ini, 1, "arrbeg");
-		return varini;
-	}
+	llvm::Value* varini = llvm::UndefValue::get(struct_type);
+	varini = Builder->CreateInsertValue(varini, dim_val, 0, "arrlen");
+	varini = Builder->CreateInsertValue(varini, ini, 1, "arrbeg");
+	return varini;
 }
 
 llvm::Value* LvalueExprAST::codegen_raw() {
