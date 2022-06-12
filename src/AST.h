@@ -257,32 +257,41 @@ public:
 
 class FixedArrayExprAST : public AggregateExprAST {
 public:
-	std::vector<std::unique_ptr<ExprAST>> Lens; // known at run time
+	std::unique_ptr<ExprAST> Len; // known at run time
 	SourceLocation LenLoc;
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  volvoxc::FullType* el_type = nullptr,
-	                  std::vector<std::unique_ptr<ExprAST>> _Lens = {}, SourceLocation LenLoc = {0}) :
+	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1,
+	                  std::unique_ptr<ExprAST> _Len = nullptr, SourceLocation LenLoc = {0}) :
 		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type),
-		Lens(std::move(_Lens)), LenLoc(LenLoc)
+		Len(std::move(_Len)), LenLoc(LenLoc)
 		{
 			// the AggregateExprAST constructor should have determined the element type if not
 			// given - we check this:
-			if (!ft || !ft->elem_type) {
+			if (ft && ft->elem_type) {
+				if (Len) {
+					is_compile_time_const = false;
+					llvm::Type* array0_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
+					ft->type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
+					ft->type_attr = A_rtlen;
+				} else {
+					ft->type = llvm::ArrayType::get(
+						ft->elem_type->type,
+						len < 0 ? Elements.size() : len);
+				}
+			} else {
 				errs() << "undefined element type\n";
 				ft = nullptr;
 			}
-			if (!ft->type)
-				ft->type = llvm::ArrayType::get(ft->elem_type->type, 0);
-			errs() << "constructor2 " << *ft->type << '\n';
 		}
 	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  std::vector<std::unique_ptr<ExprAST>> _Lens = {}, SourceLocation LenLoc = {0}) :
+	                  std::unique_ptr<ExprAST> _Len = nullptr, SourceLocation LenLoc = {0}) :
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)),
-		Lens(std::move(_Lens)), LenLoc(LenLoc)
+		Len(std::move(_Len)), LenLoc(LenLoc)
 		{
-			errs() << "constructor " << ft << '\n';
+			if (Len)
+				is_compile_time_const = false;
 		}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG

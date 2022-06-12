@@ -110,19 +110,25 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	dbgs() << "Array Type: " << *ft->type << '\n';
 	llvm::Value* LenVal = nullptr;
 	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
+	llvm::StructType* struct_type;
+	if (!array_type)
+		if ((struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)))
+			if (struct_type->getNumElements() == 2 && struct_type->getElementType(0)->isIntegerTy()) {
+				array_type = llvm::dyn_cast<llvm::ArrayType>(struct_type->getElementType(1));
+				LenVal = Builder->CreateIntCast(Len->codegen(), llvm::Type::getInt64Ty(Context), false);
+				if (!LenVal) {
+					errs() << Len->Loc << ": cannot generate code for array length\n";
+					return nullptr;
+				}
+			}
 	if (!array_type) {
 		errs() << "Internal compiler error\n";
 		abort();
 	} 
-	llvm::Value* dim_val = nullptr;
-	if (Lens.size() && Lens[0])
-		dim_val = Builder->CreateIntCast(Lens[0]->codegen(), llvm::Type::getInt64Ty(Context), false);
-	else
-		dim_val = Builder->getInt64(Elements.size());
-	auto array_lit_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
-	auto struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array_lit_type);
-	llvm::Value* ini = llvm::UndefValue::get(array_lit_type);
+	uint64_t len = array_type->getNumElements();
+	std::vector<llvm::Constant*> Initializers;
 	uint64_t i = 0;
+	llvm::Value* ini = llvm::UndefValue::get(array_type);
 	for (auto& e: Elements) {
 		if (e) {
 			ini = Builder->CreateInsertValue(ini, Elem_convs[i](e->codegen_raw()), i, "arrlit");
@@ -131,11 +137,16 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		}
 		i++;
 	}
-	llvm::Value* varini = llvm::UndefValue::get(struct_type);
-	varini = Builder->CreateInsertValue(varini, dim_val, 0, "arrlen");
-	varini = Builder->CreateInsertValue(varini, ini, 1, "arrbeg");
-	errs() << "ini: " << *varini << '\n';
-	return varini;
+	for(; i < len;  i++)
+		ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
+	if (!LenVal) {
+		return ini;
+	} else {
+		llvm::Value* varini = llvm::UndefValue::get(struct_type);
+		varini = Builder->CreateInsertValue(varini, Builder->CreateIntCast(LenVal, llvm::Type::getInt64Ty(Context), false), 0, "arrlen");
+		varini = Builder->CreateInsertValue(varini, ini, 1, "arrbeg");
+		return varini;
+	}
 }
 
 llvm::Value* LvalueExprAST::codegen_raw() {
@@ -147,7 +158,7 @@ llvm::Value* LvalueExprAST::codegen_raw() {
 
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
 	if (!full_var.first) {
-		errs() << Loc << ": unknown variable \"" << Name << "\"\n";
+		errs() << "Unknown variable name " << Name << "\n";
 		return { nullptr, nullptr };
 	}
 	llvm::Value* V;
@@ -175,33 +186,30 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 }
 
 static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
-	errs() << "Store... " << *val << '\n' << *ft->type << "\n";
 	llvm::Value* ArrayLen = nullptr;
 	llvm::Value* ArrData = nullptr;
 	llvm::ArrayType* array_type = nullptr;
-	if (auto nominal_array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
-		if (auto struct_typ = llvm::dyn_cast<llvm::StructType>(val->getType())) {
-			ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
-			ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
-			array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
-		} else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
-			uint64_t dim = array_type->getNumElements();
-			errs() << "have " << dim << " elements\n";
-			ArrData = val;
-			ArrayLen = Builder->getInt64(dim);
-		}
+	if (ft->type_attr & A_rtlen) { // fixed size array, len determined at run time, stored on stack
+		ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
+		ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
+		array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
+	} else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
+		ArrayLen = Builder->getInt64(array_type->getNumElements());
+		ArrData = val;
 	}
 	if (ArrData) {
+		if (!array_type) {
+			errs() << "fatal: array literal is not of array type\n";
+			abort();
+		}
 		llvm::Type* elem_type = array_type->getElementType();
 		unsigned nelem = array_type->getNumElements();
 		llvm::Value* ArrayAlloc;
-		errs() << "ArrayLen: " << *ArrayLen << '\n';
 		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(ArrayLen)) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
 			auto full_array_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
-			errs() << "Fixed store " << *full_array_type << '\n';
 			ArrayAlloc = Builder->CreateBitCast(TmpB.CreateAlloca(full_array_type), llvm::Type::getInt8PtrTy(Context));
 		} else {
 			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
@@ -221,7 +229,6 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
 		ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
 		ret = Builder->CreateInsertValue(ret, ArrayAlloc, 1, "arrayalloc");
-		errs() << "returning " << *ret << '\n';
 		return ret;
 	} else {
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
@@ -474,19 +481,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				DBuilder->createGlobalVariableExpression(
 					SP, varname, varname, Unit, expr->Loc.Line, type_table.get_diType(type, is_signed), false);
 			}
-			if (expr->RHS->ft->type->isArrayTy()) {
-				uint64_t dim = llvm::cast<llvm::ConstantInt>(Builder->CreateExtractValue(initializer, 0))->getZExtValue();
-				auto array_init = llvm::cast<llvm::Constant>(Builder->CreateExtractValue(initializer, 1));
-				auto array_init_type = array_init->getType();
-				type = array_init_type;
-				auto array_init_array_type = llvm::cast<llvm::ArrayType>(array_init_type);
-				if (dim == array_init_array_type->getNumElements()) {
-					initializer = array_init;
-				} else {
-					errs() << "not implemented, yet\n";
-				}
-			}
-			errs() << "initializing global variable: " << *initializer << '\n';
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
 			                              initializer, varname, nullptr,
@@ -726,18 +720,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		} else {
 			auto Variable = LHSE->codegen_ref();
 			auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
-			errs() << "storing " << *Val << "\nvar: " << *Variable.second << "\ntype: " << *LHSE->ft->type << '\n';
-			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(LHSE->ft->type)) {
-				uint64_t nelem = array_type->getNumElements();
-				if (nelem) { // global variable
-					if (llvm::dyn_cast<llvm::StructType>(Val->getType())) {
-						auto realArrayVal = Builder->CreateExtractValue(Val, 1);
-						// TODO: insert run time check if array size fits
-						Builder->CreateStore(realArrayVal, Variable.second);
-						return OldVal;
-					}
-				}
-			}
 			Builder->CreateStore(Val, Variable.second);
 			return OldVal;
 		}
