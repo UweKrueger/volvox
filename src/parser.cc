@@ -132,17 +132,14 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 					if (auto e = ParseExpression()) {
 						if (exprs) {
 							if (!exprs->size() && !Lexer::is_type_start(lex.peek_strict())) {
-								if (!Expect(']', expect)) {
-									return nullptr;
-								}
 								// this is a vector - just return elements
 								*exprs = SplitExprList(std::move(e));
 								errs() << "type: simple array " << exprs->size() << '\n';
-								return nullptr;
-							} else {
-								if (!Expect(']', eType)) {
+								if (!Expect(']', expect)) {
 									return nullptr;
 								}
+								return nullptr;
+							} else {
 								exprs->push_back(std::move(e));
 							}
 						} else {
@@ -166,6 +163,9 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 								errs() << "dimension must be constant int\n";
 								return nullptr;
 							}
+						}
+						if (!Expect(']', expect)) {
+							return nullptr;
 						}
 					} else {
 						errs() << "cannot parse dimension expression\n";

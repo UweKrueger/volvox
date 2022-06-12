@@ -180,7 +180,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 	llvm::Value* ArrData = nullptr;
 	llvm::ArrayType* array_type = nullptr;
 	if (auto nominal_array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
-		if (llvm::dyn_cast<llvm::StructType>(val->getType())) {
+		if (auto struct_typ = llvm::dyn_cast<llvm::StructType>(val->getType())) {
 			ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
 			ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
 			array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
@@ -721,6 +721,18 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		} else {
 			auto Variable = LHSE->codegen_ref();
 			auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
+			errs() << "storing " << *Val << "\nvar: " << *Variable.second << "\ntype: " << *LHSE->ft->type << '\n';
+			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(LHSE->ft->type)) {
+				uint64_t nelem = array_type->getNumElements();
+				if (nelem) { // global variable
+					if (llvm::dyn_cast<llvm::StructType>(Val->getType())) {
+						auto realArrayVal = Builder->CreateExtractValue(Val, 1);
+						// TODO: insert run time check if array size fits
+						Builder->CreateStore(realArrayVal, Variable.second);
+						return OldVal;
+					}
+				}
+			}
 			Builder->CreateStore(Val, Variable.second);
 			return OldVal;
 		}
