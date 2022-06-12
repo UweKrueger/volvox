@@ -49,8 +49,48 @@ static void Eat(int tok, eXpect expect = eNone) {
 	}
 }
 
-volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tname) {
+static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprAST> Arg) {
+	std::vector<std::unique_ptr<ExprAST>> Args;
+	// If we have an EmptyExprAST just return the empty list
+	if (auto empty_expr = dynamic_cast<EmptyExprAST*>(Arg.get())) {
+		return Args;
+	}
+	// The arguments are parsed as a tree of binary expressions (Op=',') where
+	// all objects are in the leaves.
+	// Due to operator precedence rules the tree is stricly left-heavy ## this is wrong ## and can be
+	// processed right to left without the need for recursions. We just have to iterate
+	// through the binary nodes and front-push each right leave (RHS) to the Args list.
+	while (auto bin_expr = dynamic_cast<BinaryExprAST*>(Arg.get())) {
+		if (bin_expr->Op[0] == ',') {
+			Args.insert(Args.begin(), std::move(bin_expr->RHS));
+			Arg = std::move(bin_expr->LHS);
+		} else {
+			break;
+		}
+	}
+	Args.insert(Args.begin(), std::move(Arg));
+	return Args;
+}
+
+/* parse a type - this function may be called by ParseAggregateExpr()
+   for the initial part of "type{...}" literals
+   it "type" starts with '[' there is an ambiguity
+   - "[n] x" - vector expression with 1 element "n" multiplied with "x"
+     in general this could be "[n, m, ...] x"
+   - "[n]x" - array type for "n" elements of type "x"
+     this could in general be "[n][m]x"
+
+   in both cases n, m, ... are returned in 'exprs' but - in the first
+   case ParseType() returns nullptr
+
+   when no literal is parsed ParseType with exprs = nullptr and only
+   the second case is considered
+ */
+volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
+                             const char* tname,
+                             std::vector<std::unique_ptr<ExprAST>>* exprs) {
 	unsigned attribs = 0;
+	std::vector<uint64_t> lens = {};
 	while (CurTok.kind != tok_identifier) {
 		if (allow_attribute) {
 			switch (CurTok.kind) {
@@ -80,48 +120,74 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, const char* tn
 			getNextToken();
 		switch (CurTok.kind) {
 		case '[': {
-			dbgs() << "parsing indexed type\n";
-			getNextToken();
-			int64_t dim = -1;
-			if (CurTok.kind == ']') {
-				getNextToken(eType);
-			} else {
-				if (auto e = ParseExpression()) {
-					auto Vdim = e->codegen();
-					if (!Vdim) {
-						errs() << "cannot generate code for index\n";
-						return nullptr;
-					}
-					if (auto Dim = llvm::dyn_cast<llvm::ConstantInt>(Vdim)) {
-						dim = Dim->getSExtValue();
-						if (dim < 0) {
-							errs() << "dimension must be a positive int (not " << dim << "\n";
+			do {
+				getNextToken();
+				if (CurTok.kind == ']') {
+					getNextToken(eType);
+					if (exprs)
+						exprs->push_back(nullptr);
+					else
+						lens.push_back(0);
+				} else {
+					if (auto e = ParseExpression()) {
+						if (exprs) {
+							if (!exprs->size() && !Lexer::is_type_start(lex.peek_strict())) {
+								// this is a vector - just return elements
+								*exprs = SplitExprList(std::move(e));
+								errs() << "type: simple array " << exprs->size() << '\n';
+								if (!Expect(']', expect)) {
+									return nullptr;
+								}
+								return nullptr;
+							} else {
+								exprs->push_back(std::move(e));
+							}
+						} else {
+							// we are parsing a pure type - like "[5][][7]f64"
+							// in this case the dimensions ("5", "7") must be compile time consts
+							// and we can calculate ther values now
+							auto VLen = e->codegen();
+							if (!VLen) {
+								errs() << "cannot generate code for index\n";
+								return nullptr;
+							}
+							if (auto Len = llvm::dyn_cast<llvm::ConstantInt>(VLen)) {
+								int64_t len = Len->getSExtValue();
+								if (len <= 0) {
+									errs() << "dimension must be a positive int (not " << len << "\n";
+									return nullptr;
+								} else {
+									lens.push_back((uint64_t)len);
+								}
+							} else {
+								errs() << "dimension must be constant int\n";
+								return nullptr;
+							}
+						}
+						if (!Expect(']', expect)) {
 							return nullptr;
 						}
 					} else {
-						errs() << "dimension must be constant int\n";
+						errs() << "cannot parse dimension expression\n";
 						return nullptr;
 					}
-				} else {
-					errs() << "cannot parse dimension expression\n";
-					return nullptr;
 				}
-				if (!Expect(']', eType)) {
-					return nullptr;
-				}
-			} 
+			} while (CurTok.kind == '[');
 			auto elem_type = ParseType();
-			if (!elem_type)
+			if (!elem_type) {
+				errs() << CurLoc << ": type expected\n";
+				if (exprs)
+					*exprs = std::vector<std::unique_ptr<ExprAST>>{};
 				return nullptr;
-			llvm::Type* array_type;
-			if (dim >= 0) {
-				array_type = llvm::ArrayType::get(elem_type->type, dim);
-			} else {
-				llvm::Type* arr = llvm::ArrayType::get(elem_type->type, 0);
-				array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), arr);
 			}
-			// errs() << "Array type: " << *array_type << ' '
-			//        << TheModule->getDataLayout().getTypeStoreSize(array_type) << '\n';
+			llvm::Type* array_type = elem_type->type;;
+			if (int i = lens.size())
+				do
+					array_type = llvm::ArrayType::get(array_type, lens[--i]);
+				while (i > 0);
+			else
+				for (int i = exprs->size(); i > 0; i--)
+					array_type = llvm::ArrayType::get(array_type, 0);
 			return new_FullType(array_type, A_rtlen, nullptr, elem_type);
 		}
 			break;
@@ -210,29 +276,6 @@ static std::unique_ptr<ExprAST> ParseParenExpr() {
 
 	Eat(')', eBinOp);
 	return V;
-}
-
-static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprAST> Arg) {
-	std::vector<std::unique_ptr<ExprAST>> Args;
-	// If we have an EmptyExprAST just return the empty list
-	if (auto empty_expr = dynamic_cast<EmptyExprAST*>(Arg.get())) {
-		return Args;
-	}
-	// The arguments are parsed as a tree of binary expressions (Op=',') where
-	// all objects are in the leaves.
-	// Due to operator precedence rules the tree is stricly left-heavy ## this is wrong ## and can be
-	// processed right to left without the need for recursions. We just have to iterate
-	// through the binary nodes and front-push each right leave (RHS) to the Args list.
-	while (auto bin_expr = dynamic_cast<BinaryExprAST*>(Arg.get())) {
-		if (bin_expr->Op[0] == ',') {
-			Args.insert(Args.begin(), std::move(bin_expr->RHS));
-			Arg = std::move(bin_expr->LHS);
-		} else {
-			break;
-		}
-	}
-	Args.insert(Args.begin(), std::move(Arg));
-	return Args;
 }
 
 /// identifierexpr
