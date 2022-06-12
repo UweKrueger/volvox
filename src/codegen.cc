@@ -469,6 +469,19 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				DBuilder->createGlobalVariableExpression(
 					SP, varname, varname, Unit, expr->Loc.Line, type_table.get_diType(type, is_signed), false);
 			}
+			if (expr->RHS->ft->type->isArrayTy()) {
+				uint64_t dim = llvm::cast<llvm::ConstantInt>(Builder->CreateExtractValue(initializer, 0))->getZExtValue();
+				auto array_init = llvm::cast<llvm::Constant>(Builder->CreateExtractValue(initializer, 1));
+				auto array_init_type = array_init->getType();
+				type = array_init_type;
+				auto array_init_array_type = llvm::cast<llvm::ArrayType>(array_init_type);
+				if (dim == array_init_array_type->getNumElements()) {
+					initializer = array_init;
+				} else {
+					errs() << "not implemented, yet\n";
+				}
+			}
+			errs() << "initializing global variable: " << *initializer << '\n';
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
 			                              initializer, varname, nullptr,
