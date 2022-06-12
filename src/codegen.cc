@@ -147,7 +147,7 @@ llvm::Value* LvalueExprAST::codegen_raw() {
 
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
 	if (!full_var.first) {
-		errs() << "Unknown variable name " << Name << "\n";
+		errs() << Loc << ": unknown variable \"" << Name << "\"\n";
 		return { nullptr, nullptr };
 	}
 	llvm::Value* V;
@@ -175,7 +175,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 }
 
 static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
-	errs() << "Store...\n";
+	errs() << "Store... " << *val << '\n' << *ft->type << "\n";
 	llvm::Value* ArrayLen = nullptr;
 	llvm::Value* ArrData = nullptr;
 	llvm::ArrayType* array_type = nullptr;
@@ -184,6 +184,11 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 			ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
 			ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
 			array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
+		} else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
+			uint64_t dim = array_type->getNumElements();
+			errs() << "have " << dim << " elements\n";
+			ArrData = val;
+			ArrayLen = Builder->getInt64(dim);
 		}
 	}
 	if (ArrData) {
