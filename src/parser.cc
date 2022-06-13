@@ -136,6 +136,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 								*exprs = SplitExprList(std::move(e));
 								errs() << "type: simple array " << exprs->size() << '\n';
 								if (!Expect(']', expect)) {
+									exprs->clear();
 									return nullptr;
 								}
 								return nullptr;
@@ -174,14 +175,14 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 					}
 				}
 			} while (CurTok.kind == '[');
-			auto elem_type = ParseType();
+			auto elem_type = ParseType(false, expect);
 			if (!elem_type) {
 				errs() << CurLoc << ": type expected\n";
 				if (exprs)
 					*exprs = std::vector<std::unique_ptr<ExprAST>>{};
 				return nullptr;
 			}
-			llvm::Type* array_type = elem_type->type;;
+			llvm::Type* array_type = elem_type->type;
 			if (int i = lens.size())
 				do
 					array_type = llvm::ArrayType::get(array_type, lens[--i]);
@@ -233,7 +234,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		}
 			break;
 		default:
-			errs() << "Unexpected '" << CurTok.str() << "' - type name expected\n";
+			errs() << "Unexpected '" << CurTok.kind << ' ' << IdentifierStr.c_str() << ' ' << CurTok.str() << "' - type name expected\n";
 			return nullptr;
 		}
 		getNextToken(expect);
@@ -372,10 +373,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
 	std::unique_ptr<ExprAST> Len = nullptr;
 	volvoxc::FullType* ft = ParseType(false, eBinOp, nullptr, &Dims);
-	if (ft)
-		errs() << "got type "<< *ft->type << '\n';
-	else
-		errs() << "got no type, yet\n";
 	SourceLocation loc = CurLoc;
 	int64_t dim = -1;                       // if size of array is known at compile time
 	std::unique_ptr<ExprAST> Init = nullptr;
