@@ -483,10 +483,9 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 		}
 			break;
 		case VOLVOX_ArrayTyID: {
-			if (true || ft->type_attr & A_rtlen)
+			rt_len = ft->num_fields;
+			if (!rt_len)
 				rt_len = va_arg(ap, long long); // run time determined array length
-			else
-				rt_len = -1;
 			// fprintf(stderr, "got rt len: %lld\n", rt_len);
 			char* elem_ptr = va_arg(ap, char*);
 			long long elem_size = ft->elem_type->type_size;

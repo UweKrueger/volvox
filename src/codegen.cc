@@ -190,11 +190,13 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 	llvm::Value* ArrData = nullptr;
 	llvm::ArrayType* array_type = nullptr;
 	if (ft->type_attr & A_rtlen) { // fixed size array, len determined at run time, stored on stack
+		errs() << "fixed" << '\n';
 		ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
 		ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
 		array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
 	} else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
 		ArrayLen = Builder->getInt64(array_type->getNumElements());
+		errs() << "fixed " << array_type->getNumElements() << '\n';
 		ArrData = val;
 	}
 	if (ArrData) {
@@ -205,14 +207,18 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 		llvm::Type* elem_type = array_type->getElementType();
 		unsigned nelem = array_type->getNumElements();
 		llvm::Value* ArrayAlloc;
+		llvm::Type* ret_struct_type = nullptr;
+		bool dim_is_ct; // if we know the array size at compile time
 		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(ArrayLen)) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
-			auto full_array_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
-			ArrayAlloc = Builder->CreateBitCast(TmpB.CreateAlloca(full_array_type), llvm::Type::getInt8PtrTy(Context));
+			ret_struct_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
+			ArrayAlloc = Builder->CreateBitCast(TmpB.CreateAlloca(ret_struct_type), llvm::Type::getInt8PtrTy(Context));
+			dim_is_ct = true;
 		} else {
 			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
+			dim_is_ct = false;
 		}
 		// TODO: Insert run time check that initialization values fit into allocation size
 		Builder->CreateStore(ArrData, ArrayAlloc);
@@ -225,11 +231,15 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 			Builder->CreateMul(
 				ElemSize, Builder->CreateSub(ArrayLen, Builder->getInt64(nelem))),
 			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
-		llvm::Type* ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
-		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
-		ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
-		ret = Builder->CreateInsertValue(ret, ArrayAlloc, 1, "arrayalloc");
-		return ret;
+		ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
+		if (ret_struct_type) {
+			return ArrayAlloc;
+		} else {
+			llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
+			ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
+			ret = Builder->CreateInsertValue(ret, ArrayAlloc, 1, "arrayalloc");
+			return ret;
+		}
 	} else {
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 		llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
