@@ -38,7 +38,7 @@ static bool Expect(int tok, eXpect expect = eNone) {
 	if (res) {
 		getNextToken(expect);
 	} else {
-		errs() << "unexpected '" << CurTok.str() << "' - expected '" << Token::tokName(tok) << "'\n";
+		errs() << CurLoc << ": unexpected '" << CurTok.str() << "' - expected '" << Token::tokName(tok) << "'\n";
 	}
 	return res;
 }
@@ -151,6 +151,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 								errs() << "cannot generate code for index\n";
 								return nullptr;
 							}
+							errs() << "Type dim: " << *VLen << '\n';
 							if (auto Len = llvm::dyn_cast<llvm::ConstantInt>(VLen)) {
 								int64_t len = Len->getSExtValue();
 								if (len <= 0) {
@@ -164,7 +165,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 								return nullptr;
 							}
 						}
-						if (!Expect(']', expect)) {
+						if (!Expect(']', eType)) {
 							return nullptr;
 						}
 					} else {
@@ -199,22 +200,21 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 			std::vector<llvm::Type*> LLVMFieldTypes;
 			for (;;) {
 				if (CurTok.kind != tok_identifier) {
-					errs () << "Unexpected '" << CurTok.str() << "' in struct declaration - field name expected\n";
+					errs () << CurLoc << ": unexpected '" << CurTok.str() << "' in struct declaration - field name expected\n";
 					return nullptr;
 				}
 				FieldNames.push_back(IdentifierStr);
 				getNextToken(eType);
-				auto type = ParseType(true);
+				auto type = ParseType(true, eComma);
 				if (!type) {
-					errs() << "Unexpected '" << CurTok.str() << "' in struct declaration - type name expected\n";
+					errs() << CurLoc << ": unexpected '" << CurTok.str() << "' in struct declaration - type name expected\n";
 					return nullptr;
 				}
 				FieldTypes.push_back(type);
 				LLVMFieldTypes.push_back(type->type);
-				getNextToken();
+				Eat(',');
 				if (CurTok.kind == '}')
 					break;
-				Eat(',', eBinOp);
 			}
 			getNextToken(eColon);
 			llvm::Type* struct_type = tname ?
@@ -243,6 +243,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		errs() << "Unknown type '" << IdentifierStr << "'\n";
 		return nullptr;
 	}
+	getNextToken(expect);
 	//if (type.type_attr)
 	//	attribs |= A_signed;
 	return type;
@@ -365,45 +366,26 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	bool is_index = kind == '[' && Lexer::is_expr_end(lex.PreviousChar);
 	char closing = '}'; // for dynamic aray, map, set
 	bool explicit_type = false;
-	volvoxc::FullType* ft = nullptr; // The type of this Aggregate
 	llvm::Type* key_type = nullptr;
 	bool key_is_signed = false;
-	switch (kind) {
-	case '[':
-		// fixed size array
-		closing = ']';
-		// fallthrough
-	case '{':
-		// dynamic size array
-		explicit_type = lex.peek() == closing; // {}i32{...}, []f64{...}
-		break;
-	case tok_map:
-	case tok_set: {
-		char next_char = lex.peek();
-		if (next_char == '[')
-			explicit_type = true; // e.g. map[string]f64
-		else {
-			getNextToken();
-			if (CurTok.kind != '{') {
-				errs() << CurLoc << ": unexpected char '" << CurTok.kind << "'\n";
-				return nullptr;
-			}
-		}
-	}
-		break;
-	case tok_chan:
-	case tok_identifier: // struct literal
-		explicit_type = true;
-		break;
-	default:
-		// we should never get here
-		abort();
-	}
+	std::vector<std::unique_ptr<ExprAST>> Dims = {};
+	std::vector<std::unique_ptr<ExprAST>> Elems = {};
+	std::unique_ptr<ExprAST> Len = nullptr;
+	volvoxc::FullType* ft = ParseType(false, eBinOp, nullptr, &Dims);
+	if (ft)
+		errs() << "got type "<< *ft->type << '\n';
+	else
+		errs() << "got no type, yet\n";
 	SourceLocation loc = CurLoc;
-	if (explicit_type) {
-		ft = ParseType(false, eNone);
-		getNextToken();
-		Expect('{');
+	int64_t dim = -1;                       // if size of array is known at compile time
+	std::unique_ptr<ExprAST> Init = nullptr;
+	std::unique_ptr<ExprAST> Cap = nullptr;
+	SourceLocation LenLoc;
+	if (ft) {
+		if (Dims.size())
+			Len = std::move(Dims[0]); // if size can only be determined at run time
+		if (!Expect('{'))
+		    return nullptr;
 		closing = '}';
 		switch (ft->type->getTypeID()) {
 		case llvm::Type::ArrayTyID:
@@ -418,102 +400,76 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
 			return nullptr;
 		}
-	} else {
-		getNextToken(); // eat '{'/'['
-	}
-	if (CurTok.kind == '}') {
-		if (!explicit_type) {
-			errs() << CurLoc << ": empty initialization requires explicit type\n";
+		if (CurTok.kind == '}') {
+			if (!Len) {
+				errs() << CurLoc << ": empty initialization requires explicit dimension\n";
+				return nullptr;
+			}
+			getNextToken(eBinOp);
+			switch (kind) {
+			case '[':
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len));
+			case '{':
+			case tok_map:
+			case tok_set:
+			case tok_chan:
+			case tok_identifier: // struct literal
+			default:
+				abort();
+			}
+		}
+		if (Len && Len->is_compile_time_const) {
+			LenLoc = Len->Loc;
+			auto Vdim = Len->codegen();
+			if (!Vdim) {
+				errs() << Len->Loc << ": cannot generate code for index\n";
+				return nullptr;
+			}
+			auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
+			dim = Dim->getSExtValue();
+		}
+		if (dim >= 0 && ft) {
+			llvm::Type* array_type = llvm::ArrayType::get(ft->elem_type->type, dim);
+			ft = new_FullType(array_type, 0, nullptr, ft->elem_type);
+			errs() << "new ft-type: " << *ft->type << '\n';
+		}
+		// else: run time sized - dim of literal will be determined by Elements.size()
+		explicit_type = true;
+		if (CurTok.kind == '}') {
+			if (!ft)
+				errs() << CurLoc << ": explicit type required for literals with empty initialization list\n";
+			getNextToken(eBinOp);
+			return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len), LenLoc);
+		}
+		auto Elem = ParseExpression();
+		if (!Expect('}', eBinOp))
 			return nullptr;
-		}
-		getNextToken(eBinOp);
-		switch (kind) {
-		case '[':
-			return std::make_unique<FixedArrayExprAST>(loc, std::vector<std::unique_ptr<ExprAST>>{});
-		case '{':
-		case tok_map:
-		case tok_set:
-		case tok_chan:
-		case tok_identifier: // struct literal
-		default:
-			abort();
-		}
+		if (!Elem)
+			return nullptr;
+		Elems = SplitExprList(std::move(Elem));
+	} else {
+		Elems = std::move(Dims);
 	}
-	int64_t dim = -1;                       // if size of array is known at compile time
-	std::unique_ptr<ExprAST> Len = nullptr; // if size can only be determined at run time
-	std::unique_ptr<ExprAST> Init = nullptr;
-	std::unique_ptr<ExprAST> Cap = nullptr;
-	SourceLocation LenLoc;
-	if (auto Elem = ParseExpression()) {
-		if (!explicit_type && !is_index && Lexer::is_type_start(lex.peek_strict())) { // [3][4]f64{...} -> this was not the array, yet
-			// This code is very similar to corresponding part in ParseType
-			Expect(closing, eType);
-			if (Elem->is_compile_time_const) {
-				LenLoc = Elem->Loc;
-				auto Vdim = Elem->codegen();
-				if (!Vdim) {
-					errs() << Elem->Loc << ": cannot generate code for index\n";
-					return nullptr;
-				}
-				auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
-				dim = Dim->getSExtValue();
-			} else {
-				Len = std::move(Elem);;
-			}
-			auto elem_type = ParseType();
-			if (dim >= 0) {
-				llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
-				ft = new_FullType(array_type, 0, nullptr, elem_type);
-			}
-			// else: run time sized - dim of literal will be determined by Elements.size()
-			explicit_type = true;
-			getNextToken();
-			if (!Expect('{'))
-				return nullptr;
-			closing = '}';
-			if (CurTok.kind == '}') {
-				if (!ft) {
-					llvm::Type* array0_type = llvm::ArrayType::get(elem_type->type, 0);
-					llvm::Type* array_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
-					ft = new_FullType(array_type, A_rtlen, nullptr, elem_type);
-				}
-				getNextToken(eBinOp);
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len), LenLoc);
-			}
-			Elem = ParseExpression();
-			if (!Elem)
-				return nullptr;
-		}
-		Expect(closing, eBinOp);
-		auto Elems = SplitExprList(std::move(Elem));
+	if (true) {
 		std::vector<std::unique_ptr<ExprAST>> Elements = {};
 		uint64_t idx = 0;
+		errs() << "parsing " << Elems.size() << " elements\n";
 		for (auto& elem: Elems) {
 			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
 				if (bin_expr->Op[0] == ':') { // struct or map
 					if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 						if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
 							if (ident->Name == "len") {
+								LenLoc = bin_expr->RHS->Loc;
 								if (kind != '[' && kind != '{') { // no array
-									aggr_prop_err(ident->Loc, "len", kind);
+									aggr_prop_err(LenLoc, "len", kind);
 									return nullptr;
 								}
 								if (dim >= 0 || Len) {
-									aggr_prop_redefinition(ident->Loc, "len");
+									aggr_prop_redefinition(LenLoc, "len");
 									return nullptr;
 								}
-								if (bin_expr->RHS->is_compile_time_const) {
-									LenLoc = bin_expr->RHS->Loc;
-									auto Vdim = bin_expr->RHS->codegen();
-									if (!Vdim) {
-										errs() << bin_expr->RHS->Loc << ": cannot generate code for property\n";
-										return nullptr;
-									}
-									auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
-									dim = Dim->getSExtValue();
-								} else {
-									Len = std::move(bin_expr->RHS);
-								}
+								Len = std::move(bin_expr->RHS);
 							} else if(ident->Name == "cap") {
 								if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
 									aggr_prop_err(ident->Loc, "cap", kind);
@@ -593,9 +549,12 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 							return nullptr;
 						}
 					}
-				} else
+					// element had ':', special treatment was done - continue with next element
+					continue;
+				} else {
+					// element has no ':' - just happens to be a binary expression - get out of nested if
 					goto element_without_key;
-				continue;
+				}
 			}
 			// simple element without key
 		element_without_key:
@@ -616,15 +575,34 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				}
 				break;
 			default:
-				errs() << Elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
+				errs() << elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
 				return nullptr;
+			}
+		}
+		if (Len && Len->is_compile_time_const) {
+			auto Vdim = Len->codegen();
+			if (!Vdim) {
+				errs() << LenLoc << ": cannot generate code for property\n";
+				return nullptr;
+			}
+			auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
+			dim = Dim->getSExtValue();
+			auto elem_type = ft->elem_type;
+			if (elem_type) {
+				if (dim >= 0) {
+					llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
+					ft = new_FullType(array_type, 0, nullptr, elem_type);
+					errs() << "new ft-type: " << *ft->type << '\n';
+				}
 			}
 		}
 		if (ft) {
 			if (dim >= 0) {
 				if (ft->type->isArrayTy()) {
+					errs() << 11 << '\n';
 					return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements));
 				} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+					errs() << 22 << '\n';
 					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft->elem_type, dim);
 				} else {
 					errs() << "internal compiler error\n";
@@ -964,7 +942,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}
 		ArgTypes.push_back(type);
 		LLVMArgTypes.push_back(type->type);
-		getNextToken();
 		Expect(')');
 	}
 	default:
@@ -1040,7 +1017,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}
 		ArgTypes.push_back(type);
 		LLVMArgTypes.push_back(type->type);
-		getNextToken();
 		if (CurTok.kind == ')')
 			break;
 		Eat(',');
@@ -1060,7 +1036,6 @@ noargs:
 			return nullptr;
 		}
 		RetType = type;
-		getNextToken(eColon);
 	}
 	// getNextToken();
 	// Verify right number of names for operator.

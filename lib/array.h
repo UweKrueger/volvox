@@ -8,7 +8,7 @@
 #define _DECL
 #endif
 
-typedef unsigned long long usize;
+typedef size_t usize;
 
 class ArrayNode {
 	void* data;

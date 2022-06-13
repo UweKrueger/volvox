@@ -3,9 +3,10 @@
 extern "C" void* calloc(usize nelem, usize obj_size);
 extern "C" void* realloc(void* ptr, usize new_size);
 extern "C" void free(void* ptr);
-extern "C" void* memcpy(void* dest, void* src, usize sz);
+extern "C" void* memcpy(void* dest, const void* src, usize sz);
 extern "C" int raise(int sig);
-// "long" is 64 bit on Linux and 32 bit on Windows - so this matches both systems
+// "long" is 64 bit on Linux and 32 bit on Windows - so the following
+// matches both systems despite different semantics
 extern "C" long write(int fd, const void* buf, unsigned long count);
 
 #ifndef ARRAY_SIZE
