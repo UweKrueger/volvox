@@ -584,7 +584,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			}
 			auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
 			dim = Dim->getSExtValue();
-			auto elem_type = ft->elem_type;
+			auto elem_type = ft ? ft->elem_type : nullptr;
 			if (elem_type) {
 				if (dim >= 0) {
 					llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);

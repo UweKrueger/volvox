@@ -220,7 +220,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
-			ArrayAlloc = Builder->CreateBitCast(TmpB.CreateAlloca(alloc_arr_type), llvm::Type::getInt8PtrTy(Context));
+			ArrayAlloc = Builder->CreateBitCast(TmpB.CreateAlloca(alloc_arr_type), elem_type->getPointerTo());
 			dim_is_ct = true;
 		} else {
 			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
@@ -333,12 +333,15 @@ llvm::Value* IndexExprAST::codegen_raw() {
 		}
 	run_time_len:
 		// TODO: Insert run time check of index
-		auto ptr = StoreValue(fld_save, Field->ft);
-		Len = Builder->CreateExtractValue(ptr, 0);
-		auto Ptr = Builder->CreateExtractValue(ptr, 1);
+		llvm::Value* ptr = StoreValue(fld_save, Field->ft);
+		if (llvm::isa<llvm::StructType>(ptr->getType())) {
+			Len = Builder->CreateExtractValue(ptr, 0);
+			ptr = Builder->CreateExtractValue(ptr, 1);
+		}
+		// TODO: insert code for index range check
 		return Builder->CreateLoad(
 			array_type->getElementType(),
-			Builder->CreateGEP(array_type->getElementType(), Ptr, idx));
+			Builder->CreateGEP(array_type->getElementType(), ptr, idx));
 	} else {
 		errs() << "cound not create code for index expression\n";
 		return nullptr;
