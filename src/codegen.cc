@@ -498,6 +498,27 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			llvm::GlobalValue::InternalLinkage;
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
 			llvm::GlobalVariable* GV;
+			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type)) {
+				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType())) {
+					uint64_t n_type = array_type->getNumElements();
+					uint64_t n_ini = ini_array_type->getNumElements();
+					if (n_ini < n_type) {
+						// array initialized with short literal - as we can't use "memset" for
+						// llvm::Values we must create an expanded array constant - filled up with zero values
+						llvm::Value* expanded_ini = llvm::UndefValue::get(array_type);
+						for (int i = 0; i < n_ini; i++)
+							expanded_ini = Builder->CreateInsertValue(expanded_ini, Builder->CreateExtractValue(initializer, i), i);
+						llvm::Type* elem_type = expr->RHS->ft->elem_type->type;
+						for (int i = n_ini; i < n_type; i++)
+							expanded_ini = Builder->CreateInsertValue(expanded_ini, llvm::Constant::getNullValue(elem_type), i);
+						initializer = llvm::dyn_cast<llvm::Constant>(expanded_ini);
+						if (!initializer) {
+							errs() << expr->RHS->Loc << ": non-const initializer for global variable\n";
+							return nullptr;
+						}
+					}
+				}
+			}
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				DBuilder->createGlobalVariableExpression(
