@@ -220,7 +220,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
-			ArrayAlloc = Builder->CreateBitCast(TmpB.CreateAlloca(alloc_arr_type), elem_type->getPointerTo());
+			ArrayAlloc = TmpB.CreateAlloca(alloc_arr_type);
 			dim_is_ct = true;
 		} else {
 			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
@@ -341,7 +341,9 @@ llvm::Value* IndexExprAST::codegen_raw() {
 		// TODO: insert code for index range check
 		return Builder->CreateLoad(
 			array_type->getElementType(),
-			Builder->CreateGEP(array_type->getElementType(), ptr, idx));
+			Builder->CreateGEP(array_type->getElementType(),
+			                   Builder->CreateBitCast(ptr, array_type->getElementType()->getPointerTo()),
+			                   idx));
 	} else {
 		errs() << "cound not create code for index expression\n";
 		return nullptr;
