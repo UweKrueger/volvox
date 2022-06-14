@@ -135,13 +135,26 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		}
 		i++;
 	}
+	if (LenVal)
+		if (auto constLenVal = llvm::dyn_cast<llvm::ConstantInt>(LenVal)) {
+			// the "nominal" type of this expression did not contain the array dimension, however
+			// we know this number by now after generating code for 'Len'. So the type
+			// can be adjusted by replacing the nominal type
+			len = constLenVal->getZExtValue();
+			LenVal = nullptr;
+			llvm::Type* new_array_type = llvm::ArrayType::get(ft->elem_type->type, len);
+			ft = new_FullType(*ft);
+			ft->type = new_array_type;
+		}
 	if (!LenVal) {
+		errs() << "ini: " << *ini << '\n';
 		return ini;
 	} else {
 		llvm::Type* struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), initializer_type);
 		llvm::Value* varini = llvm::UndefValue::get(struct_type);
 		varini = Builder->CreateInsertValue(varini, Builder->CreateIntCast(LenVal, llvm::Type::getInt64Ty(Context), false), 0, "arrlen");
 		varini = Builder->CreateInsertValue(varini, ini, 1, "arrbeg");
+		errs() << "varini: " << *varini << '\n';
 		return varini;
 	}
 }
@@ -496,7 +509,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		llvm::GlobalValue::LinkageTypes link_type = (is_pub || comp_mode == comp_jit) ?
 			llvm::GlobalValue::ExternalLinkage :
 			llvm::GlobalValue::InternalLinkage;
+		errs() << "global ini 1: " << *convertedVal << '\n';
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
+			errs() << "global ini 2: " << *initializer << '\n';
 			llvm::GlobalVariable* GV;
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type)) {
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType())) {
