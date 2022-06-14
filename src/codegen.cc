@@ -794,12 +794,17 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			auto conversion = std::get<1>(type_descr);
 			bool is_signed = std::get<2>(type_descr);
 			auto convertedVal = conversion(Val);
-			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, convertedVal->getType());
-			dbgs() << "created alloca for type " << *type << ' ' << *Alloca->getType() << '\n';
-			// Entry has already been created by parser
+			// llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, convertedVal->getType());
 			FullVar* entry = locals_table.back()[varname];
+			// Entry has already been created by parser
+			entry->ft.type = type;
+			if (is_signed)
+				entry->ft.type_attr |= A_signed;
+			else
+				entry->ft.type_attr &= ~A_signed;
+			auto Alloca = StoreValue(convertedVal, &entry->ft);
 			entry->val = Alloca;
-			dbgs() << "Inserted " << varname << " type: " << *(locals_table.back()[varname]->ft.type) << '\n';
+			errs() << "Inserted " << varname << " type: " << *(locals_table.back()[varname]->ft.type) << '\n';
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
@@ -810,8 +815,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 										llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
 										Builder->GetInsertBlock());
 			}
-			dbgs() << "Create store for " << *convertedVal->getType() << ' ' << *Alloca->getType() << '\n';
-			Builder->CreateStore(convertedVal, Alloca);
 			ft->type = llvm::Type::getVoidTy(Context);
 			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		} else {
