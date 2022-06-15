@@ -368,15 +368,14 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	bool key_is_signed = false;
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
-	std::unique_ptr<ExprAST> Len = nullptr;
 	volvoxc::FullType* ft = ParseType(false, eBinOp, nullptr, &Dims);
 	SourceLocation loc = CurLoc;
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
-	SourceLocation LenLoc;
+	std::vector<SourceLocation> LenLocs;
 	if (ft) {
-		if (Dims.size())
-			Len = std::move(Dims[0]); // if size can only be determined at run time
+		for (auto& dim: Dims)
+			LenLocs.push_back(dim ? dim->Loc : SourceLocation{0});
 		if (!Expect('{'))
 		    return nullptr;
 		closing = '}';
@@ -391,14 +390,14 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			return nullptr;
 		}
 		if (CurTok.kind == '}') {
-			if (!Len) {
+			if (!Dims[0]) {
 				errs() << CurLoc << ": empty initialization requires explicit dimension\n";
 				return nullptr;
 			}
 			getNextToken(eBinOp);
 			switch (kind) {
 			case '[':
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len));
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Dims));
 			case '{':
 			case tok_map:
 			case tok_set:
@@ -412,7 +411,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			if (!ft)
 				errs() << CurLoc << ": explicit type required for literals with empty initialization list\n";
 			getNextToken(eBinOp);
-			return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Len), LenLoc);
+			return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Dims), LenLocs);
 		}
 		auto Elem = ParseExpression();
 		if (!Expect('}', eBinOp))
@@ -422,21 +421,28 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		Elems = SplitExprList(std::move(Elem));
 	} else {
 		Elems = std::move(Dims);
+		Dims.clear();
+		Dims.push_back(nullptr);
 	}
 	std::vector<std::unique_ptr<ExprAST>> Elements = {};
 	uint64_t idx = 0;
+	unsigned order = 0;
 	for (auto& elem: Elems) {
 		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map
 				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 					if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
 						if (ident->Name == "len") {
-							LenLoc = bin_expr->RHS->Loc;
 							if (kind != '[' && kind != '{') { // no array
-								aggr_prop_err(LenLoc, "len", kind);
+								aggr_prop_err(bin_expr->RHS->Loc, "len", kind);
 								return nullptr;
 							}
-							Len = std::move(bin_expr->RHS);
+							if (Dims[order]) {
+								errs() << bin_expr->RHS->Loc << ": redefinition of array dimension\n"
+								       << Dims[order]->Loc << ": dimension (order " << order << ") already defined here\n";
+								return nullptr;
+							}
+							Dims[order] = std::move(bin_expr->RHS);
 						} else if(ident->Name == "cap") {
 							if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
 								aggr_prop_err(ident->Loc, "cap", kind);
@@ -547,9 +553,9 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		}
 	}
 	if (ft)
-		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len), LenLoc);
+		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Dims), LenLocs);
 	else
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len), LenLoc);
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, std::move(Dims), LenLocs);
 }
 
 static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList();

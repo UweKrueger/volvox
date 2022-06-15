@@ -114,14 +114,10 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		return nullptr;
 	}
 	uint64_t len = array_type->getNumElements();
-	if (!len)
-		if (Len)
-			LenVal = Builder->CreateIntCast(Len->codegen(), llvm::Type::getInt64Ty(Context), false);
-		else
-			LenVal = Builder->getInt64(Elements.size());
+	if (Dims[0])
+		LenVal = Builder->CreateIntCast(Dims[0]->codegen(), llvm::Type::getInt64Ty(Context), false);
 	else
-		if (Len)
-			errs() << Loc << ": internal inconsistency CT RT array size are both given\n";
+		LenVal = Builder->getInt64(Elements.size());
 	uint64_t i = 0;
 	llvm::Type* initializer_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
 	llvm::Value* ini = llvm::UndefValue::get(initializer_type);
@@ -315,7 +311,7 @@ llvm::Value* IndexExprAST::codegen_raw() {
 			abort();
 		}
 		auto FixedField = dynamic_cast<FixedArrayExprAST*>(Field.get());
-		SourceLocation LenLoc = FixedField ? FixedField->LenLoc : SourceLocation{0};
+		SourceLocation LenLoc = FixedField ? FixedField->LenLocs[0] : SourceLocation{0};
 		// if both the array size and the index are CT consts we can get the element
 		// without having to allocate space to store the array
 		if (auto Idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {

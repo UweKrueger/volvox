@@ -244,19 +244,22 @@ public:
 
 class FixedArrayExprAST : public AggregateExprAST {
 public:
-	std::unique_ptr<ExprAST> Len; // known at run time
-	SourceLocation LenLoc;
+	std::vector<std::unique_ptr<ExprAST>> Dims; // known at run time
+	std::vector<SourceLocation> LenLocs;
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  volvoxc::FullType* el_type = nullptr, ssize_t len = -1,
-	                  std::unique_ptr<ExprAST> _Len = nullptr, SourceLocation LenLoc = {0}) :
+	                  volvoxc::FullType* el_type = nullptr,
+	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
 		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type),
-		Len(std::move(_Len)), LenLoc(LenLoc)
+		Dims(std::move(_Dims)), LenLocs(LenLocs)
 		{
 			// the AggregateExprAST constructor should have determined the element type if not
 			// given - we check this:
 			if (ft && ft->elem_type) {
-				ft->type = llvm::ArrayType::get(ft->elem_type->type, len > 0 ? len : 0);
+				unsigned order = (unsigned)Dims.size();
+				ft->type = ft->elem_type->type;
+				for (unsigned i = 0; i < order; i++)
+					ft->type = llvm::ArrayType::get(ft->type, 0);
 			} else {
 				errs() << "undefined element type\n";
 				ft = nullptr;
@@ -264,9 +267,9 @@ public:
 		}
 	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  std::unique_ptr<ExprAST> _Len = nullptr, SourceLocation LenLoc = {0}) :
+	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)),
-		Len(std::move(_Len)), LenLoc(LenLoc)
+		Dims(std::move(_Dims)), LenLocs(LenLocs)
 		{}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
