@@ -195,12 +195,12 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	return { storage_type, V };
 }
 
-static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
-	llvm::Value* ArrayLen = nullptr; // "5" in "[5]f64{1, 2, 7}" or "[]f64{1, 2: 7, len: 5}"
-	llvm::Value* LiteralLen = nullptr; // '3' in above examples - highest given index + 1
-	llvm::Value* ArrData = nullptr;
-	llvm::ArrayType* array_type = nullptr;
+static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, const llvm::Twine &Name = "") {
 	if (auto nominal_array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
+		llvm::Value* ArrayLen = nullptr; // "5" in "[5]f64{1, 2, 7}" or "[]f64{1, 2: 7, len: 5}"
+		llvm::Value* LiteralLen = nullptr; // '3' in above examples - highest given index + 1
+		llvm::Value* ArrData = nullptr;
+		llvm::ArrayType* array_type = nullptr;
 		uint64_t nom_len = nominal_array_type->getNumElements();
 		if (nom_len)
 			ArrayLen = Builder->getInt64(nom_len);
@@ -233,10 +233,10 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
-			ArrayAlloc = TmpB.CreateAlloca(alloc_arr_type);
+			ArrayAlloc = TmpB.CreateAlloca(alloc_arr_type, nullptr, Name);
 			dim_is_ct = true;
 		} else {
-			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, "arrayalloc");
+			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, Name);
 			dim_is_ct = false;
 		}
 		// TODO: Insert run time check that initialization values fit into allocation size
@@ -264,7 +264,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft) {
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 		llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 		                       TheFunction->getEntryBlock().begin());
-		llvm::AllocaInst* Alloca = TmpB.CreateAlloca(ft->type);
+		llvm::AllocaInst* Alloca = TmpB.CreateAlloca(val->getType(), nullptr, Name);
 		Builder->CreateStore(val, Alloca);
 		return Alloca;
 	}
@@ -788,21 +788,20 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		}
 		// variable declaration
 		if (inside_function) {
-			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			auto type_descr = MakeType(RHS->ft->type, RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
 			llvm::Type* type = std::get<0>(type_descr);
 			auto conversion = std::get<1>(type_descr);
 			bool is_signed = std::get<2>(type_descr);
 			auto convertedVal = conversion(Val);
-			// llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(TheFunction, varname, convertedVal->getType());
 			FullVar* entry = locals_table.back()[varname];
 			// Entry has already been created by parser
 			entry->ft.type = type;
+			errs() << "bin= cVal: " << *convertedVal->getType() << ' ' << convertedVal->getType()->isFunctionTy() << " ft: " << *type << ' ' << type->isFunctionTy() <<  ' ' << *entry->ft.type << ' ' << entry->ft.type->isFunctionTy() << '\n';
 			if (is_signed)
 				entry->ft.type_attr |= A_signed;
 			else
 				entry->ft.type_attr &= ~A_signed;
-			auto Alloca = StoreValue(convertedVal, &entry->ft);
+			auto Alloca = StoreValue(convertedVal, &entry->ft, varname);
 			entry->val = Alloca;
 			errs() << "Inserted " << varname << " type: " << *(locals_table.back()[varname]->ft.type) << '\n';
 			if (comp_mode == comp_dbg) {
