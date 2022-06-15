@@ -12,7 +12,6 @@
 #define A_packed (1U<<5)
 #define A_dirty  (1U<<6)
 #define A_signed_key (1U<<7) //for maps with integer key
-#define A_rtlen  (1U<<8) // run time sized fixed array
 #define A_varlen (1U<<9) // variable size array
 #define A_map    (1U<<10) // llvm-type is key type
 

@@ -188,7 +188,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 			else
 				for (int i = exprs->size(); i > 0; i--)
 					array_type = llvm::ArrayType::get(array_type, 0);
-			return new_FullType(array_type, A_rtlen, nullptr, elem_type);
+			return new_FullType(array_type, 0, nullptr, elem_type);
 		}
 			break;
 		case '{': {
@@ -386,10 +386,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			key_type = llvm::Type::getInt64Ty(Context);
 			break;
 		case llvm::Type::StructTyID:
-			if (ft->type_attr & A_rtlen) {
-				key_type = llvm::Type::getInt64Ty(Context);
-				break;
-			}
+			errs() << CurLoc << ": struct literals not implementd, yet\n";
 		default:
 			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
 			return nullptr;

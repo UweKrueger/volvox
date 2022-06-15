@@ -363,7 +363,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 	llvm::Type* elem_type;
 	llvm::Type* field_type;
 	llvm::Value* idx;
-	if (!Field->ft->type || !(Field->ft->type->isArrayTy() || (Field->ft->type_attr & A_rtlen))) {
+	if (!Field->ft->type || !(Field->ft->type->isArrayTy())) {
 		errs() << "LHS of index expression must be an array (or map)\n";
 		return { nullptr, nullptr };
 	} else {
