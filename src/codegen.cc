@@ -107,10 +107,8 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	dbgs() << "Array Type: " << *ft->type << '\n';
 	llvm::Value* LenVal = nullptr;
 	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
-	llvm::StructType* struct_type;
 	if (!array_type) {
 		errs() << Loc << ": internal error: array literal not of array type\n";
 		return nullptr;
@@ -147,14 +145,12 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 			ft->type = new_array_type;
 		}
 	if (!LenVal) {
-		errs() << "ini: " << *ini << '\n';
 		return ini;
 	} else {
 		llvm::Type* struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), initializer_type);
 		llvm::Value* varini = llvm::UndefValue::get(struct_type);
 		varini = Builder->CreateInsertValue(varini, Builder->CreateIntCast(LenVal, llvm::Type::getInt64Ty(Context), false), 0, "arrlen");
 		varini = Builder->CreateInsertValue(varini, ini, 1, "arrbeg");
-		errs() << "varini: " << *varini << '\n';
 		return varini;
 	}
 }
@@ -253,7 +249,6 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, const ll
 		if (nom_len)
 			return ArrayAlloc;
 		else {
-			errs() << "using RT len " << *ArrayLen << '\n';
 			llvm::Type* ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
 			llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
 			ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
@@ -509,9 +504,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		llvm::GlobalValue::LinkageTypes link_type = (is_pub || comp_mode == comp_jit) ?
 			llvm::GlobalValue::ExternalLinkage :
 			llvm::GlobalValue::InternalLinkage;
-		errs() << "global ini 1: " << *convertedVal << '\n';
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
-			errs() << "global ini 2: " << *initializer << '\n';
 			llvm::GlobalVariable* GV;
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type)) {
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType())) {
@@ -794,16 +787,15 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			bool is_signed = std::get<2>(type_descr);
 			auto convertedVal = conversion(Val);
 			FullVar* entry = locals_table.back()[varname];
-			// Entry has already been created by parser
+			// Entry has already been created by parser but we might have to adjust the type of the new
+			// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 			entry->ft.type = type;
-			errs() << "bin= cVal: " << *convertedVal->getType() << ' ' << convertedVal->getType()->isFunctionTy() << " ft: " << *type << ' ' << type->isFunctionTy() <<  ' ' << *entry->ft.type << ' ' << entry->ft.type->isFunctionTy() << '\n';
 			if (is_signed)
 				entry->ft.type_attr |= A_signed;
 			else
 				entry->ft.type_attr &= ~A_signed;
 			auto Alloca = StoreValue(convertedVal, &entry->ft, varname);
 			entry->val = Alloca;
-			errs() << "Inserted " << varname << " type: " << *(locals_table.back()[varname]->ft.type) << '\n';
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				llvm::DILocalVariable *D = DBuilder->createAutoVariable(

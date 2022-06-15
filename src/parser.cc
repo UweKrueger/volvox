@@ -134,7 +134,6 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 							if (!exprs->size() && !Lexer::is_type_start(lex.peek_strict())) {
 								// this is a vector - just return elements
 								*exprs = SplitExprList(std::move(e));
-								errs() << "type: simple array " << exprs->size() << '\n';
 								if (!Expect(']', expect)) {
 									exprs->clear();
 									return nullptr;
@@ -152,7 +151,6 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 								errs() << "cannot generate code for index\n";
 								return nullptr;
 							}
-							errs() << "Type dim: " << *VLen << '\n';
 							if (auto Len = llvm::dyn_cast<llvm::ConstantInt>(VLen)) {
 								int64_t len = Len->getSExtValue();
 								if (len <= 0) {
@@ -428,7 +426,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		if (dim >= 0 && ft) {
 			llvm::Type* array_type = llvm::ArrayType::get(ft->elem_type->type, dim);
 			ft = new_FullType(array_type, 0, nullptr, ft->elem_type);
-			errs() << "new ft-type: " << *ft->type << '\n';
 		}
 		// else: run time sized - dim of literal will be determined by Elements.size()
 		explicit_type = true;
@@ -450,7 +447,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	if (true) {
 		std::vector<std::unique_ptr<ExprAST>> Elements = {};
 		uint64_t idx = 0;
-		errs() << "parsing " << Elems.size() << " elements\n";
 		for (auto& elem: Elems) {
 			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
 				if (bin_expr->Op[0] == ':') { // struct or map
@@ -589,17 +585,14 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				if (dim >= 0) {
 					llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
 					ft = new_FullType(array_type, 0, nullptr, elem_type);
-					errs() << "new ft-type: " << *ft->type << '\n';
 				}
 			}
 		}
 		if (ft) {
 			if (dim >= 0) {
 				if (ft->type->isArrayTy()) {
-					errs() << 11 << '\n';
 					return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements));
 				} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
-					errs() << 22 << '\n';
 					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft->elem_type, dim);
 				} else {
 					errs() << "internal compiler error\n";

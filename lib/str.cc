@@ -414,7 +414,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 	if (pre)
 		prtstring(s, cap, pos, pre);
 	int space = *cap - *pos;
-	long long rt_len;
+	unsigned long long rt_len;
 	while (ft) {
 		int w = va_arg(ap, int);
 		int p = va_arg(ap, int);

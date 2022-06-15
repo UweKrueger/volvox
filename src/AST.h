@@ -269,7 +269,6 @@ public:
 			// the AggregateExprAST constructor should have determined the element type if not
 			// given - we check this:
 			if (ft && ft->elem_type) {
-				errs() << "AST - elem_t: " << *ft->elem_type->type << ' ' << len << '\n';
 				if (Len) {
 					is_compile_time_const = false;
 					llvm::Type* array0_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
@@ -279,7 +278,6 @@ public:
 					ft->type = llvm::ArrayType::get(
 						ft->elem_type->type,
 						len < 0 ? Elements.size() : len);
-					errs() << "AST - type: " << *ft->type << '\n';
 				}
 			} else {
 				errs() << "undefined element type\n";
