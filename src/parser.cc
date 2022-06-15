@@ -371,7 +371,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	std::unique_ptr<ExprAST> Len = nullptr;
 	volvoxc::FullType* ft = ParseType(false, eBinOp, nullptr, &Dims);
 	SourceLocation loc = CurLoc;
-	int64_t dim = -1;                       // if size of array is known at compile time
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
 	SourceLocation LenLoc;
@@ -435,10 +434,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 							LenLoc = bin_expr->RHS->Loc;
 							if (kind != '[' && kind != '{') { // no array
 								aggr_prop_err(LenLoc, "len", kind);
-								return nullptr;
-							}
-							if (dim >= 0 || Len) {
-								aggr_prop_redefinition(LenLoc, "len");
 								return nullptr;
 							}
 							Len = std::move(bin_expr->RHS);
@@ -551,31 +546,10 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			return nullptr;
 		}
 	}
-	if (ft) {
-		if (dim >= 0) {
-			if (ft->type->isArrayTy()) {
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements));
-			} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
-				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft->elem_type, dim);
-			} else {
-				errs() << "internal compiler error\n";
-				abort();
-			}
-		} else {
-			return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len), LenLoc);
-		}
-	} else {
-		if (dim >= 0) {
-			if ((int64_t)Elements.size() > dim) {
-				errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim << '\n';
-				return nullptr;
-			} else {
-				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
-			}
-		} else {
-			return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len), LenLoc);
-		}
-	}
+	if (ft)
+		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len), LenLoc);
+	else
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len), LenLoc);
 }
 
 static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList();
