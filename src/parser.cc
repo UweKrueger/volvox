@@ -133,11 +133,11 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 						if (exprs) {
 							if (!exprs->size() && !Lexer::is_type_start(lex.peek_strict())) {
 								// this is a vector - just return elements
-								*exprs = SplitExprList(std::move(e));
 								if (!Expect(']', expect)) {
 									exprs->clear();
 									return nullptr;
 								}
+								*exprs = SplitExprList(std::move(e));
 								return nullptr;
 							} else {
 								exprs->push_back(std::move(e));
@@ -364,7 +364,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	// a [3] [4]f64{...} <---> a[3][4] <---> a[3] [4]f64{...}
 	bool is_index = kind == '[' && Lexer::is_expr_end(lex.PreviousChar);
 	char closing = '}'; // for dynamic aray, map, set
-	bool explicit_type = false;
 	llvm::Type* key_type = nullptr;
 	bool key_is_signed = false;
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
@@ -413,22 +412,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				abort();
 			}
 		}
-		if (Len && Len->is_compile_time_const) {
-			LenLoc = Len->Loc;
-			auto Vdim = Len->codegen();
-			if (!Vdim) {
-				errs() << Len->Loc << ": cannot generate code for index\n";
-				return nullptr;
-			}
-			auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
-			dim = Dim->getSExtValue();
-		}
-		if (dim >= 0 && ft) {
-			llvm::Type* array_type = llvm::ArrayType::get(ft->elem_type->type, dim);
-			ft = new_FullType(array_type, 0, nullptr, ft->elem_type);
-		}
-		// else: run time sized - dim of literal will be determined by Elements.size()
-		explicit_type = true;
 		if (CurTok.kind == '}') {
 			if (!ft)
 				errs() << CurLoc << ": explicit type required for literals with empty initialization list\n";
@@ -444,179 +427,157 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	} else {
 		Elems = std::move(Dims);
 	}
-	if (true) {
-		std::vector<std::unique_ptr<ExprAST>> Elements = {};
-		uint64_t idx = 0;
-		for (auto& elem: Elems) {
-			if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
-				if (bin_expr->Op[0] == ':') { // struct or map
-					if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
-						if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
-							if (ident->Name == "len") {
-								LenLoc = bin_expr->RHS->Loc;
-								if (kind != '[' && kind != '{') { // no array
-									aggr_prop_err(LenLoc, "len", kind);
-									return nullptr;
-								}
-								if (dim >= 0 || Len) {
-									aggr_prop_redefinition(LenLoc, "len");
-									return nullptr;
-								}
-								Len = std::move(bin_expr->RHS);
-							} else if(ident->Name == "cap") {
-								if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
-									aggr_prop_err(ident->Loc, "cap", kind);
-									return nullptr;
-								}
-								if (Cap) {
-									aggr_prop_redefinition(ident->Loc, "cap");
-									return nullptr;
-								}
-								Cap = std::move(bin_expr->RHS);
-							} else if(ident->Name == "ini") {
-								if (kind != '[' && kind != '{') { // no array
-									aggr_prop_err(ident->Loc, "ini", kind);
-									return nullptr;
-								}
-								if (Init) {
-									aggr_prop_redefinition(ident->Loc, "ini");
-									return nullptr;
-								}
-								Init = std::move(bin_expr->RHS);
-							} else {
-								aggr_prop_err(ident->Loc, ident->Name.c_str(), kind);
+	std::vector<std::unique_ptr<ExprAST>> Elements = {};
+	uint64_t idx = 0;
+	for (auto& elem: Elems) {
+		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
+			if (bin_expr->Op[0] == ':') { // struct or map
+				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
+					if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
+						if (ident->Name == "len") {
+							LenLoc = bin_expr->RHS->Loc;
+							if (kind != '[' && kind != '{') { // no array
+								aggr_prop_err(LenLoc, "len", kind);
 								return nullptr;
 							}
-						} else {
-							; // handle struct element initializer
-						}
-					} else {
-						// LHS of a:b is a general expression - we require it to be a compile time const
-						if (llvm::Value* Key = bin_expr->LHS->codegen()) {
-							unsigned keyTID = Key->getType()->getTypeID();
-							if (auto key = llvm::dyn_cast<llvm::ConstantInt>(Key)) {
-								switch (kind) {
-								case '[':
-								case '{':
-									idx = key->getZExtValue();
-									if (idx < Elements.size()) {
-										if (Elements[idx]) {
-											errs() << elem->Loc << ": value for index " << idx << " already defined\n";
-											return nullptr;
-										}
-										Elements[idx++] = std::move(bin_expr->RHS);
-									} else {
-										while (Elements.size() < idx)
-											Elements.push_back(nullptr);
-										Elements.push_back(std::move(bin_expr->RHS));
-										idx++;
-									}
-									break;
-								default:
-									errs() << aggr_kind_str(kind) << " not implemented, yet\n";
-									return nullptr;
-								}
-							} else if (auto key = llvm::dyn_cast<llvm::ConstantFP>(Key)) {
-								switch (keyTID) {
-								case llvm::Type::FloatTyID:
-									break;
-								case llvm::Type::DoubleTyID:
-									break;
-								default:
-									;
-								}
-							} else if (auto key = llvm::dyn_cast<llvm::Constant>(Key)) {
-								switch (keyTID) {
-								case llvm::Type::PointerTyID:
-									break;
-								default:
-									errs() << bin_expr->LHS->Loc << ": unsupported type " << *bin_expr->LHS->ft->type << " for aggregate key\n";
-									return nullptr;
-								}
-							} else {
-								errs() << bin_expr->LHS->Loc << ": key in aggregate literals must be a compile time const\n";
+							if (dim >= 0 || Len) {
+								aggr_prop_redefinition(LenLoc, "len");
 								return nullptr;
 							}
+							Len = std::move(bin_expr->RHS);
+						} else if(ident->Name == "cap") {
+							if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
+								aggr_prop_err(ident->Loc, "cap", kind);
+								return nullptr;
+							}
+							if (Cap) {
+								aggr_prop_redefinition(ident->Loc, "cap");
+								return nullptr;
+							}
+							Cap = std::move(bin_expr->RHS);
+						} else if(ident->Name == "ini") {
+							if (kind != '[' && kind != '{') { // no array
+								aggr_prop_err(ident->Loc, "ini", kind);
+								return nullptr;
+							}
+							if (Init) {
+								aggr_prop_redefinition(ident->Loc, "ini");
+								return nullptr;
+							}
+							Init = std::move(bin_expr->RHS);
 						} else {
-							errs() << bin_expr->LHS->Loc << ": cannot generate code for key\n";
+							aggr_prop_err(ident->Loc, ident->Name.c_str(), kind);
 							return nullptr;
 						}
+					} else {
+						; // handle struct element initializer
 					}
-					// element had ':', special treatment was done - continue with next element
-					continue;
 				} else {
-					// element has no ':' - just happens to be a binary expression - get out of nested if
-					goto element_without_key;
-				}
-			}
-			// simple element without key
-		element_without_key:
-			switch (kind) {
-			case '[':
-			case '{':
-				if (idx < Elements.size()) {
-					if (Elements[idx]) {
-						errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+					// LHS of a:b is a general expression - we require it to be a compile time const
+					if (llvm::Value* Key = bin_expr->LHS->codegen()) {
+						unsigned keyTID = Key->getType()->getTypeID();
+						if (auto key = llvm::dyn_cast<llvm::ConstantInt>(Key)) {
+							switch (kind) {
+							case '[':
+							case '{':
+								idx = key->getZExtValue();
+								if (idx < Elements.size()) {
+									if (Elements[idx]) {
+										errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+										return nullptr;
+									}
+									Elements[idx++] = std::move(bin_expr->RHS);
+								} else {
+									while (Elements.size() < idx)
+										Elements.push_back(nullptr);
+									Elements.push_back(std::move(bin_expr->RHS));
+									idx++;
+								}
+								break;
+							default:
+								errs() << aggr_kind_str(kind) << " not implemented, yet\n";
+								return nullptr;
+							}
+						} else if (auto key = llvm::dyn_cast<llvm::ConstantFP>(Key)) {
+							switch (keyTID) {
+							case llvm::Type::FloatTyID:
+								break;
+							case llvm::Type::DoubleTyID:
+								break;
+							default:
+								;
+							}
+						} else if (auto key = llvm::dyn_cast<llvm::Constant>(Key)) {
+							switch (keyTID) {
+							case llvm::Type::PointerTyID:
+								break;
+							default:
+								errs() << bin_expr->LHS->Loc << ": unsupported type " << *bin_expr->LHS->ft->type << " for aggregate key\n";
+								return nullptr;
+							}
+						} else {
+							errs() << bin_expr->LHS->Loc << ": key in aggregate literals must be a compile time const\n";
+							return nullptr;
+						}
+					} else {
+						errs() << bin_expr->LHS->Loc << ": cannot generate code for key\n";
 						return nullptr;
 					}
-					Elements[idx++] = std::move(elem);
-				} else {
-					while (Elements.size() < idx)
-						Elements.push_back(nullptr);
-					Elements.push_back(std::move(elem));
-					idx++;
 				}
-				break;
-			default:
-				errs() << elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
-				return nullptr;
-			}
-		}
-		if (Len && Len->is_compile_time_const) {
-			auto Vdim = Len->codegen();
-			if (!Vdim) {
-				errs() << LenLoc << ": cannot generate code for property\n";
-				return nullptr;
-			}
-			auto Dim = llvm::cast<llvm::ConstantInt>(Vdim);
-			dim = Dim->getSExtValue();
-			auto elem_type = ft ? ft->elem_type : nullptr;
-			if (elem_type) {
-				if (dim >= 0) {
-					llvm::Type* array_type = llvm::ArrayType::get(elem_type->type, dim);
-					ft = new_FullType(array_type, 0, nullptr, elem_type);
-				}
-			}
-		}
-		if (ft) {
-			if (dim >= 0) {
-				if (ft->type->isArrayTy()) {
-					return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements));
-				} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
-					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft->elem_type, dim);
-				} else {
-					errs() << "internal compiler error\n";
-					abort();
-				}
+				// element had ':', special treatment was done - continue with next element
+				continue;
 			} else {
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len), LenLoc);
+				// element has no ':' - just happens to be a binary expression - get out of nested if
+				goto element_without_key;
+			}
+		}
+		// simple element without key
+	element_without_key:
+		switch (kind) {
+		case '[':
+		case '{':
+			if (idx < Elements.size()) {
+				if (Elements[idx]) {
+					errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+					return nullptr;
+				}
+				Elements[idx++] = std::move(elem);
+			} else {
+				while (Elements.size() < idx)
+					Elements.push_back(nullptr);
+				Elements.push_back(std::move(elem));
+				idx++;
+			}
+			break;
+		default:
+			errs() << elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
+			return nullptr;
+		}
+	}
+	if (ft) {
+		if (dim >= 0) {
+			if (ft->type->isArrayTy()) {
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements));
+			} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), ft->elem_type, dim);
+			} else {
+				errs() << "internal compiler error\n";
+				abort();
 			}
 		} else {
-			if (dim >= 0) {
-				if ((int64_t)Elements.size() > dim) {
-					errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim << '\n';
-					return nullptr;
-				} else {
-					return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
-				}
-			} else {
-				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len), LenLoc);
-			}
+			return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Len), LenLoc);
 		}
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
 	} else {
-		errs() << "AggregateExpr: unexpected '" << CurTok.str() << "' (expected expression)\n";
-		return nullptr;
+		if (dim >= 0) {
+			if ((int64_t)Elements.size() > dim) {
+				errs() << LenLoc << ": maximum index of initialization elements (" << Elements.size() - 1 << ") is not lower than given length (" << dim << '\n';
+				return nullptr;
+			} else {
+				return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, dim);
+			}
+		} else {
+			return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, -1, std::move(Len), LenLoc);
+		}
 	}
 }
 

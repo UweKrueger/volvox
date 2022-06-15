@@ -35,7 +35,7 @@ public:
 	union LitValue Val;
 	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
 		  (((tok.int_type.ID == llvm::Type::IntegerTyID &&
-		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type, true), Val(tok.Val) {}
+		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (ft->type->getTypeID()) {
@@ -127,7 +127,7 @@ public:
 		: LvalueExprAST(Loc, Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var.first) {
 			dbgs() << "found variable " << Name << " type " << *full_var.first->ft.type << '\n';
-			ft = new_FullType(full_var.first->ft); // TODO: don't create a new instance (?)
+			ft = &full_var.first->ft;
 		}
 		// if the variable name has not found in the database we don't generate
 		// an error message here because this VariableExprAST could be the LHS of
@@ -194,7 +194,7 @@ public:
 	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 volvoxc::FullType* el_type = nullptr, SourceLocation LenLoc = {0}) :
+	                 volvoxc::FullType* el_type = nullptr) :
 		ExprAST(nullptr, 0, Loc), key_type(key_type),
 		key_type_attr(key_type_attr), Elements(std::move(_Elements))
 		{
@@ -206,13 +206,6 @@ public:
 			}
 			ft->elem_type = convs.first;
 			Elem_convs = convs.second;
-			// TODO: remove 'is_compile_time_const' property in favor of detection in 'codegen()'
-			is_compile_time_const = true;
-			for (auto& e: Elements)
-				if (e && !e->is_compile_time_const) {
-					is_compile_time_const = false;
-					break;
-				}
 		}
 	AggregateExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
@@ -227,12 +220,6 @@ public:
 			}
 			else
 				Elem_convs = convs.second;
-			is_compile_time_const = true;
-			for (auto& e: Elements)
-				if (e && !e->is_compile_time_const) {
-					is_compile_time_const = false;
-					break;
-				}
 		}
 };
 
@@ -269,16 +256,7 @@ public:
 			// the AggregateExprAST constructor should have determined the element type if not
 			// given - we check this:
 			if (ft && ft->elem_type) {
-				if (Len) {
-					is_compile_time_const = false;
-					llvm::Type* array0_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
-					ft->type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), array0_type);
-					ft->type_attr = A_rtlen;
-				} else {
-					ft->type = llvm::ArrayType::get(
-						ft->elem_type->type,
-						len < 0 ? Elements.size() : len);
-				}
+				ft->type = llvm::ArrayType::get(ft->elem_type->type, len > 0 ? len : 0);
 			} else {
 				errs() << "undefined element type\n";
 				ft = nullptr;
@@ -289,10 +267,7 @@ public:
 	                  std::unique_ptr<ExprAST> _Len = nullptr, SourceLocation LenLoc = {0}) :
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)),
 		Len(std::move(_Len)), LenLoc(LenLoc)
-		{
-			if (Len)
-				is_compile_time_const = false;
-		}
+		{}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -357,8 +332,7 @@ public:
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv = {})
 		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc,
-		          _RHS->is_unknown_type && _LHS->is_unknown_type,
-		          _RHS->is_compile_time_const && (_LHS->is_compile_time_const || !strcmp(Op, ":"))),
+		          _RHS->is_unknown_type && _LHS->is_unknown_type),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
 		strcpy(Op, _Op);
 		if (strcmp(Op, ":=")) {
@@ -425,8 +399,7 @@ public:
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind, BinOpConvSet conv = {})
 		: ExprAST(_Else.size() ? conv.compat.res_type : llvm::Type::getVoidTy(Context), conv.compat.res_attr, Loc,
-		          _Else.size() && _Then.back()->is_unknown_type & _Else.back()->is_unknown_type,
-		          _Else.size() && _Then.back()->is_compile_time_const && _Else.back()->is_compile_time_const),
+		          _Else.size() && _Then.back()->is_unknown_type & _Else.back()->is_unknown_type),
 		  Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
 		  ElseEndKind(ElseEndKind), conv(conv)
 		{}

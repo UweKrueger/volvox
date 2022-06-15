@@ -756,8 +756,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			return nullptr;
 		if (conv.compat.RHS)
 			Val = conv.compat.RHS(Val);
-		if (Val->getType()->isFunctionTy())
-			errs() << "RHS for " << Op << " - function " << *Val->getType() << '\n';
 		// Look up the name.
 		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
 			varname = RegularVar->getName().c_str();

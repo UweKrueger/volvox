@@ -32,7 +32,7 @@ fn test_array_elem_type_1() bool
 	return ar1[2] == 67.75 & ar1[7] == 5.375
 
 fn test_explicit_array_type() bool
-	ar2 := [3]f64{2, 5, 7}
+	ar2 := [12]f64{2, 5, 7}
 	ar2[1] = ar2[2] / ar2[0]
 	return ar2[1] == 3.5
 
