@@ -113,7 +113,6 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		errs() << Loc << ": internal error: array literal not of array type\n";
 		return nullptr;
 	}
-	uint64_t len = array_type->getNumElements();
 	if (Dims[0])
 		LenVal = Builder->CreateIntCast(Dims[0]->codegen(), llvm::Type::getInt64Ty(Context), false);
 	else
@@ -129,17 +128,16 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		}
 		i++;
 	}
-	if (LenVal)
-		if (auto constLenVal = llvm::dyn_cast<llvm::ConstantInt>(LenVal)) {
-			// the "nominal" type of this expression did not contain the array dimension, however
-			// we know this number by now after generating code for 'Len'. So the type
-			// can be adjusted by replacing the nominal type
-			len = constLenVal->getZExtValue();
-			LenVal = nullptr;
-			llvm::Type* new_array_type = llvm::ArrayType::get(ft->elem_type->type, len);
-			ft = new_FullType(*ft);
-			ft->type = new_array_type;
-		}
+	if (auto constLenVal = llvm::dyn_cast<llvm::ConstantInt>(LenVal)) {
+		// the "nominal" type of this expression did not contain the array dimension, however
+		// we know this number by now after generating code for 'Len'. So the type
+		// can be adjusted by replacing the nominal type
+		uint64_t len = constLenVal->getZExtValue();
+		LenVal = nullptr;
+		llvm::Type* new_array_type = llvm::ArrayType::get(ft->elem_type->type, len);
+		ft = new_FullType(*ft);
+		ft->type = new_array_type;
+	}
 	if (!LenVal) {
 		return ini;
 	} else {

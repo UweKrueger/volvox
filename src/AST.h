@@ -232,6 +232,14 @@ union AggregateKey {
 	llvm::Constant* String;
 };
 
+class ListExprAST : public AggregateExprAST {
+public:
+	ListExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
+	            unsigned key_type_attr = 0,
+	            std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
+		AggregateExprAST(Loc, _ft, key_type, key_type_attr, std::move(_Elements)) {}
+};
+
 class MapExprAST : public AggregateExprAST {
 public:
 	std::vector<AggregateKey> Keys;
