@@ -57,7 +57,7 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
 	}
 	// The arguments are parsed as a tree of binary expressions (Op=',') where
 	// all objects are in the leaves.
-	// Due to operator precedence rules the tree is stricly left-heavy ## this is wrong ## and can be
+	// Due to operator precedence rules the tree is stricly left-heavy and can be
 	// processed right to left without the need for recursions. We just have to iterate
 	// through the binary nodes and front-push each right leave (RHS) to the Args list.
 	while (auto bin_expr = dynamic_cast<BinaryExprAST*>(Arg.get())) {

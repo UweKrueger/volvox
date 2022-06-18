@@ -185,18 +185,25 @@ public:
 #endif
 };
 
-class AggregateExprAST : public ExprAST {
+class ListExprAST : public ExprAST {
+public:
+	std::vector<std::unique_ptr<ExprAST>> Elements; // x, y, z in type{x, y, z}
+	ListExprAST(SourceLocation Loc, std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	            volvoxc::FullType* _ft = nullptr) :
+		ExprAST(_ft, Loc), Elements(std::move(_Elements)) {}
+};
+
+class AggregateExprAST : public ListExprAST {
 public:
 	llvm::Type* key_type;
 	unsigned key_type_attr;
 	std::vector<std::function<llvm::Value*(llvm::Value*)>> Elem_convs;
-	std::vector<std::unique_ptr<ExprAST>> Elements; // x, y, z in type{x, y, z}
 	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 volvoxc::FullType* el_type = nullptr) :
-		ExprAST(nullptr, 0, Loc), key_type(key_type),
-		key_type_attr(key_type_attr), Elements(std::move(_Elements))
+		ListExprAST(Loc, std::move(_Elements)), key_type(key_type),
+		key_type_attr(key_type_attr)
 		{
 			std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> convs =
 				getArrayConv(Elements, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
@@ -210,8 +217,8 @@ public:
 	AggregateExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
-		ExprAST(_ft, Loc), key_type(key_type),
-		key_type_attr(key_type_attr), Elements(std::move(_Elements))
+		ListExprAST(Loc, std::move(_Elements), _ft), key_type(key_type),
+		key_type_attr(key_type_attr)
 		{
 			auto convs = getArrayConv(Elements, ft->elem_type->type, ft->elem_type->type_attr);
 			if (!convs.first) {
@@ -230,14 +237,6 @@ union AggregateKey {
 	double Double;
 	float Float;
 	llvm::Constant* String;
-};
-
-class ListExprAST : public AggregateExprAST {
-public:
-	ListExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
-	            unsigned key_type_attr = 0,
-	            std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
-		AggregateExprAST(Loc, _ft, key_type, key_type_attr, std::move(_Elements)) {}
 };
 
 class MapExprAST : public AggregateExprAST {

@@ -561,7 +561,7 @@ public:
 			ft->type_attr |= add_attr;
 		}
 	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
-		: ft(full_type), Loc(Loc), is_unknown_type(is_unknown_type) {}
+		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
 	virtual llvm::Value *codegen_raw() = 0;
 	llvm::Value* codegen() {
