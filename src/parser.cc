@@ -324,6 +324,22 @@ static void aggr_prop_redefinition(SourceLocation Loc, const char* prop) {
 	errs() << Loc << ": property \"" << prop << "\" already defined\n";
 }
 
+static std::unique_ptr<ListExprAST> ParseListExpr() {
+	SourceLocation loc = CurLoc;
+	getNextToken();
+	if (CurTok.kind == '}') {
+		getNextToken(eBinOp);
+		return std::make_unique<ListExprAST>(loc);
+	}
+	auto Elem = ParseExpression();
+	if (!Expect('}', eBinOp))
+		return nullptr;
+	if (!Elem)
+		return nullptr;
+	auto Elems = SplitExprList(std::move(Elem));
+	return std::make_unique<ListExprAST>(loc, std::move(Elems));
+}
+
 /*
   Fixed Size (Stack) Arrays
   =========================
@@ -362,8 +378,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	// part of the type of an aggregate literal ("[3]i32{...}" or [3][3]f64{...}".
 	// so spaces before and/or after "[3]" do matter:
 	// a [3] [4]f64{...} <---> a[3][4] <---> a[3] [4]f64{...}
-	bool is_index = kind == '[' && Lexer::is_expr_end(lex.PreviousChar);
-	char closing = '}'; // for dynamic aray, map, set
 	llvm::Type* key_type = nullptr;
 	bool key_is_signed = false;
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
@@ -373,12 +387,15 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
 	std::vector<SourceLocation> LenLocs;
+	std::unique_ptr<ListExprAST> init_list = nullptr;
 	if (ft) {
 		for (auto& dim: Dims)
 			LenLocs.push_back(dim ? dim->Loc : SourceLocation{0});
-		if (!Expect('{'))
-		    return nullptr;
-		closing = '}';
+		if (CurTok.kind != '{') {
+			errs() << CurLoc << ": expression list ('{...}')expected\n";
+			return nullptr;
+		}
+		init_list = ParseListExpr();
 		switch (ft->type->getTypeID()) {
 		case llvm::Type::ArrayTyID:
 			key_type = llvm::Type::getInt64Ty(Context);
@@ -389,8 +406,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
 			return nullptr;
 		}
-		if (CurTok.kind == '}') {
-			if (!Dims[0]) {
+		if (!init_list->getNumElements()) {
+			if (!Dims[0]) { // TODO: handle struct, map, ...
 				errs() << CurLoc << ": empty initialization requires explicit dimension\n";
 				return nullptr;
 			}
@@ -407,18 +424,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 				abort();
 			}
 		}
-		if (CurTok.kind == '}') {
-			if (!ft)
-				errs() << CurLoc << ": explicit type required for literals with empty initialization list\n";
-			getNextToken(eBinOp);
-			return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Dims), LenLocs);
-		}
-		auto Elem = ParseExpression();
-		if (!Expect('}', eBinOp))
-			return nullptr;
-		if (!Elem)
-			return nullptr;
-		Elems = SplitExprList(std::move(Elem));
+		Elems = std::move(init_list->Elements);
 	} else {
 		Elems = std::move(Dims);
 		Dims.clear();
@@ -683,6 +689,7 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 	case ')':
 		return std::make_unique<EmptyExprAST>();
 	case '{':
+		return ParseListExpr();
 	case '[':
 	case tok_map:
 	case tok_set:

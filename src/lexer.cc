@@ -90,7 +90,6 @@ static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
 int Lexer::advance() {
-	PreviousChar = CurChar;
 	// unfortunately readline does not return the trailing \n whereas
 	// getline (and fdgetline from above) do. We catch this here by
 	// handling line endings different when use_readline is set
@@ -137,6 +136,14 @@ char Lexer::peek_strict() {
 		return '\0';
 	else
 		return CurChar & 0xff;
+}
+
+// get the character strictly before the current token in the same line
+char Lexer::look_back_strict() {
+	if (!LexLoc.Col)
+		return '\0';
+	else
+		return linebuf[LexLoc.Col - 1];
 }
 
 std::string IdentifierStr; // Filled in if tok_identifier

@@ -720,10 +720,10 @@ public:
 	Token purge_line();
 	char peek();
 	char peek_strict();
+	char look_back_strict();
 	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;
-	int PreviousChar = 0;
 	int CurChar = ' ';
 	// c can be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {

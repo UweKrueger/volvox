@@ -191,6 +191,16 @@ public:
 	ListExprAST(SourceLocation Loc, std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	            volvoxc::FullType* _ft = nullptr) :
 		ExprAST(_ft, Loc), Elements(std::move(_Elements)) {}
+	llvm::Value *codegen_raw() override;
+	unsigned getNumElements() { return Elements.size(); }
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		ExprAST::dump(out << "Expression List: " << Elements.size(), ind);
+		for (const auto &Element : Elements)
+			Element->dump(indent(out, ind + 1), ind + 1);
+		return out;
+	}
+#endif
 };
 
 class AggregateExprAST : public ListExprAST {

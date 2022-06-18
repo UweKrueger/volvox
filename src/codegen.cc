@@ -103,6 +103,25 @@ llvm::Value *LiteralExprAST::codegen_raw() {
 	}
 }
 
+llvm::Value *ListExprAST::codegen_raw() {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
+	if (Elements.size()) {
+		std::vector<llvm::Type*> types;
+		types.reserve(Elements.size());
+		for (auto& elem: Elements)
+			types.push_back(elem->ft->type);
+		llvm::Type* list_type = llvm::StructType::get(Context, types);
+		llvm::Value *V = llvm::UndefValue::get(list_type);
+		for (unsigned i = 0; i < Elements.size(); ++i)
+			V = Builder->CreateInsertValue(V, Elements[i]->codegen(), i, "listpush");
+		return V;
+	} else {
+		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+	}
+}
+
 llvm::Value *FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
