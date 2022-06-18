@@ -360,6 +360,17 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 	}
 }
 
+class ExprListIterator {
+	ListExprAST* list;
+	std::vector<unsigned> idxs = { 0 };
+	unsigned order = 0;
+	bool struct_err = false;
+public:
+	ExprListIterator(ListExprAST* list) : list(list) {}
+	ExprAST* next();
+	bool struct_error() const { return struct_err; }
+};
+
 // get element type of an array
 std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
 	std::vector<std::unique_ptr<ExprAST>>& Elems, llvm::Type* elem_type, unsigned elem_attr) {
