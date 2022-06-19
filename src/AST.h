@@ -203,6 +203,23 @@ public:
 #endif
 };
 
+class ExprListIterator {
+	ListExprAST* list;
+	unsigned order = 1; // 1 for vector, 2 for matrix, 3 for 3-level-tensor, ...
+	bool struct_err = false;
+	void scan_list(ListExprAST* list_to_scan, unsigned depth = 0);
+public:
+	std::vector<ExprAST*> valid_exprs;
+	ExprListIterator(ListExprAST* list) : list(list) {
+		scan_list(list, 0);
+	}
+	unsigned get_order() const { return order; }
+	bool struct_error() const { return struct_err; }
+};
+
+extern std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
+	ListExprAST* List, llvm::Type* elem_type = nullptr, unsigned elem_attr = 0);
+
 class AggregateExprAST : public ListExprAST {
 public:
 	llvm::Type* key_type;
@@ -216,7 +233,7 @@ public:
 		key_type_attr(key_type_attr)
 		{
 			std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> convs =
-				getArrayConv(Elements, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
+				getArrayConv(this, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
 			if (!convs.first) {
 				ft = nullptr;
 				errs() << "internal problem when creating AggregateExprAST\n";
@@ -230,7 +247,7 @@ public:
 		ListExprAST(Loc, std::move(_Elements), _ft), key_type(key_type),
 		key_type_attr(key_type_attr)
 		{
-			auto convs = getArrayConv(Elements, ft->elem_type->type, ft->elem_type->type_attr);
+			auto convs = getArrayConv(this, ft->elem_type->type, ft->elem_type->type_attr);
 			if (!convs.first) {
 				ft = nullptr;
 				errs() << "internal problem creating AggregateExprAST\n";

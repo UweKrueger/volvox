@@ -139,9 +139,10 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	uint64_t i = 0;
 	llvm::Type* initializer_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
 	llvm::Value* ini = llvm::UndefValue::get(initializer_type);
+	unsigned j = 0;
 	for (auto& e: Elements) {
 		if (e) {
-			ini = Builder->CreateInsertValue(ini, Elem_convs[i](e->codegen_raw()), i, "arrlit");
+			ini = Builder->CreateInsertValue(ini, Elem_convs[j++](e->codegen_raw()), i, "arrlit");
 		} else {
 			ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
 		}

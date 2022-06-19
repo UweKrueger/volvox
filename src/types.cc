@@ -360,19 +360,6 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 	}
 }
 
-class ExprListIterator {
-	ListExprAST* list;
-	unsigned order = 1; // 1 for vector, 2 for matrix, 3 for 3-level-tensor, ...
-	bool struct_err = false;
-	void scan_list(ListExprAST* list_to_scan, unsigned depth = 0);
-public:
-	std::vector<ExprAST*> valid_exprs;
-	ExprListIterator(ListExprAST* list) : list(list) {
-		scan_list(list, 0);
-	}
-	bool struct_error() const { return struct_err; }
-};
-
 void ExprListIterator::scan_list(ListExprAST* list_to_scan, unsigned depth) {
 	if (struct_err)
 		return;
@@ -401,8 +388,8 @@ void ExprListIterator::scan_list(ListExprAST* list_to_scan, unsigned depth) {
 
 // get element type of an array
 std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
-	std::vector<std::unique_ptr<ExprAST>>& Elems, llvm::Type* elem_type, unsigned elem_attr) {
-	auto conv = std::vector<std::function<llvm::Value*(llvm::Value*)>>(Elems.size(), nullptr);
+	ListExprAST* List, llvm::Type* elem_type, unsigned elem_attr) {
+	std::vector<std::function<llvm::Value*(llvm::Value*)>> conv;
 	bool is_signed = elem_attr & A_signed;
 	bool is_float = false;
 	unsigned bitwidth = 0;
@@ -413,8 +400,10 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 	}
 	SourceLocation MaxBWLoc;
 	volvoxc::FullType* res_ft = nullptr;
+	ExprListIterator iter(List);
+	conv.reserve(iter.valid_exprs.size());
 	if (!bitwidth) {
-		for (auto& elem: Elems) {
+		for (auto& elem: iter.valid_exprs) {
 			if (elem) {
 				if (res_ft) {
 					if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
@@ -452,12 +441,8 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 			auto type_name = type_table.get_name(res_type, is_signed && !is_float);
 			// TODO: implement full type lookup that doesn't need getting name string
 			res_ft = type_table.get_full(type_name);
-			int i = 0;
-			for (auto& elem : Elems) {
-				if (elem)
-					conv[i] = getConv(elem->ft->type, res_type, elem->ft->type_attr, (is_signed && !is_float) ? A_signed : 0, elem->Loc);
-				i++;
-			}
+			for (auto& elem: iter.valid_exprs)
+				conv.push_back(getConv(elem->ft->type, res_type, elem->ft->type_attr, (is_signed && !is_float) ? A_signed : 0, elem->Loc));
 			return { res_ft, conv };
 		}
 	}
