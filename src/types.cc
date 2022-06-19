@@ -373,7 +373,7 @@ void ExprListIterator::scan_list(ListExprAST* list_to_scan, unsigned depth) {
 			order++;
 		while (order <= depth);
 	}
-	for (auto& elem: list->Elements)
+	for (auto& elem: list_to_scan->Elements)
 		if (auto sublist = dynamic_cast<ListExprAST*>(elem.get()))
 			scan_list(sublist, depth + 1);
 		else if (elem) {
