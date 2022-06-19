@@ -362,14 +362,42 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 
 class ExprListIterator {
 	ListExprAST* list;
-	std::vector<unsigned> idxs = { 0 };
-	unsigned order = 0;
+	unsigned order = 1; // 1 for vector, 2 for matrix, 3 for 3-level-tensor, ...
 	bool struct_err = false;
+	void scan_list(ListExprAST* list_to_scan, unsigned depth = 0);
 public:
-	ExprListIterator(ListExprAST* list) : list(list) {}
-	ExprAST* next();
+	std::vector<ExprAST*> valid_exprs;
+	ExprListIterator(ListExprAST* list) : list(list) {
+		scan_list(list, 0);
+	}
 	bool struct_error() const { return struct_err; }
 };
+
+void ExprListIterator::scan_list(ListExprAST* list_to_scan, unsigned depth) {
+	if (struct_err)
+		return;
+	if (depth >= order) {
+		if (valid_exprs.size()) {
+			struct_err = true;
+			errs() << list_to_scan->Loc << ": array structure invalid - level " << depth << " sublist conflics with previous non-list elements of lower level\n";
+			return;
+		}
+		do
+			order++;
+		while (order <= depth);
+	}
+	for (auto& elem: list->Elements)
+		if (auto sublist = dynamic_cast<ListExprAST*>(elem.get()))
+			scan_list(sublist, depth + 1);
+		else if (elem) {
+			if (depth != order - 1) {
+				struct_err = true;
+				errs() << elem->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublists\n";
+				return;
+			}
+			valid_exprs.push_back(elem.get());
+		}
+}
 
 // get element type of an array
 std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
