@@ -360,34 +360,8 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 	}
 }
 
-void ExprListIterator::scan_list(ListExprAST* list_to_scan, unsigned depth) {
-	if (struct_err)
-		return;
-	if (depth >= order) {
-		if (valid_exprs.size()) {
-			struct_err = true;
-			errs() << list_to_scan->Loc << ": array structure invalid - level " << depth << " sublist conflics with previous non-list elements of lower level\n";
-			return;
-		}
-		do
-			order++;
-		while (order <= depth);
-	}
-	for (auto& elem: list_to_scan->Elements)
-		if (auto sublist = dynamic_cast<ListExprAST*>(elem.get()))
-			scan_list(sublist, depth + 1);
-		else if (elem) {
-			if (depth != order - 1) {
-				struct_err = true;
-				errs() << elem->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublists\n";
-				return;
-			}
-			valid_exprs.push_back(elem.get());
-		}
-}
-
 // get element type of an array
-std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
+std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> AggregateExprAST::getArrayConv(
 	ListExprAST* List, llvm::Type* elem_type, unsigned elem_attr) {
 	std::vector<std::function<llvm::Value*(llvm::Value*)>> conv;
 	bool is_signed = elem_attr & A_signed;
@@ -400,7 +374,6 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 	}
 	SourceLocation MaxBWLoc;
 	volvoxc::FullType* res_ft = nullptr;
-	ExprListIterator iter(List);
 	conv.reserve(iter.valid_exprs.size());
 	if (!bitwidth) {
 		for (auto& elem: iter.valid_exprs) {

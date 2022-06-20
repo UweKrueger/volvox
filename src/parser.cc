@@ -430,48 +430,79 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		Dims.clear();
 		Dims.push_back(nullptr);
 	}
+	auto iter = ExprListIterator();
+	std::vector<std::unique_ptr<ExprAST>> Elements = iter.prepare_list(std::move(Elems), 0);
+	if (ft)
+		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Dims), LenLocs);
+	else
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, std::move(Dims), LenLocs);
+}
+
+std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth) {
 	std::vector<std::unique_ptr<ExprAST>> Elements = {};
-	uint64_t idx = 0;
-	unsigned order = 0;
+	unsigned idx = 0;
+	if (struct_err)
+		return {};
+	if (depth >= order) {
+		if (valid_exprs.size()) {
+			struct_err = true;
+			errs() << (Elems.size() ? Elems[0]->Loc : CurLoc) << ": array structure invalid - level " << depth << " sublist conflics with previous non-list elements of lower level\n";
+			return {};
+		}
+		do
+			order++;
+		while (order <= depth);
+	}
 	for (auto& elem: Elems) {
-		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
+		if (auto sublist = dynamic_cast<ListExprAST*>(elem.get())) {
+			Elements.push_back(std::make_unique<ListExprAST>(CurLoc, prepare_list(std::move(sublist->Elements), depth + 1)));
+			idx++;
+		}
+		else if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map
 				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 					if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
 						if (ident->Name == "len") {
 							if (kind != '[' && kind != '{') { // no array
 								aggr_prop_err(bin_expr->RHS->Loc, "len", kind);
-								return nullptr;
+								struct_err = true;
+								return {};
 							}
 							if (Dims[order]) {
 								errs() << bin_expr->RHS->Loc << ": redefinition of array dimension\n"
 								       << Dims[order]->Loc << ": dimension (order " << order << ") already defined here\n";
-								return nullptr;
+								struct_err = true;
+								return {};
 							}
 							Dims[order] = std::move(bin_expr->RHS);
 						} else if(ident->Name == "cap") {
 							if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
 								aggr_prop_err(ident->Loc, "cap", kind);
-								return nullptr;
+								struct_err = true;
+								return {};
 							}
 							if (Cap) {
 								aggr_prop_redefinition(ident->Loc, "cap");
-								return nullptr;
+								struct_err = true;
+								return {};
 							}
 							Cap = std::move(bin_expr->RHS);
 						} else if(ident->Name == "ini") {
 							if (kind != '[' && kind != '{') { // no array
 								aggr_prop_err(ident->Loc, "ini", kind);
-								return nullptr;
+								struct_err = true;
+								return {};
 							}
 							if (Init) {
 								aggr_prop_redefinition(ident->Loc, "ini");
-								return nullptr;
+								struct_err = true;
+								return {};
 							}
 							Init = std::move(bin_expr->RHS);
 						} else {
 							aggr_prop_err(ident->Loc, ident->Name.c_str(), kind);
-							return nullptr;
+							struct_err = true;
+							return {};
 						}
 					} else {
 						; // handle struct element initializer
@@ -481,26 +512,31 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 					if (llvm::Value* Key = bin_expr->LHS->codegen()) {
 						unsigned keyTID = Key->getType()->getTypeID();
 						if (auto key = llvm::dyn_cast<llvm::ConstantInt>(Key)) {
-							switch (kind) {
+							switch ((int)kind) {
 							case '[':
 							case '{':
 								idx = key->getZExtValue();
 								if (idx < Elements.size()) {
-									if (Elements[idx]) {
-										errs() << elem->Loc << ": value for index " << idx << " already defined\n";
-										return nullptr;
-									}
-									Elements[idx++] = std::move(bin_expr->RHS);
+									errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+									struct_err = true;
+									return {};
 								} else {
 									while (Elements.size() < idx)
 										Elements.push_back(nullptr);
 									Elements.push_back(std::move(bin_expr->RHS));
+									if (depth != order - 1) {
+										struct_err = true;
+										errs() << Elements[idx]->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublists\n";
+										return {};
+									}
+									valid_exprs.push_back(Elements[idx].get());
 									idx++;
 								}
 								break;
 							default:
 								errs() << aggr_kind_str(kind) << " not implemented, yet\n";
-								return nullptr;
+								struct_err = true;
+								return {};
 							}
 						} else if (auto key = llvm::dyn_cast<llvm::ConstantFP>(Key)) {
 							switch (keyTID) {
@@ -517,15 +553,18 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 								break;
 							default:
 								errs() << bin_expr->LHS->Loc << ": unsupported type " << *bin_expr->LHS->ft->type << " for aggregate key\n";
-								return nullptr;
+								struct_err = true;
+								return {};
 							}
 						} else {
 							errs() << bin_expr->LHS->Loc << ": key in aggregate literals must be a compile time const\n";
-							return nullptr;
+							struct_err = true;
+							return {};
 						}
 					} else {
 						errs() << bin_expr->LHS->Loc << ": cannot generate code for key\n";
-						return nullptr;
+						struct_err = true;
+						return {};
 					}
 				}
 				// element had ':', special treatment was done - continue with next element
@@ -537,31 +576,33 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		}
 		// simple element without key
 	element_without_key:
-		switch (kind) {
+		switch ((int)kind) {
 		case '[':
 		case '{':
 			if (idx < Elements.size()) {
-				if (Elements[idx]) {
-					errs() << elem->Loc << ": value for index " << idx << " already defined\n";
-					return nullptr;
-				}
-				Elements[idx++] = std::move(elem);
+				errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+				struct_err = true;
+				return {};
 			} else {
 				while (Elements.size() < idx)
 					Elements.push_back(nullptr);
 				Elements.push_back(std::move(elem));
+				if (depth != order - 1) {
+					struct_err = true;
+					errs() << Elements[idx]->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublists\n";
+					return {};
+				}
+				valid_exprs.push_back(Elements[idx].get());
 				idx++;
 			}
 			break;
 		default:
 			errs() << elem->Loc << ": initialization element for " << aggr_kind_str(kind) << " requires \"key:\"\n";
-			return nullptr;
+			struct_err = true;
+			return {};
 		}
 	}
-	if (ft)
-		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Dims), LenLocs);
-	else
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, std::move(Dims), LenLocs);
+	return Elements;
 }
 
 static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList();
