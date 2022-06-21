@@ -233,13 +233,14 @@ public:
 	unsigned key_type_attr;
 	std::vector<ExprAST*> valid_exprs;
 	std::vector<std::function<llvm::Value*(llvm::Value*)>> Elem_convs;
+	std::vector<unsigned> LitDims; // maximum used index in literal for each level
 	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 std::vector<ExprAST*> _valid_exprs = {},
+	                 std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {},
 	                 volvoxc::FullType* el_type = nullptr) :
 		ListExprAST(Loc, std::move(_Elements)), key_type(key_type),
-		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs))
+		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs)), LitDims(std::move(_LitDims))
 		{
 			std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> convs =
 				getArrayConv(this, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
@@ -253,8 +254,8 @@ public:
 	AggregateExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                 std::vector<ExprAST*> _valid_exprs = {}) :
-		ListExprAST(Loc, std::move(_Elements), _ft), key_type(key_type),
+	                 std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {}) :
+		ListExprAST(Loc, std::move(_Elements), _ft), key_type(key_type), LitDims(std::move(_LitDims)),
 		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs))
 		{
 			auto convs = getArrayConv(this, ft->elem_type->type, ft->elem_type->type_attr);
@@ -283,9 +284,9 @@ public:
 	std::vector<AggregateKey> Keys;
 	MapExprAST(SourceLocation Loc, llvm::Type* key_type, std::vector<AggregateKey> _Keys = {},
 	           volvoxc::FullType* elem_type = nullptr, std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	           std::vector<ExprAST*> _valid_exprs = {}, unsigned key_type_attr = 0) :
+	           std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {}, unsigned key_type_attr = 0) :
 		AggregateExprAST(Loc, key_type, key_type_attr,
-		                 std::move(_Elements), std::move(_valid_exprs), elem_type), Keys(_Keys) {}
+		                 std::move(_Elements), std::move(_valid_exprs), std::move(_LitDims), elem_type), Keys(_Keys) {}
 };
 
 class FixedArrayExprAST : public AggregateExprAST {
@@ -294,11 +295,11 @@ public:
 	std::vector<SourceLocation> LenLocs;
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  std::vector<ExprAST*> _valid_exprs = {},
+	                  std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {},
 	                  volvoxc::FullType* el_type = nullptr,
 	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
-		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs), el_type),
-		Dims(std::move(_Dims)), LenLocs(LenLocs)
+		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs),
+		                 std::move(_LitDims), el_type), Dims(std::move(_Dims)), LenLocs(LenLocs)
 		{
 			// the AggregateExprAST constructor should have determined the element type if not
 			// given - we check this:
@@ -314,11 +315,10 @@ public:
 		}
 	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	                  std::vector<ExprAST*> _valid_exprs = {},
+	                  std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {},
 	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
-		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs)),
-		Dims(std::move(_Dims)), LenLocs(LenLocs)
-		{}
+		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs),
+		                 std::move(_LitDims)), Dims(std::move(_Dims)), LenLocs(LenLocs) {}
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

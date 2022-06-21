@@ -414,7 +414,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			getNextToken(eBinOp);
 			switch (kind) {
 			case '[':
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::vector<ExprAST*>{}, std::move(Dims));
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::vector<ExprAST*>{}, std::vector<unsigned>{}, std::move(Dims));
 			case '{':
 			case tok_map:
 			case tok_set:
@@ -434,9 +434,9 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	if (iter.struct_error())
 		return nullptr;
 	if (ft)
-		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.Dims), LenLocs);
+		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.LitDims), std::move(iter.Dims), LenLocs);
 	else
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), std::move(iter.valid_exprs), nullptr, std::move(iter. Dims), LenLocs);
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.LitDims), nullptr, std::move(iter. Dims), LenLocs);
 }
 
 std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth) {
