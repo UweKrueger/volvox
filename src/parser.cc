@@ -428,7 +428,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	} else {
 		Elems = std::move(Dims);
 		Dims.clear();
-		Dims.push_back(nullptr);
 	}
 	auto iter = ExprListIterator(std::move(Dims));
 	std::vector<std::unique_ptr<ExprAST>> Elements = iter.prepare_list(std::move(Elems), 0);
@@ -443,15 +442,20 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 	unsigned idx = 0;
 	if (struct_err)
 		return {};
-	if (depth >= order) {
+	if (depth >= Dims.size()) {
+		if (explicit_order) {
+			struct_err = true;
+			errs() << (Elems.size() ? Elems[0]->Loc : CurLoc) << ": array structure invalid - level " << depth << " sublist conflics with array order " << Dims.size() << " given by type\n";
+			return {};
+		}
 		if (valid_exprs.size()) {
 			struct_err = true;
 			errs() << (Elems.size() ? Elems[0]->Loc : CurLoc) << ": array structure invalid - level " << depth << " sublist conflics with previous non-list elements of lower level\n";
 			return {};
 		}
 		do
-			order++;
-		while (order <= depth);
+			Dims.push_back(nullptr);
+		while (Dims.size() <= depth);
 	}
 	for (auto& elem: Elems) {
 		if (auto sublist = dynamic_cast<ListExprAST*>(elem.get())) {
@@ -524,7 +528,7 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 									while (Elements.size() < idx)
 										Elements.push_back(nullptr);
 									Elements.push_back(std::move(bin_expr->RHS));
-									if (depth != order - 1) {
+									if (depth != Dims.size() - 1) {
 										struct_err = true;
 										errs() << Elements[idx]->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublists\n";
 										return {};
@@ -587,9 +591,9 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 				while (Elements.size() < idx)
 					Elements.push_back(nullptr);
 				Elements.push_back(std::move(elem));
-				if (depth != order - 1) {
+				if (depth != Dims.size() - 1) {
 					struct_err = true;
-					errs() << Elements[idx]->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublist " << depth << ' ' << order << "\n";
+					errs() << Elements[idx]->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previously determined order " << Dims.size() << '\n';
 					return {};
 				}
 				valid_exprs.push_back(Elements[idx].get());

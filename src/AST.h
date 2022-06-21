@@ -205,17 +205,23 @@ public:
 
 class ExprListIterator {
 	ListExprAST* list;
-	unsigned order = 1; // 1 for vector, 2 for matrix, 3 for 3-level-tensor, ...
 	bool struct_err = false;
 	TokenKind kind = TokenKind('[');
+	bool explicit_order;
 public:
-	std::vector<std::unique_ptr<ExprAST>> Dims;
+	std::vector<std::unique_ptr<ExprAST>> Dims; // 1 element for vector, 2 for matrix, 3 for 3-level-tensor, ...
 	std::unique_ptr<ExprAST> Cap;
 	std::unique_ptr<ExprAST> Init;
 	std::vector<std::unique_ptr<ExprAST>> prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth);
 	std::vector<ExprAST*> valid_exprs;
-	ExprListIterator(std::vector<std::unique_ptr<ExprAST>> _Dims) : Dims(std::move(_Dims)) {}
-	unsigned get_order() const { return order; }
+	ExprListIterator(std::vector<std::unique_ptr<ExprAST>> _Dims) : Dims(std::move(_Dims)) {
+		if (Dims.size()) {
+			explicit_order = true;
+		} else {
+			explicit_order = false;
+			Dims.push_back(nullptr);
+		}
+	}
 	bool struct_error() const { return struct_err; }
 };
 
