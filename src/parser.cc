@@ -407,14 +407,17 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			return nullptr;
 		}
 		if (!init_list->getNumElements()) {
-			if (!Dims[0]) { // TODO: handle struct, map, ...
+			bool is_valid = (Dims.size() > 0);
+			for (int j = 0; j < Dims.size(); j++)
+				is_valid = is_valid && Dims[j];
+			if (!is_valid) { // TODO: handle struct, map, ...
 				errs() << CurLoc << ": empty initialization requires explicit dimension\n";
 				return nullptr;
 			}
 			getNextToken(eBinOp);
 			switch (kind) {
 			case '[':
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::vector<ExprAST*>{}, std::vector<unsigned>{}, std::move(Dims));
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::vector<ExprAST*>{}, std::vector<unsigned>(Dims.size(), 0), std::move(Dims));
 			case '{':
 			case tok_map:
 			case tok_set:
