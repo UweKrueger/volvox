@@ -209,7 +209,9 @@ class ExprListIterator {
 	TokenKind kind = TokenKind('[');
 	bool explicit_order;
 public:
-	std::vector<std::unique_ptr<ExprAST>> Dims; // 1 element for vector, 2 for matrix, 3 for 3-level-tensor, ...
+	std::vector<std::unique_ptr<ExprAST>> Dims; // Dims.size() = order of tensor - 1 for vector, 2 for matrix, ...
+	                                            // Dims[i] = dimension of tensor in level 'i'
+	std::vector<unsigned> LitDims; // maximum used index in literal for each level
 	std::unique_ptr<ExprAST> Cap;
 	std::unique_ptr<ExprAST> Init;
 	std::vector<std::unique_ptr<ExprAST>> prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth);

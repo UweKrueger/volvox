@@ -459,10 +459,18 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 			Dims.push_back(nullptr);
 		while (Dims.size() <= depth);
 	}
+	if (LitDims.size() < Dims.size()) {
+		LitDims.reserve(Dims.size());
+		do
+			LitDims.push_back(0);
+		while (LitDims.size() < Dims.size());
+	}
 	for (auto& elem: Elems) {
 		if (auto sublist = dynamic_cast<ListExprAST*>(elem.get())) {
 			Elements.push_back(std::make_unique<ListExprAST>(CurLoc, prepare_list(std::move(sublist->Elements), depth + 1)));
 			idx++;
+			if (idx > LitDims[depth])
+				LitDims[depth] = idx;
 			continue;
 		} else if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map
@@ -537,6 +545,8 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 									}
 									valid_exprs.push_back(Elements[idx].get());
 									idx++;
+									if (idx > LitDims[depth])
+										LitDims[depth] = idx;
 								}
 								break;
 							default:
@@ -600,6 +610,8 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 				}
 				valid_exprs.push_back(Elements[idx].get());
 				idx++;
+				if (idx > LitDims[depth])
+					LitDims[depth] = idx;
 			}
 			break;
 		default:

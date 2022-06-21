@@ -126,16 +126,24 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	llvm::Value* LenVal = nullptr;
+	llvm::Value* LenVal = Builder->getInt64(1);
+	std::vector<llvm::Value*> LenVals;
+	LenVals.reserve(Dims.size());
 	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
 	if (!array_type) {
 		errs() << Loc << ": internal error: array literal not of array type\n";
 		return nullptr;
 	}
-	if (Dims[0])
-		LenVal = Builder->CreateIntCast(Dims[0]->codegen(), llvm::Type::getInt64Ty(Context), false);
-	else
-		LenVal = Builder->getInt64(Elements.size());
+	for (auto& dim: Dims) {
+		llvm::Value* curDim;
+		if (dim)
+			curDim = Builder->CreateIntCast(dim->codegen(), llvm::Type::getInt64Ty(Context), false);
+		else
+			// TODO: for multi dimensional arrays find maximum size in current depth
+			curDim = Builder->getInt64(Elements.size());
+		LenVal = Builder->CreateMul(LenVal, curDim);
+		LenVals.push_back(curDim);
+	}
 	uint64_t i = 0;
 	llvm::Type* initializer_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
 	llvm::Value* ini = llvm::UndefValue::get(initializer_type);
