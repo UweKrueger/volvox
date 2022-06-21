@@ -214,23 +214,24 @@ public:
 	std::unique_ptr<ExprAST> Init;
 	std::vector<std::unique_ptr<ExprAST>> prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth);
 	std::vector<ExprAST*> valid_exprs;
-	ExprListIterator() {}
+	ExprListIterator(std::vector<std::unique_ptr<ExprAST>> _Dims) : Dims(std::move(_Dims)) {}
 	unsigned get_order() const { return order; }
 	bool struct_error() const { return struct_err; }
 };
 
 class AggregateExprAST : public ListExprAST {
-	ExprListIterator iter;
 public:
 	llvm::Type* key_type;
 	unsigned key_type_attr;
+	std::vector<ExprAST*> valid_exprs;
 	std::vector<std::function<llvm::Value*(llvm::Value*)>> Elem_convs;
 	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	                 std::vector<ExprAST*> _valid_exprs = {},
 	                 volvoxc::FullType* el_type = nullptr) :
 		ListExprAST(Loc, std::move(_Elements)), key_type(key_type),
-		key_type_attr(key_type_attr)
+		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs))
 		{
 			std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> convs =
 				getArrayConv(this, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
@@ -243,9 +244,10 @@ public:
 		}
 	AggregateExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
-	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
+	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	                 std::vector<ExprAST*> _valid_exprs = {}) :
 		ListExprAST(Loc, std::move(_Elements), _ft), key_type(key_type),
-		key_type_attr(key_type_attr)
+		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs))
 		{
 			auto convs = getArrayConv(this, ft->elem_type->type, ft->elem_type->type_attr);
 			if (!convs.first) {
@@ -273,9 +275,9 @@ public:
 	std::vector<AggregateKey> Keys;
 	MapExprAST(SourceLocation Loc, llvm::Type* key_type, std::vector<AggregateKey> _Keys = {},
 	           volvoxc::FullType* elem_type = nullptr, std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	           unsigned key_type_attr = 0) :
+	           std::vector<ExprAST*> _valid_exprs = {}, unsigned key_type_attr = 0) :
 		AggregateExprAST(Loc, key_type, key_type_attr,
-		                 std::move(_Elements), elem_type), Keys(_Keys) {}
+		                 std::move(_Elements), std::move(_valid_exprs), elem_type), Keys(_Keys) {}
 };
 
 class FixedArrayExprAST : public AggregateExprAST {
@@ -284,9 +286,10 @@ public:
 	std::vector<SourceLocation> LenLocs;
 	FixedArrayExprAST(SourceLocation Loc,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	                  std::vector<ExprAST*> _valid_exprs = {},
 	                  volvoxc::FullType* el_type = nullptr,
 	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
-		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), el_type),
+		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs), el_type),
 		Dims(std::move(_Dims)), LenLocs(LenLocs)
 		{
 			// the AggregateExprAST constructor should have determined the element type if not
@@ -303,8 +306,9 @@ public:
 		}
 	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
+	                  std::vector<ExprAST*> _valid_exprs = {},
 	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
-		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements)),
+		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs)),
 		Dims(std::move(_Dims)), LenLocs(LenLocs)
 		{}
 	llvm::Value* codegen_raw() override;

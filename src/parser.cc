@@ -414,7 +414,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 			getNextToken(eBinOp);
 			switch (kind) {
 			case '[':
-				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::move(Dims));
+				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::vector<ExprAST*>{}, std::move(Dims));
 			case '{':
 			case tok_map:
 			case tok_set:
@@ -430,12 +430,12 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 		Dims.clear();
 		Dims.push_back(nullptr);
 	}
-	auto iter = ExprListIterator();
+	auto iter = ExprListIterator(std::move(Dims));
 	std::vector<std::unique_ptr<ExprAST>> Elements = iter.prepare_list(std::move(Elems), 0);
 	if (ft)
-		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(Dims), LenLocs);
+		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.Dims), LenLocs);
 	else
-		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), nullptr, std::move(Dims), LenLocs);
+		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), std::move(iter.valid_exprs), nullptr, std::move(iter. Dims), LenLocs);
 }
 
 std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth) {
@@ -457,8 +457,8 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 		if (auto sublist = dynamic_cast<ListExprAST*>(elem.get())) {
 			Elements.push_back(std::make_unique<ListExprAST>(CurLoc, prepare_list(std::move(sublist->Elements), depth + 1)));
 			idx++;
-		}
-		else if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
+			continue;
+		} else if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
 			if (bin_expr->Op[0] == ':') { // struct or map
 				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 					if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
@@ -468,13 +468,13 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 								struct_err = true;
 								return {};
 							}
-							if (Dims[order]) {
+							if (Dims[depth]) {
 								errs() << bin_expr->RHS->Loc << ": redefinition of array dimension\n"
-								       << Dims[order]->Loc << ": dimension (order " << order << ") already defined here\n";
+								       << Dims[depth]->Loc << ": dimension (depth " << depth << ") already defined here\n";
 								struct_err = true;
 								return {};
 							}
-							Dims[order] = std::move(bin_expr->RHS);
+							Dims[depth] = std::move(bin_expr->RHS);
 						} else if(ident->Name == "cap") {
 							if (kind != '{' && kind != tok_chan) { // neither dynamic array nor channel
 								aggr_prop_err(ident->Loc, "cap", kind);
@@ -589,7 +589,7 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 				Elements.push_back(std::move(elem));
 				if (depth != order - 1) {
 					struct_err = true;
-					errs() << Elements[idx]->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublists\n";
+					errs() << Elements[idx]->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublist " << depth << ' ' << order << "\n";
 					return {};
 				}
 				valid_exprs.push_back(Elements[idx].get());

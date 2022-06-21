@@ -374,9 +374,9 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 	}
 	SourceLocation MaxBWLoc;
 	volvoxc::FullType* res_ft = nullptr;
-	conv.reserve(iter.valid_exprs.size());
+	conv.reserve(valid_exprs.size());
 	if (!bitwidth) {
-		for (auto& elem: iter.valid_exprs) {
+		for (auto& elem: valid_exprs) {
 			if (elem) {
 				if (res_ft) {
 					if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
@@ -414,7 +414,7 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 			auto type_name = type_table.get_name(res_type, is_signed && !is_float);
 			// TODO: implement full type lookup that doesn't need getting name string
 			res_ft = type_table.get_full(type_name);
-			for (auto& elem: iter.valid_exprs)
+			for (auto& elem: valid_exprs)
 				conv.push_back(getConv(elem->ft->type, res_type, elem->ft->type_attr, (is_signed && !is_float) ? A_signed : 0, elem->Loc));
 			return { res_ft, conv };
 		}
