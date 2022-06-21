@@ -122,7 +122,25 @@ llvm::Value *ListExprAST::codegen_raw() {
 	}
 }
 
-llvm::Value *FixedArrayExprAST::codegen_raw() {
+llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type, ListExprAST* List) {
+	uint64_t dim = initializer_type->getNumElements();
+	if (!Elements.size())
+		return llvm::Constant::getNullValue(initializer_type);
+	llvm::Type* sub_type = initializer_type->getElementType();
+	llvm::Value* zero = llvm::Constant::getNullValue(sub_type);
+	llvm::Value* ini = llvm::UndefValue::get(initializer_type);
+	for (unsigned idx = 0; idx < dim; idx++)
+		if (List->Elements.size() <= idx || !List->Elements[idx])
+			ini = Builder->CreateInsertValue(ini, zero, idx, "arrlitzero");
+		else
+			if (auto sub_list = dynamic_cast<ListExprAST*>(List->Elements[idx].get()))
+				ini = Builder->CreateInsertValue(ini, getArrayLitVal(llvm::cast<llvm::ArrayType>(sub_type), sub_list), idx, "arrlitsub");
+			else
+				ini = Builder->CreateInsertValue(ini, Elem_convs[iter_idx++](List->Elements[idx]->codegen_raw()), idx, "arrlitval");
+	return ini;
+}
+
+llvm::Value* FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -144,18 +162,11 @@ llvm::Value *FixedArrayExprAST::codegen_raw() {
 		LenVal = Builder->CreateMul(LenVal, curDim);
 		LenVals.push_back(curDim);
 	}
-	uint64_t i = 0;
-	llvm::Type* initializer_type = llvm::ArrayType::get(ft->elem_type->type, Elements.size());
-	llvm::Value* ini = llvm::UndefValue::get(initializer_type);
-	unsigned j = 0;
-	for (auto& e: Elements) {
-		if (e) {
-			ini = Builder->CreateInsertValue(ini, Elem_convs[j++](e->codegen_raw()), i, "arrlit");
-		} else {
-			ini = Builder->CreateInsertValue(ini, llvm::Constant::getNullValue(ft->elem_type->type), i, "arrlit");
-		}
-		i++;
-	}
+	llvm::Type* initializer_type = ft->elem_type->type;
+	for (auto lit_dim: LitDims)
+		initializer_type = llvm::ArrayType::get(initializer_type, lit_dim);
+	iter_idx = 0;
+	llvm::Value* ini = getArrayLitVal(llvm::cast<llvm::ArrayType>(initializer_type), this);
 	if (auto constLenVal = llvm::dyn_cast<llvm::ConstantInt>(LenVal)) {
 		// the "nominal" type of this expression did not contain the array dimension, however
 		// we know this number by now after generating code for 'Len'. So the type

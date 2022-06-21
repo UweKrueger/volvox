@@ -290,6 +290,7 @@ public:
 };
 
 class FixedArrayExprAST : public AggregateExprAST {
+	uint64_t iter_idx;
 public:
 	std::vector<std::unique_ptr<ExprAST>> Dims; // known at run time
 	std::vector<SourceLocation> LenLocs;
@@ -319,6 +320,7 @@ public:
 	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs),
 		                 std::move(_LitDims)), Dims(std::move(_Dims)), LenLocs(LenLocs) {}
+	llvm::Value* getArrayLitVal(llvm::ArrayType* initializer_type, ListExprAST* List);
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
