@@ -3,15 +3,15 @@ d := [1, -7, 3, 4]
 fn test_simple_fixed_array_lit() bool
 	return d[0] == 1 & d[1] == -7 & d[2] == 3 & d[3] == 4
 
-c := [7, 2: -2, 1: 6, 5: 19]
+c := [7, 2: -2, 5: 19]
 
 c
 
 fn test_array_lit_with_keys_and_holes() bool
-	return c[0] == 7 & c[1] == 6 & c[2] == -2 & c[3] == 0 &
+	return c[0] == 7 & c[1] == 0 & c[2] == -2 & c[3] == 0 &
 		c[4] == 0 & c[5] == 19
 
-b := [1 + 2, 4 * 5, 2 * 2 + 1: 7 + 8, 1 + 2: 9 + 10]
+b := [1 + 2, 4 * 5, 1 + 2: 9 + 10, 2 * 2 + 1: 7 + 8]
 
 fn test_array_lit_with_expr_keys_and_values() bool
 	return b[0] == 3 & b[1] == 20 & b[2] == 0 & b[3] == 19 &
