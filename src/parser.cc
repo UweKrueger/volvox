@@ -431,6 +431,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	}
 	auto iter = ExprListIterator(std::move(Dims));
 	std::vector<std::unique_ptr<ExprAST>> Elements = iter.prepare_list(std::move(Elems), 0);
+	if (iter.struct_error())
+		return nullptr;
 	if (ft)
 		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.Dims), LenLocs);
 	else
