@@ -9,6 +9,15 @@
 
 /// ExprAST - Base class for all expression nodes.
 
+class InterfaceExprAST : public ExprAST {
+	std::unique_ptr<ExprAST> expr;
+	llvm::Value* rttype = nullptr;
+public:
+	InterfaceExprAST(std::unique_ptr<ExprAST> _expr) :
+		ExprAST(_expr->ft, _expr->Loc, _expr->is_unknown_type), expr(std::move(_expr)) {}
+	llvm::Value* codegen_raw();
+};
+
 class ConstExprAST : public ExprAST {
 	llvm::Constant* val;
 public:
