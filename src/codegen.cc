@@ -453,6 +453,63 @@ llvm::Value* FunctionExprAST::codegen_raw() {
 	return ft->proto->codegen();
 }
 
+llvm::Value* InterfaceExprAST::codegen_raw() {
+	llvm::Value* val;
+	llvm::Type* type;
+	if (ft->type->isAggregateType()) {
+		// pass by reference
+		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
+			auto V = LV->codegen_ref();
+			type = V.first;
+			val = V.second;
+		} else {
+			// if it's an rvalue we have to store it on stack to get a reference
+			llvm::Value* array = expr->codegen();
+			val = StoreValue(array, expr->ft);
+		}
+	} else {
+		// pass by value
+		val = expr->codegen();
+	}
+	llvm::Constant* rttype_ptr = getRtType(expr->ft);
+	llvm::Type* real_type = expr->ft->type;
+	std::vector<llvm::Type*> types = { rttype_ptr->getType() };
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(real_type)) {
+		std::vector<llvm::Value*> dims;
+		unsigned idx = 0;
+		llvm::Type* elem_type;
+		do {
+			uint64_t dim = array_type->getNumElements();
+			if (dim)
+				dims.push_back(Builder->getInt64(dim));
+			else
+				dims.push_back(Builder->CreateExtractValue(val, idx++));
+			types.push_back(llvm::Type::getInt64Ty(Context));
+			elem_type = array_type->getElementType();
+			array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
+		} while (array_type);
+		llvm::Type* elem_ptr_type = elem_type->getPointerTo();
+		types.push_back(elem_ptr_type);
+		llvm::Type* struct_type = llvm::StructType::get(Context, types);
+		llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
+		unsigned idx2 = 0;
+		the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, idx2++);
+		for (auto Dim: dims)
+			the_struct = Builder->CreateInsertValue(the_struct, Dim, idx2++);
+		the_struct = Builder->CreateInsertValue(
+			the_struct, Builder->CreateBitCast(
+				idx ? Builder->CreateExtractValue(val, idx) : val, elem_ptr_type),
+			idx2);
+		return the_struct;
+	}
+	types.push_back(val->getType());
+	llvm::Type* struct_type = llvm::StructType::get(Context, types);
+	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
+	the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, 0);
+	the_struct = Builder->CreateInsertValue(the_struct, val, 1);
+	return the_struct;
+}
+
 llvm::Value *UnaryExprAST::codegen_raw() {
 	if (Opcode[0] == '&') {
 		if (auto V = dynamic_cast<LvalueExprAST*>(Operand.get())) {

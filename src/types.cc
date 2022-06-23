@@ -426,16 +426,11 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		VOLVOX_gen_val_type_t llvmtype;
 		unsigned key;
 	};
-	uint64_t len = 0;
-	// errs() << "RtType: " << *ft->type << ' ' << ft->type_attr << '\n';
-	if (auto arr = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
-		len = arr->getNumElements();
-	}
 	llvmtype = VOLVOX_gen_val_type_t{ .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
 	llvm::SmallVector<llvm::Constant*, 16> fields;
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)key));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)ft->type_attr));
-	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), len));
+	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), 0));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), (uint64_t)(
 		                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
 	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name, "", 0, TheModule.get()) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));

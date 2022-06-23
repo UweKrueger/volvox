@@ -1149,11 +1149,6 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			ExprList.push_back(std::move(E));
 			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 		} else {
-			llvm::Constant* rttype_ptr = getRtType(E->ft);
-			if (E->ft->type->isAggregateType()) {
-				// pass by reference
-				E = std::make_unique<UnaryExprAST>("&", std::move(E));
-			}
 			std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
 			auto println_proto = FunctionProtos.find(mangled_println);
 			if (println_proto == FunctionProtos.end()) {
@@ -1164,11 +1159,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			std::vector<std::unique_ptr<ExprAST>> PrintArgs;
 			bool is_string = E->ft->type->isPointerTy();
 			if (is_string)
-				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string(E->ft->type->isPointerTy() ? "\"" : "")))));
+				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("\"")))));
 			else
 				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-			PrintArgs.push_back(std::move(std::make_unique<ConstExprAST>(rttype_ptr)));
-			PrintArgs.push_back(std::move(E));
+			PrintArgs.push_back(std::make_unique<InterfaceExprAST>(std::move(E)));
 			// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));

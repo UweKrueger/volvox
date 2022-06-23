@@ -488,13 +488,8 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 		}
 			break;
 		case VOLVOX_ArrayTyID: {
-			rt_len = ft->num_fields;
-			if (!rt_len) {
-				rt_len = va_arg(ap, long long); // run time determined array length
-				fprintf(stderr, "got rt len: %lld\n", rt_len);
-			} else {
-				fprintf(stderr, "rt_len from type: %lld\n", rt_len);
-			}
+			// rt_len = ft->num_fields;
+			rt_len = va_arg(ap, long long); // run time determined array length
 			char* elem_ptr = va_arg(ap, char*);
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
@@ -503,7 +498,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			if (rt_len) {
 				for (uint64_t i = 0; i < rt_len; i++) {
 					if (ft->elem_type->ID == VOLVOX_FloatTyID) {
-						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, (double)*((float*)elem_ptr + i), nullptr, nullptr);
+						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, (double)*((float*)elem_ptr + i), w, p, flags, nullptr, nullptr);
 					} else if (ft->elem_type->ID == VOLVOX_IntegerTyID && elem_size <= 4) {
 						unsigned elem;
 						memcpy(&elem, (char*)elem_ptr + i * elem_size, elem_size);
@@ -512,11 +507,11 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 							unsigned shift = 8 * (4 - elem_size);
 							elem = (unsigned)((int)(elem << shift) >> shift);
 						}
-						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, elem, nullptr, nullptr);
+						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, elem, w, p, flags, nullptr, nullptr);
 					} else if (ft->elem_type->ID == VOLVOX_IntegerTyID) {
-						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((uint64_t*)elem_ptr + i), nullptr, nullptr);
+						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, *((uint64_t*)elem_ptr + i), w, p, flags, nullptr, nullptr);
 					} else if (ft->elem_type->ID == VOLVOX_DoubleTyID) {
-						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, w, p, flags, *((double*)elem_ptr + i), nullptr, nullptr);
+						sprt(s, cap, pos, i ? ", " : "[ ", ft->elem_type, *((double*)elem_ptr + i), w, p, flags, nullptr, nullptr);
 					} else {
 						prtstring(s, cap, pos, "<unsupported type>");
 					}
