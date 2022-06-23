@@ -59,15 +59,19 @@ PROG = $(TARGETDIR)volvox
 CCOBJS :=  main.o lexer.o parser.o token.o codegen.o types.o mangler.o
 OBJS := $(CCOBJS) $(EXTRAOBJS)
 
-LIB := map.o str.o array.o
+LIBOBJS := map.o str.o array.o
 
-LIBLIB := libvolvox.so.0
+LIBVOLVOXVERS := 0
+LIBVOLVOXBASE := libvolvox.so
+LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
+LIBVOLVOX := ../$(LIBVOLVOXSONAME)
+LIBVOLVOXLINK := ../$(LIBVOLVOXBASE)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
 EXTRASRC := $(EXTRAOBJS:%.o=../lib/%.c)
 
-LIBSRC := $(LIB:%.o=../lib/%.cc)
+LIBSRC := $(LIBOBJS:%.o=../lib/%.cc)
 
 %.o: %.cc $(PCH)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $<
@@ -87,21 +91,20 @@ else
 	$(CXX) $(CXXFLAGS) $(OPT) $<
 endif
 
-$(LIBLIB): $(LIB)
-	$(CC) -shared -fPIC -Wl,-soname,$(LIBLIB) -o $(LIBLIB) $(LIB)
-	ln -sf $(LIBLIB) libvolvox.so
-	mv $(LIBLIB) libvolvox.so ../lib
+$(LIBVOLVOX): $(LIBOBJS)
+	$(CC) -shared -fPIC -Wl,-soname,$(LIBVOLVOXSONAME) -o $(LIBVOLVOX) $(LIBOBJS)
+	ln -sf $(LIBVOLVOX) $(LIBVOLVOXBASE)
 
-$(PROG): $(OBJS) $(LIBLIB)
+$(PROG): $(OBJS) $(LIBVOLVOX)
 	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../lib -lvolvox -Wl,-rpath,$(shell pwd)/../lib $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS)
+	rm -f $(OBJS) $(LIBOBJS)
 
 .PHONY: distclean
 distclean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIB) $(LIBLIB) *~ ../include/*~ ../include/*.gch .depend
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) *~ ../include/*~ ../include/*.gch .depend
 
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
