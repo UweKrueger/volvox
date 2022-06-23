@@ -533,9 +533,6 @@ public:
 	volvoxc::FullType* ft;
 	llvm::Type* desired_type = nullptr;
 	unsigned desired_type_attr = 0;
-	int desired_nrows; // nrows/ncolumns: -1 = flex-array, 0 = no array
-	int desired_ncolumns;
-	int desired_nelem; // for struct
 	const char* desired_type_name = nullptr; // maybe NULL for anonymous types
 	MapNode* desired_elems = nullptr; // element-name -> { index, FullType }
 

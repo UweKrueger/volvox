@@ -108,7 +108,6 @@ namespace volvox {
 			unsigned key;
 		};
 		unsigned type_attr;
-		uint64_t num_fields;
 		uint64_t type_size;
 		const char* name;
 		union {
