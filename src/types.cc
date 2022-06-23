@@ -426,8 +426,16 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		VOLVOX_gen_val_type_t llvmtype;
 		unsigned key;
 	};
-	unsigned subclassdata; // bitwidth for int types, order for arrays, number of elements for structs
-	llvmtype = VOLVOX_gen_val_type_t{ .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+	unsigned subclassdata = 0; // bitwidth for int types, order for arrays, number of elements for structs
+	llvm::Type* elem_type = ft->type;
+	while (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
+		subclassdata++;
+		elem_type = array_type->getElementType();
+	}
+	// if it's no array use LLVM's subclassdata (e.g. integer bitwidth)
+	if (!subclassdata)
+		subclassdata = ((genType*)ft->type)->SubClassData();
+	llvmtype = VOLVOX_gen_val_type_t{ .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = subclassdata };
 	llvm::SmallVector<llvm::Constant*, 16> fields;
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)key));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)ft->type_attr));
