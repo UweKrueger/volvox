@@ -340,6 +340,10 @@ llvm::Value* IndexExprAST::codegen_raw() {
 				Len = Builder->CreateExtractValue(fld, 0);
 				fld = Builder->CreateExtractValue(fld, 1);
 				array_type = llvm::dyn_cast<llvm::ArrayType>(fld->getType());
+				if (auto len2 = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
+					errs() << "unexpected constant length: " << *len2 << '\n';
+					len = len2->getZExtValue();
+				}
 			}
 		if (!array_type) {
 			// if it's no array it must be a pointer - but then this would be an lvalue
@@ -454,7 +458,10 @@ llvm::Value *UnaryExprAST::codegen_raw() {
 		if (auto V = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 			return V->codegen_ref().second;
 		} else {
-			return StoreValue(Operand->codegen(), Operand->ft);
+			auto operand = Operand->codegen();
+			// the above and the below lines have to be separated because 'codegen()' may change 'ft'
+			// and the order of function arg evaluation is "unspecified" in C++ ISO 14882
+			return StoreValue(operand, Operand->ft);
 		}
 	}
 	llvm::Value *OperandV = Operand->codegen();

@@ -404,7 +404,7 @@ static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str) {
 	}
 }
 
-static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* int w, int p, unsigned flags, val */);
+static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags */);
 
 static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, va_list ap) {
 	if (!*cap) {
@@ -416,17 +416,16 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 	int space = *cap - *pos;
 	unsigned long long rt_len;
 	while (ft) {
-		int w = va_arg(ap, int);
-		int p = va_arg(ap, int);
-		unsigned flags = va_arg(ap, unsigned);
 		switch (ft->ID) {
 		case VOLVOX_BFloatTyID:
 		case VOLVOX_FloatTyID:
-			if (p <= 0) p = F32_DEFAULT_PRECISION;
 		case VOLVOX_DoubleTyID: {
 			double val = va_arg(ap, double);
+			int w = va_arg(ap, int);
+			int p = va_arg(ap, int);
+			unsigned flags = va_arg(ap, unsigned);
 			const char* fmt = getFmtFlt(flags);
-			if (p <= 0) p = F64_DEFAULT_PRECISION;
+			if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 			int expected_nchar = Max(abs(w)+1, p+7+1);
 			while (space < expected_nchar) {
 				*cap += expected_nchar + (*cap >> 1);
@@ -440,10 +439,13 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 					            }
 			break;
 		case VOLVOX_IntegerTyID: {
-			if (!(ft->type_attr & A_signed))
-				flags |= FMT_UNSIGNED;
 			if (ft->SubclassData <= 32) {
 				int val = va_arg(ap, int);
+				int w = va_arg(ap, int);
+				int p = va_arg(ap, int);
+				unsigned flags = va_arg(ap, unsigned);
+				if (!(ft->type_attr & A_signed))
+					flags |= FMT_UNSIGNED;
 				if (ft->SubclassData < 32)
 					if (ft->SubclassData == 1) {
 						// bool
@@ -466,8 +468,11 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 				space = *cap - *pos;
 				if (space < 1)
 					abort(); // error in calculation 
-						            } else {
+			} else {
 				long long int val = va_arg(ap, long long int);
+				int w = va_arg(ap, int);
+				int p = va_arg(ap, int);
+				unsigned flags = va_arg(ap, unsigned);
 				const char* fmt = getFmtLong(flags);
 				int expected_nchar = Max(abs(w)+1, 11+1);
 				while (space < expected_nchar) {
@@ -491,6 +496,9 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 				fprintf(stderr, "rt_len from type: %lld\n", rt_len);
 			}
 			char* elem_ptr = va_arg(ap, char*);
+			int w = va_arg(ap, int);
+			int p = va_arg(ap, int);
+			unsigned flags = va_arg(ap, unsigned);
 			long long elem_size = ft->elem_type->type_size;
 			if (rt_len) {
 				for (uint64_t i = 0; i < rt_len; i++) {
@@ -522,11 +530,17 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			break;
 		case VOLVOX_PointerTyID: {
 			char* str = va_arg(ap, char*);
+			int w = va_arg(ap, int);
+			int p = va_arg(ap, int);
+			unsigned flags = va_arg(ap, unsigned);
 			prtstring(s, cap, pos, str);
 		}
 			break;
 		case VOLVOX_FunctionTyID: {
 			char* fn = va_arg(ap, char*);
+			int w = va_arg(ap, int);
+			int p = va_arg(ap, int);
+			unsigned flags = va_arg(ap, unsigned);
 			int expected_nchar = Max(abs(w)+1, 30+1);
 			while (space < expected_nchar) {
 				*cap += expected_nchar + (*cap >> 1);
@@ -552,7 +566,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 	}
 }
 		
-static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* int w, int p, unsigned flags, val */) {
+static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags */) {
 	va_list ap;
 	va_start(ap, ft);
 	vsprt(s, cap, pos, pre, ft, ap);
@@ -600,7 +614,7 @@ static bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* 
 namespace volvox {
 #endif
 
-	_DECL bool fprint(int fd, const char* pre, const VOLVOX_RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	_DECL bool fprint(int fd, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags, ..., char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = vfprint(fd, false, pre, ft, ap);
@@ -608,7 +622,7 @@ namespace volvox {
 		return has_succeeded;
 	}
 
-	_DECL bool fprintln(int fd, const char* pre, const VOLVOX_RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	_DECL bool fprintln(int fd, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags, ..., char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = vfprint(fd, true, pre, ft, ap);
@@ -616,7 +630,7 @@ namespace volvox {
 		return has_succeeded;
 	}
 
-	_DECL bool print(const char* pre, const VOLVOX_RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	_DECL bool print(const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags, ..., char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = vfprint(1, false, pre, ft, ap);
@@ -624,7 +638,7 @@ namespace volvox {
 		return has_succeeded;
 	}
 
-	_DECL bool println(const char* pre, const VOLVOX_RtType* ft, ... /* int w, int p, unsigned flags, val, char* post */) {
+	_DECL bool println(const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags, ..., char* post */) {
 		va_list ap;
 		va_start(ap, ft);
 		bool has_succeeded = vfprint(1, true, pre, ft, ap);
@@ -948,7 +962,7 @@ _CDECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
 		return true;
 	}
 error:
-   // this is not correct - TODO: map/merge Windows errors / POSIX arrows
+   // this is not correct - TODO: map/merge Windows errors / POSIX errows
    errno = GetLastError();
 #else
    int inpipefd[2];
