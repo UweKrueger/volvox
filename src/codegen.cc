@@ -315,39 +315,11 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		Sizes[Dims.size()] = ElemSize;
 		for (int j = Dims.size() - 1; j >= 0; j--)
 			Sizes[j] = Builder->CreateMul(Dims[j], Sizes[j + 1]);
-		// llvm::Value* ArrayLen = nullptr; // "5" in "[5]f64{1, 2, 7}" or "[]f64{1, 2: 7, len: 5}"
-		// llvm::Value* LiteralLen = nullptr; // '3' in above examples - highest given index + 1
 		llvm::Value* ArrData;
 		if (llvm::isa<llvm::StructType>(val->getType()))
 			ArrData = Builder->CreateExtractValue(val, idx);
 		else
 			ArrData = val;
-		// llvm::ArrayType* array_type = nullptr;
-		// uint64_t nom_len = nominal_array_type->getNumElements();
-		// if (nom_len)
-		// 	ArrayLen = Builder->getInt64(nom_len);
-		// if (auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType())) {
-		// 	ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
-		// 	if (nom_len) {
-		// 		errs() << CurLoc << ": internal inconsistency - array length '" << nom_len
-		// 		       << "' determined by type but also given as " << *ArrayLen << '\n';
-		// 	}
-		// 	ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
-		// 	array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
-		// } else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
-		// 	if (!nom_len) {
-		// 		ArrayLen = Builder->getInt64(array_type->getNumElements());
-		// 		errs() << "StoreValue(): using literal length as array length\n";
-		// 	}
-		// 	ArrData = val;
-		// }
-		// if (!array_type) {
-		// 	errs() << CurLoc << ": StoreValue(): internal error - nominal type is array but literal's type is not\n";
-		// 	return nullptr;
-		// }
-		// LiteralLen = Builder->getInt64(array_type->getNumElements());
-		// llvm::Type* elem_type = array_type->getElementType();
-		// unsigned nelem = array_type->getNumElements();
 		llvm::Value* ArrayAlloc;
 		llvm::Value* ArrayPtr;
 		bool dim_is_ct; // if we know the array size at compile time
