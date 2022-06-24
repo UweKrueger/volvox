@@ -229,68 +229,149 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	return { storage_type, V };
 }
 
-static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, const llvm::Twine &Name = "") {
-	if (auto nominal_array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
-		llvm::Value* ArrayLen = nullptr; // "5" in "[5]f64{1, 2, 7}" or "[]f64{1, 2: 7, len: 5}"
-		llvm::Value* LiteralLen = nullptr; // '3' in above examples - highest given index + 1
-		llvm::Value* ArrData = nullptr;
-		llvm::ArrayType* array_type = nullptr;
-		uint64_t nom_len = nominal_array_type->getNumElements();
-		if (nom_len)
-			ArrayLen = Builder->getInt64(nom_len);
-		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType())) {
-			ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
-			if (nom_len) {
-				errs() << CurLoc << ": internal inconsistency - array length '" << nom_len
-				       << "' determined by type but also given as " << *ArrayLen << '\n';
-			}
-			ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
-			array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
-		} else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
-			if (!nom_len) {
-				ArrayLen = Builder->getInt64(array_type->getNumElements());
-				errs() << "StoreValue(): using literal length as array length\n";
-			}
-			ArrData = val;
-		}
-		if (!array_type) {
-			errs() << CurLoc << ": StoreValue(): internal error - nominal type is array but literal's type is not\n";
-			return nullptr;
-		}
-		LiteralLen = Builder->getInt64(array_type->getNumElements());
+static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vector<llvm::Value*>& Sizes, unsigned depth) {
+	if (auto array_type = llvm::cast<llvm::ArrayType>(ArrData->getType())) {
+		llvm::Value* Adr = ArrayAlloc;
+		uint64_t nelem = array_type->getNumElements();
 		llvm::Type* elem_type = array_type->getElementType();
-		unsigned nelem = array_type->getNumElements();
+		if (auto subarray_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
+			depth++;
+			for (uint64_t j = 0; j < nelem; j++) {
+				StoreArray(Adr, Builder->CreateExtractValue(ArrData, j), Sizes, depth);
+				Adr = Builder->CreateIntToPtr(
+					Builder->CreateAdd(
+						Builder->CreatePtrToInt(Adr, llvm::Type::getInt64Ty(Context)), Sizes[depth]),
+					Adr->getType());
+			}
+		} else {
+			Builder->CreateStore(ArrData, ArrayAlloc);
+			llvm::Value* Offset =
+				Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(ArrData->getType()));
+			Adr = Builder->CreateIntToPtr(
+				Builder->CreateAdd(
+					Builder->CreatePtrToInt(Adr, llvm::Type::getInt64Ty(Context)),
+					Offset),
+				Adr->getType());
+			Builder->CreateMemSet(
+				Adr, Builder->getInt8(0),
+				Builder->CreateSub(
+					Sizes[depth], Offset),
+				TheModule->getDataLayout().getPrefTypeAlign(elem_type));
+		}
+	} else {
+		errs() << "Internal error!\n";
+		abort();
+	}
+}
+
+static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
+                               llvm::Type* expected_type = nullptr, const llvm::Twine &Name = "") {
+	if (!expected_type)
+		expected_type = ft->type;
+	llvm::Type* expected_elem_type = expected_type;
+	llvm::Type* elem_type = ft->type;
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
+		std::vector<llvm::Value*> Dims = {};
+		std::vector<llvm::Value*> returnDims = {};
+		llvm::Type* elem_type = ft->type;
+		unsigned idx = 0;
+		unsigned level = 0;
+		do {
+			if (auto expected_array_type = llvm::dyn_cast<llvm::ArrayType>(expected_elem_type)) {
+				uint64_t nominal_dim = array_type->getNumElements();
+				uint64_t expected_dim = expected_array_type->getNumElements();
+				if (nominal_dim) {
+					if (expected_dim) {
+						if (expected_dim != nominal_dim) {
+							errs() << CurLoc << ": mismatch in array dimension (level " << level << ") - required "
+							       << expected_dim << ", got " << nominal_dim << '\n';
+							return nullptr;
+						}
+					} else {
+						// expect RT-dimension, got CT-dimension
+						returnDims.push_back(Builder->getInt64(nominal_dim));
+					}
+					Dims.push_back(Builder->getInt64(nominal_dim));
+				} else {
+					// val has RT-dim for this level
+					llvm::Value* Dim = Builder->CreateExtractValue(val, idx++);
+					if (expected_dim) {
+						; // TODO: add RT detection if RT-dim matches CT-expectation
+					} else {
+						returnDims.push_back(Dim);
+					}
+					Dims.push_back(Dim);
+				}
+				expected_elem_type = expected_array_type->getElementType();
+			} else {
+				errs() << CurLoc << ": mismatch in array structure\n";
+				return nullptr;
+			}
+			elem_type = array_type->getElementType();
+			array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
+		} while (array_type);
+		auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
+		std::vector<llvm::Value*> Sizes(Dims.size() + 1, nullptr);
+		Sizes[Dims.size()] = ElemSize;
+		for (int j = Dims.size() - 1; j >= 0; j--)
+			Sizes[j] = Builder->CreateMul(Dims[j], Sizes[j + 1]);
+		// llvm::Value* ArrayLen = nullptr; // "5" in "[5]f64{1, 2, 7}" or "[]f64{1, 2: 7, len: 5}"
+		// llvm::Value* LiteralLen = nullptr; // '3' in above examples - highest given index + 1
+		llvm::Value* ArrData = Builder->CreateExtractValue(val, idx);
+		// llvm::ArrayType* array_type = nullptr;
+		// uint64_t nom_len = nominal_array_type->getNumElements();
+		// if (nom_len)
+		// 	ArrayLen = Builder->getInt64(nom_len);
+		// if (auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType())) {
+		// 	ArrayLen = Builder->CreateExtractValue(val, 0, "arrlen");
+		// 	if (nom_len) {
+		// 		errs() << CurLoc << ": internal inconsistency - array length '" << nom_len
+		// 		       << "' determined by type but also given as " << *ArrayLen << '\n';
+		// 	}
+		// 	ArrData = Builder->CreateExtractValue(val, 1, "arrdata");
+		// 	array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType());
+		// } else if ((array_type = llvm::dyn_cast<llvm::ArrayType>(val->getType()))) {
+		// 	if (!nom_len) {
+		// 		ArrayLen = Builder->getInt64(array_type->getNumElements());
+		// 		errs() << "StoreValue(): using literal length as array length\n";
+		// 	}
+		// 	ArrData = val;
+		// }
+		// if (!array_type) {
+		// 	errs() << CurLoc << ": StoreValue(): internal error - nominal type is array but literal's type is not\n";
+		// 	return nullptr;
+		// }
+		// LiteralLen = Builder->getInt64(array_type->getNumElements());
+		// llvm::Type* elem_type = array_type->getElementType();
+		// unsigned nelem = array_type->getNumElements();
 		llvm::Value* ArrayAlloc;
+		llvm::Value* ArrayPtr;
 		bool dim_is_ct; // if we know the array size at compile time
-		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(ArrayLen)) {
+		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Sizes[0])) {
 			llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
 			ArrayAlloc = TmpB.CreateAlloca(alloc_arr_type, nullptr, Name);
+			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 			dim_is_ct = true;
 		} else {
-			ArrayAlloc = Builder->CreateAlloca(elem_type, ArrayLen, Name);
+			ArrayAlloc = Builder->CreateAlloca(elem_type, Sizes[0], Name);
+			ArrayPtr = ArrayAlloc;
 			dim_is_ct = false;
 		}
 		// TODO: Insert run time check that initialization values fit into allocation size
-		Builder->CreateStore(ArrData, ArrayAlloc);
-		auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
-		Builder->CreateMemSet(
-			Builder->CreateIntToPtr(Builder->CreateAdd(
-				Builder->CreatePtrToInt(ArrayAlloc, llvm::Type::getInt64Ty(Context)), Builder->CreateMul(
-					ElemSize, LiteralLen)), llvm::Type::getInt8PtrTy(Context)),
-			Builder->getInt8(0),
-			Builder->CreateMul(
-				ElemSize, Builder->CreateSub(ArrayLen, LiteralLen)),
-			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
-		if (nom_len)
+		StoreArray(ArrayPtr, ArrData, Sizes, 0);
+		if (dim_is_ct)
 			return ArrayAlloc;
 		else {
-			llvm::Type* ret_struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), elem_type->getPointerTo());
+			std::vector<llvm::Type*> struct_types(returnDims.size() + 1, llvm::Type::getInt64Ty(Context));
+			struct_types[returnDims.size()] = ArrayAlloc->getType();
+			llvm::Type* ret_struct_type = llvm::StructType::get(Context, struct_types);
 			llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
-			ret = Builder->CreateInsertValue(ret, ArrayLen, 0, "arrlen");
-			ret = Builder->CreateInsertValue(ret, ArrayAlloc, 1, "arrayalloc");
+			for (unsigned j = 0; j < returnDims.size(); j++)
+				ret = Builder->CreateInsertValue(ret, returnDims[j], j, "arrlen");
+			ret = Builder->CreateInsertValue(ret, ArrayAlloc, returnDims.size(), "arrayalloc");
 			return ret;
 		}
 	} else {
@@ -894,7 +975,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				entry->ft.type_attr |= A_signed;
 			else
 				entry->ft.type_attr &= ~A_signed;
-			auto Alloca = StoreValue(convertedVal, &entry->ft, varname);
+			auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
