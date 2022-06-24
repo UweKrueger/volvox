@@ -231,6 +231,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 
 static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vector<llvm::Value*>& Sizes, unsigned depth) {
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType())) {
+		errs() << "Array Val: " << *ArrData << '\n';
 		llvm::Value* Adr = ArrayAlloc;
 		uint64_t nelem = array_type->getNumElements();
 		llvm::Type* elem_type = array_type->getElementType();
@@ -252,12 +253,12 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 					Builder->CreatePtrToInt(Adr, llvm::Type::getInt64Ty(Context)),
 					Offset),
 				Adr->getType());
-			Builder->CreateMemSet(
-				Adr, Builder->getInt8(0),
-				Builder->CreateSub(
-					Sizes[depth], Offset),
-				TheModule->getDataLayout().getPrefTypeAlign(elem_type));
 		}
+		// Builder->CreateMemSet(
+		// 	Adr, Builder->getInt8(0),
+		// 	Builder->CreateSub(
+		// 		Sizes[depth], Offset),
+		// 	TheModule->getDataLayout().getPrefTypeAlign(elem_type));
 	} else {
 		errs() << "depth: " << depth << " Internal error!\n";
 		abort();
