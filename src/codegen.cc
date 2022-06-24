@@ -235,6 +235,9 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 		llvm::Value* Adr = ArrayAlloc;
 		uint64_t nelem = array_type->getNumElements();
 		llvm::Type* elem_type = array_type->getElementType();
+		llvm::Value* Sz = Sizes[depth];
+		llvm::Value* Sz2 = Builder->CreateMul(Builder->getInt64(nelem), Sizes[depth+1]);
+		errs() << "Sizes: " << *Sz << ' ' << *Sz2 << ' ' << *Sizes[depth] << ' ' << *Sizes[depth + 1] << '\n';
 		if (auto subarray_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 			depth++;
 			for (uint64_t j = 0; j < nelem; j++) {
@@ -246,19 +249,16 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 			}
 		} else {
 			Builder->CreateStore(ArrData, ArrayAlloc);
-			llvm::Value* Offset =
-				Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(ArrData->getType()));
 			Adr = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
 					Builder->CreatePtrToInt(Adr, llvm::Type::getInt64Ty(Context)),
-					Offset),
+					Sz2),
 				Adr->getType());
 		}
-		// Builder->CreateMemSet(
-		// 	Adr, Builder->getInt8(0),
-		// 	Builder->CreateSub(
-		// 		Sizes[depth], Offset),
-		// 	TheModule->getDataLayout().getPrefTypeAlign(elem_type));
+		Builder->CreateMemSet(
+			Adr, Builder->getInt8(0),
+			Builder->CreateSub(Sz, Sz2),
+			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
 	} else {
 		errs() << "depth: " << depth << " Internal error!\n";
 		abort();
@@ -292,6 +292,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 						// expect RT-dimension, got CT-dimension
 						returnDims.push_back(Builder->getInt64(nominal_dim));
 					}
+					errs() << "pushing " << nominal_dim << " # " << *val << ' ' << *ft->type << '\n';
 					Dims.push_back(Builder->getInt64(nominal_dim));
 				} else {
 					// val has RT-dim for this level
@@ -314,8 +315,10 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
 		std::vector<llvm::Value*> Sizes(Dims.size() + 1, nullptr);
 		Sizes[Dims.size()] = ElemSize;
-		for (int j = Dims.size() - 1; j >= 0; j--)
+		for (int j = Dims.size() - 1; j >= 0; j--) {
+			errs() << "Dim[" << j << "]: " << *Dims[j] << '\n';
 			Sizes[j] = Builder->CreateMul(Dims[j], Sizes[j + 1]);
+		}
 		llvm::Value* ArrData;
 		if (llvm::isa<llvm::StructType>(val->getType()))
 			ArrData = Builder->CreateExtractValue(val, idx);
@@ -324,7 +327,8 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		llvm::Value* ArrayAlloc;
 		llvm::Value* ArrayPtr;
 		bool dim_is_ct; // if we know the array size at compile time
-		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Sizes[0])) {
+		llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
+		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
 			llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
@@ -333,7 +337,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 			dim_is_ct = true;
 		} else {
-			ArrayAlloc = Builder->CreateAlloca(elem_type, Sizes[0], Name);
+			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 			ArrayPtr = ArrayAlloc;
 			dim_is_ct = false;
 		}
