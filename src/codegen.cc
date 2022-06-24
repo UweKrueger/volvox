@@ -230,7 +230,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 }
 
 static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vector<llvm::Value*>& Sizes, unsigned depth) {
-	if (auto array_type = llvm::cast<llvm::ArrayType>(ArrData->getType())) {
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType())) {
 		llvm::Value* Adr = ArrayAlloc;
 		uint64_t nelem = array_type->getNumElements();
 		llvm::Type* elem_type = array_type->getElementType();
@@ -259,7 +259,7 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 				TheModule->getDataLayout().getPrefTypeAlign(elem_type));
 		}
 	} else {
-		errs() << "Internal error!\n";
+		errs() << "depth: " << depth << " Internal error!\n";
 		abort();
 	}
 }
@@ -317,7 +317,11 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			Sizes[j] = Builder->CreateMul(Dims[j], Sizes[j + 1]);
 		// llvm::Value* ArrayLen = nullptr; // "5" in "[5]f64{1, 2, 7}" or "[]f64{1, 2: 7, len: 5}"
 		// llvm::Value* LiteralLen = nullptr; // '3' in above examples - highest given index + 1
-		llvm::Value* ArrData = Builder->CreateExtractValue(val, idx);
+		llvm::Value* ArrData;
+		if (llvm::isa<llvm::StructType>(val->getType()))
+			ArrData = Builder->CreateExtractValue(val, idx);
+		else
+			ArrData = val;
 		// llvm::ArrayType* array_type = nullptr;
 		// uint64_t nom_len = nominal_array_type->getNumElements();
 		// if (nom_len)
