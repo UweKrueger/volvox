@@ -476,7 +476,7 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 				LitDims[depth] = idx;
 			continue;
 		} else if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
-			if (bin_expr->Op[0] == ':') { // struct or map
+			if (bin_expr->Op[0] == ':' && !bin_expr->Op[1]) { // struct or map
 				if (auto ident = dynamic_cast<VariableExprAST*>(bin_expr->LHS.get())) {
 					if (kind != tok_identifier) { // no struct, i.e. no field name - so it must be a special built-in
 						if (ident->Name == "len") {
@@ -538,15 +538,19 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 									struct_err = true;
 									return {};
 								} else {
-									while (Elements.size() < idx)
-										Elements.push_back(nullptr);
-									Elements.push_back(std::move(bin_expr->RHS));
-									if (depth != Dims.size() - 1) {
+									if (!dynamic_cast<ListExprAST*>(bin_expr->RHS.get()) && depth != Dims.size() - 1) {
 										struct_err = true;
 										errs() << Elements[idx]->Loc << ": array structure invalid - level " << depth << " non-list element conflics with previous deeper sublists\n";
 										return {};
 									}
-									valid_exprs.push_back(Elements[idx].get());
+									while (Elements.size() < idx)
+										Elements.push_back(nullptr);
+									if (auto sublist = dynamic_cast<ListExprAST*>(bin_expr->RHS.get()))
+										Elements.push_back(std::make_unique<ListExprAST>(CurLoc, prepare_list(std::move(sublist->Elements), depth + 1)));
+									else {
+										Elements.push_back(std::move(bin_expr->RHS));
+									    valid_exprs.push_back(Elements[idx].get());
+									}
 									idx++;
 									if (idx > LitDims[depth])
 										LitDims[depth] = idx;

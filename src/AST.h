@@ -251,8 +251,7 @@ public:
 		ListExprAST(Loc, std::move(_Elements)), key_type(key_type),
 		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs)), LitDims(std::move(_LitDims))
 		{
-			std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> convs =
-				getArrayConv(this, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
+			auto convs = getArrayConv(this, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
 			if (!convs.first) {
 				ft = nullptr;
 				errs() << "internal problem when creating AggregateExprAST\n";

@@ -140,6 +140,12 @@ llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type
 	return ini;
 }
 
+llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::vector<unsigned>& vec) {
+	for (int i = 0; i < vec.size(); i++)
+		out << (i ? ", " : "[ ") << vec[i]; 
+	return out << " ]";
+}
+
 llvm::Value* FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -152,19 +158,18 @@ llvm::Value* FixedArrayExprAST::codegen_raw() {
 		errs() << Loc << ": internal error: array literal not of array type\n";
 		return nullptr;
 	}
-	for (auto& dim: Dims) {
+	for (int j = 0; j < Dims.size(); j++) {
 		llvm::Value* curDim;
-		if (dim)
-			curDim = Builder->CreateIntCast(dim->codegen(), llvm::Type::getInt64Ty(Context), false);
+		if (Dims[j])
+			curDim = Builder->CreateIntCast(Dims[j]->codegen(), llvm::Type::getInt64Ty(Context), false);
 		else
-			// TODO: for multi dimensional arrays find maximum size in current depth
-			curDim = Builder->getInt64(Elements.size());
+			curDim = Builder->getInt64(LitDims[j]);
 		LenVal = Builder->CreateMul(LenVal, curDim);
 		LenVals.push_back(curDim);
 	}
 	llvm::Type* initializer_type = ft->elem_type->type;
-	for (auto lit_dim: LitDims)
-		initializer_type = llvm::ArrayType::get(initializer_type, lit_dim);
+	for (int j = LitDims.size() - 1; j >= 0; j--)
+		initializer_type = llvm::ArrayType::get(initializer_type, LitDims[j]);
 	iter_idx = 0;
 	llvm::Value* ini = getArrayLitVal(llvm::cast<llvm::ArrayType>(initializer_type), this);
 	if (auto constLenVal = llvm::dyn_cast<llvm::ConstantInt>(LenVal)) {
