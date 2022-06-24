@@ -99,6 +99,16 @@ namespace volvox {
 	typedef struct VOLVOX_RtType VOLVOX_RtType;
 #endif
 
+	/* There are actually 3 type systems:
+	   1. The LLVM type system - this is used by the code geneneration engine but
+	      it lacks some attributes like signedness, struct field names
+	   2. volvoxc::FullType - used by the Volvox compiler
+	      embedds llvm::Type and adds those attributes
+	   3. volvox::RtType - the run time type
+	      the run time system should not depend on libLLVM so this is a stripped
+	      down stand alone version of the above systems
+	*/
+
 	PACK(struct VOLVOX_RtType {
 		union {
 			struct {
