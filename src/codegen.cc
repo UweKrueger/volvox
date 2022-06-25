@@ -250,7 +250,7 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 					Adr->getType());
 			}
 		} else {
-			Builder->CreateStore(ArrData, ArrayAlloc);
+			Builder->CreateStore(ArrData, Builder->CreateBitCast(ArrayAlloc, ArrData->getType()->getPointerTo()));
 			Adr = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
 					Builder->CreatePtrToInt(Adr, llvm::Type::getInt64Ty(Context)),
@@ -338,12 +338,11 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
 			ArrayAlloc = TmpB.CreateAlloca(alloc_arr_type, nullptr, Name);
-			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, llvm::Type::getInt8PtrTy(Context));
-			ArrayAlloc = ArrayPtr;
+			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 		} else {
 			errs() << "RT alloca\n";
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
-			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, llvm::Type::getInt8PtrTy(Context));
+			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 			ArrayAlloc = ArrayPtr;
 		}
 		// TODO: Insert run time check that initialization values fit into allocation size
@@ -360,7 +359,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 				errs() << "return dim[" << j << "] " << *returnDims[j] << '\n';
 				ret = Builder->CreateInsertValue(ret, returnDims[j], j, "arrlen");
 			}
-			ret = Builder->CreateInsertValue(ret, ArrayPtr, returnDims.size(), "arrayalloc");
+			ret = Builder->CreateInsertValue(ret, ArrayAlloc, returnDims.size(), "arrayalloc");
 			errs() << "returning2 " << *ret << " for " << *ArrayPtr << ' ' << *ArrayPtr->getType() << '\n';
 			return ret;
 		}
