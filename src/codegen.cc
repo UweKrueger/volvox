@@ -1376,7 +1376,14 @@ llvm::Value *CallExprAST::codegen_raw() {
 				if (intT->getBitWidth() < 32)
 					arg = Builder->CreateIntCast(arg, llvm::Type::getInt32Ty(Context), !(!(Args[i]->ft->type_attr & A_signed)));
 			}
-			ArgsV.push_back(arg);
+			if (auto interf_t = dynamic_cast<InterfaceExprAST*>(Args[i].get()))
+				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType()))
+					for (int i = 0; i < struct_type->getNumElements(); i++)
+						ArgsV.push_back(Builder->CreateExtractValue(arg, i));
+				else
+					ArgsV.push_back(arg);
+			else
+				ArgsV.push_back(arg);
 		}
 		if (!ArgsV.back())
 			return nullptr;
