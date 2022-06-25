@@ -494,9 +494,10 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			uint64_t* subsz = (uint64_t*)alloca(order*sizeof(uint64_t));
 			uint64_t* curidx = (uint64_t*)alloca(order*sizeof(uint64_t));
 			for (unsigned n = 0; n < order; n++)
-				dims[n] = va_arg(ap, unsigned long long);
+				dims[n] = va_arg(ap, long long);
 			uint64_t sz = 1;
 			for (unsigned n = 0; n < order; n++) {
+				fprintf(stderr, "Prt dim %lu\n", dims[n]);
 				sz *= dims[order - n - 1];
 				subsz[n] = sz;
 			}

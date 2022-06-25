@@ -324,15 +324,15 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			Sizes[j] = Builder->CreateMul(Dims[j], Sizes[j + 1]);
 		}
 		llvm::Value* ArrData;
-		if (llvm::isa<llvm::StructType>(val->getType()))
-			ArrData = Builder->CreateExtractValue(val, idx);
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType()))
+			ArrData = Builder->CreateExtractValue(val, struct_type->getNumElements() - 1);
 		else
 			ArrData = val;
 		llvm::Value* ArrayAlloc;
 		llvm::Value* ArrayPtr;
 		llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
-			errs() << "CT alloca " << len->getZExtValue() << "\n";
+			errs() << "CT alloca " << len->getZExtValue() << "elemtype: " << *elem_type << "\n";
 			llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
@@ -352,14 +352,14 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			return ArrayAlloc;
 		} else {
 			std::vector<llvm::Type*> struct_types(returnDims.size() + 1, llvm::Type::getInt64Ty(Context));
-			struct_types[returnDims.size()] = ArrayAlloc->getType();
+			struct_types[returnDims.size()] = ArrayPtr->getType();
 			llvm::Type* ret_struct_type = llvm::StructType::get(Context, struct_types);
 			llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
 			for (unsigned j = 0; j < returnDims.size(); j++) {
 				errs() << "return dim[" << j << "] " << *returnDims[j] << '\n';
 				ret = Builder->CreateInsertValue(ret, returnDims[j], j, "arrlen");
 			}
-			ret = Builder->CreateInsertValue(ret, ArrayAlloc, returnDims.size(), "arrayalloc");
+			ret = Builder->CreateInsertValue(ret, ArrayPtr, returnDims.size(), "arraystore");
 			errs() << "returning2 " << *ret << " for " << *ArrayPtr << ' ' << *ArrayPtr->getType() << '\n';
 			return ret;
 		}
@@ -549,39 +549,7 @@ llvm::Value* InterfaceExprAST::codegen_raw() {
 	}
 	llvm::Constant* rttype_ptr = getRtType(expr->ft);
 	llvm::Type* real_type = expr->ft->type;
-	std::vector<llvm::Type*> types = { rttype_ptr->getType() };
-	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(real_type)) {
-		std::vector<llvm::Value*> dims;
-		unsigned idx = 0;
-		llvm::Type* elem_type;
-		do {
-			uint64_t dim = array_type->getNumElements();
-			if (dim)
-				dims.push_back(Builder->getInt64(dim));
-			else
-				dims.push_back(Builder->CreateExtractValue(val, idx++));
-			types.push_back(llvm::Type::getInt64Ty(Context));
-			elem_type = array_type->getElementType();
-			array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
-		} while (array_type);
-		llvm::Type* elem_ptr_type = elem_type->getPointerTo();
-		types.push_back(elem_ptr_type);
-		llvm::Type* struct_type = llvm::StructType::get(Context, types);
-		llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
-		unsigned idx2 = 0;
-		the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, idx2++);
-		for (auto Dim: dims)
-			the_struct = Builder->CreateInsertValue(the_struct, Dim, idx2++);
-		if (llvm::isa<llvm::StructType>(val->getType()))
-			val = Builder->CreateExtractValue(val, idx);
-		errs() << "Interfaceval: " << *val << '\n';
-		the_struct = Builder->CreateInsertValue(
-			the_struct, Builder->CreateBitCast(val, elem_ptr_type),
-			idx2);
-		errs() << "Interface val: " << *the_struct << ' ' << idx << ' ' << idx2 << '\n';
-		return the_struct;
-	}
-	types.push_back(val->getType());
+	std::vector<llvm::Type*> types = { rttype_ptr->getType(), val->getType() };
 	llvm::Type* struct_type = llvm::StructType::get(Context, types);
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, 0);
@@ -1379,8 +1347,10 @@ llvm::Value *CallExprAST::codegen_raw() {
 			}
 			if (auto interf_t = dynamic_cast<InterfaceExprAST*>(Args[i].get()))
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType()))
-					for (int i = 0; i < struct_type->getNumElements(); i++)
+					for (int i = 0; i < struct_type->getNumElements(); i++) {
 						ArgsV.push_back(Builder->CreateExtractValue(arg, i));
+						errs() << "interface arg: " << *Builder->CreateExtractValue(arg, i) << '\n';
+					}
 				else
 					ArgsV.push_back(arg);
 			else
