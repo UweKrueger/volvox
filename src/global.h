@@ -210,6 +210,8 @@ namespace volvoxc {
 
 }
 
+extern llvm::Type* MakeInterfaceArrayType(llvm::ArrayType* array_type);
+
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
 	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;
 }
@@ -579,7 +581,11 @@ public:
 };
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::unique_ptr<ExprAST>& expr) {
-	return out << *expr->codegen();
+	if (expr)
+		out << "expr"; // *expr->codegen();
+	else
+		out << "nil";
+	return out;
 }
 
 template<typename T> llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::vector<T>& vec) {
@@ -625,7 +631,6 @@ extern std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size);
 // Parser
-
 
 // Token
 

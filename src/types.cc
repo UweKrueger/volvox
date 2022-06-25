@@ -432,6 +432,7 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		subclassdata++;
 		elem_type = array_type->getElementType();
 	}
+	errs() << "Type: " << *ft->type << " Subclassdata: " << subclassdata << '\n';
 	// if it's no array use LLVM's subclassdata (e.g. integer bitwidth)
 	if (!subclassdata)
 		subclassdata = ((genType*)ft->type)->SubClassData();
@@ -472,4 +473,19 @@ void volvoxc::FullType::dump(int fd) {
 		eout << "Elements:\n";
 		elem_type->dump();
 	}
+}
+
+llvm::Type* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
+	llvm::Type* elem_type;
+	unsigned depth = 0;
+	do {
+		depth++;
+		elem_type = array_type->getElementType();
+		array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
+	} while (array_type);
+	llvm::Type* res_type = elem_type;
+	for (int j = 0; j < depth; j++)
+		res_type = llvm::ArrayType::get(res_type, 0);
+	errs() << "Res type: " << *res_type << '\n';
+	return res_type;
 }
