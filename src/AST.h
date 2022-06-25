@@ -226,7 +226,6 @@ public:
 	std::vector<std::unique_ptr<ExprAST>> prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth);
 	std::vector<ExprAST*> valid_exprs;
 	ExprListIterator(std::vector<std::unique_ptr<ExprAST>> _Dims) : Dims(std::move(_Dims)) {
-		errs() << "Dims iterator: " << Dims << '\n';
 		if (Dims.size()) {
 			explicit_order = true;
 		} else {
@@ -322,16 +321,13 @@ public:
 				errs() << "undefined element type\n";
 				ft = nullptr;
 			}
-			errs() << "Array Type AST: " << *ft->type << '\n';
 		}
 	FixedArrayExprAST(SourceLocation Loc, volvoxc::FullType* _ft,
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                  std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {},
 	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs),
-		                 std::move(_LitDims)), Dims(std::move(_Dims)), LenLocs(LenLocs) {
-			errs() << "Array Type AST2: " << *ft->type << '\n';
-	}
+		                 std::move(_LitDims)), Dims(std::move(_Dims)), LenLocs(LenLocs) {}
 	llvm::Value* getArrayLitVal(llvm::ArrayType* initializer_type, ListExprAST* List);
 	llvm::Value* codegen_raw() override;
 #ifndef NDEBUG

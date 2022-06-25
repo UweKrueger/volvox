@@ -180,7 +180,6 @@ llvm::Value* FixedArrayExprAST::codegen_raw() {
 	iter_idx = 0;
 	llvm::Value* ini = getArrayLitVal(llvm::cast<llvm::ArrayType>(initializer_type), this);
 	if (!Sizes.size()) {
-		errs() << "Ini: " << *ini << '\n';
 		return ini;
 	} else {
 		std::vector<llvm::Type*> struct_type_el(Sizes.size() + 1, llvm::Type::getInt64Ty(Context));
@@ -190,7 +189,6 @@ llvm::Value* FixedArrayExprAST::codegen_raw() {
 		for (int j = 0; j < Sizes.size(); j++)
 			varini = Builder->CreateInsertValue(varini, Sizes[Sizes.size() - j - 1], j);
 		varini = Builder->CreateInsertValue(varini, ini, Sizes.size(), "arrbeg");
-		errs() << "Varini: " << *varini << " # " << *struct_type << '\n';
 		return varini;
 	}
 }
@@ -198,7 +196,6 @@ llvm::Value* FixedArrayExprAST::codegen_raw() {
 llvm::Value* LvalueExprAST::codegen_raw() {
 	auto V = codegen_ref();
 	// Load the value.
-	dbgs() << "Load variable " << Name << " type " << *V.first << '\n';
 	return Builder->CreateLoad(V.first, V.second, Name.c_str());
 }
 
@@ -233,13 +230,11 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 
 static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vector<llvm::Value*>& Sizes, unsigned depth) {
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType())) {
-		errs() << "Array Val: " << *ArrData << '\n';
 		llvm::Value* Adr = ArrayAlloc;
 		uint64_t nelem = array_type->getNumElements();
 		llvm::Type* elem_type = array_type->getElementType();
 		llvm::Value* Sz = Sizes[depth];
 		llvm::Value* Sz2 = Builder->CreateMul(Builder->getInt64(nelem), Sizes[depth+1]);
-		errs() << "Sizes: " << *Sz << ' ' << *Sz2 << ' ' << *Sizes[depth] << ' ' << *Sizes[depth + 1] << '\n';
 		if (auto subarray_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 			depth++;
 			for (uint64_t j = 0; j < nelem; j++) {
@@ -274,7 +269,6 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 	llvm::Type* expected_elem_type = expected_type;
 	llvm::Type* elem_type = ft->type;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
-		errs() << "Got array type: " << *array_type << '\n';
 		std::vector<llvm::Value*> Dims = {};
 		std::vector<llvm::Value*> returnDims = {};
 		llvm::Type* elem_type = ft->type;
@@ -282,7 +276,6 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		unsigned level = 0;
 		do {
 			if (auto expected_array_type = llvm::dyn_cast<llvm::ArrayType>(expected_elem_type)) {
-				errs() << "Got expected array type: " << *expected_array_type << '\n';
 				uint64_t nominal_dim = array_type->getNumElements();
 				uint64_t expected_dim = expected_array_type->getNumElements();
 				if (nominal_dim) {
@@ -296,7 +289,6 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 						// expect RT-dimension, got CT-dimension
 						returnDims.push_back(Builder->getInt64(nominal_dim));
 					}
-					errs() << "pushing " << nominal_dim << " # " << *val << ' ' << *ft->type << '\n';
 					Dims.push_back(Builder->getInt64(nominal_dim));
 				} else {
 					// val has RT-dim for this level
@@ -319,10 +311,8 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
 		std::vector<llvm::Value*> Sizes(Dims.size() + 1, nullptr);
 		Sizes[Dims.size()] = ElemSize;
-		for (int j = Dims.size() - 1; j >= 0; j--) {
-			errs() << "Dim[" << j << "]: " << *Dims[j] << '\n';
+		for (int j = Dims.size() - 1; j >= 0; j--)
 			Sizes[j] = Builder->CreateMul(Dims[j], Sizes[j + 1]);
-		}
 		llvm::Value* ArrData;
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType()))
 			ArrData = Builder->CreateExtractValue(val, struct_type->getNumElements() - 1);
@@ -332,7 +322,6 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		llvm::Value* ArrayPtr;
 		llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
-			errs() << "CT alloca " << len->getZExtValue() << "elemtype: " << *elem_type << "\n";
 			llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
@@ -340,7 +329,6 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			ArrayAlloc = TmpB.CreateAlloca(alloc_arr_type, nullptr, Name);
 			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 		} else {
-			errs() << "RT alloca\n";
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 			ArrayAlloc = ArrayPtr;
@@ -348,19 +336,15 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		// TODO: Insert run time check that initialization values fit into allocation size
 		StoreArray(ArrayPtr, ArrData, Sizes, 0);
 		if (!returnDims.size()) {
-			errs() << "returning " << *ArrayAlloc << " for " << *ArrData << ' ' << *ArrData->getType() << '\n';
 			return ArrayAlloc;
 		} else {
 			std::vector<llvm::Type*> struct_types(returnDims.size() + 1, llvm::Type::getInt64Ty(Context));
 			struct_types[returnDims.size()] = ArrayPtr->getType();
 			llvm::Type* ret_struct_type = llvm::StructType::get(Context, struct_types);
 			llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
-			for (unsigned j = 0; j < returnDims.size(); j++) {
-				errs() << "return dim[" << j << "] " << *returnDims[j] << '\n';
+			for (unsigned j = 0; j < returnDims.size(); j++)
 				ret = Builder->CreateInsertValue(ret, returnDims[j], j, "arrlen");
-			}
 			ret = Builder->CreateInsertValue(ret, ArrayPtr, returnDims.size(), "arraystore");
-			errs() << "returning2 " << *ret << " for " << *ArrayPtr << ' ' << *ArrayPtr->getType() << '\n';
 			return ret;
 		}
 	} else {
@@ -541,7 +525,6 @@ llvm::Value* InterfaceExprAST::codegen_raw() {
 			// if it's an rvalue we have to store it on stack to get a reference
 			llvm::Value* array = expr->codegen();
 			val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
-			errs() << "Storing val: " << *val << ' ' << MakeInterfaceArrayType(array_type) << '\n';
 		}
 	} else {
 		// pass by value
@@ -1324,7 +1307,6 @@ llvm::Value *CallExprAST::codegen_raw() {
 			if (!conversion)
 				return nullptr;
 			llvm::Value* arg = conversion(Args[i]->codegen());
-			errs() << "Arg0 " << i << ": " << *arg << '\n';
 			ArgsV.push_back(arg);
 		} else {
 			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i]->type->getTypeID()
@@ -1334,7 +1316,6 @@ llvm::Value *CallExprAST::codegen_raw() {
 				return nullptr;
 			}
 			llvm::Value* arg = Args[i]->codegen();
-			errs() << "Arg " << i << ": " << *arg << '\n';
 			if (!arg)
 				return nullptr;
 			if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
