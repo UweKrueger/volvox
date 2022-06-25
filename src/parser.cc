@@ -389,6 +389,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	std::vector<SourceLocation> LenLocs;
 	std::unique_ptr<ListExprAST> init_list = nullptr;
 	if (ft) {
+		errs() << "Got type dims: " << Dims << '\n';
 		for (auto& dim: Dims)
 			LenLocs.push_back(dim ? dim->Loc : SourceLocation{0});
 		if (CurTok.kind != '{') {
@@ -468,6 +469,7 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 			LitDims.push_back(0);
 		while (LitDims.size() < Dims.size());
 	}
+	errs() << "LitDims: " << LitDims << '\n';
 	for (auto& elem: Elems) {
 		if (auto sublist = dynamic_cast<ListExprAST*>(elem.get())) {
 			Elements.push_back(std::make_unique<ListExprAST>(CurLoc, prepare_list(std::move(sublist->Elements), depth + 1)));
@@ -627,6 +629,7 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 			return {};
 		}
 	}
+	errs() << "Dims after iteration: " << Dims << '\n';
 	return Elements;
 }
 

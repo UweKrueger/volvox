@@ -140,12 +140,6 @@ llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type
 	return ini;
 }
 
-llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::vector<unsigned>& vec) {
-	for (int i = 0; i < vec.size(); i++)
-		out << (i ? ", " : "[ ") << vec[i]; 
-	return out << " ]";
-}
-
 llvm::Value* FixedArrayExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -167,28 +161,34 @@ llvm::Value* FixedArrayExprAST::codegen_raw() {
 		LenVal = Builder->CreateMul(LenVal, curDim);
 		LenVals.push_back(curDim);
 	}
+	llvm::Type* new_type = ft->elem_type->type;
+	std::vector<llvm::Value*> Sizes; // reverse order
+	for (int j = LenVals.size() - 1; j >= 0; j--)
+		if (auto constlen = llvm::dyn_cast<llvm::ConstantInt>(LenVals[j])) {
+			new_type = llvm::ArrayType::get(new_type, constlen->getZExtValue());
+		} else {
+			new_type = llvm::ArrayType::get(new_type, 0);
+			Sizes.push_back(LenVals[j]);
+		}
+	if (new_type != ft->type) {
+		ft = new_FullType(*ft);
+		ft->type = new_type;
+	}
 	llvm::Type* initializer_type = ft->elem_type->type;
 	for (int j = LitDims.size() - 1; j >= 0; j--)
 		initializer_type = llvm::ArrayType::get(initializer_type, LitDims[j]);
 	iter_idx = 0;
 	llvm::Value* ini = getArrayLitVal(llvm::cast<llvm::ArrayType>(initializer_type), this);
-	if (auto constLenVal = llvm::dyn_cast<llvm::ConstantInt>(LenVal)) {
-		// the "nominal" type of this expression did not contain the array dimension, however
-		// we know this number by now after generating code for 'Len'. So the type
-		// can be adjusted by replacing the nominal type
-		uint64_t len = constLenVal->getZExtValue();
-		LenVal = nullptr;
-		llvm::Type* new_array_type = llvm::ArrayType::get(ft->elem_type->type, len);
-		ft = new_FullType(*ft);
-		ft->type = new_array_type;
-	}
-	if (!LenVal) {
+	if (!Sizes.size()) {
 		return ini;
 	} else {
-		llvm::Type* struct_type = llvm::StructType::get(llvm::Type::getInt64Ty(Context), initializer_type);
+		std::vector<llvm::Type*> struct_type_el(Sizes.size() + 1, llvm::Type::getInt64Ty(Context));
+		struct_type_el[Sizes.size()] = ini->getType();
+		llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
 		llvm::Value* varini = llvm::UndefValue::get(struct_type);
-		varini = Builder->CreateInsertValue(varini, Builder->CreateIntCast(LenVal, llvm::Type::getInt64Ty(Context), false), 0, "arrlen");
-		varini = Builder->CreateInsertValue(varini, ini, 1, "arrbeg");
+		for (int j = 0; j < Sizes.size(); j++)
+			varini = Builder->CreateInsertValue(varini, Sizes[Sizes.size() - j - 1], j);
+		varini = Builder->CreateInsertValue(varini, ini, Sizes.size(), "arrbeg");
 		return varini;
 	}
 }
@@ -272,6 +272,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 	llvm::Type* expected_elem_type = expected_type;
 	llvm::Type* elem_type = ft->type;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
+		errs() << "Got array type: " << *array_type << '\n';
 		std::vector<llvm::Value*> Dims = {};
 		std::vector<llvm::Value*> returnDims = {};
 		llvm::Type* elem_type = ft->type;

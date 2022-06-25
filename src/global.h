@@ -578,6 +578,16 @@ public:
 #endif
 };
 
+inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::unique_ptr<ExprAST>& expr) {
+	return out << *expr->codegen();
+}
+
+template<typename T> llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::vector<T>& vec) {
+	for (int i = 0; i < vec.size(); i++)
+		out << (i ? ", " : "[ ") << vec[i]; 
+	return out << " ]";
+}
+
 struct DebugInfo {
 	llvm::DICompileUnit *TheCU;
 	std::vector<llvm::DIScope *> LexicalBlocks;
