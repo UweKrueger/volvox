@@ -1330,7 +1330,6 @@ llvm::Value *CallExprAST::codegen_raw() {
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType()))
 					for (int i = 0; i < struct_type->getNumElements(); i++) {
 						ArgsV.push_back(Builder->CreateExtractValue(arg, i));
-						errs() << "interface arg: " << *Builder->CreateExtractValue(arg, i) << '\n';
 					}
 				else
 					ArgsV.push_back(arg);
