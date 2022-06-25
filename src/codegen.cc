@@ -282,6 +282,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		unsigned level = 0;
 		do {
 			if (auto expected_array_type = llvm::dyn_cast<llvm::ArrayType>(expected_elem_type)) {
+				errs() << "Got expected array type: " << *expected_array_type << '\n';
 				uint64_t nominal_dim = array_type->getNumElements();
 				uint64_t expected_dim = expected_array_type->getNumElements();
 				if (nominal_dim) {
@@ -329,27 +330,25 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			ArrData = val;
 		llvm::Value* ArrayAlloc;
 		llvm::Value* ArrayPtr;
-		bool dim_is_ct; // if we know the array size at compile time
 		llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 		if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
-			errs() << "CT alloca\n";
+			errs() << "CT alloca " << len->getZExtValue() << "\n";
 			llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
 			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 			                       TheFunction->getEntryBlock().begin());
 			ArrayAlloc = TmpB.CreateAlloca(alloc_arr_type, nullptr, Name);
-			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
+			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, llvm::Type::getInt8PtrTy(Context));
 			ArrayAlloc = ArrayPtr;
-			dim_is_ct = true;
 		} else {
 			errs() << "RT alloca\n";
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
-			ArrayPtr = ArrayAlloc;
-			dim_is_ct = false;
+			ArrayPtr = Builder->CreateBitCast(ArrayAlloc, llvm::Type::getInt8PtrTy(Context));
+			ArrayAlloc = ArrayPtr;
 		}
 		// TODO: Insert run time check that initialization values fit into allocation size
 		StoreArray(ArrayPtr, ArrData, Sizes, 0);
-		if (dim_is_ct) {
+		if (!returnDims.size()) {
 			errs() << "returning " << *ArrayAlloc << " for " << *ArrData << ' ' << *ArrData->getType() << '\n';
 			return ArrayAlloc;
 		} else {
@@ -357,10 +356,12 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			struct_types[returnDims.size()] = ArrayAlloc->getType();
 			llvm::Type* ret_struct_type = llvm::StructType::get(Context, struct_types);
 			llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
-			for (unsigned j = 0; j < returnDims.size(); j++)
+			for (unsigned j = 0; j < returnDims.size(); j++) {
+				errs() << "return dim[" << j << "] " << *returnDims[j] << '\n';
 				ret = Builder->CreateInsertValue(ret, returnDims[j], j, "arrlen");
-			ret = Builder->CreateInsertValue(ret, ArrayAlloc, returnDims.size(), "arrayalloc");
-			errs() << "returning2 " << *ret << " for " << *ArrData << ' ' << *ArrData->getType() << '\n';
+			}
+			ret = Builder->CreateInsertValue(ret, ArrayPtr, returnDims.size(), "arrayalloc");
+			errs() << "returning2 " << *ret << " for " << *ArrayPtr << ' ' << *ArrayPtr->getType() << '\n';
 			return ret;
 		}
 	} else {
@@ -541,6 +542,7 @@ llvm::Value* InterfaceExprAST::codegen_raw() {
 			// if it's an rvalue we have to store it on stack to get a reference
 			llvm::Value* array = expr->codegen();
 			val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
+			errs() << "Storing val: " << *val << ' ' << MakeInterfaceArrayType(array_type) << '\n';
 		}
 	} else {
 		// pass by value
