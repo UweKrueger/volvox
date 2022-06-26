@@ -472,7 +472,6 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 	if (pre)
 		prtstring(s, cap, pos, pre);
 	int space = *cap - *pos;
-	unsigned long long rt_len;
 	while (ft) {
 		switch (ft->ID) {
 		case VOLVOX_BFloatTyID:

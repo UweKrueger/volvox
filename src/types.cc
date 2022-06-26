@@ -483,7 +483,7 @@ llvm::Type* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
 		array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
 	} while (array_type);
 	llvm::Type* res_type = elem_type;
-	for (int j = 0; j < depth; j++)
+	for (unsigned j = 0; j < depth; j++)
 		res_type = llvm::ArrayType::get(res_type, 0);
 	return res_type;
 }

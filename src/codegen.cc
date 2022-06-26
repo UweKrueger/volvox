@@ -1328,7 +1328,7 @@ llvm::Value *CallExprAST::codegen_raw() {
 			}
 			if (auto interf_t = dynamic_cast<InterfaceExprAST*>(Args[i].get()))
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType()))
-					for (int i = 0; i < struct_type->getNumElements(); i++) {
+					for (unsigned i = 0; i < struct_type->getNumElements(); i++) {
 						ArgsV.push_back(Builder->CreateExtractValue(arg, i));
 					}
 				else
