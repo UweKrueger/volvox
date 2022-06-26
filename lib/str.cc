@@ -406,6 +406,58 @@ static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str) {
 
 static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags */);
 
+static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType*elem_type, const char* elem_ptr,
+                        uint64_t dims[], uint64_t subsz[], int order, int indent, int w, int p, unsigned flags)
+{
+	indent += 2;
+	char* pre0 = (char*)alloca(3);
+	char* pre1 = (char*)alloca(order > 1 ? indent + 5 : 3);
+	unsigned idx0 = 0;
+	pre0[idx0++] = '[';
+	pre0[idx0++] = ' ';
+	pre0[idx0] = '\0';
+	unsigned idx1 = 0;
+	pre1[idx1++] = ',';
+	if (order > 1) {
+		pre1[idx1++] = '\n';
+		memset(pre1 + idx1, ' ', indent);
+		idx1 += indent;
+	} else {
+		pre1[idx1++] = ' ';
+	}
+	pre1[idx1] = '\0';
+	int suborder = order - 1;
+	uint64_t offset = 0;
+	for (int i = 0; i < dims[0]; i++) {
+		const char* pre = i ? pre1 : pre0;
+		if (suborder) {
+			prtstring(s, cap, pos, pre);
+			print_array(s, cap, pos, elem_type, elem_ptr + offset, &dims[1], &subsz[1], suborder, indent, w, p, flags);
+		} else {
+			if (elem_type->ID == VOLVOX_FloatTyID) {
+				sprt(s, cap, pos, pre, elem_type, (double)*((float*)elem_ptr + i), w, p, flags, nullptr, nullptr);
+			} else if (elem_type->ID == VOLVOX_IntegerTyID && subsz[1] <= 4) {
+				unsigned elem;
+				memcpy(&elem, (char*)elem_ptr + offset, subsz[1]);
+				if (subsz[1] < 4 && (elem_type->type_attr & A_signed)) {
+					// sign expand integer using logic left and arithmetic right shifts
+					unsigned shift = 8 * (4 - subsz[1]);
+					elem = (unsigned)((int)(elem << shift) >> shift);
+				}
+				sprt(s, cap, pos, pre, elem_type, elem, w, p, flags, nullptr, nullptr);
+			} else if (elem_type->ID == VOLVOX_IntegerTyID) {
+				sprt(s, cap, pos, pre, elem_type, *(uint64_t*)(elem_ptr + offset), w, p, flags, nullptr, nullptr);
+			} else if (elem_type->ID == VOLVOX_DoubleTyID) {
+				sprt(s, cap, pos, pre, elem_type, *(double*)(elem_ptr + offset), w, p, flags, nullptr, nullptr);
+			} else {
+				prtstring(s, cap, pos, "<unsupported type>");
+			}
+		}
+		offset += subsz[1];
+	}
+	prtstring(s, cap, pos, " ]");
+}
+
 static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, va_list ap) {
 	if (!*cap) {
 		*cap = 128;
@@ -490,59 +542,20 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 		case VOLVOX_ArrayTyID: {
 			// rt_len = ft->num_fields;
 			unsigned order = ft->SubclassData;
-			uint64_t* dims = (uint64_t*)alloca(order*sizeof(uint64_t));
-			uint64_t* subsz = (uint64_t*)alloca(order*sizeof(uint64_t));
-			uint64_t* curidx = (uint64_t*)alloca(order*sizeof(uint64_t));
+			uint64_t* dims = (uint64_t*)alloca(order * sizeof(uint64_t));
+			uint64_t* subsz = (uint64_t*)alloca((order + 1) * sizeof(uint64_t));
 			for (unsigned n = 0; n < order; n++)
 				dims[n] = va_arg(ap, long long);
-			uint64_t sz = 1;
-			for (unsigned n = 0; n < order; n++) {
-				sz *= dims[order - n - 1];
-				subsz[n] = sz;
-			}
-			memset(curidx, 0, order * sizeof(uint64_t));
+			subsz[order] = ft->elem_type->type_size;
+			for (int n = order - 1; n >= 0; n--)
+				subsz[n] = dims[n] * subsz[n + 1];
 			char* elem_ptr = va_arg(ap, char*);
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
 			long long elem_size = ft->elem_type->type_size;
-			if (sz) {
-				for (uint64_t i = 0; i < sz; i++) {
-					if (!curidx[order - 1]) {
-						for (int k = order - 2; k > 0; k--)
-							if (!curidx[k])
-								prtstring(s, cap, pos, "[ ");
-							else
-								break;
-					}
-					if (ft->elem_type->ID == VOLVOX_FloatTyID) {
-						sprt(s, cap, pos, curidx[order - 1] ? ", " : "[ ", ft->elem_type, (double)*((float*)elem_ptr + i), w, p, flags, nullptr, nullptr);
-					} else if (ft->elem_type->ID == VOLVOX_IntegerTyID && elem_size <= 4) {
-						unsigned elem;
-						memcpy(&elem, (char*)elem_ptr + i * elem_size, elem_size);
-						if (elem_size < 4 && (ft->elem_type->type_attr & A_signed)) {
-							// sign expand integer using logic left and arithmetic right shifts
-							unsigned shift = 8 * (4 - elem_size);
-							elem = (unsigned)((int)(elem << shift) >> shift);
-						}
-						sprt(s, cap, pos, curidx[order - 1] ? ", " : "[ ", ft->elem_type, elem, w, p, flags, nullptr, nullptr);
-					} else if (ft->elem_type->ID == VOLVOX_IntegerTyID) {
-						sprt(s, cap, pos, curidx[order - 1] ? ", " : "[ ", ft->elem_type, *((uint64_t*)elem_ptr + i), w, p, flags, nullptr, nullptr);
-					} else if (ft->elem_type->ID == VOLVOX_DoubleTyID) {
-						sprt(s, cap, pos, curidx[order - 1] ? ", " : "[ ", ft->elem_type, *((double*)elem_ptr + i), w, p, flags, nullptr, nullptr);
-					} else {
-						prtstring(s, cap, pos, "<unsupported type>");
-					}
-					for (int m = order - 1; m >= 0; m--) {
-						curidx[m]++;
-						if (curidx[m] >= dims[m]) {
-							curidx[m] = 0;
-							prtstring(s, cap, pos, " ]");
-						}
-						else
-							break;
-					}
-				}
+			if (subsz[0]) {
+				print_array(s, cap, pos, ft->elem_type, elem_ptr, dims, subsz, order, 0, w, p, flags);
 			} else {
 				for (unsigned n = 0; n < order; n++)
 					prtstring(s, cap, pos, "[");
