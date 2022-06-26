@@ -24,6 +24,8 @@
 
 #define F32_DEFAULT_PRECISION 8
 #define F64_DEFAULT_PRECISION 17
+#define ARRAY_DEFAULT_FIELD_WIDTH 8
+#define ARRAY_DEFAULT_PRECISION 5
 
 typedef struct volvox_glob_t {
 	size_t size;

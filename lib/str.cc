@@ -414,7 +414,8 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 	char* pre1 = (char*)alloca(order > 1 ? indent + 5 : 3);
 	unsigned idx0 = 0;
 	pre0[idx0++] = '[';
-	pre0[idx0++] = ' ';
+	if (order > 1)
+		pre0[idx0++] = ' ';
 	pre0[idx0] = '\0';
 	unsigned idx1 = 0;
 	pre1[idx1++] = ',';
@@ -422,11 +423,16 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 		pre1[idx1++] = '\n';
 		memset(pre1 + idx1, ' ', indent);
 		idx1 += indent;
-	} else {
-		pre1[idx1++] = ' ';
 	}
 	pre1[idx1] = '\0';
 	int suborder = order - 1;
+	if (!suborder) {
+		// we want the field to be in an eye-pleasing pitch by default
+		if (!w)
+			w = ARRAY_DEFAULT_FIELD_WIDTH;
+		if (!p)
+			p = ARRAY_DEFAULT_PRECISION;
+	}
 	uint64_t offset = 0;
 	for (int i = 0; i < dims[0]; i++) {
 		const char* pre = i ? pre1 : pre0;
