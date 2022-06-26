@@ -509,7 +509,8 @@ static void usage(const char* prog) {
 	errs() << " -fPIC ..... generate position independent code\n";
 	errs() << " -g ........ compile with debug information\n";
 	errs() << " -r ........ run compiled program\n";
-	errs() << " -j ........ start interactive JIT session despite provided file(s)\n";
+	errs() << " -j ........ use JIT to run file(s)\n";
+	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
 	errs() << " -i file ... include \"file\" in advance\n";
 	errs() << " -o file ... output compiled result to \"file\"\n";
 	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
@@ -604,7 +605,7 @@ bool next_input_file() {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
 			exit(1);
 		}
-	} else if (!source_index && input_fd != 0) {
+	} else if ((jit_repl || !source_index) && input_fd != 0) {
 		input_fd = 0;
 		input_file_name = "<stdin>";
 	} else {
@@ -645,7 +646,7 @@ int main(int argc, char* argv[]) {
 			errs() << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
-	while ((opt = getopt(argc, argv, "vdcgrjf:i:o:tP:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdcgrjJf:i:o:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -672,6 +673,9 @@ int main(int argc, char* argv[]) {
 		case 'r':
 			run_program = true;
 			break;
+		case 'J':
+			jit_repl = true;
+			// fallthrough
 		case 'j':
 			if (comp_mode && comp_mode != comp_jit)
 				compile_mode_conflict(argv[0]);
