@@ -618,6 +618,26 @@ enum OpKind {
 	comparison_op
 };
 
+llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* ini_array_type, llvm::ArrayType* array_type) {
+	uint64_t n_type = array_type->getNumElements();
+	uint64_t n_ini = ini_array_type->getNumElements();
+	llvm::Type* elem_type = array_type->getElementType();
+	// array initialized with short literal - as we can't use "memset" for
+	// llvm::Values we must create an expanded array constant - filled up with zero values
+	llvm::Value* expanded_ini = llvm::UndefValue::get(array_type);
+	for (int i = 0; i < n_ini; i++) {
+		llvm::Value* elem = Builder->CreateExtractValue(initializer, i);
+		auto ini_elem_array_type = llvm::dyn_cast<llvm::ArrayType>(elem->getType());
+		auto elem_array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
+		if (elem_array_type)
+			elem = expandArrayInitializer(elem, ini_elem_array_type, elem_array_type);
+		expanded_ini = Builder->CreateInsertValue(expanded_ini, elem, i);
+	}
+	for (int i = n_ini; i < n_type; i++)
+		expanded_ini = Builder->CreateInsertValue(expanded_ini, llvm::Constant::getNullValue(elem_type), i);
+	return expanded_ini;
+}
+
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 	if (auto Val = expr->RHS->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
@@ -633,25 +653,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			llvm::GlobalValue::InternalLinkage;
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
 			llvm::GlobalVariable* GV;
+			errs() << "global initializer0: " << *initializer << '\n';
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type)) {
-				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType())) {
-					uint64_t n_type = array_type->getNumElements();
-					uint64_t n_ini = ini_array_type->getNumElements();
-					if (n_ini < n_type) {
-						// array initialized with short literal - as we can't use "memset" for
-						// llvm::Values we must create an expanded array constant - filled up with zero values
-						llvm::Value* expanded_ini = llvm::UndefValue::get(array_type);
-						for (int i = 0; i < n_ini; i++)
-							expanded_ini = Builder->CreateInsertValue(expanded_ini, Builder->CreateExtractValue(initializer, i), i);
-						llvm::Type* elem_type = expr->RHS->ft->elem_type->type;
-						for (int i = n_ini; i < n_type; i++)
-							expanded_ini = Builder->CreateInsertValue(expanded_ini, llvm::Constant::getNullValue(elem_type), i);
-						initializer = llvm::dyn_cast<llvm::Constant>(expanded_ini);
-						if (!initializer) {
-							errs() << expr->RHS->Loc << ": non-const initializer for global variable\n";
-							return nullptr;
-						}
-					}
+				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
+					initializer = llvm::dyn_cast<llvm::Constant>(expandArrayInitializer(initializer, ini_array_type, array_type));
+				if (!initializer) {
+					errs() << expr->RHS->Loc << ": non-const initializer for global variable\n";
+					return nullptr;
 				}
 			}
 			if (comp_mode == comp_dbg) {
@@ -659,6 +667,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				DBuilder->createGlobalVariableExpression(
 					SP, varname, varname, Unit, expr->Loc.Line, type_table.get_diType(type, is_signed), false);
 			}
+			errs() << "global initializer: " << *initializer << '\n';
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
 			                              initializer, varname, nullptr,
