@@ -210,7 +210,7 @@ namespace volvoxc {
 
 }
 
-extern llvm::Type* MakeInterfaceArrayType(llvm::ArrayType* array_type);
+extern llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type);
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
 	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;

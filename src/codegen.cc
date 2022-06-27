@@ -357,6 +357,66 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 	}
 }
 
+static llvm::Value* getInterfaceArrayValue(llvm::Value* val, llvm::ArrayType* array_type, llvm::ArrayType* expected_array_type = nullptr) {
+	if (!expected_array_type)
+		expected_array_type = MakeInterfaceArrayType(array_type);
+	std::vector<llvm::Value*> Dims = {};
+	std::vector<llvm::Value*> returnDims = {};
+	llvm::Type* elem_type;
+	unsigned idx = 0;
+	unsigned level = 0;
+	while (true) {
+		if (!expected_array_type) {
+			errs() << "internal error\n";
+			abort();
+		}
+		uint64_t nominal_dim = array_type->getNumElements();
+		uint64_t expected_dim = expected_array_type->getNumElements();
+		if (nominal_dim) {
+			if (expected_dim) {
+				if (expected_dim != nominal_dim) {
+					errs() << CurLoc << ": mismatch in array dimension (level " << level << ") - required "
+					       << expected_dim << ", got " << nominal_dim << '\n';
+					return nullptr;
+				}
+			} else {
+				// expect RT-dimension, got CT-dimension
+				returnDims.push_back(Builder->getInt64(nominal_dim));
+			}
+			Dims.push_back(Builder->getInt64(nominal_dim));
+		} else {
+			// val has RT-dim for this level
+			llvm::Value* Dim = Builder->CreateExtractValue(val, idx++);
+			if (expected_dim) {
+				; // TODO: add RT detection if RT-dim matches CT-expectation
+			} else {
+				returnDims.push_back(Dim);
+			}
+			Dims.push_back(Dim);
+		}
+		elem_type = array_type->getElementType();
+		array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
+		if (array_type) {
+			llvm::Type* expected_elem_type = expected_array_type->getElementType();
+			expected_array_type = llvm::dyn_cast<llvm::ArrayType>(expected_elem_type);
+		} else {
+			break;
+		}
+	}
+	if (!returnDims.size()) {
+		return val;
+	} else {
+		std::vector<llvm::Type*> struct_types(returnDims.size() + 1, llvm::Type::getInt64Ty(Context));
+		struct_types[returnDims.size()] = val->getType();
+		llvm::Type* ret_struct_type = llvm::StructType::get(Context, struct_types);
+		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
+		for (unsigned j = 0; j < returnDims.size(); j++)
+			ret = Builder->CreateInsertValue(ret, returnDims[j], j, "arrlen");
+		ret = Builder->CreateInsertValue(ret, val, returnDims.size(), "arraystore");
+		return ret;
+	}
+}
+
 static std::pair<llvm::Value*, SourceLocation> GenIndex(ExprAST* Index) {
 	auto aggr = dynamic_cast<AggregateExprAST*>(Index);
 	if (aggr) {
@@ -521,6 +581,8 @@ llvm::Value* InterfaceExprAST::codegen_raw() {
 			auto V = LV->codegen_ref();
 			type = V.first;
 			val = V.second;
+			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(LV->ft->type))
+				val = getInterfaceArrayValue(val, array_type);
 		} else {
 			// if it's an rvalue we have to store it on stack to get a reference
 			llvm::Value* array = expr->codegen();
@@ -653,7 +715,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			llvm::GlobalValue::InternalLinkage;
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
 			llvm::GlobalVariable* GV;
-			errs() << "global initializer0: " << *initializer << '\n';
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type)) {
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
 					initializer = llvm::dyn_cast<llvm::Constant>(expandArrayInitializer(initializer, ini_array_type, array_type));
@@ -667,7 +728,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				DBuilder->createGlobalVariableExpression(
 					SP, varname, varname, Unit, expr->Loc.Line, type_table.get_diType(type, is_signed), false);
 			}
-			errs() << "global initializer: " << *initializer << '\n';
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
 			                              initializer, varname, nullptr,

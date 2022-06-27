@@ -474,7 +474,7 @@ void volvoxc::FullType::dump(int fd) {
 	}
 }
 
-llvm::Type* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
+llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
 	llvm::Type* elem_type;
 	unsigned depth = 0;
 	do {
@@ -482,8 +482,12 @@ llvm::Type* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
 		elem_type = array_type->getElementType();
 		array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
 	} while (array_type);
-	llvm::Type* res_type = elem_type;
-	for (unsigned j = 0; j < depth; j++)
-		res_type = llvm::ArrayType::get(res_type, 0);
+	llvm::ArrayType* res_type;
+	for (unsigned j = 0;;) {
+		res_type = llvm::ArrayType::get(elem_type, 0);
+		if (++j >= depth)
+			break;
+		elem_type = res_type;
+	}
 	return res_type;
 }
