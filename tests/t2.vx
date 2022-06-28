@@ -6,21 +6,21 @@ zz = 3.2
 
 zz
 
-a := [3.4, 6.7, -12.3, 3.1, -13.1]
+a0 := [3.4, 6.7, -12.3, 3.1, -13.1]
 
 fn u() [5]f64
 	p := [3.3, 1.2, -4.5, 6.75, 8.08e12]
 	return p
 
-a = u()
+a0 = u()
 
-fn f() f64
+fn fv() f64
 	z := 3
-	return a[3] + z
+	return a0[3] + z
 
 fn test_global_array_element_get() bool
-	r := f()
-	return r == 9.75
+	rx := fv()
+	return rx == 9.75
 
 fn g() f64
 	t := [-17.2, 4.5, -3.125, 9.34, 18.23e27, -5.0625, 4.3, -17.45, 19.4]
@@ -28,8 +28,8 @@ fn g() f64
 	return t[3]
 
 fn test_local_array_get_and_set() bool
-	r := g()
-	return r == -8.1875
+	rx := g()
+	return rx == -8.1875
 
 
 fn h() [5]f64
