@@ -302,7 +302,7 @@ static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayT
 	unsigned level = 0;
 	while (true) {
 		if (!expected_array_type) {
-			errs() << "internal error\n";
+			errs() << "getInterfaceArrayOrStoreValue(): internal error\n";
 			abort();
 		}
 		uint64_t nominal_dim = array_type->getNumElements();
@@ -510,7 +510,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 				// check out of range errors
 				if (auto c_idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
 					uint64_t u_idx = c_idx->getZExtValue();
-					if (u_idx >= num_elem) {
+					if (num_elem && u_idx >= num_elem) {
 						errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << num_elem << ")\n";
 						return { nullptr, nullptr };
 					}

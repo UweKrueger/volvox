@@ -296,7 +296,7 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
                        const char* Op, SourceLocation Loc)
 {
 	if (!strcmp(Op, ":=") && left_type) {
-		errs() << "internal error\n";
+		errs() << Loc << ": convBinOp(): " << *left_type << " internal error\n";
 		abort();
 	}
 	if (!left_type || Op[0] == ',') {// variable declaration, i.e. := operator
