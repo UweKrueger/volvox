@@ -180,7 +180,18 @@ public:
 	             std::unique_ptr<ExprAST> Index_) :
 		LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_))
 		{
-			ft = Field->ft->elem_type;
+			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
+				llvm::Type* elem_type = array_type->getElementType();
+				if (elem_type == Field->ft->elem_type->type)
+					*ft = *Field->ft->elem_type;
+				else {
+					*ft = *Field->ft;
+					ft->type = array_type->getElementType();
+				}
+			} else {
+				errs() << Index->Loc << ": index for non array expression\n";
+				ft->type = nullptr;
+			}
 		}
 	llvm::Value *codegen_raw() override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;

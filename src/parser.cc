@@ -849,7 +849,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			auto Args = SplitExprList(std::move(RHS));
 			LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
 			continue;
-		} else if (LHS_type && LHS_type->isAggregateType() && is_index) {
+		} else if (is_index) {
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
 			continue;
 		}
