@@ -140,10 +140,10 @@ char Lexer::peek_strict() {
 
 // get the character strictly before the current token in the same line
 char Lexer::look_back_strict() {
-	if (!LexLoc.Col)
+	if (!CurLoc.Col)
 		return '\0';
 	else
-		return linebuf[LexLoc.Col - 1];
+		return linebuf[CurLoc.Col - 1];
 }
 
 std::string IdentifierStr; // Filled in if tok_identifier
@@ -162,9 +162,16 @@ Token Lexer::gettok(eXpect expect) {
 		KeepIdentifierStr = "";
 		return Token(tok_identifier);
 	}
+	bool have_preceding_space;
 	// Skip any whitespace but recorgnize newline if it could be a separator
-	while (expect == eNone ? isspace(CurChar) : isblank(CurChar))
-		CurChar = advance();
+	if (expect == eNone ? isspace(CurChar) : isblank(CurChar)) {
+		have_preceding_space = true;
+		do {
+			CurChar = advance();
+		} while (expect == eNone ? isspace(CurChar) : isblank(CurChar));
+	} else {
+		have_preceding_space = false;
+	}
 	CurLoc = LexLoc;
 
 	if (isalpha(CurChar) || CurChar == '_') { // identifier: [a-zA-Z_][a-zA-Z0-9_]*
@@ -364,13 +371,15 @@ Token Lexer::gettok(eXpect expect) {
 		}
 		case '(':
 		case '[':
-			// function call
-			IdentifierStr = CurChar;
-			// We do not advance here but return the empty (binary) operator
-			// the token is handled the nex time when no binary is expected.
-			// "tok_selector" has a very high priority so sin(x)^2 = (sin(x))^2
-			// whereas sin x^2 = sin(x^2)
-			return Token(tok_selector);
+			if (!have_preceding_space || CurChar == '(') {
+				// function call or array index
+				IdentifierStr = CurChar;
+				// We do not advance here but return the empty (binary) operator.
+				// The token is handled the next time when no binary is expected.
+				// "tok_selector" has a very high priority so sin(x)^2 = (sin(x))^2
+				// whereas sin x^2 = sin(x^2)
+				return Token(tok_selector);
+			}
 		default:
 			;
 		}

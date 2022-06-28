@@ -88,7 +88,7 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
  */
 volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
                              const char* tname,
-                             std::vector<std::unique_ptr<ExprAST>>* exprs) {
+                             std::vector<std::unique_ptr<ExprAST>>* exprs, bool is_index) {
 	unsigned attribs = 0;
 	std::vector<uint64_t> lens = {};
 	while (CurTok.kind != tok_identifier) {
@@ -131,7 +131,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 				} else {
 					if (auto e = ParseExpression()) {
 						if (exprs) {
-							if (!exprs->size() && !Lexer::is_type_start(lex.peek_strict())) {
+							if (!exprs->size() && (is_index || !Lexer::is_type_start(lex.peek_strict()))) {
 								// this is a vector - just return elements
 								if (!Expect(']', expect)) {
 									exprs->clear();
@@ -148,7 +148,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 							// and we can calculate ther values now
 							auto VLen = e->codegen();
 							if (!VLen) {
-								errs() << "cannot generate code for index\n";
+								errs() << "cannot generate code for dimension\n";
 								return nullptr;
 							}
 							if (auto Len = llvm::dyn_cast<llvm::ConstantInt>(VLen)) {
@@ -372,7 +372,7 @@ static std::unique_ptr<ListExprAST> ParseListExpr() {
   chan[f64]{}                      # unbuffered channel
   chan[u64]{cap: 5}                # buffer size 5
 */
-static std::unique_ptr<ExprAST> ParseAggregateExpr() {
+static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false) {
 	int kind = CurTok.kind;
 	// "[3]" can be a fixed array, an index ("a[3]", "f(x)[3]" or "a[4][3]") or
 	// part of the type of an aggregate literal ("[3]i32{...}" or [3][3]f64{...}".
@@ -382,7 +382,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr() {
 	bool key_is_signed = false;
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
-	volvoxc::FullType* ft = ParseType(false, eBinOp, nullptr, &Dims);
+	volvoxc::FullType* ft = ParseType(false, eBinOp, nullptr, &Dims, is_index);
 	SourceLocation loc = CurLoc;
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
@@ -802,9 +802,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		// Okay, we know this is a binop.
 		std::string BinOp = IdentifierStr;
 		SourceLocation BinLoc = CurLoc;
+		auto BinKind = CurTok.kind;
 		getNextToken(); // eat binop
+		bool is_index = BinKind == tok_selector && CurTok.kind == '[';
 		// Parse the unary expression after the binary operator.
-		auto RHS = ParseUnary();
+		auto RHS = is_index ? ParseAggregateExpr(true) : ParseUnary();
 		if (!RHS)
 			return nullptr;
 
@@ -846,10 +848,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		} else if (LHS_type && LHS_type->isFunctionTy() && (BinOp[0] == '(' || BinOp[0] == '\0')) {
 			auto Args = SplitExprList(std::move(RHS));
 			LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
-			if (verbosity >= 4)
-				dbgs() << "create call expr " << *dynamic_cast<CallExprAST*>(LHS.get())->Callee->ft->type << "\n";
 			continue;
-		} else if (LHS_type && LHS_type->isAggregateType() && BinOp[0] == '[') {
+		} else if (LHS_type && LHS_type->isAggregateType() && is_index) {
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
 			continue;
 		}
