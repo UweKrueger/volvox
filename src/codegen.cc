@@ -484,6 +484,30 @@ llvm::Value* IndexExprAST::codegen_raw() {
 	}
 }
 
+static std::pair<llvm::Type*,llvm::Value*> getMultiLevelIndexRef(llvm::ArrayType* a_type, llvm::Value* field_ref,
+                                                                 llvm::Value* idx) {
+	uint64_t const_sub_size = 1;
+	llvm::Value* var_sub_size = nullptr;
+	llvm::Value* new_val;
+	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(field_ref->getType())) {
+		int n_st_f = (int)struct_type->getNumElements();
+		int idx_min = a_type->getNumElements() ? 0 : 1;
+		if (n_st_f - idx_min == 1) {
+			new_val = Builder->CreateExtractValue(field_ref, idx_min);
+		} else {
+			std::vector<llvm::Type*> new_struct_types(n_st_f - idx_min, llvm::Type::getInt64Ty(Context));
+			new_struct_types[n_st_f - idx_min - 1] = struct_type->getTypeAtIndex(n_st_f - 1);
+			auto str_t = llvm::StructType::get(Context, new_struct_types);
+			llvm::Value* new_val = llvm::UndefValue::get(str_t);
+			for (int i = 0; i < n_st_f - idx_min - 1; i++)
+				new_val = Builder->CreateInsertValue(new_val, Builder->CreateExtractValue(field_ref, i + idx_min), i);
+		}
+	} else {
+		errs() << "getMultiLevelIndexRef(): internal error\n";
+	}
+	return { nullptr, nullptr };
+}	
+			
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
 	llvm::Value* field_ptr;
 	llvm::Type* elem_type;
@@ -522,7 +546,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 			}
 			field_type = LV.first;
 			field_ptr = LV.second;
-			if (field_type->isPointerTy() || field_ptr->getType()->isPointerTy()) {
+			if (field_ptr->getType()->isPointerTy()) {
 				auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), TheModule->getDataLayout().getTypeAllocSize(elem_type));
 				auto offset = Builder->CreateMul(elem_size, idx);
 				auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(Context)), offset), elem_type->getPointerTo());
