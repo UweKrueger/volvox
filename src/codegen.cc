@@ -489,50 +489,60 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 	llvm::Type* elem_type;
 	llvm::Type* field_type;
 	llvm::Value* idx;
-	if (!Field->ft->type || !(Field->ft->type->isArrayTy())) {
-		errs() << "LHS of index expression must be an array (or map)\n";
+	uint64_t num_elem;
+	llvm::Value* NumElem = nullptr;
+	if (!Field->ft || !Field->ft->type) {
+		errs() << Field->Loc << ": unknown type\n";
 		return { nullptr, nullptr };
-	} else {
-		elem_type = Field->ft->elem_type->type;
 	}
-	if (auto fld = dynamic_cast<LvalueExprAST*>(Field.get())) {
-		auto LV = fld->codegen_ref();
-		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
-			if (aggr->Elements.size() != 1) {
-				errs() << "exactly one index expected (for now)\n";
-				return { nullptr, nullptr };
-			}
-			idx = aggr->Elements[0]->codegen();
-			// For if both array size and index are known at compile time we can already
-			// check out of range errors
-			if (auto a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
+	if (auto a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
+		num_elem = a_type->getNumElements();
+		elem_type = a_type->getElementType();
+		if (auto fld = dynamic_cast<LvalueExprAST*>(Field.get())) {
+			auto LV = fld->codegen_ref();
+			if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
+				if (aggr->Elements.size() != 1) {
+					errs() << "exactly one index expected (for now)\n";
+					return { nullptr, nullptr };
+				}
+				idx = aggr->Elements[0]->codegen();
+				// For if both array size and index are known at compile time we can already
+				// check out of range errors
 				if (auto c_idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
-					uint64_t array_size = a_type->getNumElements();
 					uint64_t u_idx = c_idx->getZExtValue();
-					if (u_idx >= array_size) {
-						errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << array_size << ")\n";
+					if (u_idx >= num_elem) {
+						errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << num_elem << ")\n";
 						return { nullptr, nullptr };
 					}
 				}
+				// TODO: run time check for index range
+			} else {
+				errs() << "internal compiler error\n";
+				return { nullptr, nullptr };
+			}
+			field_type = LV.first;
+			field_ptr = LV.second;
+			if (field_type->isPointerTy() || field_ptr->getType()->isPointerTy()) {
+				auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), TheModule->getDataLayout().getTypeAllocSize(elem_type));
+				auto offset = Builder->CreateMul(elem_size, idx);
+				auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(Context)), offset), elem_type->getPointerTo());
+				return { elem_type, elem_ptr };
+			} else {
+				errs() << Field->Loc << ": Field type: " << *field_type << " # " << *field_ptr->getType() << '\n';
+				return { nullptr, nullptr };
 			}
 		} else {
-			errs() << "internal compiler error\n";
-			return { nullptr, nullptr };
-		}
-		field_type = LV.first;
-		field_ptr = LV.second;
-		if (field_type->isPointerTy() || field_ptr->getType()->isPointerTy()) {
-			auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), TheModule->getDataLayout().getTypeAllocSize(elem_type));
-			auto offset = Builder->CreateMul(elem_size, idx);
-			auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(Context)), offset), elem_type->getPointerTo());
-			return { elem_type, elem_ptr };
+			if (!silent_fail)
+				errs() << "LHS of index expression must be an lvalue\n";
+			return { elem_type, nullptr };
 		}
 	} else {
-		if (!silent_fail)
-			errs() << "LHS of index expression must be an lvalue\n";
-		return { elem_type, nullptr };
+		errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";
+		return { nullptr, nullptr };
 	}
-	return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
+	errs() << Loc << ": error generating index expr\n";
+	// return { nullptr, nullptr };
+	// return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
 }
 
 llvm::Value* FunctionExprAST::codegen_raw() {
