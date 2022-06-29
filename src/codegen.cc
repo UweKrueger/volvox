@@ -484,6 +484,44 @@ llvm::Value* IndexExprAST::codegen_raw() {
 	}
 }
 
+// const_elem_size, var_elem_size, offset
+static std::tuple<uint64_t,llvm::Value*,llvm::Value*> getMLIdxOffset(llvm::Type* elem_type, std::vector<llvm::Value*>& Idxs,
+                                                                     llvm::Value* Dims, int idx_idx, int dim_idx) {
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
+		auto subtype = array_type->getElementType();
+		uint64_t n_elem = array_type->getNumElements();
+		auto sub_descr = getMLIdxOffset(subtype, Idxs, Dims, idx_idx + 1, n_elem ? dim_idx : dim_idx + 1);
+		auto const_elem_size = std::get<0>(sub_descr);
+		auto var_elem_size = std::get<1>(sub_descr);
+		auto offset = std::get<2>(sub_descr);
+		llvm::Value* cur_Offset = nullptr;
+		if (idx_idx < Idxs.size()) {
+			cur_Offset = Idxs[idx_idx];
+			if (const_elem_size != 1)
+				cur_Offset = Builder->CreateMul(Builder->getInt64(const_elem_size != 1), cur_Offset);
+			if (var_elem_size)
+				cur_Offset = Builder->CreateMul(cur_Offset, var_elem_size);
+			if (n_elem)
+				const_elem_size *= n_elem;
+			else {
+				auto dim = Builder->CreateExtractValue(Dims, dim_idx++);
+				if (var_elem_size)
+					var_elem_size = Builder->CreateMul(dim, var_elem_size);
+				else
+					var_elem_size = dim;
+			}
+		}
+		if (cur_Offset && offset)
+			cur_Offset = Builder->CreateAdd(cur_Offset, offset);
+		else
+			cur_Offset = offset;
+		return { const_elem_size, var_elem_size, cur_Offset };
+	} else {
+		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_type);
+		return { elem_size, nullptr, nullptr };
+	}
+}
+
 static std::pair<llvm::Type*,llvm::Value*> getMultiLevelIndexExprRef(llvm::ArrayType* array_type, llvm::Value* field_ref,
                                                                  llvm::Value* idx) {
 	uint64_t const_sub_size = 1; // CT-const Factor in offset
