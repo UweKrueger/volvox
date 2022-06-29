@@ -484,23 +484,28 @@ llvm::Value* IndexExprAST::codegen_raw() {
 	}
 }
 
-static std::pair<llvm::Type*,llvm::Value*> getMultiLevelIndexRef(llvm::ArrayType* a_type, llvm::Value* field_ref,
+static std::pair<llvm::Type*,llvm::Value*> getMultiLevelIndexExprRef(llvm::ArrayType* array_type, llvm::Value* field_ref,
                                                                  llvm::Value* idx) {
-	uint64_t const_sub_size = 1;
-	llvm::Value* var_sub_size = nullptr;
-	llvm::Value* new_val;
+	uint64_t const_sub_size = 1; // CT-const Factor in offset
+	llvm::Value* var_sub_size = nullptr; // non-CT-const Faktor in offset
+	llvm::Value* MaxIndex = nullptr;
+	uint64_t max_index = 0;
+	llvm::Value* NewPtrBase;
+	llvm::Type* elem_type;
+	int new_num_struct_fields = 0;
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(field_ref->getType())) {
-		int n_st_f = (int)struct_type->getNumElements();
-		int idx_min = a_type->getNumElements() ? 0 : 1;
-		if (n_st_f - idx_min == 1) {
-			new_val = Builder->CreateExtractValue(field_ref, idx_min);
-		} else {
-			std::vector<llvm::Type*> new_struct_types(n_st_f - idx_min, llvm::Type::getInt64Ty(Context));
-			new_struct_types[n_st_f - idx_min - 1] = struct_type->getTypeAtIndex(n_st_f - 1);
+		int num_struct_fields = (int)struct_type->getNumElements();
+		NewPtrBase = Builder->CreateExtractValue(field_ref, num_struct_fields - 1);
+		// if array_type does not provide a dimension it's given by val.0 and we must start at val.1 for the result
+		int struct_idx_start = num_struct_fields ? 0 : 1;
+		new_num_struct_fields = num_struct_fields - struct_idx_start;
+		if (new_num_struct_fields > 1) {
+			std::vector<llvm::Type*> new_struct_types(new_num_struct_fields, llvm::Type::getInt64Ty(Context));
+			new_struct_types[new_num_struct_fields] = NewPtrBase->getType();
 			auto str_t = llvm::StructType::get(Context, new_struct_types);
 			llvm::Value* new_val = llvm::UndefValue::get(str_t);
-			for (int i = 0; i < n_st_f - idx_min - 1; i++)
-				new_val = Builder->CreateInsertValue(new_val, Builder->CreateExtractValue(field_ref, i + idx_min), i);
+			for (int i = 0; i < new_num_struct_fields - 1; i++)
+			new_val = Builder->CreateInsertValue(new_val, Builder->CreateExtractValue(field_ref, i + struct_idx_start), i);
 		}
 	} else {
 		errs() << "getMultiLevelIndexRef(): internal error\n";
