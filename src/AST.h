@@ -199,6 +199,7 @@ public:
 		llvm::Value* Dims, int idx_idx, int dim_idx);
 	llvm::Value *codegen_raw() override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
+	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "index", ind);

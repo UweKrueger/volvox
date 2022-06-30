@@ -552,7 +552,46 @@ static std::pair<llvm::Type*,llvm::Value*> getMultiLevelIndexExprRef(llvm::Array
 	}
 	return { nullptr, nullptr };
 }	
-			
+
+// Idxs, val
+llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs) {
+	if (auto fieldidxexpr = dynamic_cast<IndexExprAST*>(Field.get())) {
+		auto fieldval = fieldidxexpr->codegen_ref0(Idxs);
+		if (!fieldval)
+			return nullptr;
+		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
+			if (aggr->Elements.size() != 1) {
+				errs() << "exactly one index expected (for now)\n";
+				return nullptr;
+			}
+			auto idx = aggr->Elements[0]->codegen();
+			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(fieldidxexpr->ft->type)) {
+				uint64_t num_elem = array_type->getNumElements();
+				if (num_elem) {
+					if (auto c_idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
+						uint64_t u_idx = c_idx->getZExtValue();
+						if (u_idx >= num_elem) {
+							errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << num_elem << ")\n";
+							return nullptr;
+						}
+					}
+					// TODO: run time check for index range
+				}
+			}		
+			Idxs.push_back(idx);
+			return fieldval;
+		} else {
+			errs() << "internal compiler error\n";
+			abort();
+		}
+	} else if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get())) {
+		auto elem = lval->codegen_ref();
+		return elem.second;
+	} else {
+		return nullptr;
+	}
+}		
+
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
 	llvm::Value* field_ptr;
 	llvm::Type* elem_type;
