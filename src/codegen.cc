@@ -485,9 +485,9 @@ llvm::Value* IndexExprAST::codegen_raw() {
 }
 
 // const_elem_size, var_elem_size, offset
-std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm::Type* elem_type,
+std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm::Type* elem_typex,
 	      std::vector<llvm::Value*>& Idxs, llvm::Value* Dims, int idx_idx, int dim_idx) {
-	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_typex)) {
 		auto subtype = array_type->getElementType();
 		uint64_t n_elem = array_type->getNumElements();
 		auto sub_descr = getMLIdxOffset(subtype, Idxs, Dims, idx_idx + 1, n_elem ? dim_idx : dim_idx + 1);
@@ -519,7 +519,8 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 			cur_Offset = offset;
 		return { const_elem_size, var_elem_size, cur_Offset };
 	} else {
-		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_type);
+		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_typex);
+		elem_type = elem_typex;
 		return { elem_size, nullptr, nullptr };
 	}
 }
@@ -594,7 +595,6 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs) {
 
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
 	llvm::Value* field_ptr;
-	llvm::Type* elem_type;
 	llvm::Type* field_type;
 	llvm::Value* idx;
 	uint64_t num_elem;
@@ -604,46 +604,38 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		return { nullptr, nullptr };
 	}
 	if (auto a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
-		num_elem = a_type->getNumElements();
-		elem_type = a_type->getElementType();
-		if (auto fld = dynamic_cast<LvalueExprAST*>(Field.get())) {
-			auto LV = fld->codegen_ref();
-			if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
-				if (aggr->Elements.size() != 1) {
-					errs() << "exactly one index expected (for now)\n";
-					return { nullptr, nullptr };
-				}
-				idx = aggr->Elements[0]->codegen();
-				// For if both array size and index are known at compile time we can already
-				// check out of range errors
-				if (auto c_idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
-					uint64_t u_idx = c_idx->getZExtValue();
-					if (num_elem && u_idx >= num_elem) {
-						errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << num_elem << ")\n";
-						return { nullptr, nullptr };
-					}
-				}
-				// TODO: run time check for index range
-			} else {
-				errs() << "internal compiler error\n";
-				return { nullptr, nullptr };
-			}
-			field_type = LV.first;
-			field_ptr = LV.second;
-			if (field_ptr->getType()->isPointerTy()) {
-				auto elem_size = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), TheModule->getDataLayout().getTypeAllocSize(elem_type));
-				auto offset = Builder->CreateMul(elem_size, idx);
-				auto elem_ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(field_ptr, llvm::Type::getInt64Ty(Context)), offset), elem_type->getPointerTo());
-				return { elem_type, elem_ptr };
-			} else {
-				errs() << Field->Loc << ": Field type: " << *field_type << " # " << *field_ptr->getType() << '\n';
-				return { nullptr, nullptr };
-			}
-		} else {
+		std::vector<llvm::Value*> Idxs;
+		auto LV = codegen_ref0(Idxs);
+		if (!LV) {
 			if (!silent_fail)
 				errs() << "LHS of index expression must be an lvalue\n";
 			return { elem_type, nullptr };
 		}
+		auto OffsetDescr = getMLIdxOffset(ft->type, Idxs, LV, 0, 0);
+		auto offset = std::get<2>(OffsetDescr);
+		llvm::Value* Ptr;
+		int n_var_dims;
+		if (LV->getType()->isPointerTy()) {
+			Ptr = LV;
+			n_var_dims = 0;
+		} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(LV->getType())) {
+			Ptr = Builder->CreateExtractValue(LV, struct_type->getNumElements() - 1);
+			n_var_dims = struct_type->getNumElements() - 1 - num_dims_to_strip_from_val;
+		} else {
+			errs() << "internal error\n";
+			abort();
+		}
+		Ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Ptr, llvm::Type::getInt64Ty(Context)), offset), Ptr->getType());
+		if (!n_var_dims)
+			return { elem_type, Ptr };
+		std::vector<llvm::Type*> new_struct_el(n_var_dims + 1, llvm::Type::getInt64Ty(Context));
+		new_struct_el[n_var_dims] = Ptr->getType();
+		llvm::Type* new_struct_type = llvm::StructType::get(Context, new_struct_el);
+		llvm::Value* res = llvm::UndefValue::get(new_struct_type);
+		for (int j = 0; j < n_var_dims; j++)
+			res = Builder->CreateInsertValue(res, Builder->CreateExtractValue(LV, j + num_dims_to_strip_from_val), j);
+		res = Builder->CreateInsertValue(res, Ptr, num_dims_to_strip_from_val);
+		return { elem_type, res };
 	} else {
 		errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";
 		return { nullptr, nullptr };

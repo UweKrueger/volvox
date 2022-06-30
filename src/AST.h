@@ -176,6 +176,7 @@ class IndexExprAST : public LvalueExprAST {
 
 public:
 	std::unique_ptr<ExprAST> Field, Index;
+	llvm::Type* elem_type;
 	int num_dims_to_strip_from_val = 0;
 	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
 	             std::unique_ptr<ExprAST> Index_) :
