@@ -485,8 +485,8 @@ llvm::Value* IndexExprAST::codegen_raw() {
 }
 
 // const_elem_size, var_elem_size, offset
-static std::tuple<uint64_t,llvm::Value*,llvm::Value*> getMLIdxOffset(llvm::Type* elem_type, std::vector<llvm::Value*>& Idxs,
-                                                                     llvm::Value* Dims, int idx_idx, int dim_idx) {
+std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm::Type* elem_type,
+	      std::vector<llvm::Value*>& Idxs, llvm::Value* Dims, int idx_idx, int dim_idx) {
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 		auto subtype = array_type->getElementType();
 		uint64_t n_elem = array_type->getNumElements();
@@ -505,6 +505,8 @@ static std::tuple<uint64_t,llvm::Value*,llvm::Value*> getMLIdxOffset(llvm::Type*
 				const_elem_size *= n_elem;
 			else {
 				auto dim = Builder->CreateExtractValue(Dims, dim_idx++);
+				if (dim_idx > num_dims_to_strip_from_val)
+					num_dims_to_strip_from_val = dim_idx;
 				if (var_elem_size)
 					var_elem_size = Builder->CreateMul(dim, var_elem_size);
 				else

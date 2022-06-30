@@ -176,6 +176,7 @@ class IndexExprAST : public LvalueExprAST {
 
 public:
 	std::unique_ptr<ExprAST> Field, Index;
+	int num_dims_to_strip_from_val = 0;
 	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
 	             std::unique_ptr<ExprAST> Index_) :
 		LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_))
@@ -193,6 +194,9 @@ public:
 				ft->type = nullptr;
 			}
 		}
+	std::tuple<uint64_t,llvm::Value*,llvm::Value*> getMLIdxOffset(
+		llvm::Type* elem_type, std::vector<llvm::Value*>& Idxs,
+		llvm::Value* Dims, int idx_idx, int dim_idx);
 	llvm::Value *codegen_raw() override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 #ifndef NDEBUG
