@@ -487,11 +487,8 @@ llvm::Value* IndexExprAST::codegen_raw() {
 // const_elem_size, var_elem_size, offset
 std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm::Type* elem_typex,
 	      std::vector<llvm::Value*>& Idxs, llvm::Value* Dims, int idx_idx, int dim_idx) {
-	errs() << "elem_typex0: " <<  *elem_typex << '\n';
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_typex)) {
 		auto subtype = array_type->getElementType();
-		errs() << "array_type: " <<  *array_type << " Subtype: " << *subtype
-		       << " idx_idx: " << idx_idx << " IdxSz: " << Idxs.size() << '\n';
 		uint64_t n_elem = array_type->getNumElements();
 		auto sub_descr = getMLIdxOffset(subtype, Idxs, Dims, idx_idx + 1, n_elem ? dim_idx : dim_idx + 1);
 		auto const_elem_size = std::get<0>(sub_descr);
@@ -500,7 +497,6 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 		llvm::Value* cur_Offset = nullptr;
 		if (idx_idx < Idxs.size()) {
 			cur_Offset = Idxs[idx_idx];
-			errs() << "Cur offset: " << *cur_Offset << '\n';
 			if (const_elem_size != 1)
 				cur_Offset = Builder->CreateMul(Builder->getInt64(const_elem_size), cur_Offset);
 			if (var_elem_size)
@@ -512,7 +508,6 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 			auto dim = Builder->CreateExtractValue(Dims, dim_idx++);
 			if (idx_idx < Idxs.size())
 				if (dim_idx > num_dims_to_strip_from_val) {
-					errs() << "Strip dimensions: " << dim_idx << '\n';
 					num_dims_to_strip_from_val = dim_idx;
 				}
 			if (var_elem_size)
@@ -524,13 +519,10 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 			cur_Offset = Builder->CreateAdd(cur_Offset, offset);
 		else if (offset)
 			cur_Offset = offset;
-		if (cur_Offset)
-			errs() << "Offset: " << *cur_Offset << '\n';
 		return { const_elem_size, var_elem_size, cur_Offset };
 	} else {
 		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_typex);
 		ml_elem_type = elem_typex;
-		errs() << "elem_size: " << elem_size << " ElemType: " << *ml_elem_type << '\n';
 		return { elem_size, nullptr, nullptr };
 	}
 }
@@ -539,17 +531,15 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type) {
 	llvm::Value* res = nullptr;
 	if (auto fieldidxexpr = dynamic_cast<IndexExprAST*>(Field.get())) {
-		errs() << "type before0: " << *Field->ft->type << '\n';
 		auto fieldval = fieldidxexpr->codegen_ref0(Idxs, ml_field_type);
-		errs() << "type after0: " << *Field->ft->type << '\n';
 		if (!fieldval)
 			return nullptr;
 		res = fieldval;
 	} else if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get())) {
-		errs() << "type before: " << *Field->ft->type << '\n';
 		auto elem = lval->codegen_ref();
 		ml_field_type = Field->ft->type;
-		errs() << "type after: " << *ml_field_type << '\n';
+		ft = new_FullType(*ft);
+		ft->type = llvm::cast<llvm::ArrayType>(Field->ft->type)->getElementType();
 		res = elem.second;
 	}
 	if (res)
@@ -593,14 +583,11 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		std::vector<llvm::Value*> Idxs;
 		llvm::Type* ml_field_type = nullptr;
 		auto LV = codegen_ref0(Idxs, ml_field_type);
-		if (LV && ml_field_type)
-			errs() << "LV0: " << *LV << " Type: " << *ml_field_type << '\n';
 		if (!LV) {
 			if (!silent_fail)
 				errs() << "LHS of index expression must be an lvalue\n";
 			return { a_type->getElementType(), nullptr };
 		}
-		errs() << "LV: " << *LV << " Type: " << *ml_field_type << '\n';
 		auto OffsetDescr = getMLIdxOffset(ml_field_type, Idxs, LV, 0, 0);
 		auto offset = std::get<2>(OffsetDescr);
 		llvm::Value* Ptr;
