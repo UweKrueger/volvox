@@ -405,6 +405,7 @@ static std::pair<llvm::Value*, SourceLocation> GenIndex(ExprAST* Index) {
 llvm::Value* IndexExprAST::codegen_raw() {
 	// first try to get a reference to the element ...
 	auto V = codegen_ref(true);
+	//errs() << "IndexExprAST::codegen_raw(): " << *V.first << " # " << *V.second << '\n';
 	// ... and load the value.
 	if (V.second) // we have a reference and need a value - just load it...
 		return Builder->CreateLoad(V.first, V.second, Name.c_str());
@@ -501,6 +502,8 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 				cur_Offset = Builder->CreateMul(Builder->getInt64(const_elem_size), cur_Offset);
 			if (var_elem_size)
 				cur_Offset = Builder->CreateMul(cur_Offset, var_elem_size);
+		} else if (idx_idx == Idxs.size()) {
+			ml_elem_type = subtype;
 		}
 		if (n_elem)
 			const_elem_size *= n_elem;
@@ -522,7 +525,7 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 		return { const_elem_size, var_elem_size, cur_Offset };
 	} else {
 		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_typex);
-		ml_elem_type = elem_typex;
+		ml_elem_type = deepest_elem_type = elem_typex;
 		return { elem_size, nullptr, nullptr };
 	}
 }
@@ -538,11 +541,11 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 	} else if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get())) {
 		auto elem = lval->codegen_ref();
 		ml_field_type = Field->ft->type;
-		ft = new_FullType(*ft);
-		ft->type = llvm::cast<llvm::ArrayType>(Field->ft->type)->getElementType();
 		res = elem.second;
 	}
-	if (res)
+	if (res) {
+		ft = new_FullType(*ft);
+		ft->type = llvm::cast<llvm::ArrayType>(Field->ft->type)->getElementType();
 		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
 			if (aggr->Elements.size() != 1) {
 				errs() << "exactly one index expected (for now)\n";
@@ -567,8 +570,9 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 			errs() << "internal compiler error\n";
 			abort();
 		}
+	}
 	return res;
-}		
+}
 
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
 	llvm::Value* field_ptr;
@@ -586,7 +590,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		if (!LV) {
 			if (!silent_fail)
 				errs() << "LHS of index expression must be an lvalue\n";
-			return { a_type->getElementType(), nullptr };
+			return { Field->ft->type, nullptr };
 		}
 		auto OffsetDescr = getMLIdxOffset(ml_field_type, Idxs, LV, 0, 0);
 		auto offset = std::get<2>(OffsetDescr);
