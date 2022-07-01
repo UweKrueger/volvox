@@ -589,11 +589,12 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		std::vector<llvm::Value*> Idxs;
 		llvm::Type* ml_field_type = nullptr;
 		auto LV = codegen_ref0(Idxs, ml_field_type);
-		errs() << "LV0: " << *LV << " Type: " << *ml_field_type << '\n';
+		if (LV && ml_field_type)
+			errs() << "LV0: " << *LV << " Type: " << *ml_field_type << '\n';
 		if (!LV) {
 			if (!silent_fail)
 				errs() << "LHS of index expression must be an lvalue\n";
-			return { ml_elem_type, nullptr };
+			return { a_type->getElementType(), nullptr };
 		}
 		errs() << "LV: " << *LV << " Type: " << *ml_field_type << '\n';
 		auto OffsetDescr = getMLIdxOffset(ml_field_type, Idxs, LV, 0, 0);
