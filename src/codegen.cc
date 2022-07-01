@@ -505,23 +505,27 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 				cur_Offset = Builder->CreateMul(Builder->getInt64(const_elem_size), cur_Offset);
 			if (var_elem_size)
 				cur_Offset = Builder->CreateMul(cur_Offset, var_elem_size);
-			if (n_elem)
-				const_elem_size *= n_elem;
-			else {
-				auto dim = Builder->CreateExtractValue(Dims, dim_idx++);
-				if (dim_idx > num_dims_to_strip_from_val)
+		}
+		if (n_elem)
+			const_elem_size *= n_elem;
+		else {
+			auto dim = Builder->CreateExtractValue(Dims, dim_idx++);
+			if (idx_idx < Idxs.size())
+				if (dim_idx > num_dims_to_strip_from_val) {
+					errs() << "Strip dimensions: " << dim_idx << '\n';
 					num_dims_to_strip_from_val = dim_idx;
-				if (var_elem_size)
-					var_elem_size = Builder->CreateMul(dim, var_elem_size);
-				else
-					var_elem_size = dim;
-			}
+				}
+			if (var_elem_size)
+				var_elem_size = Builder->CreateMul(dim, var_elem_size);
+			else
+				var_elem_size = dim;
 		}
 		if (cur_Offset && offset)
 			cur_Offset = Builder->CreateAdd(cur_Offset, offset);
 		else if (offset)
 			cur_Offset = offset;
-		errs() << "Offset: " << *cur_Offset << '\n';
+		if (cur_Offset)
+			errs() << "Offset: " << *cur_Offset << '\n';
 		return { const_elem_size, var_elem_size, cur_Offset };
 	} else {
 		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_typex);
