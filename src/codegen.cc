@@ -525,22 +525,27 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 		return { const_elem_size, var_elem_size, cur_Offset };
 	} else {
 		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_typex);
-		elem_type = elem_typex;
-		errs() << "elem_size: " << elem_size << " ElemType: " << *elem_type << '\n';
+		ml_elem_type = elem_typex;
+		errs() << "elem_size: " << elem_size << " ElemType: " << *ml_elem_type << '\n';
 		return { elem_size, nullptr, nullptr };
 	}
 }
 
 // Idxs, val
-llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs) {
+llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type) {
 	llvm::Value* res = nullptr;
 	if (auto fieldidxexpr = dynamic_cast<IndexExprAST*>(Field.get())) {
-		auto fieldval = fieldidxexpr->codegen_ref0(Idxs);
+		errs() << "type before0: " << *Field->ft->type << '\n';
+		auto fieldval = fieldidxexpr->codegen_ref0(Idxs, ml_field_type);
+		errs() << "type after0: " << *Field->ft->type << '\n';
 		if (!fieldval)
 			return nullptr;
 		res = fieldval;
 	} else if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get())) {
+		errs() << "type before: " << *Field->ft->type << '\n';
 		auto elem = lval->codegen_ref();
+		ml_field_type = Field->ft->type;
+		errs() << "type after: " << *ml_field_type << '\n';
 		res = elem.second;
 	}
 	if (res)
@@ -573,7 +578,6 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs) {
 
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
 	llvm::Value* field_ptr;
-	llvm::Type* field_type;
 	llvm::Value* idx;
 	uint64_t num_elem;
 	llvm::Value* NumElem = nullptr;
@@ -583,14 +587,16 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 	}
 	if (auto a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
 		std::vector<llvm::Value*> Idxs;
-		auto LV = codegen_ref0(Idxs);
+		llvm::Type* ml_field_type = nullptr;
+		auto LV = codegen_ref0(Idxs, ml_field_type);
+		errs() << "LV0: " << *LV << " Type: " << *ml_field_type << '\n';
 		if (!LV) {
 			if (!silent_fail)
 				errs() << "LHS of index expression must be an lvalue\n";
-			return { elem_type, nullptr };
+			return { ml_elem_type, nullptr };
 		}
-		errs() << "LV: " << *LV << " Type: " << *Field->ft->type << '\n';
-		auto OffsetDescr = getMLIdxOffset(Field->ft->type, Idxs, LV, 0, 0);
+		errs() << "LV: " << *LV << " Type: " << *ml_field_type << '\n';
+		auto OffsetDescr = getMLIdxOffset(ml_field_type, Idxs, LV, 0, 0);
 		auto offset = std::get<2>(OffsetDescr);
 		llvm::Value* Ptr;
 		int n_var_dims;
@@ -607,7 +613,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		if (offset)
 			Ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Ptr, llvm::Type::getInt64Ty(Context)), offset), Ptr->getType());
 		if (!n_var_dims)
-			return { elem_type, Ptr };
+			return { ml_elem_type, Ptr };
 		std::vector<llvm::Type*> new_struct_el(n_var_dims + 1, llvm::Type::getInt64Ty(Context));
 		new_struct_el[n_var_dims] = Ptr->getType();
 		llvm::Type* new_struct_type = llvm::StructType::get(Context, new_struct_el);
@@ -615,7 +621,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		for (int j = 0; j < n_var_dims; j++)
 			res = Builder->CreateInsertValue(res, Builder->CreateExtractValue(LV, j + num_dims_to_strip_from_val), j);
 		res = Builder->CreateInsertValue(res, Ptr, num_dims_to_strip_from_val);
-		return { elem_type, res };
+		return { ml_elem_type, res };
 	} else {
 		errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";
 		return { nullptr, nullptr };

@@ -176,7 +176,7 @@ class IndexExprAST : public LvalueExprAST {
 
 public:
 	std::unique_ptr<ExprAST> Field, Index;
-	llvm::Type* elem_type;
+	llvm::Type* ml_elem_type = nullptr;
 	int num_dims_to_strip_from_val = 0;
 	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
 	             std::unique_ptr<ExprAST> Index_) :
@@ -200,7 +200,7 @@ public:
 		llvm::Value* Dims, int idx_idx, int dim_idx);
 	llvm::Value *codegen_raw() override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
-	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs);
+	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "index", ind);
