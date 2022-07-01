@@ -487,8 +487,11 @@ llvm::Value* IndexExprAST::codegen_raw() {
 // const_elem_size, var_elem_size, offset
 std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm::Type* elem_typex,
 	      std::vector<llvm::Value*>& Idxs, llvm::Value* Dims, int idx_idx, int dim_idx) {
+	errs() << "elem_typex0: " <<  *elem_typex << '\n';
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_typex)) {
 		auto subtype = array_type->getElementType();
+		errs() << "array_type: " <<  *array_type << " Subtype: " << *subtype
+		       << " idx_idx: " << idx_idx << " IdxSz: " << Idxs.size() << '\n';
 		uint64_t n_elem = array_type->getNumElements();
 		auto sub_descr = getMLIdxOffset(subtype, Idxs, Dims, idx_idx + 1, n_elem ? dim_idx : dim_idx + 1);
 		auto const_elem_size = std::get<0>(sub_descr);
@@ -497,8 +500,9 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 		llvm::Value* cur_Offset = nullptr;
 		if (idx_idx < Idxs.size()) {
 			cur_Offset = Idxs[idx_idx];
+			errs() << "Cur offset: " << *cur_Offset << '\n';
 			if (const_elem_size != 1)
-				cur_Offset = Builder->CreateMul(Builder->getInt64(const_elem_size != 1), cur_Offset);
+				cur_Offset = Builder->CreateMul(Builder->getInt64(const_elem_size), cur_Offset);
 			if (var_elem_size)
 				cur_Offset = Builder->CreateMul(cur_Offset, var_elem_size);
 			if (n_elem)
@@ -515,58 +519,38 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 		}
 		if (cur_Offset && offset)
 			cur_Offset = Builder->CreateAdd(cur_Offset, offset);
-		else
+		else if (offset)
 			cur_Offset = offset;
+		errs() << "Offset: " << *cur_Offset << '\n';
 		return { const_elem_size, var_elem_size, cur_Offset };
 	} else {
 		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_typex);
 		elem_type = elem_typex;
+		errs() << "elem_size: " << elem_size << " ElemType: " << *elem_type << '\n';
 		return { elem_size, nullptr, nullptr };
 	}
 }
 
-static std::pair<llvm::Type*,llvm::Value*> getMultiLevelIndexExprRef(llvm::ArrayType* array_type, llvm::Value* field_ref,
-                                                                 llvm::Value* idx) {
-	uint64_t const_sub_size = 1; // CT-const Factor in offset
-	llvm::Value* var_sub_size = nullptr; // non-CT-const Faktor in offset
-	llvm::Value* MaxIndex = nullptr;
-	uint64_t max_index = 0;
-	llvm::Value* NewPtrBase;
-	llvm::Type* elem_type;
-	int new_num_struct_fields = 0;
-	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(field_ref->getType())) {
-		int num_struct_fields = (int)struct_type->getNumElements();
-		NewPtrBase = Builder->CreateExtractValue(field_ref, num_struct_fields - 1);
-		// if array_type does not provide a dimension it's given by val.0 and we must start at val.1 for the result
-		int struct_idx_start = num_struct_fields ? 0 : 1;
-		new_num_struct_fields = num_struct_fields - struct_idx_start;
-		if (new_num_struct_fields > 1) {
-			std::vector<llvm::Type*> new_struct_types(new_num_struct_fields, llvm::Type::getInt64Ty(Context));
-			new_struct_types[new_num_struct_fields] = NewPtrBase->getType();
-			auto str_t = llvm::StructType::get(Context, new_struct_types);
-			llvm::Value* new_val = llvm::UndefValue::get(str_t);
-			for (int i = 0; i < new_num_struct_fields - 1; i++)
-			new_val = Builder->CreateInsertValue(new_val, Builder->CreateExtractValue(field_ref, i + struct_idx_start), i);
-		}
-	} else {
-		errs() << "getMultiLevelIndexRef(): internal error\n";
-	}
-	return { nullptr, nullptr };
-}	
-
 // Idxs, val
 llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs) {
+	llvm::Value* res = nullptr;
 	if (auto fieldidxexpr = dynamic_cast<IndexExprAST*>(Field.get())) {
 		auto fieldval = fieldidxexpr->codegen_ref0(Idxs);
 		if (!fieldval)
 			return nullptr;
+		res = fieldval;
+	} else if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get())) {
+		auto elem = lval->codegen_ref();
+		res = elem.second;
+	}
+	if (res)
 		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
 			if (aggr->Elements.size() != 1) {
 				errs() << "exactly one index expected (for now)\n";
 				return nullptr;
 			}
 			auto idx = aggr->Elements[0]->codegen();
-			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(fieldidxexpr->ft->type)) {
+			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
 				uint64_t num_elem = array_type->getNumElements();
 				if (num_elem) {
 					if (auto c_idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
@@ -580,17 +564,11 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs) {
 				}
 			}		
 			Idxs.push_back(idx);
-			return fieldval;
 		} else {
 			errs() << "internal compiler error\n";
 			abort();
 		}
-	} else if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get())) {
-		auto elem = lval->codegen_ref();
-		return elem.second;
-	} else {
-		return nullptr;
-	}
+	return res;
 }		
 
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
@@ -611,7 +589,8 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 				errs() << "LHS of index expression must be an lvalue\n";
 			return { elem_type, nullptr };
 		}
-		auto OffsetDescr = getMLIdxOffset(ft->type, Idxs, LV, 0, 0);
+		errs() << "LV: " << *LV << " Type: " << *Field->ft->type << '\n';
+		auto OffsetDescr = getMLIdxOffset(Field->ft->type, Idxs, LV, 0, 0);
 		auto offset = std::get<2>(OffsetDescr);
 		llvm::Value* Ptr;
 		int n_var_dims;
