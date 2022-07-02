@@ -503,7 +503,7 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 			if (var_elem_size)
 				cur_Offset = Builder->CreateMul(cur_Offset, var_elem_size);
 		} else if (idx_idx == Idxs.size()) {
-			ml_elem_type = subtype;
+			ml_elem_type = elem_typex;
 		}
 		if (n_elem)
 			const_elem_size *= n_elem;
@@ -525,7 +525,7 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 		return { const_elem_size, var_elem_size, cur_Offset };
 	} else {
 		uint64_t elem_size = TheModule->getDataLayout().getTypeAllocSize(elem_typex);
-		ml_elem_type = deepest_elem_type = elem_typex;
+		ml_elem_type = elem_typex; // may be overwritten if # indices < array order
 		return { elem_size, nullptr, nullptr };
 	}
 }
