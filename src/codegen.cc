@@ -1012,13 +1012,43 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		RHS->desired_type = LHSE->ft->type;
 		RHS->desired_type_attr = LHSE->ft->type_attr;
 		// Codegen the RHS.
-		uint64_t allocsz = RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS->ft->type) : 0;
-		errs() << "Codegen for RHS " << *RHS->desired_type << " " << allocsz << "\n";
-		llvm::Value* Val = RHS->codegen();
-		if (!Val)
-			return nullptr;
-		allocsz = RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS->ft->type) : 0;
-		errs() << "Got val: " << *Val << " " << allocsz << '\n';
+		uint64_t allocsz = 0; // if size is compile time const
+		llvm::Value* Val = nullptr; // 
+		llvm::Value* ValRef = nullptr;
+		llvm::Value* AllocSize = nullptr;
+		llvm::Type* elem_type = nullptr;
+		if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
+			auto ValR = RHS_Lval->codegen_ref();
+			allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
+			if (!allocsz) {
+				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type)) {
+					std::vector<llvm::Value*> Dims;
+					std::vector<llvm::Value*> returnDims;
+					elem_type = getArrayDims(ValR.second, array_type, Dims, returnDims);
+					uint64_t el_allocsz = elem_type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(elem_type) : 0;
+					if (!el_allocsz) {
+						errs() << "array element type must be sized\n";
+						return nullptr;
+					}
+					AllocSize = Builder->getInt64(el_allocsz);
+					for (auto dim: Dims)
+						AllocSize = Builder->CreateMul(AllocSize, dim);
+					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ValR.second->getType()))
+						ValRef = Builder->CreateExtractValue(ValR.second, struct_type->getNumElements() - 1);
+					else
+						ValRef = ValR.second;
+				} else {
+					errs() << "variable sized objects of type " << *RHS_Lval->ft->type << " not implemented\n";
+					return nullptr;
+				}
+			} else {
+				Val = RHS_Lval->ref2val(ValR);
+			}
+		} else {
+			Val = RHS->codegen();
+			if (!Val)
+				return nullptr;
+		}
 		if (conv.compat.RHS)
 			Val = conv.compat.RHS(Val);
 		// Look up the name.
