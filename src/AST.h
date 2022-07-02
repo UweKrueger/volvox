@@ -125,6 +125,12 @@ public:
 	// but the llvm::Value is NULL
 	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) = 0;
 	llvm::Value* codegen_raw() override;
+	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
+		if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
+			return Builder->CreateLoad(ref.first, ref.second, Name.c_str());
+		else
+			return nullptr;
+	}
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".

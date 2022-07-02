@@ -405,10 +405,8 @@ static std::pair<llvm::Value*, SourceLocation> GenIndex(ExprAST* Index) {
 llvm::Value* IndexExprAST::codegen_raw() {
 	// first try to get a reference to the element ...
 	auto V = codegen_ref(true);
-	//errs() << "IndexExprAST::codegen_raw(): " << *V.first << " # " << *V.second << '\n';
-	// ... and load the value.
-	if (V.second) // we have a reference and need a value - just load it...
-		return Builder->CreateLoad(V.first, V.second, Name.c_str());
+	if (auto val = ref2val(V))
+		return val;
 	if (V.first) {
 		// we know the type, but field is an rvalue
 		auto fld = Field->codegen();
@@ -503,7 +501,7 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 			if (var_elem_size)
 				cur_Offset = Builder->CreateMul(cur_Offset, var_elem_size);
 		} else if (idx_idx == Idxs.size()) {
-			ml_elem_type = elem_typex;
+			ml_elem_type = elem_typex; // overwrite previous "deepest" element type - result is sub array
 		}
 		if (n_elem)
 			const_elem_size *= n_elem;
@@ -1009,9 +1007,13 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		RHS->desired_type = LHSE->ft->type;
 		RHS->desired_type_attr = LHSE->ft->type_attr;
 		// Codegen the RHS.
+		uint64_t allocsz = RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS->ft->type) : 0;
+		errs() << "Codegen for RHS " << *RHS->desired_type << " " << allocsz << "\n";
 		llvm::Value* Val = RHS->codegen();
 		if (!Val)
 			return nullptr;
+		allocsz = RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS->ft->type) : 0;
+		errs() << "Got val: " << *Val << " " << allocsz << '\n';
 		if (conv.compat.RHS)
 			Val = conv.compat.RHS(Val);
 		// Look up the name.
