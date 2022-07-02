@@ -1017,6 +1017,9 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		llvm::Value* ValRef = nullptr;
 		llvm::Value* AllocSize = nullptr;
 		llvm::Type* elem_type = nullptr;
+		llvm::StructType* struct_type = nullptr;
+		uint64_t el_allocsz = 0;
+		llvm::Value* Struct = nullptr;
 		if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref();
 			allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
@@ -1024,16 +1027,17 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type)) {
 					std::vector<llvm::Value*> Dims;
 					std::vector<llvm::Value*> returnDims;
+					Struct = ValR.second;
 					elem_type = getArrayDims(ValR.second, array_type, Dims, returnDims);
-					uint64_t el_allocsz = elem_type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(elem_type) : 0;
+					el_allocsz = elem_type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(elem_type) : 0;
 					if (!el_allocsz) {
 						errs() << "array element type must be sized\n";
 						return nullptr;
 					}
-					AllocSize = Builder->getInt64(el_allocsz);
+					AllocSize = Builder->getInt64(1);
 					for (auto dim: Dims)
 						AllocSize = Builder->CreateMul(AllocSize, dim);
-					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ValR.second->getType()))
+					if ((struct_type = llvm::dyn_cast<llvm::StructType>(ValR.second->getType())))
 						ValRef = Builder->CreateExtractValue(ValR.second, struct_type->getNumElements() - 1);
 					else
 						ValRef = ValR.second;
@@ -1078,7 +1082,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			llvm::Type* type = std::get<0>(type_descr);
 			auto conversion = std::get<1>(type_descr);
 			bool is_signed = std::get<2>(type_descr);
-			auto convertedVal = conversion(Val);
 			FullVar* entry = locals_table.back()[varname];
 			// Entry has already been created by parser but we might have to adjust the type of the new
 			// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
@@ -1087,17 +1090,37 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				entry->ft.type_attr |= A_signed;
 			else
 				entry->ft.type_attr &= ~A_signed;
-			auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
-			entry->val = Alloca;
-			if (comp_mode == comp_dbg) {
-				// Create a debug descriptor for the variable.
-				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-					SP, varname, Unit, LHS->Loc.Line, type_table.get_diType(type, is_signed),
-					true);
-
-				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-										llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
-										Builder->GetInsertBlock());
+			if (Val) {
+				auto convertedVal = conversion(Val);
+				auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
+				entry->val = Alloca;
+				if (comp_mode == comp_dbg) {
+					// Create a debug descriptor for the variable.
+					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
+						SP, varname, Unit, LHS->Loc.Line, type_table.get_diType(type, is_signed),
+						true);
+					
+					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+					                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
+					                        Builder->GetInsertBlock());
+				}
+			} else if (ValRef) {
+				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
+				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
+				llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
+				Builder->CreateMemCpyInline(Alloca, align, ValRef, align, cp_size);
+				if (Struct) {
+					auto strt = llvm::cast<llvm::StructType>(Struct->getType());
+					llvm::Value* Entry = llvm::UndefValue::get(strt);
+					unsigned ndim = strt->getNumElements();
+					for (unsigned i = 0; i < ndim; i++)
+						Entry = Builder->CreateInsertValue(Entry, Builder->CreateExtractValue(Struct, i), i);
+					Entry = Builder->CreateInsertValue(Entry, Alloca, ndim);
+					errs() << *Entry << " # " << *Struct << '\n';
+					entry->val = Entry;
+				} else {
+					entry->val = Alloca;
+				}
 			}
 			ft->type = llvm::Type::getVoidTy(Context);
 			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
