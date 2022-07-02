@@ -292,11 +292,9 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 	return { ArrayAlloc, ArrayPtr };
 }
 
-static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayType* array_type, llvm::ArrayType* expected_array_type = nullptr, bool do_store = false, const llvm::Twine &Name = "") {
+static llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type, std::vector<llvm::Value*>& Dims, std::vector<llvm::Value*>& returnDims, llvm::ArrayType* expected_array_type = nullptr) {
 	if (!expected_array_type)
 		expected_array_type = MakeInterfaceArrayType(array_type);
-	std::vector<llvm::Value*> Dims = {};
-	std::vector<llvm::Value*> returnDims = {};
 	llvm::Type* elem_type;
 	unsigned idx = 0;
 	unsigned level = 0;
@@ -338,6 +336,13 @@ static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayT
 			break;
 		}
 	}
+	return elem_type;
+}
+
+static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayType* array_type, llvm::ArrayType* expected_array_type = nullptr, bool do_store = false, const llvm::Twine &Name = "") {
+	std::vector<llvm::Value*> Dims = {};
+	std::vector<llvm::Value*> returnDims = {};
+	llvm::Type* elem_type = getArrayDims(val, array_type, Dims, returnDims, expected_array_type);
 	llvm::Value* ArrayAlloc;
 	if (do_store) {
 		auto p  = StoreArrayValue(val, elem_type, Dims, Name);
