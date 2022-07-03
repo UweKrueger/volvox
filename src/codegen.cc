@@ -533,7 +533,7 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 	}
 }
 
-// Idxs, val
+// Idxs, val - returns full field of nested IndexExprs, i.e. something like '{ i64, i64, i64, double* }'
 llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type) {
 	llvm::Value* res = nullptr;
 	if (auto fieldidxexpr = dynamic_cast<IndexExprAST*>(Field.get())) {
@@ -619,7 +619,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		llvm::Value* res = llvm::UndefValue::get(new_struct_type);
 		for (int j = 0; j < n_var_dims; j++)
 			res = Builder->CreateInsertValue(res, Builder->CreateExtractValue(LV, j + num_dims_to_strip_from_val), j);
-		res = Builder->CreateInsertValue(res, Ptr, num_dims_to_strip_from_val);
+		res = Builder->CreateInsertValue(res, Ptr, n_var_dims);
 		return { ml_elem_type, res };
 	} else {
 		errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";
