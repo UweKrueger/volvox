@@ -68,9 +68,9 @@ fn test_var_array_multi_level_index_direct() bool
 	return x == -17.125
 
 fn test_var_array_multi_level_index_indirect1() bool
-	vv := [4][5][3]f64{2: {1: {2: 41.25}}}
+	vv := [4][5][7]f64{2: {1: {2: 41.25}}}
 	x := vv[2][1]
-	return x[2] == 41.25
+	return x[2] == 41.25 & x[0] == 0 & x[6] == 0
 
 fn test_var_array_multi_level_cp() bool
 	vv := [zn][wn]f64{1: {2: -17.125}}
@@ -81,3 +81,13 @@ fn test_var_array_multi_level_index_indirect() bool
 	vv := [yn][zn][wn]f64{3: {4: {2: -17.125}}}
 	x := vv[3][4]
 	return x[2] == -17.125
+
+fn test_mixed_array_multi_level_index_indirect() bool
+	vv := [yn][7][wn]f64{2: {5: {1: 763.0625}}}
+	x := vv[2][5]
+	return x[1] == 763.0625
+
+fn test_mixed2_array_multi_level_index_indirect() bool
+	vv := [5][7][wn]f64{3: {1: {-13.5, 763.0625}}}
+	x := vv[3][1]
+	return x[1] == 763.0625 & x[2] == 0 & x[0] == -13.5
