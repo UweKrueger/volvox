@@ -1014,7 +1014,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		// Codegen the RHS.
 		uint64_t allocsz = 0; // if size is compile time const
 		llvm::Value* Val = nullptr; // 
-		llvm::Value* ValRef = nullptr;
+		llvm::Value* ValPtr = nullptr;
 		llvm::Value* AllocSize = nullptr;
 		llvm::Type* elem_type = nullptr;
 		llvm::StructType* struct_type = nullptr;
@@ -1038,9 +1038,9 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 					for (auto dim: Dims)
 						AllocSize = Builder->CreateMul(AllocSize, dim);
 					if ((struct_type = llvm::dyn_cast<llvm::StructType>(ValR.second->getType())))
-						ValRef = Builder->CreateExtractValue(ValR.second, struct_type->getNumElements() - 1);
+						ValPtr = Builder->CreateExtractValue(ValR.second, struct_type->getNumElements() - 1);
 					else
-						ValRef = ValR.second;
+						ValPtr = ValR.second;
 				} else {
 					errs() << "variable sized objects of type " << *RHS_Lval->ft->type << " not implemented\n";
 					return nullptr;
@@ -1104,19 +1104,18 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 					                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
 					                        Builder->GetInsertBlock());
 				}
-			} else if (ValRef) {
+			} else if (ValPtr) {
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
 				llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
-				Builder->CreateMemCpyInline(Alloca, align, ValRef, align, cp_size);
+				Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
 				if (Struct) {
 					auto strt = llvm::cast<llvm::StructType>(Struct->getType());
 					llvm::Value* Entry = llvm::UndefValue::get(strt);
-					unsigned ndim = strt->getNumElements();
+					unsigned ndim = strt->getNumElements() - 1;
 					for (unsigned i = 0; i < ndim; i++)
 						Entry = Builder->CreateInsertValue(Entry, Builder->CreateExtractValue(Struct, i), i);
 					Entry = Builder->CreateInsertValue(Entry, Alloca, ndim);
-					errs() << *Entry << " # " << *Struct << '\n';
 					entry->val = Entry;
 				} else {
 					entry->val = Alloca;
