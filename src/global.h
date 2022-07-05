@@ -71,10 +71,11 @@ enum TokenKind {
 	tok_else = -52,
 	tok_for = -53,
 	tok_in = -54,
-	// var definition
-	tok_return = -56,
-	tok_end = -57,
-	tok_leave = -58, // indicator that branch does not continue (i.e. last expr is return)
+	tok_while = -55,
+	tok_do = -56,
+	tok_return = -57,
+	tok_end = -58,
+	tok_leave = -59, // indicator that branch does not continue (i.e. last expr is return)
 
 	// built-in type attributes
 	tok_atomic = -60,

@@ -635,20 +635,16 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList();
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
 static std::unique_ptr<ExprAST> ParseIfExpr() {
 	SourceLocation IfLoc = CurLoc;
-
-	getNextToken(); // eat the if.
+	auto if_kind = TokenKind(CurTok.kind);
+	getNextToken(); // eat the if/while.
 
 	// condition - expect bool.
 	auto Cond = ParseExpression();
 	if (!Cond)
 		return nullptr;
-
-	if (CurTok.kind != tok_then) {
-		errs() << "expected then\n";
+	TokenKind condclose = (if_kind == tok_while) ? tok_do : tok_then;
+	if (!Expect(condclose))
 		return nullptr;
-	}
-	getNextToken(); // eat the then
-
 	auto Then = ParseExprList();
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
 	bool have_else = false;
@@ -762,6 +758,7 @@ static std::unique_ptr<ExprAST> ParsePrimary() {
 	case tok_chan:
 		return ParseAggregateExpr();
 	case tok_if:
+	case tok_while:
 		return ParseIfExpr();
 	case tok_for:
 		return ParseForExpr();
