@@ -32,3 +32,20 @@ fn loo(x f64) f64
 
 fn test_while() bool
    return loo(3.25) == 65.25
+
+fn loo2(x f64) f64
+	sum := 0.
+	xx := x
+	while xx >= -11.25 do
+		sum = sum + xx
+		xx = xx - 1.5
+	else
+		sum = -55.0625
+		end
+	return sum
+
+fn test_while_2() bool
+   return loo2(-11.3) == -55.0625
+
+fn test_while_3() bool
+   return loo2(-9.5) == -20.5
