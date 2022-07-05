@@ -1535,7 +1535,7 @@ llvm::Value *CallExprAST::codegen_raw() {
 	}
 }
 
-llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock *MergeBB, bool isElse) {
+llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, llvm::BasicBlock* thisBB, bool isElse) {
 	int EndKind = isElse ? ElseEndKind : ThenEndKind;
 	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
 	llvm::Value* BranchV = nullptr;
@@ -1548,7 +1548,12 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock *MergeBB, bool isElse)
 			Builder->CreateRetVoid();
 		else {
 			BranchV = llvm::UndefValue::get(ft->type);
-			Builder->CreateBr(MergeBB);
+			if (if_kind == tok_while) {
+				llvm::Value* CondV = Cond->codegen();
+				Builder->CreateCondBr(CondV, thisBB, MergeBB);
+			}
+			else
+				Builder->CreateBr(MergeBB);
 		}
 	} else {
 		if (!ft->type->isVoidTy()) {
@@ -1565,7 +1570,12 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock *MergeBB, bool isElse)
 		if (EndKind == tok_return) {
 			Builder->CreateRet(CheckTailCall(BranchV));
 		} else {
-			Builder->CreateBr(MergeBB);
+			if (if_kind == tok_while) {
+				llvm::Value* CondV = Cond->codegen();
+				Builder->CreateCondBr(CondV, thisBB, MergeBB);
+			}
+			else
+				Builder->CreateBr(MergeBB);
 		}
 	}
 	return BranchV;
@@ -1600,7 +1610,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit then value.
 	Builder->SetInsertPoint(ThenBB);
 
-	llvm::Value* ThenV = createCondBranch(MergeBB, false);
+	llvm::Value* ThenV = createCondBranch(MergeBB, ThenBB, false);
 	if (!ThenV)
 		return nullptr;
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
@@ -1610,7 +1620,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 	TheFunction->getBasicBlockList().push_back(ElseBB);
 	Builder->SetInsertPoint(ElseBB);
 
-	llvm::Value* ElseV = createCondBranch(MergeBB, true);
+	llvm::Value* ElseV = createCondBranch(MergeBB, ElseBB, true);
 	if (!ElseV)
 		return nullptr;
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.

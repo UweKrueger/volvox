@@ -20,3 +20,15 @@ fn test_factorial() bool
 	return factorial(15) == 1307674368000i64
 
 if true then 4 else 5 end
+
+fn loo(x f64) f64
+	sum := 0.
+	xx := x
+	while xx < 12 do
+		sum = sum + xx
+		xx = xx + 1
+		end
+	return sum
+
+fn test_while() bool
+   return loo(3.25) == 65.25

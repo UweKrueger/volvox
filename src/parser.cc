@@ -661,7 +661,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	}
 	getNextToken(eBinOp);
 	auto conv = (Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
-	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
+	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy() && if_kind == tok_if) ?
 		convBinOp(Then.first.back()->ft->type, Else.first.back()->ft->type,
 		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
 		          Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type,
@@ -669,7 +669,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 		: BinOpConvSet{{ nullptr, nullptr, llvm::Type::getVoidTy(Context), 0, false, nullptr },
 		               { nullptr, nullptr, llvm::Type::getVoidTy(Context), 0, false, nullptr }};
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), Then.second, Else.second, conv);
+	                                   std::move(Else.first), Then.second, Else.second, conv, if_kind);
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
