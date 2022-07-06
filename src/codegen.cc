@@ -12,6 +12,8 @@ bool inside_function = false;
 extern llvm::ExitOnError ExitOnErr;
 const char* last_shadow_saver;
 const char* last_shadow_restorer;
+// list of boolean values that indicate that this loop branch is run for the first time
+std::vector<llvm::PHINode*> FirstPassFlags;
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
@@ -1587,8 +1589,8 @@ llvm::Value *IfExprAST::codegen_raw() {
 		TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
 		condPN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "condtmp");
-		condPN->addIncoming(Builder->getInt1(false), enterBB);
-		condPN->addIncoming(Builder->getInt1(true), ThenBB);
+		condPN->addIncoming(Builder->getInt1(true), enterBB);
+		condPN->addIncoming(Builder->getInt1(false), ThenBB);
 		need_else_switch = (Else.size() > 0);
 	} else {
 		CondBB = nullptr;
@@ -1618,8 +1620,11 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit then value.
 	TheFunction->getBasicBlockList().push_back(ThenBB);
 	Builder->SetInsertPoint(ThenBB);
-
+	if (condPN)
+		FirstPassFlags.push_back(condPN);
 	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, ThenBB, false);
+	if (condPN)
+		FirstPassFlags.pop_back();
 	if (!ThenV)
 		return nullptr;
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
@@ -1627,7 +1632,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 	if (need_else_switch) {
 		TheFunction->getBasicBlockList().push_back(ElseSwitch);
 		Builder->SetInsertPoint(ElseSwitch);
-		Builder->CreateCondBr(condPN, MergeBB, ElseBB);
+		Builder->CreateCondBr(condPN, ElseBB, MergeBB);
 	}
 	// Emit else block.
 	TheFunction->getBasicBlockList().push_back(ElseBB);
