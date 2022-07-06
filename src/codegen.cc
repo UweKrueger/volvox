@@ -1578,7 +1578,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 	llvm::PHINode* condPN;
 	llvm::BasicBlock* CondBB;
-	llvm::BasicBlock* ThenBB = llvm::BasicBlock::Create(Context, "then");
+	llvm::BasicBlock* ThenBB = llvm::BasicBlock::Create(Context, (if_kind == tok_if) ? "then" : "loop");
 	if (if_kind == tok_while) {
 		llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 		CondBB = llvm::BasicBlock::Create(Context, "while");
@@ -1610,11 +1610,11 @@ llvm::Value *IfExprAST::codegen_raw() {
 
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock* ElseHead = condPN ? llvm::BasicBlock::Create(Context, "elsehead") : nullptr;
+	llvm::BasicBlock* ElseSwitch = condPN ? llvm::BasicBlock::Create(Context, "else_switch") : nullptr;
 	llvm::BasicBlock* ElseBB = llvm::BasicBlock::Create(Context, "else");
 	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, "ifcond");
 
-	Builder->CreateCondBr(CondV, ThenBB, ElseHead ? ElseHead : ElseBB);
+	Builder->CreateCondBr(CondV, ThenBB, ElseSwitch ? ElseSwitch : ElseBB);
 
 	// Emit then value.
 	TheFunction->getBasicBlockList().push_back(ThenBB);
@@ -1626,8 +1626,8 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
 	if (condPN) {
-		TheFunction->getBasicBlockList().push_back(ElseHead);
-		Builder->SetInsertPoint(ElseHead);
+		TheFunction->getBasicBlockList().push_back(ElseSwitch);
+		Builder->SetInsertPoint(ElseSwitch);
 		Builder->CreateCondBr(condPN, MergeBB, ElseBB);
 	}
 	// Emit else block.
