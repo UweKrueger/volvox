@@ -1642,10 +1642,14 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
-	llvm::PHINode* PN = Builder->CreatePHI(ft->type, 2, "iftmp");
-	PN->addIncoming(ThenV, ThenBB);
-	PN->addIncoming(ElseV, ElseBB);
-	return PN;
+	if (ft->type->isVoidTy())
+		return llvm::UndefValue::get(ft->type);
+	else {
+		llvm::PHINode* PN = Builder->CreatePHI(ft->type, 2, "iftmp");
+		PN->addIncoming(ThenV, ThenBB);
+		PN->addIncoming(ElseV, ElseBB);
+		return PN;
+	}
 }
 
 // Output for-loop as:
