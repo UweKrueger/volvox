@@ -1548,12 +1548,7 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, llvm::BasicB
 			Builder->CreateRetVoid();
 		else {
 			BranchV = llvm::UndefValue::get(ft->type);
-			if (if_kind == tok_while) {
-				llvm::Value* CondV = Cond->codegen();
-				Builder->CreateCondBr(CondV, thisBB, MergeBB);
-			}
-			else
-				Builder->CreateBr(MergeBB);
+			Builder->CreateBr(MergeBB);
 		}
 	} else {
 		if (!ft->type->isVoidTy()) {
@@ -1570,12 +1565,7 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, llvm::BasicB
 		if (EndKind == tok_return) {
 			Builder->CreateRet(CheckTailCall(BranchV));
 		} else {
-			if (if_kind == tok_while) {
-				llvm::Value* CondV = Cond->codegen();
-				Builder->CreateCondBr(CondV, thisBB, MergeBB);
-			}
-			else
-				Builder->CreateBr(MergeBB);
+			Builder->CreateBr(MergeBB);
 		}
 	}
 	return BranchV;
@@ -1584,6 +1574,27 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, llvm::BasicB
 llvm::Value *IfExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
+	}
+	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+	llvm::Value* condVal;
+	llvm::BasicBlock* CondBB;
+	llvm::BasicBlock* ThenBB = llvm::BasicBlock::Create(Context, "then");
+	if (if_kind == tok_while) {
+		llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
+		CondBB = llvm::BasicBlock::Create(Context, "while");
+		Builder->CreateBr(CondBB);
+		TheFunction->getBasicBlockList().push_back(CondBB);
+		Builder->SetInsertPoint(CondBB);
+		if (Else.size()) {
+			llvm::PHINode* condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "condtmp");
+			condPN->addIncoming(Builder->getInt8(0), enterBB);
+			condPN->addIncoming(Builder->getInt8(1), ThenBB);
+			condVal = Builder->CreateICmpNE(condPN, Builder->getInt8(0), "pnbool");
+		} else
+			condVal = nullptr;
+	} else {
+		CondBB = nullptr;
+		condVal = nullptr;
 	}
 	Cond->desired_type = llvm::Type::getInt1Ty(Context);
 	llvm::Value *CondV = Cond->codegen();
@@ -1597,25 +1608,29 @@ llvm::Value *IfExprAST::codegen_raw() {
 		errs() << Cond->Loc << ": bool type expected as \"if\" condition\n";
 		return nullptr;
 	}
-	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock *ThenBB = llvm::BasicBlock::Create(Context, "then", TheFunction);
-	llvm::BasicBlock *ElseBB = llvm::BasicBlock::Create(Context, "else");
-	llvm::BasicBlock *MergeBB = llvm::BasicBlock::Create(Context, "ifcond");
+	llvm::BasicBlock* ElseHead = condVal ? llvm::BasicBlock::Create(Context, "elsehead") : nullptr;
+	llvm::BasicBlock* ElseBB = llvm::BasicBlock::Create(Context, "else");
+	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, "ifcond");
 
-	Builder->CreateCondBr(CondV, ThenBB, ElseBB);
+	Builder->CreateCondBr(CondV, ThenBB, ElseHead ? ElseHead : ElseBB);
 
 	// Emit then value.
+	TheFunction->getBasicBlockList().push_back(ThenBB);
 	Builder->SetInsertPoint(ThenBB);
 
-	llvm::Value* ThenV = createCondBranch(MergeBB, ThenBB, false);
+	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, ThenBB, false);
 	if (!ThenV)
 		return nullptr;
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
-
+	if (condVal) {
+		TheFunction->getBasicBlockList().push_back(ElseHead);
+		Builder->SetInsertPoint(ElseHead);
+		Builder->CreateCondBr(condVal, MergeBB, ElseBB);
+	}
 	// Emit else block.
 	TheFunction->getBasicBlockList().push_back(ElseBB);
 	Builder->SetInsertPoint(ElseBB);
@@ -1628,7 +1643,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
-	llvm::PHINode *PN = Builder->CreatePHI(ft->type, 2, "iftmp");
+	llvm::PHINode* PN = Builder->CreatePHI(ft->type, 2, "iftmp");
 	PN->addIncoming(ThenV, ThenBB);
 	PN->addIncoming(ElseV, ElseBB);
 	return PN;
