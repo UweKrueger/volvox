@@ -28,9 +28,8 @@ extern enableColorANSI(fd i32) bool
 extern __signal_out_of_range()
 
 fn __check_array_index(index u64, length u64)
-	if index >= length then
-		__signal_out_of_range()
-		end
+	if index >= length
+		__signal_out_of_range().
 	return
 
 		

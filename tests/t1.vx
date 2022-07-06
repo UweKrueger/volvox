@@ -1,33 +1,30 @@
 fn fib(x u64) u64
-	t := if x < 3 then
+	t := if x < 3
 	    1u64
 	else
-	    fib(x - 2) + fib(x - 1)
-	end
+	    fib(x - 2) + fib(x - 1).
 	return t
 
 fn test_fibonacci() bool
 	return fib(39) == 63245986
 
 fn factorial(n i64) i64
-	return if n > 1 then
+	return if n > 1
 		n * factorial(n - 1)
 	else
-		1
-	end
+		1 .
 
 fn test_factorial() bool
 	return factorial(15) == 1307674368000i64
 
-if true then 4 else 5 end
+if true; 4 else 5 .
 
 fn loo(x f64) f64
 	sum := 0.
 	xx := x
-	while xx < 12 do
+	while xx < 12
 		sum = sum + xx
-		xx = xx + 1
-		end
+		xx = xx + 1 .
 	return sum
 
 fn test_while() bool
@@ -36,12 +33,11 @@ fn test_while() bool
 fn loo2(x f64) f64
 	sum := 0.
 	xx := x
-	while xx >= -11.25 do
+	while xx >= -11.25
 		sum = sum + xx
 		xx = xx - 1.5
 	else
-		sum = -55.0625
-		end
+		sum = -55.0625.
 	return sum
 
 fn test_while_2() bool

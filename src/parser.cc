@@ -642,7 +642,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	auto Cond = ParseExpression();
 	if (!Cond)
 		return nullptr;
-	TokenKind condclose = (if_kind == tok_while) ? tok_do : tok_then;
+	auto condclose = TokenKind(';');
 	if (!Expect(condclose))
 		return nullptr;
 	auto Then = ParseExprList();
@@ -656,7 +656,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
 	if (CurTok.kind != tok_end) {
-		errs() << "unexpected token " << CurTok.kind << " (expected " << (have_else ? "'end'\n" : "'else'\n");
+		errs() << "unexpected token " << CurTok.kind << " (expected " << (have_else ? "" : "'else' or ") << "'.'\n";
 		return nullptr;
 	}
 	getNextToken(eBinOp);

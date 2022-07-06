@@ -208,8 +208,6 @@ Token Lexer::gettok(eXpect expect) {
 			return Token(tok_while);
 		if (IdentifierStr == "do")
 			return Token(tok_do);
-		if (IdentifierStr == "end")
-			return Token(tok_end);
 		if (IdentifierStr == "return")
 			return Token(tok_return);
 		if (IdentifierStr == "true")
@@ -554,7 +552,11 @@ Token Lexer::gettok(eXpect expect) {
 				return tok_range;
 			}
 		} else {
-			return tok_selector;
+			char nextchar = this->peek_strict();
+			if (isalpha(nextchar) || nextchar == '_')
+				return tok_selector;
+			else
+				return tok_end;
 		}
 	case '<':
 		if (linebuf[LexLoc.Col] == '-') {
