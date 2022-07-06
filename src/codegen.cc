@@ -1576,7 +1576,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 		KSDbgInfo.emitLocation(this);
 	}
 	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-	llvm::Value* condVal;
+	llvm::PHINode* condPN;
 	llvm::BasicBlock* CondBB;
 	llvm::BasicBlock* ThenBB = llvm::BasicBlock::Create(Context, "then");
 	if (if_kind == tok_while) {
@@ -1586,15 +1586,14 @@ llvm::Value *IfExprAST::codegen_raw() {
 		TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
 		if (Else.size()) {
-			llvm::PHINode* condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "condtmp");
-			condPN->addIncoming(Builder->getInt8(0), enterBB);
-			condPN->addIncoming(Builder->getInt8(1), ThenBB);
-			condVal = Builder->CreateICmpNE(condPN, Builder->getInt8(0), "pnbool");
+			condPN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "condtmp");
+			condPN->addIncoming(Builder->getInt1(false), enterBB);
+			condPN->addIncoming(Builder->getInt1(true), ThenBB);
 		} else
-			condVal = nullptr;
+			condPN = nullptr;
 	} else {
 		CondBB = nullptr;
-		condVal = nullptr;
+		condPN = nullptr;
 	}
 	Cond->desired_type = llvm::Type::getInt1Ty(Context);
 	llvm::Value *CondV = Cond->codegen();
@@ -1611,7 +1610,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock* ElseHead = condVal ? llvm::BasicBlock::Create(Context, "elsehead") : nullptr;
+	llvm::BasicBlock* ElseHead = condPN ? llvm::BasicBlock::Create(Context, "elsehead") : nullptr;
 	llvm::BasicBlock* ElseBB = llvm::BasicBlock::Create(Context, "else");
 	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, "ifcond");
 
@@ -1626,10 +1625,10 @@ llvm::Value *IfExprAST::codegen_raw() {
 		return nullptr;
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
-	if (condVal) {
+	if (condPN) {
 		TheFunction->getBasicBlockList().push_back(ElseHead);
 		Builder->SetInsertPoint(ElseHead);
-		Builder->CreateCondBr(condVal, MergeBB, ElseBB);
+		Builder->CreateCondBr(condPN, MergeBB, ElseBB);
 	}
 	// Emit else block.
 	TheFunction->getBasicBlockList().push_back(ElseBB);
