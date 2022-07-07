@@ -484,11 +484,12 @@ public:
 
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
-	          int ThenEndKind, int ElseEndKind, BinOpConvSet conv = {}, TokenKind if_kind = tok_if)
+	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table, BinOpConvSet conv = {}, TokenKind if_kind = tok_if)
 		: ExprAST(_Else.size() ? conv.compat.res_type : llvm::Type::getVoidTy(Context), conv.compat.res_attr, Loc,
 		          _Else.size() && _Then.back()->is_unknown_type & _Else.back()->is_unknown_type),
 		  Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
-		  ElseEndKind(ElseEndKind), conv(conv), if_kind(if_kind)
+		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)),
+		  else_locals_table(std::move(_else_locals_table)), conv(conv), if_kind(if_kind)
 		{}
 	llvm::Value *codegen_raw() override;
 	llvm::Value* createCondBranch(llvm::BasicBlock *MergeBB, llvm::BasicBlock *thisBB = nullptr, bool isElse = false);

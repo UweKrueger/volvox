@@ -457,6 +457,7 @@ public:
 	VarTable() : table(map_string_new_map()) {}
 	~VarTable() { map_destroy(table); }
 	VarTable(VarTable&& o) { table = o.table; o.table = nullptr; }
+	VarTable& operator=(VarTable&& o) { table = o.table; o.table = nullptr; return *this; }
 	void clear() {
 		map_destroy(table);
 		table = map_string_new_map();

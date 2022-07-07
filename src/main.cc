@@ -396,7 +396,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		_else.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		auto if_e = std::make_unique<IfExprAST>(
 			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-			std::move(_then), std::move(_else), tok_end, tok_end,
+			std::move(_then), std::move(_else), tok_end, tok_end, std::move(VarTable()), std::move(VarTable()),
 			convBinOp(llvm_int_type, llvm_int_type, A_signed, A_signed, false, false, "-"));
 		if_e->desired_type = llvm_int_type;
 		if_e->desired_type_attr = A_signed;

@@ -1616,13 +1616,15 @@ llvm::Value *IfExprAST::codegen_raw() {
 	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, "ifcond");
 
 	Builder->CreateCondBr(CondV, ThenBB, ElseSwitch ? ElseSwitch : ElseBB);
-
 	// Emit then value.
 	TheFunction->getBasicBlockList().push_back(ThenBB);
 	Builder->SetInsertPoint(ThenBB);
 	if (condPN)
 		FirstPassFlags.push_back(condPN);
+	locals_table.push_back(std::move(then_locals_table));
 	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, ThenBB, false);
+	then_locals_table = std::move(locals_table.back());
+	locals_table.pop_back();
 	if (condPN)
 		FirstPassFlags.pop_back();
 	if (!ThenV)
@@ -1638,7 +1640,10 @@ llvm::Value *IfExprAST::codegen_raw() {
 	TheFunction->getBasicBlockList().push_back(ElseBB);
 	Builder->SetInsertPoint(ElseBB);
 
+	locals_table.push_back(std::move(else_locals_table));
 	llvm::Value* ElseV = createCondBranch(MergeBB, ElseBB, true);
+	else_locals_table = std::move(locals_table.back());
+	locals_table.pop_back();
 	if (!ElseV)
 		return nullptr;
 	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.

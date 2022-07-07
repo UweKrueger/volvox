@@ -675,7 +675,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 		: BinOpConvSet{{ nullptr, nullptr, llvm::Type::getVoidTy(Context), 0, false, nullptr },
 		               { nullptr, nullptr, llvm::Type::getVoidTy(Context), 0, false, nullptr }};
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), Then.second, Else.second, conv, if_kind);
+	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), conv, if_kind);
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
