@@ -1844,6 +1844,8 @@ llvm::Function *FunctionAST::codegen() {
 			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
 			                        Builder->GetInsertBlock());
 		}
+		else
+			++ArgIdx;
 		// Store the initial value into the alloca.
 		Builder->CreateStore(&Arg, Alloca);
 

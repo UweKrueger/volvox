@@ -656,7 +656,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
 	if (CurTok.kind != tok_end) {
-		errs() << "unexpected token " << CurTok.kind << " (expected " << (have_else ? "" : "'else' or ") << "'.'\n";
+		errs() << CurLoc << ": unexpected token " << CurTok.kind << " (expected " << (have_else ? "" : "'else' or ") << "'.')\n";
 		return nullptr;
 	}
 	getNextToken(eBinOp);

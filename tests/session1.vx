@@ -40,3 +40,23 @@ fn jk() [3]f64
 	return x
 
 jk()
+
+fn ghqq(r f64) f64
+	n := 0u64
+	while r < 1.77e8
+		r = r + n
+		n = n + 1
+		aaap := r
+	else
+		aaap = 13.3 .
+	return aaap
+
+fn ghjj(wwj i32, rtt f64) f64
+	n76 := 0.
+	while rtt < 1.77
+		rtt = rtt + n76
+		n76 = n76 + 1
+	else
+		rtt = -34.5
+		.
+	return rtt
