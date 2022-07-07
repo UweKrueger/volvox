@@ -452,11 +452,11 @@ extern TypeTable type_table;
 extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
 
 class VarTable {
-protected:
-	MapNode* table;
 public:
+	MapNode* table;
 	VarTable() : table(map_string_new_map()) {}
 	~VarTable() { map_destroy(table); }
+	VarTable(VarTable&& o) { table = o.table; o.table = nullptr; }
 	void clear() {
 		map_destroy(table);
 		table = map_string_new_map();

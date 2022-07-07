@@ -176,7 +176,7 @@ static void HandleDefinition() {
 	TestFunction = nullptr;
 cleanup:
 	locals_table[0].clear();
-	locals_table = {};
+	locals_table = std::move(std::vector<VarTable>{});
 	inside_function = false;
 }
 

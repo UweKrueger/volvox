@@ -644,16 +644,23 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	auto condclose = TokenKind(';');
 	if (!Expect(condclose))
 		return nullptr;
+	locals_table.emplace_back();
 	auto Then = ParseExprList();
+	VarTable then_locals_table = std::move(locals_table.back());
+	locals_table.pop_back();
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
 	bool have_else = false;
 	if (CurTok.kind == tok_else) {
 		have_else = true;
 		getNextToken();
+		locals_table.emplace_back();
 		Else = ParseExprList();
 	} else {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
+	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
+	if (have_else)
+		locals_table.pop_back();
 	if (CurTok.kind != tok_end) {
 		errs() << CurLoc << ": unexpected token " << CurTok.kind << " (expected " << (have_else ? "" : "'else' or ") << "'.')\n";
 		return nullptr;

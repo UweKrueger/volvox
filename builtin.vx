@@ -31,5 +31,3 @@ fn __check_array_index(index u64, length u64)
 	if index >= length
 		__signal_out_of_range().
 	return
-
-		

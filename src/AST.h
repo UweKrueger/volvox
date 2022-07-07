@@ -476,6 +476,8 @@ class IfExprAST : public ExprAST {
 	std::vector<std::unique_ptr<ExprAST>> Then, Else;
 	BinOpConvSet conv;
 	TokenKind if_kind;
+	VarTable then_locals_table;
+	VarTable else_locals_table;
 
 public:
 	int ThenEndKind, ElseEndKind; // maybe tok_else, tok_end, tok_return, ...
