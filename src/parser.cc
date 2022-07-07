@@ -414,7 +414,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false) {
 				errs() << CurLoc << ": empty initialization requires explicit dimension\n";
 				return nullptr;
 			}
-			getNextToken(eBinOp);
 			switch (kind) {
 			case '[':
 				return std::make_unique<FixedArrayExprAST>(loc, ft, std::vector<std::unique_ptr<ExprAST>>{}, std::vector<ExprAST*>{}, std::vector<unsigned>(Dims.size(), 0), std::move(Dims));

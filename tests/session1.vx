@@ -54,9 +54,10 @@ fn ghqq(r f64) f64
 fn ghjj(wwj i32, rtt f64) f64
 	n76 := 0.
 	while rtt < 1.77
+		aaaq := [wwj]f64{}
 		rtt = rtt + n76
 		n76 = n76 + 1
+		aaaq[wwj/3] = 0.5 * aaaq[wwj/3] + n76 + aaaq[wwj/2]
 	else
-		rtt = -34.5
-		.
-	return rtt
+		aaaq = [wwj+7]f64{}.
+	return aaaq[1]
