@@ -210,7 +210,7 @@ llvm::Value* LvalueExprAST::codegen_raw() {
 
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
 	if (!full_var.first) {
-		errs() << "Unknown variable name " << Name << "\n";
+		errs() << Loc << ": unknown variable name '" << Name << "'\n";
 		return { nullptr, nullptr };
 	}
 	llvm::Value* V;
@@ -1109,7 +1109,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		}
 	not_found:
 		if (kind != decl_assign_op) {
-			errs() << "unknown variable name '" << varname << "'\n";
+			errs() << LHS->Loc << ": unknown variable name '" << varname << "'\n";
 			return nullptr;
 		}
 		// variable declaration
@@ -1131,9 +1131,10 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 			if (FirstPassFlags.size()) {
 				// we are inside a (maybe nested) if/while/repeat branch. Allocation is only
 				// necessary in the very first run, i.e. all FirstPassFlags are 'true'
-				llvm::Value* DoAlloc = FirstPassFlags[0];
+				DoAlloc = FirstPassFlags[0];
 				for (int flag = 1; flag < FirstPassFlags.size(); flag++)
 					DoAlloc = Builder->CreateLogicalAnd(DoAlloc, FirstPassFlags[flag]);
+				errs() << "DoAlloc of type " << *DoAlloc->getType() << '\n';
 			} else {
 				DoAlloc = nullptr;
 			}
@@ -1714,6 +1715,35 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
+	if (then_locals_table.table && else_locals_table.table) {
+		for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
+			FullVar* else_var = else_locals_table[then_node->key.string];
+			if (else_var) {
+				errs() << "found " << then_node->key.string << '\n';
+				MapValue* node = &then_node->value;
+				auto then_var = (FullVar*)((char*)node + node->offset);
+				if (else_var->ft.type != then_var->ft.type) {
+					errs() << Loc << ": conflicting types for variable '" << then_node->key.string
+					       << "' " << *then_var->ft.type << " (then/while/repeat branch) vs. "
+					       << *else_var->ft.type << " (else branch)\n";
+					return nullptr;
+				}
+				errs() << "got: " << *then_var->val << " # " << *else_var->val << '\n';
+				llvm::PHINode* mergeVal = Builder->CreatePHI(then_var->val->getType(), 2, std::string(then_node->key.string) + "merge");
+				mergeVal->addIncoming(then_var->val, ThenBB);
+				mergeVal->addIncoming(else_var->val, ElseBB);
+				FullVar* entry = locals_table.back()[then_node->key.string];
+				if (!entry) {
+					errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
+					abort();
+				}
+				entry->ft.type = then_var->ft.type; // TODO: merge different but compatible array types
+				entry->ft.type_attr = then_var->ft.type_attr;
+				entry->val = mergeVal;
+				errs() << "merge val of type " << *mergeVal->getType() << '\n';
+			}
+		}
+	}
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
 	else {

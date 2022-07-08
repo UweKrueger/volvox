@@ -659,8 +659,25 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
 	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
-	if (have_else)
+	if (have_else) {
 		locals_table.pop_back();
+		if (then_locals_table.table)
+			errs() << "Parser: Then has local variables\n";
+		if (else_locals_table.table)
+			errs() << "Parser: Else has local variables\n";
+		if (then_locals_table.table && else_locals_table.table) {
+			for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
+				FullVar* else_var = else_locals_table[then_node->key.string];
+				if (else_var) {
+					errs() << "found " << then_node->key.string << '\n';
+					if (!locals_table.back().insert(then_node->key.string, *else_var)) {
+						errs() << IfLoc << ": Variable '" << then_node->key.string << "' already exists in outer scope\n";
+						return nullptr;
+					}
+				}
+			}
+		}
+	}
 	if (CurTok.kind != tok_end) {
 		errs() << CurLoc << ": unexpected token " << CurTok.kind << " (expected " << (have_else ? "" : "'else' or ") << "'.')\n";
 		return nullptr;
