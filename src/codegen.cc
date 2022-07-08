@@ -13,7 +13,12 @@ extern llvm::ExitOnError ExitOnErr;
 const char* last_shadow_saver;
 const char* last_shadow_restorer;
 // list of boolean values that indicate that this loop branch is run for the first time
+// this is used to avoid multiple  allocations of variables that are declared inside a then/while/repaet loop
 std::vector<llvm::PHINode*> FirstPassFlags;
+// both in loop bodies and in 'else' blocks array allocation should *not* be done in the entry block
+// since the array size might be run time determined in one or the other block. To ensure this we track
+// the nesting level of 'else' blocks - so we can use "if (FirstPassFlags.size() || elselevel) { ..."
+unsigned elselevel = 0;
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
@@ -71,8 +76,10 @@ std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
 /// the function.  This is used for mutable variables etc.
-static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Function *TheFunction,
-                                                llvm::StringRef VarName, llvm::Type* type) {
+static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& VarName = "",
+                                                llvm::Function* TheFunction = nullptr) {
+	if (!TheFunction)
+		TheFunction = Builder->GetInsertBlock()->getParent();
 	llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
 	                       TheFunction->getEntryBlock().begin());
 	return TmpB.CreateAlloca(type, nullptr, VarName);
@@ -264,7 +271,7 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 	}
 }
 
-static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, llvm::Type* elem_type, std::vector<llvm::Value*>& Dims, const llvm::Twine &Name = "") {
+static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, llvm::Type* elem_type, std::vector<llvm::Value*>& Dims, const llvm::Twine& Name = "") {
 	auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
 	std::vector<llvm::Value*> Sizes(Dims.size() + 1, nullptr);
 	Sizes[Dims.size()] = ElemSize;
@@ -280,15 +287,15 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 	llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 	if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
 		llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
-		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
-		                       TheFunction->getEntryBlock().begin());
-		ArrayAlloc = TmpB.CreateAlloca(alloc_arr_type, nullptr, Name);
-		ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
+		if (elselevel || FirstPassFlags.size()) {
+			ArrayAlloc = Builder->CreateAlloca(alloc_arr_type, nullptr, Name);
+		} else {
+			ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
+		}
 	} else {
 		ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
-		ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 	}
+	ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 	// TODO: Insert run time check that initialization values fit into allocation size
 	StoreArray(ArrayPtr, ArrData, Sizes, 0);
 	return { ArrayAlloc, ArrayPtr };
@@ -381,10 +388,7 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			return nullptr;
 		}
 	} else {
-		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		llvm::IRBuilder<> TmpB(&TheFunction->getEntryBlock(),
-		                       TheFunction->getEntryBlock().begin());
-		llvm::AllocaInst* Alloca = TmpB.CreateAlloca(val->getType(), nullptr, Name);
+		auto Alloca = CreateEntryBlockAlloca(val->getType(), Name);
 		Builder->CreateStore(val, Alloca);
 		return Alloca;
 	}
@@ -1641,7 +1645,9 @@ llvm::Value *IfExprAST::codegen_raw() {
 	Builder->SetInsertPoint(ElseBB);
 
 	locals_table.push_back(std::move(else_locals_table));
+	elselevel++;
 	llvm::Value* ElseV = createCondBranch(MergeBB, ElseBB, true);
+	elselevel--;
 	else_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	if (!ElseV)
@@ -1686,7 +1692,7 @@ llvm::Value *ForExprAST::codegen_raw() {
 	// Create an alloca for the variable in the entry block.
 	llvm::Type* AllocaT = llvm::Type::getInt32Ty(Context);
 	unsigned AllocaF = A_signed;
-	llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, VarName, AllocaT);
+	llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(AllocaT, VarName, TheFunction);
 
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -1831,7 +1837,7 @@ llvm::Function *FunctionAST::codegen() {
 	unsigned ArgIdx = 0;
 	for (auto &Arg : TheFunction->args()) {
 		// Create an alloca for this variable.
-		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(TheFunction, Arg.getName(), P.LLVMArgTypes[ArgIdx]);
+		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(P.LLVMArgTypes[ArgIdx], Arg.getName(), TheFunction);
 		// get reference to argument in symbol table
 		FullVar* mapitem = locals_table.back()[Arg.getName().str().c_str()];
 		if (!mapitem) {
