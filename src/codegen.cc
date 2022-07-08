@@ -392,6 +392,8 @@ static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayT
 	}
 }
 
+static llvm::Value* tmpalloc = nullptr;
+
 static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
                                llvm::Type* expected_type = nullptr, const llvm::Twine &Name = "",
                                llvm::Value* DoAlloc = nullptr) {
@@ -408,20 +410,37 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		}
 	} else {
 		llvm::BasicBlock* skipBB;
+		llvm::BasicBlock* preAllocBB;
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		if (DoAlloc) {
-			auto allocBB = llvm::BasicBlock::Create(Context, "alloc");
-			skipBB = llvm::BasicBlock::Create(Context, "skipalloc");
-			Builder->CreateCondBr(DoAlloc, allocBB, skipBB);
-			TheFunction->getBasicBlockList().push_back(allocBB);
-			Builder->SetInsertPoint(allocBB);
-		}
-		auto Alloca = CreateEntryBlockAlloca(val->getType(), Name);
-		if (DoAlloc) {
-			Builder->CreateBr(skipBB);
-			TheFunction->getBasicBlockList().push_back(skipBB);
-			Builder->SetInsertPoint(skipBB);
-		}
+		// if (DoAlloc) {
+		// 	auto allocBB = llvm::BasicBlock::Create(Context, "alloc");
+		// 	skipBB = llvm::BasicBlock::Create(Context, "skipalloc");
+		// 	preAllocBB = Builder->GetInsertBlock();
+		// 	Builder->CreateCondBr(DoAlloc, allocBB, skipBB);
+		// 	TheFunction->getBasicBlockList().push_back(allocBB);
+		// 	Builder->SetInsertPoint(allocBB);
+		// }
+		errs() << "EntryBlockAlloca for " << Name << '\n';
+		llvm::Value* Alloca;
+		if (Name.getSingleStringRef().equals("aaap")) {
+			if (tmpalloc)
+				Alloca = tmpalloc;
+			else
+				Alloca = CreateEntryBlockAlloca(val->getType(), Name);
+			tmpalloc = Alloca;
+		} else
+			Alloca = CreateEntryBlockAlloca(val->getType(), Name);
+		// if (DoAlloc) {
+		// 	errs() << "### Possibly skipped alloca\n";
+		// 	auto allocBB = Builder->GetInsertBlock();
+		// 	Builder->CreateBr(skipBB);
+		// 	TheFunction->getBasicBlockList().push_back(skipBB);
+		// 	Builder->SetInsertPoint(skipBB);
+		// 	llvm::PHINode* newAlloca = Builder->CreatePHI(Alloca->getType(), 2);
+		// 	newAlloca->addIncoming(Alloca, allocBB);
+		// 	newAlloca->addIncoming(newAlloca, preAllocBB);
+		// 	Alloca = newAlloca;
+		// }
 		Builder->CreateStore(val, Alloca);
 		return Alloca;
 	}
@@ -1132,8 +1151,9 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				// we are inside a (maybe nested) if/while/repeat branch. Allocation is only
 				// necessary in the very first run, i.e. all FirstPassFlags are 'true'
 				DoAlloc = FirstPassFlags[0];
+				errs() << "Size FirstPassFlags: " << FirstPassFlags.size() << '\n';
 				for (int flag = 1; flag < FirstPassFlags.size(); flag++)
-					DoAlloc = Builder->CreateLogicalAnd(DoAlloc, FirstPassFlags[flag]);
+					DoAlloc = Builder->CreateAnd(DoAlloc, FirstPassFlags[flag]);
 				errs() << "DoAlloc of type " << *DoAlloc->getType() << '\n';
 			} else {
 				DoAlloc = nullptr;
@@ -1652,7 +1672,6 @@ llvm::Value *IfExprAST::codegen_raw() {
 		Builder->SetInsertPoint(CondBB);
 		condPN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "condtmp");
 		condPN->addIncoming(Builder->getInt1(true), enterBB);
-		condPN->addIncoming(Builder->getInt1(false), ThenBB);
 		need_else_switch = (Else.size() > 0);
 	} else {
 		CondBB = nullptr;
@@ -1662,6 +1681,8 @@ llvm::Value *IfExprAST::codegen_raw() {
 	llvm::Value *CondV = Cond->codegen();
 	if (!CondV)
 		return nullptr;
+	if (if_kind == tok_while)
+		CondBB = Builder->GetInsertBlock();
 	if (desired_type) {
 		Then.back()->desired_type = desired_type;
 		Else.back()->desired_type = desired_type;
@@ -1693,10 +1714,13 @@ llvm::Value *IfExprAST::codegen_raw() {
 		return nullptr;
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
-	if (need_else_switch) {
-		TheFunction->getBasicBlockList().push_back(ElseSwitch);
-		Builder->SetInsertPoint(ElseSwitch);
-		Builder->CreateCondBr(condPN, ElseBB, MergeBB);
+	if (condPN) {
+		condPN->addIncoming(Builder->getInt1(false), ThenBB);
+		if (need_else_switch) {
+			TheFunction->getBasicBlockList().push_back(ElseSwitch);
+			Builder->SetInsertPoint(ElseSwitch);
+			Builder->CreateCondBr(condPN, ElseBB, MergeBB);
+		}
 	}
 	// Emit else block.
 	TheFunction->getBasicBlockList().push_back(ElseBB);

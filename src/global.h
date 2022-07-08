@@ -183,6 +183,8 @@ extern llvm::LLVMContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
+extern unsigned elselevel;
+extern std::vector<llvm::PHINode*> FirstPassFlags;
 
 namespace volvoxc {
 

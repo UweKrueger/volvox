@@ -43,7 +43,7 @@ jk()
 
 fn ghqq(r f64) f64
 	n := 3u64
-	if r < 1.77e8
+	while r < 1.77e8
 		r = r + n
 		n = n + 1
 		aaap := r
