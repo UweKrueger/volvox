@@ -76,7 +76,7 @@ std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
 /// the function.  This is used for mutable variables etc.
-static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& VarName = "",
+static llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& VarName = "",
                                                 llvm::Function* TheFunction = nullptr) {
 	if (!TheFunction)
 		TheFunction = Builder->GetInsertBlock()->getParent();
@@ -85,7 +85,7 @@ static llvm::AllocaInst *CreateEntryBlockAlloca(llvm::Type* type, const llvm::Tw
 	return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
-llvm::Value *LiteralExprAST::codegen_raw() {
+llvm::Value* LiteralExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -112,7 +112,7 @@ llvm::Value *LiteralExprAST::codegen_raw() {
 	}
 }
 
-llvm::Value *ListExprAST::codegen_raw() {
+llvm::Value* ListExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -271,7 +271,9 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 	}
 }
 
-static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, llvm::Type* elem_type, std::vector<llvm::Value*>& Dims, const llvm::Twine& Name = "") {
+static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, llvm::Type* elem_type,
+                                                            std::vector<llvm::Value*>& Dims, const llvm::Twine& Name = "",
+                                                            llvm::Value* DoAlloc = nullptr) {
 	auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
 	std::vector<llvm::Value*> Sizes(Dims.size() + 1, nullptr);
 	Sizes[Dims.size()] = ElemSize;
@@ -284,6 +286,15 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 		ArrData = val;
 	llvm::Value* ArrayAlloc;
 	llvm::Value* ArrayPtr;
+	llvm::BasicBlock* skipBB;
+	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+	if (DoAlloc) {
+		auto allocBB = llvm::BasicBlock::Create(Context, "alloc");
+		skipBB = llvm::BasicBlock::Create(Context, "skipalloc");
+		Builder->CreateCondBr(DoAlloc, allocBB, skipBB);
+		TheFunction->getBasicBlockList().push_back(allocBB);
+		Builder->SetInsertPoint(allocBB);
+	}
 	llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 	if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
 		llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
@@ -294,6 +305,11 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 		}
 	} else {
 		ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
+	}
+	if (DoAlloc) {
+		Builder->CreateBr(skipBB);
+		TheFunction->getBasicBlockList().push_back(skipBB);
+		Builder->SetInsertPoint(skipBB);
 	}
 	ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 	// TODO: Insert run time check that initialization values fit into allocation size
@@ -348,13 +364,15 @@ static llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type, s
 	return elem_type;
 }
 
-static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayType* array_type, llvm::ArrayType* expected_array_type = nullptr, bool do_store = false, const llvm::Twine &Name = "") {
+static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayType* array_type,
+                                                  llvm::ArrayType* expected_array_type = nullptr, bool do_store = false,
+                                                  const llvm::Twine &Name = "", llvm::Value* DoAlloc = nullptr) {
 	std::vector<llvm::Value*> Dims = {};
 	std::vector<llvm::Value*> returnDims = {};
 	llvm::Type* elem_type = getArrayDims(val, array_type, Dims, returnDims, expected_array_type);
 	llvm::Value* ArrayAlloc;
 	if (do_store) {
-		auto p  = StoreArrayValue(val, elem_type, Dims, Name);
+		auto p  = StoreArrayValue(val, elem_type, Dims, Name, DoAlloc);
 		ArrayAlloc = p.first;
 		val = p.second;
 	} else {
@@ -375,20 +393,35 @@ static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayT
 }
 
 static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
-                               llvm::Type* expected_type = nullptr, const llvm::Twine &Name = "") {
+                               llvm::Type* expected_type = nullptr, const llvm::Twine &Name = "",
+                               llvm::Value* DoAlloc = nullptr) {
 	if (!expected_type)
 		expected_type = ft->type;
 	llvm::Type* expected_elem_type = expected_type;
 	llvm::Type* elem_type = ft->type;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 		if (auto expected_array_type = llvm::dyn_cast<llvm::ArrayType>(expected_elem_type))
-			return getInterfaceArrayOrStoreValue(val, array_type, expected_array_type, true, Name);
+			return getInterfaceArrayOrStoreValue(val, array_type, expected_array_type, true, Name, DoAlloc);
 		else {
 			errs() << CurLoc << ": mismatch in array structure\n";
 			return nullptr;
 		}
 	} else {
+		llvm::BasicBlock* skipBB;
+		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+		if (DoAlloc) {
+			auto allocBB = llvm::BasicBlock::Create(Context, "alloc");
+			skipBB = llvm::BasicBlock::Create(Context, "skipalloc");
+			Builder->CreateCondBr(DoAlloc, allocBB, skipBB);
+			TheFunction->getBasicBlockList().push_back(allocBB);
+			Builder->SetInsertPoint(allocBB);
+		}
 		auto Alloca = CreateEntryBlockAlloca(val->getType(), Name);
+		if (DoAlloc) {
+			Builder->CreateBr(skipBB);
+			TheFunction->getBasicBlockList().push_back(skipBB);
+			Builder->SetInsertPoint(skipBB);
+		}
 		Builder->CreateStore(val, Alloca);
 		return Alloca;
 	}
@@ -1081,6 +1114,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 		}
 		// variable declaration
 		if (inside_function) {
+			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 			auto type_descr = MakeType(RHS->ft->type, RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
 			llvm::Type* type = std::get<0>(type_descr);
 			auto conversion = std::get<1>(type_descr);
@@ -1093,9 +1127,19 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				entry->ft.type_attr |= A_signed;
 			else
 				entry->ft.type_attr &= ~A_signed;
+			llvm::Value* DoAlloc;
+			if (FirstPassFlags.size()) {
+				// we are inside a (maybe nested) if/while/repeat branch. Allocation is only
+				// necessary in the very first run, i.e. all FirstPassFlags are 'true'
+				llvm::Value* DoAlloc = FirstPassFlags[0];
+				for (int flag = 1; flag < FirstPassFlags.size(); flag++)
+					DoAlloc = Builder->CreateLogicalAnd(DoAlloc, FirstPassFlags[flag]);
+			} else {
+				DoAlloc = nullptr;
+			}
 			if (Val) {
 				auto convertedVal = conversion(Val);
-				auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
+				auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname, DoAlloc);
 				entry->val = Alloca;
 				if (comp_mode == comp_dbg) {
 					// Create a debug descriptor for the variable.
@@ -1108,9 +1152,22 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 					                        Builder->GetInsertBlock());
 				}
 			} else if (ValPtr) {
+				llvm::BasicBlock* skipBB;
+				if (DoAlloc) {
+					llvm::BasicBlock* allocBB = llvm::BasicBlock::Create(Context, "alloc");
+					skipBB = llvm::BasicBlock::Create(Context, "skipalloc");
+					Builder->CreateCondBr(DoAlloc, allocBB, skipBB);
+					TheFunction->getBasicBlockList().push_back(allocBB);
+					Builder->SetInsertPoint(allocBB);
+				}
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
 				llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
+				if (DoAlloc) {
+					Builder->CreateBr(skipBB);
+					TheFunction->getBasicBlockList().push_back(skipBB);
+					Builder->SetInsertPoint(skipBB);
+				}
 				Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
 				if (Struct) {
 					auto strt = llvm::cast<llvm::StructType>(Struct->getType());
