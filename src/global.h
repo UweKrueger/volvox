@@ -183,8 +183,6 @@ extern llvm::LLVMContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
-extern unsigned elselevel;
-extern std::vector<llvm::PHINode*> FirstPassFlags;
 
 namespace volvoxc {
 
@@ -480,6 +478,8 @@ public:
 
 extern VarTable globals_table;
 extern std::vector<VarTable> locals_table; // including function arguments
+extern unsigned elselevel;
+extern VarTable* IfWhileVarTable;
 
 // look up var and return if it's global
 inline std::pair<FullVar*, bool> lookup_var(const char* Name) {

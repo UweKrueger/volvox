@@ -14,10 +14,10 @@ const char* last_shadow_saver;
 const char* last_shadow_restorer;
 // list of boolean values that indicate that this loop branch is run for the first time
 // this is used to avoid multiple  allocations of variables that are declared inside a then/while/repaet loop
-std::vector<llvm::PHINode*> FirstPassFlags;
+VarTable* IfWhileVarTable = nullptr;
 // both in loop bodies and in 'else' blocks array allocation should *not* be done in the entry block
 // since the array size might be run time determined in one or the other block. To ensure this we track
-// the nesting level of 'else' blocks - so we can use "if (FirstPassFlags.size() || elselevel) { ..."
+// the nesting level of 'else' blocks - so we can use "if (IfWhileVarTable || elselevel) { ..."
 unsigned elselevel = 0;
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
@@ -272,8 +272,7 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 }
 
 static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, llvm::Type* elem_type,
-                                                            std::vector<llvm::Value*>& Dims, const llvm::Twine& Name = "",
-                                                            llvm::Value* DoAlloc = nullptr) {
+                                                            std::vector<llvm::Value*>& Dims, const llvm::Twine& Name = "") {
 	auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
 	std::vector<llvm::Value*> Sizes(Dims.size() + 1, nullptr);
 	Sizes[Dims.size()] = ElemSize;
@@ -288,28 +287,18 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 	llvm::Value* ArrayPtr;
 	llvm::BasicBlock* skipBB;
 	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-	if (DoAlloc) {
-		auto allocBB = llvm::BasicBlock::Create(Context, "alloc");
-		skipBB = llvm::BasicBlock::Create(Context, "skipalloc");
-		Builder->CreateCondBr(DoAlloc, allocBB, skipBB);
-		TheFunction->getBasicBlockList().push_back(allocBB);
-		Builder->SetInsertPoint(allocBB);
-	}
 	llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 	if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
 		llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
-		if (elselevel || FirstPassFlags.size()) {
+		if (elselevel || IfWhileVarTable) {
+			// We are inside an if/while/repeat/else branch. An array should *always* be
+			// allocated dynamically since it might be of variable size in the other branch
 			ArrayAlloc = Builder->CreateAlloca(alloc_arr_type, nullptr, Name);
 		} else {
 			ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
 		}
 	} else {
 		ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
-	}
-	if (DoAlloc) {
-		Builder->CreateBr(skipBB);
-		TheFunction->getBasicBlockList().push_back(skipBB);
-		Builder->SetInsertPoint(skipBB);
 	}
 	ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 	// TODO: Insert run time check that initialization values fit into allocation size
@@ -366,13 +355,13 @@ static llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type, s
 
 static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayType* array_type,
                                                   llvm::ArrayType* expected_array_type = nullptr, bool do_store = false,
-                                                  const llvm::Twine &Name = "", llvm::Value* DoAlloc = nullptr) {
+                                                  const llvm::Twine &Name = "") {
 	std::vector<llvm::Value*> Dims = {};
 	std::vector<llvm::Value*> returnDims = {};
 	llvm::Type* elem_type = getArrayDims(val, array_type, Dims, returnDims, expected_array_type);
 	llvm::Value* ArrayAlloc;
 	if (do_store) {
-		auto p  = StoreArrayValue(val, elem_type, Dims, Name, DoAlloc);
+		auto p  = StoreArrayValue(val, elem_type, Dims, Name);
 		ArrayAlloc = p.first;
 		val = p.second;
 	} else {
@@ -392,18 +381,15 @@ static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayT
 	}
 }
 
-static llvm::Value* tmpalloc = nullptr;
-
 static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
-                               llvm::Type* expected_type = nullptr, const llvm::Twine &Name = "",
-                               llvm::Value* DoAlloc = nullptr) {
+                               llvm::Type* expected_type = nullptr, const llvm::Twine &Name = "") {
 	if (!expected_type)
 		expected_type = ft->type;
 	llvm::Type* expected_elem_type = expected_type;
 	llvm::Type* elem_type = ft->type;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 		if (auto expected_array_type = llvm::dyn_cast<llvm::ArrayType>(expected_elem_type))
-			return getInterfaceArrayOrStoreValue(val, array_type, expected_array_type, true, Name, DoAlloc);
+			return getInterfaceArrayOrStoreValue(val, array_type, expected_array_type, true, Name);
 		else {
 			errs() << CurLoc << ": mismatch in array structure\n";
 			return nullptr;
@@ -412,35 +398,19 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 		llvm::BasicBlock* skipBB;
 		llvm::BasicBlock* preAllocBB;
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		// if (DoAlloc) {
-		// 	auto allocBB = llvm::BasicBlock::Create(Context, "alloc");
-		// 	skipBB = llvm::BasicBlock::Create(Context, "skipalloc");
-		// 	preAllocBB = Builder->GetInsertBlock();
-		// 	Builder->CreateCondBr(DoAlloc, allocBB, skipBB);
-		// 	TheFunction->getBasicBlockList().push_back(allocBB);
-		// 	Builder->SetInsertPoint(allocBB);
-		// }
-		errs() << "EntryBlockAlloca for " << Name << '\n';
 		llvm::Value* Alloca;
-		if (Name.getSingleStringRef().equals("aaap")) {
-			if (tmpalloc)
-				Alloca = tmpalloc;
-			else
-				Alloca = CreateEntryBlockAlloca(val->getType(), Name);
-			tmpalloc = Alloca;
+		FullVar* var_in_if_branch;
+		// Entry block allocations should be done only once for each variable. So in an 'else' branch
+		// the allocation from the if/while branch should be reused if existing
+		if (IfWhileVarTable && (var_in_if_branch = (*IfWhileVarTable)[Name.str().c_str()])) {
+			if (var_in_if_branch->val->getType() != val->getType()->getPointerTo()) {
+				errs() << "incompatible types for pointers to variable '" << Name << "' (" << *var_in_if_branch->val->getType()
+				       << " in 'if'/'while' branch vs. " << *val->getType()->getPointerTo() << " in 'else' branch\n";
+				return nullptr;
+			}
+			Alloca = var_in_if_branch->val;
 		} else
 			Alloca = CreateEntryBlockAlloca(val->getType(), Name);
-		// if (DoAlloc) {
-		// 	errs() << "### Possibly skipped alloca\n";
-		// 	auto allocBB = Builder->GetInsertBlock();
-		// 	Builder->CreateBr(skipBB);
-		// 	TheFunction->getBasicBlockList().push_back(skipBB);
-		// 	Builder->SetInsertPoint(skipBB);
-		// 	llvm::PHINode* newAlloca = Builder->CreatePHI(Alloca->getType(), 2);
-		// 	newAlloca->addIncoming(Alloca, allocBB);
-		// 	newAlloca->addIncoming(newAlloca, preAllocBB);
-		// 	Alloca = newAlloca;
-		// }
 		Builder->CreateStore(val, Alloca);
 		return Alloca;
 	}
@@ -1146,21 +1116,9 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				entry->ft.type_attr |= A_signed;
 			else
 				entry->ft.type_attr &= ~A_signed;
-			llvm::Value* DoAlloc;
-			if (FirstPassFlags.size()) {
-				// we are inside a (maybe nested) if/while/repeat branch. Allocation is only
-				// necessary in the very first run, i.e. all FirstPassFlags are 'true'
-				DoAlloc = FirstPassFlags[0];
-				errs() << "Size FirstPassFlags: " << FirstPassFlags.size() << '\n';
-				for (int flag = 1; flag < FirstPassFlags.size(); flag++)
-					DoAlloc = Builder->CreateAnd(DoAlloc, FirstPassFlags[flag]);
-				errs() << "DoAlloc of type " << *DoAlloc->getType() << '\n';
-			} else {
-				DoAlloc = nullptr;
-			}
 			if (Val) {
 				auto convertedVal = conversion(Val);
-				auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname, DoAlloc);
+				auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
 				entry->val = Alloca;
 				if (comp_mode == comp_dbg) {
 					// Create a debug descriptor for the variable.
@@ -1174,21 +1132,9 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				}
 			} else if (ValPtr) {
 				llvm::BasicBlock* skipBB;
-				if (DoAlloc) {
-					llvm::BasicBlock* allocBB = llvm::BasicBlock::Create(Context, "alloc");
-					skipBB = llvm::BasicBlock::Create(Context, "skipalloc");
-					Builder->CreateCondBr(DoAlloc, allocBB, skipBB);
-					TheFunction->getBasicBlockList().push_back(allocBB);
-					Builder->SetInsertPoint(allocBB);
-				}
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
 				llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
-				if (DoAlloc) {
-					Builder->CreateBr(skipBB);
-					TheFunction->getBasicBlockList().push_back(skipBB);
-					Builder->SetInsertPoint(skipBB);
-				}
 				Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
 				if (Struct) {
 					auto strt = llvm::cast<llvm::StructType>(Struct->getType());
@@ -1702,14 +1648,10 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit then value.
 	TheFunction->getBasicBlockList().push_back(ThenBB);
 	Builder->SetInsertPoint(ThenBB);
-	if (condPN)
-		FirstPassFlags.push_back(condPN);
 	locals_table.push_back(std::move(then_locals_table));
 	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, ThenBB, false);
 	then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	if (condPN)
-		FirstPassFlags.pop_back();
 	if (!ThenV)
 		return nullptr;
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
@@ -1728,7 +1670,10 @@ llvm::Value *IfExprAST::codegen_raw() {
 
 	locals_table.push_back(std::move(else_locals_table));
 	elselevel++;
+	VarTable* old_IfWhileVarTable = IfWhileVarTable;
+	IfWhileVarTable = &then_locals_table;
 	llvm::Value* ElseV = createCondBranch(MergeBB, ElseBB, true);
+	IfWhileVarTable = old_IfWhileVarTable;
 	elselevel--;
 	else_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();

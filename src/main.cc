@@ -156,7 +156,7 @@ void InitializeModuleAndPassManager() {
 static void HandleDefinition() {
 	inside_function = true;
 	elselevel = 0;
-	FirstPassFlags.clear();
+	IfWhileVarTable = nullptr;
 	locals_table.push_back(VarTable());
 	bool success = false;
 	if (auto FnAST = ParseDefinition()) {
