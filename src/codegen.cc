@@ -254,7 +254,13 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 					Adr->getType());
 			}
 		} else {
-			Builder->CreateStore(ArrData, Builder->CreateBitCast(ArrayAlloc, ArrData->getType()->getPointerTo()));
+			bool is_empty_initializer;
+			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType()))
+				is_empty_initializer = (array_type->getNumElements() == 0);
+			else
+				is_empty_initializer = false;
+			if (!is_empty_initializer)
+				Builder->CreateStore(ArrData, Builder->CreateBitCast(ArrayAlloc, ArrData->getType()->getPointerTo()));
 			Adr = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
 					Builder->CreatePtrToInt(Adr, llvm::Type::getInt64Ty(Context)),
@@ -1641,7 +1647,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// end of the function.
 	llvm::BasicBlock* ElseSwitch = need_else_switch ? llvm::BasicBlock::Create(Context, "else_switch") : nullptr;
 	llvm::BasicBlock* ElseBB = llvm::BasicBlock::Create(Context, "else");
-	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, "ifcond");
+	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, (if_kind == tok_if) ? "ifcont" : "whilecont");
 
 	Builder->CreateCondBr(CondV, ThenBB, ElseSwitch ? ElseSwitch : ElseBB);
 	// Emit then value.
