@@ -1648,10 +1648,11 @@ llvm::Value *IfExprAST::codegen_raw() {
 	TheFunction->getBasicBlockList().push_back(ThenBB);
 	Builder->SetInsertPoint(ThenBB);
 	if (savedStack) {
-		llvm::Function* restoreStack = llvm::Intrinsic::getDeclaration(TheModule.get(), llvm::Intrinsic::stackrestore, {llvm::Type::getInt8PtrTy(Context)});
+		llvm::Function* restoreStack = llvm::Intrinsic::getDeclaration(TheModule.get(), llvm::Intrinsic::stackrestore, {});
+		if (!restoreStack)
+			errs() << "Stack restore intrinsic not found\n";
 		llvm::FunctionType* restore_fn_typ = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {llvm::Type::getInt8PtrTy(Context)}, false);
 		auto ii = Builder->CreateCall(restore_fn_typ, restoreStack, savedStack);
-		errs() << "Stack restore: " << *ii << '\n';
 	}
 	locals_table.push_back(std::move(then_locals_table));
 	elselevel++;
@@ -1705,9 +1706,9 @@ llvm::Value *IfExprAST::codegen_raw() {
 					return nullptr;
 				}
 				errs() << "got: " << *then_var->val << " # " << *else_var->val << '\n';
-				// llvm::PHINode* mergeVal = Builder->CreatePHI(then_var->val->getType(), 2, std::string(then_node->key.string) + "merge");
-				// mergeVal->addIncoming(then_var->val, ThenBB);
-				// mergeVal->addIncoming(else_var->val, ElseBB);
+				llvm::PHINode* mergeVal = Builder->CreatePHI(then_var->val->getType(), 2, std::string(then_node->key.string) + "merge");
+				mergeVal->addIncoming(then_var->val, ElseSwitch);
+				mergeVal->addIncoming(else_var->val, ElseBB);
 				FullVar* entry = locals_table.back()[then_node->key.string];
 				if (!entry) {
 					errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
@@ -1715,8 +1716,8 @@ llvm::Value *IfExprAST::codegen_raw() {
 				}
 				entry->ft.type = then_var->ft.type; // TODO: merge different but compatible array types
 				entry->ft.type_attr = then_var->ft.type_attr;
-				entry->val = then_var->val; // mergeVal;
-				// errs() << "merge val of type " << *mergeVal->getType() << '\n';
+				entry->val = mergeVal;
+				errs() << "merge val of type " << *mergeVal->getType() << '\n';
 			}
 		}
 	}
