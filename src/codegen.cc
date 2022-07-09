@@ -1572,7 +1572,7 @@ llvm::Value *CallExprAST::codegen_raw() {
 	}
 }
 
-llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, llvm::BasicBlock* thisBB, bool isElse) {
+llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
 	int EndKind = isElse ? ElseEndKind : ThenEndKind;
 	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
 	llvm::Value* BranchV = nullptr;
@@ -1634,12 +1634,8 @@ llvm::Value *IfExprAST::codegen_raw() {
 	llvm::Value *CondV = Cond->codegen();
 	if (!CondV)
 		return nullptr;
-	llvm::Value* savedStack;
-	if (if_kind == tok_while) {
-		savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {});
+	if (if_kind == tok_while)
 		CondBB = Builder->GetInsertBlock();
-	} else
-		savedStack = nullptr;
 	if (desired_type) {
 		Then.back()->desired_type = desired_type;
 		Else.back()->desired_type = desired_type;
@@ -1659,15 +1655,25 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit then value.
 	TheFunction->getBasicBlockList().push_back(ThenBB);
 	Builder->SetInsertPoint(ThenBB);
-	if (savedStack) {
-		// "Builder->CreateUnaryIntrinsic(llvm::Intrinsic::stackrestore, savedStack)"
-		// results in 'llvm.stackrestore.p0i8' symbol not found - at least in LLVM 11-14
-		// However, the following supresses name mangling and seems to work...
+	if (if_kind == tok_while) {
+		llvm::BasicBlock* StackSaveBB = llvm::BasicBlock::Create(Context, "stacksave");
+		llvm::BasicBlock* StackRestoreBB = llvm::BasicBlock::Create(Context, "stackrestore");
+		llvm::BasicBlock* LoopBB = llvm::BasicBlock::Create(Context, "loopstart");
+		Builder->CreateCondBr(condPN, StackSaveBB, StackRestoreBB);
+		TheFunction->getBasicBlockList().push_back(StackSaveBB);
+		Builder->SetInsertPoint(StackSaveBB);
+		llvm::Value* savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {});
+		Builder->CreateBr(LoopBB);
+		TheFunction->getBasicBlockList().push_back(StackRestoreBB);
+		Builder->SetInsertPoint(StackRestoreBB);
 		Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
+		Builder->CreateBr(LoopBB);
+		TheFunction->getBasicBlockList().push_back(LoopBB);
+		Builder->SetInsertPoint(LoopBB);
 	}
 	locals_table.push_back(std::move(then_locals_table));
 	condnesting++;
-	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, ThenBB, false);
+	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, false);
 	condnesting--;
 	then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
@@ -1691,7 +1697,7 @@ llvm::Value *IfExprAST::codegen_raw() {
 	condnesting++;
 	VarTable* old_IfWhileVarTable = IfWhileVarTable;
 	IfWhileVarTable = &then_locals_table;
-	llvm::Value* ElseV = createCondBranch(MergeBB, ElseBB, true);
+	llvm::Value* ElseV = createCondBranch(MergeBB, true);
 	IfWhileVarTable = old_IfWhileVarTable;
 	condnesting--;
 	else_locals_table = std::move(locals_table.back());

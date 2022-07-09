@@ -492,7 +492,7 @@ public:
 		  else_locals_table(std::move(_else_locals_table)), conv(conv), if_kind(if_kind)
 		{}
 	llvm::Value *codegen_raw() override;
-	llvm::Value* createCondBranch(llvm::BasicBlock *MergeBB, llvm::BasicBlock *thisBB = nullptr, bool isElse = false);
+	llvm::Value* createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
