@@ -45,3 +45,42 @@ fn test_while_2() bool
 
 fn test_while_3() bool
    return loo2(-9.5) == -20.5
+
+fn gwhel(r f64) f64
+	n := 2.25
+	while r < 2557.5
+		r = r + 1
+		aaap := r + n
+		n = aaap + 1
+	else
+		aaap := -13.0625 .
+	return aaap
+
+fn test_while_else_const_alloc_1() bool
+	return gwhel(6.75) == 3274847.5
+
+fn test_while_else_const_alloc_2() bool
+	return gwhel(2557.5) == -13.0625
+
+fn ghjj(wwj i32, rtt f64) f64
+	n := 12.75
+	p := 10
+	while rtt < 23.75
+		aaaq := [wwj+p]f64{200: 34.5, 300: -17.25}
+		aaaq[wwj+p-1] = 1.125 + rtt
+		n = n + 1.125
+		aaaq[wwj/3] = aaaq[wwj/3] + n + aaaq[wwj/2] + aaaq[wwj+p-1]
+		rtt = aaaq[wwj+p-1]
+		p = p + 20
+	else
+		aaaq := [wwj+7]f64{}
+		aaaq[wwj+6] = 67.25
+		aaaq[wwj+3] = -13.125
+		aaaq[wwj/3] = aaaq[wwj+6] + aaaq[wwj+3].
+	return aaaq[wwj/3]
+
+fn test_while_else_dyn_alloc_1() bool
+	return ghjj(600, -125.75) == 203.5
+
+fn test_while_else_dyn_alloc_2() bool
+	return ghjj(600, 25) == 54.125

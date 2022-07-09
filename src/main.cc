@@ -155,7 +155,7 @@ void InitializeModuleAndPassManager() {
 
 static void HandleDefinition() {
 	inside_function = true;
-	elselevel = 0;
+	condnesting = 0;
 	IfWhileVarTable = nullptr;
 	locals_table.push_back(VarTable());
 	bool success = false;

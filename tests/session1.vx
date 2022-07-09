@@ -40,31 +40,3 @@ fn jk() [3]f64
 	return x
 
 jk()
-
-fn ghqq(r f64) f64
-	n := 3u64
-	while r < 1.77e8
-		r = r + n
-		n = n + 1
-		aaap := r
-	else
-		aaap := 13.3 .
-	return aaap
-
-fn ghjj(wwj i32, rtt f64) f64
-	n76 := 0.
-	while rtt < 1.77
-		aaaq := [wwj]f64{200: 34.5, 300: -17.2}
-		rtt = rtt + n76
-		n76 = n76 + 1
-		aaaq[wwj/3] = 0.5 * aaaq[wwj/3] + n76 + aaaq[wwj/2]
-	else
-		aaaq := [wwj + 7]f64{}
-		aaaq[wwj + 6] = 67.25
-		aaaq[wwj + 3] = -13.125
-		aaaq[wwj/3] = aaaq[wwj + 6] + aaaq[wwj + 3].
-	return aaaq[wwj/3]
-
-ghjj(600, -23.5)
-
-ghjj(600, 3.5)

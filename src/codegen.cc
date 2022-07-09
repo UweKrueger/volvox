@@ -17,8 +17,8 @@ const char* last_shadow_restorer;
 VarTable* IfWhileVarTable = nullptr;
 // both in loop bodies and in 'else' blocks array allocation should *not* be done in the entry block
 // since the array size might be run time determined in one or the other block. To ensure this we track
-// the nesting level of 'else' blocks - so we can use "if (IfWhileVarTable || elselevel) { ..."
-unsigned elselevel = 0;
+// the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
+unsigned condnesting = 0;
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
@@ -294,7 +294,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 	llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 	if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
 		llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
-		if (elselevel || IfWhileVarTable) {
+		if (condnesting) {
 			// We are inside an if/while/repeat/else branch. An array should *always* be
 			// allocated dynamically since it might be of variable size in the other branch
 			ArrayAlloc = Builder->CreateAlloca(alloc_arr_type, nullptr, Name);
@@ -1666,9 +1666,9 @@ llvm::Value *IfExprAST::codegen_raw() {
 		Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 	}
 	locals_table.push_back(std::move(then_locals_table));
-	elselevel++;
+	condnesting++;
 	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, ThenBB, false);
-	elselevel--;
+	condnesting--;
 	then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	if (!ThenV)
@@ -1688,12 +1688,12 @@ llvm::Value *IfExprAST::codegen_raw() {
 	Builder->SetInsertPoint(ElseBB);
 
 	locals_table.push_back(std::move(else_locals_table));
-	elselevel++;
+	condnesting++;
 	VarTable* old_IfWhileVarTable = IfWhileVarTable;
 	IfWhileVarTable = &then_locals_table;
 	llvm::Value* ElseV = createCondBranch(MergeBB, ElseBB, true);
 	IfWhileVarTable = old_IfWhileVarTable;
-	elselevel--;
+	condnesting--;
 	else_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	if (!ElseV)

@@ -478,7 +478,7 @@ public:
 
 extern VarTable globals_table;
 extern std::vector<VarTable> locals_table; // including function arguments
-extern unsigned elselevel;
+extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 
 // look up var and return if it's global
