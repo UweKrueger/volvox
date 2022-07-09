@@ -596,7 +596,14 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 					}
 					// TODO: run time check for index range
 				}
-			}		
+			}
+			if (auto int_type = llvm::dyn_cast<llvm::IntegerType>(idx->getType())) {
+				if (int_type->getBitWidth() != 64)
+					idx = Builder->CreateIntCast(idx, llvm::Type::getInt64Ty(Context), false);
+			} else {
+				errs() << aggr->Elements[0]->Loc << ": array indices must be integers - not " << *idx->getType() << '\n';
+				return nullptr;
+			}
 			Idxs.push_back(idx);
 		} else {
 			errs() << "internal compiler error\n";
