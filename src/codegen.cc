@@ -285,8 +285,6 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 		ArrData = val;
 	llvm::Value* ArrayAlloc;
 	llvm::Value* ArrayPtr;
-	llvm::BasicBlock* skipBB;
-	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 	llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 	if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
 		llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
@@ -395,9 +393,6 @@ static llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
 			return nullptr;
 		}
 	} else {
-		llvm::BasicBlock* skipBB;
-		llvm::BasicBlock* preAllocBB;
-		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 		llvm::Value* Alloca;
 		FullVar* var_in_if_branch;
 		// Entry block allocations should be done only once for each variable. So in an 'else' branch
@@ -1131,7 +1126,6 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 					                        Builder->GetInsertBlock());
 				}
 			} else if (ValPtr) {
-				llvm::BasicBlock* skipBB;
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
 				llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
@@ -1627,8 +1621,13 @@ llvm::Value *IfExprAST::codegen_raw() {
 	llvm::Value *CondV = Cond->codegen();
 	if (!CondV)
 		return nullptr;
-	if (if_kind == tok_while)
+	llvm::Value* savedStack;
+	if (if_kind == tok_while) {
+		savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {});
+		errs() << "Saved stack: " << *savedStack << '\n';
 		CondBB = Builder->GetInsertBlock();
+	} else
+		savedStack = nullptr;
 	if (desired_type) {
 		Then.back()->desired_type = desired_type;
 		Else.back()->desired_type = desired_type;
@@ -1648,8 +1647,16 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit then value.
 	TheFunction->getBasicBlockList().push_back(ThenBB);
 	Builder->SetInsertPoint(ThenBB);
+	if (savedStack) {
+		llvm::Function* restoreStack = llvm::Intrinsic::getDeclaration(TheModule.get(), llvm::Intrinsic::stackrestore, {llvm::Type::getInt8PtrTy(Context)});
+		llvm::FunctionType* restore_fn_typ = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {llvm::Type::getInt8PtrTy(Context)}, false);
+		auto ii = Builder->CreateCall(restore_fn_typ, restoreStack, savedStack);
+		errs() << "Stack restore: " << *ii << '\n';
+	}
 	locals_table.push_back(std::move(then_locals_table));
+	elselevel++;
 	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, ThenBB, false);
+	elselevel--;
 	then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	if (!ThenV)
@@ -1698,9 +1705,9 @@ llvm::Value *IfExprAST::codegen_raw() {
 					return nullptr;
 				}
 				errs() << "got: " << *then_var->val << " # " << *else_var->val << '\n';
-				llvm::PHINode* mergeVal = Builder->CreatePHI(then_var->val->getType(), 2, std::string(then_node->key.string) + "merge");
-				mergeVal->addIncoming(then_var->val, ThenBB);
-				mergeVal->addIncoming(else_var->val, ElseBB);
+				// llvm::PHINode* mergeVal = Builder->CreatePHI(then_var->val->getType(), 2, std::string(then_node->key.string) + "merge");
+				// mergeVal->addIncoming(then_var->val, ThenBB);
+				// mergeVal->addIncoming(else_var->val, ElseBB);
 				FullVar* entry = locals_table.back()[then_node->key.string];
 				if (!entry) {
 					errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
@@ -1708,8 +1715,8 @@ llvm::Value *IfExprAST::codegen_raw() {
 				}
 				entry->ft.type = then_var->ft.type; // TODO: merge different but compatible array types
 				entry->ft.type_attr = then_var->ft.type_attr;
-				entry->val = mergeVal;
-				errs() << "merge val of type " << *mergeVal->getType() << '\n';
+				entry->val = then_var->val; // mergeVal;
+				// errs() << "merge val of type " << *mergeVal->getType() << '\n';
 			}
 		}
 	}

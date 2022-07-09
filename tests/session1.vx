@@ -51,13 +51,13 @@ fn ghqq(r f64) f64
 		aaap := 13.3 .
 	return aaap
 
-# fn ghjj(wwj i32, rtt f64) f64
-# 	n76 := 0.
-# 	while rtt < 1.77
-# 		aaaq := [wwj]f64{}
-# 		rtt = rtt + n76
-# 		n76 = n76 + 1
-# 		aaaq[wwj/3] = 0.5 * aaaq[wwj/3] + n76 + aaaq[wwj/2]
-# 	else
-# 		aaaq := [wwj+7]f64{}.
-# 	return aaaq[1]
+fn ghjj(wwj i32, rtt f64) f64
+	n76 := 0.
+	while rtt < 1.77
+		aaaq := [wwj]f64{}
+		rtt = rtt + n76
+		n76 = n76 + 1
+		aaaq[wwj/3] = 0.5 * aaaq[wwj/3] + n76 + aaaq[wwj/2]
+	else
+		aaaq := [wwj+7]f64{}.
+	return aaaq[1]
