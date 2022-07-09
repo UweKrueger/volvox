@@ -515,6 +515,9 @@ static void usage(const char* prog) {
 	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
 	errs() << " -i file ... include \"file\" in advance\n";
 	errs() << " -o file ... output compiled result to \"file\"\n";
+#if defined (_MSC_VER)
+	errs() << " -s size ... set stack size (in bytes) for .exe (default: 10000000)\n";
+#endif
 	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
 	errs() << " -C n,g,b .. set prompt colors (ANSI-256, default: 30,100,236)\n";
 	errs() << " file ...... file(s) to compile (default: interactive session is started)\n";
@@ -638,6 +641,7 @@ int main(int argc, char* argv[]) {
 #if defined (_MSC_VER)
 	old_cp = GetConsoleOutputCP();
 	SetConsoleOutputCP(CP_UTF8);
+	uint64_t stacksize = 10000000;
 #endif
 	setlocale(LC_ALL, "en_US.UTF-8");
 	outs().SetUnbuffered();
@@ -648,7 +652,8 @@ int main(int argc, char* argv[]) {
 			errs() << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
-	while ((opt = getopt(argc, argv, "vdcgrjJf:i:o:tP:")) != -1) {
+	char* endptr;
+	while ((opt = getopt(argc, argv, "vdcgrjJf:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -699,6 +704,19 @@ int main(int argc, char* argv[]) {
 				usage(argv[0]);
 			}
 			output_file = optarg;
+			break;
+		case 's':
+#if defined (_MSC_VER)
+			errno = 0;
+			stacksize = strtoull(optarg, &endptr, 0);
+			if (*endptr || errno) {
+				errs() << "illegal argument for '-s': \"" << optarg << "\" - number (stack size in bytes) expected\n";
+				usage(argv[0]);
+			}
+#else
+			errs() << "'-s' (stack size) flag only supported on MS Windows - use \"ulimit -s ...\" on Linux/BSD\n";
+			usage(argv[0]);
+#endif
 			break;
 		case 't':
 			do_test = true;
@@ -1010,6 +1028,8 @@ int main(int argc, char* argv[]) {
 			char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
 			strcpy(exe_out, "-out:");
 			strcat(exe_out, exe_file);
+			char* stack_size = (char*)alloca(30);
+			sprintf(stack_size, "-stack:%" PRIu64, stacksize);
 #else
 			strcat(libpath, "/lib");
 			char* rpath = (char*)alloca(lr+43);
@@ -1022,7 +1042,7 @@ int main(int argc, char* argv[]) {
 				output_file,
 #if defined(_MSC_VER)
 				exe_out, const_cast<char*>("-defaultlib:libcmt"), const_cast<char*>("-defaultlib:oldnames"),
-				libpath, libdirs[0], libdirs[1], libdirs[2],
+				libpath, libdirs[0], libdirs[1], libdirs[2], stack_size,
 				(verbosity >= 3) ? const_cast<char*>("-verbose") : const_cast<char*>("-nologo"),
 #else
 				const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), 
