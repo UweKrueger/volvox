@@ -1615,7 +1615,23 @@ llvm::Value *IfExprAST::codegen_raw() {
 	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 	llvm::PHINode* condPN;
 	llvm::BasicBlock* CondBB;
-	llvm::BasicBlock* ThenBB = llvm::BasicBlock::Create(Context, (if_kind == tok_if) ? "then" : "loop");
+	// find a suitable name for the loop block
+	const char* loopBBName;
+	const char* contName;
+	switch (if_kind) {
+	case tok_if:
+		loopBBName = "then";
+		contName = "ifcont";
+		break;
+	case tok_repeat:
+		loopBBName = "repeat";
+		contName = "repeatcont";
+		break;
+	default:
+		loopBBName = "loop";
+		contName = "loopcont";
+	}
+	llvm::BasicBlock* ThenBB = (if_kind != tok_repeat) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
 	bool need_else_switch = false;
 	if (if_kind == tok_while) {
 		llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
@@ -1626,40 +1642,46 @@ llvm::Value *IfExprAST::codegen_raw() {
 		condPN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "condtmp");
 		condPN->addIncoming(Builder->getInt1(true), enterBB);
 		need_else_switch = (Else.size() > 0);
+	} else if (if_kind == tok_repeat) {
+		CondBB = llvm::BasicBlock::Create(Context, "until");
+		condPN = nullptr;
 	} else {
 		CondBB = nullptr;
 		condPN = nullptr;
 	}
 	Cond->desired_type = llvm::Type::getInt1Ty(Context);
-	llvm::Value *CondV = Cond->codegen();
-	if (!CondV)
-		return nullptr;
-	if (if_kind == tok_while)
-		CondBB = Builder->GetInsertBlock();
-	if (desired_type) {
-		Then.back()->desired_type = desired_type;
-		Else.back()->desired_type = desired_type;
-	}
-	if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
-		errs() << Cond->Loc << ": bool type expected as \"if\" condition\n";
-		return nullptr;
-	}
-
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
 	llvm::BasicBlock* ElseSwitch = need_else_switch ? llvm::BasicBlock::Create(Context, "else_switch") : nullptr;
-	llvm::BasicBlock* ElseBB = llvm::BasicBlock::Create(Context, "else");
-	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, (if_kind == tok_if) ? "ifcont" : "whilecont");
-
-	Builder->CreateCondBr(CondV, ThenBB, ElseSwitch ? ElseSwitch : ElseBB);
-	// Emit then value.
-	TheFunction->getBasicBlockList().push_back(ThenBB);
-	Builder->SetInsertPoint(ThenBB);
-	if (if_kind == tok_while) {
-		llvm::BasicBlock* StackSaveBB = llvm::BasicBlock::Create(Context, "stacksave");
-		llvm::BasicBlock* StackRestoreBB = llvm::BasicBlock::Create(Context, "stackrestore");
-		llvm::BasicBlock* LoopBB = llvm::BasicBlock::Create(Context, "loopstart");
-		Builder->CreateCondBr(condPN, StackSaveBB, StackRestoreBB);
+	llvm::BasicBlock* ElseBB = (if_kind != tok_repeat) ? llvm::BasicBlock::Create(Context, "else") : nullptr;
+	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, contName);
+	llvm::BasicBlock* StackSaveBB = (if_kind != tok_if) ? llvm::BasicBlock::Create(Context, "stacksave") : nullptr;
+	llvm::BasicBlock* StackRestoreBB = (if_kind != tok_if) ? llvm::BasicBlock::Create(Context, "stackrestore") : nullptr;
+	llvm::BasicBlock* LoopBB = (if_kind != tok_if) ? llvm::BasicBlock::Create(Context, "loopstart") : nullptr;
+	if (if_kind == tok_repeat) {
+		Builder->CreateBr(StackSaveBB);
+	} else {
+		llvm::Value *CondV = Cond->codegen();
+		if (!CondV)
+			return nullptr;
+		if (if_kind == tok_while)
+			CondBB = Builder->GetInsertBlock();
+		if (desired_type) {
+			Then.back()->desired_type = desired_type;
+			Else.back()->desired_type = desired_type;
+		}
+		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
+			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
+			return nullptr;
+		}
+		Builder->CreateCondBr(CondV, ThenBB, ElseSwitch ? ElseSwitch : ElseBB);
+		// Emit then value.
+		TheFunction->getBasicBlockList().push_back(ThenBB);
+		Builder->SetInsertPoint(ThenBB);
+	}
+	if (if_kind != tok_if) {
+		if (if_kind == tok_while)
+			Builder->CreateCondBr(condPN, StackSaveBB, StackRestoreBB);
 		TheFunction->getBasicBlockList().push_back(StackSaveBB);
 		Builder->SetInsertPoint(StackSaveBB);
 		llvm::Value* savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {});
@@ -1689,23 +1711,37 @@ llvm::Value *IfExprAST::codegen_raw() {
 			Builder->CreateCondBr(condPN, ElseBB, MergeBB);
 		}
 	}
-	// Emit else block.
-	TheFunction->getBasicBlockList().push_back(ElseBB);
-	Builder->SetInsertPoint(ElseBB);
-
-	locals_table.push_back(std::move(else_locals_table));
-	condnesting++;
-	VarTable* old_IfWhileVarTable = IfWhileVarTable;
-	IfWhileVarTable = &then_locals_table;
-	llvm::Value* ElseV = createCondBranch(MergeBB, true);
-	IfWhileVarTable = old_IfWhileVarTable;
-	condnesting--;
-	else_locals_table = std::move(locals_table.back());
-	locals_table.pop_back();
-	if (!ElseV)
-		return nullptr;
-	// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
-	ElseBB = Builder->GetInsertBlock();
+	llvm::Value* ElseV = nullptr;
+	if (if_kind == tok_repeat) {
+		TheFunction->getBasicBlockList().push_back(CondBB);
+		Builder->SetInsertPoint(CondBB);
+		llvm::Value *CondV = Cond->codegen();
+		if (!CondV)
+			return nullptr;
+		CondBB = Builder->GetInsertBlock();
+		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
+			errs() << Cond->Loc << ": bool type expected as 'until' condition\n";
+			return nullptr;
+		}
+		Builder->CreateCondBr(CondV, MergeBB, StackRestoreBB);
+	} else {		
+		// Emit else block.
+		TheFunction->getBasicBlockList().push_back(ElseBB);
+		Builder->SetInsertPoint(ElseBB);
+		locals_table.push_back(std::move(else_locals_table));
+		condnesting++;
+		VarTable* old_IfWhileVarTable = IfWhileVarTable;
+		IfWhileVarTable = &then_locals_table;
+		ElseV = createCondBranch(MergeBB, true);
+		IfWhileVarTable = old_IfWhileVarTable;
+		condnesting--;
+		else_locals_table = std::move(locals_table.back());
+		locals_table.pop_back();
+		if (!ElseV)
+			return nullptr;
+		// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
+		ElseBB = Builder->GetInsertBlock();
+	}
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
