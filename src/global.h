@@ -72,17 +72,17 @@ enum TokenKind {
 	tok_for = -53,
 	tok_in = -54,
 	tok_while = -55,
-	tok_do = -56,
+	tok_repeat = -56,
 	tok_return = -57,
-	tok_end = -58,
+	tok_end = -58, // '.' at end of if/while/else branch
 	tok_leave = -59, // indicator that branch does not continue (i.e. last expr is return)
-
+	tok_until = -60,
 	// built-in type attributes
-	tok_atomic = -60,
-	tok_shared = -61,
-	tok_iso = -62,
-	tok_const = -63,
-	tok_packed = -64,
+	tok_atomic = -65,
+	tok_shared = -66,
+	tok_iso = -67,
+	tok_const = -68,
+	tok_packed = -69,
 
 	// special (incomplete) types
 	tok_self = -70,

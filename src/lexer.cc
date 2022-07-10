@@ -206,8 +206,10 @@ Token Lexer::gettok(eXpect expect) {
 			return Token(tok_in);
 		if (IdentifierStr == "while")
 			return Token(tok_while);
-		if (IdentifierStr == "do")
-			return Token(tok_do);
+		if (IdentifierStr == "repeat")
+			return Token(tok_repeat);
+		if (IdentifierStr == "until")
+			return Token(tok_until);
 		if (IdentifierStr == "return")
 			return Token(tok_return);
 		if (IdentifierStr == "true")
