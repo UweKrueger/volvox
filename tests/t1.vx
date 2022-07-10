@@ -96,3 +96,16 @@ fn dorep() f64
 
 fn test_repeat_1() bool
 	return dorep() == 67.25
+
+fn vecrep(a7 int) f64
+	bpp := -7.25
+	repeat
+		vd := [a7]f64{5: 13.75}
+		vd[a7-1] = vd[5] + bpp
+		bpp = .5 + vd[a7-1]
+		a7 = a7 + 873
+	until a7 >= 897543
+	return vd[a7-874]
+
+fn test_repeat_dyn_array() bool
+	return vecrep(100000) == 13016.75

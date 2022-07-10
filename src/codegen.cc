@@ -1744,7 +1744,20 @@ llvm::Value *IfExprAST::codegen_raw() {
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
-	if (then_locals_table.table && else_locals_table.table) {
+	if (if_kind == tok_repeat && then_locals_table.table) {
+		for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
+			MapValue* node = &then_node->value;
+			auto then_var = (FullVar*)((char*)node + node->offset);
+			FullVar* entry = locals_table.back()[then_node->key.string];
+			if (!entry) {
+				errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
+				abort();
+			}
+			entry->ft.type = then_var->ft.type; // TODO: merge different but compatible array types
+			entry->ft.type_attr = then_var->ft.type_attr;
+			entry->val = then_var->val;
+		}
+	} else if (then_locals_table.table && else_locals_table.table) {
 		for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
 			FullVar* else_var = else_locals_table[then_node->key.string];
 			if (else_var) {
