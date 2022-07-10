@@ -1655,12 +1655,10 @@ llvm::Value *IfExprAST::codegen_raw() {
 	llvm::BasicBlock* ElseSwitch = need_else_switch ? llvm::BasicBlock::Create(Context, "else_switch") : nullptr;
 	llvm::BasicBlock* ElseBB = (if_kind != tok_repeat) ? llvm::BasicBlock::Create(Context, "else") : nullptr;
 	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, contName);
-	llvm::BasicBlock* StackSaveBB = (if_kind != tok_if) ? llvm::BasicBlock::Create(Context, "stacksave") : nullptr;
+	llvm::BasicBlock* StackSaveBB = (if_kind == tok_while) ? llvm::BasicBlock::Create(Context, "stacksave") : nullptr;
 	llvm::BasicBlock* StackRestoreBB = (if_kind != tok_if) ? llvm::BasicBlock::Create(Context, "stackrestore") : nullptr;
 	llvm::BasicBlock* LoopBB = (if_kind != tok_if) ? llvm::BasicBlock::Create(Context, "loopstart") : nullptr;
-	if (if_kind == tok_repeat) {
-		Builder->CreateBr(StackSaveBB);
-	} else {
+	if (if_kind != tok_repeat) {
 		llvm::Value *CondV = Cond->codegen();
 		if (!CondV)
 			return nullptr;
@@ -1680,10 +1678,11 @@ llvm::Value *IfExprAST::codegen_raw() {
 		Builder->SetInsertPoint(ThenBB);
 	}
 	if (if_kind != tok_if) {
-		if (if_kind == tok_while)
+		if (if_kind == tok_while) {
 			Builder->CreateCondBr(condPN, StackSaveBB, StackRestoreBB);
-		TheFunction->getBasicBlockList().push_back(StackSaveBB);
-		Builder->SetInsertPoint(StackSaveBB);
+			TheFunction->getBasicBlockList().push_back(StackSaveBB);
+			Builder->SetInsertPoint(StackSaveBB);
+		}
 		llvm::Value* savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {});
 		Builder->CreateBr(LoopBB);
 		TheFunction->getBasicBlockList().push_back(StackRestoreBB);
