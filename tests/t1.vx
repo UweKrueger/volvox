@@ -84,3 +84,15 @@ fn test_while_else_dyn_alloc_1() bool
 
 fn test_while_else_dyn_alloc_2() bool
 	return ghjj(600, 25) == 54.125
+
+fn dorep() f64
+	a7 := 0
+	bpp := 1.25
+	repeat
+		a7 = a7 + 1
+		bpp = bpp + a7
+	until a7 > 10
+	return bpp
+
+fn test_repeat_1() bool
+	return dorep() == 67.25

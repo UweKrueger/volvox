@@ -650,7 +650,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	SourceLocation IfLoc = CurLoc;
 	auto kind = TokenKind(CurTok.kind); // to remember if it's 'if', 'while' or 'repeat'
 	getNextToken(); // eat the if/while.
-
 	// condition - expect bool.
 	std::unique_ptr<ExprAST> Cond;
 	if (kind == tok_if || kind == tok_while) {
@@ -696,8 +695,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	} else {
 		if (!Expect(tok_end, eBinOp))
 			return nullptr;
+		getNextToken(eBinOp);
 	}
-	getNextToken(eBinOp);
 	auto conv = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
 	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
 		convBinOp(Then.first.back()->ft->type, Else.first.back()->ft->type,
@@ -910,7 +909,7 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	while (CurTok.kind == ';')
 		getNextToken();
 	auto kind = CurTok.kind;
-	if (kind == tok_return || kind == tok_else || kind == tok_end) {
+	if (kind == tok_return || kind == tok_else || kind == tok_end || kind == tok_until) {
 		if (kind == tok_return) {
 			getNextToken(eColon);
 			if (CurTok.kind == ';') 
