@@ -1620,7 +1620,6 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value*
 		PN->addIncoming(valB, caseB);
 		return { typA, PN };
 	} else if (auto array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)) {
-		llvm::Type* saveTA = typA;
 		std::vector<uint64_t> fixedDims;
 		std::vector<llvm::Value*> varDims;
 		llvm::Value* Aptr;
@@ -1693,10 +1692,6 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value*
 		llvm::PHINode* PN = Builder->CreatePHI(ptr_t, 2, "ifdimtmp");
 		PN->addIncoming(Builder->CreateBitCast(Aptr, ptr_t), caseA);
 		PN->addIncoming(Builder->CreateBitCast(Bptr, ptr_t), caseB);
-		if (!varDims.size()) {
-			errs() << "inconsistency... " << *saveTA << '\n';
-			return { saveTA, PN };
-		}
 		llvm::Type* resultT = typA;
 		std::vector<llvm::Type*> struct_type_el(varDims.size() + 1, llvm::Type::getInt64Ty(Context));
 		struct_type_el[varDims.size()] = PN->getType();
