@@ -1572,20 +1572,21 @@ llvm::Value *CallExprAST::codegen_raw() {
 	}
 }
 
-llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
+std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
 	int EndKind = isElse ? ElseEndKind : ThenEndKind;
 	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
 	llvm::Value* BranchV = nullptr;
+	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
 	for (auto& expr : Branch)
 		BranchV = expr->codegen_raw();
 	if (!BranchV && !isElse)
-		return nullptr;
+		return { nullptr, nullptr };
 	if (ft->type->isVoidTy() && !(BranchV && BranchV->getType()->isVoidTy())) {
 		if (EndKind == tok_return)
 			Builder->CreateRetVoid();
 		else {
 			BranchV = llvm::UndefValue::get(ft->type);
-			Builder->CreateBr(MergeBB);
+			firstBreak = Builder->CreateBr(MergeBB);
 		}
 	} else {
 		if (!ft->type->isVoidTy()) {
@@ -1594,7 +1595,7 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse)
 			                              isElse ? conv.ideal.RHS : conv.ideal.LHS,
 			                              conv.ideal.res_attr & A_signed);
 			if (!PreConv)
-				return nullptr;
+				return { nullptr, nullptr };
 			BranchV = PreConv(BranchV);
 		} else {
 			BranchV = llvm::UndefValue::get(ft->type);
@@ -1602,14 +1603,16 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse)
 		if (EndKind == tok_return) {
 			Builder->CreateRet(CheckTailCall(BranchV));
 		} else {
-			Builder->CreateBr(MergeBB);
+			firstBreak = Builder->CreateBr(MergeBB);
 		}
 	}
-	return BranchV;
+	return { BranchV, firstBreak };
 }
 
-std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value* valA, llvm::BasicBlock* caseA,
-                                                  llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB) {
+std::pair<llvm::Type*, llvm::Value*> merge_values(
+	llvm::Type* typA, llvm::Value* valA, llvm::BasicBlock* caseA, llvm::Instruction* lastA, 
+	llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB, llvm::Instruction* lastB) {
+	auto MergeBB = Builder->GetInsertBlock();
 	if (typA == typB) {
 		if (valA->getType() != valB->getType()) {
 			errs() << "internal error: types of if-branches do not match\n";
@@ -1621,11 +1624,13 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value*
 		return { typA, PN };
 	} else if (auto array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)) {
 		std::vector<uint64_t> fixedDims;
-		std::vector<llvm::Value*> varDims;
+		std::vector<llvm::Value*> varDimsA;
+		std::vector<llvm::Value*> varDimsB;
 		llvm::Value* Aptr;
 		unsigned n_vardims_A;
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(valA->getType())) {
 			n_vardims_A = struct_type->getNumElements() - 1;
+			Builder->SetInsertPoint(lastA);
 			Aptr = Builder->CreateExtractValue(valA, n_vardims_A);
 		} else {
 			n_vardims_A = 0;
@@ -1635,6 +1640,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value*
 		unsigned n_vardims_B;
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(valB->getType())) {
 			n_vardims_B = struct_type->getNumElements() - 1;
+			Builder->SetInsertPoint(lastB);
 			Bptr = Builder->CreateExtractValue(valB, n_vardims_B);
 		} else {
 			n_vardims_B = 0;
@@ -1651,31 +1657,31 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value*
 				if (nA && nA == nB) {
 					fixedDims.push_back(nA);
 				} else {
+					Builder->SetInsertPoint(lastA);
 					fixedDims.push_back(0);
 					llvm::Value* dimA;
 					if (nA)
 						dimA = Builder->getInt64(nA);
 					else
-						if (iA < n_vardims_A)
+						if (iA < n_vardims_A) {
 							dimA = Builder->CreateExtractValue(valA, iA++);
-						else {
+						} else {
 							errs() << "error: mismatch in array value structure\n";
 							return { nullptr, nullptr };
 						}
+					varDimsA.push_back(dimA);
 					llvm::Value* dimB;
+					Builder->SetInsertPoint(lastB);
 					if (nB)
 						dimB = Builder->getInt64(nB);
 					else
-						if (iB < n_vardims_B)
+						if (iB < n_vardims_B) {
 							dimB = Builder->CreateExtractValue(valB, iB++);
-						else {
+						} else {
 							errs() << "error: mismatch in array value structure\n";
 							return { nullptr, nullptr };
 						}
-					llvm::PHINode* PN = Builder->CreatePHI(llvm::Type::getInt64Ty(Context), 2, "ifdimtmp");
-					PN->addIncoming(dimA, caseA);
-					PN->addIncoming(dimB, caseB);
-					varDims.push_back(PN);
+					varDimsB.push_back(dimB);
 				}
 				typA = elem_tA;
 				typB = elem_tB;
@@ -1688,30 +1694,44 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value*
 			errs() << "mismatch in array element types " << *typA << " vs. " << *typB << '\n';
 			return { nullptr, nullptr };
 		}
-		llvm::Type* ptr_t = varDims.size() ? Aptr->getType() : typA->getPointerTo();
-		llvm::PHINode* PN = Builder->CreatePHI(ptr_t, 2, "ifdimtmp");
-		PN->addIncoming(Builder->CreateBitCast(Aptr, ptr_t), caseA);
-		PN->addIncoming(Builder->CreateBitCast(Bptr, ptr_t), caseB);
+		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : typA->getPointerTo();
+		Builder->SetInsertPoint(lastA);
+		Aptr = Builder->CreateBitCast(Aptr, ptr_t);
+		Builder->SetInsertPoint(lastB);
+		Bptr = Builder->CreateBitCast(Bptr, ptr_t);
 		llvm::Type* resultT = typA;
-		std::vector<llvm::Type*> struct_type_el(varDims.size() + 1, llvm::Type::getInt64Ty(Context));
-		struct_type_el[varDims.size()] = PN->getType();
+		errs() << "Element Type: " << *resultT << '\n';
+		std::vector<llvm::Type*> struct_type_el(varDimsA.size() + 1, llvm::Type::getInt64Ty(Context));
+		struct_type_el[varDimsA.size()] = ptr_t;
 		llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
-		llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
-		the_struct = Builder->CreateInsertValue(the_struct, PN, varDims.size());
+		Builder->SetInsertPoint(lastA);
+		llvm::Value* the_structA = llvm::UndefValue::get(struct_type);
+		the_structA = Builder->CreateInsertValue(the_structA, Aptr, varDimsA.size());
 		unsigned structIdx = 0;
 		for (int d = fixedDims.size() - 1; d >=0; d--) {
 			uint64_t dim = fixedDims[d];
 			resultT = llvm::ArrayType::get(resultT, dim);
+			errs() << "rElement Type: " << *resultT << '\n';
 			if (!dim) {
-				the_struct = Builder->CreateInsertValue(the_struct, varDims[structIdx], structIdx);
+				the_structA = Builder->CreateInsertValue(the_structA, varDimsA[structIdx], structIdx);
 				structIdx++;
 			}
 		}
-		if (structIdx != varDims.size()) {
+		if (structIdx != varDimsA.size() || structIdx != varDimsB.size()) {
 			errs() << "internal error: could not create merge value\n";
 			return { nullptr, nullptr };
 		}
-		return { resultT, the_struct };
+		Builder->SetInsertPoint(lastB);
+		llvm::Value* the_structB = llvm::UndefValue::get(struct_type);
+		the_structB = Builder->CreateInsertValue(the_structB, Bptr, varDimsB.size());
+		for (structIdx = 0; structIdx < varDimsB.size(); structIdx++) {
+			the_structB = Builder->CreateInsertValue(the_structB, varDimsB[structIdx], structIdx);
+		}
+		Builder->SetInsertPoint(MergeBB);
+		llvm::PHINode* PN = Builder->CreatePHI(struct_type, 2, "ifdimtmp");
+		PN->addIncoming(the_structA, caseA);
+		PN->addIncoming(the_structB, caseB);
+		return { resultT, PN };
 	} else {
 		errs() << "merge not possible\n";
 		return { nullptr, nullptr };
@@ -1804,7 +1824,9 @@ llvm::Value* IfExprAST::codegen_raw() {
 	}
 	locals_table.push_back(std::move(then_locals_table));
 	condnesting++;
-	llvm::Value* ThenV = createCondBranch(CondBB ? CondBB : MergeBB, false);
+	auto ThenVL = createCondBranch(CondBB ? CondBB : MergeBB, false);
+	llvm::Value* ThenV = ThenVL.first;
+	auto thenLast = ThenVL.second;
 	condnesting--;
 	then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
@@ -1821,6 +1843,7 @@ llvm::Value* IfExprAST::codegen_raw() {
 		}
 	}
 	llvm::Value* ElseV = nullptr;
+	llvm::Instruction* elseLast;
 	if (if_kind == tok_repeat) {
 		TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
@@ -1841,7 +1864,9 @@ llvm::Value* IfExprAST::codegen_raw() {
 		condnesting++;
 		VarTable* old_IfWhileVarTable = IfWhileVarTable;
 		IfWhileVarTable = &then_locals_table;
-		ElseV = createCondBranch(MergeBB, true);
+		auto ElseVL = createCondBranch(MergeBB, true);
+		ElseV = ElseVL.first;
+		elseLast = ElseVL.second;
 		IfWhileVarTable = old_IfWhileVarTable;
 		condnesting--;
 		else_locals_table = std::move(locals_table.back());
@@ -1867,14 +1892,14 @@ llvm::Value* IfExprAST::codegen_raw() {
 			entry->ft.type_attr = then_var->ft.type_attr;
 			entry->val = then_var->val;
 		}
-	} else if (then_locals_table.table && else_locals_table.table) {
+	} else if (then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
 		for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
 			FullVar* else_var = else_locals_table[then_node->key.string];
 			if (else_var) {
 				MapValue* node = &then_node->value;
 				auto then_var = (FullVar*)((char*)node + node->offset);
-				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? ElseSwitch : ThenBB,
-				                          else_var->ft.type, else_var->val, ElseBB);
+				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? ElseSwitch : ThenBB, thenLast,
+				                          else_var->ft.type, else_var->val, ElseBB, elseLast);
 				if (!merge.second)
 					return nullptr;
 				auto mergeVal = merge.second;
