@@ -1615,7 +1615,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value*
 			errs() << "internal error: types of if-branches do not match\n";
 			return { nullptr, nullptr };
 		}
-		llvm::PHINode* PN = Builder->CreatePHI(typA, 2, "iftmp");
+		llvm::PHINode* PN = Builder->CreatePHI(valA->getType(), 2, "iftmp");
 		PN->addIncoming(valA, caseA);
 		PN->addIncoming(valB, caseB);
 		return { typA, PN };
@@ -1690,7 +1690,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value*
 			return { nullptr, nullptr };
 		}
 		llvm::Type* ptr_t = varDims.size() ? Aptr->getType() : typA->getPointerTo();
-		llvm::PHINode* PN = Builder->CreatePHI(llvm::Type::getInt64Ty(Context), 2, "ifdimtmp");
+		llvm::PHINode* PN = Builder->CreatePHI(ptr_t, 2, "ifdimtmp");
 		PN->addIncoming(Builder->CreateBitCast(Aptr, ptr_t), caseA);
 		PN->addIncoming(Builder->CreateBitCast(Bptr, ptr_t), caseB);
 		if (!varDims.size()) {
@@ -1878,22 +1878,18 @@ llvm::Value* IfExprAST::codegen_raw() {
 			if (else_var) {
 				MapValue* node = &then_node->value;
 				auto then_var = (FullVar*)((char*)node + node->offset);
-				if (else_var->ft.type != then_var->ft.type) {
-					errs() << Loc << ": conflicting types for variable '" << then_node->key.string
-					       << "' " << *then_var->ft.type << " (then/while/repeat branch) vs. "
-					       << *else_var->ft.type << " (else branch)\n";
+				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? ElseSwitch : ThenBB,
+				                          else_var->ft.type, else_var->val, ElseBB);
+				if (!merge.second)
 					return nullptr;
-				}
-				llvm::PHINode* mergeVal = Builder->CreatePHI(then_var->val->getType(), 2, std::string(then_node->key.string) + "merge");
-				mergeVal->addIncoming(then_var->val, ElseSwitch);
-				mergeVal->addIncoming(else_var->val, ElseBB);
+				auto mergeVal = merge.second;
 				FullVar* entry = locals_table.back()[then_node->key.string];
 				if (!entry) {
 					errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
 					abort();
 				}
-				entry->ft.type = then_var->ft.type; // TODO: merge different but compatible array types
-				entry->ft.type_attr = then_var->ft.type_attr;
+				entry->ft.type = merge.first;
+				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
 				entry->val = mergeVal;
 			}
 		}

@@ -109,3 +109,16 @@ fn vecrep(a7 int) f64
 
 fn test_repeat_dyn_array() bool
 	return vecrep(100000) == 13016.75
+
+fn merge_array(i int) real
+	if (i>3)
+		L := [3][i+1][i+2]real{1: {2: {3: -23.75}}}
+	else
+		L := [i+5][5][i+7]real{1: {2: {3: 7.25}}} .
+	return L[1][2][3]
+
+fn test_merge_different_but_compatible_arrays_1() bool
+	return merge_array(3) == 7.25
+
+fn test_merge_different_but_compatible_arrays_2() bool
+	return merge_array(4) == -23.75
