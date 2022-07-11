@@ -1608,7 +1608,122 @@ llvm::Value* IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse)
 	return BranchV;
 }
 
-llvm::Value *IfExprAST::codegen_raw() {
+std::pair<llvm::Type*, llvm::Value*> merge_values(llvm::Type* typA, llvm::Value* valA, llvm::BasicBlock* caseA,
+                                                  llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB) {
+	if (typA == typB) {
+		if (valA->getType() != valB->getType()) {
+			errs() << "internal error: types of if-branches do not match\n";
+			return { nullptr, nullptr };
+		}
+		llvm::PHINode* PN = Builder->CreatePHI(typA, 2, "iftmp");
+		PN->addIncoming(valA, caseA);
+		PN->addIncoming(valB, caseB);
+		return { typA, PN };
+	} else if (auto array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)) {
+		llvm::Type* saveTA = typA;
+		std::vector<uint64_t> fixedDims;
+		std::vector<llvm::Value*> varDims;
+		llvm::Value* Aptr;
+		unsigned n_vardims_A;
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(valA->getType())) {
+			n_vardims_A = struct_type->getNumElements() - 1;
+			Aptr = Builder->CreateExtractValue(valA, n_vardims_A);
+		} else {
+			n_vardims_A = 0;
+			Aptr = valA;
+		}
+		llvm::Value* Bptr;
+		unsigned n_vardims_B;
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(valB->getType())) {
+			n_vardims_B = struct_type->getNumElements() - 1;
+			Bptr = Builder->CreateExtractValue(valB, n_vardims_B);
+		} else {
+			n_vardims_B = 0;
+			Bptr = valB;
+		}
+		unsigned iA = 0;
+		unsigned iB = 0;
+		do {
+			if (auto array_tB = llvm::dyn_cast<llvm::ArrayType>(typB)) {
+				llvm::Type* elem_tA = array_tA->getElementType();
+				uint64_t nA = array_tA->getNumElements();
+				llvm::Type* elem_tB = array_tB->getElementType();
+				uint64_t nB = array_tB->getNumElements();
+				if (nA && nA == nB) {
+					fixedDims.push_back(nA);
+				} else {
+					fixedDims.push_back(0);
+					llvm::Value* dimA;
+					if (nA)
+						dimA = Builder->getInt64(nA);
+					else
+						if (iA < n_vardims_A)
+							dimA = Builder->CreateExtractValue(valA, iA++);
+						else {
+							errs() << "error: mismatch in array value structure\n";
+							return { nullptr, nullptr };
+						}
+					llvm::Value* dimB;
+					if (nB)
+						dimB = Builder->getInt64(nB);
+					else
+						if (iB < n_vardims_B)
+							dimB = Builder->CreateExtractValue(valB, iB++);
+						else {
+							errs() << "error: mismatch in array value structure\n";
+							return { nullptr, nullptr };
+						}
+					llvm::PHINode* PN = Builder->CreatePHI(llvm::Type::getInt64Ty(Context), 2, "ifdimtmp");
+					PN->addIncoming(dimA, caseA);
+					PN->addIncoming(dimB, caseB);
+					varDims.push_back(PN);
+				}
+				typA = elem_tA;
+				typB = elem_tB;
+			} else {
+				errs() << "incompatible types\n";
+				return { nullptr, nullptr };
+			}
+		} while ((array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)));
+		if (typA != typB) {
+			errs() << "mismatch in array element types " << *typA << " vs. " << *typB << '\n';
+			return { nullptr, nullptr };
+		}
+		llvm::Type* ptr_t = varDims.size() ? Aptr->getType() : typA->getPointerTo();
+		llvm::PHINode* PN = Builder->CreatePHI(llvm::Type::getInt64Ty(Context), 2, "ifdimtmp");
+		PN->addIncoming(Builder->CreateBitCast(Aptr, ptr_t), caseA);
+		PN->addIncoming(Builder->CreateBitCast(Bptr, ptr_t), caseB);
+		if (!varDims.size()) {
+			errs() << "inconsistency... " << *saveTA << '\n';
+			return { saveTA, PN };
+		}
+		llvm::Type* resultT = typA;
+		std::vector<llvm::Type*> struct_type_el(varDims.size() + 1, llvm::Type::getInt64Ty(Context));
+		struct_type_el[varDims.size()] = PN->getType();
+		llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
+		llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
+		the_struct = Builder->CreateInsertValue(the_struct, PN, varDims.size());
+		unsigned structIdx = 0;
+		for (int d = fixedDims.size() - 1; d >=0; d--) {
+			uint64_t dim = fixedDims[d];
+			resultT = llvm::ArrayType::get(resultT, dim);
+			if (!dim) {
+				the_struct = Builder->CreateInsertValue(the_struct, varDims[structIdx], structIdx);
+				structIdx++;
+			}
+		}
+		if (structIdx != varDims.size()) {
+			errs() << "internal error: could not create merge value\n";
+			return { nullptr, nullptr };
+		}
+		return { resultT, the_struct };
+	} else {
+		errs() << "merge not possible\n";
+		return { nullptr, nullptr };
+	}
+}
+
+llvm::Value* IfExprAST::codegen_raw() {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
