@@ -122,3 +122,18 @@ fn test_merge_different_but_compatible_arrays_1() bool
 
 fn test_merge_different_but_compatible_arrays_2() bool
 	return merge_array(4) == -23.75
+
+fn merge_array_2(i int) real
+	while (i>3)
+		L := [4][7][4]real{1: {2: {3: i+12}}}
+		i = i - 1
+		L[0][0][0] = i * L[1][2][3]
+	else
+		L := [5][5][4+i]real{{{-17}}, 1: {2: {3: 7.25}}} .
+	return L[0][0][0] + L[1][2][3]
+
+fn test_merge_different_but_compatible_arrays_3() bool
+	return merge_array_2(15) == 64
+
+fn test_merge_different_but_compatible_arrays_4() bool
+	return merge_array_2(2) == -9.75

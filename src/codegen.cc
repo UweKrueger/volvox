@@ -1700,7 +1700,6 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		Builder->SetInsertPoint(lastB);
 		Bptr = Builder->CreateBitCast(Bptr, ptr_t);
 		llvm::Type* resultT = typA;
-		errs() << "Element Type: " << *resultT << '\n';
 		std::vector<llvm::Type*> struct_type_el(varDimsA.size() + 1, llvm::Type::getInt64Ty(Context));
 		struct_type_el[varDimsA.size()] = ptr_t;
 		llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
@@ -1711,7 +1710,6 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		for (int d = fixedDims.size() - 1; d >=0; d--) {
 			uint64_t dim = fixedDims[d];
 			resultT = llvm::ArrayType::get(resultT, dim);
-			errs() << "rElement Type: " << *resultT << '\n';
 			if (!dim) {
 				the_structA = Builder->CreateInsertValue(the_structA, varDimsA[structIdx], structIdx);
 				structIdx++;
