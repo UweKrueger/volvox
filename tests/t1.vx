@@ -196,3 +196,39 @@ fn test_merge_if_else_6() bool
 
 fn test_merge_if_else_7() bool
 	return merge_array_6(3) == -10.75
+
+fn merge_array_7(i int) real
+	if i > 3
+		L := [4]real{1: i+12}
+	else
+		L := [5]real{-17, 1: 7.25} .
+	return L[0] + L[1]
+
+fn test_merge_if_else_8() bool
+	return merge_array_7(4) == 16
+
+fn test_merge_if_else_9() bool
+	return merge_array_7(2) == -9.75
+
+fn merge_array_8(i int) real
+	L := if i > 3
+		[4]real{1: i+12}
+	else
+		[5]real{-17, 1: 7.25} .
+	return L[0] + L[1]
+
+fn test_merge_if_else_10() bool
+	return merge_array_8(4) == 16
+
+fn test_merge_if_else_11() bool
+	return merge_array_8(2) == -9.75
+
+# # This works in JIT but crashes the compiler
+# fn merge_array_9(i int) real
+# 	L := if i > 3
+# 		S := [4]real{1: i+12}
+# 		S
+# 	else
+# 		T := [5]real{-17, 1: 7.25}
+# 		T .
+# 	return L[0] + L[1]
