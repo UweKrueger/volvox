@@ -138,12 +138,14 @@ fn test_merge_different_but_compatible_arrays_3() bool
 fn test_merge_different_but_compatible_arrays_4() bool
 	return merge_array_2(2) == -9.75
 
+# TODO: fixed but diffent dimensions
+
 fn merge_array_3(i int) real
 	L := if i > 3
 		S := [4]real{1: i+12}
 		S
 	else
-		T := [5]real{-17, 1: 7.25}
+		T := [4]real{-17, 1: 7.25}
 		T .
 	return L[0] + L[1]
 
