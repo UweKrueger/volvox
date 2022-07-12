@@ -490,7 +490,12 @@ public:
 		  Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
 		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)),
 		  else_locals_table(std::move(_else_locals_table)), conv(conv), if_kind(if_kind)
-		{}
+		{
+			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
+			if (Then.size() && Then.back()->ft && Then.back()->ft->type && !Then.back()->ft->type->isSingleValueType() && !Then.back()->ft->type->isVoidTy()
+			    && Else.size() && Else.back()->ft && Else.back()->ft->type && !Else.back()->ft->type->isSingleValueType() && !Else.back()->ft->type->isVoidTy())
+				ft = new_FullType(*Then.back()->ft);
+		}
 	llvm::Value *codegen_raw() override;
 	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false);
 #ifndef NDEBUG

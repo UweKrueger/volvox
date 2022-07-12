@@ -111,7 +111,7 @@ fn test_repeat_dyn_array() bool
 	return vecrep(100000) == 13016.75
 
 fn merge_array(i int) real
-	if (i>3)
+	if i > 3
 		L := [3][i+1][i+2]real{1: {2: {3: -23.75}}}
 	else
 		L := [i+5][5][i+7]real{1: {2: {3: 7.25}}} .
@@ -124,7 +124,7 @@ fn test_merge_different_but_compatible_arrays_2() bool
 	return merge_array(4) == -23.75
 
 fn merge_array_2(i int) real
-	while (i>3)
+	while i > 3
 		L := [4][7][4]real{1: {2: {3: i+12}}}
 		i = i - 1
 		L[0][0][0] = i * L[1][2][3]
@@ -139,8 +139,58 @@ fn test_merge_different_but_compatible_arrays_4() bool
 	return merge_array_2(2) == -9.75
 
 fn merge_array_3(i int) real
-	L := if (i>3)
-		[4][7][4]real{1: {2: {3: i+12}}}
+	L := if i > 3
+		S := [4]real{1: i+12}
+		S
 	else
-		[4][7][4]real{{{-17}}, 1: {2: {3: 7.25}}} .
+		T := [5]real{-17, 1: 7.25}
+		T .
+	return L[0] + L[1]
+
+fn test_merge_if_else_1() bool
+	return merge_array_3(2) == -9.75
+
+fn test_merge_if_else_2() bool
+	return merge_array_3(4) == 16
+
+fn merge_array_4(i int) real
+	L := while i > 4
+		i = i - 1
+		[4]real{2: i+11}
+	else
+		[i+7]real{-17, 2: 7.25} .
+	return L[0] + L[2]
+
+fn test_merge_if_else_3() bool
+	return merge_array_4(2) == -9.75
+
+fn test_merge_if_else_4() bool
+	return merge_array_4(7) == 15
+
+fn merge_array_5(i int) real
+	L := if i > 3
+		S := [4][7][4]real{1: {2: {3: i+12}}}
+		S
+	else
+		T := [4][7][4]real{{{-17}}, 1: {2: {3: 7.25}}}
+		T .
 	return L[0][0][0] + L[1][2][3]
+
+fn test_merge_if_else_5() bool
+	return merge_array_5(7) == 19
+
+fn test_merge_if_else_6() bool
+	return merge_array_5(3) == -9.75
+
+fn merge_array_6(i int) real
+	L := if i > 3
+		[4][7+i][4]real{1: {2: {3: i+13}}}
+	else
+		[8][7][4+i]real{{{-18}}, 1: {2: {3: 7.25}}} .
+	return L[0][0][0] + L[1][2][3]
+
+fn test_merge_if_else_6() bool
+	return merge_array_6(7) == 20
+
+fn test_merge_if_else_7() bool
+	return merge_array_6(3) == -10.75
