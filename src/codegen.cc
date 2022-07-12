@@ -1589,7 +1589,9 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 			firstBreak = Builder->CreateBr(MergeBB);
 		}
 	} else {
-		if (!ft->type->isVoidTy()) {
+		if (ft->type->isVoidTy()) {
+			BranchV = llvm::UndefValue::get(ft->type);
+		} else if (ft->type->isSingleValueType()) {
 			auto PreConv = getBestPreConv(Branch.back()->Loc, desired_type, conv.compat.res_type,
 			                              conv.ideal.res_type, isElse ? conv.compat.RHS : conv.compat.LHS,
 			                              isElse ? conv.ideal.RHS : conv.ideal.LHS,
@@ -1597,8 +1599,10 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 			if (!PreConv)
 				return { nullptr, nullptr };
 			BranchV = PreConv(BranchV);
-		} else {
-			BranchV = llvm::UndefValue::get(ft->type);
+			if (Branch.back()->ft->type != BranchV->getType()) {
+				Branch.back()->ft = new_FullType(*Branch.back()->ft);
+				Branch.back()->ft->type = BranchV->getType();
+			}
 		}
 		if (EndKind == tok_return) {
 			Builder->CreateRet(CheckTailCall(BranchV));
@@ -1731,7 +1735,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		PN->addIncoming(the_structB, caseB);
 		return { resultT, PN };
 	} else {
-		errs() << "merge not possible\n";
+		errs() << "merge not possible " << *typA << " # " << *typB << '\n';
 		return { nullptr, nullptr };
 	}
 }
@@ -1915,10 +1919,13 @@ llvm::Value* IfExprAST::codegen_raw() {
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
 	else {
-		llvm::PHINode* PN = Builder->CreatePHI(ft->type, 2, "iftmp");
-		PN->addIncoming(ThenV, ThenBB);
-		PN->addIncoming(ElseV, ElseBB);
-		return PN;
+		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? ElseSwitch : ThenBB, thenLast,
+		                          Else.back()->ft->type, ElseV, ElseBB, elseLast);
+		if (ft->type != merge.first) {
+			ft = new_FullType(*ft);
+			ft-> type = merge.first;
+		}
+		return merge.second;
 	}
 }
 
