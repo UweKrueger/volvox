@@ -191,10 +191,10 @@ fn merge_array_6(i int) real
 		[8][7][4+i]real{{{-18}}, 1: {2: {3: 7.25}}} .
 	return L[0][0][0] + L[1][2][3]
 
-fn test_merge_if_else_6() bool
+fn test_merge_if_else_7() bool
 	return merge_array_6(7) == 20
 
-fn test_merge_if_else_7() bool
+fn test_merge_if_else_8() bool
 	return merge_array_6(3) == -10.75
 
 fn merge_array_7(i int) real
@@ -204,10 +204,10 @@ fn merge_array_7(i int) real
 		L := [5]real{-17, 1: 7.25} .
 	return L[0] + L[1]
 
-fn test_merge_if_else_8() bool
+fn test_merge_if_else_9() bool
 	return merge_array_7(4) == 16
 
-fn test_merge_if_else_9() bool
+fn test_merge_if_else_10() bool
 	return merge_array_7(2) == -9.75
 
 fn merge_array_8(i int) real
@@ -217,10 +217,10 @@ fn merge_array_8(i int) real
 		[5]real{-17, 1: 7.25} .
 	return L[0] + L[1]
 
-fn test_merge_if_else_10() bool
+fn test_merge_if_else_11() bool
 	return merge_array_8(4) == 16
 
-fn test_merge_if_else_11() bool
+fn test_merge_if_else_12() bool
 	return merge_array_8(2) == -9.75
 
 # # This works in JIT but crashes the compiler
