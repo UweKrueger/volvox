@@ -78,6 +78,7 @@ enum TokenKind {
 	tok_leave = -59, // indicator that branch does not continue (i.e. last expr is return)
 	tok_until = -60,
 	// built-in type attributes
+	tok_global = -64,
 	tok_atomic = -65,
 	tok_shared = -66,
 	tok_iso = -67,
@@ -238,6 +239,7 @@ extern volvoxc::FullType* uintptr_type;
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
 extern bool is_pub;
+extern bool is_global;
 
 extern unsigned anon_struct_nr;
 extern llvm::SmallString<128> MangleBase(std::vector<const char*>& names);

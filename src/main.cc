@@ -18,6 +18,7 @@ int include_index = 0;
 int source_index = 0;
 int prompt_indent = 0;
 bool is_pub = false;
+bool is_global = false;
 
 DebugInfo KSDbgInfo;
 
@@ -411,12 +412,22 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	while (true) {
-		if (CurTok.kind == tok_pub) {
-			is_pub = true;
+		is_pub = false;
+		is_global = false;
+		for (;;) {
+			switch (CurTok.kind) {
+			case tok_pub:
+				is_pub = true;
+				break;
+			case tok_global:
+				is_global = true;
+				break;
+			default:
+				goto endqualifiers;
+			}
 			getNextToken();
 		}
-		else
-			is_pub = false;
+	endqualifiers:
 		switch (CurTok.kind) {
 		case tok_eof:
 			return;
