@@ -442,7 +442,7 @@ static void MainLoop() {
 				TestFunction = nullptr;
 			}
 			break;
-		case tok_extern:
+		case tok_cdecl:
 			HandleExtern();
 			break;
 		case tok_import:

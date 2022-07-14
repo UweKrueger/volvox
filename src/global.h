@@ -52,7 +52,7 @@ enum TokenKind {
 	tok_ellipsis = -25,
 	// commands
 	tok_fn = -30,
-	tok_extern = -31,
+	tok_cdecl = -31,
 	tok_type = -32,
 	tok_import = -33,
 	tok_from = -34,

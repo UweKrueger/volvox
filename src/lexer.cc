@@ -190,8 +190,8 @@ Token Lexer::gettok(eXpect expect) {
 			return Token(tok_fn);
 		if (IdentifierStr == "pub")
 			return Token(tok_pub);
-		if (IdentifierStr == "extern")
-			return Token(tok_extern);
+		if (IdentifierStr == "cdecl")
+			return Token(tok_cdecl);
 		if (IdentifierStr == "global")
 			return Token(tok_global);
 		if (IdentifierStr == "type")

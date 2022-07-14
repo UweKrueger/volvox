@@ -1,7 +1,7 @@
-extern sin(x f64) f64
-extern cos(x f64) f64
-extern tan(x f64) f64
-extern sqrt(x f64) f64
+cdecl sin(x f64) f64
+cdecl cos(x f64) f64
+cdecl tan(x f64) f64
+cdecl sqrt(x f64) f64
 type _ZN6volvox6RtTypeE packed {
 	key u32
 	attr u32
@@ -13,19 +13,19 @@ type ArrayNode {
 	data string
 	size u64
 }
-extern _ZN9ArrayNodeC1Eyy(a &ArrayNode, nelem u64, obj_size u64)
-extern _ZN9ArrayNodeD1Ev(a &ArrayNode)
-extern _ZN9ArrayNode8pushbackEPcy(a &ArrayNode, s string, obj_size u64)
-extern _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
-extern _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
-extern _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
-extern _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
-extern memcpy(dest string, src string, n u64) string
-extern new_global_var_shadow(adr string, sz u64) u64
-extern getTermSize(fd i32) i32
-extern showtestres(fd i32, width i32, testcase string, result bool)
-extern enableColorANSI(fd i32) bool
-extern __signal_out_of_range()
+cdecl _ZN9ArrayNodeC1Eyy(a &ArrayNode, nelem u64, obj_size u64)
+cdecl _ZN9ArrayNodeD1Ev(a &ArrayNode)
+cdecl _ZN9ArrayNode8pushbackEPcy(a &ArrayNode, s string, obj_size u64)
+cdecl _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
+cdecl _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
+cdecl _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
+cdecl _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
+cdecl memcpy(dest string, src string, n u64) string
+cdecl new_global_var_shadow(adr string, sz u64) u64
+cdecl getTermSize(fd i32) i32
+cdecl showtestres(fd i32, width i32, testcase string, result bool)
+cdecl enableColorANSI(fd i32) bool
+cdecl __signal_out_of_range()
 
 fn __check_array_index(index u64, length u64)
 	if index >= length

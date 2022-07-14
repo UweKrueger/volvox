@@ -8,8 +8,8 @@ std::string Token::tokName(int tok_kind) {
 		return "eof";
 	case tok_fn:
 		return "fn";
-	case tok_extern:
-		return "extern";
+	case tok_cdecl:
+		return "cdecl";
 	case tok_identifier:
 		return "identifier";
 	case tok_number:
