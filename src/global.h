@@ -451,7 +451,7 @@ protected:
 };
 
 extern TypeTable type_table;
-extern std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+extern std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
 
 class VarTable {
 public:

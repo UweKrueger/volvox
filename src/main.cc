@@ -51,7 +51,7 @@ volvoxc::FullType* uintptr_type;
 // static std::map<std::string, llvm::AllocaInst *> NamedValues;
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
-std::map<std::string, std::unique_ptr<PrototypeAST>> FunctionProtos;
+std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
@@ -191,7 +191,7 @@ static void HandleExtern() {
 				FnIR->print(errs());
 				errs() << "\n";
 			}
-			FunctionProtos[ProtoAST->getName()] = std::move(ProtoAST);
+			FunctionProtos[ProtoAST->getName()].push_back(std::move(ProtoAST));
 		} else {
 			errs() << "Error reading extern\n";
 		}
@@ -335,7 +335,7 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 	if (!have_return)
 		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 	auto ProtoRef = Proto.get();
-	FunctionProtos[Proto->getName()] = std::move(Proto);
+	FunctionProtos[Proto->getName()].push_back(std::move(Proto));
 	auto main_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
 	return main_function;
 }
@@ -357,18 +357,18 @@ void PrepareTestFramework() {
 void CallTestFunction() {
 	std::string showres = "showtestres";
 	auto show_res_fn = FunctionProtos.find(showres);
-	if (show_res_fn == FunctionProtos.end()) {
+	if (show_res_fn == FunctionProtos.end() || !show_res_fn->second.size()) {
 		errs() << "Cannot find function to display test results: '" << showres << "()'\n";
 		return;
 	}
 	auto F = FunctionProtos.find(TestFunction);
-	if (F != FunctionProtos.end()) {
+	if (F != FunctionProtos.end() && F->second.size()) {
 		GlobalExprList.push_back(
 			std::make_unique<BinaryExprAST>(
 				CurLoc, "=",
 				std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 				std::move(std::make_unique<CallExprAST>(
-					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F->second.get())))));
+					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F->second[0].get())))));
 		std::vector<std::unique_ptr<ExprAST>> Args;
 		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
@@ -376,7 +376,7 @@ void CallTestFunction() {
 		Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
 		GlobalExprList.push_back(
 			std::move(std::make_unique<CallExprAST>(
-				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn->second.get()),
+				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn->second[0].get()),
 				          std::move(Args))));
 		GlobalExprList.push_back(
 			std::make_unique<BinaryExprAST>(

@@ -59,19 +59,19 @@ static llvm::DIFile *Unit;
 
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
 	auto FI = FunctionProtos.find(Name);
-	if (FI == FunctionProtos.end())
+	if (FI == FunctionProtos.end() || !FI->second.size())
 		return { nullptr, nullptr };
 	// else
 	// 	for (auto FF = FI; FF != FunctionProtos.end(); ++FF)
 	// 		errs() << "Function " << FF->second->Name << '\n';
 	// See if the function has already been added to the current module.
 	if (auto F = TheModule->getFunction(Name)) {
-		return { F, FI->second.get() };
+		return { F, FI->second[0].get() };
 	}
 	
 	// codegen the declaration from the existing prototype.
-	auto F = FI->second->codegen();
-	return { F, FI->second.get() };
+	auto F = FI->second[0]->codegen();
+	return { F, FI->second[0].get() };
 }
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
@@ -938,7 +938,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				}
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 				last_shadow_saver = saverProto->Name.c_str();
-				FunctionProtos[saver] = std::move(saverProto);
+				FunctionProtos[saver].push_back(std::move(saverProto));
 
 				llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
 				BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
@@ -960,7 +960,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				}
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
-				FunctionProtos[restorer] = std::move(restorerProto);
+				FunctionProtos[restorer].push_back(std::move(restorerProto));
 			}
 		} else {
 			goto nonconst;
