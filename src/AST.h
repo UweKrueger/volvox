@@ -163,10 +163,10 @@ class FunctionExprAST : public ExprAST {
 
 public:
 	std::string Name;
-	FunctionExprAST(SourceLocation Loc, const std::string &Name, PrototypeAST* Proto)
+	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos)
 		: ExprAST(Loc), Name(Name) {
-		ft = new_FullType(Proto->FT, 0);
-		ft->proto = Proto;
+		ft = new_FullType((*Protos)[0]->FT, 0);
+		ft->Protos = Protos;
 	}
 	const std::string &getName() const { return Name; }
 	llvm::Value *codegen_raw() override;
@@ -457,7 +457,7 @@ public:
 
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
-		: ExprAST(Callee_->ft->proto->RetType, Loc), Callee(std::move(Callee_)), Args(std::move(Args)) {}
+		: ExprAST((*Callee_->ft->Protos)[0]->RetType, Loc), Callee(std::move(Callee_)), Args(std::move(Args)) {}
 	llvm::Value *codegen_raw() override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

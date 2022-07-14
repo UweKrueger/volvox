@@ -667,7 +667,7 @@ llvm::Value* FunctionExprAST::codegen_raw() {
 	if (auto F = TheModule->getFunction(Name)) {
 		return F;
 	}
-	return ft->proto->codegen();
+	return (*ft->Protos)[0]->codegen();
 }
 
 llvm::Value* InterfaceExprAST::codegen_raw() {
@@ -1511,7 +1511,7 @@ llvm::Value *CallExprAST::codegen_raw() {
 		KSDbgInfo.emitLocation(this);
 	}
 	// Look up the name in the global module table.
-	PrototypeAST* Proto = Callee->ft->proto;
+	PrototypeAST* Proto = (*Callee->ft->Protos)[0].get();
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// If argument mismatch error.
@@ -2064,6 +2064,7 @@ llvm::Function *FunctionAST::codegen() {
 	auto CalleeF = getFunction(P.getName());
 	llvm::Function* TheFunction = CalleeF.first;
 	if (!TheFunction) {
+		errs() << "Function not found in module\n";
 		for (auto& expr : Body)
 			llvm::Value *RetVal = expr->codegen();
 		return nullptr;

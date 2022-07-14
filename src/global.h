@@ -194,7 +194,8 @@ namespace volvoxc {
 		llvm::DIType* ditype;
 		union {
 			FullType* elem_type; // for array or tuples
-			PrototypeAST* proto; // for functions
+			//PrototypeAST* proto; // for functions
+			std::vector<std::unique_ptr<PrototypeAST>>* Protos; // for overloaded functions
 			MapNode* fields;     // for structs
 		};
 		void dump(int fd = 2);

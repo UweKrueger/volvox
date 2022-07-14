@@ -290,7 +290,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	// first try to find a function with this name
 	auto F = FunctionProtos.find(IdName);
 	if (F != FunctionProtos.end() && F->second.size()) {
-		return std::make_unique<FunctionExprAST>(LitLoc, IdName, F->second[0].get());
+		return std::make_unique<FunctionExprAST>(LitLoc, IdName, &F->second);
 	}
 	
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
@@ -1190,7 +1190,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			if (restorer_proto == FunctionProtos.end() || !restorer_proto->second.size()) {
 				errs() << "could not find restorer '" << last_shadow_restorer << "'\n";
 			} else {
-				auto restorer = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_restorer, restorer_proto->second[0].get());
+				auto restorer = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_restorer, &restorer_proto->second);
 				auto restorer_call = std::make_unique<CallExprAST>(FnLoc, std::move(restorer), std::move(std::vector<std::unique_ptr<ExprAST>>()));
 				ExprList.push_back(std::move(restorer_call));
 			}
@@ -1205,7 +1205,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				errs() << "Fatal error: could not find 'println' function\n";
 				return nullptr;
 			}
-			auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto->second[0].get());
+			auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, &println_proto->second);
 			std::vector<std::unique_ptr<ExprAST>> PrintArgs;
 			bool is_string = E->ft->type->isPointerTy();
 			if (is_string)
@@ -1230,7 +1230,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			if (saver_proto == FunctionProtos.end() || !saver_proto->second.size()) {
 				errs() << "could not find saver '" << last_shadow_saver << "\n";
 			} else {
-				auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, saver_proto->second[0].get());
+				auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, &saver_proto->second);
 				auto saver_call = std::make_unique<CallExprAST>(FnLoc, std::move(saver), std::move(std::vector<std::unique_ptr<ExprAST>>()));
 				ExprList.push_back(std::move(saver_call));
 				ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));

@@ -368,7 +368,7 @@ void CallTestFunction() {
 				CurLoc, "=",
 				std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 				std::move(std::make_unique<CallExprAST>(
-					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F->second[0].get())))));
+					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, &F->second)))));
 		std::vector<std::unique_ptr<ExprAST>> Args;
 		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
@@ -376,7 +376,7 @@ void CallTestFunction() {
 		Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
 		GlobalExprList.push_back(
 			std::move(std::make_unique<CallExprAST>(
-				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn->second[0].get()),
+				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, &show_res_fn->second),
 				          std::move(Args))));
 		GlobalExprList.push_back(
 			std::make_unique<BinaryExprAST>(
