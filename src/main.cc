@@ -184,20 +184,29 @@ cleanup:
 }
 
 static void HandleExtern() {
-	if (auto ProtoAST = ParseExtern()) {
-		if (auto *FnIR = ProtoAST->codegen()) {
-			if (dump_IR) {
-				errs() << "Read extern: ";
-				FnIR->print(errs());
-				errs() << "\n";
+	auto language = CurTok.kind; // tok_cdecl, tok_ccdecl, tok_fdecl...
+	getNextToken();
+	switch (CurTok.kind) {
+	case tok_fn:
+		if (auto ProtoAST = ParseExtern()) {
+			if (auto *FnIR = ProtoAST->codegen()) {
+				if (dump_IR) {
+					errs() << "Read extern: ";
+					FnIR->print(errs());
+					errs() << "\n";
+				}
+				FunctionProtos[ProtoAST->getName()].push_back(std::move(ProtoAST));
+			} else {
+				errs() << "Error reading extern\n";
 			}
-			FunctionProtos[ProtoAST->getName()].push_back(std::move(ProtoAST));
 		} else {
-			errs() << "Error reading extern\n";
+			// Skip token for error recovery.
+			purgeLine();
 		}
-	} else {
-		// Skip token for error recovery.
-		purgeLine();
+		break;
+	default:
+		errs() << "external variables not implemented, yet\n";
+		// external variable
 	}
 }
 
