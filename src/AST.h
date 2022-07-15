@@ -114,6 +114,14 @@ public:
 	int getLine() const { return Line; }
 };
 
+inline bool is_cfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
+	return Proto && (*Proto).size() == 1 && ((*Proto)[0]->getName().c_str()[0] != '_' || (*Proto)[0]->getName().c_str()[1] != 'Z');
+}
+
+inline bool is_ccfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
+	return Proto && (*Proto).size() >= 1 && (*Proto)[0]->getName().c_str()[0] == '_' && (*Proto)[0]->getName().c_str()[1] == 'Z';
+}
+
 // Expressions that can the the LHS of an assignmen: `a = 1`, `b[3] = 4.5`, `s.a = 9`
 class LvalueExprAST : public ExprAST {
 
