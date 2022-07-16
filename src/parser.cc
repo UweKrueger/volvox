@@ -100,7 +100,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 			case tok_shared:
 				attribs |= A_shared;
 				break;
-			case tok_iso:
+			case tok_unique:
 				attribs |= A_iso;
 				break;
 			case tok_const:

@@ -32,8 +32,8 @@ std::string Token::tokName(int tok_kind) {
 		return "atomic";
 	case tok_shared:
 		return "shared";
-	case tok_iso:
-		return "iso";
+	case tok_unique:
+		return "unique";
 	case tok_const:
 		return "const";
 	case tok_self:

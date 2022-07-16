@@ -53,8 +53,8 @@ enum TokenKind {
 	// commands
 	tok_cfn = -28,
 	tok_fn = -29,
-	tok_decl = 30,
-	tok_cdecl = -31,
+	tok_cdecl = -30,
+	tok_decl = 31,
 	tok_type = -32,
 	tok_import = -33,
 	tok_from = -34,
@@ -81,17 +81,23 @@ enum TokenKind {
 	tok_until = -60,
 	// built-in type attributes
 	tok_global = -64,
-	tok_atomic = -65,
-	tok_shared = -66,
-	tok_iso = -67,
-	tok_const = -68,
-	tok_packed = -69,
+	tok_cglobal = -65,
+	tok_atomic = -66,
+	tok_catomic = -67,
+	tok_shared = -68,
+	tok_cshared = -69,
+	tok_unique = -70,
+	tok_cunique = -71,
+	tok_const = -72,
+	tok_cconst = -73,
+
+	tok_packed = -80,
 
 	// special (incomplete) types
-	tok_self = -70,
-	tok_map = -71,
-	tok_set = -72,
-	tok_chan = -73
+	tok_self = -90,
+	tok_map = -91,
+	tok_set = -92,
+	tok_chan = -93
 };
 
 #define SHARE_KIND_MASK 7
@@ -102,6 +108,7 @@ enum SymbolKind : unsigned {
 	is_atomic = 2, // up to 64 bit SingleValue variables
 	is_shared = 3, // mutex + pointer to heap allocated data
 	is_unique = 4, // unique pointer to heap allocated data
+	is_const = 5, // data segment, heap (if variable size), CT const
 	is_pub = 1 << 3,
 	is_fn = 1 << 4,
 	is_decl = 1 << 5,
