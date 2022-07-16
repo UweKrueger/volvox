@@ -34,6 +34,8 @@ enum TokenKind : int { last_tok = 2 + TOKBEGIN - TOKEND
                  TOKENS
 };
 
+extern const char* tokens[];
+
 #define SHARE_KIND_MASK 7
 
 enum SymbolKind : unsigned {
@@ -639,45 +641,7 @@ public:
 		gen_type = { .ID = VOLVOX_DoubleTyID };
 		is_unknown_type = true;
 	}
-	static std::string tokName(int kind);
-	std::string tokName() const { return tokName(kind); }
-	std::string str() const {
-		switch (kind) {
-		case tok_identifier:
-		case tok_assign:
-		case tok_cmp:
-		case tok_add:
-		case tok_mult:
-		case tok_unary:
-		case tok_postfix:
-			return IdentifierStr;
-		case tok_number:
-			switch (int_type.ID) {
-			case llvm::Type::IntegerTyID:
-				if (int_type.BitWidth == 1)
-					if (Val.Uint & 1UL)
-						return "true";
-					else
-						return "false";
-				else if (int_type.is_signed)
-					return std::to_string(Val.Int);
-				else
-					return std::to_string(Val.Uint);
-			case llvm::Type::HalfTyID:
-			case llvm::Type::BFloatTyID:
-			case llvm::Type::FloatTyID:
-			case llvm::Type::DoubleTyID:
-				return std::to_string(Val.Float);
-			default:
-				errs() << "internal compiler error: cannot print numeric literal of TypeID " << int_type.ID << "\n";
-				return "";
-			}
-		case tok_str_lit:
-			return Val.Str;
-		default:
-			return this->tokName();
-		}
-	}
+	std::string str() const;
 };
 
 extern Token CurTok;

@@ -2,44 +2,49 @@
 #include "global.h"
 #include "AST.h"
 
-std::string Token::tokName(int tok_kind) {
-	switch (tok_kind) {
-	case tok_eof:
-		return "eof";
-	case tok_fn:
-		return "fn";
-	case tok_cdecl:
-		return "cdecl";
-	case tok_identifier:
-		return "identifier";
-	case tok_number:
-		return "number";
-	case tok_if:
-		return "if";
-	case tok_then:
-		return "then";
-	case tok_else:
-		return "else";
-	case tok_for:
-		return "for";
-	case tok_end:
-		return "end";
-	case tok_in:
-		return "in";
-	case tok_unary:
-		return "unary";
-	case tok_atomic:
-		return "atomic";
-	case tok_shared:
-		return "shared";
-	case tok_unique:
-		return "unique";
-	case tok_const:
-		return "const";
-	case tok_self:
-		return "self";
+#undef TOKEN
+#undef TOKENS
+#undef TOKBEGIN
+#undef TOKEND
+#define TOKEN(x) #x,
+#define TOKBEGIN tokstr_beg
+#define TOKEND tokstr_end
+#include "tokens.def"
+
+const char* tokens[] = {
+	TOKENS
+};
+
+std::string Token::str() const {
+	if (kind == tok_number) {
+		switch (int_type.ID) {
+		case llvm::Type::IntegerTyID:
+			if (int_type.BitWidth == 1)
+				if (Val.Uint & 1UL)
+					return "true";
+				else
+					return "false";
+			else if (int_type.is_signed)
+				return std::to_string(Val.Int);
+			else
+				return std::to_string(Val.Uint);
+		case llvm::Type::HalfTyID:
+		case llvm::Type::BFloatTyID:
+		case llvm::Type::FloatTyID:
+		case llvm::Type::DoubleTyID:
+			return std::to_string(Val.Float);
+		default:
+			errs() << "internal compiler error: cannot print numeric literal of TypeID " << int_type.ID << "\n";
+			return "";
+		}
 	}
-	return std::string(1, (char)tok_kind);
+	if (kind == tok_str_lit)
+		return Val.Str;
+	if (kind < tok_last_op)
+		return tokens[-kind];
+	if (kind > 0)
+		IdentifierStr = (char)kind;
+	return IdentifierStr;
 }
 
 Token::Token(char** s_ptr) : kind(tok_number) {
