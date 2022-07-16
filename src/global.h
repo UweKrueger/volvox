@@ -26,78 +26,12 @@ class BinaryExprAST;
 
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things.
-enum TokenKind {
-
-	// operators - ordered by priority
-	tok_assign = -1, // = (possibly multiple assignees, result(s): old value(s), right binding)
-	tok_comma = -2,
-	tok_colon = -3,
-	tok_range = -4, // ..
-	tok_arrow = -5, // <-
-	tok_or = -6, // |, >< (between bool or int, result: bool or int)
-	tok_and = -7, // & (between bool or int, result: bool or int)
-	// the following operators can be redfined for user types
-	tok_cmp = -8, // >=, >, ==, !=, <, <=, <=>
-	tok_add = -9, // +, -, ~
-	tok_mult = -10, // *, /, %, <<, >>
-	tok_ = -11, // invisible operator in `sin x` or `2a` or `sin 2x` = `sin(2x)` - right binding
-	tok_unary = -12, // +, -, !, ~, &, <-
-	tok_pow = -13, // **
-	tok_postfix = -14, // ++, -- (return old result)
-	tok_selector = -15, // . (struct.field, module.ident), invisible operator in `sin(x)` - so `sin(x)a` = `(sin(x))a
-	tok_last_op = -16, // only used for comparisons to identify operators
-
-	tok_eof = -20,
-
-	tok_ellipsis = -25,
-	// commands
-	tok_cfn = -28,
-	tok_fn = -29,
-	tok_cdecl = -30,
-	tok_decl = 31,
-	tok_type = -32,
-	tok_import = -33,
-	tok_from = -34,
-	tok_as = -35,
-	tok_pub = -36,
-
-	// primary
-	tok_identifier = -40,
-	tok_number = -41,
-	tok_str_lit = -42,
-	tok_ptr_lit = -43,
-
-	// control
-	tok_if = -50,
-	tok_then = -51,
-	tok_else = -52,
-	tok_for = -53,
-	tok_in = -54,
-	tok_while = -55,
-	tok_repeat = -56,
-	tok_return = -57,
-	tok_end = -58, // '.' at end of if/while/else branch
-	tok_leave = -59, // indicator that branch does not continue (i.e. last expr is return)
-	tok_until = -60,
-	// built-in type attributes
-	tok_global = -64,
-	tok_cglobal = -65,
-	tok_atomic = -66,
-	tok_catomic = -67,
-	tok_shared = -68,
-	tok_cshared = -69,
-	tok_unique = -70,
-	tok_cunique = -71,
-	tok_const = -72,
-	tok_cconst = -73,
-
-	tok_packed = -80,
-
-	// special (incomplete) types
-	tok_self = -90,
-	tok_map = -91,
-	tok_set = -92,
-	tok_chan = -93
+#define TOKEN(x) , tok_##x
+#define TOKBEGIN token_beg
+#define TOKEND token_end
+#include "tokens.def"
+enum TokenKind : int { last_tok = 2 + TOKBEGIN - TOKEND
+                 TOKENS
 };
 
 #define SHARE_KIND_MASK 7

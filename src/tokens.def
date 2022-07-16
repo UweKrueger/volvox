@@ -1,0 +1,61 @@
+constexpr int TOKBEGIN = __LINE__;
+#define TOKENS \
+TOKEN(chan) \
+TOKEN(set) \
+TOKEN(map) \
+TOKEN(self) \
+TOKEN(packed) \
+TOKEN(cconst) \
+TOKEN(const) \
+TOKEN(cunique) \
+TOKEN(unique) \
+TOKEN(cshared) \
+TOKEN(shared) \
+TOKEN(catomic) \
+TOKEN(atomic) \
+TOKEN(cglobal) \
+TOKEN(global) \
+TOKEN(until) \
+TOKEN(leave) \
+TOKEN(end) /* '.' at end of if/while/else branch */ \
+TOKEN(return) \
+TOKEN(repeat) \
+TOKEN(while) \
+TOKEN(in) \
+TOKEN(for) \
+TOKEN(else) \
+TOKEN(then) \
+TOKEN(if) \
+TOKEN(pub) \
+TOKEN(as) \
+TOKEN(from) \
+TOKEN(import) \
+TOKEN(type) \
+TOKEN(decl) \
+TOKEN(cdecl) \
+TOKEN(fn) \
+TOKEN(cfn) \
+TOKEN(ptr_lit) \
+TOKEN(str_lit) \
+TOKEN(number) \
+TOKEN(identifier) \
+TOKEN(ellipsis) \
+TOKEN(eof) \
+TOKEN(last_op) /* only used for comparisons to identify operators */ \
+TOKEN(selector) /* '.' (struct.field, module.ident), invisible operator in `sin(x)` - so `sin(x)a` = `(sin(x))a */ \
+TOKEN(postfix) /* ++, -- (return old result) - these and the following operators can be redefined for user types */ \
+TOKEN(pow) /* ** */ \
+TOKEN(unary) /* +, -, !, ~, &, <- */ \
+TOKEN() /* invisible operator in `sin x` or `2a` or `sin 2x` = `sin(2x)` - right binding */ \
+TOKEN(mult) /* *, /, %, <<, >> */ \
+TOKEN(add) /* +, -, ~ */ \
+TOKEN(cmp) /* >=, >, ==, !=, <, <=, <=> */ \
+TOKEN(and) /* & (between bool or int, result: bool or int) */ \
+TOKEN(or) /* |, >< (between bool or int, result: bool or int) */ \
+TOKEN(arrow) /* <- */ \
+TOKEN(range) /* .. */ \
+TOKEN(colon) \
+TOKEN(comma) \
+TOKEN(assign) /* = (possibly multiple assignees, result(s): old value(s), right binding) */ \
+TOKEN(none)
+constexpr int TOKEND = __LINE__;
