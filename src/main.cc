@@ -17,8 +17,7 @@ const std::string collector_name = "__test_results_collect";
 int include_index = 0;
 int source_index = 0;
 int prompt_indent = 0;
-bool is_pub = false;
-bool is_global = false;
+unsigned sym_kind = 0;
 
 DebugInfo KSDbgInfo;
 
@@ -421,15 +420,14 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	while (true) {
-		is_pub = false;
-		is_global = false;
+		sym_kind = SymbolKind(0);
 		for (;;) {
 			switch (CurTok.kind) {
 			case tok_pub:
-				is_pub = true;
+				sym_kind |= is_pub;
 				break;
 			case tok_global:
-				is_global = true;
+				sym_kind |= is_global;
 				break;
 			default:
 				goto endqualifiers;

@@ -51,7 +51,9 @@ enum TokenKind {
 
 	tok_ellipsis = -25,
 	// commands
-	tok_fn = -30,
+	tok_cfn = -28,
+	tok_fn = -29,
+	tok_decl = 30,
 	tok_cdecl = -31,
 	tok_type = -32,
 	tok_import = -33,
@@ -90,6 +92,20 @@ enum TokenKind {
 	tok_map = -71,
 	tok_set = -72,
 	tok_chan = -73
+};
+
+#define SHARE_KIND_MASK 7
+
+enum SymbolKind : unsigned {
+	is_private = 0, // variable that is only visible in main
+	is_global = 1, // TLS variable, visible in all functions of module
+	is_atomic = 2, // up to 64 bit SingleValue variables
+	is_shared = 3, // mutex + pointer to heap allocated data
+	is_unique = 4, // unique pointer to heap allocated data
+	is_pub = 1 << 3,
+	is_fn = 1 << 4,
+	is_decl = 1 << 5,
+	is_c_api = 1 << 6
 };
 
 // Colors - we map those from llvm::raw_ostream but add boldness where needed
@@ -239,8 +255,7 @@ extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* uintptr_type;
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
-extern bool is_pub;
-extern bool is_global;
+extern unsigned sym_kind;
 
 extern unsigned anon_struct_nr;
 extern llvm::SmallString<128> MangleBase(std::vector<const char*>& names);
