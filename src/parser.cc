@@ -106,6 +106,8 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 			case tok_const:
 				attribs |= A_const;
 				break;
+			default:
+				;
 			}
 		} else {
 			if (CurTok.kind == tok_packed)
@@ -118,7 +120,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		}
 		if (attribs)
 			getNextToken();
-		switch (CurTok.kind) {
+		switch ((int)CurTok.kind) {
 		case '[': {
 			do {
 				getNextToken();
@@ -784,7 +786,7 @@ static std::unique_ptr<ExprAST> ParseForExpr() {
 ///   ::= forexpr
 ///   ::= varexpr
 static std::unique_ptr<ExprAST> ParsePrimary() {
-	switch (CurTok.kind) {
+	switch ((int)CurTok.kind) {
 	case tok_eof:
 		errs() << "EOF when expecting an expression\n";
 		exit(1);
@@ -972,7 +974,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 	bool is_method;
 	bool isVarArgs = false;
 
-	switch (CurTok.kind) {
+	switch ((int)CurTok.kind) {
 	case '(': {
 		is_method = true;
 		unsigned attribs = 0;

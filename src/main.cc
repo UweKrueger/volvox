@@ -424,15 +424,43 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
-	while (true) {
+	for (;;) {
+	startmainloop:
 		sym_kind = SymbolKind(0);
+		auto share_tok = TokenKind(0);
 		for (;;) {
+			unsigned sharebits = 0;
 			switch (CurTok.kind) {
+			case tok_cpub:
+				sym_kind |= is_c_api;
 			case tok_pub:
+				if (sym_kind & is_pub) {
+					errs() << CurLoc << ": at most one of qualifiers " << tok_pub << " or "
+					       << tok_cpub << " may be given\n";
+					purgeLine();
+					goto startmainloop;
+				}
 				sym_kind |= is_pub;
 				break;
 			case tok_global:
-				sym_kind |= is_global;
+				sharebits = is_global;
+			case tok_atomic:
+				sharebits = sharebits ? sharebits : is_atomic;
+			case tok_shared:
+				sharebits = sharebits ? sharebits : is_shared;
+			case tok_unique:
+				sharebits = sharebits ? sharebits : is_unique;
+			case tok_const:
+				sharebits = sharebits ? sharebits : is_const;
+				if (sym_kind & SHARE_KIND_MASK) {
+					errs() << CurLoc << ": at most one of qualifiers " << tok_global << ", "
+					       << tok_atomic << ", " << tok_shared << ", " << tok_unique << " or "
+					       << tok_const << " may be given\n";
+					purgeLine();
+					goto startmainloop;
+				}
+				sym_kind |= sharebits;
+				share_tok = TokenKind(CurTok.kind);
 				break;
 			default:
 				goto endqualifiers;
@@ -440,13 +468,18 @@ static void MainLoop() {
 			getNextToken();
 		}
 	endqualifiers:
-		switch (CurTok.kind) {
+		switch ((int)CurTok.kind) {
 		case tok_eof:
 			return;
 		case ';': // ignore top-level semicolons.
 			getNextToken();
 			break;
 		case tok_fn:
+			if (share_tok) {
+				errs() << CurLoc << "functions cannot be declared as " << share_tok << '\n';
+				purgeLine();
+				goto startmainloop;
+			}
 			HandleDefinition();
 			if (TestFunction) {
 				if (do_test)

@@ -31,8 +31,8 @@ TOKEN(import) \
 TOKEN(type) \
 TOKEN(decl) \
 TOKEN(cdecl) \
+TOKEN(inline) \
 TOKEN(fn) \
-TOKEN(cfn) \
 TOKEN(false) /* built-in values - not exactly keywords */ \
 TOKEN(true) \
 TOKEN(nil) \

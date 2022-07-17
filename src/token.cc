@@ -188,6 +188,6 @@ Token::Token(int _kind) {
 			};
 		}
 	} else {
-		kind = _kind;
+		kind = TokenKind(_kind);
 	}
 }

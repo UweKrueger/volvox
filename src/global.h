@@ -613,7 +613,7 @@ union LitValue {
 
 class Token {
 public:
-	int kind;
+	TokenKind kind; // often treated as int as positive values represent ASCII chars
 	union {
 		int_val_type_t int_type;
 		VOLVOX_gen_val_type_t gen_type;
