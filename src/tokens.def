@@ -48,7 +48,7 @@ TOKEN(selector) /* '.' (struct.field, module.ident), invisible operator in `sin(
 TOKEN(postfix) /* ++, -- (return old result) - these and the following operators can be redefined for user types */ \
 TOKEN(pow) /* ** */ \
 TOKEN(unary) /* +, -, !, ~, &, <- */ \
-TOKEN() /* invisible operator in `sin x` or `2a` or `sin 2x` = `sin(2x)` - right binding */ \
+TOKEN_INV /* invisible operator in `sin x` or `2a` or `sin 2x` = `sin(2x)` - right binding */ \
 TOKEN(mult) /* *, /, %, <<, >> */ \
 TOKEN(add) /* +, -, ~ */ \
 TOKEN(cmp) /* >=, >, ==, !=, <, <=, <=> */ \

@@ -3,10 +3,12 @@
 #include "AST.h"
 
 #undef TOKEN
+#undef TOKEN_INV
 #undef TOKENS
 #undef TOKBEGIN
 #undef TOKEND
-#define TOKEN(a) #a "",
+#define TOKEN(a) #a,
+#define TOKEN_INV "<invisible>",
 #define TOKBEGIN tokstr_beg
 #define TOKEND tokstr_end
 #include "tokens.def"
