@@ -178,64 +178,12 @@ Token Lexer::gettok(eXpect expect) {
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
-		if (IdentifierStr == "import")
-			return Token(tok_import);
-		if (expect == ePath) {
-			if (IdentifierStr == "as")
-				return Token(tok_as);
-			else
-				return Token(tok_identifier);
-		}
-		if (IdentifierStr == "fn")
-			return Token(tok_fn);
-		if (IdentifierStr == "pub")
-			return Token(tok_pub);
-		if (IdentifierStr == "decl")
-			return Token(tok_decl);
-		if (IdentifierStr == "cdecl")
-			return Token(tok_cdecl);
-		if (IdentifierStr == "global")
-			return Token(tok_global);
-		if (IdentifierStr == "atomic")
-			return Token(tok_atomic);
-		if (IdentifierStr == "shared")
-			return Token(tok_shared);
-		if (IdentifierStr == "unique")
-			return Token(tok_unique);
-		if (IdentifierStr == "type")
-			return Token(tok_type);
-		if (IdentifierStr == "if")
-			return Token(tok_if);
-		if (IdentifierStr == "then")
-			return Token(tok_then);
-		if (IdentifierStr == "else")
-			return Token(tok_else);
-		if (IdentifierStr == "for")
-			return Token(tok_for);
-		if (IdentifierStr == "in")
-			return Token(tok_in);
-		if (IdentifierStr == "while")
-			return Token(tok_while);
-		if (IdentifierStr == "repeat")
-			return Token(tok_repeat);
-		if (IdentifierStr == "until")
-			return Token(tok_until);
-		if (IdentifierStr == "return")
-			return Token(tok_return);
+		if (auto tok_val = map_string_get(keyword_toks, IdentifierStr.c_str()))
+			return Token(tok_val->i32);
 		if (IdentifierStr == "true")
 			return Token(true);
 		if (IdentifierStr == "false")
 			return Token(false);
-		if (IdentifierStr == "packed")
-			return Token(tok_packed);
-		if (IdentifierStr == "self")
-			return Token(tok_self);
-		if (IdentifierStr == "map")
-			return Token(tok_map);
-		if (IdentifierStr == "set")
-			return Token(tok_set);
-		if (IdentifierStr == "chan")
-			return Token(tok_chan);
 		if (IdentifierStr == "nullptr")
 			return Token((void*)0);
 		if (expect == eBinOp) {
