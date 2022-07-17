@@ -644,6 +644,9 @@ public:
 	std::string str() const;
 };
 
+llvm::raw_ostream& operator<<(llvm::raw_ostream& out, TokenKind kind);
+llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok);
+
 extern Token CurTok;
 extern Token getNextToken(eXpect expect = eNone);
 extern Token purgeLine();

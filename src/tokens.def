@@ -35,6 +35,7 @@ TOKEN(decl) \
 TOKEN(cdecl) \
 TOKEN(fn) \
 TOKEN(cfn) \
+TOKEN(last_keyword) \
 TOKEN(ptr_lit) \
 TOKEN(str_lit) \
 TOKEN(number) \

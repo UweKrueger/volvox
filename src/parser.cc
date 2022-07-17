@@ -38,7 +38,7 @@ static bool Expect(int tok, eXpect expect = eNone) {
 	if (res) {
 		getNextToken(expect);
 	} else {
-		errs() << CurLoc << ": unexpected '" << CurTok.str() << "' - expected '" << Token(tok).str() << "'\n";
+		errs() << CurLoc << ": unexpected " << CurTok << " - expected " << TokenKind(tok) << '\n';
 	}
 	return res;
 }
@@ -211,7 +211,9 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 				}
 				FieldTypes.push_back(type);
 				LLVMFieldTypes.push_back(type->type);
-				Eat(',');
+				if (CurTok.kind != '}')
+					if (!Expect(','))
+						return nullptr;
 				if (CurTok.kind == '}')
 					break;
 			}
