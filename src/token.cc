@@ -6,7 +6,7 @@
 #undef TOKENS
 #undef TOKBEGIN
 #undef TOKEND
-#define TOKEN(x) #x,
+#define TOKEN(a) #a "",
 #define TOKBEGIN tokstr_beg
 #define TOKEND tokstr_end
 #include "tokens.def"
