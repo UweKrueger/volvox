@@ -196,20 +196,12 @@ Token Lexer::gettok(eXpect expect) {
 			return Token(tok_cdecl);
 		if (IdentifierStr == "global")
 			return Token(tok_global);
-		if (IdentifierStr == "cglobal")
-			return Token(tok_cglobal);
 		if (IdentifierStr == "atomic")
 			return Token(tok_atomic);
-		if (IdentifierStr == "catomic")
-			return Token(tok_catomic);
 		if (IdentifierStr == "shared")
 			return Token(tok_shared);
-		if (IdentifierStr == "cshared")
-			return Token(tok_cshared);
 		if (IdentifierStr == "unique")
 			return Token(tok_unique);
-		if (IdentifierStr == "cunique")
-			return Token(tok_cunique);
 		if (IdentifierStr == "type")
 			return Token(tok_type);
 		if (IdentifierStr == "if")

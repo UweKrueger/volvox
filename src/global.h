@@ -411,6 +411,9 @@ protected:
 
 extern TypeTable type_table;
 extern std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
+extern MapNode* keyword_toks;
+
+extern void init_token_map();
 
 class VarTable {
 public:

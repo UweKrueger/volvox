@@ -66,6 +66,7 @@ std::vector<VarTable> locals_table; // including function arguments
 unsigned stringkey;
 
 void init() {
+	//init_token_map();
 	// only for internal use:
 	type_table.add("i*", llvm::Type::getInt64Ty(Context), nullptr, A_signed);
 	type_table.add("f*", llvm::Type::getDoubleTy(Context), nullptr);
@@ -418,53 +419,6 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		GlobalExprList.push_back(
 			std::move(if_e));
 		return CreateMain("main", true, "i32");
-	}
-}
-
-const char* getSymbolKindStr(unsigned kind) {
-	unsigned share_kind = kind & SHARE_KIND_MASK;
-	bool is_c = (bool)(kind & is_c_api);
-	switch (share_kind) {
-	case is_global:
-		if (is_c)
-			return "cglobal";
-		else
-			return "global";
-	case is_atomic:
-		if (is_c)
-			return "catomic";
-		else
-			return "atomic";
-	case is_shared:
-		if (is_c)
-			return "cshared";
-		else
-			return "shared";
-	case is_unique:
-		if (is_c)
-			return "cunique";
-		else
-			return "unique";
-	case is_const:
-		if (is_c)
-			return "cconst";
-		else
-			return "const";
-	default:
-		if (kind & is_pub)
-			return "pub";
-		else if (kind & is_fn)
-			if (kind & is_c_api)
-				return "cfn";
-			else
-				return "fn";
-		else if (kind & is_decl)
-			if (kind & is_c_api)
-				return "cdecl";
-			else
-				return "decl";
-		else
-			return "";
 	}
 }
 

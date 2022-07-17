@@ -15,6 +15,19 @@ const char* tokens[] = {
 	TOKENS
 };
 
+MapNode* keyword_toks = map_string_new_map();
+
+void init_token_map() {
+	for (int i = tok_1st_keyword + 1; i < tok_last_keyword; i++) {
+		MapValue val = { .i32 = i };
+		MapNode* res = map_string_insert(&keyword_toks, tokens[tok_1st_keyword - i], val, sizeof(int), false);
+		if (!res) {
+			errs() << "internal error: map entry for keyword \"" << tokens[tok_last_keyword - i] << " already exists\n";
+			abort();
+		}
+	}
+}
+
 std::string Token::str() const {
 	if (kind == tok_number) {
 		switch (int_type.ID) {
@@ -41,7 +54,7 @@ std::string Token::str() const {
 	if (kind == tok_str_lit)
 		return Val.Str;
 	if (kind < tok_last_op)
-		return tokens[-kind];
+		return tokens[kind - tok_1st_keyword];
 	if (kind > 0)
 		IdentifierStr = (char)kind;
 	return IdentifierStr;
@@ -51,8 +64,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, TokenKind kind) {
 	if (kind > 0)
 		return out << '\'' << (char)kind << '\'';
 	if (kind < tok_last_keyword)
-		return out << '"' << tokens[-kind] << '"';
-	return out << '<' << tokens[-kind] << '>';
+		return out << '"' << tokens[kind - tok_1st_keyword] << '"';
+	return out << '<' << tokens[kind - tok_1st_keyword] << '>';
 }
 
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok) {

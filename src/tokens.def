@@ -1,19 +1,15 @@
 constexpr int TOKBEGIN = __LINE__;
 #define TOKENS \
+TOKEN(1st_keyword) \
 TOKEN(chan) \
 TOKEN(set) \
 TOKEN(map) \
 TOKEN(self) \
 TOKEN(packed) \
-TOKEN(cconst) \
 TOKEN(const) \
-TOKEN(cunique) \
 TOKEN(unique) \
-TOKEN(cshared) \
 TOKEN(shared) \
-TOKEN(catomic) \
 TOKEN(atomic) \
-TOKEN(cglobal) \
 TOKEN(global) \
 TOKEN(until) \
 TOKEN(leave) \
@@ -27,6 +23,7 @@ TOKEN(else) \
 TOKEN(then) \
 TOKEN(if) \
 TOKEN(pub) \
+TOKEN(cpub) \
 TOKEN(as) \
 TOKEN(from) \
 TOKEN(import) \
