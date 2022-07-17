@@ -219,6 +219,10 @@ static void HandleTypeDef() {
 	auto type_name = IdentifierStr;
 	getNextToken(eType);
 	auto ft = ParseType(false, eComma, type_name.c_str());
+	if (!ft) {
+		purgeLine();
+		return;
+	}
 	type_table.add(type_name.c_str(), ft);
 }
 
