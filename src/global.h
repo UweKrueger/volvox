@@ -37,19 +37,19 @@ enum TokenKind : int { tok_1st_keyword = 2 + TOKBEGIN - TOKEND
 
 extern const char* tokens[];
 
-#define SHARE_KIND_MASK 7
+#define SHARE_KIND_MASK (7 << 1)
 
 enum SymbolKind : unsigned {
-	is_private = 0, // variable that is only visible in main
-	is_global = 1, // TLS variable, visible in all functions of module
-	is_atomic = 2, // up to 64 bit SingleValue variables
-	is_shared = 3, // mutex + pointer to heap allocated data
-	is_unique = 4, // unique pointer to heap allocated data
-	is_const = 5, // data segment, heap (if variable size), CT const
-	is_pub = 1 << 3,
-	is_fn = 1 << 4,
-	is_decl = 1 << 5,
-	is_c_api = 1 << 6
+	is_private = (0 << 1), // variable that is only visible in main
+	is_global = (1 << 1), // TLS variable, visible in all functions of module
+	is_atomic = (2 << 1), // up to 64 bit SingleValue variables
+	is_shared = (3 << 1), // mutex + pointer to heap allocated data
+	is_unique = (4 << 1), // unique pointer to heap allocated data
+	is_const = (5 << 1), // data segment, heap (if variable size), CT const
+	is_pub = 1 << 4,
+	is_fn = 1 << 5,
+	is_decl = 1 << 6,
+	is_c_api = 1 << 7
 };
 
 // Colors - we map those from llvm::raw_ostream but add boldness where needed
@@ -150,6 +150,7 @@ namespace volvoxc {
 	struct FullType {
 		llvm::Type* type; // used by compiler
 		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
+		SymbolKind kind;
 		const char* type_name; // maybe NULL for anonymous types
 		llvm::DIType* ditype;
 		union {
