@@ -622,7 +622,7 @@ public:
 	union LitValue Val;
 	bool is_unknown_type = false;
 
-	Token(int kind = 0) : kind(kind) {}
+	Token(int _kind = 0);
 	Token(char** s_ptr);
 	Token(void* ptr);
 	Token(const std::string& str);

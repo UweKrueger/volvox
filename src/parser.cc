@@ -1035,7 +1035,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype() {
 		}
 		break;
 	default:
-		errs() << "Expected function name in prototype\n";
+		errs() << CurLoc << ": expected function name in prototype - got " << CurTok << "\n";
 		return nullptr;
 	}
 	if (!Expect('(')) return nullptr;

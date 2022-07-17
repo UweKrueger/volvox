@@ -180,12 +180,6 @@ Token Lexer::gettok(eXpect expect) {
 			IdentifierStr += CurChar;
 		if (auto tok_val = map_string_get(keyword_toks, IdentifierStr.c_str()))
 			return Token(tok_val->i32);
-		if (IdentifierStr == "true")
-			return Token(true);
-		if (IdentifierStr == "false")
-			return Token(false);
-		if (IdentifierStr == "nullptr")
-			return Token((void*)0);
 		if (expect == eBinOp) {
 			KeepIdentifierStr = IdentifierStr;
 			IdentifierStr = "";

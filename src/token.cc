@@ -164,5 +164,30 @@ Token::Token(const std::string& str) : kind(tok_str_lit) {
 Token::Token(void* ptr) : kind(tok_ptr_lit) {
 	Val.Ptr = ptr;
 	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
-	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
+	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(),
+	             .SubclassData = ((genType*)llvmtype)->SubClassData()
+	};
+}
+
+Token::Token(int _kind) {
+	// handle built-in values
+	if (_kind >= tok_false && _kind <= tok_nil) {
+		switch (_kind) {
+		case tok_false:
+		case tok_true:
+			kind = tok_number;
+			Val.Uint = (_kind == tok_true) ? 1UL : 0UL;
+			int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 1, .is_signed = false };
+			break;
+		default:
+			kind = tok_ptr_lit;
+			Val.Ptr = (void*)0;
+			auto llvmtype = llvm::Type::getInt8PtrTy(Context);
+			gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(),
+			             .SubclassData = ((genType*)llvmtype)->SubClassData()
+			};
+		}
+	} else {
+		kind = _kind;
+	}
 }

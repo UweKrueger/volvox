@@ -1,3 +1,4 @@
+// do not insert empty or comment lines below
 constexpr int TOKBEGIN = __LINE__;
 #define TOKENS \
 TOKEN(1st_keyword) \
@@ -32,6 +33,9 @@ TOKEN(decl) \
 TOKEN(cdecl) \
 TOKEN(fn) \
 TOKEN(cfn) \
+TOKEN(false) /* built-in values - not exactly keywords */ \
+TOKEN(true) \
+TOKEN(nil) \
 TOKEN(last_keyword) \
 TOKEN(ptr_lit) \
 TOKEN(str_lit) \
