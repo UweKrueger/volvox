@@ -15,14 +15,14 @@ const char* tokens[] = {
 	TOKENS
 };
 
-MapNode* keyword_toks = map_string_new_map();
+MapNode* keyword_toks = nullptr;
 
 void init_token_map() {
 	for (int i = tok_1st_keyword + 1; i < tok_last_keyword; i++) {
 		MapValue val = { .i32 = i };
-		MapNode* res = map_string_insert(&keyword_toks, tokens[tok_1st_keyword - i], val, sizeof(int), false);
+		MapNode* res = map_string_insert(&keyword_toks, tokens[i - tok_1st_keyword], val, 0, false);
 		if (!res) {
-			errs() << "internal error: map entry for keyword \"" << tokens[tok_last_keyword - i] << " already exists\n";
+			errs() << "internal error: map entry for keyword \"" << tokens[i - tok_last_keyword] << " already exists\n";
 			abort();
 		}
 	}

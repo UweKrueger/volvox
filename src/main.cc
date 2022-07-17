@@ -66,7 +66,7 @@ std::vector<VarTable> locals_table; // including function arguments
 unsigned stringkey;
 
 void init() {
-	//init_token_map();
+	init_token_map();
 	// only for internal use:
 	type_table.add("i*", llvm::Type::getInt64Ty(Context), nullptr, A_signed);
 	type_table.add("f*", llvm::Type::getDoubleTy(Context), nullptr);
