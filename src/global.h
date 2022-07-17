@@ -30,8 +30,8 @@ class BinaryExprAST;
 #define TOKEN_INV , tok_
 #define TOKBEGIN token_beg
 #define TOKEND token_end
-#include "tokens.def"
-enum TokenKind : int { last_tok = 2 + TOKBEGIN - TOKEND
+#include "token.def"
+enum TokenKind : int { tok_1st_keyword = 2 + TOKBEGIN - TOKEND
                  TOKENS
 };
 

@@ -1,7 +1,6 @@
 // do not insert empty or comment lines below
 constexpr int TOKBEGIN = __LINE__;
 #define TOKENS \
-TOKEN(1st_keyword) \
 TOKEN(chan) \
 TOKEN(set) \
 TOKEN(map) \
