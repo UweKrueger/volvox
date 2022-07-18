@@ -960,7 +960,7 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 ///   ::= id '(' id* ')'
 ///   ::= binary LETTER number? (id, id)
 ///   ::= unary LETTER (id)
-static std::unique_ptr<PrototypeAST> ParsePrototype() {
+static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned share_kind) {
 	std::string FnName;
 
 	SourceLocation FnLoc = CurLoc;
@@ -1095,15 +1095,15 @@ noargs:
 		return nullptr;
 	}
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, retLoc, Kind != 0, RetType, ArgTypes, LLVMArgTypes, ArgPos, isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, share_kind, retLoc, Kind != 0, RetType, ArgTypes, LLVMArgTypes, ArgPos, isVarArgs);
 }
 
 #define TEST_FN_PREFIX "test_"
 
 /// definition ::= 'fn' prototype expression
-std::unique_ptr<FunctionAST> ParseDefinition() {
+std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind) {
 	getNextToken(); // eat fn.
-	auto Proto = ParsePrototype();
+	auto Proto = ParsePrototype(share_kind);
 	prompt_indent++;
 	if (!Proto) {
 		prompt_indent = 0;
@@ -1187,6 +1187,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		volvoxc::FullType* TheType = type_table.get_full("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
+		                                            is_c_api,
 		                                            FnLoc, false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		if (last_shadow_restorer) {
@@ -1242,14 +1243,13 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		}
 		auto ProtoRef = Proto.get();
 		FunctionProtos[Proto->getName()].push_back(std::move(Proto));
-		auto tmp_function = std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return);
-		return tmp_function;
+		return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return);
 	}
 	return nullptr;
 }
 
 /// external ::= 'extern' prototype
-std::unique_ptr<PrototypeAST> ParseExtern() {
+std::unique_ptr<PrototypeAST> ParseExtern(unsigned share_kind) {
 	getNextToken(); // eat extern.
-	return ParsePrototype();
+	return ParsePrototype(share_kind);
 }

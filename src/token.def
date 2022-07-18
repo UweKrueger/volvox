@@ -28,6 +28,7 @@ TOKEN(as) \
 TOKEN(from) \
 TOKEN(import) \
 TOKEN(type) \
+TOKEN(ctype) \
 TOKEN(decl) \
 TOKEN(cdecl) \
 TOKEN(inline) \

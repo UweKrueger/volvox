@@ -17,7 +17,6 @@ const std::string collector_name = "__test_results_collect";
 int include_index = 0;
 int source_index = 0;
 int prompt_indent = 0;
-unsigned sym_kind = 0;
 
 DebugInfo KSDbgInfo;
 
@@ -154,13 +153,13 @@ void InitializeModuleAndPassManager() {
 	}
 }
 
-static void HandleDefinition() {
+static void HandleDefinition(unsigned share_kind) {
 	inside_function = true;
 	condnesting = 0;
 	IfWhileVarTable = nullptr;
 	locals_table.push_back(VarTable());
 	bool success = false;
-	if (auto FnAST = ParseDefinition()) {
+	if (auto FnAST = ParseDefinition(share_kind)) {
 		if (auto *FnIR = FnAST->codegen()) {
 			if (dump_IR) {
 				errs() << "Read function definition:\n";
@@ -183,19 +182,19 @@ cleanup:
 	inside_function = false;
 }
 
-static void HandleExtern() {
-	auto language = CurTok.kind; // tok_cdecl, tok_ccdecl, tok_fdecl...
+static void HandleExtern(unsigned share_kind) {
 	getNextToken();
 	switch (CurTok.kind) {
 	case tok_fn:
-		if (auto ProtoAST = ParseExtern()) {
+		if (auto ProtoAST = ParseExtern(share_kind)) {
+			std::string unmangledName = ProtoAST->getName();
 			if (auto *FnIR = ProtoAST->codegen()) {
 				if (dump_IR) {
 					errs() << "Read extern: ";
 					FnIR->print(errs());
 					errs() << "\n";
 				}
-				FunctionProtos[ProtoAST->getName()].push_back(std::move(ProtoAST));
+				FunctionProtos[unmangledName].push_back(std::move(ProtoAST));
 			} else {
 				errs() << "Error reading extern\n";
 			}
@@ -210,7 +209,7 @@ static void HandleExtern() {
 	}
 }
 
-static void HandleTypeDef() {
+static void HandleTypeDef(unsigned share_kind) {
 	getNextToken(); // eat type
 	if (CurTok.kind != tok_identifier) {
 		errs() << "unexpected '" << CurTok.str() << "' in type declaration - type name expected\n";
@@ -344,7 +343,7 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 	volvoxc::FullType* TheType = type_table.get_full(ret_type);
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
 	                                            std::vector<std::string>(),
-	                                            CurLoc, false, TheType);
+	                                            is_c_api, CurLoc, false, TheType);
 	if (!have_return)
 		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 	auto ProtoRef = Proto.get();
@@ -426,7 +425,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 static void MainLoop() {
 	for (;;) {
 	startmainloop:
-		sym_kind = SymbolKind(0);
+		unsigned sym_kind = SymbolKind(0);
 		auto share_tok = TokenKind(0);
 		for (;;) {
 			unsigned sharebits = 0;
@@ -480,7 +479,7 @@ static void MainLoop() {
 				purgeLine();
 				goto startmainloop;
 			}
-			HandleDefinition();
+			HandleDefinition(sym_kind);
 			if (TestFunction) {
 				if (do_test)
 					CallTestFunction();
@@ -488,14 +487,18 @@ static void MainLoop() {
 			}
 			break;
 		case tok_cdecl:
-			HandleExtern();
+			sym_kind |= is_c_api;
+		case tok_decl:
+			HandleExtern(sym_kind);
 			break;
 		case tok_import:
 		case tok_from:
 			HandleImport();
 			break;
+		case tok_ctype:
+			sym_kind |= is_c_api;
 		case tok_type:
-			HandleTypeDef();
+			HandleTypeDef(sym_kind);
 			break;
 		default:
 			if (comp_mode == comp_jit && !do_test)
