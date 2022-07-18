@@ -57,21 +57,23 @@ static llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, st
 static llvm::DISubprogram *SP;
 static llvm::DIFile *Unit;
 
-std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name) {
-	auto FI = FunctionProtos.find(Name);
+std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes) {
+	auto FI = FunctionProtos.find(unmangledName);
 	if (FI == FunctionProtos.end() || !FI->second.size())
 		return { nullptr, nullptr };
 	// else
 	// 	for (auto FF = FI; FF != FunctionProtos.end(); ++FF)
 	// 		errs() << "Function " << FF->second->Name << '\n';
 	// See if the function has already been added to the current module.
-	if (auto F = TheModule->getFunction(Name)) {
-		return { F, FI->second[0].get() };
+	// TODO: find matching overloaded prototype (instead of "0")
+	int matching_idx = 0;
+	if (auto F = TheModule->getFunction(FI->second[matching_idx]->Name)) {
+		return { F, FI->second[matching_idx].get() };
 	}
 	
 	// codegen the declaration from the existing prototype.
-	auto F = FI->second[0]->codegen();
-	return { F, FI->second[0].get() };
+	auto F = FI->second[matching_idx]->codegen();
+	return { F, FI->second[matching_idx].get() };
 }
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
@@ -664,10 +666,10 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 }
 
 llvm::Value* FunctionExprAST::codegen_raw() {
-	if (auto F = TheModule->getFunction(Name)) {
+	if (auto F = TheModule->getFunction((*ft->Protos)[selected_proto]->Name)) {
 		return F;
 	}
-	return (*ft->Protos)[0]->codegen();
+	return (*ft->Protos)[selected_proto]->codegen();
 }
 
 llvm::Value* InterfaceExprAST::codegen_raw() {
@@ -750,7 +752,8 @@ llvm::Value *UnaryExprAST::codegen_raw() {
 			return nullptr;
 		}
 	default:
-		auto F = getFunction(std::string("unary") + Opcode);
+		std::vector<volvoxc::FullType*> ArgTypes = { Operand->ft };
+		auto F = getFunction(std::string("unary") + Opcode, &ArgTypes);
 		if (!F.first) {
 			errs() << "Unknown unary operator";
 			return nullptr;
@@ -859,7 +862,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				}
 				auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), storage_sz);
 				std::string shadow_fn_name = "new_global_var_shadow";
-				auto shadow_fn = getFunction(shadow_fn_name);
+				auto shadow_fn = getFunction(shadow_fn_name, nullptr);
 				std::vector<llvm::Value*> ArgsS = { V, sz_const };
 				llvm::FunctionType* uintptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt64Ty(Context), {}, false);
 				std::string anon_name = "__anon_shadow";
@@ -907,7 +910,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				auto saver = std::string("__") + varname + "_saver";
 				auto restorer = std::string("__") + varname + "_restorer";
 				auto llvmGVadr = llvm::dyn_cast<llvm::Constant>(Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), adrShadow, false), llvm::Type::getInt8PtrTy(Context)));
-				auto memcpy_proto = getFunction("memcpy");
+				auto memcpy_proto = getFunction("memcpy", nullptr);
 				V = TheModule->getGlobalVariable(varname, true);
 				if (!V) {
 					V = new llvm::GlobalVariable(*TheModule, V_type,
@@ -924,7 +927,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				std::vector<llvm::Value*> ArgsV = { llvmGVadr, V, sz_const };
 				Builder->CreateCall(memcpy_proto.second->FT, memcpy_proto.first, ArgsV, "callmcpy");
 				if (last_shadow_saver) {
-					auto last_saver = getFunction(last_shadow_saver);
+					auto last_saver = getFunction(last_shadow_saver, nullptr);
 					Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver.second->FT, last_saver.first, std::vector<llvm::Value*>(), "callold")));
 				} else {
 					Builder->CreateRetVoid();
@@ -946,7 +949,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				ArgsV = { V, llvmGVadr, sz_const };
 				Builder->CreateCall(memcpy_proto.second->FT, memcpy_proto.first, ArgsV, "callmcpy");
 				if (last_shadow_restorer) {
-					auto last_restorer = getFunction(last_shadow_restorer);
+					auto last_restorer = getFunction(last_shadow_restorer, nullptr);
 					Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer.second->FT, last_restorer.first, std::vector<llvm::Value*>(), "callold")));
 				} else {
 					Builder->CreateRetVoid();
@@ -1499,7 +1502,7 @@ no_conversion:
 	}
 	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
 	// a call to it.
-	auto F = getFunction(std::string("binary") + Op);
+	auto F = getFunction(std::string("binary") + Op, nullptr);
 	assert(F.first && "binary operator not found!");
 
 	llvm::Value *Ops[] = {L, R};
@@ -2061,10 +2064,10 @@ llvm::Function *FunctionAST::codegen() {
 	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
-	auto CalleeF = getFunction(P.getName());
+	auto CalleeF = getFunction(unmangledName, &P.ArgTypes);
 	llvm::Function* TheFunction = CalleeF.first;
 	if (!TheFunction) {
-		errs() << "Function not found in module\n";
+		errs() << "Function '" << unmangledName << "()' not found in module\n";
 		for (auto& expr : Body)
 			llvm::Value *RetVal = expr->codegen();
 		return nullptr;

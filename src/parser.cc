@@ -1110,19 +1110,6 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind) {
 		return nullptr;
 	}
 	auto sz = Proto->Args.size();
-	if (!strncmp(Proto->Name.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {
-		if (sz) {
-			errs() << Proto->ArgPos[0] << ": 'test_...()' functions must not have any arguments\n";
-			prompt_indent = 0;
-			return nullptr;
-		}
-		if (Proto->RetType->type != llvm_bool_type) {
-			errs() << Proto->retLoc << ": 'test_...()' functions must return 'bool'\n";
-			prompt_indent = 0;
-			return nullptr;
-		}
-		TestFunction = Proto->Name.c_str();
-	}
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
 		FullVar fv = {
@@ -1136,10 +1123,32 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind) {
 		}
 	}
 	auto ProtoRef = Proto.get();
-	FunctionProtos[Proto->getName()].push_back(std::move(Proto));
+	std::string unmangledName = Proto->getName();
+	if (!(share_kind & is_c_api)) {
+		std::vector<const char*> names = { unmangledName.c_str() };
+		Proto->Name = Mangle(names, Proto->ArgTypes).c_str();
+	}
+	if (!strncmp(unmangledName.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {
+		if (sz) {
+			errs() << Proto->ArgPos[0] << ": 'test_...()' functions must not have any arguments\n";
+			prompt_indent = 0;
+			return nullptr;
+		}
+		if (Proto->RetType->type != llvm_bool_type) {
+			errs() << Proto->retLoc << ": 'test_...()' functions must return 'bool'\n";
+			prompt_indent = 0;
+			return nullptr;
+		}
+		FunctionProtos[unmangledName].push_back(std::move(Proto));
+		// 'unmangledName' will not outlive this function so to have a long-lived pointer to
+		// the unmangled function name we find the map key's address
+		TestFunction = FunctionProtos.find(unmangledName)->first.c_str();
+	} else {
+		FunctionProtos[unmangledName].push_back(std::move(Proto));
+	}
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList();
 	prompt_indent = 0;
-	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second);
+	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second, std::move(unmangledName));
 }
 
 std::unique_ptr<ExprAST> GetTopLevelExpression() {
@@ -1242,8 +1251,9 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			}
 		}
 		auto ProtoRef = Proto.get();
-		FunctionProtos[Proto->getName()].push_back(std::move(Proto));
-		return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return);
+		std::string unmangledName = Proto->getName();
+		FunctionProtos[unmangledName].push_back(std::move(Proto));
+		return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName));
 	}
 	return nullptr;
 }

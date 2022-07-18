@@ -14,6 +14,7 @@
 #define A_signed_key (1U<<7) //for maps with integer key
 #define A_varlen (1U<<9) // variable size array
 #define A_map    (1U<<10) // llvm-type is key type
+#define A_ref    (1U<<11) // function arg is reference
 
 #if defined (_MSC_VER)
 #define PACK(s) __pragma(pack(push,1)) s __pragma(pack(pop))

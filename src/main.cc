@@ -347,8 +347,9 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 	if (!have_return)
 		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 	auto ProtoRef = Proto.get();
-	FunctionProtos[Proto->getName()].push_back(std::move(Proto));
-	auto main_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return);
+	std::string unmangledName = Proto->getName();
+	FunctionProtos[unmangledName].push_back(std::move(Proto));
+	auto main_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return, std::move(unmangledName));
 	return main_function;
 }
 
@@ -397,6 +398,8 @@ void CallTestFunction() {
 					CurLoc, "&",
 					std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 					std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)))));
+	} else {
+		errs() << "internal error - could not find test function " << TestFunction << '\n';
 	}
 }
 

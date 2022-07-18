@@ -203,7 +203,7 @@ extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 extern llvm::SmallString<128> MangleBase(std::vector<const char*>& names);
-extern llvm::SmallString<128> Mangle(std::vector<const char*>& names, std::vector<std::pair<volvoxc::FullType*,bool>>& arg_types);
+extern llvm::SmallString<128> Mangle(std::vector<const char*>& names, std::vector<volvoxc::FullType*>& arg_types);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind);
 extern std::unique_ptr<ExprAST> GetTopLevelExpression();
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
@@ -230,7 +230,8 @@ extern volvoxc::FullType* ParseType(
 	bool is_index = false);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
-extern std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string Name);
+extern std::pair<llvm::Function*, PrototypeAST*> getFunction(
+	std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes);
 extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 extern void PrepareTestFramework();
 extern const char* TestFunction;

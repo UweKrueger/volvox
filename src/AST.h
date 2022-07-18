@@ -172,6 +172,7 @@ class FunctionExprAST : public ExprAST {
 
 public:
 	std::string Name;
+	int selected_proto = 0; // should be set by call expr
 	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos)
 		: ExprAST(Loc), Name(Name) {
 		ft = new_FullType((*Protos)[0]->FT, 0);
@@ -556,12 +557,13 @@ public:
 class FunctionAST {
 public:
 	PrototypeAST* Proto;
+	std::string unmangledName;
 	std::vector<std::unique_ptr<ExprAST>> Body;
 	int EndKind;
 	
 	FunctionAST(PrototypeAST* Proto,
-	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind)
-		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind) {}
+	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName)
+		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind), unmangledName(std::move(unmName)) {}
 	llvm::Function *codegen();
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
