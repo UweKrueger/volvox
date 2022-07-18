@@ -444,6 +444,9 @@ static void MainLoop() {
 				}
 				sym_kind |= is_pub;
 				break;
+			case tok_inline:
+				sym_kind |= is_inline;
+				break;
 			case tok_global:
 				sharebits = is_global;
 			case tok_atomic:
@@ -492,6 +495,11 @@ static void MainLoop() {
 		case tok_cdecl:
 			sym_kind |= is_c_api;
 		case tok_decl:
+			if (sym_kind & is_inline) {
+				errs() << CurLoc << ": " << CurTok.kind << " cannot be used in combination with " << tok_inline << '\n';
+				purgeLine();
+				goto startmainloop;
+			}
 			HandleExtern(sym_kind);
 			break;
 		case tok_import:

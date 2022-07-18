@@ -2056,7 +2056,8 @@ llvm::Function *PrototypeAST::codegen() {
 	unsigned Idx = 0;
 	for (auto &Arg : F->args())
 		Arg.setName(Args[Idx++]);
-
+	if (share_kind & is_inline)
+		F->addFnAttr(llvm::Attribute::AlwaysInline);
 	return F;
 }
 

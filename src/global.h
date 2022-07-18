@@ -49,7 +49,8 @@ enum SymbolKind : unsigned {
 	is_pub = 1 << 4,
 	is_fn = 1 << 5,
 	is_decl = 1 << 6,
-	is_c_api = 1 << 7
+	is_c_api = 1 << 7,
+	is_inline = 1 << 8
 };
 
 // Colors - we map those from llvm::raw_ostream but add boldness where needed
