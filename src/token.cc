@@ -8,7 +8,6 @@
 #undef TOKBEGIN
 #undef TOKEND
 #define TOKEN(a) #a,
-#define TOKEN_INV "<invisible>",
 #define TOKBEGIN tokstr_beg
 #define TOKEND tokstr_end
 #include "token.def"
@@ -20,11 +19,16 @@ const char* tokens[] = {
 MapNode* keyword_toks = nullptr;
 
 void init_token_map() {
-	for (int i = tok_1st_keyword + 1; i < tok_last_keyword; i++) {
-		MapValue val = { .i32 = i };
-		MapNode* res = map_string_insert(&keyword_toks, tokens[i - 1 - tok_1st_keyword], val, 0, false);
+	// first fix two exceptions in token array
+	tokens[tok_end - 1 - tok_1st_keyword] = ".";
+	tokens[tok_invisible - 1 - tok_1st_keyword] = "<invisible operator>";
+	// now fill token map with those tokens that correspond to ASCII-keywords (not operators)
+	for (int token = tok_1st_keyword + 1; token < tok_last_keyword; token++) {
+		MapValue val = { .i32 = token };
+		const char* tokenstr = tokens[token - 1 - tok_1st_keyword];
+		MapNode* res = map_string_insert(&keyword_toks, tokenstr, val, 0, false);
 		if (!res) {
-			errs() << "internal error: map entry for keyword \"" << tokens[i - 1 - tok_1st_keyword] << " already exists\n";
+			errs() << "internal error: map entry for keyword \"" << tokenstr << " already exists\n";
 			abort();
 		}
 	}

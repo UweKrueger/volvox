@@ -27,7 +27,6 @@ class BinaryExprAST;
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
 // of these for known things.
 #define TOKEN(x) , tok_##x
-#define TOKEN_INV , tok_
 #define TOKBEGIN token_beg
 #define TOKEND token_end
 #include "token.def"

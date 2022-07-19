@@ -183,7 +183,7 @@ Token Lexer::gettok(eXpect expect) {
 		if (expect == eBinOp) {
 			KeepIdentifierStr = IdentifierStr;
 			IdentifierStr = "";
-			return Token(tok_);
+			return Token(tok_invisible);
 		}
 		return Token(tok_identifier);
 	}
@@ -348,7 +348,7 @@ Token Lexer::gettok(eXpect expect) {
 	     linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
 		if (expect == eBinOp) {
 			IdentifierStr = "";
-			return Token(tok_);
+			return Token(tok_invisible);
 		}
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
