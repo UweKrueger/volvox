@@ -19,7 +19,9 @@
 #define PACK(s) __pragma(pack(push,1)) s __pragma(pack(pop))
 #else
 #define PACK(s) s __attribute__((__packed__))
+#endif
 
+#ifdef __cplusplus
 #define VOLVOX_HalfTyID HalfTyID
 #define VOLVOX_BFloatTyID BFloatTyID
 #define VOLVOX_FloatTyID FloatTyID
@@ -78,14 +80,14 @@ namespace volvox {
 		VOLVOX_FixedVectorTyID,   ///< Fixed width SIMD vector type
 		VOLVOX_ScalableVectorTyID ///< Scalable SIMD vector type
 	};
-#if defined(_MSC_VER)
+#ifndef __cplusplus
 	typedef enum VOLVOX_TypeID VOLVOX_TypeID;
 #endif
 	PACK(struct VOLVOX_gen_val_type_t {
 		VOLVOX_TypeID ID : 8; // base type
 		unsigned SubclassData : 24;
 	});
-#if defined(_MSC_VER)
+#ifndef __cplusplus
 	typedef struct VOLVOX_gen_val_type_t VOLVOX_gen_val_type_t;
 #endif
 
@@ -93,7 +95,7 @@ namespace volvox {
 	   so it is a somewhat stripped down version of the above */
 
 	struct VOLVOX_RtStructField;
-#if defined(_MSC_VER)
+#ifndef __cplusplus
 	typedef struct VOLVOX_RtStructField VOLVOX_RtStructField;
 	struct VOLVOX_RtType;
 	typedef struct VOLVOX_RtType VOLVOX_RtType;
@@ -130,7 +132,7 @@ namespace volvox {
 		const char* FieldName;
 		VOLVOX_RtType rttype;
 	};
-#if !defined (_MSC_VER)
+#ifdef __cplusplus
 }
 #undef VOLVOX_HalfTyID
 #define VOLVOX_HalfTyID volvox::HalfTyID

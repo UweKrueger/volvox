@@ -60,6 +60,7 @@ CCOBJS :=  main.o lexer.o parser.o token.o codegen.o types.o mangler.o
 OBJS := $(CCOBJS) $(EXTRAOBJS)
 
 LIBOBJS := map.o str.o array.o
+LIBCOBJS := str_c.o
 
 LIBVOLVOXVERS := 0
 LIBVOLVOXBASE := libvolvox.so
@@ -72,6 +73,7 @@ SRCS := $(CCOBJS:%.o=%.cc)
 EXTRASRC := $(EXTRAOBJS:%.o=../lib/%.c)
 
 LIBSRC := $(LIBOBJS:%.o=../lib/%.cc)
+LIBCSRC := $(LIBCOBJS:%.o=../lib/%.c)
 
 %.o: %.cc $(PCH)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $<
@@ -91,8 +93,8 @@ else
 	$(CXX) $(CXXFLAGS) $(OPT) $<
 endif
 
-$(LIBVOLVOX): $(LIBOBJS)
-	$(CC) -shared -fPIC -Wl,-soname,$(LIBVOLVOXSONAME) -o $(LIBVOLVOX) $(LIBOBJS)
+$(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
+	$(CC) -shared -fPIC -Wl,-soname,$(LIBVOLVOXSONAME) -o $(LIBVOLVOX) $+
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
 
 $(PROG): $(OBJS) $(LIBVOLVOX)
@@ -104,13 +106,14 @@ clean:
 
 .PHONY: distclean
 distclean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) *~ ../include/*~ ../include/*.gch .depend
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS)  $(LIBCOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) *~ ../include/*~ ../include/*.gch .depend
 
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
 ifneq ($(EXTRASRC),)
 	$(CC) -MM $(OPT) $(EXTRASRC) >> .depend
 endif
+	$(CC) -MM $(LIBCSRC) $(OPT) $(EXTRASRC) >> .depend
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
 
 -include .depend

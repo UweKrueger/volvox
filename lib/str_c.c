@@ -6,7 +6,6 @@
 #include <windows.h>
 #include <io.h>
 #include <malloc.h>
-#define nullptr ((void*)0)
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -22,6 +21,8 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <string.h>
+
+#define nullptr ((void*)0)
 
 /* create the printf-format string to print given Type */
 
@@ -626,7 +627,7 @@ static char* str(const VOLVOX_RtType* ft, ...) {
 	return s;
 }
 
-_CDECL bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* ft, va_list ap) {
+_DECL bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* ft, va_list ap) {
 	char* s = NULL;
 	unsigned cap = 0;
 	unsigned pos = 0;
@@ -641,7 +642,7 @@ _CDECL bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* 
 	return n == bytes_to_write;
 }
 
-_CDECL bool enableColorANSI(int fd) {
+_DECL bool enableColorANSI(int fd) {
 #if defined (_MSC_VER)
 	static bool is_set = false;
 	if (!is_set) {
@@ -666,7 +667,7 @@ _CDECL bool enableColorANSI(int fd) {
 #endif
 }
 
-_CDECL void showtestres(int fd, int width, const char* testcase, bool result) {
+_DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 6)
 		width = 6;
 	bool have_color = enableColorANSI(fd);
@@ -679,7 +680,7 @@ _CDECL void showtestres(int fd, int width, const char* testcase, bool result) {
 
 // find out the terminal size #rows are stored in the lower 16 bits
 // and #columns in the upper. In case of failure errno is set and -1 is returned
-_CDECL int getTermSize(int fd)
+_DECL int getTermSize(int fd)
 {
 #if defined (_MSC_VER)
 	HANDLE h = (HANDLE)_get_osfhandle(fd);
@@ -704,7 +705,7 @@ _CDECL int getTermSize(int fd)
 }
 
 #if defined (_MSC_VER)
-_CDECL bool Glob_impl(char* buf, int s_len, int cur_index, const char* argv, char*** rets, size_t* n_rets, size_t* max_rets) {
+_DECL bool Glob_impl(char* buf, int s_len, int cur_index, const char* argv, char*** rets, size_t* n_rets, size_t* max_rets) {
 	bool found = false;
 	int last_slash = -1;
 	int new_index;
@@ -789,7 +790,7 @@ continue_search:
 
 #ifdef _WIN32
 // dest must be 32767 bytes in size - maximum length of command line on Windows
-_CDECL bool getCmdLine(char* dest, const char* cmd, char* const argv[]) {
+_DECL bool getCmdLine(char* dest, const char* cmd, char* const argv[]) {
 	int pos = 0;
 	for (int argidx = 0; argv[argidx]; argidx++) {
 		if (pos > 32760)
@@ -817,7 +818,7 @@ error:
 #endif
 
 #ifdef _WIN32
-_CDECL bool volvox_spawn_c(int* pid, int* child_stdin, int* child_stdout,
+_DECL bool volvox_spawn_c(int* pid, int* child_stdin, int* child_stdout,
                          int* child_stderr, char* const argv[]) {
 	char cmd_path[MAX_PATH];
 	char cmd_line[32768];
