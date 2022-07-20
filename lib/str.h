@@ -32,7 +32,7 @@ typedef struct volvox_glob_t {
 	char** dirs;
 } volvox_glob_t;
 
-#if defined (_MSC_VER)
+#if defined (_WIN32)
 #define _DECL __declspec(dllexport)
 #define _CDECL __declspec(dllexport)
 #else
@@ -43,23 +43,21 @@ typedef struct volvox_glob_t {
 #endif
 #endif
 
-
 #ifdef __cplusplus
-extern "C"
-{
-#endif
 
-	_DECL void volvox_free_glob(volvox_glob_t* rets);
+namespace volvox {
 
-	_DECL volvox_glob_t volvox_glob(const char* pattern);
+	_DECL volvox_glob_t glob(const char* pattern);
 
-	_DECL bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
+	_DECL void free_glob(volvox_glob_t* rets);
+
+	_DECL bool spawn(int* pid, int* child_stdin, int* child_stdout,
 	                        int* child_stderr, char* const argv[]);
 
-	_CDECL int volvox_wait(int pid);
+	_DECL int wait(int pid);
 
-	_CDECL int volvox_try_wait(int pid);
+	_DECL int try_wait(int pid);
 
-#ifdef __cplusplus
-}
+};
+
 #endif
