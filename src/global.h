@@ -9,6 +9,78 @@
 #include "../lib/types.h"
 #include "../lib/str.h"
 
+#if defined(_MSC_VER)
+/* The volvox run time library uses Itanium/GNU mangling which are not
+ * supported by MSVC. To use those library functions inside the compiler
+ * we have to provide fake "C" declarations */
+extern "C" {
+	union MapValue {
+		union {
+			unsigned long long int u64;
+			long long int i64;
+			unsigned int u32;
+			int i32;
+			float f32;
+			double f64;
+			struct {
+				unsigned int offset;
+				unsigned int size;
+			};
+			void* src_ptr; // to pass generic value to `insert()`
+		};
+	};
+
+	union MapKey {
+		unsigned long long int u64;
+		long long int i64;
+		unsigned int u32;
+		int i32;
+		float f32;
+		double f64;
+		char string[8]; // will expand dynamically
+	};
+
+	struct MapNode {
+		union {
+			struct Node* parent;
+			int bf : 2;
+			unsigned u_bf : 2;
+		};
+		struct Node* leftChild;
+		struct Node* rightChild;
+		MapValue value;
+		MapKey key;
+	};
+#define map_string_new_map _ZN6volvox3map11num_new_mapEv
+#define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEib
+#define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEib
+#define map_string_get _ZN6volvox3map10string_getEPNS0_4NodeEPKc
+#define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeE
+#define map_iter_up _ZN6volvox3map7iter_upEPNS0_4NodeE
+#define map_string_delete _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKc
+#define map_min _ZN6volvox3map3MinEPNS0_4NodeE
+	_DECL MapNode* map_string_new_map();
+	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace);
+	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace);
+	_DECL MapValue* map_string_get(MapNode* root, const char* key);
+	_DECL void map_destroy(MapNode* root);
+	_DECL MapNode* map_iter_up(MapNode* elem);
+	_DECL bool map_string_delete(MapNode** root_ptr, const char* key);
+	_DECL MapNode* map_min(MapNode* node);
+}
+#else
+#define MapNode volvox::map::Node
+#define MapValue volvox::map::Value
+#define map_string_new_map volvox::map::string_new_map
+#define map_string_insert volvox::map::string_insert
+#define map_string_tag_insert volvox::map::string_tag_insert
+#define map_string_get volvox::map::string_get
+#define map_destroy volvox::map::destroy
+#define map_iter_up volvox::map::iter_up
+#define map_string_delete volvox::map::string_delete
+#define map_min volvox::map::Min
+#endif
+
 class PrototypeAST;
 class FunctionAST;
 class VariableExprAST;

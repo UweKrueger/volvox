@@ -676,7 +676,7 @@ namespace volvox {
 			return ((right > left) ? right : left) + 1;
 		}
 
-		_DECL Node* min(Node* node) {
+		_DECL Node* Min(Node* node) {
 			if (!node) {
 				return node;
 			}
@@ -685,7 +685,7 @@ namespace volvox {
 			return node;
 		}
 
-		_DECL Node* max(Node* node) {
+		_DECL Node* Max(Node* node) {
 			if (!node) {
 				return node;
 			}

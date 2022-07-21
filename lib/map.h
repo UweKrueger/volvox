@@ -22,7 +22,7 @@ namespace volvox {
 
 	namespace map {
 		
-		typedef union Value {
+		union Value {
 			union {
 				unsigned long long int u64;
 				long long int i64;
@@ -36,9 +36,9 @@ namespace volvox {
 				};
 				void* src_ptr; // to pass generic value to `insert()`
 			};
-		} Value;
+		};
 
-		typedef union Key {
+		union Key {
 			unsigned long long int u64;
 			long long int i64;
 			unsigned int u32;
@@ -46,9 +46,9 @@ namespace volvox {
 			float f32;
 			double f64;
 			char string[8]; // will expand dynamically
-		} Key;
+		};
 
-		typedef struct Node {
+		struct Node {
 			union {
 				struct Node* parent;
 				int bf : 2;
@@ -58,15 +58,15 @@ namespace volvox {
 			struct Node* rightChild;
 			Value value;
 			Key key;
-		} Node;
+		};
 
-		typedef struct NodePosition {
+		struct NodePosition {
 			union {
 				Node* node;
 				bool is_parent : 1; // for insert
 			};
 			Node** parent_ptr;
-		} NodePosition;
+		};
 
 		typedef void (node_printer)(int bf, Key* key, Value* value); 
 
@@ -97,8 +97,8 @@ namespace volvox {
 
 		_DECL void dump(Node* root, node_printer* prt);
 		_DECL int check_avl_get_depth(Node* node);
-		_DECL Node* min(Node* node);
-		_DECL Node* max(Node* node);
+		_DECL Node* Min(Node* node);
+		_DECL Node* Max(Node* node);
 		_DECL Node* iter_up(Node* elem);
 		_DECL Node* iter_down(Node* elem);
 		_DECL Value* string_get(Node* root, const char* key);
