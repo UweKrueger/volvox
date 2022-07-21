@@ -23,19 +23,17 @@ namespace volvox {
 	namespace map {
 		
 		union Value {
-			union {
-				unsigned long long int u64;
-				long long int i64;
-				unsigned int u32;
-				int i32;
-				float f32;
-				double f64;
-				struct {
-					unsigned int offset;
-					unsigned int size;
-				};
-				void* src_ptr; // to pass generic value to `insert()`
+			unsigned long long int u64;
+			long long int i64;
+			unsigned int u32;
+			int i32;
+			float f32;
+			double f64;
+			struct {
+				unsigned int offset;
+				unsigned int size;
 			};
+			void* src_ptr; // to pass generic value to `insert()`
 		};
 
 		union Key {
