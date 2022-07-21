@@ -441,7 +441,16 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)ft->type_attr));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), (uint64_t)(
 		                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
-	fields.push_back(ft->type_name ? Builder->CreateGlobalStringPtr(ft->type_name, "", 0, TheModule.get()) : llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+	llvm::Constant* TypeName;
+	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+		if (struct_type->hasName()) {
+			TypeName = Builder->CreateGlobalStringPtr(struct_type->getName(), "", 0, TheModule.get());
+			goto type_name_set;
+		}
+	}
+	TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
+type_name_set:
+	fields.push_back(TypeName);
 	if (llvmtype.ID == VOLVOX_ArrayTyID) {
 		fields.push_back(getRtType(ft->elem_type));
 	} else {
@@ -461,7 +470,19 @@ void volvoxc::FullType::dump(int fd) {
 	                          , llvm::raw_ostream::OStreamKind::OK_FDStream
 #endif
 		);
-	eout << "FullType " << (type_name ? type_name : "<anonymous>") << "\n";
+	llvm::StringRef TypeName;
+	if (type) {
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(type)) {
+			if (struct_type->hasName()) {
+				TypeName = struct_type->getName();
+				goto type_name_set;
+			}
+		}
+	}
+	TypeName = "<none>";
+type_name_set:
+	eout << "FullName: " << TypeName << '\n';
+	eout << "MangledName: " << (mangled_name ? mangled_name : "<none>") << '\n';
 	eout << "LLVMType: ";
 	if (type)
 		type->print(eout);

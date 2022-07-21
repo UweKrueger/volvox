@@ -30,11 +30,11 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 			} while (array_type);
 			out << ft->elem_type;
 		} else {
-			if (!ft->type_name || !*ft->type_name) {
+			if (!ft->mangled_name || !*ft->mangled_name) {
 				errs() << "Cannot mangle type " << *ft->type << '\n';
 				return out;
 			}
-			out << strlen(ft->type_name) << ft->type_name;
+			out << strlen(ft->mangled_name) << ft->mangled_name;
 		}
 	return out;
 }

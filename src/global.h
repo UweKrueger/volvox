@@ -223,7 +223,7 @@ namespace volvoxc {
 		llvm::Type* type; // used by compiler
 		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
 		SymbolKind kind;
-		const char* type_name; // maybe NULL for anonymous types
+		const char* mangled_name; // maybe NULL for anonymous types
 		llvm::DIType* ditype;
 		union {
 			FullType* elem_type; // for array or tuples
@@ -332,14 +332,14 @@ extern FVListElem* anon_fullvars;
 extern FVListElem** anon_fullvars_end;
 
 inline FullVar* new_FullVar(llvm::Value* val, llvm::Type* type, unsigned type_attr,
-                            const char* type_name = nullptr, llvm::DIType* ditype = nullptr,
+                            const char* mangled_name = nullptr, llvm::DIType* ditype = nullptr,
                             volvoxc::FullType* elem_type = nullptr) {
 	FVListElem* new_node = (FVListElem*)malloc(sizeof(FVListElem));
 	new_node->next = nullptr;
 	new_node->fv.val = val;
 	new_node->fv.ft.type = type;
 	new_node->fv.ft.type_attr = type_attr;
-	new_node->fv.ft.type_name = type_name;
+	new_node->fv.ft.mangled_name = mangled_name;
 	new_node->fv.ft.ditype = ditype;
 	new_node->fv.ft.elem_type = elem_type;
 	*anon_fullvars_end = new_node;
@@ -362,7 +362,7 @@ inline volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llv
 	new_node->next = nullptr;
 	new_node->ft.type = type;
 	new_node->ft.type_attr = type_attr;
-	new_node->ft.type_name = nullptr; // it's an anonymous type
+	new_node->ft.mangled_name = nullptr; // it's an anonymous type
 	new_node->ft.ditype = ditype;
 	new_node->ft.elem_type = elem_type;
 	*anon_types_end = new_node;
@@ -393,7 +393,7 @@ public:
 		};
 		MapNode* new_node = map_string_insert(&name_table, name, val, sizeof(volvoxc::FullType), false);
 		if (new_node) {
-			((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->type_name = new_node->key.string;
+			((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->mangled_name = new_node->key.string;
 			union {
 				int_val_type_t int_type;
 				VOLVOX_gen_val_type_t gen_type;
@@ -578,7 +578,6 @@ public:
 	volvoxc::FullType* ft;
 	llvm::Type* desired_type = nullptr;
 	unsigned desired_type_attr = 0;
-	const char* desired_type_name = nullptr; // maybe NULL for anonymous types
 	MapNode* desired_elems = nullptr; // element-name -> { index, FullType }
 
 	bool is_unknown_type = false;
