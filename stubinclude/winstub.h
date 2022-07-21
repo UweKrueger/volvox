@@ -23,11 +23,14 @@ extern "C" int _read(int fd, void* buf, unsigned int count);
 
 typedef struct _iobuf { void* _Placeholder; } FILE;
 extern "C" int fprintf(FILE* f , const char* fmt, ...);
+extern "C" int fputs(const char* buf, FILE* f);
+#define printf(...) fprintf(stdout, __VA_ARGS__)
 
 extern "C" char* strcpy(char* dest, const char* src);
 extern "C" char* strncpy(char* dest, const char* src, size_t count);
 extern "C" int strcmp(const char* s1, const char* s2);
 extern "C" size_t strlen(const char* s);
+extern "C" char* strncat(char *dest, const char* src, size_t count);
 extern "C" void abort(void);
 
 #ifndef NULL
@@ -59,6 +62,8 @@ extern "C" int _isatty(int fd);
 #define isatty(fd)  _isatty(fd)
 
 extern "C" FILE* __acrt_iob_func(unsigned i);
+#define stdin (__acrt_iob_func(0))
+#define stdout (__acrt_iob_func(1))
 #define stderr (__acrt_iob_func(2))
 extern "C" int* _errno(void);
 #define errno (*_errno())

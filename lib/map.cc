@@ -1,16 +1,14 @@
+#ifdef _WIN32
+#include <winstub.h>
+#else
 #include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#endif
+#include <stdint.h>
 #include <stdbool.h>
 #include <inttypes.h>
 #include "map.h"
-
-#if defined (_MSC_VER)
-#define _DECL __declspec(dllexport)
-#else
-#define _DECL
-#endif
 
 /* balace factor of nodes require only 2 bits and parent pointer is
  * aligned to 8 bytes so these two can share a 64 bit value */
