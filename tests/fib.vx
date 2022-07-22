@@ -1,0 +1,17 @@
+# test some UTF-8
+zu := "Für's Café im Sträßle!\n"
+
+q := 12.3
+
+fn fib(x u64) u64
+	t := if x < 3
+	    1u64
+	else
+	    fib(x - 2) + fib(x - 1) .
+	return t
+
+fib(12)
+
+cdecl fn _write(fd i32, buf string, n u32) i32
+
+_write(1, zu, 27)
