@@ -214,6 +214,7 @@ extern llvm::LLVMContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
+extern llvm::OptimizationLevel optimization_level;
 
 namespace volvoxc {
 

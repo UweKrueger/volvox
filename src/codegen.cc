@@ -2167,8 +2167,6 @@ llvm::Function *FunctionAST::codegen() {
 	// Validate the generated code, checking for consistency.
 	verifyFunction(*TheFunction);
 	// Run the optimizer on the function.
-	if (comp_mode == comp_jit) {
-		TheFPM->run(*TheFunction);
-	}
+	TheFPM->run(*TheFunction);
 	return TheFunction;
 }

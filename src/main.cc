@@ -154,23 +154,21 @@ void InitializeModuleAndPassManager() {
 	// Create a new builder for the module.
 	Builder = std::make_unique<llvm::IRBuilder<>>(Context);
 
-	if (comp_mode == comp_jit) {
-		// Create a new pass manager attached to it.
-		TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
-	  
-		// Promote allocas to registers.
-		TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
-		// Do simple "peephole" optimizations and bit-twiddling optzns.
-		TheFPM->add(llvm::createInstructionCombiningPass());
-		// Reassociate expressions.
-		TheFPM->add(llvm::createReassociatePass());
-		// Eliminate Common SubExpressions.
-		TheFPM->add(llvm::createGVNPass());
-		// Simplify the control flow graph (deleting unreachable blocks, etc).
-		TheFPM->add(llvm::createCFGSimplificationPass());
+	// Create a new pass manager attached to it.
+	TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 
-		TheFPM->doInitialization();
-	}
+	// Promote allocas to registers.
+	TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
+	// Do simple "peephole" optimizations and bit-twiddling optzns.
+	TheFPM->add(llvm::createInstructionCombiningPass());
+	// Reassociate expressions.
+	TheFPM->add(llvm::createReassociatePass());
+	// Eliminate Common SubExpressions.
+	TheFPM->add(llvm::createGVNPass());
+	// Simplify the control flow graph (deleting unreachable blocks, etc).
+	TheFPM->add(llvm::createCFGSimplificationPass());
+
+	TheFPM->doInitialization();
 }
 
 static void HandleDefinition(unsigned share_kind) {
@@ -600,7 +598,7 @@ static void usage(const char* prog) {
 	errs() << " -c ........ compile to optimized object file\n";
 	errs() << " -fPIC ..... generate position independent code\n";
 	errs() << " -g ........ compile with debug information\n";
-	errs() << " -On ....... optimize with level n (0-3 or 's'; default: -O2/-Os) \n";
+	errs() << " -On ....... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
 	errs() << " -r ........ run compiled program\n";
 	errs() << " -j ........ use JIT to run file(s)\n";
 	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
@@ -635,6 +633,7 @@ promptcolor_t p_col = { 30, 100, 236 };
 const char* TestFunction = nullptr;
 char* output_file = nullptr;
 char* exe_file = nullptr;
+llvm::OptimizationLevel optimization_level = llvm::OptimizationLevel::O2;
 
 bool parse_pcol(char* s) {
 	uint8_t new_col[3] = { p_col.number, p_col.greater, p_col.background };
@@ -768,6 +767,8 @@ int main(int argc, char* argv[]) {
 			if (comp_mode == comp_jit)
 				compile_mode_conflict(argv[0]);
 			comp_mode = comp_dbg;
+			optimization_level = llvm::OptimizationLevel::O0;
+			codegenopt = llvm::CodeGenOpt::None;
 			break;
 		case 'r':
 			run_program = true;
@@ -815,16 +816,26 @@ int main(int argc, char* argv[]) {
 				goto optimizationerr;
 			switch (optarg[0]) {
 			case '0':
+				optimization_level = llvm::OptimizationLevel::O0;
 				codegenopt = llvm::CodeGenOpt::None;
 				break;
 			case '1':
+				optimization_level = llvm::OptimizationLevel::O1;
 				codegenopt = llvm::CodeGenOpt::Less;
 				break;
-			case '2':
 			case 's':
+				optimization_level = llvm::OptimizationLevel::Os;
+				goto defaultcodegen;
+			case 'z':
+				optimization_level = llvm::OptimizationLevel::Oz;
+				goto defaultcodegen;
+			case '2':
+				optimization_level = llvm::OptimizationLevel::O2;
+			defaultcodegen:
 				codegenopt = llvm::CodeGenOpt::Default;
 				break;
 			case '3':
+				optimization_level = llvm::OptimizationLevel::O3;
 				codegenopt = llvm::CodeGenOpt::Aggressive;
 				break;
 			default:
