@@ -82,7 +82,7 @@ LIBCSRC := $(LIBCOBJS:%.o=../lib/%.c)
 	$(CXX) -c $(CXXFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
 
 %.o: ../lib/%.c
-	$(CC) -c -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
+	$(CC) -c -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
 
 all: $(PROG)
 
