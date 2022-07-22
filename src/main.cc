@@ -600,6 +600,7 @@ static void usage(const char* prog) {
 	errs() << " -c ........ compile to optimized object file\n";
 	errs() << " -fPIC ..... generate position independent code\n";
 	errs() << " -g ........ compile with debug information\n";
+	errs() << " -On ....... optimize with level n (0-3 or 's'; default: -O2/-Os) \n";
 	errs() << " -r ........ run compiled program\n";
 	errs() << " -j ........ use JIT to run file(s)\n";
 	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
@@ -736,6 +737,7 @@ int main(int argc, char* argv[]) {
 	setlocale(LC_ALL, "en_US.UTF-8");
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
+	llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;
 
 	if (char* cols = getenv(PROMPT_COL))
 		if (!parse_pcol(cols))
@@ -743,7 +745,7 @@ int main(int argc, char* argv[]) {
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
 	char* endptr;
-	while ((opt = getopt(argc, argv, "vdcgrjJf:i:o:s:tP:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdcgrjJf:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -808,6 +810,30 @@ int main(int argc, char* argv[]) {
 			usage(argv[0]);
 #endif
 			break;
+		case 'O':
+			if (!optarg[0] || optarg[1])
+				goto optimizationerr;
+			switch (optarg[0]) {
+			case '0':
+				codegenopt = llvm::CodeGenOpt::None;
+				break;
+			case '1':
+				codegenopt = llvm::CodeGenOpt::Less;
+				break;
+			case '2':
+			case 's':
+				codegenopt = llvm::CodeGenOpt::Default;
+				break;
+			case '3':
+				codegenopt = llvm::CodeGenOpt::Aggressive;
+				break;
+			default:
+				goto optimizationerr;
+			}
+			break;
+		optimizationerr:
+			errs() << "invalid optimization option: '-O" << optarg << "'\n";
+			usage(argv[0]);
 		case 't':
 			do_test = true;
 			break;
@@ -1054,7 +1080,7 @@ int main(int argc, char* argv[]) {
 		llvm::TargetOptions opt;
 		auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
 		auto TheTargetMachine =
-			Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM);
+			Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM, llvm::None, codegenopt);
 	  
 		TheModule->setDataLayout(TheTargetMachine->createDataLayout());
 	  
