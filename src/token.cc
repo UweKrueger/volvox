@@ -87,17 +87,23 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	bool sign = **s_ptr == '-';
 	char* endptr;
 	errno = 0;
-	if (sign) {
-		Val.Int = strtoll(*s_ptr, &endptr, 0);
+	if (!sign && **s_ptr != '.' || sign && *(*s_ptr + 1) != '.') {
+		if (sign) {
+			Val.Int = strtoll(*s_ptr, &endptr, 0);
+		} else {
+			Val.Uint = strtoull(*s_ptr, &endptr, 0);
+		}
+		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
+		if (errno != 0) {
+			Val.Int = errno;
+			// purge rest of line
+			while (**s_ptr)
+				++(*s_ptr);
+			errs() << CurLoc << ": cannot parse numeric token: " << strerror(Val.Int) << '\n';
+			return;
+		}
 	} else {
-		Val.Uint = strtoull(*s_ptr, &endptr, 0);
-	}
-	int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
-	if (errno != 0) {
-		Val.Int = errno;
-		*s_ptr = endptr;
-		errs() << llvm::format("cannot parse numeric token: %s", strerror(Val.Int));
-		return;
+		endptr = *s_ptr;
 	}
 	// try to parse same number as float
 	char* endptr_f;
