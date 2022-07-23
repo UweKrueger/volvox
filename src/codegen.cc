@@ -844,6 +844,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			if (comp_mode == comp_jit) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
+				MPM.run(*TheModule, MAM);
+
 #if LLVM_VERSION_MAJOR >= 12
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
@@ -871,7 +873,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				Builder->SetInsertPoint(BB);
 				Builder->CreateRet(CheckTailCall(Builder->CreateCall(shadow_fn.second->FT, shadow_fn.first, { V, sz_const }, "callshadow")));
 				verifyFunction(*Fshadow);
-				TheFPM->run(*Fshadow);
+				MPM.run(*TheModule, MAM);
 				if (dump_IR >= 3) {
 					errs() << "Read function definition:\n";
 					Fshadow->print(errs());
@@ -933,7 +935,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					Builder->CreateRetVoid();
 				}
 				verifyFunction(*Fsaver);
-				TheFPM->run(*Fsaver);
 				if (dump_IR >= 3) {
 					errs() << "Read function definition:\n";
 					Fsaver->print(errs());
@@ -955,7 +956,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					Builder->CreateRetVoid();
 				}
 				verifyFunction(*Frestorer);
-				TheFPM->run(*Frestorer);
 				if (dump_IR >= 3) {
 					errs() << "Read function definition:\n";
 					Frestorer->print(errs());
@@ -2166,7 +2166,5 @@ llvm::Function *FunctionAST::codegen() {
 	}
 	// Validate the generated code, checking for consistency.
 	verifyFunction(*TheFunction);
-	// Run the optimizer on the function.
-	TheFPM->run(*TheFunction);
 	return TheFunction;
 }

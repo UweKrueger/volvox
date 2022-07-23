@@ -215,6 +215,8 @@ extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
 extern llvm::OptimizationLevel optimization_level;
+extern llvm::ModuleAnalysisManager MAM;
+extern llvm::ModulePassManager MPM;
 
 namespace volvoxc {
 

@@ -66,8 +66,9 @@ llvm::Type* llvm_bool_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* uintptr_type;
 
-// static std::map<std::string, llvm::AllocaInst *> NamedValues;
-std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
+llvm::ModuleAnalysisManager MAM;
+llvm::ModulePassManager MPM;
+
 std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
 
@@ -154,21 +155,6 @@ void InitializeModuleAndPassManager() {
 	// Create a new builder for the module.
 	Builder = std::make_unique<llvm::IRBuilder<>>(Context);
 
-	// Create a new pass manager attached to it.
-	TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
-
-	// Promote allocas to registers.
-	TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
-	// Do simple "peephole" optimizations and bit-twiddling optzns.
-	TheFPM->add(llvm::createInstructionCombiningPass());
-	// Reassociate expressions.
-	TheFPM->add(llvm::createReassociatePass());
-	// Eliminate Common SubExpressions.
-	TheFPM->add(llvm::createGVNPass());
-	// Simplify the control flow graph (deleting unreachable blocks, etc).
-	TheFPM->add(llvm::createCFGSimplificationPass());
-
-	TheFPM->doInitialization();
 }
 
 static void HandleDefinition(unsigned share_kind) {
@@ -312,6 +298,8 @@ static void HandleTopLevelExpression() {
 				return;
 			}
 			if (comp_mode == comp_jit) {
+				MPM.run(*TheModule, MAM);
+
 #if LLVM_VERSION_MAJOR >= 12
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
@@ -598,7 +586,8 @@ static void usage(const char* prog) {
 	errs() << " -c ........ compile to optimized object file\n";
 	errs() << " -fPIC ..... generate position independent code\n";
 	errs() << " -g ........ compile with debug information\n";
-	errs() << " -On ....... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
+	errs() << " -On[m] .... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
+	errs() << "             m: optional separate level machine specific codegen (default: n)\n";
 	errs() << " -r ........ run compiled program\n";
 	errs() << " -j ........ use JIT to run file(s)\n";
 	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
@@ -812,30 +801,46 @@ int main(int argc, char* argv[]) {
 #endif
 			break;
 		case 'O':
-			if (!optarg[0] || optarg[1])
+			// we expect either one or two characters after '-O'
+			if (!optarg[0] || (optarg[1] && optarg[2]))
 				goto optimizationerr;
-			switch (optarg[0]) {
+			switch (optarg[0]) { // optimization level for IR
 			case '0':
 				optimization_level = llvm::OptimizationLevel::O0;
-				codegenopt = llvm::CodeGenOpt::None;
 				break;
 			case '1':
 				optimization_level = llvm::OptimizationLevel::O1;
-				codegenopt = llvm::CodeGenOpt::Less;
 				break;
 			case 's':
 				optimization_level = llvm::OptimizationLevel::Os;
-				goto defaultcodegen;
+				break;
 			case 'z':
 				optimization_level = llvm::OptimizationLevel::Oz;
-				goto defaultcodegen;
+				break;
 			case '2':
 				optimization_level = llvm::OptimizationLevel::O2;
-			defaultcodegen:
-				codegenopt = llvm::CodeGenOpt::Default;
 				break;
 			case '3':
 				optimization_level = llvm::OptimizationLevel::O3;
+				break;
+			default:
+				goto optimizationerr;
+			}
+			// use same optization level for MIR, i.e. codegen unless
+			// a second flag is specified in optarg
+			switch (optarg[1] ? optarg[1] : optarg[0]) {
+			case '0':
+				codegenopt = llvm::CodeGenOpt::None;
+				break;
+			case '1':
+				codegenopt = llvm::CodeGenOpt::Less;
+				break;
+			case 's':
+			case 'z':
+			case '2':
+				codegenopt = llvm::CodeGenOpt::Default;
+				break;
+			case '3':
 				codegenopt = llvm::CodeGenOpt::Aggressive;
 				break;
 			default:
@@ -988,6 +993,23 @@ int main(int argc, char* argv[]) {
 #endif
 
 	InitializeModuleAndPassManager();
+	// Register all the basic analyses with the managers.
+	llvm::LoopAnalysisManager LAM;
+	llvm::FunctionAnalysisManager FAM;
+	llvm::CGSCCAnalysisManager CGAM;
+	// Create the analysis managers.
+	llvm::PassBuilder PB;
+	PB.registerModuleAnalyses(MAM);
+	PB.registerCGSCCAnalyses(CGAM);
+	PB.registerFunctionAnalyses(FAM);
+	PB.registerLoopAnalyses(LAM);
+	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+
+	// Create the pass manager.
+	if (optimization_level == llvm::OptimizationLevel::O0)
+		MPM = PB.buildO0DefaultPipeline(optimization_level);
+	else
+		MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
 
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.
@@ -1020,8 +1042,10 @@ int main(int argc, char* argv[]) {
 					FnIR->print(errs());
 					errs() << "\n";
 				}
+				MPM.run(*TheModule, MAM);
 				if (comp_mode == comp_jit) {
 					// call test_main()
+
 #if LLVM_VERSION_MAJOR >= 12
 					// Create a ResourceTracker to track JIT'd memory allocated to our
 					// anonymous expression -- that way we can free it after executing.
@@ -1111,7 +1135,7 @@ int main(int argc, char* argv[]) {
 			errs() << "TheTargetMachine can't emit a file of this type";
 			return 1;
 		}
-	  
+
 		pass.run(*TheModule);
 		dest.flush();
 		dest.close();
