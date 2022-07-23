@@ -465,11 +465,7 @@ type_name_set:
 }
 
 void volvoxc::FullType::dump(int fd) {
-	llvm::raw_fd_ostream eout(fd, false, true
-#if LLVM_VERSION_MAJOR >= 12
-	                          , llvm::raw_ostream::OStreamKind::OK_FDStream
-#endif
-		);
+	llvm::raw_fd_ostream eout(fd, false, true, llvm::raw_ostream::OStreamKind::OK_FDStream);
 	llvm::StringRef TypeName;
 	if (type) {
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(type)) {

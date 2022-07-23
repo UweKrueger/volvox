@@ -46,11 +46,7 @@ extern "C" int volvox_try_wait(int pid);
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
 
-#if LLVM_VERSION_MAJOR >= 12
 llvm::orc::ThreadSafeContext TS_Context;
-#else
-llvm::LLVMContext Context;
-#endif
 std::unique_ptr<llvm::Module> TheModule;
 std::unique_ptr<llvm::IRBuilder<>> Builder;
 llvm::ExitOnError ExitOnErr;
@@ -147,13 +143,7 @@ void InitializeModuleAndPassManager() {
 	// Open a new module.
 	TheModule = std::make_unique<llvm::Module>(input_file_name, Context);
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		TheModule->setDataLayout(
-#if LLVM_VERSION_MAJOR >= 12
-			TheJIT->getDataLayout()
-#else
-			TheJIT->getTargetMachine().createDataLayout()
-#endif
-			);
+		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
 	
 	// Create a new builder for the module.
@@ -304,41 +294,23 @@ static void HandleTopLevelExpression() {
 			if (comp_mode == comp_jit) {
 				MPM.run(*TheModule, MAM);
 
-#if LLVM_VERSION_MAJOR >= 12
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-#else
-				// JIT the module containing the anonymous expression, keeping a handle so
-				// we can free it later.
-				auto H = TheJIT->addModule(std::move(TheModule));
-#endif
 				InitializeModuleAndPassManager();
 				
 				// Search the JIT for the __anon_expr symbol.
-#if LLVM_VERSION_MAJOR >= 12
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
-#define UNWRAP(x) (x)
-#else
-				auto ExprSymbol = TheJIT->findSymbol("__anon_expr");
-				assert(ExprSymbol && "Function not found");
-#define UNWRAP(x) cantFail(x)
-#endif
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
-				bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+				bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
 				bool b = spawn_bool_expr(BOOL);
 				if (!b)
 					errs() << "... aborted\n";
-#if LLVM_VERSION_MAJOR >= 12
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
-#else
-				// Delete the anonymous expression module from the JIT.
-				TheJIT->removeModule(H);
-#endif
 			}
 		} else {
 			errs() << "Error generating code for top level expr\n";
@@ -1017,16 +989,9 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		TheJIT =
-#if LLVM_VERSION_MAJOR >= 12
-			ExitOnErr(llvm::orc::VolvoxJIT::Create());
-#else
-		std::make_unique<llvm::orc::VolvoxJIT>();
-#endif
+		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
 	}
-#if LLVM_VERSION_MAJOR >= 12
 	TS_Context = llvm::orc::ThreadSafeContext(std::move(std::make_unique<llvm::LLVMContext>()));
-#endif
 
 	InitializeModuleAndPassManager();
 	// Register all the basic analyses with the managers.
@@ -1053,11 +1018,7 @@ int main(int argc, char* argv[]) {
 		if (comp_mode == comp_jit)
 			; // -O0 is known to have problems with JIT
 		else
-#if LLVM_VERSION_MAJOR < 12
-			;
-#else
 			MPM = PB.buildO0DefaultPipeline(optimization_level);
-#endif
 	else
 		MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
 
@@ -1096,41 +1057,23 @@ int main(int argc, char* argv[]) {
 				if (comp_mode == comp_jit) {
 					// call test_main()
 
-#if LLVM_VERSION_MAJOR >= 12
 					// Create a ResourceTracker to track JIT'd memory allocated to our
 					// anonymous expression -- that way we can free it after executing.
 					auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 					ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-#else
-					// JIT the module containing the anonymous expression, keeping a handle so
-					// we can free it later.
-					auto H = TheJIT->addModule(std::move(TheModule));
-#endif
 					InitializeModuleAndPassManager();
-#if LLVM_VERSION_MAJOR >= 12
 					auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
-#define UNWRAP(x) (x)
-#else
-					auto ExprSymbol = TheJIT->findSymbol("test_main");
-					assert(ExprSymbol && "Function not found");
-#define UNWRAP(x) cantFail(x)
-#endif
 					// Get the symbol's address and cast it to the right type (takes no
 					// arguments, returns a bool) so we can call it as a native function.
-					bool (*BOOL)() = (bool (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+					bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
 					bool ret = spawn_bool_expr(BOOL);
 					if (ret)
 						errs() << "All test cases passed\n";
 					else
 						errs() << "Some test cases failed\n";
-#if LLVM_VERSION_MAJOR >= 12
 					// Delete the anonymous expression module from the JIT.
 					ExitOnErr(RT->remove());
-#else
-					// Delete the anonymous expression module from the JIT.
-					TheJIT->removeModule(H);
-#endif
 				}
 			} else {
 				exit(1);

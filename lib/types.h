@@ -66,9 +66,7 @@ namespace volvox {
 		VOLVOX_LabelTyID,     ///< Labels
 		VOLVOX_MetadataTyID,  ///< Metadata
 		VOLVOX_X86_MMXTyID,   ///< MMX vectors (64 bits, X86 specific)
-#if LLVM_VERSION_MAJOR >= 12
 		VOLVOX_X86_AMXTyID,   ///< AMX vectors (8192 bits, X86 specific)
-#endif
 		VOLVOX_TokenTyID,     ///< Tokens
 
 		// Derived types... see DerivedTypes.h file.

@@ -846,12 +846,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 				MPM.run(*TheModule, MAM);
 
-#if LLVM_VERSION_MAJOR >= 12
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
-#else
-				TheJIT->addModule(std::move(TheModule));
-#endif
 				InitializeModuleAndPassManager();
 
 				auto V = TheModule->getGlobalVariable(varname, true);
@@ -880,35 +876,17 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					errs() << "\n";
 				}
 
-#if LLVM_VERSION_MAJOR >= 12
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-#else
-				// JIT the module containing the anonymous expression, keeping a handle so
-				// we can free it later.
-				auto H = TheJIT->addModule(std::move(TheModule));
-#endif
 				InitializeModuleAndPassManager();
-#if LLVM_VERSION_MAJOR >= 12
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup(anon_name));
-#define UNWRAP(x) (x)
-#else
-				auto ExprSymbol = TheJIT->findSymbol(anon_name);
-				assert(ExprSymbol && "Function not found");
-#define UNWRAP(x) cantFail(x)
-#endif
-				uintptr_t (*PTR)() = (uintptr_t (*)())(intptr_t)UNWRAP(ExprSymbol.getAddress());
+				uintptr_t (*PTR)() = (uintptr_t (*)())(intptr_t)ExprSymbol.getAddress();
 				auto adrShadow = PTR();
-#if LLVM_VERSION_MAJOR >= 12
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
-#else
-				// Delete the anonymous expression module from the JIT.
-				TheJIT->removeModule(H);
-#endif
 				auto saver = std::string("__") + varname + "_saver";
 				auto restorer = std::string("__") + varname + "_restorer";
 				auto llvmGVadr = llvm::dyn_cast<llvm::Constant>(Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), adrShadow, false), llvm::Type::getInt8PtrTy(Context)));

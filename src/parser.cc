@@ -1184,12 +1184,8 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = GetTopLevelExpression()) {
 		if (comp_mode == comp_jit) {
-#if LLVM_VERSION_MAJOR >= 12
 			ExitOnErr(TheJIT->addModule(
 				          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
-#else
-			TheJIT->addModule(std::move(TheModule));
-#endif
 			InitializeModuleAndPassManager();
 		}
 		// Make an anonymous proto.
