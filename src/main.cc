@@ -626,7 +626,11 @@ promptcolor_t p_col = { 30, 100, 236 };
 const char* TestFunction = nullptr;
 char* output_file = nullptr;
 char* exe_file = nullptr;
+#if LLVM_VERSION_MAJOR < 14
+llvm::PassBuilder::OptimizationLevel optimization_level = llvm::PassBuilder::OptimizationLevel::O2;
+#else
 llvm::OptimizationLevel optimization_level = llvm::OptimizationLevel::O2;
+#endif
 
 bool parse_pcol(char* s) {
 	uint8_t new_col[3] = { p_col.number, p_col.greater, p_col.background };
@@ -760,7 +764,11 @@ int main(int argc, char* argv[]) {
 			if (comp_mode == comp_jit)
 				compile_mode_conflict(argv[0]);
 			comp_mode = comp_dbg;
+#if LLVM_VERSION_MAJOR < 14
+			optimization_level = llvm::PassBuilder::OptimizationLevel::O0;
+#else
 			optimization_level = llvm::OptimizationLevel::O0;
+#endif
 			codegenopt = llvm::CodeGenOpt::None;
 			break;
 		case 'r':
@@ -810,22 +818,46 @@ int main(int argc, char* argv[]) {
 				goto optimizationerr;
 			switch (optarg[0]) { // optimization level for IR
 			case '0':
+#if LLVM_VERSION_MAJOR < 14
+				optimization_level = llvm::PassBuilder::OptimizationLevel::O0;
+#else
 				optimization_level = llvm::OptimizationLevel::O0;
+#endif
 				break;
 			case '1':
+#if LLVM_VERSION_MAJOR < 14
+				optimization_level = llvm::PassBuilder::OptimizationLevel::O1;
+#else
 				optimization_level = llvm::OptimizationLevel::O1;
+#endif
 				break;
 			case 's':
+#if LLVM_VERSION_MAJOR < 14
+				optimization_level = llvm::PassBuilder::OptimizationLevel::Os;
+#else
 				optimization_level = llvm::OptimizationLevel::Os;
+#endif
 				break;
 			case 'z':
+#if LLVM_VERSION_MAJOR < 14
+				optimization_level = llvm::PassBuilder::OptimizationLevel::Oz;
+#else
 				optimization_level = llvm::OptimizationLevel::Oz;
+#endif
 				break;
 			case '2':
+#if LLVM_VERSION_MAJOR < 14
+				optimization_level = llvm::PassBuilder::OptimizationLevel::O2;
+#else
 				optimization_level = llvm::OptimizationLevel::O2;
+#endif
 				break;
 			case '3':
+#if LLVM_VERSION_MAJOR < 14
+				optimization_level = llvm::PassBuilder::OptimizationLevel::O3;
+#else
 				optimization_level = llvm::OptimizationLevel::O3;
+#endif
 				break;
 			default:
 				goto optimizationerr;
@@ -1011,7 +1043,13 @@ int main(int argc, char* argv[]) {
 	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 
 	// Create the pass manager.
-	if (optimization_level == llvm::OptimizationLevel::O0)
+	if (optimization_level ==
+#if LLVM_VERSION_MAJOR < 14
+	    llvm::PassBuilder::OptimizationLevel::O0
+#else
+	    llvm::OptimizationLevel::O0
+#endif
+		)
 		if (comp_mode == comp_jit)
 			; // -O0 is known to have problems with JIT
 		else

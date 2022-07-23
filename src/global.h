@@ -214,7 +214,11 @@ extern llvm::LLVMContext Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
+#if LLVM_VERSION_MAJOR < 14
+extern llvm::PassBuilder::OptimizationLevel optimization_level;
+#else
 extern llvm::OptimizationLevel optimization_level;
+#endif
 extern llvm::ModuleAnalysisManager MAM;
 extern llvm::ModulePassManager MPM;
 
