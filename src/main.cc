@@ -159,11 +159,6 @@ static void HandleDefinition(unsigned share_kind) {
 	bool success = false;
 	if (auto FnAST = ParseDefinition(share_kind)) {
 		if (auto *FnIR = FnAST->codegen()) {
-			if (dump_IR) {
-				errs() << "Read function definition:\n";
-				FnIR->print(errs());
-				errs() << "\n";
-			}
 			goto cleanup;
 		} else {
 			errs() << "Error compiling function definition\n";
@@ -281,19 +276,23 @@ static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
 		if (auto anon_expr = FnAST->codegen()) {
-			if (dump_IR >= 2) {
-				errs() << "Created temporary top level anon_expr definition:\n";
-				anon_expr->print(errs());
-				errs() << "\n";
-			}
 			auto ret_type = anon_expr->getReturnType();
 			if (!anon_expr->getReturnType()->isIntegerTy() || !(anon_expr->getReturnType()->getIntegerBitWidth() == 1)) {
 				errs() << "internal error: anonymous function does not return `bool`\n";
 				return;
 			}
 			if (comp_mode == comp_jit) {
+				if (dump_IR >= 2 && dump_raw) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
+				}
 				MPM.run(*TheModule, MAM);
-
+				if (dump_IR >= 2 && dump_opt) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
+				}
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
@@ -549,7 +548,8 @@ const char* input_file_name = nullptr;
 const char* builtin_file_name = "builtin.vx";
 int builtin_input_fd = -1;
 int input_fd = -1;
-
+bool dump_opt = true;
+bool dump_raw = false;
 // Windows has no CLOEXEC
 #if !defined(O_CLOEXEC)
 #define O_CLOEXEC 0
@@ -559,6 +559,7 @@ static void usage(const char* prog) {
 	errs() << "Usage: " << prog << " [-v] [-d] [-c] [-fPIC] [-g] [-i file] [-o file] [[-t] file [...]]\n";
 	errs() << " -v ........ verbose output (may be repeated for even more verbosity)\n";
 	errs() << " -d ........ dump generated LLVM IR-code (repeat to dump more code)\n";
+	errs() << " -D ........ dump raw IR in addition to optimized IR (repeat to dump only raw IR)\n";
 	errs() << " -c ........ compile to optimized object file\n";
 	errs() << " -fPIC ..... generate position independent code\n";
 	errs() << " -g ........ compile with debug information\n";
@@ -713,7 +714,7 @@ int main(int argc, char* argv[]) {
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
 	char* endptr;
-	while ((opt = getopt(argc, argv, "vdcgrjJf:O:i:o:s:tP:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdDcgrjJf:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -722,6 +723,12 @@ int main(int argc, char* argv[]) {
 			if (comp_mode == comp_dbg)
 				debug_mode_conflict(argv[0]);
 			dump_IR++;
+			break;
+		case 'D':
+			if (dump_raw)
+				dump_opt = false;
+			else
+				dump_raw = true;
 			break;
 		case 'c':
 			if (comp_mode == comp_jit)
@@ -1048,12 +1055,17 @@ int main(int argc, char* argv[]) {
 	if (do_test || comp_mode != comp_jit) {
 		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
 			if (auto *FnIR = FnAST->codegen()) {
-				if (dump_IR) {
-					errs() << "Read function definition:\n";
-					FnIR->print(errs());
-					errs() << "\n";
+				if (dump_IR && dump_raw) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
 				}
 				MPM.run(*TheModule, MAM);
+				if (dump_IR && dump_opt) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
+				}
 				if (comp_mode == comp_jit) {
 					// call test_main()
 

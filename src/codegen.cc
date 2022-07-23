@@ -844,8 +844,17 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			if (comp_mode == comp_jit) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
+				if (dump_IR && dump_raw) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
+				}
 				MPM.run(*TheModule, MAM);
-
+				if (dump_IR && dump_opt) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
+				}
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
 				InitializeModuleAndPassManager();
@@ -869,13 +878,17 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				Builder->SetInsertPoint(BB);
 				Builder->CreateRet(CheckTailCall(Builder->CreateCall(shadow_fn.second->FT, shadow_fn.first, { V, sz_const }, "callshadow")));
 				verifyFunction(*Fshadow);
-				MPM.run(*TheModule, MAM);
-				if (dump_IR >= 3) {
-					errs() << "Read function definition:\n";
-					Fshadow->print(errs());
-					errs() << "\n";
+				if (dump_IR >= 3 && dump_raw) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
 				}
-
+				MPM.run(*TheModule, MAM);
+				if (dump_IR >= 3 && dump_opt) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
+				}
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
@@ -913,11 +926,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					Builder->CreateRetVoid();
 				}
 				verifyFunction(*Fsaver);
-				if (dump_IR >= 3) {
-					errs() << "Read function definition:\n";
-					Fsaver->print(errs());
-					errs() << "\n";
-				}
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 				last_shadow_saver = saverProto->Name.c_str();
 				FunctionProtos[saver].push_back(std::move(saverProto));
@@ -934,11 +942,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					Builder->CreateRetVoid();
 				}
 				verifyFunction(*Frestorer);
-				if (dump_IR >= 3) {
-					errs() << "Read function definition:\n";
-					Frestorer->print(errs());
-					errs() << "\n";
-				}
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
 				FunctionProtos[restorer].push_back(std::move(restorerProto));

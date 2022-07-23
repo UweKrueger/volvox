@@ -646,6 +646,8 @@ enum LinkModes {
 extern CompModes comp_mode;
 extern LinkModes link_mode;
 extern unsigned dump_IR;
+extern bool dump_opt;
+extern bool dump_raw;
 
 extern SourceLocation LexLoc;
 extern std::string IdentifierStr; // Filled in if tok_identifier
