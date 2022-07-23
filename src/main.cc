@@ -66,6 +66,10 @@ llvm::Type* llvm_bool_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* uintptr_type;
 
+// Create the analysis managers.
+llvm::LoopAnalysisManager LAM;
+llvm::FunctionAnalysisManager FAM;
+llvm::CGSCCAnalysisManager CGAM;
 llvm::ModuleAnalysisManager MAM;
 llvm::ModulePassManager MPM;
 
@@ -994,10 +998,6 @@ int main(int argc, char* argv[]) {
 
 	InitializeModuleAndPassManager();
 	// Register all the basic analyses with the managers.
-	llvm::LoopAnalysisManager LAM;
-	llvm::FunctionAnalysisManager FAM;
-	llvm::CGSCCAnalysisManager CGAM;
-	// Create the analysis managers.
 	llvm::PassBuilder PB;
 	PB.registerModuleAnalyses(MAM);
 	PB.registerCGSCCAnalyses(CGAM);
