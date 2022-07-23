@@ -999,6 +999,11 @@ int main(int argc, char* argv[]) {
 	InitializeModuleAndPassManager();
 	// Register all the basic analyses with the managers.
 	llvm::PassBuilder PB;
+
+#if LLVM_VERSION_MAJOR < 14
+	FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
+#endif
+
 	PB.registerModuleAnalyses(MAM);
 	PB.registerCGSCCAnalyses(CGAM);
 	PB.registerFunctionAnalyses(FAM);
@@ -1007,7 +1012,10 @@ int main(int argc, char* argv[]) {
 
 	// Create the pass manager.
 	if (optimization_level == llvm::OptimizationLevel::O0)
-		MPM = PB.buildO0DefaultPipeline(optimization_level);
+		if (comp_mode == comp_jit)
+			; // -O0 is known to have problems with JIT
+		else
+			MPM = PB.buildO0DefaultPipeline(optimization_level);
 	else
 		MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
 
