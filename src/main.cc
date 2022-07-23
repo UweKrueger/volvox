@@ -1053,7 +1053,11 @@ int main(int argc, char* argv[]) {
 		if (comp_mode == comp_jit)
 			; // -O0 is known to have problems with JIT
 		else
+#if LLVM_VERSION_MAJOR < 12
+			;
+#else
 			MPM = PB.buildO0DefaultPipeline(optimization_level);
+#endif
 	else
 		MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
 
