@@ -1013,7 +1013,43 @@ int main(int argc, char* argv[]) {
 	// PTO.CallGraphProfile = false;
 	// PTO.MergeFunctions = false;
 	// PTO.EagerlyInvalidateAnalyses = false;
-	llvm::PassBuilder PB(nullptr, PTO);
+
+	// Initialize the target registry etc.
+	llvm::InitializeAllTargetInfos();
+	llvm::InitializeAllTargets();
+	llvm::InitializeAllTargetMCs();
+	llvm::InitializeAllAsmParsers();
+	llvm::InitializeAllAsmPrinters();
+	auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+
+	std::string Error;
+	auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
+	// Print an error and exit if we couldn't find the requested target.
+	// This generally occurs if we've forgotten to initialise the
+	// TargetRegistry or we have a bogus target triple.
+	if (!Target) {
+		errs() << Error;
+		return 1;
+	}
+	// errs() << "TargetTriple: " << TargetTriple << '\n';
+	auto CPU = "generic";
+	auto Features = "";
+	llvm::TargetOptions target_opts;
+	auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
+	llvm::TargetMachine* TheTargetMachine = nullptr;
+	std::unique_ptr<llvm::TargetMachine> u_tartgetm = nullptr;
+	if (comp_mode == comp_jit) {
+		if (auto ptr = TheJIT->createTargetMachine()) {
+			u_tartgetm = std::move(*ptr);
+			TheTargetMachine = u_tartgetm.get();
+		} else {
+			errs() << ptr.takeError() << '\n';
+		}
+	} else {
+		TheTargetMachine =
+			Target->createTargetMachine(TargetTriple, CPU, Features, target_opts, RM, llvm::None, codegenopt);
+	}
+	llvm::PassBuilder PB(TheTargetMachine, PTO);
 
 #if LLVM_VERSION_MAJOR < 14
 	FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
@@ -1126,32 +1162,7 @@ int main(int argc, char* argv[]) {
 	}
 	int result = 0;
 	if (comp_mode == comp_obj) {
-		// Initialize the target registry etc.
-		llvm::InitializeAllTargetInfos();
-		llvm::InitializeAllTargets();
-		llvm::InitializeAllTargetMCs();
-		llvm::InitializeAllAsmParsers();
-		llvm::InitializeAllAsmPrinters();
-		auto TargetTriple = llvm::sys::getDefaultTargetTriple();
 		TheModule->setTargetTriple(TargetTriple);
-
-		std::string Error;
-		auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
-		// Print an error and exit if we couldn't find the requested target.
-		// This generally occurs if we've forgotten to initialise the
-		// TargetRegistry or we have a bogus target triple.
-		if (!Target) {
-			errs() << Error;
-			return 1;
-		}
-
-		auto CPU = "generic";
-		auto Features = "";
-		llvm::TargetOptions opt;
-		auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
-		auto TheTargetMachine =
-			Target->createTargetMachine(TargetTriple, CPU, Features, opt, RM, llvm::None, codegenopt);
-	  
 		TheModule->setDataLayout(TheTargetMachine->createDataLayout());
 	  
 		auto Filename = output_file;

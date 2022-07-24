@@ -36,7 +36,7 @@ private:
 
   DataLayout DL;
   MangleAndInterner Mangle;
-
+  JITTargetMachineBuilder JTMB;
   RTDyldObjectLinkingLayer ObjectLayer;
   IRCompileLayer CompileLayer;
 
@@ -44,12 +44,13 @@ private:
 
 public:
   VolvoxJIT(std::unique_ptr<ExecutionSession> ES,
-                  JITTargetMachineBuilder JTMB, DataLayout DL)
+                  JITTargetMachineBuilder _JTMB, DataLayout DL)
       : ES(std::move(ES)), DL(std::move(DL)), Mangle(*this->ES, this->DL),
+        JTMB(_JTMB),
         ObjectLayer(*this->ES,
                     []() { return std::make_unique<SectionMemoryManager>(); }),
         CompileLayer(*this->ES, ObjectLayer,
-                     std::make_unique<ConcurrentIRCompiler>(std::move(JTMB))),
+                     std::make_unique<ConcurrentIRCompiler>(std::move(_JTMB))),
         MainJD(this->ES->createBareJITDylib("<main>")) {
     MainJD.addGenerator(
         cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(
@@ -94,6 +95,10 @@ public:
 
   Expected<JITEvaluatedSymbol> lookup(StringRef Name) {
     return ES->lookup({&MainJD}, Mangle(Name.str()));
+  }
+
+  Expected<std::unique_ptr<llvm::TargetMachine>> createTargetMachine() {
+    return JTMB.createTargetMachine();
   }
 };
 
