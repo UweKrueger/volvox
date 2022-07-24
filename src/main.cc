@@ -1002,7 +1002,18 @@ int main(int argc, char* argv[]) {
 
 	InitializeModuleAndPassManager();
 	// Register all the basic analyses with the managers.
-	llvm::PassBuilder PB;
+	llvm::PipelineTuningOptions PTO;
+	// PTO.LoopInterleaving = false;
+	// PTO.LoopVectorization = false;
+	// PTO.SLPVectorization = false;
+	// PTO.LoopUnrolling = false;
+	// PTO.ForgetAllSCEVInLoopUnroll = false;
+	// PTO.LicmMssaOptCap = false;
+	// PTO.LicmMssaNoAccForPromotionCap = false;
+	// PTO.CallGraphProfile = false;
+	// PTO.MergeFunctions = false;
+	// PTO.EagerlyInvalidateAnalyses = false;
+	llvm::PassBuilder PB(nullptr, PTO);
 
 #if LLVM_VERSION_MAJOR < 14
 	FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
@@ -1013,7 +1024,11 @@ int main(int argc, char* argv[]) {
 	PB.registerFunctionAnalyses(FAM);
 	PB.registerLoopAnalyses(LAM);
 	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-
+#if 0
+	errs() << "known passes:\n";
+	PB.printPassNames(errs());
+	errs() << '\n';
+#endif
 	// Create the pass manager.
 	if (optimization_level ==
 #if LLVM_VERSION_MAJOR < 14
@@ -1026,9 +1041,24 @@ int main(int argc, char* argv[]) {
 			; // -O0 is known to have problems with JIT
 		else
 			MPM = PB.buildO0DefaultPipeline(optimization_level);
-	else
-		MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
-
+	else {
+		// MPM = PB.buildModuleSimplificationPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
+		// MPM = PB.buildModuleInlinerPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
+		// MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
+		MPM = PB.buildModuleOptimizationPipeline(optimization_level);
+		if(auto err = PB.parsePassPipeline(MPM, "module(cgscc(inline<only-mandatory>))")) {
+			errs() << err << '\n';
+		}
+		// else {
+		// 	errs() << "successfully parsed pipeline\n";
+		// }
+	}
+#if 0
+	errs() << "passes:\n";
+	MPM.printPipeline(errs(), [](llvm::StringRef ClassName) {
+		return ClassName; });
+	errs() << '\n';
+#endif
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.
 		TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version",
