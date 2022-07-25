@@ -601,7 +601,8 @@ uint64_t stacksize = 10485760;
 #endif
 
 static void usage(const char* prog) {
-	errs() << "Usage: " << prog << " [-v] [-d] [-c] [-fPIC] [-g] [-i file] [-o file] [[-t] file [...]]\n";
+	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
+	errs() << " -h ........ print this help screen\n";
 	errs() << " -v ........ verbose output (may be repeated for even more verbosity)\n";
 	errs() << " -d ........ dump generated LLVM IR-code (repeat to dump more code)\n";
 	errs() << " -D ........ dump raw IR in addition to optimized IR (repeat to dump only raw IR)\n";
@@ -615,9 +616,9 @@ static void usage(const char* prog) {
 	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
 	errs() << " -i file ... include \"file\" in advance\n";
 	errs() << " -o file ... output compiled result to \"file\"\n";
-	errs() << " -s size ... set stack size (bytes) for .exe(Windows)/threads(*nix) (default: 10485760)\n";
+	errs() << " -s size ... stack size for .exe(Windows)/threads (default: 10MB)\n";
 	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
-	errs() << " -C n,g,b .. set prompt colors (ANSI-256, default: 30,100,236)\n";
+	errs() << " -C n,g,b .. prompt colors (number, >, background; ANSI-256, default: 30,100,236)\n";
 	errs() << " file ...... file(s) to compile (default: interactive session is started)\n";
 	exit(1);
 }
@@ -788,6 +789,9 @@ int main(int argc, char* argv[]) {
 #endif
 			codegenopt = llvm::CodeGenOpt::None;
 			break;
+		case 'h':
+		case'?':
+			usage(argv[0]);
 		case 'r':
 			run_program = true;
 			break;
@@ -819,10 +823,38 @@ int main(int argc, char* argv[]) {
 		case 's':
 			errno = 0;
 			stacksize = strtoull(optarg, &endptr, 0);
-			if (*endptr || errno) {
-				errs() << "illegal argument for '-s': \"" << optarg << "\" - number (stack size in bytes) expected\n";
-				usage(argv[0]);
+			if (!errno) {
+				// allowed range is very system dependent - but with a signed overflow it's definitely exceeded
+				if ((long long)stacksize <= 0) {
+					goto stackeinvalerr;
+				}
+				switch (*endptr) {
+				case 'G':
+					stacksize *= 1024;
+				case 'M':
+					stacksize *= 1024;
+				case 'k':
+					stacksize *= 1024;
+					endptr++;
+					break;
+				case 'B':
+					break;
+				case '\0':
+					goto stacksizesuccess;
+				default:
+					goto stackeinvalerr;
+				}
+				if (*endptr == 'B')
+					endptr++;
+				if (!(*endptr))
+					goto stacksizesuccess;
+				stackeinvalerr:
+				errno = EINVAL;
 			}
+			errs() << llvm::format("'-s': \"%s\": %s\n", optarg, strerror(errno));
+			errs() << "you may use units like \"-s 10MB\" \"-s 500kB\" or \"-s 10GB\"\n";
+			usage(argv[0]);
+		stacksizesuccess:
 			break;
 		case 'O':
 			// we expect either one or two characters after '-O'
@@ -886,7 +918,6 @@ int main(int argc, char* argv[]) {
 			}
 			break;
 		default:
-			errs() << "unknown option '-" << opt << "'\n";
 			usage(argv[0]);
 		}
 	}
