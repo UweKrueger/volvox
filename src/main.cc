@@ -291,8 +291,16 @@ bool spawn_bool_expr(bool (*expr)()) {
 }
 #else
 bool spawn_bool_expr(bool (*expr)()) {
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr, stacksize);
 	pthread_t thread;
-	int res = pthread_create(&thread, NULL, anon_expr_wrapper, (void*)expr);
+	int res = pthread_create(&thread, &attr, anon_expr_wrapper, (void*)expr);
+	if (res) {
+		errs() << "Error creating execution thread: " << strerror(res) << '\n';
+		abort();
+	}
+	pthread_attr_destroy(&attr);
 	void* retval;
 	res = pthread_join(thread, &retval);
 	return !(!retval);
@@ -586,6 +594,7 @@ int builtin_input_fd = -1;
 int input_fd = -1;
 bool dump_opt = true;
 bool dump_raw = false;
+uint64_t stacksize = 10485760;
 // Windows has no CLOEXEC
 #if !defined(O_CLOEXEC)
 #define O_CLOEXEC 0
@@ -606,9 +615,7 @@ static void usage(const char* prog) {
 	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
 	errs() << " -i file ... include \"file\" in advance\n";
 	errs() << " -o file ... output compiled result to \"file\"\n";
-#if defined (_MSC_VER)
-	errs() << " -s size ... set stack size (in bytes) for .exe (default: 10000000)\n";
-#endif
+	errs() << " -s size ... set stack size (bytes) for .exe(Windows)/threads(*nix) (default: 10485760)\n";
 	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
 	errs() << " -C n,g,b .. set prompt colors (ANSI-256, default: 30,100,236)\n";
 	errs() << " file ...... file(s) to compile (default: interactive session is started)\n";
@@ -735,7 +742,6 @@ int main(int argc, char* argv[]) {
 #if defined (_MSC_VER)
 	old_cp = GetConsoleOutputCP();
 	SetConsoleOutputCP(CP_UTF8);
-	uint64_t stacksize = 10000000;
 #endif
 	setlocale(LC_ALL, "en_US.UTF-8");
 	outs().SetUnbuffered();
@@ -811,17 +817,12 @@ int main(int argc, char* argv[]) {
 			output_file = optarg;
 			break;
 		case 's':
-#if defined (_MSC_VER)
 			errno = 0;
 			stacksize = strtoull(optarg, &endptr, 0);
 			if (*endptr || errno) {
 				errs() << "illegal argument for '-s': \"" << optarg << "\" - number (stack size in bytes) expected\n";
 				usage(argv[0]);
 			}
-#else
-			errs() << "'-s' (stack size) flag only supported on MS Windows - use \"ulimit -s ...\" on Linux/BSD\n";
-			usage(argv[0]);
-#endif
 			break;
 		case 'O':
 			// we expect either one or two characters after '-O'

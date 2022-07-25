@@ -210,6 +210,7 @@ extern llvm::orc::ThreadSafeContext TS_Context;
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
+extern uint64_t stacksize;
 
 #ifndef LEGACY_PASS_MANAGER
 extern llvm::OptimizationLevel optimization_level;
