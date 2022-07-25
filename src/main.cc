@@ -575,7 +575,7 @@ int builtin_input_fd = -1;
 int input_fd = -1;
 bool dump_opt = true;
 bool dump_raw = false;
-uint64_t stacksize = 10485760;
+uint64_t stacksize = 10485760; // 10MB as safe fallback
 // Windows has no CLOEXEC
 #if !defined(O_CLOEXEC)
 #define O_CLOEXEC 0
@@ -586,7 +586,7 @@ static void usage(const char* prog) {
 	errs() << " -h ........ print this help screen\n";
 	errs() << " -v ........ verbose output (may be repeated for even more verbosity)\n";
 	errs() << " -d ........ dump generated LLVM IR-code (repeat to dump more code)\n";
-	errs() << " -D ........ dump raw IR in addition to optimized IR (repeat to dump only raw IR)\n";
+	errs() << " -D ........ dump raw IR in addition to optimized IR (repeat to dump only raw)\n";
 	errs() << " -c ........ compile to optimized object file\n";
 	errs() << " -fPIC ..... generate position independent code\n";
 	errs() << " -g ........ compile with debug information\n";
@@ -597,9 +597,10 @@ static void usage(const char* prog) {
 	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
 	errs() << " -i file ... include \"file\" in advance\n";
 	errs() << " -o file ... output compiled result to \"file\"\n";
-	errs() << " -s size ... stack size for .exe(Windows)/threads (default: 10MB)\n";
+	errs() << " -s size ... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
+	errs() << "             default: `ulimit -s` if finite or 10MB otherwise\n";
 	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
-	errs() << " -C n,g,b .. prompt colors (number, >, background; ANSI-256, default: 30,100,236)\n";
+	errs() << " -C n,g,b .. prompt colors (#, >, background; ANSI-256, default: 30,100,236)\n";
 	errs() << " file ...... file(s) to compile (default: interactive session is started)\n";
 	exit(1);
 }
@@ -721,7 +722,7 @@ int main(int argc, char* argv[]) {
 	// auto pppp = Mangle(qqq, sss);
 	// auto ppp = pppp.str();
 	// fprintf(stderr, "Mangled name (%" PRIu64 " bytes): >%s<\n", ppp.size(), ppp.data());
-#if defined (_MSC_VER)
+#if defined (_WIN32)
 	old_cp = GetConsoleOutputCP();
 	SetConsoleOutputCP(CP_UTF8);
 #endif
@@ -729,14 +730,23 @@ int main(int argc, char* argv[]) {
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
 	llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;
-
+#ifndef _WIN32
+	struct rlimit rlimit_stacksize;
+	// try to get default stack size for new threads from rlimits
+	if (getrlimit(RLIMIT_STACK, &rlimit_stacksize))
+		errs() << llvm::format("Cannot get rlimit stacksize: %s\n", strerror(errno));
+	else
+		if (rlimit_stacksize.rlim_cur != RLIM_INFINITY)
+			stacksize = rlimit_stacksize.rlim_cur;
+	// otherwise keep the default of 10MB - may be overriden by '-s stacksize' below
+#endif
 	if (char* cols = getenv(PROMPT_COL))
 		if (!parse_pcol(cols))
 			errs() << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
 	char* endptr;
-	while ((opt = getopt(argc, argv, "vdDcgrjJf:O:i:o:s:tP:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdDcghrjJf:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
