@@ -844,6 +844,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			if (comp_mode == comp_jit) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
+#ifndef LEGACY_PASS_MANAGER
 				if (dump_IR && dump_raw) {
 					auto end = TheModule->end();
 					for (auto it = TheModule->begin(); it != end; ++it)
@@ -855,6 +856,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					for (auto it = TheModule->begin(); it != end; ++it)
 						it->print(errs());
 				}
+#endif
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
 				InitializeModuleAndPassManager();
@@ -878,6 +880,14 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				Builder->SetInsertPoint(BB);
 				Builder->CreateRet(CheckTailCall(Builder->CreateCall(shadow_fn.second->FT, shadow_fn.first, { V, sz_const }, "callshadow")));
 				verifyFunction(*Fshadow);
+#ifdef LEGACY_PASS_MANAGER
+				TheFPM->run(*Fshadow);
+				if (dump_IR >= 3) {
+					errs() << "Read function definition:\n";
+					Fshadow->print(errs());
+					errs() << "\n";
+				}
+#else
 				if (dump_IR >= 3 && dump_raw) {
 					auto end = TheModule->end();
 					for (auto it = TheModule->begin(); it != end; ++it)
@@ -889,6 +899,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					for (auto it = TheModule->begin(); it != end; ++it)
 						it->print(errs());
 				}
+#endif
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();

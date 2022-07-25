@@ -62,12 +62,16 @@ llvm::Type* llvm_bool_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* uintptr_type;
 
+#ifdef LEGACY_PASS_MANAGER
+std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
+#else
 // Create the analysis managers.
 llvm::LoopAnalysisManager LAM;
 llvm::FunctionAnalysisManager FAM;
 llvm::CGSCCAnalysisManager CGAM;
 llvm::ModuleAnalysisManager MAM;
 llvm::ModulePassManager MPM;
+#endif
 
 std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
@@ -148,7 +152,23 @@ void InitializeModuleAndPassManager() {
 	
 	// Create a new builder for the module.
 	Builder = std::make_unique<llvm::IRBuilder<>>(Context);
+#ifdef LEGACY_PASS_MANAGER
+	// Create a new pass manager attached to it.
+	TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
 
+	// Promote allocas to registers.
+	TheFPM->add(llvm::createPromoteMemoryToRegisterPass());
+	// Do simple "peephole" optimizations and bit-twiddling optzns.
+	TheFPM->add(llvm::createInstructionCombiningPass());
+	// Reassociate expressions.
+	TheFPM->add(llvm::createReassociatePass());
+	// Eliminate Common SubExpressions.
+	TheFPM->add(llvm::createGVNPass());
+	// Simplify the control flow graph (deleting unreachable blocks, etc).
+	TheFPM->add(llvm::createCFGSimplificationPass());
+
+	TheFPM->doInitialization();
+#endif
 }
 
 static void HandleDefinition(unsigned share_kind) {
@@ -159,6 +179,13 @@ static void HandleDefinition(unsigned share_kind) {
 	bool success = false;
 	if (auto FnAST = ParseDefinition(share_kind)) {
 		if (auto *FnIR = FnAST->codegen()) {
+#ifdef LEGACY_PASS_MANAGER
+			if (dump_IR) {
+				errs() << "Read function definition:\n";
+				FnIR->print(errs());
+				errs() << "\n";
+			}
+#endif
 			goto cleanup;
 		} else {
 			errs() << "Error compiling function definition\n";
@@ -276,12 +303,20 @@ static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
 		if (auto anon_expr = FnAST->codegen()) {
+#ifdef LEGACY_PASS_MANAGER
+			if (dump_IR >= 2) {
+				errs() << "Created temporary top level anon_expr definition:\n";
+				anon_expr->print(errs());
+				errs() << "\n";
+			}
+#endif
 			auto ret_type = anon_expr->getReturnType();
 			if (!anon_expr->getReturnType()->isIntegerTy() || !(anon_expr->getReturnType()->getIntegerBitWidth() == 1)) {
 				errs() << "internal error: anonymous function does not return `bool`\n";
 				return;
 			}
 			if (comp_mode == comp_jit) {
+#ifndef LEGACY_PASS_MANAGER
 				if (dump_IR >= 2 && dump_raw) {
 					auto end = TheModule->end();
 					for (auto it = TheModule->begin(); it != end; ++it)
@@ -293,6 +328,7 @@ static void HandleTopLevelExpression() {
 					for (auto it = TheModule->begin(); it != end; ++it)
 						it->print(errs());
 				}
+#endif
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
@@ -599,9 +635,7 @@ promptcolor_t p_col = { 30, 100, 236 };
 const char* TestFunction = nullptr;
 char* output_file = nullptr;
 char* exe_file = nullptr;
-#if LLVM_VERSION_MAJOR < 14
-llvm::PassBuilder::OptimizationLevel optimization_level = llvm::PassBuilder::OptimizationLevel::O2;
-#else
+#ifndef LEGACY_PASS_MANAGER
 llvm::OptimizationLevel optimization_level = llvm::OptimizationLevel::O2;
 #endif
 
@@ -743,9 +777,7 @@ int main(int argc, char* argv[]) {
 			if (comp_mode == comp_jit)
 				compile_mode_conflict(argv[0]);
 			comp_mode = comp_dbg;
-#if LLVM_VERSION_MAJOR < 14
-			optimization_level = llvm::PassBuilder::OptimizationLevel::O0;
-#else
+#ifndef LEGACY_PASS_MANAGER
 			optimization_level = llvm::OptimizationLevel::O0;
 #endif
 			codegenopt = llvm::CodeGenOpt::None;
@@ -793,54 +825,32 @@ int main(int argc, char* argv[]) {
 			break;
 		case 'O':
 			// we expect either one or two characters after '-O'
+#ifndef LEGACY_PASS_MANAGER
 			if (!optarg[0] || (optarg[1] && optarg[2]))
 				goto optimizationerr;
 			switch (optarg[0]) { // optimization level for IR
 			case '0':
-#if LLVM_VERSION_MAJOR < 14
-				optimization_level = llvm::PassBuilder::OptimizationLevel::O0;
-#else
 				optimization_level = llvm::OptimizationLevel::O0;
-#endif
 				break;
 			case '1':
-#if LLVM_VERSION_MAJOR < 14
-				optimization_level = llvm::PassBuilder::OptimizationLevel::O1;
-#else
 				optimization_level = llvm::OptimizationLevel::O1;
-#endif
 				break;
 			case 's':
-#if LLVM_VERSION_MAJOR < 14
-				optimization_level = llvm::PassBuilder::OptimizationLevel::Os;
-#else
 				optimization_level = llvm::OptimizationLevel::Os;
-#endif
 				break;
 			case 'z':
-#if LLVM_VERSION_MAJOR < 14
-				optimization_level = llvm::PassBuilder::OptimizationLevel::Oz;
-#else
 				optimization_level = llvm::OptimizationLevel::Oz;
-#endif
 				break;
 			case '2':
-#if LLVM_VERSION_MAJOR < 14
-				optimization_level = llvm::PassBuilder::OptimizationLevel::O2;
-#else
 				optimization_level = llvm::OptimizationLevel::O2;
-#endif
 				break;
 			case '3':
-#if LLVM_VERSION_MAJOR < 14
-				optimization_level = llvm::PassBuilder::OptimizationLevel::O3;
-#else
 				optimization_level = llvm::OptimizationLevel::O3;
-#endif
 				break;
 			default:
 				goto optimizationerr;
 			}
+#endif
 			// use same optization level for MIR, i.e. codegen unless
 			// a second flag is specified in optarg
 			switch (optarg[1] ? optarg[1] : optarg[0]) {
@@ -1001,6 +1011,7 @@ int main(int argc, char* argv[]) {
 	TS_Context = llvm::orc::ThreadSafeContext(std::move(std::make_unique<llvm::LLVMContext>()));
 
 	InitializeModuleAndPassManager();
+#ifndef LEGACY_PASS_MANAGER
 	// Register all the basic analyses with the managers.
 	llvm::PipelineTuningOptions PTO;
 	// PTO.LoopInterleaving = false;
@@ -1013,7 +1024,7 @@ int main(int argc, char* argv[]) {
 	// PTO.CallGraphProfile = false;
 	// PTO.MergeFunctions = false;
 	// PTO.EagerlyInvalidateAnalyses = false;
-
+#endif
 	// Initialize the target registry etc.
 	llvm::InitializeAllTargetInfos();
 	llvm::InitializeAllTargets();
@@ -1049,30 +1060,21 @@ int main(int argc, char* argv[]) {
 		TheTargetMachine =
 			Target->createTargetMachine(TargetTriple, CPU, Features, target_opts, RM, llvm::None, codegenopt);
 	}
+#ifndef LEGACY_PASS_MANAGER
 	llvm::PassBuilder PB(TheTargetMachine, PTO);
-
-#if LLVM_VERSION_MAJOR < 14
-	FAM.registerPass([&] { return PB.buildDefaultAAPipeline(); });
-#endif
 
 	PB.registerModuleAnalyses(MAM);
 	PB.registerCGSCCAnalyses(CGAM);
 	PB.registerFunctionAnalyses(FAM);
 	PB.registerLoopAnalyses(LAM);
 	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-#if 0
-	errs() << "known passes:\n";
-	PB.printPassNames(errs());
-	errs() << '\n';
-#endif
+	if (dump_IR) {
+		errs() << "known passes:\n";
+		PB.printPassNames(errs());
+		errs() << '\n';
+	}
 	// Create the pass manager.
-	if (optimization_level ==
-#if LLVM_VERSION_MAJOR < 14
-	    llvm::PassBuilder::OptimizationLevel::O0
-#else
-	    llvm::OptimizationLevel::O0
-#endif
-		)
+	if (optimization_level == llvm::OptimizationLevel::O0)
 		if (comp_mode == comp_jit)
 			; // -O0 is known to have problems with JIT
 		else
@@ -1089,11 +1091,12 @@ int main(int argc, char* argv[]) {
 		// 	errs() << "successfully parsed pipeline\n";
 		// }
 	}
-#if 0
-	errs() << "passes:\n";
-	MPM.printPipeline(errs(), [](llvm::StringRef ClassName) {
-		return ClassName; });
-	errs() << '\n';
+	if (dump_IR) {
+		errs() << "passes:\n";
+		MPM.printPipeline(errs(), [](llvm::StringRef ClassName) {
+			return ClassName; });
+		errs() << '\n';
+	}
 #endif
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.
@@ -1121,6 +1124,13 @@ int main(int argc, char* argv[]) {
 	if (do_test || comp_mode != comp_jit) {
 		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
 			if (auto *FnIR = FnAST->codegen()) {
+#ifdef LEGACY_PASS_MANAGER
+				if (dump_IR) {
+					errs() << "Read function definition:\n";
+					FnIR->print(errs());
+					errs() << "\n";
+				}
+#else
 				if (dump_IR && dump_raw) {
 					auto end = TheModule->end();
 					for (auto it = TheModule->begin(); it != end; ++it)
@@ -1132,6 +1142,7 @@ int main(int argc, char* argv[]) {
 					for (auto it = TheModule->begin(); it != end; ++it)
 						it->print(errs());
 				}
+#endif
 				if (comp_mode == comp_jit) {
 					// call test_main()
 

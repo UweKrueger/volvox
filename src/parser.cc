@@ -1184,6 +1184,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	SourceLocation FnLoc = CurLoc;
 	if (auto E = GetTopLevelExpression()) {
 		if (comp_mode == comp_jit) {
+#ifndef LEGACY_PASS_MANAGER
 			if (dump_IR && dump_raw) {
 				auto end = TheModule->end();
 				for (auto it = TheModule->begin(); it != end; ++it)
@@ -1195,6 +1196,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 				for (auto it = TheModule->begin(); it != end; ++it)
 					it->print(errs());
 			}
+#endif
 			ExitOnErr(TheJIT->addModule(
 				          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
 			InitializeModuleAndPassManager();

@@ -31,10 +31,10 @@ endif
 endif
 
 ifeq ($(shell uname),FreeBSD)
-	CPPEXTRAFLAGS :=  -I/usr/local/include -Wno-reorder-init-list
+	CPPEXTRAFLAGS :=  -I/usr/local/include -Wno-reorder-init-list -DLEGACY_PASS_MANAGER
 	EXTRAOBJS := emutls.o
 else
-	CPPEXTRAFLAGS :=
+	CPPEXTRAFLAGS := -DLEGACY_PASS_MANAGER
 	EXTRAOBJS :=
 endif
 
