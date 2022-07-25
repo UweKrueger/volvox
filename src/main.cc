@@ -1115,7 +1115,7 @@ int main(int argc, char* argv[]) {
 		// MPM = PB.buildModuleSimplificationPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
 		// MPM = PB.buildModuleInlinerPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
 		// MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
-		MPM = PB.buildModuleOptimizationPipeline(optimization_level);
+		MPM = PB.buildModuleOptimizationPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
 		if(auto err = PB.parsePassPipeline(MPM, "module(cgscc(inline<only-mandatory>))")) {
 			errs() << err << '\n';
 		}
@@ -1125,8 +1125,7 @@ int main(int argc, char* argv[]) {
 	}
 	if (dump_IR) {
 		errs() << "passes:\n";
-		MPM.printPipeline(errs(), [](llvm::StringRef ClassName) {
-			return ClassName; });
+		MPM.printPipeline(errs(), [](llvm::StringRef ClassName) { return ClassName; });
 		errs() << '\n';
 	}
 #endif
