@@ -179,13 +179,6 @@ static void HandleDefinition(unsigned share_kind) {
 	bool success = false;
 	if (auto FnAST = ParseDefinition(share_kind)) {
 		if (auto *FnIR = FnAST->codegen()) {
-#ifdef LEGACY_PASS_MANAGER
-			if (dump_IR) {
-				errs() << "Read function definition:\n";
-				FnIR->print(errs());
-				errs() << "\n";
-			}
-#endif
 			goto cleanup;
 		} else {
 			errs() << "Error compiling function definition\n";
@@ -311,13 +304,6 @@ static void HandleTopLevelExpression() {
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr()) {
 		if (auto anon_expr = FnAST->codegen()) {
-#ifdef LEGACY_PASS_MANAGER
-			if (dump_IR >= 2) {
-				errs() << "Created temporary top level anon_expr definition:\n";
-				anon_expr->print(errs());
-				errs() << "\n";
-			}
-#endif
 			auto ret_type = anon_expr->getReturnType();
 			if (!anon_expr->getReturnType()->isIntegerTy() || !(anon_expr->getReturnType()->getIntegerBitWidth() == 1)) {
 				errs() << "internal error: anonymous function does not return `bool`\n";
@@ -325,11 +311,6 @@ static void HandleTopLevelExpression() {
 			}
 			if (comp_mode == comp_jit) {
 #ifndef LEGACY_PASS_MANAGER
-				if (dump_IR >= 2 && dump_raw) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
-				}
 				MPM.run(*TheModule, MAM);
 				if (dump_IR >= 2 && dump_opt) {
 					auto end = TheModule->end();
@@ -1155,18 +1136,7 @@ int main(int argc, char* argv[]) {
 	if (do_test || comp_mode != comp_jit) {
 		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
 			if (auto *FnIR = FnAST->codegen()) {
-#ifdef LEGACY_PASS_MANAGER
-				if (dump_IR) {
-					errs() << "Read function definition:\n";
-					FnIR->print(errs());
-					errs() << "\n";
-				}
-#else
-				if (dump_IR && dump_raw) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
-				}
+#ifndef LEGACY_PASS_MANAGER
 				MPM.run(*TheModule, MAM);
 				if (dump_IR && dump_opt) {
 					auto end = TheModule->end();

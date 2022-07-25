@@ -845,11 +845,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 #ifndef LEGACY_PASS_MANAGER
-				if (dump_IR && dump_raw) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
-				}
 				MPM.run(*TheModule, MAM);
 				if (dump_IR && dump_opt) {
 					auto end = TheModule->end();
@@ -880,19 +875,19 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				Builder->SetInsertPoint(BB);
 				Builder->CreateRet(CheckTailCall(Builder->CreateCall(shadow_fn.second->FT, shadow_fn.first, { V, sz_const }, "callshadow")));
 				verifyFunction(*Fshadow);
+				if (dump_IR >= 3 && dump_raw) {
+					errs() << "Read shadow definition (raw):\n";
+					Fshadow->print(errs());
+					errs() << "\n";
+				}
 #ifdef LEGACY_PASS_MANAGER
 				TheFPM->run(*Fshadow);
-				if (dump_IR >= 3) {
-					errs() << "Read function definition:\n";
+				if (dump_IR >= 3 && dump_opt) {
+					errs() << "Read shadow definition (after optimization):\n";
 					Fshadow->print(errs());
 					errs() << "\n";
 				}
 #else
-				if (dump_IR >= 3 && dump_raw) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
-				}
 				MPM.run(*TheModule, MAM);
 				if (dump_IR >= 3 && dump_opt) {
 					auto end = TheModule->end();
@@ -937,6 +932,19 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					Builder->CreateRetVoid();
 				}
 				verifyFunction(*Fsaver);
+				if (dump_IR >= 3 && dump_raw) {
+					errs() << "Read saver definition (raw):\n";
+					Fsaver->print(errs());
+					errs() << "\n";
+				}
+#ifdef LEGACY_PASS_MANAGER
+				TheFPM->run(*Fsaver);
+				if (dump_IR >= 3 && dump_opt) {
+					errs() << "Read saver definition (after optimization):\n";
+					Fsaver->print(errs());
+					errs() << "\n";
+				}
+#endif
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 				last_shadow_saver = saverProto->Name.c_str();
 				FunctionProtos[saver].push_back(std::move(saverProto));
@@ -953,6 +961,19 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					Builder->CreateRetVoid();
 				}
 				verifyFunction(*Frestorer);
+				if (dump_IR >= 3 && dump_raw) {
+					errs() << "Read restorer definition (raw):\n";
+					Frestorer->print(errs());
+					errs() << "\n";
+				}
+#ifdef LEGACY_PASS_MANAGER
+				TheFPM->run(*Frestorer);
+				if (dump_IR >= 3 && dump_opt) {
+					errs() << "Read restorer definition (after optimization):\n";
+					Frestorer->print(errs());
+					errs() << "\n";
+				}
+#endif
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
 				FunctionProtos[restorer].push_back(std::move(restorerProto));
@@ -2158,5 +2179,19 @@ llvm::Function *FunctionAST::codegen() {
 	}
 	// Validate the generated code, checking for consistency.
 	verifyFunction(*TheFunction);
+	if (dump_raw && (dump_IR >= 2 || dump_IR && unmangledName != "__anon_expr")) {
+		errs() << "Read function definition (raw):\n";
+		TheFunction->print(errs());
+		errs() << "\n";
+	}
+#ifdef LEGACY_PASS_MANAGER
+	// Run the optimizer on the function.
+	TheFPM->run(*TheFunction);
+	if (dump_opt && (dump_IR >= 2 || dump_IR && unmangledName != "__anon_expr")) {
+		errs() << "Read function definition (after optimization):\n";
+		TheFunction->print(errs());
+		errs() << "\n";
+	}
+#endif
 	return TheFunction;
 }
