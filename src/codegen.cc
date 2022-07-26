@@ -1747,6 +1747,8 @@ llvm::Value* IfExprAST::codegen_raw() {
 	}
 	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 	llvm::PHINode* condPN;
+	llvm::PHINode* savedStackIni;
+	llvm::PHINode* savedStackMerged;
 	llvm::BasicBlock* CondBB;
 	// find a suitable name for the loop block
 	const char* loopBBName;
@@ -1774,6 +1776,8 @@ llvm::Value* IfExprAST::codegen_raw() {
 		Builder->SetInsertPoint(CondBB);
 		condPN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "condtmp");
 		condPN->addIncoming(Builder->getInt1(true), enterBB);
+		savedStackIni = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstackini");
+		savedStackIni->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
 		need_else_switch = (Else.size() > 0);
 	} else if (if_kind == tok_repeat) {
 		CondBB = llvm::BasicBlock::Create(Context, "until");
@@ -1816,14 +1820,23 @@ llvm::Value* IfExprAST::codegen_raw() {
 			TheFunction->getBasicBlockList().push_back(StackSaveBB);
 			Builder->SetInsertPoint(StackSaveBB);
 		}
-		llvm::Value* savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {});
+		llvm::Value* savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {}, nullptr, "savedstack");
 		Builder->CreateBr(LoopBB);
 		TheFunction->getBasicBlockList().push_back(StackRestoreBB);
 		Builder->SetInsertPoint(StackRestoreBB);
-		Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
+		if (if_kind == tok_while)
+			Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStackIni);
+		else
+			Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(LoopBB);
 		TheFunction->getBasicBlockList().push_back(LoopBB);
 		Builder->SetInsertPoint(LoopBB);
+		if (if_kind == tok_while) {
+			savedStackMerged = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstackmerged");
+			savedStackMerged->addIncoming(savedStack, StackSaveBB);
+			savedStackMerged->addIncoming(savedStackIni, StackRestoreBB);
+			savedStackIni->addIncoming(savedStackMerged, LoopBB);
+		}
 	}
 	locals_table.push_back(std::move(then_locals_table));
 	condnesting++;
