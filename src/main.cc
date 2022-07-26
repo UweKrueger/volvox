@@ -1097,17 +1097,17 @@ int main(int argc, char* argv[]) {
 	else {
 		// MPM = PB.buildModuleSimplificationPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
 		// MPM = PB.buildModuleInlinerPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
-		// MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
-		MPM = PB.buildModuleOptimizationPipeline(optimization_level,
-#if LLVM_VERSION_MAJOR >= 15
-		                                         llvm::ThinOrFullLTOPhase::None
-#else
-		                                         false
-#endif
-			);
-		if(auto err = PB.parsePassPipeline(MPM, "module(cgscc(inline<only-mandatory>))")) {
-			errs() << err << '\n';
-		}
+		MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
+// 		MPM = PB.buildModuleOptimizationPipeline(optimization_level,
+// #if LLVM_VERSION_MAJOR >= 15
+// 		                                         llvm::ThinOrFullLTOPhase::None
+// #else
+// 		                                         false
+// #endif
+// 			);
+// 		if(auto err = PB.parsePassPipeline(MPM, "module(always-inline,cgscc(inline<only-mandatory>))")) {
+// 			errs() << err << '\n';
+// 		}
 		// else {
 		// 	errs() << "successfully parsed pipeline\n";
 		// }
