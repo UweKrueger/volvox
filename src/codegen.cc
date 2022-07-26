@@ -876,25 +876,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				Builder->CreateRet(CheckTailCall(Builder->CreateCall(shadow_fn.second->FT, shadow_fn.first, { V, sz_const }, "callshadow")));
 				verifyFunction(*Fshadow);
 				if (dump_IR >= 3 && dump_raw) {
-					errs() << "Read shadow definition (raw):\n";
+					errs() << "Read shadow definition:\n";
 					Fshadow->print(errs());
 					errs() << "\n";
 				}
-#ifdef LEGACY_PASS_MANAGER
-				TheFPM->run(*Fshadow);
-				if (dump_IR >= 3 && dump_opt) {
-					errs() << "Read shadow definition (after optimization):\n";
-					Fshadow->print(errs());
-					errs() << "\n";
-				}
-#else
-				MPM.run(*TheModule, MAM);
-				if (dump_IR >= 3 && dump_opt) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
-				}
-#endif
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();

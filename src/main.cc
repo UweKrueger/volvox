@@ -310,14 +310,6 @@ static void HandleTopLevelExpression() {
 				return;
 			}
 			if (comp_mode == comp_jit) {
-#ifndef LEGACY_PASS_MANAGER
-				MPM.run(*TheModule, MAM);
-				if (dump_IR >= 2 && dump_opt) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
-				}
-#endif
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
