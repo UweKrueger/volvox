@@ -866,11 +866,15 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 #ifndef LEGACY_PASS_MANAGER
-				MPM.run(*TheModule, MAM);
-				if (dump_IR && dump_opt) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
+				// running the new PassManager on an empty module causes trouble :-(
+				// let's avoid this...
+				if (TheModule->end() != TheModule->begin()) {
+					MPM.run(*TheModule, MAM);
+					if (dump_IR && dump_opt) {
+						auto end = TheModule->end();
+						for (auto it = TheModule->begin(); it != end; ++it)
+							it->print(errs());
+					}
 				}
 #endif
 				ExitOnErr(TheJIT->addModule(
