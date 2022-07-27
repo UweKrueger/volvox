@@ -1148,9 +1148,7 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				entry->ft.type_attr &= ~A_signed;
 			if (Val) {
 				auto convertedVal = conversion(Val);
-				errs() << "try to store " << *convertedVal << ' ' << *entry->ft.type << "\n";
 				auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
-				errs() << "stored\n";
 				entry->val = Alloca;
 				if (comp_mode == comp_dbg) {
 					// Create a debug descriptor for the variable.
@@ -1646,7 +1644,6 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 			errs() << "internal error: types of if-branches do not match\n";
 			return { nullptr, nullptr };
 		}
-		errs() << "Merging equal types " << *valA->getType() << ' ' << *valB->getType() << '\n';
 		llvm::PHINode* PN = Builder->CreatePHI(valA->getType(), 2, "iftmp");
 		PN->addIncoming(valA, caseA);
 		PN->addIncoming(valB, caseB);
@@ -1669,7 +1666,6 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 			Aptr = getInterfaceArrayOrStoreValue(valA, array_tA, array_tA, true);
 			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Aptr->getType()))
 				Aptr = Builder->CreateExtractValue(Aptr, struct_type->getNumElements() - 1);
-			errs() << "stored value: " << *Aptr << '\n';
 		}
 		llvm::Value* Bptr;
 		unsigned n_vardims_B;
@@ -1690,7 +1686,6 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 			Bptr = getInterfaceArrayOrStoreValue(valB, array_tB, array_tB, true);
 			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Bptr->getType()))
 				Bptr = Builder->CreateExtractValue(Bptr, struct_type->getNumElements() - 1);
-			errs() << "stored value: " << *Aptr << '\n';
 		}
 		unsigned iA = 0;
 		unsigned iB = 0;
@@ -1743,19 +1738,9 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		}
 		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : typA->getPointerTo();
 		Builder->SetInsertPoint(lastA);
-		if (Aptr->getType()->isPointerTy()) {
-			errs() << "LHS is pointer: " << *Aptr->getType() << ' ' << *valA << "\n";
-			Aptr = Builder->CreateBitCast(Aptr, ptr_t);
-		} else {
-			errs() << "LHS is no pointer: " << *Aptr->getType() << ' ' << *valA << "\n";
-		}
+		Aptr = Builder->CreateBitCast(Aptr, ptr_t);
 		Builder->SetInsertPoint(lastB);
-		if (Bptr->getType()->isPointerTy()) {
-			errs() << "RHS is pointer: " << *Bptr->getType() << *valB << "\n";
-			Bptr = Builder->CreateBitCast(Bptr, ptr_t);
-		} else {
-			errs() << "RHS is no pointer: " << *Bptr->getType() << ' ' << ' ' << *valB << "\n";
-		}
+		Bptr = Builder->CreateBitCast(Bptr, ptr_t);
 		llvm::Type* resultT = typA;
 		std::vector<llvm::Type*> struct_type_el(varDimsA.size() + 1, llvm::Type::getInt64Ty(Context));
 		struct_type_el[varDimsA.size()] = ptr_t;
@@ -1786,7 +1771,6 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		llvm::PHINode* PN = Builder->CreatePHI(struct_type, 2, "ifdimtmp");
 		PN->addIncoming(the_structA, caseA);
 		PN->addIncoming(the_structB, caseB);
-		errs() << "created PHI: " << *resultT << ' ' << *PN << '\n';
 		return { resultT, PN };
 	} else {
 		errs() << "merge not possible " << *typA << " # " << *typB << '\n';
@@ -2127,7 +2111,6 @@ llvm::Function *PrototypeAST::codegen() {
 }
 
 llvm::Function *FunctionAST::codegen() {
-	errs() << "coding function " << unmangledName << '\n';
 	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
