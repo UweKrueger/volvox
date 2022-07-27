@@ -214,7 +214,7 @@ fn merge_array_8(i int) real
 	L := if i > 3
 		[4]real{1: i+12}
 	else
-		[5]real{-17, 1: 7.25} .
+		[5]real{-17, 1: 7.25, 3: -17} .
 	return L[0] + L[1]
 
 fn test_merge_if_else_11() bool
@@ -223,12 +223,17 @@ fn test_merge_if_else_11() bool
 fn test_merge_if_else_12() bool
 	return merge_array_8(2) == -9.75
 
-# # This works in JIT but crashes the compiler
-# fn merge_array_9(i int) real
-# 	L := if i > 3
-# 		S := [4]real{1: i+12}
-# 		S
-# 	else
-# 		T := [5]real{-17, 1: 7.25}
-# 		T .
-# 	return L[0] + L[1]
+fn merge_array_9(i int) real
+	L := if i > 3
+		S := [4]real{1: i+12}
+		S
+	else
+		T := [5]real{-17, 1: 7.25}
+		T .
+	return L[0] + L[1]
+
+fn test_merge_if_else_13() bool
+	return merge_array_9(3) == -9.75
+
+fn test_merge_if_else_14() bool
+	return merge_array_9(5) == 17

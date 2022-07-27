@@ -239,6 +239,23 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	return { storage_type, V };
 }
 
+llvm::MaybeAlign getAlignment(llvm::Value* size) {
+	if (auto Align = llvm::dyn_cast<llvm::ConstantInt>(size)) {
+		uint64_t elem_size = Align->getZExtValue();
+		uint64_t align = 1;
+		// MaybeAlign constructor only accepts powers of 2, so create one from elem_size
+		do {
+			if (align & elem_size)
+				break;
+			align <<= 1;
+		} while (align < 8);
+		return llvm::MaybeAlign(align);
+	} else {
+		errs() << "alignment requires const int size\n";
+		return llvm::MaybeAlign();
+	}
+}
+
 static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vector<llvm::Value*>& Sizes, unsigned depth) {
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ArrData->getType())) {
 		llvm::Value* Adr = ArrayAlloc;
@@ -273,8 +290,11 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 			Adr, Builder->getInt8(0),
 			Builder->CreateSub(Sz, Sz2),
 			TheModule->getDataLayout().getPrefTypeAlign(elem_type));
+	} else if (auto pointer_type = llvm::dyn_cast<llvm::PointerType>(ArrData->getType())) {
+		auto align = getAlignment(Sizes[Sizes.size()-1]);
+		Builder->CreateMemCpy(ArrayAlloc, align, ArrData, align, Sizes[0]);
 	} else {
-		errs() << "depth: " << depth << " Internal error!\n";
+		errs() << "depth: " << depth << " data: " << *ArrData << " Internal error!\n";
 		abort();
 	}
 }
@@ -309,6 +329,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 	ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 	// TODO: Insert run time check that initialization values fit into allocation size
 	StoreArray(ArrayPtr, ArrData, Sizes, 0);
+	// REMARK: returning the same pointer value as two different types will be obsolete with opaque pointers
 	return { ArrayAlloc, ArrayPtr };
 }
 
@@ -320,7 +341,7 @@ static llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type, s
 	unsigned level = 0;
 	while (true) {
 		if (!expected_array_type) {
-			errs() << "getInterfaceArrayOrStoreValue(): internal error\n";
+			errs() << "getArrayDims(): internal error\n";
 			abort();
 		}
 		uint64_t nominal_dim = array_type->getNumElements();
@@ -1127,7 +1148,9 @@ llvm::Value *BinaryExprAST::codegen_raw() {
 				entry->ft.type_attr &= ~A_signed;
 			if (Val) {
 				auto convertedVal = conversion(Val);
+				errs() << "try to store " << *convertedVal << ' ' << *entry->ft.type << "\n";
 				auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
+				errs() << "stored\n";
 				entry->val = Alloca;
 				if (comp_mode == comp_dbg) {
 					// Create a debug descriptor for the variable.
@@ -1623,6 +1646,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 			errs() << "internal error: types of if-branches do not match\n";
 			return { nullptr, nullptr };
 		}
+		errs() << "Merging equal types " << *valA->getType() << ' ' << *valB->getType() << '\n';
 		llvm::PHINode* PN = Builder->CreatePHI(valA->getType(), 2, "iftmp");
 		PN->addIncoming(valA, caseA);
 		PN->addIncoming(valB, caseB);
@@ -1633,28 +1657,45 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		std::vector<llvm::Value*> varDimsB;
 		llvm::Value* Aptr;
 		unsigned n_vardims_A;
+		Builder->SetInsertPoint(lastA);
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(valA->getType())) {
 			n_vardims_A = struct_type->getNumElements() - 1;
-			Builder->SetInsertPoint(lastA);
 			Aptr = Builder->CreateExtractValue(valA, n_vardims_A);
 		} else {
 			n_vardims_A = 0;
 			Aptr = valA;
 		}
+		if (!Aptr->getType()->isPointerTy()) {
+			Aptr = getInterfaceArrayOrStoreValue(valA, array_tA, array_tA, true);
+			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Aptr->getType()))
+				Aptr = Builder->CreateExtractValue(Aptr, struct_type->getNumElements() - 1);
+			errs() << "stored value: " << *Aptr << '\n';
+		}
 		llvm::Value* Bptr;
 		unsigned n_vardims_B;
+		auto array_tB = llvm::dyn_cast<llvm::ArrayType>(typB);
+		if (!array_tB) {
+			errs() << "error: array / scalar mismatch\n";
+			return { nullptr, nullptr };
+		}
+		Builder->SetInsertPoint(lastB);
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(valB->getType())) {
 			n_vardims_B = struct_type->getNumElements() - 1;
-			Builder->SetInsertPoint(lastB);
 			Bptr = Builder->CreateExtractValue(valB, n_vardims_B);
 		} else {
 			n_vardims_B = 0;
 			Bptr = valB;
 		}
+		if (!Bptr->getType()->isPointerTy()) {
+			Bptr = getInterfaceArrayOrStoreValue(valB, array_tB, array_tB, true);
+			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Bptr->getType()))
+				Bptr = Builder->CreateExtractValue(Bptr, struct_type->getNumElements() - 1);
+			errs() << "stored value: " << *Aptr << '\n';
+		}
 		unsigned iA = 0;
 		unsigned iB = 0;
 		do {
-			if (auto array_tB = llvm::dyn_cast<llvm::ArrayType>(typB)) {
+			if (array_tB) {
 				llvm::Type* elem_tA = array_tA->getElementType();
 				uint64_t nA = array_tA->getNumElements();
 				llvm::Type* elem_tB = array_tB->getElementType();
@@ -1694,6 +1735,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 				errs() << "incompatible types\n";
 				return { nullptr, nullptr };
 			}
+			array_tB = llvm::dyn_cast<llvm::ArrayType>(typB);
 		} while ((array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)));
 		if (typA != typB) {
 			errs() << "mismatch in array element types " << *typA << " vs. " << *typB << '\n';
@@ -1701,9 +1743,19 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		}
 		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : typA->getPointerTo();
 		Builder->SetInsertPoint(lastA);
-		Aptr = Builder->CreateBitCast(Aptr, ptr_t);
+		if (Aptr->getType()->isPointerTy()) {
+			errs() << "LHS is pointer: " << *Aptr->getType() << ' ' << *valA << "\n";
+			Aptr = Builder->CreateBitCast(Aptr, ptr_t);
+		} else {
+			errs() << "LHS is no pointer: " << *Aptr->getType() << ' ' << *valA << "\n";
+		}
 		Builder->SetInsertPoint(lastB);
-		Bptr = Builder->CreateBitCast(Bptr, ptr_t);
+		if (Bptr->getType()->isPointerTy()) {
+			errs() << "RHS is pointer: " << *Bptr->getType() << *valB << "\n";
+			Bptr = Builder->CreateBitCast(Bptr, ptr_t);
+		} else {
+			errs() << "RHS is no pointer: " << *Bptr->getType() << ' ' << ' ' << *valB << "\n";
+		}
 		llvm::Type* resultT = typA;
 		std::vector<llvm::Type*> struct_type_el(varDimsA.size() + 1, llvm::Type::getInt64Ty(Context));
 		struct_type_el[varDimsA.size()] = ptr_t;
@@ -1734,6 +1786,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		llvm::PHINode* PN = Builder->CreatePHI(struct_type, 2, "ifdimtmp");
 		PN->addIncoming(the_structA, caseA);
 		PN->addIncoming(the_structB, caseB);
+		errs() << "created PHI: " << *resultT << ' ' << *PN << '\n';
 		return { resultT, PN };
 	} else {
 		errs() << "merge not possible " << *typA << " # " << *typB << '\n';
@@ -2074,6 +2127,7 @@ llvm::Function *PrototypeAST::codegen() {
 }
 
 llvm::Function *FunctionAST::codegen() {
+	errs() << "coding function " << unmangledName << '\n';
 	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
