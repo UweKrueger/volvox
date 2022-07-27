@@ -653,6 +653,7 @@ extern SourceLocation LexLoc;
 extern std::string IdentifierStr; // Filled in if tok_identifier
 extern std::unique_ptr<llvm::Module> TheModule;
 extern std::unique_ptr<llvm::IRBuilder<>> Builder;
+extern std::unique_ptr<llvm::MDBuilder> MDBuilder;
 extern std::unique_ptr<llvm::DIBuilder> DBuilder;
 extern std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 

@@ -49,6 +49,7 @@ extern "C" int volvox_try_wait(int pid);
 llvm::orc::ThreadSafeContext TS_Context;
 std::unique_ptr<llvm::Module> TheModule;
 std::unique_ptr<llvm::IRBuilder<>> Builder;
+std::unique_ptr<llvm::MDBuilder> MDBuilder;
 llvm::ExitOnError ExitOnErr;
 
 global_var_shadow* global_list = NULL;
@@ -137,6 +138,7 @@ void init() {
 	type_table.add("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 	type_table.add("string", llvm::Type::getInt8PtrTy(Context),
 	               DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "string") : nullptr);
+	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
 }
 
 //===----------------------------------------------------------------------===//

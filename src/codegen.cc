@@ -1809,8 +1809,8 @@ llvm::Value* IfExprAST::codegen_raw() {
 		Builder->CreateBr(CondBB);
 		TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
-		condPN = Builder->CreatePHI(llvm::Type::getIntNTy(Context, 2), 2, "mustsavestack");
-		condPN->addIncoming(llvm::ConstantInt::get(llvm::Type::getIntNTy(Context, 2), 2), enterBB);
+		condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
+		condPN->addIncoming(Builder->getInt8(2), enterBB);
 	} else if (if_kind == tok_repeat) {
 		CondBB = llvm::BasicBlock::Create(Context, "until"); // will be filled at end
 		condPN = nullptr;
@@ -1846,12 +1846,13 @@ llvm::Value* IfExprAST::codegen_raw() {
 			Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 		} else {
 			// save stack at 1st run and restore at followind runs
-			llvm::Value* CondVV = Builder->CreateIntCast(CondV, llvm::Type::getIntNTy(Context, 2), false, "expandcond");
+			llvm::Value* CondVV = Builder->CreateIntCast(CondV, llvm::Type::getInt8Ty(Context), false, "expandcond");
 			llvm::Value* switchVal = Builder->CreateOr(condPN, CondVV, "switchval");
-			auto switchInst = Builder->CreateSwitch(switchVal, MergeBB, 4);
-			switchInst->addCase(llvm::ConstantInt::get(llvm::Type::getIntNTy(Context, 2), 1), StackRestoreBB);
-			switchInst->addCase(llvm::ConstantInt::get(llvm::Type::getIntNTy(Context, 2), 2), ElseBB);
-			switchInst->addCase(llvm::ConstantInt::get(llvm::Type::getIntNTy(Context, 2), 3), StackSaveBB);
+			llvm::MDNode* branch_weights = MDBuilder->createBranchWeights({10,75,5,10});
+			auto switchInst = Builder->CreateSwitch(switchVal, MergeBB, 4, branch_weights);
+			switchInst->addCase(Builder->getInt8(1), StackRestoreBB);
+			switchInst->addCase(Builder->getInt8(2), ElseBB);
+			switchInst->addCase(Builder->getInt8(3), StackSaveBB);
 		}
 	}
 	llvm::Value* savedStack;
@@ -1881,7 +1882,7 @@ llvm::Value* IfExprAST::codegen_raw() {
 	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 	ThenBB = Builder->GetInsertBlock();
 	if (if_kind == tok_while)
-		condPN->addIncoming(llvm::ConstantInt::get(llvm::Type::getIntNTy(Context, 2), 0), ThenBB);
+		condPN->addIncoming(Builder->getInt8(0), ThenBB);
 	llvm::Value* ElseV = nullptr;
 	llvm::Instruction* elseLast;
 	if (if_kind == tok_repeat) {
