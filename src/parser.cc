@@ -1185,16 +1185,15 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 	if (auto E = GetTopLevelExpression()) {
 		if (comp_mode == comp_jit) {
 #ifndef LEGACY_PASS_MANAGER
-			if (dump_IR && dump_raw) {
-				auto end = TheModule->end();
-				for (auto it = TheModule->begin(); it != end; ++it)
-					it->print(errs());
-			}
-			MPM.run(*TheModule, MAM);
-			if (dump_IR && dump_opt) {
-				auto end = TheModule->end();
-				for (auto it = TheModule->begin(); it != end; ++it)
-					it->print(errs());
+			// running the new PassManager on an empty module causes trouble :-(
+			// let's avoid this...
+			if (TheModule->end() != TheModule->begin()) {
+				MPM.run(*TheModule, MAM);
+				if (dump_IR && dump_opt) {
+					auto end = TheModule->end();
+					for (auto it = TheModule->begin(); it != end; ++it)
+						it->print(errs());
+				}
 			}
 #endif
 			ExitOnErr(TheJIT->addModule(
