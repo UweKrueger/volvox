@@ -6,14 +6,14 @@ SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
 TARGETDIR := ../
-ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
-    SUFFIX := -devel
+ifeq ($(shell test -x /usr/local/bin/llvm-config14 && echo -n true),true)
+    SUFFIX := 14
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-14 && echo -n true),true)
     SUFFIX := -14
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config14 && echo -n true),true)
-    SUFFIX := 14
+ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
+    SUFFIX := -devel
 else
 ifeq ($(shell test -x /usr/bin/llvm-config && echo -n true),true)
     SUFFIX :=
