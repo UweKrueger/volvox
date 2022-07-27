@@ -30,19 +30,27 @@ endif
 endif
 endif
 
+LLVMCONFIG := llvm-config$(SUFFIX)
+LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
+
 ifeq ($(shell uname),FreeBSD)
-	CPPEXTRAFLAGS :=  -I/usr/local/include -Wno-reorder-init-list -DLEGACY_PASS_MANAGER
+	CPPEXTRAFLAGS :=  -I/usr/local/include -Wno-reorder-init-list
 	EXTRAOBJS := emutls.o
 else
-	CPPEXTRAFLAGS := -DLEGACY_PASS_MANAGER
+	CPPEXTRAFLAGS :=
 	EXTRAOBJS :=
 endif
 
 CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))
 
-LLVMCONFIG := llvm-config$(SUFFIX)
-LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
+ifneq ($(LLVMVERSION),14)
+ifneq ($(LLVMVERSION),15)
+ifneq ($(LLVMVERSION),16)
+	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DLEGACY_PASS_MANAGER
+endif
+endif
+endif
 
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
