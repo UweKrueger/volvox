@@ -1083,7 +1083,7 @@ int main(int argc, char* argv[]) {
 	PB.registerFunctionAnalyses(FAM);
 	PB.registerLoopAnalyses(LAM);
 	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-	if (dump_IR) {
+	if (dump_IR > 2) {
 		errs() << "known passes:\n";
 		PB.printPassNames(errs());
 		errs() << '\n';
@@ -1091,26 +1091,11 @@ int main(int argc, char* argv[]) {
 	// Create the pass manager.
 	if (optimization_level == llvm::OptimizationLevel::O0)
 		if (comp_mode == comp_jit)
-			; // -O0 is known to have problems with JIT
+			; // -O0 is known to have problems with JIT - leave MPM empty
 		else
 			MPM = PB.buildO0DefaultPipeline(optimization_level);
 	else {
-		// MPM = PB.buildModuleSimplificationPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
-		// MPM = PB.buildModuleInlinerPipeline(optimization_level, llvm::ThinOrFullLTOPhase::None);
 		MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
-// 		MPM = PB.buildModuleOptimizationPipeline(optimization_level,
-// #if LLVM_VERSION_MAJOR >= 15
-// 		                                         llvm::ThinOrFullLTOPhase::None
-// #else
-// 		                                         false
-// #endif
-// 			);
-// 		if(auto err = PB.parsePassPipeline(MPM, "module(always-inline,cgscc(inline<only-mandatory>))")) {
-// 			errs() << err << '\n';
-// 		}
-		// else {
-		// 	errs() << "successfully parsed pipeline\n";
-		// }
 	}
 	if (dump_IR) {
 		errs() << "passes:\n";
