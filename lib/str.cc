@@ -1,22 +1,24 @@
 #include <inttypes.h>
-#if defined(_WIN32) && !defined(__MINGW32__)
+#if defined(WNATIVELIB)
 #include <winstub.h>
-#else
+#endif
+#if !defined(_WIN32) || defined(__MINGW32__) && !defined(WNATIVELIB)
 #include <stdio.h>
 #include <unistd.h>
-#ifdef _WIN32
+#endif
+#if defined(_WIN32) && !defined(WNATIVELIB)
 #include <minwindef.h>
 #include <minwinbase.h>
 #include <wtypes.h>
 #include <unistd.h>
 #include <apisetcconv.h>
 #include <wincon.h>
-#else
+#endif
+#ifndef _WIN32
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <glob.h>
-#endif
 #if defined(__linux__)
 #include <alloca.h>
 #endif

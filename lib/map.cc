@@ -1,6 +1,7 @@
-#if defined(_WIN32) && !defined(__MINGW32__)
+#if defined(WNATIVELIB)
 #include <winstub.h>
-#else
+#endif
+#if defined(__MINGW32__) && !defined(WNATIVELIB)
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
