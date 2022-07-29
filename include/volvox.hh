@@ -54,9 +54,21 @@
 #include <string.h>
 #include <inttypes.h>
 #include <sys/types.h>
-#if defined (_MSC_VER)
+#ifdef _WIN32
 #include <io.h>
+#ifdef __MINGW32__
+#include <minwindef.h>
+#include <minwinbase.h>
+#include <wtypes.h>
+#include <unistd.h>
+#include <apisetcconv.h>
+#include <wincon.h>
+#include <getopt.h>
+#include <locale.h>
+#include <pthread.h>
+#else
 #include "getopt.h"
+#endif
 #else
 #include <unistd.h>
 #include <sys/wait.h>

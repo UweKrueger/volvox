@@ -2,7 +2,7 @@
 #include <inttypes.h>
 #include "types.h"
 #include "str.h"
-#if defined (_MSC_VER)
+#ifdef _WIN32
 #include <windows.h>
 #include <io.h>
 #include <malloc.h>
@@ -682,7 +682,7 @@ _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 // and #columns in the upper. In case of failure errno is set and -1 is returned
 _DECL int getTermSize(int fd)
 {
-#if defined (_MSC_VER)
+#ifdef _WIN32
 	HANDLE h = (HANDLE)_get_osfhandle(fd);
 	if ((intptr_t)h == -1)
 		return -1;
@@ -704,7 +704,7 @@ _DECL int getTermSize(int fd)
 #endif
 }
 
-#if defined (_MSC_VER)
+#ifdef _WIN32
 _DECL bool Glob_impl(char* buf, int s_len, int cur_index, const char* argv, char*** rets, size_t* n_rets, size_t* max_rets) {
 	bool found = false;
 	int last_slash = -1;
@@ -732,6 +732,7 @@ _DECL bool Glob_impl(char* buf, int s_len, int cur_index, const char* argv, char
 	}
 	is_lastpart = true;
 continue_search:
+	; // C standard expects expression (not declaration) after label
 	int plus_len = new_index - cur_index;
 	if (s_len + plus_len + 2 > MAX_PATH) {
 		return false;

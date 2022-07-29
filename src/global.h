@@ -1,5 +1,5 @@
 #pragma once
-#if defined (_MSC_VER)
+#if defined (_WIN32)
 #include "../include/volvox-14.hh"
 #include <windows.h>
 #include <synchapi.h>

@@ -1,13 +1,22 @@
 #include <inttypes.h>
-#if defined (_WIN32)
+#if defined(_WIN32) && !defined(__MINGW32__)
 #include <winstub.h>
 #else
 #include <stdio.h>
 #include <unistd.h>
+#ifdef _WIN32
+#include <minwindef.h>
+#include <minwinbase.h>
+#include <wtypes.h>
+#include <unistd.h>
+#include <apisetcconv.h>
+#include <wincon.h>
+#else
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <termios.h>
 #include <glob.h>
+#endif
 #if defined(__linux__)
 #include <alloca.h>
 #endif

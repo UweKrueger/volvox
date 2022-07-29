@@ -64,7 +64,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    for (int i=0; i<prompt_indent && i<200; i++)
 					    strcat(prompt, "    ");
 				    use_readline = true;
-#if !defined (_MSC_VER)
+#ifndef _WIN32
 				    rl_initialize();
 #endif
 			    }

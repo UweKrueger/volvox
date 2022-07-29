@@ -6,6 +6,10 @@ SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
 TARGETDIR := ../
+ifeq ($(shell test -x /clang64/bin/llvm-config && echo -n true),true)
+    SUFFIX :=
+	NIXTYPE := mingw64
+else
 ifeq ($(shell test -x /usr/local/bin/llvm-config14 && echo -n true),true)
     SUFFIX := 14
 else
@@ -29,6 +33,8 @@ endif
 endif
 endif
 endif
+	NIXTYPE := posix
+endif
 
 LLVMCONFIG := llvm-config$(SUFFIX)
 LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
@@ -37,8 +43,13 @@ ifeq ($(shell uname),FreeBSD)
 	CPPEXTRAFLAGS :=  -I/usr/local/include -Wno-reorder-init-list
 	EXTRAOBJS := emutls.o
 else
+ifeq ($(NIXTYPE),mingw64)
+	CPPEXTRAFLAGS :=
+	EXTRAOBJS := emutls.o
+else
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS :=
+endif
 endif
 
 CC = clang$(SUFFIX)
@@ -75,8 +86,17 @@ LIBOBJS := map.o str.o array.o
 LIBCOBJS := str_c.o
 
 LIBVOLVOXVERS := 0
+ifeq ($(NIXTYPE),mingw64)
+LIBVOLVOXBASE := libvolvox.dll
+LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
+LIBVOLVOXSONAMESPEC :=
+RPATH := -Wl,--stack=10000000
+else
 LIBVOLVOXBASE := libvolvox.so
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
+LIBVOLVOXSONAMESPEC := -Wl,-soname,$(LIBVOLVOXSONAME)
+RPATH := -Wl,-rpath,$(shell pwd)/../lib
+endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
 LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
 
@@ -106,11 +126,11 @@ else
 endif
 
 $(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
-	$(CC) -shared -fPIC -Wl,-soname,$(LIBVOLVOXSONAME) -o $(LIBVOLVOX) $+
+	$(CC) -shared -fPIC $(LIBVOLVOXSONAMESPEC) -o $(LIBVOLVOX) $+
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
 
 $(PROG): $(OBJS) $(LIBVOLVOX)
-	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../lib -lvolvox -Wl,-rpath,$(shell pwd)/../lib $(LINKEXTRAFLAGS)
+	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../lib -lvolvox $(RPATH) $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:

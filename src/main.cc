@@ -697,10 +697,12 @@ bool next_input_file() {
 	return true;
 }
 
-#if defined (_MSC_VER)
+#ifdef _WIN32
 // We have to switch to code page 65001 to enable UTF-8. This
 // value here is used to restore the old state on exit
 unsigned old_cp;
+#endif
+#if defined (_MSC_VER)
 // glob patterns to search for linker and libraries
 #define LINKER "C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\link.exe"
 // patterns for library directories - file name is added to skip stale empty directories
@@ -1236,9 +1238,11 @@ int main(int argc, char* argv[]) {
 			sprintf(stack_size, "-stack:%" PRIu64, stacksize);
 #else
 			strcat(libpath, "/lib");
+#ifndef _WIN32
 			char* rpath = (char*)alloca(lr+43);
 			strcpy(rpath, "-Wl,-rpath,");
 			strcat(rpath, libpath);
+#endif
 			char* linker_exe = const_cast<char*>(LINKER);
 #endif
 			char* clang_argv[] = {
@@ -1250,7 +1254,10 @@ int main(int argc, char* argv[]) {
 				(verbosity >= 3) ? const_cast<char*>("-verbose") : const_cast<char*>("-nologo"),
 #else
 				const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), 
-				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"), rpath,
+				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"),
+#ifndef _WIN32
+				rpath,
+#endif
 				verbosity ? const_cast<char*>("-v") : nullptr,
 #endif
 				nullptr
@@ -1280,7 +1287,7 @@ int main(int argc, char* argv[]) {
 				if (result) {
 					errs() << "Linking failed with exit code " << result << '\n';
 				} else if (run_program) {
-#ifndef _WIN32
+#if !defined(_MSC_VER)
 					char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
 #endif
 					strcpy(exe_out, "./");
@@ -1302,7 +1309,7 @@ int main(int argc, char* argv[]) {
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
 	}
-#if defined (_MSC_VER)
+#ifdef _WIN32
 	SetConsoleOutputCP(old_cp);
 #endif
 	return result;
