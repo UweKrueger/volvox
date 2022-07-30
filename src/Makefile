@@ -6,7 +6,7 @@ SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
 TARGETDIR := ../
-ifeq ($(shell test -x /clang64/bin/llvm-config && echo -n true),true)
+ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
     SUFFIX :=
 	NIXTYPE := mingw64
 else
@@ -42,13 +42,16 @@ LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
 ifeq ($(shell uname),FreeBSD)
 	CPPEXTRAFLAGS :=  -I/usr/local/include -Wno-reorder-init-list
 	EXTRAOBJS := emutls.o
+	EDITLINEOBJS := # we use system provided BSD editline
 else
 ifeq ($(NIXTYPE),mingw64)
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS := emutls.o
+	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
 else
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS :=
+	EDITLINEOBJS :=
 endif
 endif
 
@@ -80,7 +83,7 @@ endif
 PROG = $(TARGETDIR)volvox
 
 CCOBJS :=  main.o lexer.o parser.o token.o codegen.o types.o mangler.o
-OBJS := $(CCOBJS) $(EXTRAOBJS)
+OBJS := $(CCOBJS) $(EXTRAOBJS) $(EDITLINEOBJS)
 
 LIBOBJS := map.o str.o array.o
 LIBCOBJS := str_c.o
@@ -103,18 +106,24 @@ LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
 SRCS := $(CCOBJS:%.o=%.cc)
 
 EXTRASRC := $(EXTRAOBJS:%.o=../lib/%.c)
+EDITLINESRC := $(EDITLINEOBJS:%.o=../wineditline/%.c)
 
 LIBSRC := $(LIBOBJS:%.o=../lib/%.cc)
 LIBCSRC := $(LIBCOBJS:%.o=../lib/%.c)
 
 %.o: %.cc $(PCH)
-	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $<
+	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) -I../include $<
 
 %.o: ../lib/%.cc
 	$(CXX) -c $(CXXFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
 
 %.o: ../lib/%.c
 	$(CC) -c -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
+
+ifeq ($(NIXTYPE),mingw64)
+%.o: ../wineditline/%.c
+	$(CC) -c -I../include $(OPT) $<
+endif
 
 all: $(PROG)
 
@@ -144,6 +153,9 @@ distclean:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
 ifneq ($(EXTRASRC),)
 	$(CC) -MM $(OPT) $(EXTRASRC) >> .depend
+endif
+ifneq ($(EDITLINESRC),)
+	$(CC) -MM $(OPT) -I../include $(EDITLINESRC) >> .depend
 endif
 	$(CC) -MM $(LIBCSRC) $(OPT) $(EXTRASRC) >> .depend
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend

@@ -9,7 +9,7 @@
 static char prompt[1024];
 bool use_readline = false;
 
-#if defined (_MSC_VER)
+#ifdef _WIN32
 // our patched version of wineditline recognizes ANSI escape sequences
 #define VOLVOX_PROMPT "\033[38;5;%" PRIu8 "m\033[48;5;%" PRIu8 "m% 4d\033[38;5;%" PRIu8 "m>\033[0m "
 #else
