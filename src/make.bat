@@ -9,7 +9,7 @@ del /q *.obj ..\volvox.* libvolvox.exp ..\lib\libvolvox.lib ..\libvolvox.dll
 @for %%f in (codegen.cc token.cc lexer.cc parser.cc types.cc main.cc mangler.cc) do @call comp.bat %%f %%~nf.obj
 @for %%f in (..\wineditline\editline.c ..\wineditline\history.c ..\wineditline\fn_complete.c getopt.c) do @call comp.bat %%f %%~nf.obj /TC
 @for %%f in (..\lib\str_c.c ..\lib\emutls.c) do @call comp.bat %%f %%~nf.obj /DLL /TC /D"LLVM_VERSION_MAJOR=14"
-@for %%f in (..\lib\map.cc ..\lib\array.cc ..\lib\str.cc) do clang++ -O2 -target x86_64-pc-windows-gnu -fno-exceptions -I ..\stubinclude -c -o %%~nf.obj %%f
+@for %%f in (..\lib\map.cc ..\lib\array.cc ..\lib\str.cc) do clang++ -O2 -target x86_64-pc-windows-gnu -fno-exceptions -DWNATIVELIB -I ..\stubinclude -c -o %%~nf.obj %%f
 link /DLL /out:libvolvox.dll str.obj str_c.obj map.obj array.obj
 
 move libvolvox.dll ..
