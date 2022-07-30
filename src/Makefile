@@ -93,11 +93,13 @@ ifeq ($(NIXTYPE),mingw64)
 LIBVOLVOXBASE := libvolvox.dll
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
 LIBVOLVOXSONAMESPEC :=
+EXTRAINC := -I../include
 RPATH := -Wl,--stack=10000000
 else
 LIBVOLVOXBASE := libvolvox.so
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
 LIBVOLVOXSONAMESPEC := -Wl,-soname,$(LIBVOLVOXSONAME)
+EXTRAINC :=
 RPATH := -Wl,-rpath,$(shell pwd)/../lib
 endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
@@ -112,7 +114,7 @@ LIBSRC := $(LIBOBJS:%.o=../lib/%.cc)
 LIBCSRC := $(LIBCOBJS:%.o=../lib/%.c)
 
 %.o: %.cc $(PCH)
-	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) -I../include $<
+	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $(EXTRAINC) $<
 
 %.o: ../lib/%.cc
 	$(CXX) -c $(CXXFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
@@ -122,7 +124,7 @@ LIBCSRC := $(LIBCOBJS:%.o=../lib/%.c)
 
 ifeq ($(NIXTYPE),mingw64)
 %.o: ../wineditline/%.c
-	$(CC) -c -I../include $(OPT) $<
+	$(CC) -c $(EXTRAINC) $(OPT) $<
 endif
 
 all: $(PROG)
@@ -150,12 +152,12 @@ distclean:
 	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS)  $(LIBCOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) *~ ../include/*~ ../include/*.gch .depend
 
 .depend:
-	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) > .depend
+	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend
 ifneq ($(EXTRASRC),)
 	$(CC) -MM $(OPT) $(EXTRASRC) >> .depend
 endif
 ifneq ($(EDITLINESRC),)
-	$(CC) -MM $(OPT) -I../include $(EDITLINESRC) >> .depend
+	$(CC) -MM $(OPT) $(EXTRAINC) $(EDITLINESRC) >> .depend
 endif
 	$(CC) -MM $(LIBCSRC) $(OPT) $(EXTRASRC) >> .depend
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
