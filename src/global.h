@@ -265,6 +265,7 @@ extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation L
                                                                 std::function<llvm::Value*(llvm::Value*)> ideal_conv,
                                                                 bool is_signed);
 extern llvm::Value* NoConversion(llvm::Value* v);
+extern const char* getThisExePath();
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
@@ -275,6 +276,7 @@ extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
+extern std::vector<const char*> module_names;
 extern llvm::SmallString<128> MangleBase(std::vector<const char*>& names);
 extern llvm::SmallString<128> Mangle(std::vector<const char*>& names, std::vector<volvoxc::FullType*>& arg_types);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind);

@@ -713,11 +713,6 @@ unsigned old_cp;
 #endif
 
 int main(int argc, char* argv[]) {
-	// std::vector<const char*> qqq = { "xyv", "rtz" };
-	// std::vector<std::pair<volvoxc::FullType*,bool>> sss = {};
-	// auto pppp = Mangle(qqq, sss);
-	// auto ppp = pppp.str();
-	// fprintf(stderr, "Mangled name (%" PRIu64 " bytes): >%s<\n", ppp.size(), ppp.data());
 #if defined (_WIN32)
 	old_cp = GetConsoleOutputCP();
 	SetConsoleOutputCP(CP_UTF8);
@@ -725,6 +720,7 @@ int main(int argc, char* argv[]) {
 	setlocale(LC_ALL, "en_US.UTF-8");
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
+	errs() << "Full path: >" << getThisExePath() << "<\n";
 	llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;
 #ifndef _WIN32
 	struct rlimit rlimit_stacksize;

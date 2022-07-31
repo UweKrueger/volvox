@@ -11,6 +11,7 @@
 /// lexer and updates CurTok with its results.
 Lexer lex;
 Token CurTok;
+std::vector<const char*> module_names = {};
 
 FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
