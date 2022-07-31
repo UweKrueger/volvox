@@ -721,6 +721,8 @@ int main(int argc, char* argv[]) {
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
 	errs() << "Full path: >" << getThisExePath() << "<\n";
+	errs() << "Lib: >" << volvox_lib() << "<\n";
+	errs() << "Root: >" << volvox_root() << "<\n";
 	llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;
 #ifndef _WIN32
 	struct rlimit rlimit_stacksize;

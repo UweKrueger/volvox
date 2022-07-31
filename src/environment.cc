@@ -1,5 +1,8 @@
 #include "global.h"
 
+#define VOLVOX_ROOT "VOLVOX"
+#define VOLVOX_LIB "VOLVOX_LIB"
+
 #if defined(_WIN32)
 #include <windows.h>
 #define BUF_IS_TOO_SMALL ERROR_INSUFFICIENT_BUFFER
@@ -48,4 +51,55 @@ const char* getThisExePath() {
 #else
 	#error "this operating system is no supported (yet)"
 #endif
+}
+
+const char* volvox_root() {
+	static char* root = nullptr; // cache result
+	if (root)
+		return root;
+	root = getenv(VOLVOX_ROOT);
+	if (root)
+		return root;
+	const char* exe_path = getThisExePath();
+	size_t l = strlen(exe_path);
+	// cut off last element
+	for (l -= 1; l && exe_path[l] != '/' && exe_path[l] != '\\'; l--);
+	// if the last part is '/bin' strip that, too
+	if (l >= 4 &&
+	    (exe_path[l-4] == '/' || exe_path[l-4] == '\\') &&
+	    (exe_path[l-3] == 'b' || exe_path[l-3] == 'B') &&
+	    (exe_path[l-2] == 'i' || exe_path[l-2] == 'I') &&
+	    (exe_path[l-1] == 'n' || exe_path[l-1] == 'N'))
+		l -= 4;
+	// we must not modify exe_path - so make a copy
+	char* root_from_exe = (char*)malloc(l+1);
+	memcpy(root_from_exe, exe_path, l);
+	root_from_exe[l] = '\0';
+	root = root_from_exe;
+	return root;
+}
+
+const char* volvox_lib() {
+	static char* lib = nullptr; // cache result
+	if (lib)
+		return lib;
+	lib = getenv(VOLVOX_LIB);
+	if (lib)
+		return lib;
+	// get root and append 'lib'
+	const char* root = volvox_root();
+	size_t l = strlen(root);
+	char* lib_from_root = (char*)malloc(l + 4 + 1);
+	memcpy(lib_from_root, root, l);
+#if defined (_MSC_VER)
+	lib_from_root[l++] = '\\';
+#else
+	lib_from_root[l++] = '/';
+#endif
+	lib_from_root[l++] = 'l';
+	lib_from_root[l++] = 'i';
+	lib_from_root[l++] = 'b';
+	lib_from_root[l] = '\0';
+	lib = lib_from_root;
+	return lib;
 }

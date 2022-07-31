@@ -266,6 +266,8 @@ extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation L
                                                                 bool is_signed);
 extern llvm::Value* NoConversion(llvm::Value* v);
 extern const char* getThisExePath();
+extern const char* volvox_root();
+extern const char* volvox_lib();
 // often used types - for faster access
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
