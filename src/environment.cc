@@ -3,15 +3,11 @@
 #if defined(_WIN32)
 #include <windows.h>
 #define BUF_IS_TOO_SMALL ERROR_INSUFFICIENT_BUFFER
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #elif defined(__linux__)
 #define THISEXELINK "/proc/self/exe"
-#elif defined(__DragonFly__)
-#define THISEXELINK "/proc/curproc/file"
-#elif defined(__NetBSD__)
-// similar to FreeBSD: CTL_KERN, KERN_PROC, KERN_PROC_ARGS, KERN_PROC_PATHNAME (?)
 #elif defined(__OpenBSD__)
 // needs probably fiddling with argv[0]/KERN_PROC_ARGS, PATH, realpath(), ...
 #else
@@ -24,7 +20,7 @@
 const char* getThisExePath() {
 #if defined(_WIN32)
 	return _pgmptr;
-#elif defined(__FreeBSD__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
 	size_t bufsize = 0;
 	char* buf = nullptr;
 	int cmd[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
@@ -32,7 +28,7 @@ const char* getThisExePath() {
 	buf = (char*)malloc(bufsize);
 	res = sysctl(cmd, 4, buf, &bufsize, nullptr, 0);
 	return buf;
-#elif defined(__linux__) || defined (__DragonFly__)
+#elif defined(__linux__)
 	// we cannot get the necessary buffer size in advance so
 	// a loop is required to gradually increase the buffer
 	uint32_t bufsize = 64;
