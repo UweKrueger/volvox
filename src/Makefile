@@ -44,7 +44,12 @@ ifeq ($(shell uname),FreeBSD)
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := # we use system provided BSD editline
 else
-ifeq ($(NIXTYPE),mingw64)
+ifeq ($(shell uname),NetBSD)
+	CPPEXTRAFLAGS := -Wno-reorder-init-list
+	EXTRAOBJS :=
+	EDITLINEOBJS := # we use system provided BSD editline
+else
+ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' versions works ;-(
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
@@ -52,6 +57,7 @@ else
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS :=
 	EDITLINEOBJS :=
+endif
 endif
 endif
 

@@ -8,7 +8,9 @@
 #include "../lib/map.h"
 #include "../lib/types.h"
 #include "../lib/str.h"
-
+#if defined(__NetBSD__)
+#define alloca __builtin_alloca
+#endif
 #if defined(_MSC_VER)
 /* The volvox run time library uses Itanium/GNU mangling which are not
  * supported by MSVC. To use those library functions inside the compiler

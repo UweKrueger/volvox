@@ -28,70 +28,74 @@
 #include <memory>
 
 namespace llvm {
-namespace orc {
+	namespace orc {
 
-class VolvoxJIT {
-private:
-  std::unique_ptr<ExecutionSession> ES;
+		class VolvoxJIT {
+		private:
+			std::unique_ptr<ExecutionSession> ES;
 
-  DataLayout DL;
-  MangleAndInterner Mangle;
+			DataLayout DL;
+			MangleAndInterner Mangle;
+			JITTargetMachineBuilder JTMB;
+			RTDyldObjectLinkingLayer ObjectLayer;
+			IRCompileLayer CompileLayer;
 
-  RTDyldObjectLinkingLayer ObjectLayer;
-  IRCompileLayer CompileLayer;
+			JITDylib &MainJD;
 
-  JITDylib &MainJD;
+		public:
+			VolvoxJIT(std::unique_ptr<ExecutionSession> ES,
+			          JITTargetMachineBuilder _JTMB, DataLayout DL)
+				: ES(std::move(ES)), DL(std::move(DL)), Mangle(*this->ES, this->DL),
+				  JTMB(_JTMB),
+				  ObjectLayer(*this->ES,
+				              []() { return std::make_unique<SectionMemoryManager>(); }),
+				  CompileLayer(*this->ES, ObjectLayer,
+				               std::make_unique<ConcurrentIRCompiler>(std::move(_JTMB))),
+				  MainJD(this->ES->createBareJITDylib("<main>")) {
+				MainJD.addGenerator(
+					cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(
+						         DL.getGlobalPrefix())));
+			}
 
-public:
-  VolvoxJIT(std::unique_ptr<ExecutionSession> ES,
-                  JITTargetMachineBuilder JTMB, DataLayout DL)
-      : ES(std::move(ES)), DL(std::move(DL)), Mangle(*this->ES, this->DL),
-        ObjectLayer(*this->ES,
-                    []() { return std::make_unique<SectionMemoryManager>(); }),
-        CompileLayer(*this->ES, ObjectLayer,
-                     std::make_unique<ConcurrentIRCompiler>(std::move(JTMB))),
-        MainJD(this->ES->createBareJITDylib("<main>")) {
-    MainJD.addGenerator(
-        cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(
-            DL.getGlobalPrefix())));
-  }
+			~VolvoxJIT() {
+				if (auto Err = ES->endSession())
+					ES->reportError(std::move(Err));
+			}
 
-  ~VolvoxJIT() {
-    if (auto Err = ES->endSession())
-      ES->reportError(std::move(Err));
-  }
+			static Expected<std::unique_ptr<VolvoxJIT>> Create() {
+				auto EPC = SelfExecutorProcessControl::Create();
+				if (!EPC)
+					return EPC.takeError();
 
-  static Expected<std::unique_ptr<VolvoxJIT>> Create() {
-    auto EPC = SelfExecutorProcessControl::Create();
-    if (!EPC)
-      return EPC.takeError();
+				auto ES = std::make_unique<ExecutionSession>(std::move(*EPC));
 
-    auto ES = std::make_unique<ExecutionSession>(std::move(*EPC));
+				JITTargetMachineBuilder JTMB(
+					ES->getExecutorProcessControl().getTargetTriple());
 
-    JITTargetMachineBuilder JTMB(
-        ES->getExecutorProcessControl().getTargetTriple());
+				auto DL = JTMB.getDefaultDataLayoutForTarget();
+				if (!DL)
+					return DL.takeError();
+				return std::make_unique<VolvoxJIT>(std::move(ES), std::move(JTMB),
+				                                   std::move(*DL));
+			}
 
-    auto DL = JTMB.getDefaultDataLayoutForTarget();
-    if (!DL)
-      return DL.takeError();
-    return std::make_unique<VolvoxJIT>(std::move(ES), std::move(JTMB),
-                                             std::move(*DL));
-  }
+			const DataLayout &getDataLayout() const { return DL; }
 
-  const DataLayout &getDataLayout() const { return DL; }
+			JITDylib &getMainJITDylib() { return MainJD; }
 
-  JITDylib &getMainJITDylib() { return MainJD; }
+			Error addModule(ThreadSafeModule TSM, ResourceTrackerSP RT = nullptr) {
+				if (!RT)
+					RT = MainJD.getDefaultResourceTracker();
+				return CompileLayer.add(RT, std::move(TSM));
+			}
 
-  Error addModule(ThreadSafeModule TSM, ResourceTrackerSP RT = nullptr) {
-    if (!RT)
-      RT = MainJD.getDefaultResourceTracker();
-    return CompileLayer.add(RT, std::move(TSM));
-  }
+			Expected<JITEvaluatedSymbol> lookup(StringRef Name) {
+				return ES->lookup({&MainJD}, Mangle(Name.str()));
+			}
+			Expected<std::unique_ptr<llvm::TargetMachine>> createTargetMachine() {
+				return JTMB.createTargetMachine();
+			}
+		};
 
-  Expected<JITEvaluatedSymbol> lookup(StringRef Name) {
-    return ES->lookup({&MainJD}, Mangle(Name.str()));
-  }
-};
-
-} // end namespace orc
+	} // end namespace orc
 } // end namespace llvm
