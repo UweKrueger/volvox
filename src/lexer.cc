@@ -1,8 +1,8 @@
 #include "../include/volvox.hh"
 #include "global.h"
 #if defined(__FreeBSD__) || defined(__NetBSD__) || defined(USE_READLINE)
-#include <readline/readline.h>
-#include <readline/history.h>
+#include <readline.h>
+#include <history.h>
 #else
 #include <editline/readline.h>
 #endif

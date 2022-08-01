@@ -40,12 +40,12 @@ LLVMCONFIG := llvm-config$(SUFFIX)
 LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
 
 ifeq ($(shell uname),FreeBSD)
-	CPPEXTRAFLAGS :=  -I/usr/include/edit -I/usr/local/include -Wno-reorder-init-list
+	CPPEXTRAFLAGS :=  -I/usr/include/edit/readline -I/usr/local/include -Wno-reorder-init-list
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := # we use system provided BSD editline
 else
 ifeq ($(shell uname),NetBSD)
-	CPPEXTRAFLAGS := -Wno-reorder-init-list
+	CPPEXTRAFLAGS := -I/usr/include/readline -Wno-reorder-init-list
 	EXTRAOBJS :=
 	EDITLINEOBJS := # we use system provided BSD editline
 else
