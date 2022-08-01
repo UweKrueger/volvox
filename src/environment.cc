@@ -22,7 +22,12 @@
  * way so we have to do some OS specific trickery... */
 const char* getThisExePath() {
 #if defined(_WIN32)
-	return _pgmptr;
+	if (_pgmptr)
+		return _pgmptr;
+	else {
+		errno = EFAULT;
+		goto generror;
+	}
 #elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
 	// all BSDs (except OpenBSD) have a KERN_PROC_PATHNAME sysctl
 	size_t bufsize = 0;
