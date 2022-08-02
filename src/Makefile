@@ -4,7 +4,7 @@ OPT = -O3
 
 SHELL := bash
 RM = rm -f
-LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
+LINKEXTRAFLAGS := -ledit -lpthread
 TARGETDIR := ../
 PREFIX := /usr
 ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
@@ -38,6 +38,7 @@ endif
 endif
 endif
 	NIXTYPE := posix
+	LINKEXTRAFLAGS := $(LINKEXTRAFLAGS) -rdynamic
 endif
 
 LLVMCONFIG := $(PREFIX)/bin/llvm-config$(SUFFIX)
