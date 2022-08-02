@@ -11,7 +11,8 @@ type _ZN6volvox6RtTypeE packed {
 }
 type ArrayNode {
 	data string
-	size u64
+	dim u64
+	cap u64
 }
 cdecl fn _ZN9ArrayNodeC1Eyy(a &ArrayNode, nelem u64, obj_size u64)
 cdecl fn _ZN9ArrayNodeD1Ev(a &ArrayNode)
