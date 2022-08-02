@@ -1,16 +1,26 @@
 #include "../include/volvox.hh"
 #include "global.h"
 
+
+/* we want to use NetBSD's libedit and not GNU readline because the latter is GPL licensed
+   (not LGPL!). On some platforms there are <readline/readline.h> for GNU readline and
+   <editline/readline.h> for libedit - but not on all. So we include <readline.h> here (if
+   available) and make sure the correct version is used by setting CPPEXTRAFLAGS in Makefile
+ */
 #if defined(__OpenBSD__)
 // OpenBSD has no 'readline.h' header for libedit - so just declare the functions
-// we need..
+// we need, here...
 extern "C" char* readline(const char* p);
 extern "C" int add_history(const char *line);
 extern "C" int rl_initialize(void);
-#else // Linux, NetBSD, Windows
-// let CPP flag '-I...' decide which version of readline/editline to use
-// make sure linker flag '-L... -l...' matches the the same version... 
+#else // Linux, NetBSD, Dragonfly BSD, Windows
+// let CPP's '-I...' point to libedit's version of readline.h (see Makefile)
+// make sure linker flags '-L... -l...' match the the same version... 
 #include <readline.h>
+#endif
+#ifdef NEED_HISTORY_H
+// usually this should not be needed with libedit...
+#include <history.h>
 #endif
 
 //===----------------------------------------------------------------------===//
