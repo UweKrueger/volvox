@@ -11,7 +11,6 @@ extern "C" int rl_initialize(void);
 // let CPP flag '-I...' decide which version of readline/editline to use
 // make sure linker flag '-L... -l...' matches the the same version... 
 #include <readline.h>
-#include <history.h>
 #endif
 
 //===----------------------------------------------------------------------===//

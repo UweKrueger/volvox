@@ -59,7 +59,7 @@ ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' vers
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
 else
-	CPPEXTRAFLAGS :=
+	CPPEXTRAFLAGS := -I/usr/include/editline
 	EXTRAOBJS :=
 	EDITLINEOBJS :=
 endif
