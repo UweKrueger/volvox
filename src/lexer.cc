@@ -1,10 +1,17 @@
 #include "../include/volvox.hh"
 #include "global.h"
-#if defined(__FreeBSD__) || defined(__NetBSD__) || defined(USE_READLINE)
+
+#if defined(__OpenBSD__)
+// OpenBSD has no 'readline.h' header for libedit - so just declare the functions
+// we need..
+extern "C" char* readline(const char* p);
+extern "C" int add_history(const char *line);
+extern "C" int rl_initialize(void);
+#else // Linux, NetBSD, Windows
+// let CPP flag '-I...' decide which version of readline/editline to use
+// make sure linker flag '-L... -l...' matches the the same version... 
 #include <readline.h>
 #include <history.h>
-#else
-#include <editline/readline.h>
 #endif
 
 //===----------------------------------------------------------------------===//
@@ -14,7 +21,10 @@
 static char prompt[1024];
 bool use_readline = false;
 
-#ifdef _WIN32
+#if defined(__OpenBSD__)
+// OpendBSD's version of editline does not support colors
+#define VOLVOX_PROMPT "%04d> "
+#elif defined(_WIN32)
 // our patched version of wineditline recognizes ANSI escape sequences
 #define VOLVOX_PROMPT "\033[38;5;%" PRIu8 "m\033[48;5;%" PRIu8 "m% 4d\033[38;5;%" PRIu8 "m>\033[0m "
 #else
@@ -65,7 +75,11 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    *n = 0;
 			    LexLoc = { input_file_name, 0, 0 };
 			    if (comp_mode == comp_jit && input_fd == 0) {
+#if defined(__OpenBSD__)
+				    sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
+#else
 				    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
+#endif
 				    for (int i=0; i<prompt_indent && i<200; i++)
 					    strcat(prompt, "    ");
 				    use_readline = true;
@@ -100,7 +114,11 @@ int Lexer::advance() {
 	// handling line endings different when use_readline is set
 	if (LexLoc.Col > linelen || !use_readline && LexLoc.Col >= linelen) {
 		if (use_readline) {
+#if defined(__OpenBSD__)
+			sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
+#else
 			sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
+#endif
 			for (int i=0; i<prompt_indent && i<200; i++)
 				strcat(prompt, "    ");
 		}

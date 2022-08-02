@@ -16,8 +16,8 @@ else
 ifeq ($(shell test -x /usr/bin/llvm-config-14 && echo -n true),true)
     SUFFIX := -14
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
-    SUFFIX := -devel
+ifeq ($(shell test -x /usr/local/bin/llvm-config && echo -n true),true)
+    SUFFIX :=
 else
 ifeq ($(shell test -x /usr/bin/llvm-config && echo -n true),true)
     SUFFIX :=
@@ -49,6 +49,11 @@ ifeq ($(shell uname),NetBSD)
 	EXTRAOBJS :=
 	EDITLINEOBJS := # we use system provided BSD editline
 else
+ifeq ($(shell uname),OpenBSD)
+	CPPEXTRAFLAGS := -Wno-reorder-init-list
+	EXTRAOBJS :=
+	EDITLINEOBJS := # we use system provided BSD editline
+else
 ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' versions works ;-(
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS := emutls.o
@@ -57,6 +62,7 @@ else
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS :=
 	EDITLINEOBJS :=
+endif
 endif
 endif
 endif

@@ -72,6 +72,9 @@ const char* getThisExePath() {
 	} while (res >= bufsize);
 	buf[res] = '\0';
 	return buf;
+#elif defined(__OpenBSD__)
+	// we rely on environment variables and hard coded paths for now
+	return nullptr;
 #else
 #error "this operating system is no supported (yet)"
 #endif
@@ -87,6 +90,10 @@ const char* volvox_root() {
 	root = getenv(VOLVOX_ROOT);
 	if (root)
 		return root;
+#if defined(__OpenBSD__)
+	// getThisExePath() does not work - return supposed installation directory
+	return "/usr/local";
+#else
 	const char* exe_path = getThisExePath();
 	size_t l = strlen(exe_path);
 	// cut off last element
@@ -104,6 +111,7 @@ const char* volvox_root() {
 	root_from_exe[l] = '\0';
 	root = root_from_exe;
 	return root;
+#endif
 }
 
 const char* volvox_lib() {
