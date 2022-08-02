@@ -54,6 +54,12 @@ ifeq ($(shell uname),OpenBSD)
 	EXTRAOBJS :=
 	EDITLINEOBJS := # we use system provided BSD editline
 else
+ifeq ($(shell uname),DragonFly)
+	CPPEXTRAFLAGS := -I/usr/local/include/editline -Wno-reorder-init-list
+	EXTRAOBJS := emutls.o
+	EDITLINEOBJS := # we use system provided BSD editline
+	LINKEXTRAFLAGS := -L/usr/local/lib $(LINKEXTRAFLAGS)
+else
 ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' versions works ;-(
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS := emutls.o
@@ -62,6 +68,7 @@ else
 	CPPEXTRAFLAGS := -I/usr/include/editline
 	EXTRAOBJS :=
 	EDITLINEOBJS :=
+endif
 endif
 endif
 endif
