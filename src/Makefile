@@ -6,27 +6,31 @@ SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
 TARGETDIR := ../
+PREFIX := /usr
 ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
-    SUFFIX :=
+	PREFIX := /ucrt64
+	SUFFIX :=
 	NIXTYPE := mingw64
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config14 && echo -n true),true)
-    SUFFIX := 14
+	PREFIX := /usr/local
+	SUFFIX := 14
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-14 && echo -n true),true)
-    SUFFIX := -14
+	SUFFIX := -14
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config && echo -n true),true)
-    SUFFIX :=
+	PREFIX := /usr/local
+	SUFFIX :=
 else
 ifeq ($(shell test -x /usr/bin/llvm-config && echo -n true),true)
-    SUFFIX :=
+	SUFFIX :=
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-13 && echo -n true),true)
-    SUFFIX := -13
+	SUFFIX := -13
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-12 && echo -n true),true)
-    SUFFIX := -12
+	SUFFIX := -12
 endif
 endif
 endif
@@ -36,8 +40,7 @@ endif
 	NIXTYPE := posix
 endif
 
-LLVMCONFIG := llvm-config$(SUFFIX)
-LLVMVERSION := $(shell llvm-config$(SUFFIX) --version | cut -d. -f1)
+LLVMCONFIG := $(PREFIX)/bin/llvm-config$(SUFFIX)
 
 ifeq ($(shell uname),FreeBSD)
 	CPPEXTRAFLAGS :=  -I/usr/include/edit/readline -I/usr/local/include -Wno-reorder-init-list
@@ -50,7 +53,7 @@ ifeq ($(shell uname),NetBSD)
 	EDITLINEOBJS := # we use system provided BSD editline
 else
 ifeq ($(shell uname),OpenBSD)
-	CPPEXTRAFLAGS := -Wno-reorder-init-list
+	CPPEXTRAFLAGS := -Wno-reorder-init-list -DMONOCHROME_PROMPT
 	EXTRAOBJS :=
 	EDITLINEOBJS := # we use system provided BSD editline
 else
@@ -73,6 +76,8 @@ endif
 endif
 endif
 endif
+
+LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
 
 CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))

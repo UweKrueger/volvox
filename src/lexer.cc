@@ -30,7 +30,7 @@ extern "C" int rl_initialize(void);
 static char prompt[1024];
 bool use_readline = false;
 
-#if defined(__OpenBSD__)
+#ifdef MONOCHROME_PROMPT
 // OpendBSD's version of editline does not support colors
 #define VOLVOX_PROMPT "%04d> "
 #elif defined(_WIN32)
@@ -84,7 +84,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    *n = 0;
 			    LexLoc = { input_file_name, 0, 0 };
 			    if (comp_mode == comp_jit && input_fd == 0) {
-#if defined(__OpenBSD__)
+#ifdef MONOCHROME_PROMPT
 				    sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
 #else
 				    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
@@ -123,7 +123,7 @@ int Lexer::advance() {
 	// handling line endings different when use_readline is set
 	if (LexLoc.Col > linelen || !use_readline && LexLoc.Col >= linelen) {
 		if (use_readline) {
-#if defined(__OpenBSD__)
+#ifdef MONOCHROME_PROMPT
 			sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
 #else
 			sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
