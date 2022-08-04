@@ -593,6 +593,7 @@ static void usage(const char* prog) {
 	errs() << " -o file ... output compiled result to \"file\"\n";
 	errs() << " -s size ... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
 	errs() << "             default: `ulimit -s` if finite or 10MB otherwise\n";
+	errs() << " -m<target>  platform target option, e.g. '-mgnu' for mingw-w64 on Windows\n";
 	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
 	errs() << " -C n,g,b .. prompt colors (#, >, background; ANSI-256, default: 30,100,236)\n";
 	errs() << " file ...... file(s) to compile (default: interactive session is started)\n";
@@ -705,6 +706,8 @@ unsigned old_cp;
 #if defined (_MSC_VER)
 // glob patterns to search for linker and libraries
 #define LINKER "C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\link.exe"
+// for mingw-w64 ('-mgnu' flag) we use clang
+#define MINGW_W64_LINKER "C:\\Program Files\\LLVM\\bin\\clang.exe"
 // patterns for library directories - file name is added to skip stale empty directories
 #define LIBDIRS { \
 	"C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\lib\\x64\\libcmt.lib", \
@@ -740,7 +743,8 @@ int main(int argc, char* argv[]) {
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
 	char* endptr;
-	while ((opt = getopt(argc, argv, "vdDcghrjJf:O:i:o:s:tP:")) != -1) {
+	bool target_mingw = false;
+	while ((opt = getopt(argc, argv, "vdDcghrjJm:f:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -804,6 +808,14 @@ int main(int argc, char* argv[]) {
 				usage(argv[0]);
 			}
 			output_file = optarg;
+			break;
+		case 'm':
+			if (!strcmp(optarg, "gnu"))
+				target_mingw = true;
+			else {
+				errs() << "unknown target option '-m" << optarg << "'\n";
+				usage(argv[0]);
+			}
 			break;
 		case 's':
 			errno = 0;
@@ -1048,7 +1060,11 @@ int main(int argc, char* argv[]) {
 	llvm::InitializeAllTargetMCs();
 	llvm::InitializeAllAsmParsers();
 	llvm::InitializeAllAsmPrinters();
-	auto TargetTriple = llvm::sys::getDefaultTargetTriple();
+	std::string TargetTriple;
+	if (target_mingw)
+		TargetTriple = "x86_64-pc-windows-gnu";
+	else
+		TargetTriple = llvm::sys::getDefaultTargetTriple();
 
 	std::string Error;
 	auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
@@ -1059,7 +1075,7 @@ int main(int argc, char* argv[]) {
 		errs() << Error;
 		return 1;
 	}
-	// errs() << "TargetTriple: " << TargetTriple << '\n';
+	errs() << "TargetTriple: " << TargetTriple << '\n';
 	auto CPU = "generic";
 	auto Features = "";
 	llvm::TargetOptions target_opts;
@@ -1201,39 +1217,50 @@ int main(int argc, char* argv[]) {
 			char* libpath = (char*)alloca(lr+32);
 			strcpy(libpath, volvox_root);
 #if defined(_MSC_VER)
-			strcat(libpath, "\\lib\\libvolvox.lib");
-			volvox_glob_t linkers = volvox_glob(LINKER);
-			if (!linkers.size) {
-				errs() << "Unable to find 'link.exe' (searched as \"" << LINKER << "\"\n";
-				exit(1);
-			}
-			char* linker_exe = linkers.dirs[0];
+			char* linker_exe;
 			const char* libpatterns[] = LIBDIRS;
 			char* libdirs[ARRAY_SIZE(libpatterns)];
-			for (int i=0; i<ARRAY_SIZE(libpatterns); i++) {
-				volvox_glob_t lib = volvox_glob(libpatterns[i]);
+			if (target_mingw) {
+				linker_exe = const_cast<char*>(MINGW_W64_LINKER);
+				strcat(libpath, "\\libvolvox.dll");
+			} else {
+				strcat(libpath, "\\lib\\libvolvox.lib");
+				volvox_glob_t linkers = volvox_glob(LINKER);
 				if (!linkers.size) {
-					errs() << "Unable to find Windows system library (searched as \"" << libpatterns[i] << "\"\n";
+					errs() << "Unable to find 'link.exe' (searched as \"" << LINKER << "\"\n";
 					exit(1);
 				}
-				int strl = strlen(lib.dirs[0]) - 1;
-				if (lib.dirs[0][strl] == '\\' || lib.dirs[0][strl] == '/') {
-					errs() << "Unexpected directory name when searching for file: " << lib.dirs[0] << '\n';
-					exit(1);
+				linker_exe = linkers.dirs[0];
+				for (int i=0; i<ARRAY_SIZE(libpatterns); i++) {
+					volvox_glob_t lib = volvox_glob(libpatterns[i]);
+					if (!linkers.size) {
+						errs() << "Unable to find Windows system library (searched as \"" << libpatterns[i] << "\"\n";
+						exit(1);
+					}
+					int strl = strlen(lib.dirs[0]) - 1;
+					if (lib.dirs[0][strl] == '\\' || lib.dirs[0][strl] == '/') {
+						errs() << "Unexpected directory name when searching for file: " << lib.dirs[0] << '\n';
+						exit(1);
+					}
+					while (lib.dirs[0][strl] != '\\' && lib.dirs[0][strl] != '/')
+						strl--;
+					libdirs[i] = (char*)alloca(strl + 10);
+					strcpy(libdirs[i], "-libpath:");
+					strncpy(libdirs[i] + 9, lib.dirs[0], strl); // don't copy trailing '\\'
+					libdirs[i][9 + strl] = '\0';
+					volvox_free_glob(&lib);
 				}
-				while (lib.dirs[0][strl] != '\\' && lib.dirs[0][strl] != '/')
-					strl--;
-				libdirs[i] = (char*)alloca(strl + 10);
-				strcpy(libdirs[i], "-libpath:");
-				strncpy(libdirs[i] + 9, lib.dirs[0], strl); // don't copy trailing '\\'
-				libdirs[i][9 + strl] = '\0';
-				volvox_free_glob(&lib);
 			}
 			char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
-			strcpy(exe_out, "-out:");
-			strcat(exe_out, exe_file);
+			if (!target_mingw) {
+				strcpy(exe_out, "-out:");
+				strcat(exe_out, exe_file);
+			}
 			char* stack_size = (char*)alloca(30);
-			sprintf(stack_size, "-stack:%" PRIu64, stacksize);
+			if (target_mingw)
+				sprintf(stack_size, "-Wl,-stack,%" PRIu64, stacksize);
+			else
+				sprintf(stack_size, "-stack:%" PRIu64, stacksize);
 #else
 			strcat(libpath, "/lib");
 #ifndef _WIN32
@@ -1243,23 +1270,39 @@ int main(int argc, char* argv[]) {
 #endif
 			char* linker_exe = const_cast<char*>(LINKER);
 #endif
-			char* clang_argv[] = {
-				linker_exe,
-				output_file,
+			char** clang_argv;
+			if (target_mingw) {
+				char* clang_argv_[] = {
+					linker_exe,
+					const_cast<char*>("-target"), const_cast<char*>("x86_64-pc-windows-gnu"),
+					output_file,
+					stack_size,
+					const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"),
+					libpath,
+					verbosity ? const_cast<char*>("-v") : nullptr,
+					nullptr
+				};
+				clang_argv = clang_argv_;
+			} else {
+				char* clang_argv_[] = {
+					linker_exe,
+					output_file,
 #if defined(_MSC_VER)
-				exe_out, const_cast<char*>("-defaultlib:libcmt"), const_cast<char*>("-defaultlib:oldnames"),
-				libpath, libdirs[0], libdirs[1], libdirs[2], stack_size,
-				(verbosity >= 3) ? const_cast<char*>("-verbose") : const_cast<char*>("-nologo"),
+					exe_out, const_cast<char*>("-defaultlib:libcmt"), const_cast<char*>("-defaultlib:oldnames"),
+					libpath, libdirs[0], libdirs[1], libdirs[2], stack_size,
+					(verbosity >= 3) ? const_cast<char*>("-verbose") : const_cast<char*>("-nologo"),
 #else
-				const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), 
-				const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"),
+					const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), 
+					const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"),
 #ifndef _WIN32
-				rpath,
+					rpath,
 #endif
-				verbosity ? const_cast<char*>("-v") : nullptr,
+					verbosity ? const_cast<char*>("-v") : nullptr,
 #endif
-				nullptr
-			};
+					nullptr
+				};
+				clang_argv = clang_argv_;
+			}
 			if (verbosity) {
 				for (int i=0; clang_argv[i]; i++) {
 					if (i)
