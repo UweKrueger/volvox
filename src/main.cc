@@ -1152,7 +1152,6 @@ int main(int argc, char* argv[]) {
 	getNextToken();
 	// Run the main "interpreter loop" now.
 	MainLoop();
-
 	if (do_test || comp_mode != comp_jit) {
 		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
 			if (auto *FnIR = FnAST->codegen()) {

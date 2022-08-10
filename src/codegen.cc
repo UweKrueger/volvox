@@ -861,7 +861,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				.ft = ft,
 			};
 			globals_table.insert(varname, fv);
-			if (comp_mode == comp_jit) {
+			if (comp_mode == comp_jit && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 #ifndef LEGACY_PASS_MANAGER
