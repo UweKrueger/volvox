@@ -7,7 +7,6 @@
 // Debug Info Support
 //===----------------------------------------------------------------------===//
 
-std::unique_ptr<llvm::DIBuilder> DBuilder;
 bool inside_function = false;
 extern llvm::ExitOnError ExitOnErr;
 const char* last_shadow_saver;

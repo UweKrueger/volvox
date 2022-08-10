@@ -47,14 +47,14 @@ extern "C" int volvox_try_wait(int pid);
 //===----------------------------------------------------------------------===//
 
 llvm::orc::ThreadSafeContext TS_Context;
-std::unique_ptr<llvm::Module> TheModule;
-std::unique_ptr<llvm::IRBuilder<>> Builder;
-std::unique_ptr<llvm::MDBuilder> MDBuilder;
+std::unique_ptr<llvm::Module> TheModule = nullptr;
+std::unique_ptr<llvm::IRBuilder<>> Builder = nullptr;
+std::unique_ptr<llvm::MDBuilder> MDBuilder = nullptr;
+std::unique_ptr<llvm::DIBuilder> DBuilder = nullptr;
 llvm::ExitOnError ExitOnErr;
 
 global_var_shadow* global_list = NULL;
 global_var_shadow** global_list_end = &global_list;
-thread_local global_var_shadow* tl_global_list = nullptr;	
 
 // useful definitions - "Context-time" constants
 llvm::Type* llvm_int_type;
@@ -64,7 +64,7 @@ volvoxc::FullType* void_type;
 volvoxc::FullType* uintptr_type;
 
 #ifdef LEGACY_PASS_MANAGER
-std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
+std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM = nullptr;
 #else
 // Create the analysis managers.
 llvm::LoopAnalysisManager LAM;
@@ -74,7 +74,7 @@ llvm::ModuleAnalysisManager MAM;
 llvm::ModulePassManager MPM;
 #endif
 
-std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
+std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT = nullptr;
 std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
@@ -557,6 +557,15 @@ extern "C" DLLEXPORT uintptr_t new_global_var_shadow(void* adr, size_t size) {
 	*global_list_end = V;
 	global_list_end = &V->next;
 	return (uintptr_t)V->data;
+}
+
+extern "C" DLLEXPORT void free_global_var_shadow() {
+	while (global_list) {
+		global_var_shadow* obj = global_list;
+		global_list = obj->next;
+		free(obj);
+	}
+	global_list_end = &global_list;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1349,6 +1358,9 @@ int main(int argc, char* argv[]) {
 		DBuilder->finalize();
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
+	} else if (comp_mode == comp_jit) {
+		errs() << "freeing shadows...\n";
+		free_global_var_shadow();
 	}
 #ifdef _WIN32
 	SetConsoleOutputCP(old_cp);
