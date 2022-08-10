@@ -1198,7 +1198,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			}
 #endif
 			ExitOnErr(TheJIT->addModule(
-				          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
+				          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
 			InitializeModuleAndPassManager();
 		}
 		// Make an anonymous proto.

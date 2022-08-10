@@ -46,7 +46,7 @@ extern "C" int volvox_try_wait(int pid);
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
 
-llvm::orc::ThreadSafeContext TS_Context;
+std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context = nullptr;
 std::unique_ptr<llvm::Module> TheModule = nullptr;
 std::unique_ptr<llvm::IRBuilder<>> Builder = nullptr;
 std::unique_ptr<llvm::MDBuilder> MDBuilder = nullptr;
@@ -315,7 +315,7 @@ static void HandleTopLevelExpression() {
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
+				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 				InitializeModuleAndPassManager();
 				
@@ -1046,7 +1046,7 @@ int main(int argc, char* argv[]) {
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
 	}
-	TS_Context = llvm::orc::ThreadSafeContext(std::move(std::make_unique<llvm::LLVMContext>()));
+	TS_Context = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(std::make_unique<llvm::LLVMContext>()));
 
 	InitializeModuleAndPassManager();
 #ifndef LEGACY_PASS_MANAGER
@@ -1170,7 +1170,7 @@ int main(int argc, char* argv[]) {
 					// Create a ResourceTracker to track JIT'd memory allocated to our
 					// anonymous expression -- that way we can free it after executing.
 					auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
+					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
 					ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 					InitializeModuleAndPassManager();
 					auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
@@ -1359,7 +1359,6 @@ int main(int argc, char* argv[]) {
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
 	} else if (comp_mode == comp_jit) {
-		errs() << "freeing shadows...\n";
 		free_global_var_shadow();
 	}
 #ifdef _WIN32

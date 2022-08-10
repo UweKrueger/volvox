@@ -207,8 +207,8 @@ struct SourceLocation {
 };
 
 extern const char* input_file_name;
-extern llvm::orc::ThreadSafeContext TS_Context;
-#define Context *TS_Context.getContext()
+extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;
+#define Context *TS_Context->getContext()
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
