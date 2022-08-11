@@ -148,9 +148,12 @@ void InitializeModuleAndPassManager() {
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
-	
+	static bool already_run = false;
 	// Create a new builder for the module.
-	Builder = std::make_unique<llvm::IRBuilder<>>(Context);
+	if (!already_run) {
+		Builder = std::make_unique<llvm::IRBuilder<>>(Context);
+		already_run = true;
+	}
 #ifdef LEGACY_PASS_MANAGER
 	// Create a new pass manager attached to it.
 	TheFPM = std::make_unique<llvm::legacy::FunctionPassManager>(TheModule.get());
