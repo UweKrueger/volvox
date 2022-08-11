@@ -276,8 +276,6 @@ extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* uintptr_type;
-extern const char* last_shadow_saver;
-extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
@@ -760,10 +758,3 @@ extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);
 extern std::nullptr_t Error(SourceLocation Loc, const char *Str, ...);
 extern std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type);
 extern volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type);
-
-struct global_var_shadow {
-	struct global_var_shadow* next;
-	void* adr;
-	size_t size;
-	char data[8]; // dynamically extended
-};

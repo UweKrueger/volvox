@@ -9,8 +9,8 @@
 
 bool inside_function = false;
 extern llvm::ExitOnError ExitOnErr;
-const char* last_shadow_saver;
-const char* last_shadow_restorer;
+const char* last_shadow_saver = nullptr;
+const char* last_shadow_restorer = nullptr;
 // list of boolean values that indicate that this loop branch is run for the first time
 // this is used to avoid multiple  allocations of variables that are declared inside a then/while/repaet loop
 VarTable* IfWhileVarTable = nullptr;
@@ -864,76 +864,21 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			if (comp_mode == comp_jit && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
-#ifndef LEGACY_PASS_MANAGER
-				// running the new PassManager on an empty module causes trouble :-(
-				// let's avoid this...
-				if (TheModule->end() != TheModule->begin()) {
-					MPM.run(*TheModule, MAM);
-					if (dump_IR && dump_opt) {
-						auto end = TheModule->end();
-						for (auto it = TheModule->begin(); it != end; ++it)
-							it->print(errs());
-					}
-				}
-#endif
-				ExitOnErr(TheJIT->addModule(
-					          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
-				InitializeModuleAndPassManager();
-
-				auto V = TheModule->getGlobalVariable(varname, true);
-				if (!V) {
-					V = new llvm::GlobalVariable(*TheModule, V_type,
+				std::string shadow_var_name = std::string("__") + varname + "_shadow_";
+				auto V = new llvm::GlobalVariable(*TheModule, V_type,
 					                             false, link_type,
-					                             nullptr, varname, nullptr,
-					                             llvm::GlobalVariable::GeneralDynamicTLSModel,
-					                             0, true);
-				}
+					                             initializer, shadow_var_name, nullptr,
+					                             llvm::GlobalVariable::NotThreadLocal);
 				auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), storage_sz);
-				std::string shadow_fn_name = "new_global_var_shadow";
-				auto shadow_fn = getFunction(shadow_fn_name, nullptr);
-				std::vector<llvm::Value*> ArgsS = { V, sz_const };
-				llvm::FunctionType* uintptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt64Ty(Context), {}, false);
-				std::string anon_name = "__anon_shadow";
-				llvm::Function* Fshadow = llvm::Function::Create(uintptr_fn_t, llvm::Function::ExternalLinkage, anon_name, TheModule.get());
-				llvm::BasicBlock* BB = llvm::BasicBlock::Create(Context, "entry", Fshadow);
-				Builder->SetInsertPoint(BB);
-				Builder->CreateRet(CheckTailCall(Builder->CreateCall(shadow_fn.second->FT, shadow_fn.first, { V, sz_const }, "callshadow")));
-				verifyFunction(*Fshadow);
-				if (dump_IR >= 3 && dump_raw) {
-					errs() << "Read shadow definition:\n";
-					Fshadow->print(errs());
-					errs() << "\n";
-				}
-				// Create a ResourceTracker to track JIT'd memory allocated to our
-				// anonymous expression -- that way we can free it after executing.
-				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
-				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-				InitializeModuleAndPassManager();
-				auto ExprSymbol = ExitOnErr(TheJIT->lookup(anon_name));
-				uintptr_t (*PTR)() = (uintptr_t (*)())(intptr_t)ExprSymbol.getAddress();
-				auto adrShadow = PTR();
-				// Delete the anonymous expression module from the JIT.
-				ExitOnErr(RT->remove());
+				auto align = getAlignment(sz_const);
 				auto saver = std::string("__") + varname + "_saver";
 				auto restorer = std::string("__") + varname + "_restorer";
-				auto llvmGVadr = llvm::dyn_cast<llvm::Constant>(Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), adrShadow, false), llvm::Type::getInt8PtrTy(Context)));
-				auto memcpy_proto = getFunction("memcpy", nullptr);
-				V = TheModule->getGlobalVariable(varname, true);
-				if (!V) {
-					V = new llvm::GlobalVariable(*TheModule, V_type,
-					                             false, llvm::GlobalValue::ExternalLinkage,
-					                             nullptr, varname, nullptr,
-					                             llvm::GlobalVariable::GeneralDynamicTLSModel,
-					                             0, true);
-				}
 				llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
 
 				llvm::Function* Fsaver = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, saver, TheModule.get());
-				BB = llvm::BasicBlock::Create(Context, "entry", Fsaver);
+				auto BB = llvm::BasicBlock::Create(Context, "entry", Fsaver);
 				Builder->SetInsertPoint(BB);
-				std::vector<llvm::Value*> ArgsV = { llvmGVadr, V, sz_const };
-				Builder->CreateCall(memcpy_proto.second->FT, memcpy_proto.first, ArgsV, "callmcpy");
+				Builder->CreateMemCpy(V, align, GV, align, storage_sz);
 				if (last_shadow_saver) {
 					auto last_saver = getFunction(last_shadow_saver, nullptr);
 					Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver.second->FT, last_saver.first, std::vector<llvm::Value*>(), "callold")));
@@ -961,8 +906,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
 				BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
 				Builder->SetInsertPoint(BB);
-				ArgsV = { V, llvmGVadr, sz_const };
-				Builder->CreateCall(memcpy_proto.second->FT, memcpy_proto.first, ArgsV, "callmcpy");
+				Builder->CreateMemCpy(GV, align, V, align, storage_sz);
 				if (last_shadow_restorer) {
 					auto last_restorer = getFunction(last_shadow_restorer, nullptr);
 					Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer.second->FT, last_restorer.first, std::vector<llvm::Value*>(), "callold")));

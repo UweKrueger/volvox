@@ -53,9 +53,6 @@ std::unique_ptr<llvm::MDBuilder> MDBuilder = nullptr;
 std::unique_ptr<llvm::DIBuilder> DBuilder = nullptr;
 llvm::ExitOnError ExitOnErr;
 
-global_var_shadow* global_list = NULL;
-global_var_shadow** global_list_end = &global_list;
-
 // useful definitions - "Context-time" constants
 llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
@@ -541,31 +538,6 @@ extern "C" DLLEXPORT double putchard(double X) {
 extern "C" DLLEXPORT double printd(double X) {
 	errs() << X << "\n";
 	return 0;
-}
-
-extern "C" DLLEXPORT uintptr_t new_global_var_shadow(void* adr, size_t size) {
-	size_t alloc_size = sizeof(global_var_shadow);
-	if (size > 8)
-		alloc_size = alloc_size - 8 + size;
-	global_var_shadow* V = (global_var_shadow*)malloc(alloc_size);
-	if (!V)
-		return 0;
-	V->next = NULL;
-	V->adr = adr;
-	V->size = size;
-	memcpy(V->data, V->adr, size);
-	*global_list_end = V;
-	global_list_end = &V->next;
-	return (uintptr_t)V->data;
-}
-
-extern "C" DLLEXPORT void free_global_var_shadow() {
-	while (global_list) {
-		global_var_shadow* obj = global_list;
-		global_list = obj->next;
-		free(obj);
-	}
-	global_list_end = &global_list;
 }
 
 //===----------------------------------------------------------------------===//
@@ -1358,7 +1330,7 @@ int main(int argc, char* argv[]) {
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
 	} else if (comp_mode == comp_jit) {
-		free_global_var_shadow();
+		errs() << "all done\n";
 	}
 #ifdef _WIN32
 	SetConsoleOutputCP(old_cp);
