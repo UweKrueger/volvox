@@ -1337,7 +1337,7 @@ int main(int argc, char* argv[]) {
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
 	} else if (comp_mode == comp_jit) {
-		errs() << "all done\n";
+		TheJIT->getMainJITDylib().clear();
 	}
 #ifdef _WIN32
 	SetConsoleOutputCP(old_cp);
