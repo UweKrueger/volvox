@@ -1256,7 +1256,9 @@ int main(int argc, char* argv[]) {
 					linker_exe,
 					const_cast<char*>("-target"), const_cast<char*>("x86_64-pc-windows-gnu"),
 					output_file,
+#ifdef _WIN32
 					stack_size,
+#endif
 					const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"),
 					libpath,
 					verbosity ? const_cast<char*>("-v") : nullptr,
@@ -1269,12 +1271,14 @@ int main(int argc, char* argv[]) {
 					output_file,
 #if defined(_MSC_VER)
 					exe_out, const_cast<char*>("-defaultlib:libcmt"), const_cast<char*>("-defaultlib:oldnames"),
-					libpath, libdirs[0], libdirs[1], libdirs[2], stack_size,
+					libpath, libdirs[0], libdirs[1], libdirs[2],
 					(verbosity >= 3) ? const_cast<char*>("-verbose") : const_cast<char*>("-nologo"),
 #else
 					const_cast<char*>("-o"), exe_file, const_cast<char*>("-O2"), 
 					const_cast<char*>("-L"), libpath, const_cast<char*>("-lvolvox"),
-#ifndef _WIN32
+#ifdef _WIN32
+					stack_size, 
+#else
 					rpath,
 #endif
 					verbosity ? const_cast<char*>("-v") : nullptr,

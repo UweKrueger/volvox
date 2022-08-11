@@ -276,6 +276,8 @@ extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* uintptr_type;
+extern const char* last_shadow_saver;
+extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
