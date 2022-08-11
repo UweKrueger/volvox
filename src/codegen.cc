@@ -869,6 +869,37 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 					                             false, link_type,
 					                             initializer, shadow_var_name, nullptr,
 					                             llvm::GlobalVariable::NotThreadLocal);
+#ifndef LEGACY_PASS_MANAGER
+				// running the new PassManager on an empty module causes trouble :-(
+				// let's avoid this...
+				if (TheModule->end() != TheModule->begin()) {
+					MPM.run(*TheModule, MAM);
+					if (dump_IR && dump_opt) {
+						auto end = TheModule->end();
+						for (auto it = TheModule->begin(); it != end; ++it)
+							it->print(errs());
+					}
+				}
+#endif
+				ExitOnErr(TheJIT->addModule(
+					          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
+				InitializeModuleAndPassManager();
+				GV = TheModule->getGlobalVariable(varname, true);
+				if (!GV) {
+					GV = new llvm::GlobalVariable(*TheModule, V_type,
+					                              false, link_type,
+					                              nullptr, varname, nullptr,
+					                              llvm::GlobalVariable::GeneralDynamicTLSModel,
+					                              0, true);
+				}
+				V = TheModule->getGlobalVariable(shadow_var_name, true);
+				if (!V) {
+					V = new llvm::GlobalVariable(*TheModule, V_type,
+					                             false, link_type,
+					                             nullptr, shadow_var_name, nullptr,
+					                             llvm::GlobalVariable::NotThreadLocal,
+					                             0, true);
+				}
 				auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), storage_sz);
 				auto align = getAlignment(sz_const);
 				auto saver = std::string("__") + varname + "_saver";
