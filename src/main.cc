@@ -577,7 +577,7 @@ static void usage(const char* prog) {
 	errs() << " -o file ... output compiled result to \"file\"\n";
 	errs() << " -s size ... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
 	errs() << "             default: `ulimit -s` if finite or 10MB otherwise\n";
-	errs() << " -m<target>  platform target option, e.g. '-mgnu' for mingw-w64 on Windows\n";
+	errs() << " -m<target>  platform target option, e.g. '-mingw' or '-msvc' on Windows\n";
 	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
 	errs() << " -C n,g,b .. prompt colors (#, >, background; ANSI-256, default: 30,100,236)\n";
 	errs() << " file ...... file(s) to compile (default: interactive session is started)\n";
@@ -802,8 +802,10 @@ int main(int argc, char* argv[]) {
 			output_file = optarg;
 			break;
 		case 'm':
-			if (!strcmp(optarg, "gnu"))
+			if (!strcmp(optarg, "ingw") || !strcmp(optarg, "ingw-w64"))
 				target_mingw = true;
+			else if (!strcmp(optarg, "svc"))
+				target_mingw = false;
 			else {
 				errs() << "unknown target option '-m" << optarg << "'\n";
 				usage(argv[0]);
@@ -1259,7 +1261,7 @@ int main(int argc, char* argv[]) {
 				strcpy(exe_out, "-out:");
 				strcat(exe_out, exe_file);
 			}
-			char* stack_size = (char*)alloca(30);
+			stack_size = (char*)alloca(30);
 			if (target_mingw)
 				sprintf(stack_size, "-Wl,-stack,%" PRIu64, stacksize);
 			else
