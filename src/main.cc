@@ -692,7 +692,7 @@ unsigned old_cp;
 #ifndef LINKER
 #define LINKER "C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\link.exe"
 #endif
-// for mingw-w64 ('-mgnu' flag) we use clang
+// for mingw-w64 ('-mingw' flag) we use clang
 #ifndef MINGW_W64_LINKER
 #define MINGW_W64_LINKER "C:\\Program Files\\LLVM\\bin\\clang.exe"
 #endif
@@ -1132,6 +1132,43 @@ int main(int argc, char* argv[]) {
 			llvm::dwarf::DW_LANG_C, DBuilder->createFile(input_file_name, "."),
 			"Volvox Compiler", 0, "", 0);
 	}
+	char* volvox_root = getenv("VOLVOX_ROOT");
+	if (!volvox_root) {
+#if defined(VOLVOX_ROOT)
+		volvox_root = (char*)VOLVOX_ROOT;
+#else
+		volvox_root = const_cast<char*>(".");
+#endif
+	}
+	size_t rootlen = strlen(volvox_root);
+	char* volvox_lib = getenv("VOLVOX_LIB");
+	if (!volvox_lib) {
+#if defined(VOLVOX_LIB)
+		volvox_lib = (char*)VOLVOX_LIB;
+#else
+		volvox_lib = (char*)alloca(strlen(volvox_root) + 5);
+		strcpy(volvox_lib, volvox_root);
+#if defined(_MSC_VER)
+		strcpy(volvox_lib + rootlen, "\\lib");
+#else
+		strcpy(volvox_lib + rootlen, "/lib");
+#endif
+#endif
+	}
+	char* volvox_bin = getenv("VOLVOX_BIN");
+	if (!volvox_bin) {
+#if defined(VOLVOX_BIN)
+		volvox_bin = (char*)VOLVOX_BIN;
+#else
+		volvox_bin = (char*)alloca(strlen(volvox_root) + 5);
+		strcpy(volvox_bin, volvox_root);
+#if defined(_MSC_VER)
+		strcpy(volvox_bin + rootlen, "\\bin");
+#else
+		strcpy(volvox_bin + rootlen, "/bin");
+#endif
+#endif
+	}
 	init();
 	// Prime the first token.
 	getNextToken();
@@ -1203,13 +1240,9 @@ int main(int argc, char* argv[]) {
 		dest.close();
 		hints() << "Wrote " << Filename << "\n";
 		if (link_mode != dont_link) {
-			char* volvox_root = getenv("VOLVOX_ROOT");
-			if (!volvox_root)
-				volvox_root = const_cast<char*>(".");
 			int lr = strlen(volvox_root);
 			char* libpath = (char*)alloca(lr+32);
 			strcpy(libpath, volvox_root);
-			char* linker_exe = nullptr;
 			char* stack_size = nullptr;
 			/* building the linker command is somewhat tricky because several things have to be considered:
 			 * 1. on POSIX systems the "GNU" typical syntax should be used
@@ -1221,9 +1254,16 @@ int main(int argc, char* argv[]) {
 			 *    Windows specific flags like "-Wl,-stack,<size>"
 			 * 5. some of these cases can be handled by "#ifdef"s, others need run time "if"s
 			 */
+			char* linker_exe = getenv("VOLVOX_LINKER");
 			if (target_mingw) {
-				linker_exe = const_cast<char*>(MINGW_W64_LINKER);
+				if (!linker_exe)
+					linker_exe = const_cast<char*>(MINGW_W64_LINKER);
+#ifdef _WIN32
 				strcat(libpath, "\\libvolvox.dll");
+#else
+				strcat(libpath, "/libvolvox.dll");
+#endif
+				errs() << "Linker: " << linker_exe << " LibPath: " << libpath << '\n';
 			}
 #if defined(_MSC_VER)
 			const char* libpatterns[] = LIBDIRS;
@@ -1262,26 +1302,38 @@ int main(int argc, char* argv[]) {
 				strcat(exe_out, exe_file);
 			}
 			stack_size = (char*)alloca(30);
-			if (target_mingw)
-				sprintf(stack_size, "-Wl,-stack,%" PRIu64, stacksize);
-			else
+			if (!target_mingw)
 				sprintf(stack_size, "-stack:%" PRIu64, stacksize);
 #else
-			strcat(libpath, "/lib");
+			if (!target_mingw) {
+				strcat(libpath, "/lib");
+			}
 #ifndef _WIN32
-			char* rpath = (char*)alloca(lr+43);
-			strcpy(rpath, "-Wl,-rpath,");
-			strcat(rpath, libpath);
+			char* rpath = nullptr;
+			if (!target_mingw) {
+				rpath = (char*)alloca(lr+43);
+				strcpy(rpath, "-Wl,-rpath,");
+				strcat(rpath, libpath);
+			}
 #endif
-			linker_exe = const_cast<char*>(LINKER);
+			if (!linker_exe)
+				linker_exe = const_cast<char*>(LINKER);
 #endif
+			if (target_mingw) {
+				stack_size = (char*)alloca(30);
+				sprintf(stack_size, "-Wl,-stack,%" PRIu64, stacksize);
+			}
 			std::vector<char*> clang_argv = {};
 			clang_argv.reserve(16);
 			clang_argv.push_back(linker_exe);
 			clang_argv.push_back(output_file);
 			if (target_mingw) {
-				clang_argv.push_back(const_cast<char*>("-target"));
-				clang_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
+				size_t comp_offs = strlen(linker_exe) - 3;
+				if (strcmp(linker_exe + comp_offs, "gcc") && strcmp(linker_exe + comp_offs, "g++")) {
+					// neither 'gcc' nor 'g++' - so it's 'clang' and we must specify the target
+					clang_argv.push_back(const_cast<char*>("-target"));
+					clang_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
+				}
 				clang_argv.push_back(stack_size); // mingw on Windows or cross compiler (e.g. on Linux)
 			}
 #ifdef _WIN32
@@ -1305,12 +1357,15 @@ int main(int argc, char* argv[]) {
 				clang_argv.push_back(exe_file);
 				clang_argv.push_back(const_cast<char*>("-O2"));
 #ifndef _WIN32
-				clang_argv.push_back(const_cast<char*>("-L"));
+				if (!target_mingw)
+					clang_argv.push_back(const_cast<char*>("-L"));
 #endif
 				clang_argv.push_back(libpath);
 #ifndef _WIN32
-				clang_argv.push_back(const_cast<char*>("-lvolvox"));
-				clang_argv.push_back(rpath);
+				if (!target_mingw) {
+					clang_argv.push_back(const_cast<char*>("-lvolvox"));
+					clang_argv.push_back(rpath);
+				}
 #endif
 				if(verbosity)
 					clang_argv.push_back(const_cast<char*>("-v"));
