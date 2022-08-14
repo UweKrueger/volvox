@@ -715,9 +715,6 @@ int main(int argc, char* argv[]) {
 	setlocale(LC_ALL, "en_US.UTF-8");
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
-	errs() << "Full path: >" << getThisExePath() << "<\n";
-	errs() << "Lib: >" << volvox_lib() << "<\n";
-	errs() << "Root: >" << volvox_root() << "<\n";
 	llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;
 #ifndef _WIN32
 	struct rlimit rlimit_stacksize;
@@ -912,6 +909,11 @@ int main(int argc, char* argv[]) {
 			usage(argv[0]);
 		}
 	}
+	if (verbosity >= 2) {
+		errs() << "Path of Volvox Binary: >" << getThisExePath() << "<\n";
+		errs() << "Lib: >" << volvox_lib() << "<\n";
+		errs() << "Volvox Root: >" << volvox_root() << "<\n";
+	}
 	for (;optind < argc; optind++)
 		source_files.push_back(argv[optind]);
 	if (!comp_mode) {
@@ -1069,7 +1071,8 @@ int main(int argc, char* argv[]) {
 		errs() << Error;
 		return 1;
 	}
-	errs() << "TargetTriple: " << TargetTriple << '\n';
+	if (verbosity >= 1)
+		errs() << "Target: " << TargetTriple << '\n';
 	auto CPU = "generic";
 	auto Features = "";
 	llvm::TargetOptions target_opts;
@@ -1086,6 +1089,12 @@ int main(int argc, char* argv[]) {
 	} else {
 		TheTargetMachine =
 			Target->createTargetMachine(TargetTriple, CPU, Features, target_opts, RM, llvm::None, codegenopt);
+	}
+	if (verbosity >= 1) {
+		if (TheTargetMachine->useEmulatedTLS())
+			errs() << "using emulated TLS\n";
+		else
+			errs() << "using native TLS\n";
 	}
 #ifndef LEGACY_PASS_MANAGER
 	llvm::PassBuilder PB(TheTargetMachine, PTO);
@@ -1263,7 +1272,6 @@ int main(int argc, char* argv[]) {
 #else
 				strcat(libpath, "/libvolvox.dll");
 #endif
-				errs() << "Linker: " << linker_exe << " LibPath: " << libpath << '\n';
 			}
 #if defined(_MSC_VER)
 			const char* libpatterns[] = LIBDIRS;
