@@ -87,6 +87,7 @@ public:
 	llvm::FunctionType* FT;
 	bool IsVarArgs;
 	bool IsOperator;
+	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct
 	unsigned share_kind;
 	llvm::GlobalValue::LinkageTypes link_type;
 	int Line;
@@ -95,12 +96,7 @@ public:
 	             std::vector<std::string> Args, unsigned share_kind = 0, SourceLocation retLoc = CurLoc,
 	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
 	             std::vector<volvoxc::FullType*> ArgTypes = {}, std::vector<llvm::Type*> LLVMArgTypes = {},
-	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false)
-		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
-		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(ArgTypes),
-		  ArgPos(_ArgPos), LLVMArgTypes(LLVMArgTypes), IsVarArgs(IsVarArgs), share_kind(share_kind) {
-		FT = llvm::FunctionType::get(RetType->type, LLVMArgTypes, IsVarArgs);
-	}
+	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
