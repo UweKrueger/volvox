@@ -2190,9 +2190,14 @@ llvm::Function *FunctionAST::codegen() {
 	if (P.RetType->type->isVoidTy()) {
 		Builder->CreateRetVoid();
 	} else {
-		auto ret_type = RetVal->getType();
+		// auto ret_type = RetVal->getType();
 		//type = ret_type; // TODO: hande conversion if != proto->type;
-		Builder->CreateRet(CheckTailCall(RetVal));
+		if (P.IsStructRet) {
+			Builder->CreateStore(RetVal, ret_ptr);
+			Builder->CreateRetVoid();
+		}
+		else
+			Builder->CreateRet(CheckTailCall(RetVal));
 	}		
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function.
