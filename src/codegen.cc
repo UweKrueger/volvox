@@ -1597,7 +1597,19 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				errs() << "Wrong type passed for function arg #" << i + 1 << ": expected " << *Proto->ArgTypes[i]->type << ", got " << *Args[i]->ft->type << "\n";
 				return nullptr;
 			}
-			llvm::Value* arg = Args[i]->codegen();
+			llvm::Value* arg = nullptr;
+			if (auto call = dynamic_cast<CallExprAST*>(Args[i].get())) {
+				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[0].get();
+				if (CallProto->IsStructRet) {
+					// nested call like 'f(g())' - since 'g' returns by reference we have to
+					// allocate memory for the indermediate result
+					auto argptr = Builder->CreateAlloca(call->ft->type);
+					// TODO: Arg should be passed by reference in this case
+					arg = Builder->CreateLoad(call->ft->type, argptr);
+				}
+			}
+			if (!arg)
+				arg = Args[i]->codegen();
 			if (!arg)
 				return nullptr;
 			if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
