@@ -86,7 +86,7 @@ static llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Tw
 	return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
-llvm::Value* LiteralExprAST::codegen_raw() {
+llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -113,7 +113,7 @@ llvm::Value* LiteralExprAST::codegen_raw() {
 	}
 }
 
-llvm::Value* ListExprAST::codegen_raw() {
+llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -150,7 +150,7 @@ llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type
 	return ini;
 }
 
-llvm::Value* FixedArrayExprAST::codegen_raw() {
+llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -203,7 +203,7 @@ llvm::Value* FixedArrayExprAST::codegen_raw() {
 	}
 }
 
-llvm::Value* LvalueExprAST::codegen_raw() {
+llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	auto V = codegen_ref();
 	// Load the value.
 	return Builder->CreateLoad(V.first, V.second, Name.c_str());
@@ -458,7 +458,7 @@ static std::pair<llvm::Value*, SourceLocation> GenIndex(ExprAST* Index) {
 	}
 }
 
-llvm::Value* IndexExprAST::codegen_raw() {
+llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 	// first try to get a reference to the element ...
 	auto V = codegen_ref(true);
 	if (auto val = ref2val(V))
@@ -685,14 +685,14 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 	// return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
 }
 
-llvm::Value* FunctionExprAST::codegen_raw() {
+llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 	if (auto F = TheModule->getFunction((*ft->Protos)[selected_proto]->Name)) {
 		return F;
 	}
 	return (*ft->Protos)[selected_proto]->codegen();
 }
 
-llvm::Value* InterfaceExprAST::codegen_raw() {
+llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* val;
 	llvm::Type* type;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
@@ -722,7 +722,7 @@ llvm::Value* InterfaceExprAST::codegen_raw() {
 	return the_struct;
 }
 
-llvm::Value *UnaryExprAST::codegen_raw() {
+llvm::Value *UnaryExprAST::codegen_raw(llvm::Value* target) {
 	if (Opcode[0] == '&') {
 		if (auto V = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 			return V->codegen_ref().second;
@@ -974,7 +974,7 @@ nonconst:
 	return nullptr;
 }
 
-llvm::Value *BinaryExprAST::codegen_raw() {
+llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -1506,7 +1506,7 @@ no_conversion:
 	return Builder->CreateCall(F.first, Ops, "binop");
 }
 
-llvm::Value *CallExprAST::codegen_raw() {
+llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -1770,7 +1770,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 	}
 }
 
-llvm::Value* IfExprAST::codegen_raw() {
+llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -1979,7 +1979,7 @@ llvm::Value* IfExprAST::codegen_raw() {
 //   store nextvar -> var
 //   br endcond, loop, endloop
 // outloop:
-llvm::Value *ForExprAST::codegen_raw() {
+llvm::Value *ForExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
 
 	// Create an alloca for the variable in the entry block.

@@ -15,7 +15,7 @@ class InterfaceExprAST : public ExprAST {
 public:
 	InterfaceExprAST(std::unique_ptr<ExprAST> _expr) :
 		ExprAST(_expr->ft, _expr->Loc, _expr->is_unknown_type), expr(std::move(_expr)) {}
-	llvm::Value* codegen_raw();
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr);
 };
 
 class ConstExprAST : public ExprAST {
@@ -27,14 +27,14 @@ public:
 		else
 			ft->type = val->getType();
 	}
-	llvm::Value* codegen_raw() { return val; }
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return val; }
 };
 
 // empty parameter list in calls like "f()"
 class EmptyExprAST : public ExprAST {
 public:
 	EmptyExprAST(SourceLocation Loc = CurLoc) : ExprAST(Loc) {}
-	llvm::Value* codegen_raw() { return nullptr; }
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return nullptr; }
 };
 
 // Class for all literals - 1.2, 3u, "str"
@@ -69,7 +69,7 @@ public:
 		}
 	}
 #endif
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
 /// PrototypeAST - This class represents the "prototype" for a function,
@@ -129,7 +129,7 @@ public:
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
 	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) = 0;
-	llvm::Value* codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
 		if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
 			return Builder->CreateLoad(ref.first, ref.second, Name.c_str());
@@ -175,7 +175,7 @@ public:
 		ft->Protos = Protos;
 	}
 	const std::string &getName() const { return Name; }
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);
@@ -210,7 +210,7 @@ public:
 	std::tuple<uint64_t,llvm::Value*,llvm::Value*> getMLIdxOffset(
 		llvm::Type* elem_type, std::vector<llvm::Value*>& Idxs,
 		llvm::Value* Dims, int idx_idx, int dim_idx);
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type);
 #ifndef NDEBUG
@@ -229,7 +229,7 @@ public:
 	ListExprAST(SourceLocation Loc, std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	            volvoxc::FullType* _ft = nullptr) :
 		ExprAST(_ft, Loc), Elements(std::move(_Elements)) {}
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	unsigned getNumElements() { return Elements.size(); }
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -358,7 +358,7 @@ public:
 		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs),
 		                 std::move(_LitDims)), Dims(std::move(_Dims)), LenLocs(LenLocs) {}
 	llvm::Value* getArrayLitVal(llvm::ArrayType* initializer_type, ListExprAST* List);
-	llvm::Value* codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "Fixed Array size: " << Elements.size(), ind);
@@ -379,7 +379,7 @@ public:
 		: ExprAST(Operand->ft->type, Operand->ft->type_attr), Operand(std::move(Operand)) {
 		strcpy(Opcode, Op); 
 	}
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "unary" << Opcode, ind);
@@ -444,7 +444,7 @@ public:
 				ft->type = LHS->ft->type;
 		}
 	}
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "binary" << Op, ind);
@@ -464,7 +464,7 @@ public:
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {})
 		: ExprAST((*Callee_->ft->Protos)[0]->RetType, Loc), Callee(std::move(Callee_)), Args(std::move(Args)) {}
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call", ind);
@@ -502,7 +502,7 @@ public:
 			    && Else.size() && Else.back()->ft && Else.back()->ft->type && !Else.back()->ft->type->isSingleValueType() && !Else.back()->ft->type->isVoidTy())
 				ft = new_FullType(*Then.back()->ft);
 		}
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -536,7 +536,7 @@ public:
 	           std::unique_ptr<ExprAST> Body, SourceLocation Loc = CurLoc)
 		: ExprAST(Loc), VarName(VarName), Start(std::move(Start)), End(std::move(End)),
 		  Step(std::move(Step)), Body(std::move(Body)) {}
-	llvm::Value *codegen_raw() override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "for", ind);

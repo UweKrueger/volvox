@@ -593,7 +593,7 @@ public:
 	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
 		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
-	virtual llvm::Value *codegen_raw() = 0;
+	virtual llvm::Value *codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
 	llvm::Value* codegen() {
 		auto rawV = codegen_raw();
 		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
