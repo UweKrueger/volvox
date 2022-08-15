@@ -238,17 +238,21 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	return { storage_type, V };
 }
 
+llvm::MaybeAlign getAlignment(size_t elem_size) {
+	uint64_t align = 1;
+	// MaybeAlign constructor only accepts powers of 2, so create one from elem_size
+	do {
+		if (align & elem_size)
+			break;
+		align <<= 1;
+	} while (align < 8);
+	return llvm::MaybeAlign(align);
+}
+
 llvm::MaybeAlign getAlignment(llvm::Value* size) {
 	if (auto Align = llvm::dyn_cast<llvm::ConstantInt>(size)) {
-		uint64_t elem_size = Align->getZExtValue();
-		uint64_t align = 1;
-		// MaybeAlign constructor only accepts powers of 2, so create one from elem_size
-		do {
-			if (align & elem_size)
-				break;
-			align <<= 1;
-		} while (align < 8);
-		return llvm::MaybeAlign(align);
+		size_t elem_size = Align->getZExtValue();
+		return getAlignment(elem_size);
 	} else {
 		errs() << "alignment requires const int size\n";
 		return llvm::MaybeAlign();
@@ -1045,7 +1049,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		RHS->desired_type = LHSE->ft->type;
 		RHS->desired_type_attr = LHSE->ft->type_attr;
 		// Codegen the RHS.
-		uint64_t allocsz = 0; // if size is compile time const
+		uint64_t allocsz = (RHS->desired_type && RHS->desired_type->isSized()) ?
+			TheModule->getDataLayout().getTypeAllocSize(RHS->desired_type) : 0; // if size is compile time const
 		llvm::Value* Val = nullptr; // 
 		llvm::Value* ValPtr = nullptr;
 		llvm::Value* AllocSize = nullptr;
@@ -1055,7 +1060,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* Struct = nullptr;
 		if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref();
-			allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
 			if (!allocsz) {
 				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type)) {
 					std::vector<llvm::Value*> Dims;
@@ -1079,14 +1083,19 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 				}
 			} else {
-				Val = RHS_Lval->ref2val(ValR);
+				if (allocsz <= 16)
+					Val = RHS_Lval->ref2val(ValR);
+				else
+					ValPtr = ValR.second;
 			}
 		} else {
-			Val = RHS->codegen();
-			if (!Val)
-				return nullptr;
+			if (allocsz <= 16) {
+				Val = RHS->codegen();
+				if (!Val)
+					return nullptr;
+			}
 		}
-		if (conv.compat.RHS)
+		if (allocsz <= 16 && conv.compat.RHS)
 			Val = conv.compat.RHS(Val);
 		// Look up the name.
 		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
@@ -1100,9 +1109,25 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		} else {
 			auto Variable = LHSE->codegen_ref();
-			auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
-			Builder->CreateStore(Val, Variable.second);
-			return OldVal;
+			if (allocsz > 16) {
+				auto align = getAlignment(allocsz);
+				if (target)
+					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
+				if (ValPtr)
+					Builder->CreateMemCpy(Variable.second, align, Val, align, allocsz);
+				else {
+					auto voidval = RHS->codegen_raw(Variable.second);
+					if (!voidval->getType()->isVoidTy()) {
+						errs() << Loc << ": internal error: sret call does not return void\n";
+						return nullptr;
+					}
+				}
+				return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+			} else {
+				auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
+				Builder->CreateStore(Val, Variable.second);
+				return OldVal;
+			}
 		}
 	not_found:
 		if (kind != decl_assign_op) {
@@ -1139,21 +1164,39 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					                        Builder->GetInsertBlock());
 				}
 			} else if (ValPtr) {
-				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
-				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
-				llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
-				Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
-				if (Struct) {
-					auto strt = llvm::cast<llvm::StructType>(Struct->getType());
-					llvm::Value* Entry = llvm::UndefValue::get(strt);
-					unsigned ndim = strt->getNumElements() - 1;
-					for (unsigned i = 0; i < ndim; i++)
-						Entry = Builder->CreateInsertValue(Entry, Builder->CreateExtractValue(Struct, i), i);
-					Entry = Builder->CreateInsertValue(Entry, Alloca, ndim);
-					entry->val = Entry;
+				if (allocsz) {
+					auto align = getAlignment(allocsz);
+					auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
 				} else {
-					entry->val = Alloca;
+					auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
+					auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
+					llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
+					Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
+					if (Struct) {
+						auto strt = llvm::cast<llvm::StructType>(Struct->getType());
+						llvm::Value* Entry = llvm::UndefValue::get(strt);
+						unsigned ndim = strt->getNumElements() - 1;
+						for (unsigned i = 0; i < ndim; i++)
+							Entry = Builder->CreateInsertValue(Entry, Builder->CreateExtractValue(Struct, i), i);
+						Entry = Builder->CreateInsertValue(Entry, Alloca, ndim);
+						entry->val = Entry;
+					} else {
+						entry->val = Alloca;
+					}
 				}
+			} else if (allocsz > 16) {
+				auto align = getAlignment(allocsz);
+				auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+				auto voidval = RHS->codegen_raw(Alloca);
+				if (!voidval->getType()->isVoidTy()) {
+					errs() << Loc << ": internal error: sret call does not return void\n";
+					return nullptr;
+				}
+				entry->val = Alloca;
+			} else {
+				errs() << "unhandled case\n";
+				return nullptr;
 			}
 			ft->type = llvm::Type::getVoidTy(Context);
 			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
@@ -1528,8 +1571,11 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	std::vector<llvm::Value *> ArgsV;
 	llvm::Value* ret_struct = nullptr;
 	if (Proto->IsStructRet) {
-		ret_struct = Builder->CreateAlloca(Proto->RetType->type);
-		ArgsV.push_back(ret_struct);
+		if (!target) {
+			errs() << Loc << ": internal error: no target for struct return\n";
+			return nullptr;
+		}
+		ArgsV.push_back(target);
 	}
 	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
 		if (i < v && (Proto->ArgTypes[i]->type->isIntegerTy() || Proto->ArgTypes[i]->type->isFloatingPointTy())) {
@@ -1575,15 +1621,11 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* ret_val;
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
 		// Callee was a function symbol like `sin`
-		ret_val = Builder->CreateCall(F, ArgsV, "calltmp");
+		return Builder->CreateCall(F, ArgsV, "calltmp");
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
-		ret_val = Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
+		return Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
 	}
-	if (ret_struct)
-		return Builder->CreateLoad(Proto->RetType->type, ret_struct);
-	else
-		return ret_val;
 }
 
 std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
