@@ -1060,6 +1060,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* Struct = nullptr;
 		if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref();
+			// update allocsz in case codegen_ref() has revealed a fixed compile time size
+			allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
 			if (!allocsz) {
 				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type)) {
 					std::vector<llvm::Value*> Dims;
@@ -1168,6 +1170,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					auto align = getAlignment(allocsz);
 					auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
+					entry->val = Alloca;
 				} else {
 					auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 					auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
