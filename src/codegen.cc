@@ -1515,13 +1515,22 @@ llvm::Value *CallExprAST::codegen_raw() {
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// If argument mismatch error.
-	if (FT->getNumParams() > Args.size() || FT->getNumParams() < Args.size() && !Proto->IsVarArgs || FT->getNumParams() != Proto->Args.size()) {
-		errs() << "Incorrect number of arguments passed: expected " << FT->getNumParams() << (Proto->IsVarArgs ? "+" : "")
+	unsigned params_offset = 0;
+	if (Proto->IsStructRet)
+		params_offset++;
+	unsigned ft_num_params = FT->getNumParams() - params_offset;
+	if (ft_num_params > Args.size() || ft_num_params < Args.size() && !Proto->IsVarArgs || ft_num_params != Proto->Args.size()) {
+		errs() << "Incorrect number of arguments passed: expected " << ft_num_params << (Proto->IsVarArgs ? "+" : "")
 		       << ", got " << Args.size() << "\n";
 		return nullptr;
 	}
 
 	std::vector<llvm::Value *> ArgsV;
+	llvm::Value* ret_struct = nullptr;
+	if (Proto->IsStructRet) {
+		ret_struct = Builder->CreateAlloca(Proto->RetType->type);
+		ArgsV.push_back(ret_struct);
+	}
 	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
 		if (i < v && (Proto->ArgTypes[i]->type->isIntegerTy() || Proto->ArgTypes[i]->type->isFloatingPointTy())) {
 			auto conversion = getConv(
@@ -1563,13 +1572,18 @@ llvm::Value *CallExprAST::codegen_raw() {
 		if (!ArgsV.back())
 			return nullptr;
 	}
+	llvm::Value* ret_val;
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
 		// Callee was a function symbol like `sin`
-		return Builder->CreateCall(F, ArgsV, "calltmp");
+		ret_val = Builder->CreateCall(F, ArgsV, "calltmp");
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
-		return Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
+		ret_val = Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
 	}
+	if (ret_struct)
+		return Builder->CreateLoad(Proto->RetType->type, ret_struct);
+	else
+		return ret_val;
 }
 
 std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
