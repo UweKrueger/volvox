@@ -1604,7 +1604,12 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 					// nested call like 'f(g())' - since 'g' returns by reference we have to
 					// allocate memory for the indermediate result
 					auto argptr = Builder->CreateAlloca(call->ft->type);
-					// TODO: Arg should be passed by reference in this case
+					auto voidval = Args[i]->codegen_raw(argptr);
+					if (!voidval->getType()->isVoidTy()) {
+						errs() << Loc << ": internal error: sret call does not return void\n";
+						return nullptr;
+					}
+					// TODO: Arg should be passed directly by reference (using argptr) in this case
 					arg = Builder->CreateLoad(call->ft->type, argptr);
 				}
 			}
