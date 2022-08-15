@@ -2068,8 +2068,10 @@ llvm::Function *PrototypeAST::codegen() {
 
 	// Set names for all arguments.
 	unsigned Idx = 0;
-	for (auto &Arg : F->args())
-		Arg.setName(Args[Idx++]);
+	if (IsStructRet)
+		F->getArg(Idx++)->addAttr(llvm::Attribute::getWithStructRetType(Context, RetType->type));
+	for (auto &Arg : Args)
+		F->getArg(Idx++)->setName(Arg);
 	if (share_kind & is_inline)
 		F->addFnAttr(llvm::Attribute::AlwaysInline);
 	return F;
@@ -2116,11 +2118,17 @@ llvm::Function *FunctionAST::codegen() {
 	}
 	// Record the function arguments in the NamedValues map.
 	unsigned ArgIdx = 0;
-	for (auto &Arg : TheFunction->args()) {
+	llvm::Value* ret_ptr; // for sret
+	if (P.IsStructRet)
+		ret_ptr = TheFunction->getArg(ArgIdx++);
+	else
+		ret_ptr = nullptr;
+	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
+		auto Arg = TheFunction->getArg(ArgIdx);
 		// Create an alloca for this variable.
-		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(P.LLVMArgTypes[ArgIdx], Arg.getName(), TheFunction);
+		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(P.LLVMArgTypes[ArgIdx], Arg->getName(), TheFunction);
 		// get reference to argument in symbol table
-		FullVar* mapitem = locals_table.back()[Arg.getName().str().c_str()];
+		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
 		if (!mapitem) {
 			errs() << "internal compiler error: arg not found in table";
 			exit(1);
@@ -2129,17 +2137,15 @@ llvm::Function *FunctionAST::codegen() {
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
-				SP, Arg.getName(), ++ArgIdx, Unit, LineNo, type_table.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
+				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, type_table.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
 				true);
 
 			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
 			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
 			                        Builder->GetInsertBlock());
 		}
-		else
-			++ArgIdx;
 		// Store the initial value into the alloca.
-		Builder->CreateStore(&Arg, Alloca);
+		Builder->CreateStore(Arg, Alloca);
 
 		// Add storage to variable in symbol table.
 		mapitem->val = Alloca;
