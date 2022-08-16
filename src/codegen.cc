@@ -1575,42 +1575,46 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* ret_struct = nullptr;
 	if (Proto->IsStructRet) {
 		if (!target) {
-			errs() << Loc << ": internal error: no target for struct return\n";
+			errs() << Loc << ": " << Proto->Name << " - internal error: no target for struct return\n";
 			return nullptr;
 		}
 		ArgsV.push_back(target);
 	}
+	unsigned arg_offs = (Proto->IsMethod ? 1 : 0) + (Proto->IsStructRet ? 1 : 0);
 	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
-		if (i < v && (Proto->ArgTypes[i]->type->isIntegerTy() || Proto->ArgTypes[i]->type->isFloatingPointTy())) {
+		if (i < v && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy() || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
 			auto conversion = getConv(
-				Args[i]->ft->type, Proto->ArgTypes[i]->type,
-				Args[i]->ft->type_attr, Proto->ArgTypes[i]->type_attr,
+				Args[i]->ft->type, Proto->ArgTypes[i+arg_offs]->type,
+				Args[i]->ft->type_attr, Proto->ArgTypes[i+arg_offs]->type_attr,
 				Args[i]->Loc, false, Args[i]->is_unknown_type);
 			if (!conversion)
 				return nullptr;
 			llvm::Value* arg = conversion(Args[i]->codegen());
 			ArgsV.push_back(arg);
 		} else {
-			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i]->type->getTypeID()
-			    && !Proto->ArgTypes[i]->type->isPointerTy()) {
+			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i+arg_offs]->type->getTypeID()
+			    && !Proto->ArgTypes[i+arg_offs]->type->isPointerTy()) {
 				// TODO: better check compatibility and make error message human readable
-				errs() << "Wrong type passed for function arg #" << i + 1 << ": expected " << *Proto->ArgTypes[i]->type << ", got " << *Args[i]->ft->type << "\n";
+				errs() << "Wrong type passed for function arg #" << i + 1 << ": expected " << *Proto->ArgTypes[i+arg_offs]->type << ", got " << *Args[i]->ft->type << "\n";
 				return nullptr;
 			}
 			llvm::Value* arg = nullptr;
 			if (auto call = dynamic_cast<CallExprAST*>(Args[i].get())) {
-				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[0].get();
+				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[0].get(); // 'g' in 'f(g())'
 				if (CallProto->IsStructRet) {
-					// nested call like 'f(g())' - since 'g' returns by reference we have to
-					// allocate memory for the indermediate result
-					auto argptr = Builder->CreateAlloca(call->ft->type);
-					auto voidval = Args[i]->codegen_raw(argptr);
-					if (!voidval->getType()->isVoidTy()) {
-						errs() << Loc << ": internal error: sret call does not return void\n";
+					if (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)) {
+						// 'g' returns by reference and 'f' exprects a reference (i.e. an address)
+						// so we have to allocate memory for the indermediate result
+						arg = Builder->CreateAlloca(call->ft->type);
+						auto voidval = call->codegen_raw(arg);
+						if (!voidval->getType()->isVoidTy()) {
+							errs() << Loc << ": internal error: sret call does not return void\n";
+							return nullptr;
+						}
+					} else {
+						errs() << Loc << ": " << Proto->Name << " arg: " << i << " missing ByVal attribute\n";
 						return nullptr;
 					}
-					// TODO: Arg should be passed directly by reference (using argptr) in this case
-					arg = Builder->CreateLoad(call->ft->type, argptr);
 				}
 			}
 			if (!arg)
@@ -2144,10 +2148,16 @@ llvm::Function *PrototypeAST::codegen() {
 
 	// Set names for all arguments.
 	unsigned Idx = 0;
-	if (IsStructRet)
-		F->getArg(Idx++)->addAttr(llvm::Attribute::getWithStructRetType(Context, RetType->type));
-	for (auto &Arg : Args)
-		F->getArg(Idx++)->setName(Arg);
+	if (IsStructRet) {
+		llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx]);
+		F->getArg(Idx++)->addAttrs(attr_builder);
+	}
+	for (auto &Arg : Args) {
+		auto fnarg = F->getArg(Idx);
+		llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx++]);
+		fnarg->addAttrs(attr_builder);
+		fnarg->setName(Arg);
+	}
 	if (share_kind & is_inline)
 		F->addFnAttr(llvm::Attribute::AlwaysInline);
 	return F;
@@ -2201,30 +2211,32 @@ llvm::Function *FunctionAST::codegen() {
 		ret_ptr = nullptr;
 	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
 		auto Arg = TheFunction->getArg(ArgIdx);
-		// Create an alloca for this variable.
-		llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(P.LLVMArgTypes[ArgIdx], Arg->getName(), TheFunction);
-		// get reference to argument in symbol table
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
 		if (!mapitem) {
 			errs() << "internal compiler error: arg not found in table";
 			exit(1);
 		}
-		llvm::Type* type = mapitem->ft.type;
+		if (Arg->hasByValAttr() || Arg->hasByRefAttr()) {
+			mapitem->val = Arg;
+		} else {
+			// Create an alloca for this variable.
+			llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(P.LLVMArgTypes[ArgIdx], Arg->getName(), TheFunction);
+			// get reference to argument in symbol table
+			// Store the initial value into the alloca.
+			Builder->CreateStore(Arg, Alloca);
+
+			// Add storage to variable in symbol table.
+			mapitem->val = Alloca;
+		}
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
 				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, type_table.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
 				true);
-
-			DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+			DBuilder->insertDeclare(mapitem->val, D, DBuilder->createExpression(),
 			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
 			                        Builder->GetInsertBlock());
 		}
-		// Store the initial value into the alloca.
-		Builder->CreateStore(Arg, Alloca);
-
-		// Add storage to variable in symbol table.
-		mapitem->val = Alloca;
 	}
 	if (!P.RetType->type->isVoidTy()) {
 		Body.back()->desired_type = P.RetType->type;

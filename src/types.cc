@@ -527,9 +527,9 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		size_t argsize = argtype->isSized() ?
 			TheModule->getDataLayout().getTypeAllocSize(argtype) : 0;
 		if (argsize > 16) {
-			//argtype = argtype->getPointerTo();
 			ArgAttrs.push_back(llvm::AttributeSet::get(Context, {
 						llvm::Attribute::getWithByValType(Context, argtype) }));
+			argtype = argtype->getPointerTo();
 		} else {
 			ArgAttrs.push_back(llvm::AttributeSet());
 		}

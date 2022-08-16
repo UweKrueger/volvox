@@ -88,6 +88,7 @@ public:
 	llvm::FunctionType* FT;
 	bool IsVarArgs;
 	bool IsOperator;
+	bool IsMethod = false;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
 	unsigned share_kind;
 	llvm::GlobalValue::LinkageTypes link_type;
