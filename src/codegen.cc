@@ -1599,10 +1599,11 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			llvm::Value* arg = nullptr;
+			bool is_byval = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal);
 			if (auto call = dynamic_cast<CallExprAST*>(Args[i].get())) {
 				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[0].get(); // 'g' in 'f(g())'
 				if (CallProto->IsStructRet) {
-					if (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)) {
+					if (is_byval) {
 						// 'g' returns by reference and 'f' exprects a reference (i.e. an address)
 						// so we have to allocate memory for the indermediate result
 						arg = Builder->CreateAlloca(call->ft->type);
@@ -1617,8 +1618,19 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 					}
 				}
 			}
-			if (!arg)
-				arg = Args[i]->codegen();
+			if (!arg) {
+				if (is_byval) {
+					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
+						auto argref = lval->codegen_ref();
+						arg = argref.second;
+					} else {
+						arg = Builder->CreateAlloca(Proto->LLVMArgTypes[i+arg_offs]);
+						auto tmparg = Args[i]->codegen();
+						Builder->CreateStore(tmparg, arg);
+					}
+				} else
+					arg = Args[i]->codegen();
+			}
 			if (!arg)
 				return nullptr;
 			if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
