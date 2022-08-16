@@ -2160,15 +2160,29 @@ llvm::Function *PrototypeAST::codegen() {
 
 	// Set names for all arguments.
 	unsigned Idx = 0;
-	if (IsStructRet) {
+	if (IsStructRet && ArgAttrs[Idx].hasAttributes()) {
+#if LLVM_VERSION_MAJOR >= 14
 		llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx]);
 		F->getArg(Idx++)->addAttrs(attr_builder);
+#else
+		for (auto attr: ArgAttrs[Idx])
+			F->getArg(Idx)->addAttr(attr);
+		Idx++;
+#endif
 	}
 	for (auto &Arg : Args) {
 		auto fnarg = F->getArg(Idx);
-		llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx++]);
-		fnarg->addAttrs(attr_builder);
+		if (ArgAttrs[Idx].hasAttributes()) {
+#if LLVM_VERSION_MAJOR >= 14
+			llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx]);
+			fnarg->addAttrs(attr_builder);
+#else
+			for (auto attr: ArgAttrs[Idx])
+				fnarg->addAttr(attr);
+#endif
+		}
 		fnarg->setName(Arg);
+		Idx++;
 	}
 	if (share_kind & is_inline)
 		F->addFnAttr(llvm::Attribute::AlwaysInline);

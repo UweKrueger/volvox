@@ -527,7 +527,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		size_t argsize = argtype->isSized() ?
 			TheModule->getDataLayout().getTypeAllocSize(argtype) : 0;
 		if (argsize > 16) {
-			ArgAttrs.push_back(llvm::AttributeSet::get(Context, {
+			ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 						llvm::Attribute::getWithByValType(Context, argtype) }));
 			argtype = argtype->getPointerTo();
 		} else {
@@ -540,7 +540,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		IsStructRet = true;
 		llvm::Type* struct_ret_type = RetType->type->getPointerTo();
 		LLVMArgTypes.insert(LLVMArgTypes.begin(), struct_ret_type);
-		ArgAttrs.insert(ArgAttrs.begin(), llvm::AttributeSet::get(Context, {
+		ArgAttrs.insert(ArgAttrs.begin(), llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 					llvm::Attribute::getWithStructRetType(Context, RetType->type) }));
 		llvm_ret_type = llvm::Type::getVoidTy(Context);
 	}
