@@ -81,6 +81,7 @@ public:
 	std::vector<std::string> Args;
 	std::vector<volvoxc::FullType*> ArgTypes;
 	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
+	std::vector<llvm::AttributeSet> ArgAttrs;
 	std::vector<SourceLocation> ArgPos;
 	volvoxc::FullType* RetType;
 	SourceLocation retLoc;
