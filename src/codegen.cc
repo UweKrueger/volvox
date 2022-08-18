@@ -1599,7 +1599,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			llvm::Value* arg = nullptr;
-			bool is_byval = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal);
+			bool is_byval = i < v && Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal);
 			if (auto call = dynamic_cast<CallExprAST*>(Args[i].get())) {
 				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[0].get(); // 'g' in 'f(g())'
 				if (CallProto->IsStructRet) {
