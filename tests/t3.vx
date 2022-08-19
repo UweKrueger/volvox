@@ -91,21 +91,3 @@ fn test_mixed2_array_multi_level_index_indirect() bool
 	vv := [5][7][wn]f64{3: {1: {-13.5, 763.0625}}}
 	x := vv[3][1]
 	return x[1] == 763.0625 & x[2] == 0 & x[0] == -13.5
-
-fn mod_val_array(qq4 [7]f64) f64
-	qq4[2] = qq4[3] + qq4[1]
-	return 2 * qq4[2]
-
-fn test_array_call_by_value_1() bool
-	ma := [7]f64{2.25, 3.5, -12.125, 13.75, 0.5, -0.75, 0.125}
-	s78 := mod_val_array(ma)
-	return ma[2] == -12.125 & s78 == 34.5
-
-fn mod_val_array_2(qq5 [7]f64) f64
-	ri := mod_val_array(qq5)
-	return ri + qq5[2]
-
-fn test_array_call_by_value_2() bool
-	ma := [7]f64{1.5, -2.25, 2.5, -3.125, -0.0625, 0.5, -0.25}
-	s79 := mod_val_array_2(ma)
-	return ma[2] == 2.5 & s79 == -8.25
