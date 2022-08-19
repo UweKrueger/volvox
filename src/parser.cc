@@ -259,11 +259,9 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		return nullptr;
 	}
 	getNextToken(expect);
-	//if (type.type_attr)
-	//	attribs |= A_signed;
 	if (attribs != type->type_attr) {
 		auto ft = new_FullType(*type);
-		ft->type_attr = attribs;
+		ft->type_attr |= attribs;
 		return ft;
 	} else
 		return type;
