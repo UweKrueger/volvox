@@ -704,7 +704,17 @@ extern Token CurTok;
 extern Token getNextToken(eXpect expect = eNone);
 extern Token purgeLine();
 
+struct SourceLocState {
+	SourceLocation Loc;
+	ssize_t linelen;
+	int inputfd;
+	bool use_readline;
+	SourceLocState(SourceLocation Loc, ssize_t linelen, int inputfd, bool use_readline) :
+		Loc(Loc), linelen(linelen), inputfd(inputfd), use_readline(use_readline) {}
+};
+
 class Lexer {
+	std::vector<SourceLocState> source_stack = {};
 public:
 	Lexer(size_t bufsize = 100)
 		: bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
@@ -715,6 +725,8 @@ public:
 	char peek();
 	char peek_strict();
 	char look_back_strict();
+	void push_state(int newfd, const char* File);
+	void pop_state();
 	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;

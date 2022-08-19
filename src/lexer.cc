@@ -117,6 +117,31 @@ SourceLocation LexLoc;
 static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
+void Lexer::push_state(int newfd, const char* File) {
+	source_stack.emplace_back(LexLoc, linelen, input_fd, use_readline);
+	input_fd = newfd;
+	LexLoc = SourceLocation{
+		.File = File,
+		.Line = 0,
+		.Col = 0
+	};
+	linelen = 0;
+	use_readline = false;
+}
+
+void Lexer::pop_state() {
+	if (source_stack.empty()) {
+		errs() << "internal error: source stack is empty\n";
+		abort();
+	}
+	SourceLocState& old = source_stack.back();
+	input_fd = old.inputfd;
+	LexLoc = old.Loc;
+	linelen = old.linelen;
+	use_readline = old.use_readline;
+	source_stack.pop_back();
+}
+
 int Lexer::advance() {
 	// unfortunately readline does not return the trailing \n whereas
 	// getline (and fdgetline from above) do. We catch this here by
