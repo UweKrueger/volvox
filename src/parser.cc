@@ -981,7 +981,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 	unsigned BinaryPrecedence = 30;
 	std::vector<std::string> ArgNames;
 	std::vector<volvoxc::FullType*> ArgTypes;
-	std::vector<llvm::Type*> LLVMArgTypes;
 	std::vector<SourceLocation> ArgPos;
 	bool is_method;
 	bool isVarArgs = false;
@@ -1004,7 +1003,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 			return nullptr;
 		}
 		ArgTypes.push_back(type);
-		LLVMArgTypes.push_back(type->type);
 		Expect(')');
 	}
 	default:
@@ -1079,7 +1077,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 			return nullptr;
 		}
 		ArgTypes.push_back(type);
-		LLVMArgTypes.push_back(type->type);
 		if (CurTok.kind == ')')
 			break;
 		Eat(',');
@@ -1107,7 +1104,7 @@ noargs:
 		return nullptr;
 	}
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, LLVMArgTypes, ArgPos, isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
 }
 
 #define TEST_FN_PREFIX "test_"

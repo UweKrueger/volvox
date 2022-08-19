@@ -79,9 +79,9 @@ class PrototypeAST {
 
 public:
 	std::vector<std::string> Args;
-	std::vector<volvoxc::FullType*> ArgTypes;
-	std::vector<llvm::Type*> LLVMArgTypes; // to get LLVM function type
-	std::vector<llvm::AttributeSet> ArgAttrs;
+	std::vector<volvoxc::FullType*> ArgTypes = {};
+	std::vector<llvm::Type*> LLVMArgTypes = {}; // to get LLVM function type
+	std::vector<llvm::AttributeSet> ArgAttrs = {};
 	std::vector<SourceLocation> ArgPos;
 	volvoxc::FullType* RetType;
 	SourceLocation retLoc;
@@ -97,7 +97,7 @@ public:
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
 	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
-	             std::vector<volvoxc::FullType*> ArgTypes = {}, std::vector<llvm::Type*> LLVMArgTypes = {},
+	             std::vector<volvoxc::FullType*> ArgTypes = {},
 	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }

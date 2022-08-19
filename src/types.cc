@@ -512,27 +512,35 @@ llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
 PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
                            std::vector<std::string> Args, unsigned visibility, SourceLocation retLoc,
                            bool IsOperator, volvoxc::FullType* RetType_,
-                           std::vector<volvoxc::FullType*> _ArgTypes, std::vector<llvm::Type*> _LLVMArgTypes,
+                           std::vector<volvoxc::FullType*> _ArgTypes,
                            std::vector<SourceLocation> _ArgPos, bool IsVarArgs)
 		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
 		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(std::move(_ArgTypes)),
-		  ArgPos(std::move(_ArgPos)), LLVMArgTypes(std::move(_LLVMArgTypes)), IsVarArgs(IsVarArgs),
+		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs),
 		  visibility(visibility)
 {
 	size_t ret_size = RetType->type->isSized() ?
 		TheModule->getDataLayout().getTypeAllocSize(RetType->type) :
 		0;
 	llvm::Type* llvm_ret_type;
-	for (auto& argtype: LLVMArgTypes) {
-		size_t argsize = argtype->isSized() ?
-			TheModule->getDataLayout().getTypeAllocSize(argtype) : 0;
-		if (argsize > 16) {
+	for (auto& argtype: ArgTypes) {
+		llvm::Type* fn_arg_type = argtype->type;
+		if (argtype->type_attr & A_ref) {
 			ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
-						llvm::Attribute::getWithByValType(Context, argtype) }));
-			argtype = argtype->getPointerTo();
+						llvm::Attribute::getWithByRefType(Context, argtype->type) }));
+			fn_arg_type = fn_arg_type->getPointerTo();
 		} else {
-			ArgAttrs.push_back(llvm::AttributeSet());
+			size_t argsize = argtype->type->isSized() ?
+				TheModule->getDataLayout().getTypeAllocSize(fn_arg_type) : 0;
+			if (argsize > 16) { // Arguments > 16 bytes are always passed as pointer using copy-on-write
+				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+							llvm::Attribute::getWithByValType(Context, argtype->type) }));
+				fn_arg_type = fn_arg_type->getPointerTo();
+			} else {
+				ArgAttrs.push_back(llvm::AttributeSet());
+			}
 		}
+		LLVMArgTypes.push_back(fn_arg_type);
 	}
 	if (ret_size <= 16) {
 		llvm_ret_type = RetType->type;
