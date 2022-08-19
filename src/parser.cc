@@ -98,30 +98,40 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 			switch (CurTok.kind) {
 			case tok_atomic:
 				attribs |= A_atomic;
+				attribs |= A_ref;
 				break;
 			case tok_shared:
 				attribs |= A_shared;
+				attribs |= A_ref;
 				break;
 			case tok_unique:
 				attribs |= A_unique;
+				attribs |= A_ref;
 				break;
 			case tok_const:
 				attribs |= A_const;
+				attribs |= A_ref;
 				break;
 			default:
-				;
+				if (CurTok.kind == '&')
+					attribs |= A_ref;
+				else
+					goto no_attribute;;
 			}
-		} else {
-			if (CurTok.kind == tok_packed)
-				is_packed = true;
-		}
-		if (CurTok.kind == '&') {
-			attribs |= A_ref;
 			getNextToken(eType);
+			allow_attribute = false;
 			continue;
+		no_attribute:
+			allow_attribute = false;
 		}
-		if (attribs || is_packed)
-			getNextToken();
+		if (CurTok.kind == tok_packed) {
+			if (is_packed) {
+				errs() << CurLoc << ": superfluous 'packed'\n";
+				return nullptr;
+			}
+			is_packed = true;
+			getNextToken(eType);
+		}
 		switch ((int)CurTok.kind) {
 		case '[': {
 			do {
