@@ -173,13 +173,13 @@ void InitializeModuleAndPassManager() {
 #endif
 }
 
-static void HandleDefinition(unsigned share_kind) {
+static void HandleDefinition(unsigned visibility) {
 	inside_function = true;
 	condnesting = 0;
 	IfWhileVarTable = nullptr;
 	locals_table.push_back(VarTable());
 	bool success = false;
-	if (auto FnAST = ParseDefinition(share_kind)) {
+	if (auto FnAST = ParseDefinition(visibility)) {
 		if (auto *FnIR = FnAST->codegen()) {
 			goto cleanup;
 		} else {
@@ -197,11 +197,11 @@ cleanup:
 	inside_function = false;
 }
 
-static void HandleExtern(unsigned share_kind) {
+static void HandleExtern(unsigned visibility) {
 	getNextToken();
 	switch (CurTok.kind) {
 	case tok_fn:
-		if (auto ProtoAST = ParseExtern(share_kind)) {
+		if (auto ProtoAST = ParseExtern(visibility)) {
 			std::string unmangledName = ProtoAST->getName();
 			if (auto *FnIR = ProtoAST->codegen()) {
 				if (dump_IR) {
@@ -343,7 +343,7 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 	volvoxc::FullType* TheType = type_table.get_full(ret_type);
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
 	                                            std::vector<std::string>(),
-	                                            is_c_api, CurLoc, false, TheType);
+	                                            A_c_api, CurLoc, false, TheType);
 	if (!have_return)
 		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 	auto ProtoRef = Proto.get();
@@ -428,35 +428,36 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 static void MainLoop() {
 	for (;;) {
 	startmainloop:
-		unsigned sym_kind = SymbolKind(0);
+		unsigned sym_kind = 0; // 'pub', 'extern', 'fn', 'cfn', ...
 		auto share_tok = TokenKind(0);
 		for (;;) {
 			unsigned sharebits = 0;
 			switch (CurTok.kind) {
 			case tok_cpub:
-				sym_kind |= is_c_api;
+				sym_kind |= A_c_api;
 			case tok_pub:
-				if (sym_kind & is_pub) {
+				if (sym_kind & A_pub) {
 					errs() << CurLoc << ": at most one of qualifiers " << tok_pub << " or "
 					       << tok_cpub << " may be given\n";
 					purgeLine();
 					goto startmainloop;
 				}
-				sym_kind |= is_pub;
+				sym_kind |= A_pub;
 				break;
 			case tok_inline:
-				sym_kind |= is_inline;
+				sym_kind |= A_inline;
 				break;
 			case tok_global:
-				sharebits = is_global;
+				sharebits = A_global;
+				break;
 			case tok_atomic:
-				sharebits = sharebits ? sharebits : is_atomic;
+				sharebits = sharebits ? sharebits : A_atomic;
 			case tok_shared:
-				sharebits = sharebits ? sharebits : is_shared;
+				sharebits = sharebits ? sharebits : A_shared;
 			case tok_unique:
-				sharebits = sharebits ? sharebits : is_unique;
+				sharebits = sharebits ? sharebits : A_unique;
 			case tok_const:
-				sharebits = sharebits ? sharebits : is_const;
+				sharebits = sharebits ? sharebits : A_const;
 				if (sym_kind & SHARE_KIND_MASK) {
 					errs() << CurLoc << ": at most one of qualifiers " << tok_global << ", "
 					       << tok_atomic << ", " << tok_shared << ", " << tok_unique << " or "
@@ -465,6 +466,7 @@ static void MainLoop() {
 					goto startmainloop;
 				}
 				sym_kind |= sharebits;
+				sym_kind |= A_ref; // all share kinds imply reference
 				share_tok = TokenKind(CurTok.kind);
 				break;
 			default:
@@ -493,9 +495,9 @@ static void MainLoop() {
 			}
 			break;
 		case tok_cdecl:
-			sym_kind |= is_c_api;
+			sym_kind |= A_c_api;
 		case tok_decl:
-			if (sym_kind & is_inline) {
+			if (sym_kind & A_inline) {
 				errs() << CurLoc << ": " << CurTok.kind << " cannot be used in combination with " << tok_inline << '\n';
 				purgeLine();
 				goto startmainloop;
@@ -507,7 +509,7 @@ static void MainLoop() {
 			HandleImport();
 			break;
 		case tok_ctype:
-			sym_kind |= is_c_api;
+			sym_kind |= A_c_api;
 		case tok_type:
 			HandleTypeDef(sym_kind);
 			break;

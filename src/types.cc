@@ -510,14 +510,14 @@ llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
 }
 
 PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
-                           std::vector<std::string> Args, unsigned share_kind, SourceLocation retLoc,
+                           std::vector<std::string> Args, unsigned visibility, SourceLocation retLoc,
                            bool IsOperator, volvoxc::FullType* RetType_,
                            std::vector<volvoxc::FullType*> _ArgTypes, std::vector<llvm::Type*> _LLVMArgTypes,
                            std::vector<SourceLocation> _ArgPos, bool IsVarArgs)
 		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
 		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(std::move(_ArgTypes)),
 		  ArgPos(std::move(_ArgPos)), LLVMArgTypes(std::move(_LLVMArgTypes)), IsVarArgs(IsVarArgs),
-		  share_kind(share_kind)
+		  visibility(visibility)
 {
 	size_t ret_size = RetType->type->isSized() ?
 		TheModule->getDataLayout().getTypeAllocSize(RetType->type) :

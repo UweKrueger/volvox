@@ -6,14 +6,20 @@
 #define A_signed (1U<<0) // also used for imaginary, string
 #define A_const  (1U<<1)
 #define A_shared (1U<<2)
-#define A_iso    (1U<<3)
+#define A_unique (1U<<3)
 #define A_atomic (1U<<4)
-#define A_packed (1U<<5)
-#define A_dirty  (1U<<6)
+#define A_ref    (1U<<5) // function arg is reference
+#define A_map    (1U<<6) // llvm-type is key type
 #define A_signed_key (1U<<7) //for maps with integer key
-#define A_varlen (1U<<9) // variable size array
-#define A_map    (1U<<10) // llvm-type is key type
-#define A_ref    (1U<<11) // function arg is reference
+#define A_fn     (1U<<8) // function (or function pointer)
+// symbol visibility attributes
+#define A_pub    (1U<<16)
+#define A_global (1U<<17)
+#define A_inline (1U<<18)
+#define A_c_api  (1U<<19)
+
+#define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
+#define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)
 
 #if defined (_MSC_VER)
 #define PACK(s) __pragma(pack(push,1)) s __pragma(pack(pop))

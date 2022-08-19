@@ -90,12 +90,12 @@ public:
 	bool IsOperator;
 	bool IsMethod = false;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
-	unsigned share_kind;
+	unsigned visibility;
 	llvm::GlobalValue::LinkageTypes link_type;
 	int Line;
 	std::string Name;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
-	             std::vector<std::string> Args, unsigned share_kind = 0, SourceLocation retLoc = CurLoc,
+	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
 	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
 	             std::vector<volvoxc::FullType*> ArgTypes = {}, std::vector<llvm::Type*> LLVMArgTypes = {},
 	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);

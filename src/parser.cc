@@ -92,6 +92,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
                              std::vector<std::unique_ptr<ExprAST>>* exprs, bool is_index) {
 	unsigned attribs = 0;
 	std::vector<uint64_t> lens = {};
+	bool is_packed = false;
 	while (CurTok.kind != tok_identifier) {
 		if (allow_attribute) {
 			switch (CurTok.kind) {
@@ -102,7 +103,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 				attribs |= A_shared;
 				break;
 			case tok_unique:
-				attribs |= A_iso;
+				attribs |= A_unique;
 				break;
 			case tok_const:
 				attribs |= A_const;
@@ -112,14 +113,14 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 			}
 		} else {
 			if (CurTok.kind == tok_packed)
-				attribs |= A_packed;
+				is_packed = true;
 		}
 		if (CurTok.kind == '&') {
-			attribs = (attribs & 0xffff) | ((attribs & 0xffff0000) + 0x10000);
+			attribs |= A_ref;
 			getNextToken(eType);
 			continue;
 		}
-		if (attribs)
+		if (attribs || is_packed)
 			getNextToken();
 		switch ((int)CurTok.kind) {
 		case '[': {
@@ -222,8 +223,8 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 			}
 			getNextToken(eColon);
 			llvm::Type* struct_type = tname ?
-				llvm::StructType::create(Context, LLVMFieldTypes, tname, (bool)(attribs & A_packed)) :
-				llvm::StructType::get(Context, LLVMFieldTypes, (bool)(attribs & A_packed));
+				llvm::StructType::create(Context, LLVMFieldTypes, tname, is_packed) :
+				llvm::StructType::get(Context, LLVMFieldTypes, is_packed);
 			MapNode* fields = map_string_new_map();
 			for (int i=0; i<FieldNames.size(); i++) {
 				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = FieldTypes[i] }, 0, false);
@@ -961,7 +962,7 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 ///   ::= id '(' id* ')'
 ///   ::= binary LETTER number? (id, id)
 ///   ::= unary LETTER (id)
-static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned share_kind) {
+static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 	std::string FnName;
 
 	SourceLocation FnLoc = CurLoc;
@@ -1096,15 +1097,15 @@ noargs:
 		return nullptr;
 	}
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, share_kind, retLoc, Kind != 0, RetType, ArgTypes, LLVMArgTypes, ArgPos, isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, LLVMArgTypes, ArgPos, isVarArgs);
 }
 
 #define TEST_FN_PREFIX "test_"
 
 /// definition ::= 'fn' prototype expression
-std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind) {
+std::unique_ptr<FunctionAST> ParseDefinition(unsigned visibility) {
 	getNextToken(); // eat fn.
-	auto Proto = ParsePrototype(share_kind);
+	auto Proto = ParsePrototype(visibility);
 	prompt_indent++;
 	if (!Proto) {
 		prompt_indent = 0;
@@ -1125,7 +1126,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind) {
 	}
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
-	if (!(share_kind & is_c_api)) {
+	if (!(visibility & A_c_api)) {
 		std::vector<const char*> names = { unmangledName.c_str() };
 		Proto->Name = Mangle(names, Proto->ArgTypes).c_str();
 	}
@@ -1205,7 +1206,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		volvoxc::FullType* TheType = type_table.get_full("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
-		                                            is_c_api,
+		                                            A_c_api,
 		                                            FnLoc, false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		if (last_shadow_restorer) {
@@ -1268,7 +1269,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 }
 
 /// external ::= 'extern' prototype
-std::unique_ptr<PrototypeAST> ParseExtern(unsigned share_kind) {
+std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
 	getNextToken(); // eat extern.
-	return ParsePrototype(share_kind);
+	return ParsePrototype(visibility);
 }

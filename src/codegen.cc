@@ -835,7 +835,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
-		llvm::GlobalValue::LinkageTypes link_type = (is_pub || comp_mode == comp_jit) ?
+		llvm::GlobalValue::LinkageTypes link_type = ((LHSE->ft->type_attr & A_pub) || comp_mode == comp_jit) ?
 			llvm::GlobalValue::ExternalLinkage :
 			llvm::GlobalValue::InternalLinkage;
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
@@ -2184,7 +2184,7 @@ llvm::Function *PrototypeAST::codegen() {
 		fnarg->setName(Arg);
 		Idx++;
 	}
-	if (share_kind & is_inline)
+	if (visibility & A_inline)
 		F->addFnAttr(llvm::Attribute::AlwaysInline);
 	return F;
 }
