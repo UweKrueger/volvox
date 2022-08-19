@@ -202,7 +202,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 			else
 				for (int i = exprs->size(); i > 0; i--)
 					array_type = llvm::ArrayType::get(array_type, 0);
-			return new_FullType(array_type, 0, nullptr, elem_type);
+			return new_FullType(array_type, attribs, nullptr, elem_type);
 		}
 			break;
 		case '{': {
@@ -261,7 +261,12 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 	getNextToken(expect);
 	//if (type.type_attr)
 	//	attribs |= A_signed;
-	return type;
+	if (attribs != type->type_attr) {
+		auto ft = new_FullType(*type);
+		ft->type_attr = attribs;
+		return ft;
+	} else
+		return type;
 }
 
 /// numberexpr ::= number
