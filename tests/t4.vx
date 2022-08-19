@@ -1,0 +1,10 @@
+fn call_by_ref_1(x &f64) f64
+	a := x
+	x = a / 2
+	return a
+
+p32 := -12.25
+
+fn test_call_by_ref_1() bool
+	rrq := call_by_ref_1(p32)
+	return rrq == -12.25 & p32 == -6.125
