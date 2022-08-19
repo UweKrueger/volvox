@@ -1582,7 +1582,9 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	unsigned arg_offs = (Proto->IsMethod ? 1 : 0) + (Proto->IsStructRet ? 1 : 0);
 	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
-		if (i < v && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy() || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
+		if (i < v && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
+		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()
+		        || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
 			auto conversion = getConv(
 				Args[i]->ft->type, Proto->ArgTypes[i+arg_offs]->type,
 				Args[i]->ft->type_attr, Proto->ArgTypes[i+arg_offs]->type_attr,
