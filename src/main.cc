@@ -9,13 +9,13 @@
 CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 std::vector<std::string> include_files = {};
-std::vector<std::string> source_files = {};
+std::vector<std::vector<std::string>> source_files = {{}};
 std::vector<std::string> import_path = {};
 std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
 const std::string single_test_result_name = "__test_result";
 const std::string collector_name = "__test_results_collect";
 int include_index = 0;
-int source_index = 0;
+std::vector<int> source_index = { 0 };
 int prompt_indent = 0;
 
 DebugInfo KSDbgInfo;
@@ -668,14 +668,14 @@ inline bool is_exe(const char* file) {
 bool next_input_file() {
 	if (input_fd > 0)
 		close(input_fd);
-	if (source_index < source_files.size()) {
-		input_file_name = source_files[source_index++].c_str();
+	if (source_index.back() < source_files.back().size()) {
+		input_file_name = source_files.back()[source_index.back()++].c_str();
 		input_fd = open(input_file_name, O_CLOEXEC);
 		if (input_fd < 0) {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
 			exit(1);
 		}
-	} else if ((jit_repl || !source_index) && input_fd != 0) {
+	} else if ((jit_repl || !source_index.back()) && input_fd != 0) {
 		input_fd = 0;
 		input_file_name = "<stdin>";
 	} else {
@@ -917,9 +917,9 @@ int main(int argc, char* argv[]) {
 		errs() << "Volvox Root: >" << volvox_root() << "<\n";
 	}
 	for (;optind < argc; optind++)
-		source_files.push_back(argv[optind]);
+		source_files.front().push_back(argv[optind]);
 	if (!comp_mode) {
-		if (source_files.size())
+		if (source_files.front().size())
 			comp_mode = comp_obj;
 		else
 			comp_mode = comp_jit;
@@ -982,15 +982,15 @@ int main(int argc, char* argv[]) {
 		}
 	} else {
 		if (comp_mode != comp_jit) {
-			if (source_files.size() != 1) {
+			if (source_files.front().size() != 1) {
 				errs() << "output file name (-o ...) required if "
-				       << (source_files.size() ? "more than one" : "no")
+				       << (source_files.front().size() ? "more than one" : "no")
 				       << " input file provided\n";
 				usage(argv[0]);
 			}
-			int len = source_files[0].size();
+			int len = source_files.front().front().size();
 			output_file = (char*)malloc(len + 5);
-			strcpy(output_file, source_files[0].c_str());
+			strcpy(output_file, source_files.front().front().c_str());
 			if(output_file[len-3]=='.' && output_file[len-2]=='v' && output_file[len-1]=='x') {
 				output_file[len-3] = '\0';
 				if (link_mode != dont_link) {
