@@ -708,9 +708,12 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(LV->ft->type))
 				val = getInterfaceArrayValue(val, array_type);
 		} else {
+			llvm::Value* array = expr->codegen_raw(target);
+			if (array->getType()->isVoidTy())
+				return array;
 			// if it's an rvalue we have to store it on stack to get a reference
-			llvm::Value* array = expr->codegen();
-			val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
+			if (!target)
+				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
 		}
 	} else {
 		// pass by value
