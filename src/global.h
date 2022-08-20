@@ -638,7 +638,6 @@ extern unsigned dump_IR;
 extern bool dump_opt;
 extern bool dump_raw;
 
-extern SourceLocation LexLoc;
 extern std::string IdentifierStr; // Filled in if tok_identifier
 extern std::unique_ptr<llvm::Module> TheModule;
 extern std::unique_ptr<llvm::IRBuilder<>> Builder;
@@ -709,8 +708,11 @@ struct SourceLocState {
 	ssize_t linelen;
 	int inputfd;
 	bool use_readline;
-	SourceLocState(SourceLocation Loc, ssize_t linelen, int inputfd, bool use_readline) :
-		Loc(Loc), linelen(linelen), inputfd(inputfd), use_readline(use_readline) {}
+	SourceLocState(SourceLocation Loc, ssize_t linelen, int& _inputfd, bool use_readline) :
+		Loc(Loc), linelen(linelen), inputfd(_inputfd), use_readline(use_readline)
+		{
+			_inputfd = -1; // to prevent 'next_input_file()' from calling 'close()'
+		}
 };
 
 class Lexer {
@@ -725,12 +727,13 @@ public:
 	char peek();
 	char peek_strict();
 	char look_back_strict();
-	void push_state(int newfd, const char* File);
+	void push_state();
 	void pop_state();
 	ssize_t linelen;
 	size_t bufsize;
 	char* linebuf;
 	int CurChar = ' ';
+	SourceLocation Loc;
 	// c can be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {
 		return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')

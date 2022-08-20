@@ -1,7 +1,6 @@
 #include "../include/volvox.hh"
 #include "global.h"
 
-
 /* we want to use NetBSD's libedit and not GNU readline because the latter is GPL licensed
    (not LGPL!). On some platforms there are <readline/readline.h> for GNU readline and
    <editline/readline.h> for libedit - but not on all. So we include <readline.h> here (if
@@ -82,12 +81,12 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    return -1;
 			    }
 			    *n = 0;
-			    LexLoc = { input_file_name, 0, 0 };
+			    lex.Loc = { input_file_name, 0, 0 };
 			    if (comp_mode == comp_jit && input_fd == 0) {
 #ifdef MONOCHROME_PROMPT
 				    sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
 #else
-				    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
+				    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, lex.Loc.Line + 1, p_col.greater);
 #endif
 				    for (int i=0; i<prompt_indent && i<200; i++)
 					    strcat(prompt, "    ");
@@ -113,18 +112,12 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 }
 
 SourceLocation CurLoc;
-SourceLocation LexLoc;
 static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
-void Lexer::push_state(int newfd, const char* File) {
-	source_stack.emplace_back(LexLoc, linelen, input_fd, use_readline);
-	input_fd = newfd;
-	LexLoc = SourceLocation{
-		.File = File,
-		.Line = 0,
-		.Col = 0
-	};
+void Lexer::push_state() {
+	source_stack.emplace_back(Loc, linelen, input_fd, use_readline);
+	next_input_file();
 	linelen = 0;
 	use_readline = false;
 }
@@ -136,7 +129,7 @@ void Lexer::pop_state() {
 	}
 	SourceLocState& old = source_stack.back();
 	input_fd = old.inputfd;
-	LexLoc = old.Loc;
+	Loc = old.Loc;
 	linelen = old.linelen;
 	use_readline = old.use_readline;
 	source_stack.pop_back();
@@ -146,12 +139,12 @@ int Lexer::advance() {
 	// unfortunately readline does not return the trailing \n whereas
 	// getline (and fdgetline from above) do. We catch this here by
 	// handling line endings different when use_readline is set
-	if (LexLoc.Col > linelen || !use_readline && LexLoc.Col >= linelen) {
+	if (Loc.Col > linelen || !use_readline && Loc.Col >= linelen) {
 		if (use_readline) {
 #ifdef MONOCHROME_PROMPT
-			sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
+			sprintf(prompt, VOLVOX_PROMPT, Loc.Line + 1);
 #else
-			sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, LexLoc.Line + 1, p_col.greater);
+			sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, Loc.Line + 1, p_col.greater);
 #endif
 			for (int i=0; i<prompt_indent && i<200; i++)
 				strcat(prompt, "    ");
@@ -160,10 +153,10 @@ int Lexer::advance() {
 		if (linelen < 0 || !use_readline && linelen <= 0) {
 			return EOF;
 		}
-		LexLoc.Line++;
-		LexLoc.Col = 0;
+		Loc.Line++;
+		Loc.Col = 0;
 	}
-	int c = linebuf[LexLoc.Col++];
+	int c = linebuf[Loc.Col++];
 	if (!c && use_readline)
 		c = '\n';
 	return c;
@@ -175,9 +168,9 @@ char Lexer::peek() {
 		return '\0';
 	char c = CurChar & 0xff;
 	if (isblank(c)) {
-		int max_i = linelen - LexLoc.Col + (use_readline ? 1 : 0);
+		int max_i = linelen - Loc.Col + (use_readline ? 1 : 0);
 		for (int i = 0; i < max_i; i++) {
-			c = linebuf[LexLoc.Col + i];
+			c = linebuf[Loc.Col + i];
 			if (!isblank(c))
 				break;
 		}
@@ -206,8 +199,8 @@ char Lexer::look_back_strict() {
 std::string IdentifierStr; // Filled in if tok_identifier
 
 Token Lexer::purge_line() {
-	LexLoc.Col = linelen;
-	CurLoc = LexLoc;
+	Loc.Col = linelen;
+	CurLoc = Loc;
 	CurChar = '\n';
 	IdentifierStr = ';';
 	return ';';
@@ -229,7 +222,7 @@ Token Lexer::gettok(eXpect expect) {
 	} else {
 		have_preceding_space = false;
 	}
-	CurLoc = LexLoc;
+	CurLoc = Loc;
 
 	if (isalpha(CurChar) || CurChar == '_') { // identifier: [a-zA-Z_][a-zA-Z0-9_]*
 		IdentifierStr = CurChar;
@@ -399,17 +392,17 @@ Token Lexer::gettok(eXpect expect) {
 	}
 	// Number Literal
 	if (isdigit(CurChar) || // [0-9]*
-	    CurChar == '.' && isdigit(linebuf[LexLoc.Col]) || // .[0-9]*
+	    CurChar == '.' && isdigit(linebuf[Loc.Col]) || // .[0-9]*
 	    (CurChar == '+' || CurChar == '-') &&
-	    (isdigit(linebuf[LexLoc.Col]) || // [+-][0-9]*
-	     linebuf[LexLoc.Col] == '.' && isdigit(linebuf[LexLoc.Col+1]))) { // [+-].[0-9]*
+	    (isdigit(linebuf[Loc.Col]) || // [+-][0-9]*
+	     linebuf[Loc.Col] == '.' && isdigit(linebuf[Loc.Col+1]))) { // [+-].[0-9]*
 		if (expect == eBinOp) {
 			IdentifierStr = "";
 			return Token(tok_invisible);
 		}
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);
-		LexLoc.Col = (n_ptr - linebuf);
+		Loc.Col = (n_ptr - linebuf);
 		CurChar = advance();
 		return tok;
 	}
@@ -570,7 +563,7 @@ Token Lexer::gettok(eXpect expect) {
 				return tok_end;
 		}
 	case '<':
-		if (linebuf[LexLoc.Col] == '-') {
+		if (linebuf[Loc.Col] == '-') {
 			IdentifierStr = "<-";
 			CurChar = advance();
 			return tok_unary;

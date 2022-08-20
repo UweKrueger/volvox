@@ -1025,7 +1025,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 	input_fd = builtin_input_fd;
-	CurLoc = LexLoc = { builtin_file_name, 0, 0 };
+	CurLoc = lex.Loc = { builtin_file_name, 0, 0 };
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();
 		llvm::InitializeNativeTargetAsmPrinter();
