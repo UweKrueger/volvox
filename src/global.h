@@ -704,15 +704,19 @@ extern Token getNextToken(eXpect expect = eNone);
 extern Token purgeLine();
 
 struct SourceLocState {
-	SourceLocation Loc;
-	ssize_t linelen;
-	int inputfd;
-	bool use_readline;
-	SourceLocState(SourceLocation Loc, ssize_t linelen, int& _inputfd, bool use_readline) :
-		Loc(Loc), linelen(linelen), inputfd(_inputfd), use_readline(use_readline)
+	SourceLocation Loc = {0};
+	ssize_t linelen = 0;
+	char* linebuf = nullptr;
+	int input_fd = -1;
+	bool use_readline = false;
+	SourceLocState() = default;
+	SourceLocState(const SourceLocState&) = default;
+	SourceLocState(SourceLocation Loc, ssize_t linelen, int& _input_fd, bool use_readline) :
+		Loc(Loc), linelen(linelen), input_fd(_input_fd), use_readline(use_readline)
 		{
-			_inputfd = -1; // to prevent 'next_input_file()' from calling 'close()'
+			_input_fd = -1; // to prevent 'next_input_file()' from calling 'close()'
 		}
+	virtual ~SourceLocState() = default;
 };
 
 class Lexer {

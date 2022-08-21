@@ -128,9 +128,10 @@ void Lexer::pop_state() {
 		abort();
 	}
 	SourceLocState& old = source_stack.back();
-	input_fd = old.inputfd;
+	input_fd = old.input_fd;
 	Loc = old.Loc;
 	linelen = old.linelen;
+	linebuf = old.linebuf;
 	use_readline = old.use_readline;
 	source_stack.pop_back();
 }
