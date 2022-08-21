@@ -706,24 +706,25 @@ extern Token purgeLine();
 struct SourceLocState {
 	SourceLocation Loc = {0};
 	ssize_t linelen = 0;
+	size_t bufsize = 0;
 	char* linebuf = nullptr;
 	int input_fd = -1;
 	bool use_readline = false;
 	SourceLocState() = default;
 	SourceLocState(const SourceLocState&) = default;
-	SourceLocState(SourceLocation Loc, ssize_t linelen, char* linebuf, int& _input_fd, bool use_readline) :
-		Loc(Loc), linelen(linelen), linebuf(linebuf), input_fd(_input_fd), use_readline(use_readline)
+	SourceLocState(SourceLocation Loc, ssize_t linelen, size_t bufsize, char* linebuf, int* _input_fd = nullptr, bool use_readline = false) :
+		Loc(Loc), linelen(linelen), bufsize(bufsize), linebuf(linebuf), input_fd(_input_fd ? *_input_fd : -1), use_readline(use_readline)
 		{
-			_input_fd = -1; // to prevent 'next_input_file()' from calling 'close()'
+			if (_input_fd)
+				*_input_fd = -1; // to prevent 'next_input_file()' from calling 'close()'
 		}
 	virtual ~SourceLocState() = default;
 };
 
-class Lexer {
+class Lexer : public SourceLocState {
 	std::vector<SourceLocState> source_stack = {};
 public:
-	Lexer(size_t bufsize = 100)
-		: bufsize(bufsize), linebuf((char*)malloc(bufsize)), linelen(0) {}
+	Lexer(size_t _bufsize = 100) : SourceLocState(SourceLocation{}, 0, _bufsize, (char*)malloc(_bufsize)) {}
 	virtual ~Lexer() { free(linebuf); }
 	int advance();
 	Token gettok(eXpect expect = eNone);
@@ -733,11 +734,7 @@ public:
 	char look_back_strict();
 	void push_state();
 	void pop_state();
-	ssize_t linelen;
-	size_t bufsize;
-	char* linebuf;
 	int CurChar = ' ';
-	SourceLocation Loc;
 	// c can be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {
 		return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
@@ -752,7 +749,6 @@ public:
 
 extern Lexer lex;
 extern int builtin_input_fd;
-extern int input_fd;
 extern bool next_input_file();
 extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr);
 extern void InitializeModuleAndPassManager();

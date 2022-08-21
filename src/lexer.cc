@@ -27,7 +27,6 @@ extern "C" int rl_initialize(void);
 //===----------------------------------------------------------------------===//
 
 static char prompt[1024];
-bool use_readline = false;
 
 #ifdef MONOCHROME_PROMPT
 // OpendBSD's version of editline does not support colors
@@ -49,7 +48,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
     for (;;) {
 	    int c;
 	    do {
-		    if (use_readline) {
+		    if (lex.use_readline) {
 			    free(*lineptr);
 			    *lineptr = readline(prompt);
 			    if (!*lineptr) {
@@ -64,7 +63,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    return *n;
 		    }
 		    c = 0;
-		    int m = read(input_fd, &c, 1);
+		    int m = read(lex.input_fd, &c, 1);
 		    if (m != 1 || c == '\004' || c == '\032') { // different incarnations of "End of File"
 			    static bool tests_prepared = false;
 			    if (do_test && !tests_prepared) {
@@ -76,13 +75,13 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    }
 			    if (!next_input_file()) {
 				    c = EOF;
-				    if (input_fd == 0)
+				    if (lex.input_fd == 0)
 					    outs() << "\n";
 				    return -1;
 			    }
 			    *n = 0;
 			    lex.Loc = { input_file_name, 0, 0 };
-			    if (comp_mode == comp_jit && input_fd == 0) {
+			    if (comp_mode == comp_jit && lex.input_fd == 0) {
 #ifdef MONOCHROME_PROMPT
 				    sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
 #else
@@ -90,7 +89,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 #endif
 				    for (int i=0; i<prompt_indent && i<200; i++)
 					    strcat(prompt, "    ");
-				    use_readline = true;
+				    lex.use_readline = true;
 #ifndef _WIN32
 				    rl_initialize();
 #endif
@@ -116,7 +115,7 @@ static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
 void Lexer::push_state() {
-	source_stack.emplace_back(Loc, linelen, linebuf, input_fd, use_readline);
+	source_stack.emplace_back(Loc, linelen, bufsize, linebuf, &input_fd, use_readline);
 	next_input_file();
 	linelen = 0;
 	use_readline = false;
@@ -131,6 +130,7 @@ void Lexer::pop_state() {
 	input_fd = old.input_fd;
 	Loc = old.Loc;
 	linelen = old.linelen;
+	bufsize = old.bufsize;
 	linebuf = old.linebuf;
 	use_readline = old.use_readline;
 	source_stack.pop_back();

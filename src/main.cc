@@ -552,7 +552,6 @@ extern "C" DLLEXPORT double printd(double X) {
 const char* input_file_name = nullptr;
 const char* builtin_file_name = "builtin.vx";
 int builtin_input_fd = -1;
-int input_fd = -1;
 bool dump_opt = true;
 bool dump_raw = false;
 uint64_t stacksize = 10485760; // 10MB as safe fallback
@@ -666,17 +665,17 @@ inline bool is_exe(const char* file) {
 }
 
 bool next_input_file() {
-	if (input_fd > 0)
-		close(input_fd);
+	if (lex.input_fd > 0)
+		close(lex.input_fd);
 	if (source_index.back() < source_files.back().size()) {
 		input_file_name = source_files.back()[source_index.back()++].c_str();
-		input_fd = open(input_file_name, O_CLOEXEC);
-		if (input_fd < 0) {
+		lex.input_fd = open(input_file_name, O_CLOEXEC);
+		if (lex.input_fd < 0) {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
 			exit(1);
 		}
-	} else if ((jit_repl || !source_index.back()) && input_fd != 0) {
-		input_fd = 0;
+	} else if ((jit_repl || !source_index.back()) && lex.input_fd != 0) {
+		lex.input_fd = 0;
 		input_file_name = "<stdin>";
 	} else {
 		return false;
@@ -1024,7 +1023,7 @@ int main(int argc, char* argv[]) {
 		errs() << llvm::format("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
 		exit(1);
 	}
-	input_fd = builtin_input_fd;
+	lex.input_fd = builtin_input_fd;
 	CurLoc = lex.Loc = { builtin_file_name, 0, 0 };
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();
