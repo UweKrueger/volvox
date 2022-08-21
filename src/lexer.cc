@@ -80,7 +80,6 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    return -1;
 			    }
 			    *n = 0;
-			    lex.Loc = { input_file_name, 0, 0 };
 			    if (comp_mode == comp_jit && lex.input_fd == 0) {
 #ifdef MONOCHROME_PROMPT
 				    sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
@@ -131,21 +130,22 @@ void Lexer::pop_state() {
 }
 
 bool Lexer::next_input_file() {
-	if (lex.input_fd > 0)
-		close(lex.input_fd);
+	if (input_fd > 0)
+		close(input_fd);
 	if (source_index.back() < source_files.back().size()) {
-		input_file_name = source_files.back()[source_index.back()++].c_str();
-		lex.input_fd = open(input_file_name, O_CLOEXEC);
-		if (lex.input_fd < 0) {
-			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
+		Loc.File = source_files.back()[source_index.back()++].c_str();
+		input_fd = open(Loc.File, O_CLOEXEC);
+		if (input_fd < 0) {
+			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
 			exit(1);
 		}
-	} else if ((jit_repl || !source_index.back()) && lex.input_fd != 0) {
-		lex.input_fd = 0;
-		input_file_name = "<stdin>";
+	} else if ((jit_repl || !source_index.back()) && input_fd != 0) {
+		input_fd = 0;
+		Loc.File = "<stdin>";
 	} else {
 		return false;
 	}
+	Loc.Line = Loc.Col = 0;
 	return true;
 }
 

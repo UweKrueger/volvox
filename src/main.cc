@@ -144,7 +144,7 @@ void init() {
 
 void InitializeModuleAndPassManager() {
 	// Open a new module.
-	TheModule = std::make_unique<llvm::Module>(input_file_name, Context);
+	TheModule = std::make_unique<llvm::Module>(lex.Loc.File, Context);
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
@@ -549,7 +549,6 @@ extern "C" DLLEXPORT double printd(double X) {
 // Main driver code.
 //===----------------------------------------------------------------------===//
 
-const char* input_file_name = nullptr;
 const char* builtin_file_name = "builtin.vx";
 int builtin_input_fd = -1;
 bool dump_opt = true;
@@ -1005,6 +1004,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 	lex = Lexer(&builtin_input_fd, builtin_file_name);
+	// Lexer::Lexer() above invalidates 'builtin_input_fd' so restore it
 	builtin_input_fd = lex.input_fd;
 	CurLoc = lex.Loc;
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
@@ -1121,7 +1121,7 @@ int main(int argc, char* argv[]) {
 		// Currently down as "fib.ks" as a filename since we're redirecting stdin
 		// but we'd like actual source locations.
 		KSDbgInfo.TheCU = DBuilder->createCompileUnit(
-			llvm::dwarf::DW_LANG_C, DBuilder->createFile(input_file_name, "."),
+			llvm::dwarf::DW_LANG_C, DBuilder->createFile(lex.Loc.File, "."),
 			"Volvox Compiler", 0, "", 0);
 	}
 	char* volvox_root = getenv("VOLVOX_ROOT");
