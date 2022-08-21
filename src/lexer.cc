@@ -73,7 +73,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    PrepareTestFramework();
 				    tests_prepared = true;
 			    }
-			    if (!next_input_file()) {
+			    if (!lex.next_input_file()) {
 				    c = EOF;
 				    if (lex.input_fd == 0)
 					    outs() << "\n";
@@ -115,9 +115,8 @@ static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
 void Lexer::push_state() {
-	source_stack.emplace_back(Loc, linelen, bufsize, linebuf, &input_fd, use_readline);
+	source_stack.emplace_back(*this);
 	next_input_file();
-	linelen = 0;
 	use_readline = false;
 }
 
@@ -126,14 +125,28 @@ void Lexer::pop_state() {
 		errs() << "internal error: source stack is empty\n";
 		abort();
 	}
+	*static_cast<SourceLocState*>(this) = source_stack.back();
 	SourceLocState& old = source_stack.back();
-	input_fd = old.input_fd;
-	Loc = old.Loc;
-	linelen = old.linelen;
-	bufsize = old.bufsize;
-	linebuf = old.linebuf;
-	use_readline = old.use_readline;
 	source_stack.pop_back();
+}
+
+bool Lexer::next_input_file() {
+	if (lex.input_fd > 0)
+		close(lex.input_fd);
+	if (source_index.back() < source_files.back().size()) {
+		input_file_name = source_files.back()[source_index.back()++].c_str();
+		lex.input_fd = open(input_file_name, O_CLOEXEC);
+		if (lex.input_fd < 0) {
+			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
+			exit(1);
+		}
+	} else if ((jit_repl || !source_index.back()) && lex.input_fd != 0) {
+		lex.input_fd = 0;
+		input_file_name = "<stdin>";
+	} else {
+		return false;
+	}
+	return true;
 }
 
 int Lexer::advance() {

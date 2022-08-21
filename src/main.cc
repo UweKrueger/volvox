@@ -664,25 +664,6 @@ inline bool is_exe(const char* file) {
 #endif
 }
 
-bool next_input_file() {
-	if (lex.input_fd > 0)
-		close(lex.input_fd);
-	if (source_index.back() < source_files.back().size()) {
-		input_file_name = source_files.back()[source_index.back()++].c_str();
-		lex.input_fd = open(input_file_name, O_CLOEXEC);
-		if (lex.input_fd < 0) {
-			errs() << llvm::format("Cannot open input file \"%s\": %s\n", input_file_name, strerror(errno));
-			exit(1);
-		}
-	} else if ((jit_repl || !source_index.back()) && lex.input_fd != 0) {
-		lex.input_fd = 0;
-		input_file_name = "<stdin>";
-	} else {
-		return false;
-	}
-	return true;
-}
-
 #ifdef _WIN32
 // We have to switch to code page 65001 to enable UTF-8. This
 // value here is used to restore the old state on exit
