@@ -711,8 +711,8 @@ struct SourceLocState {
 	bool use_readline = false;
 	SourceLocState() = default;
 	SourceLocState(const SourceLocState&) = default;
-	SourceLocState(SourceLocation Loc, ssize_t linelen, int& _input_fd, bool use_readline) :
-		Loc(Loc), linelen(linelen), input_fd(_input_fd), use_readline(use_readline)
+	SourceLocState(SourceLocation Loc, ssize_t linelen, char* linebuf, int& _input_fd, bool use_readline) :
+		Loc(Loc), linelen(linelen), linebuf(linebuf), input_fd(_input_fd), use_readline(use_readline)
 		{
 			_input_fd = -1; // to prevent 'next_input_file()' from calling 'close()'
 		}

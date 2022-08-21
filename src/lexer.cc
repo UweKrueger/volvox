@@ -116,7 +116,7 @@ static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
 void Lexer::push_state() {
-	source_stack.emplace_back(Loc, linelen, input_fd, use_readline);
+	source_stack.emplace_back(Loc, linelen, linebuf, input_fd, use_readline);
 	next_input_file();
 	linelen = 0;
 	use_readline = false;
