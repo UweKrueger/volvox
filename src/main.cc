@@ -1004,8 +1004,9 @@ int main(int argc, char* argv[]) {
 		errs() << llvm::format("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
 		exit(1);
 	}
-	lex.input_fd = builtin_input_fd;
-	CurLoc = lex.Loc = { builtin_file_name, 0, 0 };
+	lex = Lexer(&builtin_input_fd, builtin_file_name);
+	builtin_input_fd = lex.input_fd;
+	CurLoc = lex.Loc;
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();
 		llvm::InitializeNativeTargetAsmPrinter();

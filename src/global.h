@@ -708,7 +708,7 @@ struct SourceLocState {
 	ssize_t linelen = 0;
 	size_t bufsize = 0;
 	char* linebuf = nullptr;
-	int input_fd = -1;
+	int input_fd = 0;
 	bool use_readline = false;
 	SourceLocState() = default;
 	SourceLocState(const SourceLocState&) = default;
@@ -724,7 +724,10 @@ struct SourceLocState {
 class Lexer : public SourceLocState {
 	std::vector<SourceLocState> source_stack = {};
 public:
-	Lexer(size_t _bufsize = 100) : SourceLocState(SourceLocation{}, 0, _bufsize, (char*)malloc(_bufsize)) {}
+	Lexer() = default;
+	Lexer(int* _inputfd, const char* _input_file_name, size_t _bufsize = 100)
+		: SourceLocState(SourceLocation{ _input_file_name, 0, 0 }, 0, _bufsize,
+		                 _bufsize ? nullptr : (char*)malloc(_bufsize), _inputfd), CurChar(' ') {}
 	virtual ~Lexer() { free(linebuf); }
 	int advance();
 	Token gettok(eXpect expect = eNone);
@@ -735,7 +738,7 @@ public:
 	bool next_input_file();
 	void push_state();
 	void pop_state();
-	int CurChar = ' ';
+	int CurChar = '\0';
 	// c can be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {
 		return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')
