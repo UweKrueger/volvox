@@ -134,7 +134,7 @@ namespace volvox {
 		};
 		int globflags = GLOB_MARK;
 #endif
-		while (!*baseptr) {
+		while (*baseptr) {
 			unsigned n = 0;
 			while (*(baseptr+n) && *(baseptr+n) != PATHLISTSEP)
 				n++;
@@ -149,17 +149,23 @@ namespace volvox {
 			if (pattern[n-1] != '/' && pattern[n-1] != '\\')
 				pattern[n++] = PATHDIRSEP;
 			strcpy(pattern+n, patterntail);
+			fprintf(stderr, "searching pattern: %s\n", pattern);
 #if defined (_WIN32)
 			char buf[MAX_PATH] = "";
-			if (!Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets)) {
+			auto res = Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets);
+			free(pattern);
+			if (!res) {
 				free_glob(&rets);
 				return rets;
 			}
 #else
 			int res = ::glob(pattern, globflags, NULL, &glob_rets);
-			if (res)
+			free(pattern);
+			if (res && res != GLOB_NOMATCH) {
 				// not clear if the glob_t struct must be freed in case of error... :-(
+				// TODO: set errno to represent glob error
 				return rets;
+			}
 			globflags |= GLOB_APPEND;
 #endif
 		}
