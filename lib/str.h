@@ -35,12 +35,16 @@ typedef struct volvox_glob_t {
 #if defined (_WIN32)
 #define _DECL __declspec(dllexport)
 #define _CDECL __declspec(dllexport)
+#define PATHLISTSEP ';'
+#define PATHDIRSEP '\\'
 #else
 #define _DECL
 #define _CDECL extern "C"
 #ifndef STILL_ACTIVE
 #define STILL_ACTIVE 0x103
 #endif
+#define PATHLISTSEP ':'
+#define PATHDIRSEP '/'
 #endif
 
 #ifdef __cplusplus
@@ -48,6 +52,8 @@ typedef struct volvox_glob_t {
 namespace volvox {
 
 	_DECL volvox_glob_t glob(const char* pattern);
+
+	_DECL volvox_glob_t glob(const char* bases, const char* patterntail);
 
 	_DECL void free_glob(volvox_glob_t* rets);
 

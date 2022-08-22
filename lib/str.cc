@@ -117,6 +117,59 @@ namespace volvox {
 		return rets;
 	}
 
+	_DECL volvox_glob_t glob(const char* bases, const char* patterntail) {
+		volvox_glob_t rets = {
+			.size = 0,
+			.dirs = nullptr,
+		};
+		size_t patterntaillen = strlen(patterntail);
+		const char* baseptr = bases;
+#if defined (_WIN32)
+		size_t max_rets = 0;
+#else
+		glob_t glob_rets = {
+			.gl_pathc = 0,
+			.gl_pathv = nullptr,
+			.gl_offs = 0,
+		};
+		int globflags = GLOB_MARK;
+#endif
+		while (!*baseptr) {
+			unsigned n = 0;
+			while (*(baseptr+n) && *(baseptr+n) != PATHLISTSEP)
+				n++;
+			if (!n)
+				continue;
+			size_t patternlen = patterntaillen + 1 + n + 1;
+			char* pattern = (char*)malloc(patternlen); // TODO use alloca() when switched back to MSVC
+			memcpy(pattern, baseptr, n);
+			baseptr += n;
+			if (*baseptr)
+				baseptr++; // eat ':'/';' but keep '\0'
+			if (pattern[n-1] != '/' && pattern[n-1] != '\\')
+				pattern[n++] = PATHDIRSEP;
+			strcpy(pattern+n, patterntail);
+#if defined (_WIN32)
+			char buf[MAX_PATH] = "";
+			if (!Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets)) {
+				free_glob(&rets);
+				return rets;
+			}
+#else
+			int res = ::glob(pattern, globflags, NULL, &glob_rets);
+			if (res)
+				// not clear if the glob_t struct must be freed in case of error... :-(
+				return rets;
+			globflags |= GLOB_APPEND;
+#endif
+		}
+#ifndef _WIN32
+		rets.size = glob_rets.gl_pathc;
+		rets.dirs = glob_rets.gl_pathv;
+#endif
+		return rets;
+	}
+
 #ifdef _WIN32
 // dest must be 32767 bytes in size - maximum length of command line on Windows
 	extern "C" bool getCmdLine(char* dest, const char* cmd, char* const argv[]);
