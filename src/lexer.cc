@@ -22,6 +22,11 @@ extern "C" int rl_initialize(void);
 #include <history.h>
 #endif
 
+// Windows has no CLOEXEC
+#if !defined(O_CLOEXEC)
+#define O_CLOEXEC 0
+#endif
+
 //===----------------------------------------------------------------------===//
 // Lexer
 //===----------------------------------------------------------------------===//

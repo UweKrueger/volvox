@@ -154,10 +154,6 @@ namespace volvox {
 			char buf[MAX_PATH] = "";
 			auto res = Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets);
 			free(pattern);
-			if (!res) {
-				free_glob(&rets);
-				return rets;
-			}
 #else
 			int res = ::glob(pattern, globflags, NULL, &glob_rets);
 			free(pattern);

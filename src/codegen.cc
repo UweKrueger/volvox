@@ -1660,7 +1660,6 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		if (!ArgsV.back())
 			return nullptr;
 	}
-	llvm::Value* ret_val;
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
 		// Callee was a function symbol like `sin`
 		return Builder->CreateCall(F, ArgsV, "calltmp");

@@ -25,11 +25,13 @@ TypeTable type_table;
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
 #define volvox_glob _ZN6volvox4globEPKc
+#define volvox_glob2 _ZN6volvox4globEPKcS1_
 #define volvox_free_glob _ZN6volvox9free_globEP13volvox_glob_t
 #define volvox_spawn _ZN6volvox5spawnEPiS0_S0_S0_PKPc
 #define volvox_wait _ZN6volvox4waitEi
 #define volvox_try_wait _ZN6volvox8try_waitEi
 extern "C" volvox_glob_t volvox_glob(const char* pattern);
+extern "C" volvox_glob_t volvox_glob2(const char* patbase, const char* pattail);
 extern "C" void volvox_free_glob(volvox_glob_t* rets);
 extern "C" bool volvox_spawn(int* pid, int* child_stdin, int* child_stdout,
                              int* child_stderr, char* const argv[]);
@@ -37,6 +39,7 @@ extern "C" int volvox_wait(int pid);
 extern "C" int volvox_try_wait(int pid);
 #else
 #define volvox_glob volvox::glob
+#define volvox_glob2 volvox::glob
 #define volvox_free_glob volvox::free_glob
 #define volvox_spawn volvox::spawn
 #define volvox_wait volvox::wait
@@ -902,7 +905,7 @@ int main(int argc, char* argv[]) {
 	const char* mypaths = "/home/uwe/soft/volvox/test:/home/uwe/test:.";
 	const char* mypat = "mylib/*.vx";
 #endif
-	volvox_glob_t myfiles = volvox::glob(mypaths, mypat);
+	volvox_glob_t myfiles = volvox_glob2(mypaths, mypat);
 	for (int n = 0; n < myfiles.size; n++)
 		errs() << "file " << n << ": " << myfiles.dirs[n] << '\n';
 	for (;optind < argc; optind++)
