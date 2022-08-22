@@ -670,6 +670,7 @@ inline bool is_exe(const char* file) {
 // We have to switch to code page 65001 to enable UTF-8. This
 // value here is used to restore the old state on exit
 unsigned old_cp;
+unsigned old_input_cp;
 #endif
 #if defined (_MSC_VER)
 // glob patterns to search for linker and libraries
@@ -694,6 +695,8 @@ unsigned old_cp;
 int main(int argc, char* argv[]) {
 #if defined (_WIN32)
 	old_cp = GetConsoleOutputCP();
+	old_input_cp = GetConsoleCP();
+	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
 #endif
 	setlocale(LC_ALL, "en_US.UTF-8");
@@ -1427,6 +1430,7 @@ int main(int argc, char* argv[]) {
 	}
 #ifdef _WIN32
 	SetConsoleOutputCP(old_cp);
+	SetConsoleCP(old_input_cp);
 #endif
 	return result;
 }

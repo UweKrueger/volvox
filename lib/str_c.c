@@ -6,6 +6,7 @@
 #include <windows.h>
 #include <io.h>
 #include <malloc.h>
+#include <mbstring.h>
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -705,6 +706,31 @@ _DECL int getTermSize(int fd)
 }
 
 #ifdef _WIN32
+/* The Windows functions 'FindFirstFile()/FindNextFile()' return a sorted list of filenames.
+   However, apparently they do not handle UTF-8 filenames correctly when sorting even if
+   codepage and locale LC_ALL are set to UTF-8. We compensate this here with a tiny bubble sort
+   using _mbscoll() which supports correct lexical sorting on UTF-8.
+   Even though bubble sort is O(n^2) in worst case it will perform much better here (often O(n)) 
+   as the list is already basically sorted.
+*/
+static void pathBubblesort(const char** paths, unsigned n) {
+	bool swapped;
+	for(;;) {
+		swapped = false;
+		unsigned m = n - 1;
+		for (unsigned i = 0; i < m; i++)
+			if (_mbscoll((unsigned char*)paths[i], (unsigned char*)paths[i+1]) > 0) {
+				const char* tmp = paths[i];
+				paths[i] = paths[i+1];
+				paths[i+1] = tmp;
+				swapped = true;
+			}
+		if (!swapped)
+			break;
+		n = m;
+	}
+}
+
 _DECL bool Glob_impl(char* buf, int s_len, int cur_index, const char* argv, char*** rets, size_t* n_rets, size_t* max_rets) {
 	bool found = false;
 	int last_slash = -1;
@@ -750,6 +776,7 @@ continue_search:
 		*n_rets = 0;
 		*rets = (char**)malloc(*max_rets * sizeof(char*));
 	}
+	size_t old_n_rets = *n_rets;
 	do {
 		if (wfd.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) {
 			if (!strcmp(wfd.cFileName, ".") || !strcmp(wfd.cFileName, ".."))
@@ -785,6 +812,8 @@ continue_search:
 		}
 	} while (FindNextFile(h, &wfd));
 	FindClose(h);
+	if (found)
+		pathBubblesort(*rets + old_n_rets, *n_rets - old_n_rets);
 	return found;
 }
 #endif
