@@ -149,7 +149,6 @@ namespace volvox {
 			if (pattern[n-1] != '/' && pattern[n-1] != '\\')
 				pattern[n++] = PATHDIRSEP;
 			strcpy(pattern+n, patterntail);
-			fprintf(stderr, "searching pattern: %s\n", pattern);
 #if defined (_WIN32)
 			char buf[MAX_PATH] = "";
 			auto res = Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets);

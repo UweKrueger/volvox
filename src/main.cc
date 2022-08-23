@@ -901,16 +901,6 @@ int main(int argc, char* argv[]) {
 		errs() << "Lib: >" << volvox_lib() << "<\n";
 		errs() << "Volvox Root: >" << volvox_root() << "<\n";
 	}
-#ifdef _WIN32
-	const char* mypaths = "C:\\Users\\uwekr\\volvox\\test;C:\\Users\\uwekr\\test;.";
-	const char* mypat = "mylib\\*.vx";
-#else
-	const char* mypaths = "/home/uwe/soft/volvox/test:/home/uwe/test:.";
-	const char* mypat = "mylib/*.vx";
-#endif
-	volvox_glob_t myfiles = volvox_glob2(mypaths, mypat);
-	for (int n = 0; n < myfiles.size; n++)
-		errs() << "file " << n << ": " << myfiles.dirs[n] << '\n';
 	for (;optind < argc; optind++)
 		source_files.front().push_back(argv[optind]);
 	if (!comp_mode) {
