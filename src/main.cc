@@ -257,9 +257,13 @@ static void HandleImport() {
 		getNextToken(ePath);
 	} while (CurTok.kind == tok_selector);
 	// TODO: handle  'as', 'from'
-	if (CurTok.kind == ';')
+	for (auto& z : new_import_path)
+		errs() << z << '\n';
+	if (CurTok.kind == ';') {
 		lex.push_state(std::move(new_import_path));
-	else {
+		getNextToken();
+		errs() << "current location: " << CurLoc << '\n';
+	} else {
 		errs() << "unexpected identifier\n";
 		purgeLine();
 	}

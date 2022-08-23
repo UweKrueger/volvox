@@ -129,22 +129,26 @@ static std::string KeepIdentifierStr = "";
 /* pause the current lexer context and create a new one based on the given
    import path */
 void Lexer::push_state(std::vector<std::string> _import_path) {
+	for (auto& z : _import_path)
+		errs() << z << "<\n";
 	std::string patterntail = "";
-	for (int j=0; j < lex.import_path.size(); j++) {
-		patterntail += lex.import_path[j];
+	for (int j=0; j < _import_path.size(); j++) {
+		patterntail += _import_path[j];
 		patterntail += PATHDIRSEP;
 	}
 	patterntail += "*.vx";
 	errs() << "Import pattern: " << patterntail << '\n';
 	source_stack.emplace_back(this);
 	import_path = std::move(_import_path);
+	linebuf = (char*)malloc(bufsize);
+	linelen = 0;
+	use_readline = false;
 	source_files.push_back({});
 	volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
 	for (int n = 0; n < module_source_files.size; n++)
 		source_files.back().emplace_back(module_source_files.dirs[n]);
 	volvox_free_glob(&module_source_files);
 	next_input_file();
-	use_readline = false;
 }
 
 void Lexer::pop_state() {
@@ -167,6 +171,10 @@ bool Lexer::next_input_file() {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
 			exit(1);
 		}
+		errs() << "opened >" << Loc.File << "< as " << input_fd << "\n";
+	} else if (!source_stack.empty()) {
+		pop_state();
+		return true;
 	} else if ((jit_repl || !source_index.back()) && input_fd != 0) {
 		input_fd = 0;
 		Loc.File = "<stdin>";
