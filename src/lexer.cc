@@ -131,8 +131,6 @@ static std::string KeepIdentifierStr = "";
 /* pause the current lexer context and create a new one based on the given
    import path */
 void Lexer::push_state(std::vector<std::string> _import_path) {
-	for (auto& z : _import_path)
-		errs() << z << "<\n";
 	std::string patterntail = "";
 	for (int j=0; j < _import_path.size(); j++) {
 		patterntail += _import_path[j];
@@ -162,9 +160,6 @@ void Lexer::pop_state() {
 	*static_cast<SourceLocState*>(this) = std::move(source_stack.back());
 	source_stack.pop_back();
 	source_files.pop_back();
-	errs() << "Import path:\n";
-	for (auto& z : import_path)
-		errs() << z << "<\n";
 }
 
 bool Lexer::next_input_file() {
@@ -177,7 +172,6 @@ bool Lexer::next_input_file() {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
 			exit(1);
 		}
-		errs() << "opened >" << Loc.File << "< as " << input_fd << "\n";
 	} else if (!source_stack.empty()) {
 		pop_state();
 		return true;
