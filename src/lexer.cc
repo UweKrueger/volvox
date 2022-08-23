@@ -156,9 +156,13 @@ void Lexer::pop_state() {
 		errs() << "internal error: source stack is empty\n";
 		abort();
 	}
+	free(linebuf);
 	*static_cast<SourceLocState*>(this) = std::move(source_stack.back());
 	source_stack.pop_back();
 	source_files.pop_back();
+	errs() << "Import path:\n";
+	for (auto& z : import_path)
+		errs() << z << "<\n";
 }
 
 bool Lexer::next_input_file() {
