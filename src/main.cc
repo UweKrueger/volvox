@@ -245,6 +245,7 @@ static void HandleTypeDef(unsigned share_kind) {
 
 static void HandleImport() {
 	bool from = CurTok.kind == tok_from;
+	std::vector<std::string> new_import_path = {};
 	do {
 		getNextToken(ePath);
 		if (CurTok.kind != tok_identifier) {
@@ -252,21 +253,16 @@ static void HandleImport() {
 			purgeLine();
 			return;
 		}
-		lex.import_path.push_back(IdentifierStr);
+		new_import_path.push_back(IdentifierStr);
 		getNextToken(ePath);
 	} while (CurTok.kind == tok_selector);
-	if (CurTok.kind == ';') {
-		std::string patterntail = "";
-		for (int j=0; j < lex.import_path.size(); j++) {
-			patterntail += lex.import_path[j];
-			patterntail += PATHDIRSEP;
-		}
-		patterntail += "*.vx";
-		errs() << "Import pattern: " << patterntail << '\n';
-		lex.import_path = {};
-		return;
+	// TODO: handle  'as', 'from'
+	if (CurTok.kind == ';')
+		lex.push_state(std::move(new_import_path));
+	else {
+		errs() << "unexpected identifier\n";
+		purgeLine();
 	}
-	errs() << "unexpected identifier\n";
 }
 
 // __anon_exp returns bool but thread return values are system dependent

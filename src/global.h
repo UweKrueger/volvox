@@ -739,7 +739,7 @@ public:
 	char peek_strict();
 	char look_back_strict();
 	bool next_input_file();
-	void push_state();
+	void push_state(std::vector<std::string> _import_path);
 	void pop_state();
 	int CurChar = '\0';
 	// c can be the last char of an expression so the following "[n]" is an index

@@ -27,6 +27,14 @@ extern "C" int rl_initialize(void);
 #define O_CLOEXEC 0
 #endif
 
+#if defined(_MSC_VER)
+#define volvox_glob2 _ZN6volvox4globEPKcS1_
+#define volvox_free_glob _ZN6volvox9free_globEP13volvox_glob_t
+#else
+#define volvox_glob2 volvox::glob
+#define volvox_free_glob volvox::free_glob
+#endif
+
 //===----------------------------------------------------------------------===//
 // Lexer
 //===----------------------------------------------------------------------===//
@@ -118,19 +126,35 @@ SourceLocation CurLoc;
 static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
-void Lexer::push_state() {
+/* pause the current lexer context and create a new one based on the given
+   import path */
+void Lexer::push_state(std::vector<std::string> _import_path) {
+	std::string patterntail = "";
+	for (int j=0; j < lex.import_path.size(); j++) {
+		patterntail += lex.import_path[j];
+		patterntail += PATHDIRSEP;
+	}
+	patterntail += "*.vx";
+	errs() << "Import pattern: " << patterntail << '\n';
 	source_stack.emplace_back(this);
+	import_path = std::move(_import_path);
+	source_files.push_back({});
+	volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
+	for (int n = 0; n < module_source_files.size; n++)
+		source_files.back().emplace_back(module_source_files.dirs[n]);
+	volvox_free_glob(&module_source_files);
 	next_input_file();
 	use_readline = false;
 }
 
 void Lexer::pop_state() {
-	if (source_stack.empty()) {
+	if (source_stack.empty() || source_files.empty()) {
 		errs() << "internal error: source stack is empty\n";
 		abort();
 	}
 	*static_cast<SourceLocState*>(this) = std::move(source_stack.back());
 	source_stack.pop_back();
+	source_files.pop_back();
 }
 
 bool Lexer::next_input_file() {
