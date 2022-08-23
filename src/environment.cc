@@ -2,6 +2,7 @@
 
 #define VOLVOX_ROOT "VOLVOX"
 #define VOLVOX_LIB "VOLVOX_LIB"
+#define VOLVOX_PROJECT "VOLVOX_PROJECT"
 
 #if defined(_WIN32)
 #include <windows.h>
@@ -121,20 +122,22 @@ const char* volvox_lib() {
 	lib = getenv(VOLVOX_LIB);
 	if (lib)
 		return lib;
+	static const char* project = getenv(VOLVOX_PROJECT);
+	if (!project)
+		project = ".";
 	// get root and append 'lib'
 	const char* root = volvox_root();
 	size_t l = strlen(root);
-	char* lib_from_root = (char*)malloc(l + 4 + 1);
+	size_t pl = strlen(project);
+	//                                  x   /  lib  :   xx   0
+	char* lib_from_root = (char*)malloc(l + 1 + 3 + 1 + pl + 1);
 	memcpy(lib_from_root, root, l);
-#if defined (_MSC_VER)
-	lib_from_root[l++] = '\\';
-#else
-	lib_from_root[l++] = '/';
-#endif
+	lib_from_root[l++] = PATHDIRSEP;
 	lib_from_root[l++] = 'l';
 	lib_from_root[l++] = 'i';
 	lib_from_root[l++] = 'b';
-	lib_from_root[l] = '\0';
+	lib_from_root[l++] = PATHLISTSEP;
+	memcpy(lib_from_root + l, project, pl + 1);
 	lib = lib_from_root;
 	return lib;
 }
