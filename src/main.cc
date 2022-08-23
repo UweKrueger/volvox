@@ -1133,43 +1133,6 @@ int main(int argc, char* argv[]) {
 			llvm::dwarf::DW_LANG_C, DBuilder->createFile(lex.Loc.File, "."),
 			"Volvox Compiler", 0, "", 0);
 	}
-	char* volvox_root = getenv("VOLVOX_ROOT");
-	if (!volvox_root) {
-#if defined(VOLVOX_ROOT)
-		volvox_root = (char*)VOLVOX_ROOT;
-#else
-		volvox_root = const_cast<char*>(".");
-#endif
-	}
-	size_t rootlen = strlen(volvox_root);
-	char* volvox_lib = getenv("VOLVOX_LIB");
-	if (!volvox_lib) {
-#if defined(VOLVOX_LIB)
-		volvox_lib = (char*)VOLVOX_LIB;
-#else
-		volvox_lib = (char*)alloca(strlen(volvox_root) + 5);
-		strcpy(volvox_lib, volvox_root);
-#if defined(_MSC_VER)
-		strcpy(volvox_lib + rootlen, "\\lib");
-#else
-		strcpy(volvox_lib + rootlen, "/lib");
-#endif
-#endif
-	}
-	char* volvox_bin = getenv("VOLVOX_BIN");
-	if (!volvox_bin) {
-#if defined(VOLVOX_BIN)
-		volvox_bin = (char*)VOLVOX_BIN;
-#else
-		volvox_bin = (char*)alloca(strlen(volvox_root) + 5);
-		strcpy(volvox_bin, volvox_root);
-#if defined(_MSC_VER)
-		strcpy(volvox_bin + rootlen, "\\bin");
-#else
-		strcpy(volvox_bin + rootlen, "/bin");
-#endif
-#endif
-	}
 	init();
 	// Prime the first token.
 	getNextToken();
@@ -1241,9 +1204,9 @@ int main(int argc, char* argv[]) {
 		dest.close();
 		hints() << "Wrote " << Filename << "\n";
 		if (link_mode != dont_link) {
-			int lr = strlen(volvox_root);
+			int lr = strlen(volvox_root());
 			char* libpath = (char*)alloca(lr+32);
-			strcpy(libpath, volvox_root);
+			strcpy(libpath, volvox_root());
 			char* stack_size = nullptr;
 			/* building the linker command is somewhat tricky because several things have to be considered:
 			 * 1. on POSIX systems the "GNU" typical syntax should be used
