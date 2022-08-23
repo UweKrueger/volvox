@@ -30,6 +30,8 @@ extern "C" int rl_initialize(void);
 #if defined(_MSC_VER)
 #define volvox_glob2 _ZN6volvox4globEPKcS1_
 #define volvox_free_glob _ZN6volvox9free_globEP13volvox_glob_t
+extern "C" volvox_glob_t volvox_glob2(const char* patbase, const char* pattail);
+extern "C" void volvox_free_glob(volvox_glob_t* rets);
 #else
 #define volvox_glob2 volvox::glob
 #define volvox_free_glob volvox::free_glob
