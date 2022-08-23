@@ -119,7 +119,7 @@ static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
 
 void Lexer::push_state() {
-	source_stack.emplace_back(*this);
+	source_stack.emplace_back(this);
 	next_input_file();
 	use_readline = false;
 }
@@ -129,8 +129,7 @@ void Lexer::pop_state() {
 		errs() << "internal error: source stack is empty\n";
 		abort();
 	}
-	*static_cast<SourceLocState*>(this) = source_stack.back();
-	SourceLocState& old = source_stack.back();
+	*static_cast<SourceLocState*>(this) = std::move(source_stack.back());
 	source_stack.pop_back();
 }
 

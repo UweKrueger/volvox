@@ -10,7 +10,6 @@ CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 std::vector<std::string> include_files = {};
 std::vector<std::vector<std::string>> source_files = {{}};
-std::vector<std::string> import_path = {};
 std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
 const std::string single_test_result_name = "__test_result";
 const std::string collector_name = "__test_results_collect";
@@ -253,14 +252,18 @@ static void HandleImport() {
 			purgeLine();
 			return;
 		}
-		import_path.push_back(IdentifierStr);
+		lex.import_path.push_back(IdentifierStr);
 		getNextToken(ePath);
 	} while (CurTok.kind == tok_selector);
 	if (CurTok.kind == ';') {
-		for (int j=0; j<import_path.size(); j++)
-			errs() << (j ? "/" : "Import path: ") << import_path[j];
-		errs() << '\n';
-		import_path = {};
+		std::string patterntail = "";
+		for (int j=0; j < lex.import_path.size(); j++) {
+			patterntail += lex.import_path[j];
+			patterntail += PATHDIRSEP;
+		}
+		patterntail += "*.vx";
+		errs() << "Import pattern: " << patterntail << '\n';
+		lex.import_path = {};
 		return;
 	}
 	errs() << "unexpected identifier\n";

@@ -704,13 +704,17 @@ extern Token purgeLine();
 
 struct SourceLocState {
 	SourceLocation Loc = {0};
+	std::vector<std::string> import_path = {};
 	ssize_t linelen = 0;
 	size_t bufsize = 0;
 	char* linebuf = nullptr;
 	int input_fd = 0;
 	bool use_readline = false;
 	SourceLocState() = default;
-	SourceLocState(const SourceLocState&) = default;
+	SourceLocState(const SourceLocState& old) = default;
+	SourceLocState(SourceLocState* old):
+		Loc(old->Loc), import_path(std::move(old->import_path)), linelen(old->linelen), linebuf(old->linebuf), input_fd(old->input_fd),
+		use_readline(old->use_readline) {}
 	SourceLocState(SourceLocation Loc, ssize_t linelen, size_t bufsize, char* linebuf, int* _input_fd = nullptr, bool use_readline = false) :
 		Loc(Loc), linelen(linelen), bufsize(bufsize), linebuf(linebuf), input_fd(_input_fd ? *_input_fd : -1), use_readline(use_readline)
 		{
