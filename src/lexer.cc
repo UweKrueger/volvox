@@ -157,7 +157,13 @@ void Lexer::pop_state() {
 		abort();
 	}
 	free(linebuf);
-	*static_cast<SourceLocState*>(this) = std::move(source_stack.back());
+	Loc = source_stack.back().Loc;
+	import_path = std::move(source_stack.back().import_path);
+	linelen = source_stack.back().linelen;
+	bufsize = source_stack.back().bufsize ;
+	linebuf = source_stack.back().linebuf;
+	input_fd = source_stack.back().input_fd;
+	use_readline = source_stack.back().use_readline;
 	source_stack.pop_back();
 	source_files.pop_back();
 }
