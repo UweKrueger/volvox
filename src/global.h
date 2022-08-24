@@ -718,6 +718,17 @@ public:
 	bool next_input_file();
 	void push_state(std::vector<std::string> _import_path);
 	void pop_state();
+	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
+	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }
+	unsigned add_type(const char* name, volvoxc::FullType* ft) { return module->type_table.add(name, ft); }
+	unsigned add_type(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr)
+		{ return module->type_table.add(name, type, ditype, type_attr, fields); }
+	llvm::Type* get_type(const char* name) { return module->type_table.get(name); }
+	bool is_signed_type(const char* name) { return module->type_table.is_signed(name); }
+	volvoxc::FullType* get_full_type(const char* name) { return module->type_table.get_full(name); }
+	volvoxc::FullType* get_full_type(unsigned _key) { return module->type_table.get_full(_key); }
+	const char* get_type_name(llvm::Type* type) { return module->type_table.get_name(type); }
+	const char* get_type_name(llvm::Type* type, bool is_signed) { return module->type_table.get_name(type, is_signed); }
 	int CurChar = '\0';
 	// c can be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {
