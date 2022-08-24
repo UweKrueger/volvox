@@ -253,7 +253,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		}
 		getNextToken(expect);
 	}
-	auto type = lex.module->type_table.get_full(IdentifierStr.c_str());
+	auto type = lex.get_full_type(IdentifierStr.c_str());
 	if (!type) {
 		errs() << "Unknown type '" << IdentifierStr << "'\n";
 		return nullptr;
@@ -1213,7 +1213,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			InitializeModuleAndPassManager();
 		}
 		// Make an anonymous proto.
-		volvoxc::FullType* TheType = lex.module->type_table.get_full("bool");
+		volvoxc::FullType* TheType = lex.get_full_type("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            A_c_api,

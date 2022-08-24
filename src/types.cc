@@ -14,8 +14,8 @@ volvoxc::FTListElem** anon_types_end = &anon_types;
 std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               unsigned expr_attr, unsigned desired_attr, const char* reason) {
 	errs() << Loc << ": cannot automatically convert "
-	       << lex.module->type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
-	       << lex.module->type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))) << ' ';
+	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
+	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))) << ' ';
 	if (reason)
 		errs() << reason;
 	errs() << "\n";
@@ -25,8 +25,8 @@ std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* de
 static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                                   unsigned expr_attr, unsigned desired_attr, const char* reason) {
 	errs() << Loc << ": cannot convert "
-	       << lex.module->type_table.get_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
-	       << lex.module->type_table.get_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed)));
+	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
+	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed)));
 	if (reason)
 		errs() << reason;
 	errs() << "\n";
@@ -349,7 +349,7 @@ std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeTyp
 
 volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 	if (is_unknown_type && base->type->isIntegerTy()) {
-		volvoxc::FullType* new_type = lex.module->type_table.get_full("i32");
+		volvoxc::FullType* new_type = lex.get_full_type("i32");
 		if (!new_type) {
 			errs() <<"Fatal: Could not find i32 type!\n";
 			return nullptr;
@@ -411,9 +411,9 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 				return { nullptr, conv };
 			}
 			llvm::Type* res_type = getFittingType(bitwidth, is_float);
-			auto type_name = lex.module->type_table.get_name(res_type, is_signed && !is_float);
+			auto type_name = lex.get_type_name(res_type, is_signed && !is_float);
 			// TODO: implement full type lookup that doesn't need getting name string
-			res_ft = lex.module->type_table.get_full(type_name);
+			res_ft = lex.get_full_type(type_name);
 			for (auto& elem: valid_exprs)
 				conv.push_back(getConv(elem->ft->type, res_type, elem->ft->type_attr, (is_signed && !is_float) ? A_signed : 0, elem->Loc));
 			return { res_ft, conv };

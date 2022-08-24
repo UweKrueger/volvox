@@ -777,7 +777,7 @@ public:
 	// looked up when the key is searched
 	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc,
 	        bool is_unknown_type = false)
-		: ft(lex.module->type_table.get_full(key)), Loc(Loc), is_unknown_type(is_unknown_type)
+		: ft(lex.get_full_type(key)), Loc(Loc), is_unknown_type(is_unknown_type)
 		{
 			// abort(); - find out where this is used
 			ft->type_attr |= add_attr;

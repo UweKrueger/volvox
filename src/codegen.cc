@@ -41,10 +41,10 @@ static llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, st
 	llvm::SmallVector<llvm::Metadata *, 8> EltTys;
 
 	// Add the result type.
-	EltTys.push_back(lex.module->type_table.get_diType(RetType->type, RetType->type_attr & A_signed));
+	EltTys.push_back(lex.get_diType(RetType->type, RetType->type_attr & A_signed));
 	auto NumArgs = ArgTypes.size();
 	for (unsigned i = 0; i < NumArgs; i++)
-		EltTys.push_back(lex.module->type_table.get_diType(ArgTypes[i]->type, ArgTypes[i]->type_attr & A_signed));
+		EltTys.push_back(lex.get_diType(ArgTypes[i]->type, ArgTypes[i]->type_attr & A_signed));
 
 	return DBuilder->createSubroutineType(DBuilder->getOrCreateTypeArray(EltTys));
 }
@@ -854,7 +854,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				DBuilder->createGlobalVariableExpression(
-					SP, varname, varname, Unit, expr->Loc.Line, lex.module->type_table.get_diType(type, is_signed), false);
+					SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed), false);
 			}
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
@@ -1161,7 +1161,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				if (comp_mode == comp_dbg) {
 					// Create a debug descriptor for the variable.
 					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-						SP, varname, Unit, LHS->Loc.Line, lex.module->type_table.get_diType(type, is_signed),
+						SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, is_signed),
 						true);
 					
 					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
@@ -2262,7 +2262,7 @@ llvm::Function *FunctionAST::codegen() {
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
-				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, lex.module->type_table.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
+				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, lex.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
 				true);
 			DBuilder->insertDeclare(mapitem->val, D, DBuilder->createExpression(),
 			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
