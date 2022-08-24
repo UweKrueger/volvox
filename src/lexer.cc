@@ -139,16 +139,22 @@ void Lexer::push_state(std::vector<std::string> _import_path) {
 	patterntail += "*.vx";
 	errs() << "Import pattern: " << patterntail << '\n';
 	source_stack.emplace_back(this);
-	import_path = std::move(_import_path);
-	linebuf = (char*)malloc(bufsize);
-	linelen = 0;
-	use_readline = false;
-	source_files.push_back({});
-	volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
-	for (int n = 0; n < module_source_files.size; n++)
-		source_files.back().emplace_back(module_source_files.dirs[n]);
-	volvox_free_glob(&module_source_files);
-	next_input_file();
+	auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
+	if (new_module.second) {
+		module = &new_module.first->second;
+		linelen = 0;
+		linebuf = (char*)malloc(bufsize);
+		use_readline = false;
+		source_files.push_back({});
+		volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
+		for (int n = 0; n < module_source_files.size; n++)
+			source_files.back().emplace_back(module_source_files.dirs[n]);
+		volvox_free_glob(&module_source_files);
+		next_input_file();
+	} else {
+		if (verbosity >= 2)
+			errs() << "skipping import of " << patterntail << " - already processed\n";
+	}
 }
 
 void Lexer::pop_state() {
@@ -158,7 +164,7 @@ void Lexer::pop_state() {
 	}
 	free(linebuf);
 	Loc = source_stack.back().Loc;
-	import_path = std::move(source_stack.back().import_path);
+	module = source_stack.back().module;
 	linelen = source_stack.back().linelen;
 	bufsize = source_stack.back().bufsize ;
 	linebuf = source_stack.back().linebuf;

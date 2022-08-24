@@ -456,10 +456,7 @@ protected:
 	std::map<llvm::Type*, std::pair<const char*, llvm::DIType*>> typeptr_table;
 };
 
-extern TypeTable type_table;
-extern std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
-extern MapNode* keyword_toks;
-
+extern MapNode* keyword_toks; // all language keywords like 'if', 'else', 'fn', ...
 extern void init_token_map();
 
 class VarTable {
@@ -487,20 +484,63 @@ public:
 	}
 };
 
-extern VarTable globals_table;
 extern std::vector<VarTable> locals_table; // including function arguments
 extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 
-// look up var and return if it's global
-inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
-	for (int i = locals_table.size() - 1; i >= 0; i--) {
-		FullVar* full_var = locals_table[i][Name];
-		if (full_var)
-			return { full_var, false };
+/// PrototypeAST - This class represents the "prototype" for a function,
+/// which captures its name, and its argument names (thus implicitly the number
+/// of arguments the function takes), as well as if it is an operator.
+class PrototypeAST {
+
+public:
+	std::vector<std::string> Args;
+	std::vector<volvoxc::FullType*> ArgTypes = {};
+	std::vector<llvm::Type*> LLVMArgTypes = {}; // to get LLVM function type
+	std::vector<llvm::AttributeSet> ArgAttrs = {};
+	std::vector<SourceLocation> ArgPos;
+	volvoxc::FullType* RetType;
+	SourceLocation retLoc;
+	llvm::FunctionType* FT;
+	bool IsVarArgs;
+	bool IsOperator;
+	bool IsMethod = false;
+	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
+	unsigned visibility;
+	llvm::GlobalValue::LinkageTypes link_type;
+	int Line;
+	std::string Name;
+	PrototypeAST(SourceLocation Loc, const std::string &Name,
+	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
+	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
+	             std::vector<volvoxc::FullType*> ArgTypes = {},
+	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);
+	llvm::Function *codegen();
+	const std::string &getName() const { return Name; }
+
+	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
+	bool isBinaryOp() const { return IsOperator && Args.size() == 2; }
+
+	char getOperatorName() const {
+		assert(isUnaryOp() || isBinaryOp());
+		return Name[Name.size() - 1];
 	}
-	return { globals_table[Name], true };
-}
+
+	int getLine() const { return Line; }
+};
+
+class Module {
+public:
+	Module(std::vector<std::string> _import_path) :
+		import_path(std::move(_import_path)) {}
+	~Module() = default;
+	std::vector<std::string> import_path;
+	TypeTable type_table;
+	std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
+	VarTable globals_table;
+};
+
+extern std::map<std::string, Module> Modules;
 
 enum NameKind {
 	NK_Module,
@@ -542,82 +582,6 @@ public:
 	}
 };
 
-extern NameTable name_table;
-
-/// ExprAST - Base class for all expression nodes.
-class ExprAST {
-public:
-	SourceLocation Loc;
-	volvoxc::FullType* ft;
-	llvm::Type* desired_type = nullptr;
-	unsigned desired_type_attr = 0;
-	MapNode* desired_elems = nullptr; // element-name -> { index, FullType }
-
-	bool is_unknown_type = false;
-
-	// construct from type and attributes
-	ExprAST(SourceLocation Loc) : ft(new_FullType(nullptr, 0)), Loc(Loc) {}
-	ExprAST(llvm::Type* type = llvm::Type::getVoidTy(Context), unsigned type_attr = 0,
-	        SourceLocation Loc = CurLoc, bool is_unknown_type = false)
-		: ft(new_FullType(type, type_attr)), Loc(Loc),
-		  is_unknown_type(is_unknown_type) {}
-	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc)
-		: ft(new_FullType(p.first, p.second)), Loc(Loc) {}
-	// construct from key and attributes. The A_signed flag is already
-	// looked up when the key is searched
-	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc,
-	        bool is_unknown_type = false)
-		: ft(type_table.get_full(key)), Loc(Loc), is_unknown_type(is_unknown_type)
-		{
-			// abort(); - find out where this is used
-			ft->type_attr |= add_attr;
-		}
-	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
-		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
-	virtual ~ExprAST() {}
-	virtual llvm::Value *codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
-	llvm::Value* codegen() {
-		auto rawV = codegen_raw();
-		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
-			auto postConv = getConv(rawV->getType(), desired_type, ft->type_attr, desired_type_attr,
-			                        Loc, true, is_unknown_type);
-			return postConv(rawV);
-		} else {
-			return rawV;
-		}
-	}	
-	int getLine() const { return Loc.Line; }
-	int getCol() const { return Loc.Col; }
-#ifndef NDEBUG
-	virtual llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
-		return out << ':' << getLine() << ':' << getCol() << '\n';
-	}
-#endif
-};
-
-inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::unique_ptr<ExprAST>& expr) {
-	if (expr)
-		out << "expr"; // *expr->codegen();
-	else
-		out << "nil";
-	return out;
-}
-
-template<typename T> llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::vector<T>& vec) {
-	for (int i = 0; i < vec.size(); i++)
-		out << (i ? ", " : "[ ") << vec[i]; 
-	return out << " ]";
-}
-
-struct DebugInfo {
-	llvm::DICompileUnit *TheCU;
-	std::vector<llvm::DIScope *> LexicalBlocks;
-
-	void emitLocation(ExprAST *AST);
-};
-
-extern DebugInfo KSDbgInfo;
-
 enum CompModes {
 	comp_undefined = 0,
 	comp_jit,
@@ -642,7 +606,9 @@ extern std::unique_ptr<llvm::Module> TheModule;
 extern std::unique_ptr<llvm::IRBuilder<>> Builder;
 extern std::unique_ptr<llvm::MDBuilder> MDBuilder;
 extern std::unique_ptr<llvm::DIBuilder> DBuilder;
+#ifdef LEGACY_PASS_MANAGER
 extern std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
+#endif
 
 // AST
 
@@ -704,16 +670,16 @@ extern Token purgeLine();
 
 struct SourceLocState {
 	SourceLocation Loc = {0};
-	std::vector<std::string> import_path = {};
+	Module* module;
 	ssize_t linelen = 0;
 	size_t bufsize = 0;
 	char* linebuf = nullptr;
 	int input_fd = 0;
 	bool use_readline = false;
 	SourceLocState() = default;
-	SourceLocState(const SourceLocState& old) = default;
+	SourceLocState(const SourceLocState& old) = default; // actually not used but must exist for Lexer::Lexer()
 	SourceLocState(SourceLocState* old):
-		Loc(old->Loc), import_path(std::move(old->import_path)), linelen(old->linelen), linebuf(old->linebuf), input_fd(old->input_fd),
+		Loc(old->Loc), module(old->module), linelen(old->linelen), linebuf(old->linebuf), input_fd(old->input_fd),
 		use_readline(old->use_readline) {}
 	SourceLocState(SourceLocation Loc, ssize_t linelen, size_t bufsize, char* linebuf, int* _input_fd = nullptr, bool use_readline = false) :
 		Loc(Loc), linelen(linelen), bufsize(bufsize), linebuf(linebuf), input_fd(_input_fd ? *_input_fd : -1), use_readline(use_readline)
@@ -730,7 +696,18 @@ public:
 	Lexer() = default;
 	Lexer(int* _inputfd, const char* _input_file_name, size_t _bufsize = 100)
 		: SourceLocState(SourceLocation{ _input_file_name, 0, 0 }, 0, _bufsize,
-		                 _bufsize ? nullptr : (char*)malloc(_bufsize), _inputfd), CurChar(' ') {}
+		                 _bufsize ? nullptr : (char*)malloc(_bufsize), _inputfd), CurChar(' ')
+		{
+			std::string patterntail = "*.vx";
+			std::vector<std::string> _import_path = {};
+			auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
+			if (new_module.second) {
+				module = &new_module.first->second;
+			} else {
+				errs() << "cannot initialize main module\n";
+				abort();
+			}
+		}
 	virtual ~Lexer() { free(linebuf); }
 	int advance();
 	Token gettok(eXpect expect = eNone);
@@ -755,6 +732,90 @@ public:
 };
 
 extern Lexer lex;
+
+// look up var and return if it's global
+inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
+	for (int i = locals_table.size() - 1; i >= 0; i--) {
+		FullVar* full_var = locals_table[i][Name];
+		if (full_var)
+			return { full_var, false };
+	}
+	return { lex.module->globals_table[Name], true };
+}
+
+/// ExprAST - Base class for all expression nodes.
+class ExprAST {
+public:
+	SourceLocation Loc;
+	volvoxc::FullType* ft;
+	llvm::Type* desired_type = nullptr;
+	unsigned desired_type_attr = 0;
+	MapNode* desired_elems = nullptr; // element-name -> { index, FullType }
+
+	bool is_unknown_type = false;
+
+	// construct from type and attributes
+	ExprAST(SourceLocation Loc) : ft(new_FullType(nullptr, 0)), Loc(Loc) {}
+	ExprAST(llvm::Type* type = llvm::Type::getVoidTy(Context), unsigned type_attr = 0,
+	        SourceLocation Loc = CurLoc, bool is_unknown_type = false)
+		: ft(new_FullType(type, type_attr)), Loc(Loc),
+		  is_unknown_type(is_unknown_type) {}
+	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc)
+		: ft(new_FullType(p.first, p.second)), Loc(Loc) {}
+	// construct from key and attributes. The A_signed flag is already
+	// looked up when the key is searched
+	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc,
+	        bool is_unknown_type = false)
+		: ft(lex.module->type_table.get_full(key)), Loc(Loc), is_unknown_type(is_unknown_type)
+		{
+			// abort(); - find out where this is used
+			ft->type_attr |= add_attr;
+		}
+	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
+		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
+	virtual ~ExprAST() {}
+	virtual llvm::Value *codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
+	llvm::Value* codegen() {
+		auto rawV = codegen_raw();
+		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
+			auto postConv = getConv(rawV->getType(), desired_type, ft->type_attr, desired_type_attr,
+			                        Loc, true, is_unknown_type);
+			return postConv(rawV);
+		} else {
+			return rawV;
+		}
+	}
+	int getLine() const { return Loc.Line; }
+	int getCol() const { return Loc.Col; }
+#ifndef NDEBUG
+	virtual llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
+		return out << ':' << getLine() << ':' << getCol() << '\n';
+	}
+#endif
+};
+
+inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::unique_ptr<ExprAST>& expr) {
+	if (expr)
+		out << "expr"; // *expr->codegen();
+	else
+		out << "nil";
+	return out;
+}
+
+template<typename T> llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::vector<T>& vec) {
+	for (int i = 0; i < vec.size(); i++)
+		out << (i ? ", " : "[ ") << vec[i];
+	return out << " ]";
+}
+
+struct DebugInfo {
+	llvm::DICompileUnit *TheCU;
+	std::vector<llvm::DIScope *> LexicalBlocks;
+
+	void emitLocation(ExprAST *AST);
+};
+
+extern DebugInfo KSDbgInfo;
 extern int builtin_input_fd;
 extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr);
 extern void InitializeModuleAndPassManager();

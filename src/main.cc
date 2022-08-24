@@ -16,10 +16,8 @@ const std::string collector_name = "__test_results_collect";
 int include_index = 0;
 std::vector<int> source_index = { 0 };
 int prompt_indent = 0;
-
+std::map<std::string, Module> Modules;
 DebugInfo KSDbgInfo;
-
-TypeTable type_table;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -74,13 +72,10 @@ llvm::ModulePassManager MPM;
 #endif
 
 std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT = nullptr;
-std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
 
 llvm::raw_ostream &indent(llvm::raw_ostream &O, int size) {
 	return O << std::string(size, ' ');
 }
-VarTable globals_table;
-NameTable name_table;
 std::vector<VarTable> locals_table; // including function arguments
 
 //===----------------------------------------------------------------------===//
@@ -92,50 +87,50 @@ unsigned stringkey;
 void init() {
 	init_token_map();
 	// only for internal use:
-	type_table.add("i*", llvm::Type::getInt64Ty(Context), nullptr, A_signed);
-	type_table.add("f*", llvm::Type::getDoubleTy(Context), nullptr);
+	lex.module->type_table.add("i*", llvm::Type::getInt64Ty(Context), nullptr, A_signed);
+	lex.module->type_table.add("f*", llvm::Type::getDoubleTy(Context), nullptr);
 
 #if UINTPTR_MAX == UINT16_MAX // e.g. AVR platform
-	type_table.add("int", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("uint", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("int", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("uint", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_int_type = llvm::Type::getInt16Ty(Context);
-	type_table.add("size", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("size", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("usize", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("size", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("size", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("usize", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt16Ty(Context);
-	type_table.add("real", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("real", 32, llvm::dwarf::DW_ATE_float) : nullptr);
+	lex.module->type_table.add("real", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("real", 32, llvm::dwarf::DW_ATE_float) : nullptr);
 #else
-	type_table.add("int", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("uint", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("int", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("uint", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_int_type = llvm::Type::getInt32Ty(Context);
 #if UINTPTR_MAX == UINT32_MAX
-	type_table.add("size", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("size", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("usize", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("size", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("size", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("usize", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt32Ty(Context);
 #else
-	type_table.add("size", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("size", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("usize", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("size", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("size", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("usize", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt64Ty(Context);
 #endif
-	uintptr_type = type_table.get_full("usize");
-	type_table.add("real", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
+	uintptr_type = lex.module->type_table.get_full("usize");
+	lex.module->type_table.add("real", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 #endif
-	type_table.add("void", llvm::Type::getVoidTy(Context), nullptr);
+	lex.module->type_table.add("void", llvm::Type::getVoidTy(Context), nullptr);
 	// TODO: make .add() return FullType*
-	void_type = type_table.get_full("void");
+	void_type = lex.module->type_table.get_full("void");
 	llvm_bool_type = llvm::Type::getInt1Ty(Context);
-	type_table.add("bool", llvm::Type::getInt1Ty(Context), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
-	type_table.add("i8", llvm::Type::getInt8Ty(Context), DBuilder ? DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("i16", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("i16", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("i32", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("i32", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("i64", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("i64", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	type_table.add("u8", llvm::Type::getInt8Ty(Context), DBuilder ? DBuilder->createBasicType("u8", 8, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	type_table.add("u16", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("u16", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	type_table.add("u32", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("u32", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	type_table.add("u64", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("u64", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	type_table.add("f16", llvm::Type::getBFloatTy(Context), DBuilder ? DBuilder->createBasicType("f16", 16, llvm::dwarf::DW_ATE_float) : nullptr);
-	type_table.add("f32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("f32", 32, llvm::dwarf::DW_ATE_float) : nullptr);
-	type_table.add("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
-	type_table.add("string", llvm::Type::getInt8PtrTy(Context),
+	lex.module->type_table.add("bool", llvm::Type::getInt1Ty(Context), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
+	lex.module->type_table.add("i8", llvm::Type::getInt8Ty(Context), DBuilder ? DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("i16", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("i16", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("i32", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("i32", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("i64", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("i64", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.module->type_table.add("u8", llvm::Type::getInt8Ty(Context), DBuilder ? DBuilder->createBasicType("u8", 8, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("u16", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("u16", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("u32", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("u32", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("u64", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("u64", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.module->type_table.add("f16", llvm::Type::getBFloatTy(Context), DBuilder ? DBuilder->createBasicType("f16", 16, llvm::dwarf::DW_ATE_float) : nullptr);
+	lex.module->type_table.add("f32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("f32", 32, llvm::dwarf::DW_ATE_float) : nullptr);
+	lex.module->type_table.add("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
+	lex.module->type_table.add("string", llvm::Type::getInt8PtrTy(Context),
 	               DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "string") : nullptr);
 	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
 }
@@ -211,7 +206,7 @@ static void HandleExtern(unsigned visibility) {
 					FnIR->print(errs());
 					errs() << "\n";
 				}
-				FunctionProtos[unmangledName].push_back(std::move(ProtoAST));
+				lex.module->FunctionProtos[unmangledName].push_back(std::move(ProtoAST));
 			} else {
 				errs() << "Error reading extern\n";
 			}
@@ -240,7 +235,7 @@ static void HandleTypeDef(unsigned share_kind) {
 		purgeLine();
 		return;
 	}
-	type_table.add(type_name.c_str(), ft);
+	lex.module->type_table.add(type_name.c_str(), ft);
 }
 
 static void HandleImport() {
@@ -343,7 +338,7 @@ static void HandleTopLevelExpression() {
 }
 
 std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return = false, const char* ret_type = "i32") {
-	volvoxc::FullType* TheType = type_table.get_full(ret_type);
+	volvoxc::FullType* TheType = lex.module->type_table.get_full(ret_type);
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
 	                                            std::vector<std::string>(),
 	                                            A_c_api, CurLoc, false, TheType);
@@ -351,7 +346,7 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
-	FunctionProtos[unmangledName].push_back(std::move(Proto));
+	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
 	auto main_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return, std::move(unmangledName));
 	return main_function;
 }
@@ -372,13 +367,13 @@ void PrepareTestFramework() {
 
 void CallTestFunction() {
 	std::string showres = "showtestres";
-	auto show_res_fn = FunctionProtos.find(showres);
-	if (show_res_fn == FunctionProtos.end() || !show_res_fn->second.size()) {
+	auto show_res_fn = lex.module->FunctionProtos.find(showres);
+	if (show_res_fn == lex.module->FunctionProtos.end() || !show_res_fn->second.size()) {
 		errs() << "Cannot find function to display test results: '" << showres << "()'\n";
 		return;
 	}
-	auto F = FunctionProtos.find(TestFunction);
-	if (F != FunctionProtos.end() && F->second.size()) {
+	auto F = lex.module->FunctionProtos.find(TestFunction);
+	if (F != lex.module->FunctionProtos.end() && F->second.size()) {
 		GlobalExprList.push_back(
 			std::make_unique<BinaryExprAST>(
 				CurLoc, "=",

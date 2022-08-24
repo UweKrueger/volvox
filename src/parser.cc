@@ -253,7 +253,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		}
 		getNextToken(expect);
 	}
-	auto type = type_table.get_full(IdentifierStr.c_str());
+	auto type = lex.module->type_table.get_full(IdentifierStr.c_str());
 	if (!type) {
 		errs() << "Unknown type '" << IdentifierStr << "'\n";
 		return nullptr;
@@ -307,8 +307,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 
 	getNextToken(eBinOp); // eat identifier.
 	// first try to find a function with this name
-	auto F = FunctionProtos.find(IdName);
-	if (F != FunctionProtos.end() && F->second.size()) {
+	auto F = lex.module->FunctionProtos.find(IdName);
+	if (F != lex.module->FunctionProtos.end() && F->second.size()) {
 		return std::make_unique<FunctionExprAST>(LitLoc, IdName, &F->second);
 	}
 	
@@ -1151,12 +1151,12 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned visibility) {
 			prompt_indent = 0;
 			return nullptr;
 		}
-		FunctionProtos[unmangledName].push_back(std::move(Proto));
+		lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
 		// 'unmangledName' will not outlive this function so to have a long-lived pointer to
 		// the unmangled function name we find the map key's address
-		TestFunction = FunctionProtos.find(unmangledName)->first.c_str();
+		TestFunction = lex.module->FunctionProtos.find(unmangledName)->first.c_str();
 	} else {
-		FunctionProtos[unmangledName].push_back(std::move(Proto));
+		lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
 	}
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList();
 	prompt_indent = 0;
@@ -1213,15 +1213,15 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			InitializeModuleAndPassManager();
 		}
 		// Make an anonymous proto.
-		volvoxc::FullType* TheType = type_table.get_full("bool");
+		volvoxc::FullType* TheType = lex.module->type_table.get_full("bool");
 		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 		                                            std::vector<std::string>(),
 		                                            A_c_api,
 		                                            FnLoc, false, TheType);
 		std::vector<std::unique_ptr<ExprAST>> ExprList;
 		if (last_shadow_restorer) {
-			auto restorer_proto = FunctionProtos.find(last_shadow_restorer);
-			if (restorer_proto == FunctionProtos.end() || !restorer_proto->second.size()) {
+			auto restorer_proto = lex.module->FunctionProtos.find(last_shadow_restorer);
+			if (restorer_proto == lex.module->FunctionProtos.end() || !restorer_proto->second.size()) {
 				errs() << "could not find restorer '" << last_shadow_restorer << "'\n";
 			} else {
 				auto restorer = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_restorer, &restorer_proto->second);
@@ -1234,8 +1234,8 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 		} else {
 			std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
-			auto println_proto = FunctionProtos.find(mangled_println);
-			if (println_proto == FunctionProtos.end() || !println_proto->second.size()) {
+			auto println_proto = lex.module->FunctionProtos.find(mangled_println);
+			if (println_proto == lex.module->FunctionProtos.end() || !println_proto->second.size()) {
 				errs() << "Fatal error: could not find 'println' function\n";
 				return nullptr;
 			}
@@ -1260,8 +1260,8 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 			ExprList.push_back(std::move(print_call));
 		}
 		if (last_shadow_saver) {
-			auto saver_proto = FunctionProtos.find(last_shadow_saver);
-			if (saver_proto == FunctionProtos.end() || !saver_proto->second.size()) {
+			auto saver_proto = lex.module->FunctionProtos.find(last_shadow_saver);
+			if (saver_proto == lex.module->FunctionProtos.end() || !saver_proto->second.size()) {
 				errs() << "could not find saver '" << last_shadow_saver << "\n";
 			} else {
 				auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, &saver_proto->second);
@@ -1272,7 +1272,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
 		}
 		auto ProtoRef = Proto.get();
 		std::string unmangledName = Proto->getName();
-		FunctionProtos[unmangledName].push_back(std::move(Proto));
+		lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
 		return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName));
 	}
 	return nullptr;

@@ -41,10 +41,10 @@ static llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, st
 	llvm::SmallVector<llvm::Metadata *, 8> EltTys;
 
 	// Add the result type.
-	EltTys.push_back(type_table.get_diType(RetType->type, RetType->type_attr & A_signed));
+	EltTys.push_back(lex.module->type_table.get_diType(RetType->type, RetType->type_attr & A_signed));
 	auto NumArgs = ArgTypes.size();
 	for (unsigned i = 0; i < NumArgs; i++)
-		EltTys.push_back(type_table.get_diType(ArgTypes[i]->type, ArgTypes[i]->type_attr & A_signed));
+		EltTys.push_back(lex.module->type_table.get_diType(ArgTypes[i]->type, ArgTypes[i]->type_attr & A_signed));
 
 	return DBuilder->createSubroutineType(DBuilder->getOrCreateTypeArray(EltTys));
 }
@@ -57,11 +57,11 @@ static llvm::DISubprogram *SP;
 static llvm::DIFile *Unit;
 
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes) {
-	auto FI = FunctionProtos.find(unmangledName);
-	if (FI == FunctionProtos.end() || !FI->second.size())
+	auto FI = lex.module->FunctionProtos.find(unmangledName);
+	if (FI == lex.module->FunctionProtos.end() || !FI->second.size())
 		return { nullptr, nullptr };
 	// else
-	// 	for (auto FF = FI; FF != FunctionProtos.end(); ++FF)
+	// 	for (auto FF = FI; FF != lex.module->FunctionProtos.end(); ++FF)
 	// 		errs() << "Function " << FF->second->Name << '\n';
 	// See if the function has already been added to the current module.
 	// TODO: find matching overloaded prototype (instead of "0")
@@ -854,7 +854,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				DBuilder->createGlobalVariableExpression(
-					SP, varname, varname, Unit, expr->Loc.Line, type_table.get_diType(type, is_signed), false);
+					SP, varname, varname, Unit, expr->Loc.Line, lex.module->type_table.get_diType(type, is_signed), false);
 			}
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
@@ -867,7 +867,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 				.storage_type = initializer->getType(),
 				.ft = ft,
 			};
-			globals_table.insert(varname, fv);
+			lex.module->globals_table.insert(varname, fv);
 			if (comp_mode == comp_jit && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
@@ -939,7 +939,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 #endif
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 				last_shadow_saver = saverProto->Name.c_str();
-				FunctionProtos[saver].push_back(std::move(saverProto));
+				lex.module->FunctionProtos[saver].push_back(std::move(saverProto));
 
 				llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
 				BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
@@ -967,7 +967,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 #endif
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
-				FunctionProtos[restorer].push_back(std::move(restorerProto));
+				lex.module->FunctionProtos[restorer].push_back(std::move(restorerProto));
 			}
 		} else {
 			goto nonconst;
@@ -1161,7 +1161,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				if (comp_mode == comp_dbg) {
 					// Create a debug descriptor for the variable.
 					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-						SP, varname, Unit, LHS->Loc.Line, type_table.get_diType(type, is_signed),
+						SP, varname, Unit, LHS->Loc.Line, lex.module->type_table.get_diType(type, is_signed),
 						true);
 					
 					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
@@ -2195,7 +2195,7 @@ llvm::Function *PrototypeAST::codegen() {
 }
 
 llvm::Function *FunctionAST::codegen() {
-	// Transfer ownership of the prototype to the FunctionProtos map, but keep a
+	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
 	auto CalleeF = getFunction(unmangledName, &P.ArgTypes);
@@ -2262,7 +2262,7 @@ llvm::Function *FunctionAST::codegen() {
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
-				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, type_table.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
+				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, lex.module->type_table.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
 				true);
 			DBuilder->insertDeclare(mapitem->val, D, DBuilder->createExpression(),
 			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),

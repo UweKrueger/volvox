@@ -72,47 +72,6 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
-/// PrototypeAST - This class represents the "prototype" for a function,
-/// which captures its name, and its argument names (thus implicitly the number
-/// of arguments the function takes), as well as if it is an operator.
-class PrototypeAST {
-
-public:
-	std::vector<std::string> Args;
-	std::vector<volvoxc::FullType*> ArgTypes = {};
-	std::vector<llvm::Type*> LLVMArgTypes = {}; // to get LLVM function type
-	std::vector<llvm::AttributeSet> ArgAttrs = {};
-	std::vector<SourceLocation> ArgPos;
-	volvoxc::FullType* RetType;
-	SourceLocation retLoc;
-	llvm::FunctionType* FT;
-	bool IsVarArgs;
-	bool IsOperator;
-	bool IsMethod = false;
-	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
-	unsigned visibility;
-	llvm::GlobalValue::LinkageTypes link_type;
-	int Line;
-	std::string Name;
-	PrototypeAST(SourceLocation Loc, const std::string &Name,
-	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
-	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
-	             std::vector<volvoxc::FullType*> ArgTypes = {},
-	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);
-	llvm::Function *codegen();
-	const std::string &getName() const { return Name; }
-
-	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
-	bool isBinaryOp() const { return IsOperator && Args.size() == 2; }
-
-	char getOperatorName() const {
-		assert(isUnaryOp() || isBinaryOp());
-		return Name[Name.size() - 1];
-	}
-
-	int getLine() const { return Line; }
-};
-
 inline bool is_cfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
 	return Proto && (*Proto).size() == 1 && ((*Proto)[0]->getName().c_str()[0] != '_' || (*Proto)[0]->getName().c_str()[1] != 'Z');
 }
