@@ -426,8 +426,10 @@ public:
 		};
 		key = _key;
 		auto it = key32_table.find(key);
+		if (it == key32_table.end())
+			return nullptr;
 		bool is_signed = (int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed);
-		return new_FullType(it == key32_table.end() ? nullptr : it->second, is_signed ? A_signed : 0);
+		return new_FullType(it->second, is_signed ? A_signed : 0);
 	}
 	const char* get_name(llvm::Type* type) {
 		if (!type) return nullptr;
@@ -698,7 +700,7 @@ public:
 		: SourceLocState(SourceLocation{ _input_file_name, 0, 0 }, 0, _bufsize,
 		                 _bufsize ? nullptr : (char*)malloc(_bufsize), _inputfd), CurChar(' ')
 		{
-			std::string patterntail = "*.vx";
+			std::string patterntail = "builtin.vx";
 			std::vector<std::string> _import_path = {};
 			auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 			if (new_module.second) {
@@ -716,19 +718,51 @@ public:
 	char peek_strict();
 	char look_back_strict();
 	bool next_input_file();
-	void push_state(std::vector<std::string> _import_path);
+	bool push_state(std::vector<std::string> _import_path);
 	void pop_state();
 	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
 	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }
 	unsigned add_type(const char* name, volvoxc::FullType* ft) { return module->type_table.add(name, ft); }
 	unsigned add_type(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr)
 		{ return module->type_table.add(name, type, ditype, type_attr, fields); }
-	llvm::Type* get_type(const char* name) { return module->type_table.get(name); }
-	bool is_signed_type(const char* name) { return module->type_table.is_signed(name); }
-	volvoxc::FullType* get_full_type(const char* name) { return module->type_table.get_full(name); }
-	volvoxc::FullType* get_full_type(unsigned _key) { return module->type_table.get_full(_key); }
-	const char* get_type_name(llvm::Type* type) { return module->type_table.get_name(type); }
-	const char* get_type_name(llvm::Type* type, bool is_signed) { return module->type_table.get_name(type, is_signed); }
+	/* the 'lookup' methods must search in both the current namespace
+	   and the 'builtin' namespace aka 'source_stack.front()' */
+	llvm::Type* get_type(const char* name) {
+		auto t = module->type_table.get(name);
+		if (!t && source_stack.size())
+			t = source_stack.front().module->type_table.get(name);
+		return t;
+	}
+	bool is_signed_type(const char* name) {
+		if (source_stack.size())
+			return source_stack.front().module->type_table.is_signed(name);
+		else
+			return module->type_table.is_signed(name);
+	}
+	volvoxc::FullType* get_full_type(const char* name) {
+		auto ft = module->type_table.get_full(name);
+		if (!ft && source_stack.size())
+			ft = source_stack.front().module->type_table.get_full(name);
+		return ft;
+	}
+	volvoxc::FullType* get_full_type(unsigned _key) {
+		auto ft = module->type_table.get_full(_key);
+		if (!ft && source_stack.size())
+			ft = source_stack.front().module->type_table.get_full(_key);
+		return ft;
+	}
+	const char* get_type_name(llvm::Type* type) {
+		auto name = module->type_table.get_name(type);
+		if (!name && source_stack.size())
+			name = source_stack.front().module->type_table.get_name(type);
+		return name;
+	}
+	const char* get_type_name(llvm::Type* type, bool is_signed) {
+		auto name = module->type_table.get_name(type, is_signed);
+		if (!name && source_stack.size())
+			name = source_stack.front().module->type_table.get_name(type, is_signed);
+		return name;
+	}
 	int CurChar = '\0';
 	// c can be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {
@@ -779,6 +813,8 @@ public:
 	        bool is_unknown_type = false)
 		: ft(lex.get_full_type(key)), Loc(Loc), is_unknown_type(is_unknown_type)
 		{
+			errs() << "got full type: ";
+			errs() << *ft->type << '\n';
 			// abort(); - find out where this is used
 			ft->type_attr |= add_attr;
 		}
@@ -839,3 +875,4 @@ extern volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type
 extern std::vector<std::vector<std::string>> source_files;
 extern std::vector<int> source_index;
 extern bool jit_repl;
+extern int builtin_input_fd;

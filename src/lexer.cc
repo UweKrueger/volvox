@@ -130,7 +130,7 @@ static std::string KeepIdentifierStr = "";
 
 /* pause the current lexer context and create a new one based on the given
    import path */
-void Lexer::push_state(std::vector<std::string> _import_path) {
+bool Lexer::push_state(std::vector<std::string> _import_path) {
 	std::string patterntail = "";
 	for (int j=0; j < _import_path.size(); j++) {
 		patterntail += _import_path[j];
@@ -144,16 +144,18 @@ void Lexer::push_state(std::vector<std::string> _import_path) {
 		module = &new_module.first->second;
 		linelen = 0;
 		linebuf = (char*)malloc(bufsize);
-		use_readline = false;
-		source_files.push_back({});
-		volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
-		for (int n = 0; n < module_source_files.size; n++)
-			source_files.back().emplace_back(module_source_files.dirs[n]);
-		volvox_free_glob(&module_source_files);
-		next_input_file();
+		if (module->import_path.size()) {
+			source_files.push_back({});
+			volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
+			for (int n = 0; n < module_source_files.size; n++)
+				source_files.back().emplace_back(module_source_files.dirs[n]);
+			volvox_free_glob(&module_source_files);
+		}
+		return next_input_file();
 	} else {
 		if (verbosity >= 2)
 			errs() << "skipping import of " << patterntail << " - already processed\n";
+		return true;
 	}
 }
 
@@ -175,8 +177,15 @@ void Lexer::pop_state() {
 }
 
 bool Lexer::next_input_file() {
-	if (input_fd > 0)
-		close(input_fd);
+	if (input_fd > 0) {
+		if (input_fd == builtin_input_fd) {
+			builtin_input_fd = -1;
+			errs() << "pushing builtin state\n";
+			return push_state({});
+		} else {
+			close(input_fd);
+		}
+	}
 	if (source_index.back() < source_files.back().size()) {
 		Loc.File = source_files.back()[source_index.back()++].c_str();
 		input_fd = open(Loc.File, O_CLOEXEC);
@@ -184,7 +193,7 @@ bool Lexer::next_input_file() {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
 			exit(1);
 		}
-	} else if (!source_stack.empty()) {
+	} else if (source_stack.size() > 1) {
 		pop_state();
 		return true;
 	} else if ((jit_repl || !source_index.back()) && input_fd != 0) {
