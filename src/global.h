@@ -796,8 +796,13 @@ public:
 		if (FI == module->FunctionProtos.end() || !FI->second.size()) {
 			if (source_stack.size()) {
 				FI = source_stack.front().module->FunctionProtos.find(unmangledName);
-				if (FI == source_stack.front().module->FunctionProtos.end() || !FI->second.size())
+				if (FI == source_stack.front().module->FunctionProtos.end() || !FI->second.size()) {
+					auto im = module->ImportedSymbols.find({ "", unmangledName});
+					if (im != module->ImportedSymbols.end()) {
+						return im->second.getProtos();
+					}
 					return nullptr;
+				}
 			} else {
 				return nullptr;
 			}
