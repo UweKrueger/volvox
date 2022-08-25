@@ -75,7 +75,8 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    *n = strlen(*lineptr);
 			    if (*n)
 				    add_history(*lineptr);
-			    return *n;
+			    (*n)++;
+			    return *n - 1;
 		    }
 		    c = 0;
 		    int m = read(lex.input_fd, &c, 1);
@@ -196,7 +197,7 @@ void Lexer::pop_state() {
 		abort();
 	}
 	Module* processed_module = module;
-	// free(linebuf);
+	free(linebuf);
 	Loc = source_stack.back().Loc;
 	module = source_stack.back().module;
 	linelen = source_stack.back().linelen;

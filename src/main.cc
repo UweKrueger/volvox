@@ -279,7 +279,7 @@ static void HandleImport() {
 			getNextToken(eBinOp);
 			if (CurTok.kind != tok_comma)
 				break;
-			getNextToken(eBinOp);
+			getNextToken(ePath);
 		}
 	} else {
 		prefix = new_import_path.back();
