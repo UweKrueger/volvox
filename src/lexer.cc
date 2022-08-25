@@ -143,6 +143,8 @@ bool Lexer::push_state(std::vector<std::string> _import_path) {
 		module = &new_module.first->second;
 		linelen = 0;
 		linebuf = (char*)malloc(bufsize);
+		if (input_fd != builtin_input_fd)
+			use_readline = false;
 		if (module->import_path.size()) {
 			source_files.push_back({});
 			volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
