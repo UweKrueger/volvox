@@ -936,7 +936,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 #endif
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 				last_shadow_saver = saverProto->Name.c_str();
-				lex.module->FunctionProtos[saver].push_back(std::move(saverProto));
+				// savers/restorers must be always accessible so force them into builtin namespace
+				Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
+				module->FunctionProtos[saver].push_back(std::move(saverProto));
 
 				llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
 				BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
@@ -964,7 +966,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 #endif
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
-				lex.module->FunctionProtos[restorer].push_back(std::move(restorerProto));
+				module->FunctionProtos[restorer].push_back(std::move(restorerProto));
 			}
 		} else {
 			goto nonconst;
