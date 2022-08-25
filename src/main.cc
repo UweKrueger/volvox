@@ -367,19 +367,19 @@ void PrepareTestFramework() {
 
 void CallTestFunction() {
 	std::string showres = "showtestres";
-	auto show_res_fn = lex.module->FunctionProtos.find(showres);
-	if (show_res_fn == lex.module->FunctionProtos.end() || !show_res_fn->second.size()) {
+	auto show_res_fn = lex.findProtos(showres);
+	if (!show_res_fn) {
 		errs() << "Cannot find function to display test results: '" << showres << "()'\n";
 		return;
 	}
-	auto F = lex.module->FunctionProtos.find(TestFunction);
-	if (F != lex.module->FunctionProtos.end() && F->second.size()) {
+	auto F = lex.findProtos(TestFunction);
+	if (F) {
 		GlobalExprList.push_back(
 			std::make_unique<BinaryExprAST>(
 				CurLoc, "=",
 				std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 				std::move(std::make_unique<CallExprAST>(
-					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, &F->second)))));
+					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F)))));
 		std::vector<std::unique_ptr<ExprAST>> Args;
 		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
@@ -387,7 +387,7 @@ void CallTestFunction() {
 		Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
 		GlobalExprList.push_back(
 			std::move(std::make_unique<CallExprAST>(
-				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, &show_res_fn->second),
+				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn),
 				          std::move(Args))));
 		GlobalExprList.push_back(
 			std::make_unique<BinaryExprAST>(

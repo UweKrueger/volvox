@@ -137,7 +137,6 @@ bool Lexer::push_state(std::vector<std::string> _import_path) {
 		patterntail += PATHDIRSEP;
 	}
 	patterntail += "*.vx";
-	errs() << "Import pattern: " << patterntail << '\n';
 	source_stack.emplace_back(this);
 	auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 	if (new_module.second) {
@@ -180,7 +179,6 @@ bool Lexer::next_input_file() {
 	if (input_fd > 0) {
 		if (input_fd == builtin_input_fd) {
 			builtin_input_fd = -1;
-			errs() << "pushing builtin state\n";
 			return push_state({});
 		} else {
 			close(input_fd);

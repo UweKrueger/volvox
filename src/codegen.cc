@@ -57,22 +57,19 @@ static llvm::DISubprogram *SP;
 static llvm::DIFile *Unit;
 
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes) {
-	auto FI = lex.module->FunctionProtos.find(unmangledName);
-	if (FI == lex.module->FunctionProtos.end() || !FI->second.size())
+	auto FI = lex.findProtos(unmangledName);
+	if (!FI)
 		return { nullptr, nullptr };
-	// else
-	// 	for (auto FF = FI; FF != lex.module->FunctionProtos.end(); ++FF)
-	// 		errs() << "Function " << FF->second->Name << '\n';
 	// See if the function has already been added to the current module.
-	// TODO: find matching overloaded prototype (instead of "0")
+	// TODO: find index of matching overloaded prototype (instead of "0")
 	int matching_idx = 0;
-	if (auto F = TheModule->getFunction(FI->second[matching_idx]->Name)) {
-		return { F, FI->second[matching_idx].get() };
+	if (auto F = TheModule->getFunction((*FI)[matching_idx]->Name)) {
+		return { F, (*FI)[matching_idx].get() };
 	}
 	
 	// codegen the declaration from the existing prototype.
-	auto F = FI->second[matching_idx]->codegen();
-	return { F, FI->second[matching_idx].get() };
+	auto F = (*FI)[matching_idx]->codegen();
+	return { F, (*FI)[matching_idx].get() };
 }
 
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of

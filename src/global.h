@@ -763,6 +763,19 @@ public:
 			name = source_stack.front().module->type_table.get_name(type, is_signed);
 		return name;
 	}
+	std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& unmangledName) {
+		auto FI = module->FunctionProtos.find(unmangledName);
+		if (FI == module->FunctionProtos.end() || !FI->second.size()) {
+			if (source_stack.size()) {
+				FI = source_stack.front().module->FunctionProtos.find(unmangledName);
+				if (FI == source_stack.front().module->FunctionProtos.end() || !FI->second.size())
+					return nullptr;
+			} else {
+				return nullptr;
+			}
+		}
+		return &FI->second;
+	}
 	int CurChar = '\0';
 	// c can be the last char of an expression so the following "[n]" is an index
 	static bool is_expr_end(int c) {
@@ -813,9 +826,6 @@ public:
 	        bool is_unknown_type = false)
 		: ft(lex.get_full_type(key)), Loc(Loc), is_unknown_type(is_unknown_type)
 		{
-			errs() << "got full type: ";
-			errs() << *ft->type << '\n';
-			// abort(); - find out where this is used
 			ft->type_attr |= add_attr;
 		}
 	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
