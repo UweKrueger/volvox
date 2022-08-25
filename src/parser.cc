@@ -297,6 +297,12 @@ static std::unique_ptr<ExprAST> ParseParenExpr() {
 	return V;
 }
 
+static std::unique_ptr<ExprAST> ParseIdent() {
+	std::string Id = IdentifierStr;
+	SourceLocation IdLoc = CurLoc;
+	return std::make_unique<IdentExprAST>(IdLoc, std::move(IdentifierStr));
+}
+
 /// identifierexpr
 ///   ::= identifier
 ///   ::= identifier '(' expression* ')'
@@ -873,8 +879,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto BinKind = CurTok.kind;
 		getNextToken(); // eat binop
 		bool is_index = BinKind == tok_selector && CurTok.kind == '[';
+		bool is_dotselect = BinKind == tok_selector && BinOp == ".";
 		// Parse the unary expression after the binary operator.
-		auto RHS = is_index ? ParseAggregateExpr(true) : ParseUnary();
+		auto RHS = is_index ? ParseAggregateExpr(true)
+			: is_dotselect ? ParseIdent() : ParseUnary();
 		if (!RHS)
 			return nullptr;
 
@@ -920,6 +928,17 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		} else if (is_index) {
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
 			continue;
+		} else if (is_dotselect) {
+			errs() << "Handling dotsel\n";
+			if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
+				auto ident = dynamic_cast<IdentExprAST*>(RHS.get());
+				if (auto protos = lex.findProtos(mod->Name, ident->Name))
+					LHS = std::make_unique<FunctionExprAST>(mod->Loc, mod->Name + "." + ident->Name, protos);
+				else {
+					errs() << "cannot evaluate '" << mod->Name << '.' << ident->Name << '\n';
+					return nullptr;
+				}
+			}
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
 		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr,

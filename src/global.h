@@ -799,7 +799,7 @@ public:
 		return name;
 	}
 	std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& prefix, const std::string& unmangledName) {
-		auto im = module->ImportedSymbols.find({ "", unmangledName});
+		auto im = module->ImportedSymbols.find({ prefix, unmangledName});
 		if (im != module->ImportedSymbols.end()) {
 			return im->second.getProtos();
 		}

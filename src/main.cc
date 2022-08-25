@@ -252,8 +252,9 @@ static void HandleImport() {
 		getNextToken(ePath);
 	} while (CurTok.kind == tok_selector);
 	// TODO: handle  'as', 'from'
+	std::string prefix = new_import_path.back();
 	if (CurTok.kind == ';') {
-		lex.push_state(std::move(new_import_path), "", {});
+		lex.push_state(std::move(new_import_path), prefix, {});
 		getNextToken();
 	} else {
 		errs() << "unexpected identifier\n";

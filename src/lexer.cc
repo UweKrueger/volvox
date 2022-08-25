@@ -170,8 +170,9 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 }
 
 void Lexer::import_from_module(Module* import_module) {
-	if (!fromlist.size())
+	if (!fromlist.size()) {
 		module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix
+	}
 	for (auto& unmangled_protos: import_module->FunctionProtos) {
 		for (auto& proto: unmangled_protos.second) {
 			if (proto->visibility & A_pub) {
@@ -204,6 +205,8 @@ void Lexer::pop_state() {
 	linebuf = source_stack.back().linebuf;
 	input_fd = source_stack.back().input_fd;
 	use_readline = source_stack.back().use_readline;
+	as = std::move(source_stack.back().as);
+	fromlist = std::move(source_stack.back().fromlist);
 	source_stack.pop_back();
 	source_files.pop_back();
 	import_from_module(processed_module);

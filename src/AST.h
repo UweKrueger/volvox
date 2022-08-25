@@ -37,10 +37,17 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return nullptr; }
 };
 
+class IdentExprAST : public ExprAST {
+public:
+	std::string Name;
+	IdentExprAST(SourceLocation Loc, std::string _Name) : ExprAST(Loc), Name(std::move(_Name)) {}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return nullptr; }
+};
+
 class ModuleExprAST : public ExprAST {
 public:
-	std::string mod;
-	ModuleExprAST(SourceLocation Loc, std::string _mod) : ExprAST(Loc), mod(std::move(_mod)) {}
+	std::string Name;
+	ModuleExprAST(SourceLocation Loc, std::string _Name) : ExprAST(Loc), Name(std::move(_Name)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return nullptr; }
 };
 
