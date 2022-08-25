@@ -693,8 +693,8 @@ struct SourceLocState {
 };
 
 class Lexer : public SourceLocState {
-	std::vector<SourceLocState> source_stack = {};
 public:
+	std::vector<SourceLocState> source_stack = {};
 	Lexer() = default;
 	Lexer(int* _inputfd, const char* _input_file_name, size_t _bufsize = 100)
 		: SourceLocState(SourceLocation{ _input_file_name, 0, 0 }, 0, _bufsize,
@@ -793,12 +793,16 @@ extern Lexer lex;
 
 // look up var and return if it's global
 inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
+	FullVar* full_var;
 	for (int i = locals_table.size() - 1; i >= 0; i--) {
-		FullVar* full_var = locals_table[i][Name];
+		full_var = locals_table[i][Name];
 		if (full_var)
 			return { full_var, false };
 	}
-	return { lex.module->globals_table[Name], true };
+	full_var = lex.module->globals_table[Name];
+	if (!full_var && lex.source_stack.size())
+		full_var = lex.source_stack.front().module->globals_table[Name];
+	return { full_var, true };
 }
 
 /// ExprAST - Base class for all expression nodes.
