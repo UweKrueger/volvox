@@ -284,6 +284,7 @@ enum eXpect {
 	eType
 };
 
+extern bool Expect(int tok, eXpect expect = eNone);
 extern volvoxc::FullType* ParseType(
 	bool allow_attribute = false, eXpect expect = eComma,
 	const char* tname = nullptr,

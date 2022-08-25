@@ -196,7 +196,7 @@ void Lexer::pop_state() {
 		abort();
 	}
 	Module* processed_module = module;
-	free(linebuf);
+	// free(linebuf);
 	Loc = source_stack.back().Loc;
 	module = source_stack.back().module;
 	linelen = source_stack.back().linelen;
@@ -524,6 +524,16 @@ Token Lexer::gettok(eXpect expect) {
 			return ';';
 		default:
 			errs() << "Internal lexer error\n";
+		}
+	case '*':
+		switch (expect) {
+		case ePath:
+			IdentifierStr = CurChar;
+			CurChar = advance();
+			return tok_star;
+		default:
+			errs() << "Invalid '*' in context\n";
+			CurChar = advance();
 		}
 	case '"': {
 		std::string StrLit = "";

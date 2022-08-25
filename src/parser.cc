@@ -34,7 +34,7 @@ static inline int NextTokPrecedence() {
 	return prec;
 }
 
-static bool Expect(int tok, eXpect expect = eNone) {
+bool Expect(int tok, eXpect expect) {
 	bool res = CurTok.kind == tok;
 	if (res) {
 		getNextToken(expect);

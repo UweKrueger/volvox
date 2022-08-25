@@ -41,6 +41,7 @@ TOKEN(str_lit) \
 TOKEN(number) \
 TOKEN(identifier) \
 TOKEN(ellipsis) \
+TOKEN(star) /* '*' in import list */ \
 TOKEN(end) /* '.' at end of if/while/else branch */ \
 TOKEN(eof) \
 TOKEN(last_op) /* only used for comparisons to identify operators */ \

@@ -251,13 +251,44 @@ static void HandleImport() {
 		new_import_path.push_back(IdentifierStr);
 		getNextToken(ePath);
 	} while (CurTok.kind == tok_selector);
-	// TODO: handle  'as', 'from'
-	std::string prefix = new_import_path.back();
+	std::string prefix = "";
+	std::set<std::string> direct_import_list = {};
+	if (from) {
+		if (!Expect(tok_import, ePath)) {
+			purgeLine();
+			return;
+		}
+		for(;;) {
+			if (CurTok.kind == tok_star) {
+				if (direct_import_list.empty()) {
+					prefix = "";
+					getNextToken(eBinOp);
+					break;
+				} else {
+					errs() << CurLoc << "'*' in import list must be the only element\n";
+					purgeLine();
+					return;
+				}
+			}
+			if (CurTok.kind != tok_identifier) {
+				errs() << "unexpected token in import list " << CurTok.kind << '\n';
+				purgeLine();
+				return;
+			}
+			direct_import_list.emplace(std::move(IdentifierStr));
+			getNextToken(eBinOp);
+			if (CurTok.kind != tok_comma)
+				break;
+			getNextToken(eBinOp);
+		}
+	} else {
+		prefix = new_import_path.back();
+	}
 	if (CurTok.kind == ';') {
-		lex.push_state(std::move(new_import_path), prefix, {});
+		lex.push_state(std::move(new_import_path), std::move(prefix), std::move(direct_import_list));
 		getNextToken();
 	} else {
-		errs() << "unexpected identifier\n";
+		errs() << "unexpected identifier " << CurTok << "\n";
 		purgeLine();
 	}
 }
