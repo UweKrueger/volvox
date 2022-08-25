@@ -130,16 +130,18 @@ static std::string KeepIdentifierStr = "";
 
 /* pause the current lexer context and create a new one based on the given
    import path */
-bool Lexer::push_state(std::vector<std::string> _import_path, std::string as, std::set<std::string> fromlist) {
+bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, std::set<std::string> _fromlist) {
 	std::string patterntail = "";
 	for (int j=0; j < _import_path.size(); j++) {
 		patterntail += _import_path[j];
 		patterntail += PATHDIRSEP;
 	}
 	patterntail += "*.vx";
-	source_stack.emplace_back(this);
+	as = std::move(_as);
+	fromlist = std::move(_fromlist);
 	auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 	if (new_module.second) {
+		source_stack.emplace_back(this);
 		module = &new_module.first->second;
 		linelen = 0;
 		linebuf = (char*)malloc(bufsize);
@@ -162,25 +164,29 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string as, st
 			abort();
 		}
 		Module* import_module = &previously_processed_module->second;
-		if (!fromlist.size())
-			module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix 
-		for (auto& unmangled_protos: import_module->FunctionProtos) {
-			for (auto& proto: unmangled_protos.second) {
-				if (proto->visibility & A_pub) {
-					std::string new_key = (as == "" || fromlist.contains(unmangled_protos.first)) ?
-						unmangled_protos.first : (as + '.' + unmangled_protos.first);
-					errs() << "importing " << proto->Name << " as " << new_key << '\n';
-					std::string nilprefix = "";
-					std::string& realprefix = fromlist.contains(unmangled_protos.first) ? nilprefix : as;
-					auto success = module->ImportedSymbols.try_emplace({ realprefix, unmangled_protos.first }, &unmangled_protos.second);
-					if (!success.second) {
-						errs() << CurLoc << "cannot import '" << realprefix << (realprefix.size() ? "." : "")
-						       << "()' - symbol aleady in use\n";
-					}
+		import_from_module(import_module);
+		return true;
+	}
+}
+
+void Lexer::import_from_module(Module* import_module) {
+	if (!fromlist.size())
+		module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix
+	for (auto& unmangled_protos: import_module->FunctionProtos) {
+		for (auto& proto: unmangled_protos.second) {
+			if (proto->visibility & A_pub) {
+				std::string new_key = (as == "" || fromlist.contains(unmangled_protos.first)) ?
+					unmangled_protos.first : (as + '.' + unmangled_protos.first);
+				errs() << "importing " << proto->Name << " as " << new_key << '\n';
+				std::string nilprefix = "";
+				std::string& realprefix = fromlist.contains(unmangled_protos.first) ? nilprefix : as;
+				auto success = module->ImportedSymbols.try_emplace({ realprefix, unmangled_protos.first }, &unmangled_protos.second);
+				if (!success.second) {
+					errs() << CurLoc << "cannot import '" << realprefix << (realprefix.size() ? "." : "")
+					       << "()' - symbol aleady in use\n";
 				}
 			}
 		}
-		return true;
 	}
 }
 
@@ -189,6 +195,7 @@ void Lexer::pop_state() {
 		errs() << "internal error: source stack is empty\n";
 		abort();
 	}
+	Module* processed_module = module;
 	free(linebuf);
 	Loc = source_stack.back().Loc;
 	module = source_stack.back().module;
@@ -199,6 +206,7 @@ void Lexer::pop_state() {
 	use_readline = source_stack.back().use_readline;
 	source_stack.pop_back();
 	source_files.pop_back();
+	import_from_module(processed_module);
 }
 
 bool Lexer::next_input_file() {

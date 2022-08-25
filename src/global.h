@@ -706,11 +706,17 @@ struct SourceLocState {
 	char* linebuf = nullptr;
 	int input_fd = 0;
 	bool use_readline = false;
+	std::string as = "";
+	std::set<std::string> fromlist = {};
 	SourceLocState() = default;
 	SourceLocState(const SourceLocState& old) = default; // actually not used but must exist for Lexer::Lexer()
 	SourceLocState(SourceLocState* old):
 		Loc(old->Loc), module(old->module), linelen(old->linelen), linebuf(old->linebuf), input_fd(old->input_fd),
-		use_readline(old->use_readline) {}
+		use_readline(old->use_readline), as(std::move(old->as)), fromlist(std::move(old->fromlist))
+		{
+			old->as = "";
+			old->fromlist = {};
+		}
 	SourceLocState(SourceLocation Loc, ssize_t linelen, size_t bufsize, char* linebuf, int* _input_fd = nullptr, bool use_readline = false) :
 		Loc(Loc), linelen(linelen), bufsize(bufsize), linebuf(linebuf), input_fd(_input_fd ? *_input_fd : -1), use_readline(use_readline)
 		{
@@ -748,6 +754,7 @@ public:
 	bool next_input_file();
 	bool push_state(std::vector<std::string> _import_path, std::string as, std::set<std::string> fromlist);
 	void pop_state();
+	void import_from_module(Module* import_module);
 	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
 	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }
 	unsigned add_type(const char* name, volvoxc::FullType* ft) { return module->type_table.add(name, ft); }
