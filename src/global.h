@@ -791,18 +791,20 @@ public:
 			name = source_stack.front().module->type_table.get_name(type, is_signed);
 		return name;
 	}
+	std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& prefix, const std::string& unmangledName) {
+		auto im = module->ImportedSymbols.find({ "", unmangledName});
+		if (im != module->ImportedSymbols.end()) {
+			return im->second.getProtos();
+		}
+		return nullptr;
+	}
 	std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& unmangledName) {
 		auto FI = module->FunctionProtos.find(unmangledName);
 		if (FI == module->FunctionProtos.end() || !FI->second.size()) {
 			if (source_stack.size()) {
 				FI = source_stack.front().module->FunctionProtos.find(unmangledName);
-				if (FI == source_stack.front().module->FunctionProtos.end() || !FI->second.size()) {
-					auto im = module->ImportedSymbols.find({ "", unmangledName});
-					if (im != module->ImportedSymbols.end()) {
-						return im->second.getProtos();
-					}
-					return nullptr;
-				}
+				if (FI == source_stack.front().module->FunctionProtos.end() || !FI->second.size())
+					return findProtos("", unmangledName);
 			} else {
 				return nullptr;
 			}
