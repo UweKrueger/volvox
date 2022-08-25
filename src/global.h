@@ -531,6 +531,33 @@ public:
 	int getLine() const { return Line; }
 };
 
+enum SymbolKind : uint8_t {
+	SymbolType,
+	SymbolFunction,
+	SymbolVar,
+	ModulePrefix
+};
+
+// representation of imported symbols
+class SymbolRef {
+	union {
+		volvoxc::FullType* full_type;
+		FullVar* full_var;
+		std::vector<std::unique_ptr<PrototypeAST>>* protos;
+		std::nullptr_t module_prefix;
+	};
+	SymbolKind kind;
+public:
+	SymbolRef(volvoxc::FullType* _full_type) : full_type(_full_type), kind(SymbolType) {}
+	SymbolRef(FullVar* _full_var) : full_var(_full_var), kind(SymbolVar) {}
+	SymbolRef(std::vector<std::unique_ptr<PrototypeAST>>* _protos) : protos(_protos), kind(SymbolFunction) {}
+	SymbolRef() : module_prefix(nullptr), kind(ModulePrefix) {}
+	volvoxc::FullType* getFullType() { return (kind == SymbolType) ? full_type : nullptr; }
+	FullVar* getFullVar() { return (kind == SymbolVar) ? full_var : nullptr; }
+	std::vector<std::unique_ptr<PrototypeAST>>* getProtos() { return (kind == SymbolFunction) ? protos : nullptr; }
+	bool isPrefix() { return (kind == ModulePrefix); }
+};
+
 class Module {
 public:
 	Module(std::vector<std::string> _import_path) :
@@ -540,6 +567,7 @@ public:
 	TypeTable type_table;
 	std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
 	VarTable globals_table;
+	std::map<std::pair<std::string, std::string>, SymbolRef> ImportedSymbols;
 };
 
 extern std::map<std::string, Module> Modules;
@@ -718,7 +746,7 @@ public:
 	char peek_strict();
 	char look_back_strict();
 	bool next_input_file();
-	bool push_state(std::vector<std::string> _import_path);
+	bool push_state(std::vector<std::string> _import_path, std::string as, std::set<std::string> fromlist);
 	void pop_state();
 	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
 	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }

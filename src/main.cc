@@ -253,7 +253,7 @@ static void HandleImport() {
 	} while (CurTok.kind == tok_selector);
 	// TODO: handle  'as', 'from'
 	if (CurTok.kind == ';') {
-		lex.push_state(std::move(new_import_path));
+		lex.push_state(std::move(new_import_path), "", {});
 		getNextToken();
 	} else {
 		errs() << "unexpected identifier\n";

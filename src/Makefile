@@ -96,7 +96,7 @@ endif
 endif
 endif
 
-CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -std=c++17 -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
+CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -std=c++20 -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
 PRJH = ../include/volvox-$(LLVMVERSION).hh
 

@@ -130,7 +130,7 @@ static std::string KeepIdentifierStr = "";
 
 /* pause the current lexer context and create a new one based on the given
    import path */
-bool Lexer::push_state(std::vector<std::string> _import_path) {
+bool Lexer::push_state(std::vector<std::string> _import_path, std::string as, std::set<std::string> fromlist) {
 	std::string patterntail = "";
 	for (int j=0; j < _import_path.size(); j++) {
 		patterntail += _import_path[j];
@@ -156,6 +156,30 @@ bool Lexer::push_state(std::vector<std::string> _import_path) {
 	} else {
 		if (verbosity >= 2)
 			errs() << "skipping import of " << patterntail << " - already processed\n";
+		auto previously_processed_module = Modules.find(patterntail);
+		if (previously_processed_module == Modules.end()) {
+			errs() << "internal error\n";
+			abort();
+		}
+		Module* import_module = &previously_processed_module->second;
+		if (!fromlist.size())
+			module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix 
+		for (auto& unmangled_protos: import_module->FunctionProtos) {
+			for (auto& proto: unmangled_protos.second) {
+				if (proto->visibility & A_pub) {
+					std::string new_key = (as == "" || fromlist.contains(unmangled_protos.first)) ?
+						unmangled_protos.first : (as + '.' + unmangled_protos.first);
+					errs() << "importing " << proto->Name << " as " << new_key << '\n';
+					std::string nilprefix = "";
+					std::string& realprefix = fromlist.contains(unmangled_protos.first) ? nilprefix : as;
+					auto success = module->ImportedSymbols.try_emplace({ realprefix, unmangled_protos.first }, &unmangled_protos.second);
+					if (!success.second) {
+						errs() << CurLoc << "cannot import '" << realprefix << (realprefix.size() ? "." : "")
+						       << "()' - symbol aleady in use\n";
+					}
+				}
+			}
+		}
 		return true;
 	}
 }
@@ -181,7 +205,7 @@ bool Lexer::next_input_file() {
 	if (input_fd > 0) {
 		if (input_fd == builtin_input_fd) {
 			builtin_input_fd = -1;
-			return push_state({});
+			return push_state({}, "", {});
 		} else {
 			close(input_fd);
 		}
