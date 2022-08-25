@@ -291,8 +291,6 @@ extern volvoxc::FullType* ParseType(
 	bool is_index = false);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
-extern std::pair<llvm::Function*, PrototypeAST*> getFunction(
-	std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes);
 extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 extern void PrepareTestFramework();
 extern const char* TestFunction;

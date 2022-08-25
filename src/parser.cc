@@ -299,8 +299,9 @@ static std::unique_ptr<ExprAST> ParseParenExpr() {
 
 static std::unique_ptr<ExprAST> ParseIdent() {
 	std::string Id = IdentifierStr;
+	getNextToken(eBinOp); // eat identifier.
 	SourceLocation IdLoc = CurLoc;
-	return std::make_unique<IdentExprAST>(IdLoc, std::move(IdentifierStr));
+	return std::make_unique<IdentExprAST>(IdLoc, std::move(Id));
 }
 
 /// identifierexpr
@@ -929,12 +930,12 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
 			continue;
 		} else if (is_dotselect) {
-			errs() << "Handling dotsel\n";
 			if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
 				auto ident = dynamic_cast<IdentExprAST*>(RHS.get());
-				if (auto protos = lex.findProtos(mod->Name, ident->Name))
+				if (auto protos = lex.findProtos(mod->Name, ident->Name)) {
 					LHS = std::make_unique<FunctionExprAST>(mod->Loc, mod->Name + "." + ident->Name, protos);
-				else {
+					continue;
+				} else {
 					errs() << "cannot evaluate '" << mod->Name << '.' << ident->Name << '\n';
 					return nullptr;
 				}

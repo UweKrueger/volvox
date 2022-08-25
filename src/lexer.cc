@@ -178,7 +178,6 @@ void Lexer::import_from_module(Module* import_module) {
 			if (proto->visibility & A_pub) {
 				std::string new_key = (as == "" || fromlist.contains(unmangled_protos.first)) ?
 					unmangled_protos.first : (as + '.' + unmangled_protos.first);
-				errs() << "importing " << proto->Name << " as " << new_key << '\n';
 				std::string nilprefix = "";
 				std::string& realprefix = fromlist.contains(unmangled_protos.first) ? nilprefix : as;
 				auto success = module->ImportedSymbols.try_emplace({ realprefix, unmangled_protos.first }, &unmangled_protos.second);
