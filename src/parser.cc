@@ -311,7 +311,10 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	if (F) {
 		return std::make_unique<FunctionExprAST>(LitLoc, IdName, F);
 	}
-	
+	auto im = lex.module->ImportedSymbols.find({ IdName, "" });
+	if (im != lex.module->ImportedSymbols.end())
+		if (im->second.isPrefix())
+			return std::make_unique<ModuleExprAST>(LitLoc, std::move(IdName));
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
 }
 

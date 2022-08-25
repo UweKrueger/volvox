@@ -37,6 +37,13 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return nullptr; }
 };
 
+class ModuleExprAST : public ExprAST {
+public:
+	std::string mod;
+	ModuleExprAST(SourceLocation Loc, std::string _mod) : ExprAST(Loc), mod(std::move(_mod)) {}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return nullptr; }
+};
+
 // Class for all literals - 1.2, 3u, "str"
 class LiteralExprAST : public ExprAST {
 
