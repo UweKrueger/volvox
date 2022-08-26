@@ -107,7 +107,6 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 					    outs() << "\n";
 				    return -1;
 			    }
-			    *n = 0;
 			    if (comp_mode == comp_jit && lex.input_fd == 0) {
 #ifdef MONOCHROME_PROMPT
 				    sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
@@ -125,7 +124,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 		    }
 	    } while (c == '\r');
 	    if (offset >= (*n - 1)) {
-		    *n += *n / 2;
+		    *n += 50 + *n / 2;
 		    *lineptr = (char*)realloc(*lineptr, *n);
 	    }
 	    *(*lineptr + offset++) = c;
@@ -247,10 +246,11 @@ void Lexer::pop_state() {
 	Module* processed_module = module;
 	free(linebuf);
 	Loc = source_stack.back().Loc;
-	module = source_stack.back().module;
+	module = std::move(source_stack.back().module);
 	linelen = source_stack.back().linelen;
 	bufsize = source_stack.back().bufsize ;
 	linebuf = source_stack.back().linebuf;
+	source_stack.back().linebuf = nullptr;
 	input_fd = source_stack.back().input_fd;
 	use_readline = source_stack.back().use_readline;
 	as = std::move(source_stack.back().as);
@@ -264,7 +264,11 @@ bool Lexer::next_input_file() {
 	if (input_fd > 0) {
 		if (input_fd == builtin_input_fd) {
 			builtin_input_fd = -1;
-			return push_state({}, "", {});
+			auto keep_linebuf = linebuf;
+			linebuf = nullptr;
+			auto res = push_state({}, "", {});
+			linebuf = keep_linebuf;
+			return res;
 		} else {
 			close(input_fd);
 		}
