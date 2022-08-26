@@ -722,7 +722,10 @@ struct SourceLocState {
 			if (_input_fd)
 				*_input_fd = -1; // to prevent 'next_input_file()' from calling 'close()'
 		}
-	virtual ~SourceLocState() = default;
+	virtual ~SourceLocState() {
+		free(linebuf);
+		linebuf = nullptr;
+	}
 };
 
 class Lexer : public SourceLocState {
@@ -743,7 +746,6 @@ public:
 				abort();
 			}
 		}
-	virtual ~Lexer() { free(linebuf); }
 	int advance();
 	Token gettok(eXpect expect = eNone);
 	Token purge_line();
