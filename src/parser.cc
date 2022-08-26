@@ -1160,8 +1160,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned visibility) {
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	if (!(visibility & A_c_api)) {
-		std::vector<const char*> names = { unmangledName.c_str() };
-		Proto->Name = Mangle(names, Proto->ArgTypes).c_str();
+		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes).c_str();
 	}
 	if (!strncmp(unmangledName.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {
 		if (sz) {
