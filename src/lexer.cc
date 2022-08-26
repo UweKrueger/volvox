@@ -171,21 +171,57 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 }
 
 void Lexer::import_from_module(Module* import_module) {
-	if (!fromlist.size()) {
+	bool is_from_import = !fromlist.empty();
+	std::set<std::string> processed_symbols_from_from_list = {};
+	if (!is_from_import) {
 		module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix
 	}
 	for (auto& unmangled_protos: import_module->FunctionProtos) {
 		for (auto& proto: unmangled_protos.second) {
 			if (proto->visibility & A_pub) {
-				std::string new_key = (as == "" || fromlist.contains(unmangled_protos.first)) ?
-					unmangled_protos.first : (as + '.' + unmangled_protos.first);
-				std::string nilprefix = "";
-				std::string& realprefix = fromlist.contains(unmangled_protos.first) ? nilprefix : as;
-				auto success = module->ImportedSymbols.try_emplace({ realprefix, unmangled_protos.first }, &unmangled_protos.second);
-				if (!success.second) {
-					errs() << CurLoc << "cannot import '" << realprefix << (realprefix.size() ? "." : "")
+				bool success = true;
+				if (is_from_import) {
+					if (fromlist.contains(unmangled_protos.first)) {
+						auto _success = module->ImportedSymbols.try_emplace({ "", unmangled_protos.first }, &unmangled_protos.second);
+						success = _success.second;
+						if (success)
+							processed_symbols_from_from_list.insert(unmangled_protos.first);
+					}
+				} else {
+					auto _success = module->ImportedSymbols.try_emplace({ as, unmangled_protos.first }, &unmangled_protos.second);
+					success = _success.second;
+				}
+				if (!success) {
+					errs() << CurLoc << "cannot import '" << ((is_from_import || as == "") ? "" : (as + "."))
 					       << "()' - symbol aleady in use\n";
 				}
+			}
+		}
+	}
+	if (fromlist.size() > processed_symbols_from_from_list.size()) {
+		for (auto& symbol: fromlist) {
+			if (!processed_symbols_from_from_list.contains(symbol)) {
+				errs() << "'" << symbol << "' could not be imported - ";
+				// to get a better error message we try to figure out if the sysmol was at least
+				// declared as non-pub
+				bool non_pub = false;
+				auto fn_proto = import_module->FunctionProtos.find(symbol);
+				if (fn_proto != import_module->FunctionProtos.end() && fn_proto->second.size())
+					non_pub = true;
+				if (non_pub)
+					errs() << "symbol is not declared as 'pub'";
+				else
+					errs() << "symbol does not exist";
+				errs() << " in imported module '";
+				bool print_dot = false;
+				for (auto& dir: import_module->import_path) {
+					if (print_dot)
+						errs() << '.';
+					else
+						print_dot = true;
+					errs() << dir;
+				}
+				errs() << "'\n";
 			}
 		}
 	}
