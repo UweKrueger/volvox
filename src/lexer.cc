@@ -55,6 +55,8 @@ static char prompt[1024];
 #endif
 
 static ssize_t fdgetline(char **lineptr, size_t *n) {
+	static char* kept_buf = nullptr;
+	static ssize_t kept_bufsize = 0;
     if (!(*lineptr)) {
 	    *n = 100;
 	    *lineptr = (char*)malloc(*n);
@@ -64,7 +66,10 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 	    int c;
 	    do {
 		    if (lex.use_readline) {
-			    free(*lineptr);
+			    if (!kept_buf) {
+				    kept_buf = *lineptr;
+				    kept_bufsize = *n;
+			    }
 			    *lineptr = readline(prompt);
 			    if (!*lineptr) {
 #if !defined (_MSC_VER)
@@ -77,6 +82,13 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    add_history(*lineptr);
 			    (*n)++;
 			    return *n - 1;
+		    }
+		    if (kept_buf) {
+			    free(*lineptr);
+			    *lineptr = kept_buf;
+			    *n = kept_bufsize;
+			    kept_buf = nullptr;
+			    kept_bufsize = 0;
 		    }
 		    c = 0;
 		    int m = read(lex.input_fd, &c, 1);
