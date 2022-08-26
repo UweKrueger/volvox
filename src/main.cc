@@ -252,7 +252,7 @@ static void HandleImport() {
 		getNextToken(ePath);
 	} while (CurTok.kind == tok_selector);
 	std::string prefix = "";
-	std::set<std::string> direct_import_list = {};
+	std::map<std::string, SourceLocation> direct_import_list = {};
 	if (from) {
 		if (!Expect(tok_import, ePath)) {
 			purgeLine();
@@ -275,7 +275,11 @@ static void HandleImport() {
 				purgeLine();
 				return;
 			}
-			direct_import_list.emplace(std::move(IdentifierStr));
+			auto new_element = direct_import_list.try_emplace(IdentifierStr, CurLoc);
+			if (!new_element.second) {
+				errs() << CurLoc << ": repeated symbol '" << IdentifierStr << "' in import list\n";
+				errs() << direct_import_list[IdentifierStr] << ": previous specification of '" << IdentifierStr << "'\n";
+			}
 			getNextToken(eBinOp);
 			if (CurTok.kind != tok_comma)
 				break;

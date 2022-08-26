@@ -706,7 +706,7 @@ struct SourceLocState {
 	int input_fd = 0;
 	bool use_readline = false;
 	std::string as = "";
-	std::set<std::string> fromlist = {};
+	std::map<std::string, SourceLocation> fromlist = {};
 	SourceLocState() = default;
 	SourceLocState(const SourceLocState& old) = default; // actually not used but must exist for Lexer::Lexer()
 	SourceLocState(SourceLocState* old):
@@ -751,7 +751,7 @@ public:
 	char peek_strict();
 	char look_back_strict();
 	bool next_input_file();
-	bool push_state(std::vector<std::string> _import_path, std::string as, std::set<std::string> fromlist);
+	bool push_state(std::vector<std::string> _import_path, std::string as, std::map<std::string, SourceLocation> fromlist);
 	void pop_state();
 	void import_from_module(Module* import_module);
 	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }

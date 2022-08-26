@@ -131,7 +131,7 @@ static std::string KeepIdentifierStr = "";
 
 /* pause the current lexer context and create a new one based on the given
    import path */
-bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, std::set<std::string> _fromlist) {
+bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, std::map<std::string, SourceLocation> _fromlist) {
 	std::string patterntail = "";
 	for (int j=0; j < _import_path.size(); j++) {
 		patterntail += _import_path[j];
@@ -200,12 +200,12 @@ void Lexer::import_from_module(Module* import_module) {
 	}
 	if (fromlist.size() > processed_symbols_from_from_list.size()) {
 		for (auto& symbol: fromlist) {
-			if (!processed_symbols_from_from_list.contains(symbol)) {
-				errs() << "'" << symbol << "' could not be imported - ";
+			if (!processed_symbols_from_from_list.contains(symbol.first)) {
+				errs() << symbol.second << ": '" << symbol.first << "' could not be imported - ";
 				// to get a better error message we try to figure out if the sysmol was at least
 				// declared as non-pub
 				bool non_pub = false;
-				auto fn_proto = import_module->FunctionProtos.find(symbol);
+				auto fn_proto = import_module->FunctionProtos.find(symbol.first);
 				if (fn_proto != import_module->FunctionProtos.end() && fn_proto->second.size())
 					non_pub = true;
 				if (non_pub)
