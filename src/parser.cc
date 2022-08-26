@@ -915,11 +915,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				fv.ft.type_attr = is_signed ? 1U : 0U;
 
 				if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
-					errs() << "variable " << VarL->Name << " already exists in current scope\n";
+					errs() << VarL->Loc << ": variable " << VarL->Name << " already exists in current scope\n";
 					return nullptr;
 				}
 			} else {
-				errs() << "left operand of \":=\" must be a variable\n";
+				errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
 				return nullptr;
 			}
 		} else if (LHS_type && LHS_type->isFunctionTy() && (BinOp[0] == '(' || BinOp[0] == '\0')) {
@@ -936,7 +936,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					LHS = std::make_unique<FunctionExprAST>(mod->Loc, mod->Name + "." + ident->Name, protos);
 					continue;
 				} else {
-					errs() << "cannot evaluate '" << mod->Name << '.' << ident->Name << '\n';
+					errs() << LHS->Loc << ": cannot evaluate '" << mod->Name << '.' << ident->Name << "'\n";
 					return nullptr;
 				}
 			}

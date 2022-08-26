@@ -265,13 +265,13 @@ static void HandleImport() {
 					getNextToken(eBinOp);
 					break;
 				} else {
-					errs() << CurLoc << "'*' in import list must be the only element\n";
+					errs() << CurLoc << ": '*' in import list is only allowed as sole element\n";
 					purgeLine();
 					return;
 				}
 			}
 			if (CurTok.kind != tok_identifier) {
-				errs() << "unexpected token in import list " << CurTok.kind << '\n';
+				errs() <<  CurLoc << ": unexpected token in import list '" << CurTok << " - identifier expected\n";
 				purgeLine();
 				return;
 			}
@@ -283,6 +283,15 @@ static void HandleImport() {
 			getNextToken(eBinOp);
 			if (CurTok.kind != tok_comma)
 				break;
+			getNextToken(ePath);
+		}
+	} else if (CurTok.kind == tok_as) {
+		getNextToken(ePath);
+		if (CurTok.kind != tok_identifier) {
+			errs() <<  CurLoc << ": unexpected token in import list '" << CurTok.kind << "' - alias name expected\n";
+			purgeLine();
+		} else {
+			prefix = IdentifierStr;
 			getNextToken(ePath);
 		}
 	} else {
