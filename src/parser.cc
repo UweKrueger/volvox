@@ -939,7 +939,6 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						LHS = std::make_unique<FunctionExprAST>(mod->Loc, fqname, protos);
 						continue;
 					} else if (auto var = im->second.getFullVar()) {
-						errs() << "found imported global '" << fqname << "'\n";
 						LHS = std::make_unique<VariableExprAST>(mod->Loc, ident->Name /*fqname*/, var);
 						// TODO: mangle variable name here and in HandleGlobalVariable()
 						continue;

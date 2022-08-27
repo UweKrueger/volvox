@@ -214,11 +214,15 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	llvm::Value* V;
 	llvm::Type* storage_type;
 	if (full_var.second) { // global variable
-		V = TheModule->getGlobalVariable(Name, true);
+		if (!full_var.first->mangled_name) {
+			errs() << Loc << ": no mangled name for " << Name << '\n';
+			return { nullptr, nullptr };
+		}
+		V = TheModule->getGlobalVariable(full_var.first->mangled_name, true);
 		if (!V) {
 			V = new llvm::GlobalVariable(*TheModule, full_var.first->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
-			                             nullptr, Name, nullptr,
+			                             nullptr, full_var.first->mangled_name, nullptr,
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
 			                             0, true);
 		}
@@ -828,7 +832,10 @@ llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* i
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	if (auto Val = expr->RHS->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
-		const char* varname = LHSE->getName().c_str();
+		const std::string& unmangled_name = LHSE->getName();
+		std::string varname = lex.module->import_path.empty() ?
+			unmangled_name :
+			std::string(MangleBase(lex.module->import_path, unmangled_name));
 		llvm::Type* val_type = Val->getType();
 		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
 		llvm::Type* type = std::get<0>(type_descr);
@@ -862,9 +869,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			ft.type_attr = sym_kind | (is_signed ? A_signed : 0U);
 			FullVar fv = {
 				.storage_type = initializer->getType(),
+				.mangled_name = strdup(varname.c_str()),
 				.ft = ft,
 			};
-			lex.module->globals_table.insert(varname, fv);
+			lex.module->globals_table.insert(unmangled_name.c_str(), fv);
 			if (comp_mode == comp_jit && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);

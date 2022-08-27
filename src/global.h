@@ -268,8 +268,8 @@ extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
-extern llvm::SmallString<128> MangleBase(std::vector<std::string>& path, std::string& name);
-extern llvm::SmallString<128> Mangle(std::vector<std::string>& path, std::string& name, std::vector<volvoxc::FullType*>& arg_types);
+extern llvm::SmallString<128> MangleBase(const std::vector<std::string>& path, const std::string& name);
+extern llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name, std::vector<volvoxc::FullType*>& arg_types);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind);
 extern std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind);
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(unsigned sym_kind);
@@ -313,6 +313,7 @@ struct FullVar {
 		llvm::Value* val;
 		llvm::Type* storage_type; // for global variables
 	};
+	const char* mangled_name = nullptr; // only for pub globals
 	volvoxc::FullType ft;
 };
 
