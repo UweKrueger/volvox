@@ -703,11 +703,11 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
 	if (kind == tok_repeat) {
 		if (then_locals_table.table) {
-			for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
-				MapValue* node = &then_node->value;
+			for (auto then_node = then_locals_table.begin(); then_node; ++then_node) {
+				MapValue* node = then_node.getValue();
 				auto then_var = (FullVar*)((char*)node + node->offset);
-				if (!locals_table.back().insert(then_node->key.string, *then_var)) {
-					errs() << IfLoc << ": Variable '" << then_node->key.string << "' already exists in outer scope\n";
+				if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
+					errs() << IfLoc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
 					return nullptr;
 				}
 			}
@@ -715,11 +715,11 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 	} else if (have_else) {
 		locals_table.pop_back();
 		if (then_locals_table.table && else_locals_table.table) {
-			for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
-				FullVar* else_var = else_locals_table[(const char*)then_node->key.string];
+			for (auto then_node = then_locals_table.begin(); then_node; ++then_node) {
+				FullVar* else_var = else_locals_table[then_node.getKey()];
 				if (else_var) {
-					if (!locals_table.back().insert(then_node->key.string, *else_var)) {
-						errs() << IfLoc << ": Variable '" << then_node->key.string << "' already exists in outer scope\n";
+					if (!locals_table.back().insert(then_node.getKey(), *else_var)) {
+						errs() << IfLoc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
 						return nullptr;
 					}
 				}

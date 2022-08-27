@@ -57,8 +57,10 @@ extern "C" {
 #define map_string_get _ZN6volvox3map10string_getEPNS0_4NodeEPKc
 #define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeE
 #define map_iter_up _ZN6volvox3map7iter_upEPNS0_4NodeE
+#define map_iter_down _ZN6volvox3map9iter_downEPNS0_4NodeE
 #define map_string_delete _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKc
 #define map_min _ZN6volvox3map3MinEPNS0_4NodeE
+#define map_max _ZN6volvox3map3MaxEPNS0_4NodeE
 	_DECL MapNode* map_string_new_map();
 	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace);
 	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace);
@@ -67,6 +69,7 @@ extern "C" {
 	_DECL MapNode* map_iter_up(MapNode* elem);
 	_DECL bool map_string_delete(MapNode** root_ptr, const char* key);
 	_DECL MapNode* map_min(MapNode* node);
+	_DECL MapNode* map_max(MapNode* node);
 }
 #else
 #define MapNode volvox::map::Node
@@ -77,8 +80,10 @@ extern "C" {
 #define map_string_get volvox::map::string_get
 #define map_destroy volvox::map::destroy
 #define map_iter_up volvox::map::iter_up
+#define map_iter_down volvox::map::iter_down
 #define map_string_delete volvox::map::string_delete
 #define map_min volvox::map::Min
+#define map_max volvox::map::Max
 #endif
 
 class PrototypeAST;
@@ -358,8 +363,12 @@ public:
 	Table(MapNode* t) : table(t) {}
 	~Table() { map_destroy(table); }
 	Table begin() { return map_min(table); }
+	Table end() { return map_max(table); }
 	Table& operator++() { table = map_iter_up(table); return *this; }
+	Table& operator--() { table = map_iter_down(table); return *this; }
 	operator bool() { return !(!(table)); }
+	const char* getKey() { auto k = table->key.string; errs() << "got key :" << k << '\n'; return k; }
+	MapValue* getValue() { return &table->value; }
 	void clear() {
 		map_destroy(table);
 		table = map_string_new_map();

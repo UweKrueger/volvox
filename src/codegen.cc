@@ -1995,12 +1995,12 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
 	if (if_kind == tok_repeat && then_locals_table.table) {
-		for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
-			MapValue* node = &then_node->value;
+		for (auto then_node = then_locals_table.begin(); then_node; ++then_node) {
+			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
-			FullVar* entry = locals_table.back()[(const char*)then_node->key.string];
+			FullVar* entry = locals_table.back()[then_node.getKey()];
 			if (!entry) {
-				errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
+				errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
 				abort();
 			}
 			entry->ft.type = then_var->ft.type; // TODO: merge different but compatible array types
@@ -2008,19 +2008,19 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			entry->val = then_var->val;
 		}
 	} else if (then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
-		for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
-			FullVar* else_var = else_locals_table[(const char*)then_node->key.string];
+		for (auto then_node = then_locals_table.begin(); then_node; ++then_node) {
+			FullVar* else_var = else_locals_table[then_node.getKey()];
 			if (else_var) {
-				MapValue* node = &then_node->value;
+				MapValue* node = then_node.getValue();
 				auto then_var = (FullVar*)((char*)node + node->offset);
 				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
 				                          else_var->ft.type, else_var->val, ElseBB, elseLast);
 				if (!merge.second)
 					return nullptr;
 				auto mergeVal = merge.second;
-				FullVar* entry = locals_table.back()[(const char*)then_node->key.string];
+				FullVar* entry = locals_table.back()[then_node.getKey()];
 				if (!entry) {
-					errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
+					errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
 					abort();
 				}
 				entry->ft.type = merge.first;
