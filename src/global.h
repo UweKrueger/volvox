@@ -362,12 +362,13 @@ public:
 	Table() : table(map_string_new_map()) {}
 	Table(MapNode* t) : table(t) {}
 	~Table() { map_destroy(table); }
-	Table begin() { return map_min(table); }
-	Table end() { return map_max(table); }
+	Table first() { return map_min(table); }
+	Table last() { return map_max(table); }
 	Table& operator++() { table = map_iter_up(table); return *this; }
 	Table& operator--() { table = map_iter_down(table); return *this; }
+	// iteration is started from first()/last() and finished when iterator becomes 'false':
 	operator bool() { return !(!(table)); }
-	const char* getKey() { auto k = table->key.string; errs() << "got key :" << k << '\n'; return k; }
+	const char* getKey() { return table->key.string; }
 	MapValue* getValue() { return &table->value; }
 	void clear() {
 		map_destroy(table);

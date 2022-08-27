@@ -1995,7 +1995,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
 	if (if_kind == tok_repeat && then_locals_table.table) {
-		for (auto then_node = then_locals_table.begin(); then_node; ++then_node) {
+		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			FullVar* entry = locals_table.back()[then_node.getKey()];
@@ -2008,7 +2008,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			entry->val = then_var->val;
 		}
 	} else if (then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
-		for (auto then_node = then_locals_table.begin(); then_node; ++then_node) {
+		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			FullVar* else_var = else_locals_table[then_node.getKey()];
 			if (else_var) {
 				MapValue* node = then_node.getValue();
