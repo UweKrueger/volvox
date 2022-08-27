@@ -825,7 +825,7 @@ llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* i
 	return expanded_ini;
 }
 
-std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
+std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	if (auto Val = expr->RHS->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const char* varname = LHSE->getName().c_str();
@@ -835,7 +835,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
 		auto convertedVal = conversion(Val);
-		llvm::GlobalValue::LinkageTypes link_type = ((LHSE->ft->type_attr & A_pub) || comp_mode == comp_jit) ?
+		llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
 			llvm::GlobalValue::ExternalLinkage :
 			llvm::GlobalValue::InternalLinkage;
 		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
@@ -859,7 +859,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr) {
 			                              llvm::GlobalVariable::GeneralDynamicTLSModel);
 			volvoxc::FullType ft = *expr->RHS->ft;
 			ft.type = type;
-			ft.type_attr = is_signed ? 1U : 0U;
+			ft.type_attr = sym_kind | (is_signed ? A_signed : 0U);
 			FullVar fv = {
 				.storage_type = initializer->getType(),
 				.ft = ft,

@@ -345,9 +345,9 @@ bool spawn_bool_expr(bool (*expr)()) {
 }
 #endif
 
-static void HandleTopLevelExpression() {
+static void HandleTopLevelExpression(unsigned sym_kind) {
 	// Evaluate a top-level expression into an anonymous function.
-	if (auto FnAST = ParseTopLevelExpr()) {
+	if (auto FnAST = ParseTopLevelExpr(sym_kind)) {
 		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();
 			if (!anon_expr->getReturnType()->isIntegerTy() || !(anon_expr->getReturnType()->getIntegerBitWidth() == 1)) {
@@ -402,12 +402,12 @@ void PrepareTestFramework() {
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(false))));
-	HandleGlobalVariable(single_res_def.get());
+	HandleGlobalVariable(single_res_def.get(), A_pub);
 	auto collector_def = std::make_unique<BinaryExprAST>(
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(true))));
-	HandleGlobalVariable(collector_def.get());
+	HandleGlobalVariable(collector_def.get(), A_pub);
 }
 
 void CallTestFunction() {
@@ -558,9 +558,9 @@ static void MainLoop() {
 			break;
 		default:
 			if (comp_mode == comp_jit && !do_test)
-				HandleTopLevelExpression();
+				HandleTopLevelExpression(sym_kind);
 			else
-				if (auto expr = GetTopLevelExpression())
+				if (auto expr = GetTopLevelExpression(sym_kind))
 					GlobalExprList.push_back(std::move(expr));
 		}
 	}

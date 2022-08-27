@@ -211,6 +211,7 @@ void Lexer::import_from_module(Module* import_module) {
 	}
 	for (auto global = import_module->globals_table.first(); global; ++global) {
 		auto var = (FullVar*)((char*)global.getValue() + global.getValue()->offset);
+		errs() << "found global " << global.getKey() << ", attr: " << var->ft.type_attr << '\n';
 		if (var->ft.type_attr & A_pub) {
 			bool success = true;
 			if (is_from_import) {

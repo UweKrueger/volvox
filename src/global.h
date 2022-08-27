@@ -271,8 +271,8 @@ extern std::vector<const char*> module_names;
 extern llvm::SmallString<128> MangleBase(std::vector<std::string>& path, std::string& name);
 extern llvm::SmallString<128> Mangle(std::vector<std::string>& path, std::string& name, std::vector<volvoxc::FullType*>& arg_types);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind);
-extern std::unique_ptr<ExprAST> GetTopLevelExpression();
-extern std::unique_ptr<FunctionAST> ParseTopLevelExpr();
+extern std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind);
+extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(unsigned sym_kind);
 extern std::unique_ptr<ExprAST> ParseExpression();
 extern std::unique_ptr<PrototypeAST> ParseExtern(unsigned share_kind);
 extern bool spawn_bool_expr(bool (*expr)());
@@ -944,7 +944,7 @@ struct DebugInfo {
 
 extern DebugInfo KSDbgInfo;
 extern int builtin_input_fd;
-extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr);
+extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind = 0);
 extern void InitializeModuleAndPassManager();
 extern std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);

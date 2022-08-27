@@ -1185,14 +1185,14 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned visibility) {
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second, std::move(unmangledName));
 }
 
-std::unique_ptr<ExprAST> GetTopLevelExpression() {
+std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 	if (auto E = ParseExpression()) {
 		if (!E->ft || !E->ft->type) {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
 				if (B->conv.compat.err_msg)
 					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);
 				if (!strcmp(B->Op, ":="))
-					return HandleGlobalVariable(B);
+					return HandleGlobalVariable(B, sym_kind);
 				if (!strcmp(B->Op, "="))
 					if (auto leftVar = dynamic_cast<VariableExprAST*>(B->LHS.get()))
 						if (!leftVar->full_var.first) {
@@ -1214,9 +1214,9 @@ std::unique_ptr<ExprAST> GetTopLevelExpression() {
 	}
 }
 
-std::unique_ptr<FunctionAST> ParseTopLevelExpr() {
+std::unique_ptr<FunctionAST> ParseTopLevelExpr(unsigned sym_kind) {
 	SourceLocation FnLoc = CurLoc;
-	if (auto E = GetTopLevelExpression()) {
+	if (auto E = GetTopLevelExpression(sym_kind)) {
 		if (comp_mode == comp_jit) {
 #ifndef LEGACY_PASS_MANAGER
 			// running the new PassManager on an empty module causes trouble :-(
