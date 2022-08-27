@@ -370,6 +370,7 @@ public:
 	operator bool() { return !(!(table)); }
 	const char* getKey() { return table->key.string; }
 	MapValue* getValue() { return &table->value; }
+	MapNode* getNode() { return table; }
 	void clear() {
 		map_destroy(table);
 		table = map_string_new_map();
@@ -496,8 +497,8 @@ public:
 		return res;
 	}
 	FullVar* operator[](const char* key) {
-		MapValue* node = map_string_get(table, key);
-		return node ? (FullVar*)((char*)node + node->offset) : nullptr;
+		MapValue* val = map_string_get(table, key);
+		return val ? (FullVar*)((char*)val + val->offset) : nullptr;
 	}
 	bool erase(const char* name) {
 		return map_string_delete(&table, name);

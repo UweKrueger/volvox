@@ -209,6 +209,28 @@ void Lexer::import_from_module(Module* import_module) {
 			}
 		}
 	}
+	for (auto global = import_module->globals_table.first(); global; ++global) {
+		auto var = (FullVar*)((char*)global.getValue() + global.getValue()->offset);
+		if (var->ft.type_attr & A_pub) {
+			bool success = true;
+			if (is_from_import) {
+				if (fromlist.contains(global.getKey())) {
+					auto _success = module->ImportedSymbols.try_emplace({ "", global.getKey() }, var);
+					success = _success.second;
+					if (success)
+						processed_symbols_from_from_list.insert(global.getKey());
+				} else {
+					auto _success = module->ImportedSymbols.try_emplace({ as, global.getKey() }, var);
+					success = _success.second;
+				}
+				if (!success) {
+					errs() << CurLoc << "cannot import '" << ((is_from_import || as == "") ? "" : (as + "."))
+					       << "()' - symbol aleady in use\n";
+				}
+			}
+		}
+	}
+	// if 'from' list was provided check that every element has been used somehow
 	if (fromlist.size() > processed_symbols_from_from_list.size()) {
 		for (auto& symbol: fromlist) {
 			if (!processed_symbols_from_from_list.contains(symbol.first)) {
