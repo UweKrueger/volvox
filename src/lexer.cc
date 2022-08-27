@@ -241,6 +241,8 @@ void Lexer::import_from_module(Module* import_module) {
 				auto fn_proto = import_module->FunctionProtos.find(symbol.first);
 				if (fn_proto != import_module->FunctionProtos.end() && fn_proto->second.size())
 					non_pub = true;
+				else if (import_module->globals_table[symbol.first.c_str()])
+					non_pub = true;
 				if (non_pub)
 					errs() << "symbol is not declared as 'pub'";
 				else
