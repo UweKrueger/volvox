@@ -219,14 +219,14 @@ void Lexer::import_from_module(Module* import_module) {
 					success = _success.second;
 					if (success)
 						processed_symbols_from_from_list.insert(global.getKey());
-				} else {
-					auto _success = module->ImportedSymbols.try_emplace({ as, global.getKey() }, var);
-					success = _success.second;
 				}
-				if (!success) {
-					errs() << CurLoc << "cannot import '" << ((is_from_import || as == "") ? "" : (as + "."))
-					       << "()' - symbol aleady in use\n";
-				}
+			} else {
+				auto _success = module->ImportedSymbols.try_emplace({ as, global.getKey() }, var);
+				success = _success.second;
+			}
+			if (!success) {
+				errs() << CurLoc << "cannot import '" << ((is_from_import || as == "") ? "" : (as + "."))
+				       << "()' - symbol aleady in use\n";
 			}
 		}
 	}

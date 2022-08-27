@@ -932,12 +932,21 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		} else if (is_dotselect) {
 			if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
 				auto ident = dynamic_cast<IdentExprAST*>(RHS.get());
-				if (auto protos = lex.findProtos(mod->Name, ident->Name)) {
-					LHS = std::make_unique<FunctionExprAST>(mod->Loc, mod->Name + "." + ident->Name, protos);
-					continue;
-				} else {
-					errs() << LHS->Loc << ": cannot evaluate '" << mod->Name << '.' << ident->Name << "'\n";
-					return nullptr;
+				auto im = lex.module->ImportedSymbols.find({ mod->Name, ident->Name });
+				if (im != lex.module->ImportedSymbols.end()) {
+					std::string fqname = mod->Name + "." + ident->Name;
+					if (auto protos = im->second.getProtos()) {
+						LHS = std::make_unique<FunctionExprAST>(mod->Loc, fqname, protos);
+						continue;
+					} else if (auto var = im->second.getFullVar()) {
+						errs() << "found imported global '" << fqname << "'\n";
+						LHS = std::make_unique<VariableExprAST>(mod->Loc, ident->Name /*fqname*/, var);
+						// TODO: mangle variable name here and in HandleGlobalVariable()
+						continue;
+					} else {
+						errs() << LHS->Loc << ": cannot evaluate '" << fqname << "'\n";
+						return nullptr;
+					}
 				}
 			}
 		}

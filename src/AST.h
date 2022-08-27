@@ -128,6 +128,10 @@ public:
 		// an error message here because this VariableExprAST could be the LHS of
 		// an initialization e.g. `a := 42`
 	}
+	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv)
+		: LvalueExprAST(Loc, Name), full_var({ fv, true }) {
+		ft = &fv->ft;
+	}
 	const std::string &getName() const { return Name; }
 	// create reference to this variable - second result is the storage_type
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
