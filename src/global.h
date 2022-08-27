@@ -351,9 +351,24 @@ inline volvoxc::FullType* new_FullType(const volvoxc::FullType& orig) {
 	return &new_node->ft;
 }
 
-class TypeTable {
+class Table {
 public:
-	TypeTable() : name_table(map_string_new_map()) {}
+	MapNode* table;
+	Table() : table(map_string_new_map()) {}
+	Table(MapNode* t) : table(t) {}
+	~Table() { map_destroy(table); }
+	Table begin() { return map_min(table); }
+	Table& operator++() { table = map_iter_up(table); return *this; }
+	operator bool() { return !(!(table)); }
+	void clear() {
+		map_destroy(table);
+		table = map_string_new_map();
+	}
+};
+
+class TypeTable : public Table {
+public:
+	TypeTable() = default;
 	unsigned add(const char* name, volvoxc::FullType* ft) {
 		bool is_int = ft->type->isIntegerTy();
 		if ((ft->type_attr & A_signed) && !is_int) {
@@ -363,7 +378,7 @@ public:
 		MapValue val = {
 			.src_ptr = ft
 		};
-		MapNode* new_node = map_string_insert(&name_table, name, val, sizeof(volvoxc::FullType), false);
+		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), false);
 		if (new_node) {
 			((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->mangled_name = new_node->key.string;
 			union {
@@ -397,11 +412,11 @@ public:
 		return add(name, &ft);
 	}
 	llvm::Type* get(const char* name) {
-		MapValue* val = map_string_get(name_table, name);
+		MapValue* val = map_string_get(table, name);
 		return ((volvoxc::FullType*)((char*)val + val->offset))->type;
 	}
 	bool is_signed(const char* name) {
-		MapValue* val = map_string_get(name_table, name);
+		MapValue* val = map_string_get(table, name);
 		return (bool)(((volvoxc::FullType*)((char*)val + val->offset))->type_attr & A_signed);
 	}
 	static bool is_signed(unsigned _key) {
@@ -414,7 +429,7 @@ public:
 		return int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed;
 	}
 	volvoxc::FullType* get_full(const char* name) {
-		MapValue* val = map_string_get(name_table, name);
+		MapValue* val = map_string_get(table, name);
 		return (volvoxc::FullType*)(val ? (char*)val + val->offset : nullptr);
 	}
 	volvoxc::FullType* get_full(unsigned _key) {
@@ -448,11 +463,7 @@ public:
 		if (!type) return nullptr;
 		return get_diType((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
 	}
-	~TypeTable() {
-		map_destroy(name_table);
-	}
 protected:
-	MapNode* name_table;
 	std::map<unsigned, llvm::Type*> key32_table;
 	std::map<llvm::Type*, std::pair<const char*, llvm::DIType*>> typeptr_table;
 };
@@ -460,11 +471,9 @@ protected:
 extern MapNode* keyword_toks; // all language keywords like 'if', 'else', 'fn', ...
 extern void init_token_map();
 
-class VarTable {
+class VarTable : public Table {
 public:
-	MapNode* table;
-	VarTable() : table(map_string_new_map()) {}
-	~VarTable() { map_destroy(table); }
+	VarTable() = default;
 	VarTable(VarTable&& o) { table = o.table; o.table = nullptr; }
 	VarTable& operator=(VarTable&& o) { table = o.table; o.table = nullptr; return *this; }
 	void clear() {
@@ -566,6 +575,7 @@ public:
 	TypeTable type_table;
 	std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
 	VarTable globals_table;
+	// imported symbols are kept separate to be not re-exported in nested imports
 	std::map<std::pair<std::string, std::string>, SymbolRef> ImportedSymbols;
 };
 
@@ -845,6 +855,7 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 	}
 	full_var = lex.module->globals_table[Name];
 	if (!full_var && lex.source_stack.size())
+		// search in "builtin" module which is lowest in source_stack
 		full_var = lex.source_stack.front().module->globals_table[Name];
 	return { full_var, true };
 }

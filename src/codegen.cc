@@ -1998,7 +1998,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
 			MapValue* node = &then_node->value;
 			auto then_var = (FullVar*)((char*)node + node->offset);
-			FullVar* entry = locals_table.back()[then_node->key.string];
+			FullVar* entry = locals_table.back()[(const char*)then_node->key.string];
 			if (!entry) {
 				errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
 				abort();
@@ -2009,7 +2009,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		}
 	} else if (then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
 		for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
-			FullVar* else_var = else_locals_table[then_node->key.string];
+			FullVar* else_var = else_locals_table[(const char*)then_node->key.string];
 			if (else_var) {
 				MapValue* node = &then_node->value;
 				auto then_var = (FullVar*)((char*)node + node->offset);
@@ -2018,7 +2018,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				if (!merge.second)
 					return nullptr;
 				auto mergeVal = merge.second;
-				FullVar* entry = locals_table.back()[then_node->key.string];
+				FullVar* entry = locals_table.back()[(const char*)then_node->key.string];
 				if (!entry) {
 					errs() << "internal error, could not find merge variable '" << then_node->key.string << "' in outer scope\n";
 					abort();

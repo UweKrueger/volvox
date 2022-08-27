@@ -716,7 +716,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr() {
 		locals_table.pop_back();
 		if (then_locals_table.table && else_locals_table.table) {
 			for (MapNode* then_node = map_min(then_locals_table.table); then_node; then_node = map_iter_up(then_node)) {
-				FullVar* else_var = else_locals_table[then_node->key.string];
+				FullVar* else_var = else_locals_table[(const char*)then_node->key.string];
 				if (else_var) {
 					if (!locals_table.back().insert(then_node->key.string, *else_var)) {
 						errs() << IfLoc << ": Variable '" << then_node->key.string << "' already exists in outer scope\n";
