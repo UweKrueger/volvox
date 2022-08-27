@@ -737,6 +737,7 @@ struct SourceLocState {
 			old->linebuf = nullptr;
 			old->as = "";
 			old->fromlist = {};
+			old->input_fd = -1;
 		}
 	SourceLocState(SourceLocation Loc, ssize_t linelen, size_t bufsize, char* linebuf, int* _input_fd = nullptr, bool use_readline = false) :
 		Loc(Loc), linelen(linelen), bufsize(bufsize), linebuf(linebuf), input_fd(_input_fd ? *_input_fd : -1), use_readline(use_readline)

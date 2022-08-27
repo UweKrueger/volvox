@@ -153,11 +153,12 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 	fromlist = std::move(_fromlist);
 	auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 	if (new_module.second) {
+		int old_input_fd = input_fd;
 		source_stack.emplace_back(this);
 		module = &new_module.first->second;
 		linelen = 0;
 		linebuf = (char*)malloc(bufsize);
-		if (input_fd != builtin_input_fd)
+		if (old_input_fd != builtin_input_fd)
 			use_readline = false;
 		if (module->import_path.size()) {
 			source_files.push_back({});
