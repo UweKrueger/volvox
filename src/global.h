@@ -729,7 +729,6 @@ struct SourceLocState {
 	std::string as = "";
 	std::map<std::string, SourceLocation> fromlist = {};
 	SourceLocState() = default;
-	SourceLocState(const SourceLocState& old) = default; // actually not used but must exist for Lexer::Lexer()
 	SourceLocState(SourceLocState* old):
 		Loc(old->Loc), module(std::move(old->module)), linelen(old->linelen), linebuf(old->linebuf), input_fd(old->input_fd),
 		use_readline(old->use_readline), as(std::move(old->as)), fromlist(std::move(old->fromlist))
