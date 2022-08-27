@@ -822,10 +822,9 @@ public:
 		return name;
 	}
 	std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& prefix, const std::string& unmangledName) {
-		auto im = module->ImportedSymbols.find({ prefix, unmangledName});
-		if (im != module->ImportedSymbols.end()) {
+		auto im = module->ImportedSymbols.find({ prefix, unmangledName });
+		if (im != module->ImportedSymbols.end())
 			return im->second.getProtos();
-		}
 		return nullptr;
 	}
 	std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& unmangledName) {
@@ -856,6 +855,13 @@ public:
 
 extern Lexer lex;
 
+inline FullVar* lookup_var(const char* prefix, const char* unmangledName) {
+	auto im = lex.module->ImportedSymbols.find({ prefix, unmangledName });
+	if (im != lex.module->ImportedSymbols.end())
+		return im->second.getFullVar();
+	return nullptr;
+}
+
 // look up var and return if it's global
 inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 	FullVar* full_var;
@@ -864,9 +870,13 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 		if (full_var)
 			return { full_var, false };
 	}
+	// it's no function local var - maybe a global one from this module
 	full_var = lex.module->globals_table[Name];
+	// or from an imported module
+	if (!full_var)
+		full_var = lookup_var("", Name);
 	if (!full_var && lex.source_stack.size())
-		// search in "builtin" module which is lowest in source_stack
+		// search in "builtin" as last resort - lowest in source_stack
 		full_var = lex.source_stack.front().module->globals_table[Name];
 	return { full_var, true };
 }
