@@ -67,6 +67,7 @@ extern "C" {
 	_DECL MapValue* map_string_get(MapNode* root, const char* key);
 	_DECL void map_destroy(MapNode* root);
 	_DECL MapNode* map_iter_up(MapNode* elem);
+	_DECL MapNode* map_iter_down(MapNode* elem);
 	_DECL bool map_string_delete(MapNode** root_ptr, const char* key);
 	_DECL MapNode* map_min(MapNode* node);
 	_DECL MapNode* map_max(MapNode* node);
