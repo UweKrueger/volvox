@@ -434,6 +434,34 @@ public:
 #endif
 };
 
+class StructExprAST : public ExprAST {
+public:
+	std::map<std::string, std::unique_ptr<ExprAST>> Fields;
+	StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::unique_ptr<ListExprAST> list)
+		: ExprAST(ft, Loc) {
+		for (auto& field: list->Elements) {
+			if (auto field_val = dynamic_cast<BinaryExprAST*>(field.get())) {
+				if (field_val->Op[0] == ':' && !field_val->Op[1]) {
+					if (auto nameAST = dynamic_cast<VariableExprAST*>(field_val->LHS.get())) {
+						auto insert = Fields.try_emplace(nameAST->Name, std::move(field_val->RHS));
+						if (insert.second) {
+							continue;
+						} else {
+							errs() << nameAST->Loc << "field already initialized\n";
+						}
+					} else {
+						errs() << field_val->LHS->Loc << "field name expected\n";
+					}
+					continue;
+				}
+				
+			}
+			errs() << field->Loc << "initializer with ':' expected\n";
+		}
+	}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+};
+
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
 public:

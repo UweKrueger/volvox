@@ -334,6 +334,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr() {
 	if (im != lex.module->ImportedSymbols.end())
 		if (im->second.isPrefix())
 			return std::make_unique<ModuleExprAST>(LitLoc, std::move(IdName));
+	if (auto type = lex.get_full_type(IdName.c_str()))
+		return ParseStructExpr(type);
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
 }
 
@@ -480,6 +482,15 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false) {
 		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.LitDims), std::move(iter.Dims), LenLocs);
 	else
 		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.LitDims), nullptr, std::move(iter. Dims), LenLocs);
+}
+
+std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft) {
+	auto Loc = CurLoc;
+	auto list = ParseListExpr();
+	if (list)
+		return std::make_unique<StructExprAST>(Loc, ft, std::move(list));
+	else
+		return nullptr;
 }
 
 std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth) {
