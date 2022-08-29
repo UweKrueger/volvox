@@ -393,7 +393,9 @@ public:
 		};
 		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), false);
 		if (new_node) {
-			((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->mangled_name = new_node->key.string;
+			auto mangled_name = ((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->mangled_name;
+			if (!mangled_name)
+				mangled_name = new_node->key.string;
 			union {
 				int_val_type_t int_type;
 				VOLVOX_gen_val_type_t gen_type;
@@ -798,6 +800,12 @@ public:
 			return source_stack.front().module->type_table.is_signed(name);
 		else
 			return module->type_table.is_signed(name);
+	}
+	volvoxc::FullType* get_full_type(const std::string& prefix, const std::string& unmangledName) {
+		auto im = module->ImportedSymbols.find({ prefix, unmangledName });
+		if (im != module->ImportedSymbols.end())
+			return im->second.getFullType();
+		return nullptr;
 	}
 	volvoxc::FullType* get_full_type(const char* name) {
 		auto ft = module->type_table.get_full(name);

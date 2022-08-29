@@ -253,7 +253,19 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		}
 		getNextToken(expect);
 	}
-	auto type = lex.get_full_type(IdentifierStr.c_str());
+	volvoxc::FullType* type;
+	if (lex.peek() == '.') {
+		auto mod = IdentifierStr;
+		getNextToken();
+		getNextToken();
+		if (CurTok.kind != tok_identifier) {
+			errs() << CurLoc << "identifier expected after '.'\n";
+			return nullptr;
+		}
+		type = lex.get_full_type(mod.c_str(), IdentifierStr.c_str());
+	} else {
+		type = lex.get_full_type(IdentifierStr.c_str());
+	}
 	if (!type) {
 		errs() << "Unknown type '" << IdentifierStr << "'\n";
 		return nullptr;
