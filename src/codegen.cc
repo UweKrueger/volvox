@@ -200,6 +200,30 @@ llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	}
 }
 
+llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
+	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+		unsigned num_fields = struct_type->getNumElements();
+		std::vector<std::unique_ptr<ExprAST>> initializers(num_fields);
+		for (auto& [fname, ini]: Fields) {
+			unsigned index = *(unsigned*)map_string_get(ft->fields, fname.c_str());
+			initializers[index] = std::move(ini);
+		}
+		llvm::Value* V = llvm::UndefValue::get(ft->type);
+		for (unsigned i=0; i<initializers.size(); i++) {
+			if (initializers[i])
+				Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
+			else
+				Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
+		}
+		if (target) {
+			Builder->CreateStore(V, target);
+			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+		} else
+			return V;
+	} else
+		abort();
+}
+
 llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	auto V = codegen_ref();
 	// Load the value.
