@@ -274,7 +274,7 @@ extern llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind);
 extern std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind);
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(unsigned sym_kind);
-extern std::unique_ptr<ExprAST> ParseExpression();
+extern std::unique_ptr<ExprAST> ParseExpression(int terminator = 0);
 extern std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft);
 extern std::unique_ptr<PrototypeAST> ParseExtern(unsigned share_kind);
 extern bool spawn_bool_expr(bool (*expr)());

@@ -301,7 +301,7 @@ static std::unique_ptr<ExprAST> ParsePointerExpr() {
 /// parenexpr ::= '(' expression ')'
 static std::unique_ptr<ExprAST> ParseParenExpr() {
 	getNextToken(); // eat (.
-	auto V = ParseExpression();
+	auto V = ParseExpression(')');
 	if (!V)
 		return nullptr;
 
@@ -374,7 +374,7 @@ static std::unique_ptr<ListExprAST> ParseListExpr() {
 		getNextToken(eBinOp);
 		return std::make_unique<ListExprAST>(loc);
 	}
-	auto Elem = ParseExpression();
+	auto Elem = ParseExpression('}');
 	if (!Expect('}', eBinOp))
 		return nullptr;
 	if (!Elem)
@@ -888,7 +888,7 @@ static std::unique_ptr<ExprAST> ParseUnary() {
 
 /// binoprhs
 ///   ::= ('+' unary)*
-static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS) {
+static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator = 0) {
 	// If this is a binop, find its precedence.
 	while (true) {
 		int TokPrec = GetTokPrecedence();
@@ -981,12 +981,12 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 /// expression
 ///   ::= unary binoprhs
 ///
-std::unique_ptr<ExprAST> ParseExpression() {
+std::unique_ptr<ExprAST> ParseExpression(int terminator) {
 	auto LHS = ParseUnary();
 	if (!LHS)
 		return nullptr;
 
-	return ParseBinOpRHS(0, std::move(LHS));
+	return ParseBinOpRHS(0, std::move(LHS), terminator);
 }
 
 static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
