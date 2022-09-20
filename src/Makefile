@@ -54,12 +54,12 @@ endif
 LLVMCONFIG := $(PREFIX)/bin/llvm-config$(SUFFIX)
 
 ifeq ($(shell uname),FreeBSD)
-	CPPEXTRAFLAGS :=  -I/usr/include/edit/readline -I/usr/local/include -Wno-reorder-init-list
+	CPPEXTRAFLAGS :=  -I/usr/include/edit/readline -I/usr/local/include
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := # we use system provided BSD editline
 else
 ifeq ($(shell uname),NetBSD)
-	CPPEXTRAFLAGS := -I/usr/include/readline -Wno-reorder-init-list
+	CPPEXTRAFLAGS := -I/usr/include/readline
 	EXTRAOBJS :=
 	EDITLINEOBJS := # we use system provided BSD editline
 else
@@ -69,7 +69,7 @@ ifeq ($(shell uname),OpenBSD)
 	EDITLINEOBJS := # we use system provided BSD editline
 else
 ifeq ($(shell uname),DragonFly)
-	CPPEXTRAFLAGS := -I/usr/local/include/editline -Wno-reorder-init-list
+	CPPEXTRAFLAGS := -I/usr/local/include/editline
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := # we use system provided BSD editline
 	LINKEXTRAFLAGS := -L/usr/local/lib $(LINKEXTRAFLAGS)

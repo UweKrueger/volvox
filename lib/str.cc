@@ -82,7 +82,6 @@ namespace volvox {
 		glob_t glob = {
 			.gl_pathc = rets->size,
 			.gl_pathv = rets->dirs,
-			.gl_offs = 0,
 		};
 		globfree(&glob);
 #endif
@@ -105,7 +104,6 @@ namespace volvox {
 		glob_t glob_rets = {
 			.gl_pathc = 0,
 			.gl_pathv = nullptr,
-			.gl_offs = 0,
 		};
 		int res = ::glob(pattern, GLOB_MARK, NULL, &glob_rets);
 		if (!res) {
@@ -130,7 +128,6 @@ namespace volvox {
 		glob_t glob_rets = {
 			.gl_pathc = 0,
 			.gl_pathv = nullptr,
-			.gl_offs = 0,
 		};
 		int globflags = GLOB_MARK;
 #endif
