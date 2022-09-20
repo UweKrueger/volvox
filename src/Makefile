@@ -12,13 +12,13 @@ ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	SUFFIX :=
 	NIXTYPE := mingw64
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config15 && echo -n true),true)
-	PREFIX := /usr/local
-	SUFFIX := 15
-else
 ifeq ($(shell test -x /usr/local/bin/llvm-config14 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := 14
+else
+ifeq ($(shell test -x /usr/local/bin/llvm-config15 && echo -n true),true)
+	PREFIX := /usr/local
+	SUFFIX := 15
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-14 && echo -n true),true)
 	SUFFIX := -14
