@@ -205,7 +205,8 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		unsigned num_fields = struct_type->getNumElements();
 		std::vector<std::unique_ptr<ExprAST>> initializers(num_fields);
 		for (auto& [fname, ini]: Fields) {
-			unsigned index = *(unsigned*)map_string_get(ft->fields, fname.c_str());
+			MapValue* mv = map_string_get(ft->fields, fname.c_str());
+			unsigned index = *(unsigned*)((char*)mv + mv->offset);
 			initializers[index] = std::move(ini);
 		}
 		llvm::Value* V = llvm::UndefValue::get(ft->type);

@@ -237,7 +237,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 				llvm::StructType::get(Context, LLVMFieldTypes, is_packed);
 			MapNode* fields = map_string_new_map();
 			for (int i=0; i<FieldNames.size(); i++) {
-				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = FieldTypes[i] }, 0, false);
+				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = &FieldTypes[i] }, sizeof(void*), false);
 				if (!new_node) {
 					errs() << "Duplicate field name '" << FieldNames[i] << "' in struct declaration\n";
 					return nullptr;
