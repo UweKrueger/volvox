@@ -212,15 +212,16 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* V = llvm::UndefValue::get(ft->type);
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i])
-				Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
+				V = Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
 			else
-				Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
+				V = Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
 		}
 		if (target) {
 			Builder->CreateStore(V, target);
 			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-		} else
+		} else {
 			return V;
+		}
 	} else
 		abort();
 }
