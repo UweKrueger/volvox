@@ -433,7 +433,7 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 					CurChar = advance();
 				} while (isspace(CurChar));
 				if (isalpha(CurChar) || CurChar == '_') {
-					IdentifierStr = '\n';
+					IdentifierStr = ',';
 					return tok_comma;
 				} else if (CurChar == terminator) {
 					CurChar = advance();

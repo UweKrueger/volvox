@@ -275,7 +275,7 @@ extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind);
 extern std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind);
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(unsigned sym_kind);
 extern std::unique_ptr<ExprAST> ParseExpression(int terminator = 0);
-extern std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft);
+extern std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft, int terminator = 0);
 extern std::unique_ptr<PrototypeAST> ParseExtern(unsigned share_kind);
 extern bool spawn_bool_expr(bool (*expr)());
 
@@ -291,7 +291,7 @@ enum eXpect {
 	eType
 };
 
-extern bool Expect(int tok, eXpect expect = eNone);
+extern bool Expect(int tok, eXpect expect = eNone, int terminator = 0);
 extern volvoxc::FullType* ParseType(
 	bool allow_attribute = false, eXpect expect = eComma,
 	const char* tname = nullptr,
@@ -720,7 +720,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, TokenKind kind);
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok);
 
 extern Token CurTok;
-extern Token getNextToken(eXpect expect = eNone);
+extern Token getNextToken(eXpect expect = eNone, int terminator = 0);
 extern Token purgeLine();
 
 struct SourceLocState {

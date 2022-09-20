@@ -454,9 +454,9 @@ public:
 					}
 					continue;
 				}
-				
+				errs() << field->Loc << ": initializer with ':' expected - not '" << field_val->Op << "'\n";
 			}
-			errs() << field->Loc << "initializer with ':' expected\n";
+			errs() << field->Loc << ": binary expression as initializer expected\n";
 		}
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
