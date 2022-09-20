@@ -389,7 +389,7 @@ Token Lexer::purge_line() {
 	return ';';
 }
 
-Token Lexer::gettok(eXpect expect) {
+Token Lexer::gettok(eXpect expect, int terminator) {
 	if (KeepIdentifierStr != "") {
 		IdentifierStr = KeepIdentifierStr;
 		KeepIdentifierStr = "";
@@ -422,10 +422,26 @@ Token Lexer::gettok(eXpect expect) {
 	}
 	// Binary Operators
 	if (expect == eBinOp) {
+	binopswitch:
 		switch(CurChar) {
 		case '\n':
-			IdentifierStr = CurChar;
-			return ';';
+			if (!terminator) {
+				IdentifierStr = CurChar;
+				return ';';
+			} else {
+				do {
+					CurChar = advance();
+				} while (isspace(CurChar));
+				if (isalpha(CurChar) || CurChar == '_') {
+					IdentifierStr = '\n';
+					return tok_comma;
+				} else if (CurChar == terminator) {
+					CurChar = advance();
+					return terminator;
+				} else {
+					goto binopswitch;
+				}
+			}
 		case ':':
 			CurChar = advance();
 			if (CurChar == '=') {

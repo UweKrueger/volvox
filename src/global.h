@@ -774,7 +774,7 @@ public:
 			}
 		}
 	int advance();
-	Token gettok(eXpect expect = eNone);
+	Token gettok(eXpect expect = eNone, int terminator = 0);
 	Token purge_line();
 	char peek();
 	char peek_strict();
