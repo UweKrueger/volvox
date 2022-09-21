@@ -271,12 +271,17 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		return nullptr;
 	}
 	getNextToken(expect);
+	bool is_ref = (bool)(attribs & A_ref);
+	attribs &= ~A_ref;
 	if (attribs != type->type_attr) {
-		auto ft = new_FullType(*type);
-		ft->type_attr |= attribs;
-		return ft;
-	} else
-		return type;
+		type = new_FullType(*type);
+		type->type_attr |= attribs;
+	}
+	if (is_ref) {
+		llvm::Type* ptr_type = type->type->getPointerTo();
+		type = new_FullType(ptr_type, 0, nullptr, type);
+	}
+	return type;
 }
 
 /// numberexpr ::= number
