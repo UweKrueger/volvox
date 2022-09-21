@@ -232,6 +232,7 @@ public:
 		memcpy(&ft, adr, sizeof(void*));
 		return ft;
 	}
+	const char* getKey() { return node->key.string; }
 };
 
 namespace volvoxc {

@@ -453,10 +453,20 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		auto idx_offs = fields.size();
 		for (unsigned k=0; k<num_fields; k++)
 			fields.push_back(nullptr);
+		volvoxc::FullType* field_elem_t = lex.get_full_type("_ZN6volvox13RtStructFieldE");
 		for (auto struct_field = ft->first(); struct_field; ++struct_field) {
 			unsigned index = struct_field.getIndex();
 			volvoxc::FullType* field_ft = struct_field.getFt();
-			fields[idx_offs+index] = getRtType(field_ft);
+			const char* field_name = struct_field.getKey();
+			llvm::Value* field = llvm::UndefValue::get(field_elem_t->type);
+			field = Builder->CreateInsertValue(field, Builder->CreateGlobalStringPtr(field_name, "", 0, TheModule.get()), 0);
+			field = Builder->CreateInsertValue(field, getRtType(field_ft), 1);
+			if (auto const_field = llvm::dyn_cast<llvm::Constant>(field)) {
+				fields[idx_offs+index] = const_field;
+			} else {
+				errs() << "internal error - non const struct field type\n";
+				return nullptr;
+			}
 		}
 	} else {
 		TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));

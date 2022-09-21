@@ -9,6 +9,10 @@ type _ZN6volvox6RtTypeE packed {
 	name string
 	fields string
 }
+type _ZN6volvox13RtStructFieldE {
+	FieldName string
+	rttype &_ZN6volvox6RtTypeE
+}
 type ArrayNode {
 	data string
 	dim u64

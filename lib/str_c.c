@@ -597,6 +597,9 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 				abort(); // error in calculation 
 					            }
 			break;
+		case VOLVOX_StructTyID:
+			
+			break;
 		default:
 			fprintf(stderr, "TypeID: %u\n", ft->ID);
 			abort();
