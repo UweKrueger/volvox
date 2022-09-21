@@ -408,7 +408,52 @@ static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str) {
 
 static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags */);
 
-static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType*elem_type, const char* elem_ptr,
+static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, const char* FieldName, VOLVOX_RtType* elem_type, const char* elem_ptr, int w, int p, unsigned flags)
+{
+	if (FieldName) {
+		prtstring(s, cap, pos, FieldName);
+		prtstring(s, cap, pos, ": ");
+	}
+	const char* pre = "";
+	if (elem_type->ID == VOLVOX_FloatTyID) {
+		sprt(s, cap, pos, pre, elem_type, (double)*((float*)elem_ptr), w, p, flags, nullptr, nullptr);
+		elem_ptr = (const char*)((float*)elem_ptr + 1); // TODO: packed/unpacked?
+	} else if (elem_type->ID == VOLVOX_IntegerTyID && elem_type->SubclassData <= 4*8) {
+		unsigned elem = 0;
+		memcpy(&elem, (char*)elem_ptr, elem_type->SubclassData);
+		if (elem_type->SubclassData < 4*8 && (elem_type->type_attr & A_signed)) {
+			// sign expand integer using logic left and arithmetic right shifts
+			unsigned shift = 4*8 - elem_type->SubclassData;
+			elem = (unsigned)((int)(elem << shift) >> shift);
+		}
+		sprt(s, cap, pos, pre, elem_type, elem, w, p, flags, nullptr, nullptr);
+		elem_ptr += elem_type->SubclassData / 8;
+	} else if (elem_type->ID == VOLVOX_IntegerTyID) {
+		sprt(s, cap, pos, pre, elem_type, *(uint64_t*)(elem_ptr), w, p, flags, nullptr, nullptr);
+		elem_ptr += elem_type->SubclassData / 8;
+	} else if (elem_type->ID == VOLVOX_DoubleTyID) {
+		sprt(s, cap, pos, pre, elem_type, *(double*)(elem_ptr), w, p, flags, nullptr, nullptr);
+		elem_ptr = (const char*)((double*)elem_ptr + 1);
+	} else {
+		prtstring(s, cap, pos, "<unsupported type>");
+	}
+	return elem_ptr;
+}
+
+static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* struct_type, const char* elem_ptr,
+                         unsigned num_fields, int w, int p, unsigned flags)
+{
+	if (struct_type->name)
+		prtstring(s, cap, pos, struct_type->name);
+	prtstring(s, cap, pos, "{ ");
+	for (unsigned n=0; n<num_fields; ++n) {
+		elem_ptr = print_struct_field(s, cap, pos, struct_type->fields[n].FieldName, struct_type->fields[n].rttype,
+		                              elem_ptr, w, p, struct_type->type_attr);
+	}
+	prtstring(s, cap, pos, " }");
+}
+
+static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* elem_type, const char* elem_ptr,
                         uint64_t dims[], uint64_t subsz[], int order, int indent, int w, int p, unsigned flags)
 {
 	indent += 2;
@@ -597,8 +642,14 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 				abort(); // error in calculation 
 					            }
 			break;
-		case VOLVOX_StructTyID:
-			
+		case VOLVOX_StructTyID: {
+			unsigned num_fields = ft->SubclassData;
+			char* elem_ptr = va_arg(ap, char*);
+			int w = va_arg(ap, int);
+			int p = va_arg(ap, int);
+			unsigned flags = va_arg(ap, unsigned);
+			print_struct(s, cap, pos, ft, elem_ptr, num_fields, w, p, flags);
+		}
 			break;
 		default:
 			fprintf(stderr, "TypeID: %u\n", ft->ID);
