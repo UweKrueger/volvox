@@ -742,6 +742,18 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			if (!target)
 				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
 		}
+	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
+			auto V = LV->codegen_ref();
+			type = V.first;
+			val = V.second;
+		} else {
+			llvm::Value* stuct_val = expr->codegen_raw(target);
+			if (stuct_val->getType()->isVoidTy())
+				return stuct_val;
+			if (!target)
+				val = StoreValue(stuct_val, expr->ft);
+		}
 	} else {
 		// pass by value
 		val = expr->codegen();

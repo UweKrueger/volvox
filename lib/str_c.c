@@ -447,8 +447,10 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
 		prtstring(s, cap, pos, struct_type->name);
 	prtstring(s, cap, pos, "{ ");
 	for (unsigned n=0; n<num_fields; ++n) {
-		elem_ptr = print_struct_field(s, cap, pos, struct_type->fields[n].FieldName, struct_type->fields[n].rttype,
-		                              elem_ptr, w, p, struct_type->type_attr);
+		elem_ptr = print_struct_field(s, cap, pos,
+		                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.FieldName,
+		                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.rttype,
+		                              elem_ptr, w, p, flags);
 	}
 	prtstring(s, cap, pos, " }");
 }

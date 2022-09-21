@@ -116,6 +116,13 @@ namespace volvox {
 	      down stand alone version of the above systems
 	*/
 
+	struct VOLVOX_RtType;
+
+	struct VOLVOX_RtStructField {
+		const char* FieldName;
+		VOLVOX_RtType* rttype;
+	};
+
 	PACK(struct VOLVOX_RtType {
 		union {
 			struct {
@@ -129,14 +136,10 @@ namespace volvox {
 		const char* name;
 		union {
 			const VOLVOX_RtType* elem_type;
-			const VOLVOX_RtStructField* fields;
+			const VOLVOX_RtStructField fields;
 		};
 	});
 
-	struct VOLVOX_RtStructField {
-		const char* FieldName;
-		VOLVOX_RtType* rttype;
-	};
 #ifdef __cplusplus
 }
 #undef VOLVOX_HalfTyID
