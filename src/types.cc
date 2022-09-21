@@ -445,16 +445,27 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		if (struct_type->hasName()) {
 			TypeName = Builder->CreateGlobalStringPtr(struct_type->getName(), "", 0, TheModule.get());
-			goto type_name_set;
+		} else {
+			TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
 		}
-	}
-	TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
-type_name_set:
-	fields.push_back(TypeName);
-	if (llvmtype.ID == VOLVOX_ArrayTyID) {
-		fields.push_back(getRtType(ft->elem_type));
+		fields.push_back(TypeName);
+		auto num_fields = struct_type->getNumElements();
+		auto idx_offs = fields.size();
+		for (unsigned k=0; k<num_fields; k++)
+			fields.push_back(nullptr);
+		for (auto struct_field = ft->first(); struct_field; ++struct_field) {
+			unsigned index = struct_field.getIndex();
+			volvoxc::FullType* field_ft = struct_field.getFt();
+			fields[idx_offs+index] = getRtType(field_ft);
+		}
 	} else {
-		fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+		TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
+		fields.push_back(TypeName);
+		if (llvmtype.ID == VOLVOX_ArrayTyID) {
+			fields.push_back(getRtType(ft->elem_type));
+		} else {
+			fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+		}
 	}
 	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(Context, fields, true);
 	auto *GV = new llvm::GlobalVariable(*TheModule, rt_const->getType(), true, llvm::GlobalValue::PrivateLinkage, rt_const);

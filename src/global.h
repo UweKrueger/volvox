@@ -210,6 +210,31 @@ extern llvm::ModulePassManager MPM;
 #endif
 
 namespace volvoxc {
+	struct FullType;
+}
+
+class StructFieldType {
+public:
+	MapNode* node;
+	StructFieldType(MapNode* _node) : node(_node) {}
+	inline StructFieldType& operator++() { node = map_iter_up(node); return *this; }
+	inline StructFieldType& operator--() { node = map_iter_down(node); return *this; }
+	operator bool() { return !(!(node)); }
+	MapValue* getRawValue() { return &node->value; }
+	unsigned getIndex() {
+		MapValue* mv = getRawValue();
+		return *(unsigned*)((char*)mv + mv->offset);
+	}
+	volvoxc::FullType* getFt() {
+		volvoxc::FullType* ft;
+		MapValue* mv = getRawValue();
+		char* adr = (char*)mv + mv->offset + 4;
+		memcpy(&ft, adr, sizeof(void*));
+		return ft;
+	}
+};
+
+namespace volvoxc {
 
 	struct FullType {
 		llvm::Type* type; // used by compiler
@@ -223,6 +248,9 @@ namespace volvoxc {
 			MapNode* fields;     // for structs
 		};
 		void dump(int fd = 2);
+		// iterate over struct fields
+		StructFieldType first() { return StructFieldType(map_min(fields)); }
+		StructFieldType last() { return StructFieldType(map_max(fields)); }
 	};
 
 	/* Named types can be kept in a map using the name as key.
@@ -236,6 +264,7 @@ namespace volvoxc {
 	};
 
 }
+
 
 extern llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type);
 
@@ -297,7 +326,6 @@ extern volvoxc::FullType* ParseType(
 	const char* tname = nullptr,
 	std::vector<std::unique_ptr<ExprAST>>* exprs = nullptr,
 	bool is_index = false);
-extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 extern void PrepareTestFramework();
