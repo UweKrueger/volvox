@@ -422,6 +422,7 @@ static const char* ptr_align(const char* ptr, size_t bytes) {
 
 static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, const char* FieldName, VOLVOX_RtType* elem_type, const char* elem_ptr, int w, int p, unsigned flags)
 {
+	prtstring(s, cap, pos, "\n    ");
 	if (FieldName) {
 		prtstring(s, cap, pos, FieldName);
 		prtstring(s, cap, pos, ": ");
@@ -465,16 +466,20 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
 {
 	if (struct_type->name)
 		prtstring(s, cap, pos, struct_type->name);
-	prtstring(s, cap, pos, "{ ");
-	if (struct_type->type_attr & A_packed)
-		flags |= A_packed;
-	for (unsigned n=0; n<num_fields; ++n) {
-		elem_ptr = print_struct_field(s, cap, pos,
-		                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.FieldName,
-		                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.rttype,
-		                              elem_ptr, w, p, flags);
+	if (num_fields) { // should empty structs be allowed? not sure...
+		prtstring(s, cap, pos, "{");
+		if (struct_type->type_attr & A_packed)
+			flags |= A_packed;
+		for (unsigned n=0; n<num_fields; ++n) {
+			elem_ptr = print_struct_field(s, cap, pos,
+			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.FieldName,
+			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.rttype,
+			                              elem_ptr, w, p, flags);
+		}
+		prtstring(s, cap, pos, "\n}");
+	} else {
+		prtstring(s, cap, pos, "{}");
 	}
-	prtstring(s, cap, pos, " }");
 }
 
 static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* elem_type, const char* elem_ptr,
