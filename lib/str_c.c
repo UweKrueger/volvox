@@ -408,19 +408,35 @@ static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str) {
 
 static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags */);
 
+static const char* ptr_align(const char* ptr, size_t bytes) {
+	if (bytes) {
+		unsigned align = 8;
+		while (bytes < align)
+			align = align >> 1;
+		align -= 1;
+		uintptr_t mask = ~(uintptr_t)(align);
+		ptr = (const char*)(((uintptr_t)ptr + align) & mask);
+	}
+	return ptr;
+}
+
 static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, const char* FieldName, VOLVOX_RtType* elem_type, const char* elem_ptr, int w, int p, unsigned flags)
 {
 	if (FieldName) {
 		prtstring(s, cap, pos, FieldName);
 		prtstring(s, cap, pos, ": ");
 	}
-	const char* pre = "";
+	const char* pre = nullptr;
 	if (elem_type->ID == VOLVOX_FloatTyID) {
+		if (!(flags & A_packed))
+			elem_ptr = ptr_align(elem_ptr, sizeof(float));
 		sprt(s, cap, pos, pre, elem_type, (double)*((float*)elem_ptr), w, p, flags, nullptr, nullptr);
 		elem_ptr = (const char*)((float*)elem_ptr + 1); // TODO: packed/unpacked?
 	} else if (elem_type->ID == VOLVOX_IntegerTyID && elem_type->SubclassData <= 4*8) {
 		unsigned elem = 0;
-		memcpy(&elem, (char*)elem_ptr, elem_type->SubclassData);
+		if (!(flags & A_packed))
+			elem_ptr = ptr_align(elem_ptr, elem_type->SubclassData / 8);
+		memcpy(&elem, (char*)elem_ptr, elem_type->SubclassData / 8);
 		if (elem_type->SubclassData < 4*8 && (elem_type->type_attr & A_signed)) {
 			// sign expand integer using logic left and arithmetic right shifts
 			unsigned shift = 4*8 - elem_type->SubclassData;
@@ -429,9 +445,13 @@ static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, co
 		sprt(s, cap, pos, pre, elem_type, elem, w, p, flags, nullptr, nullptr);
 		elem_ptr += elem_type->SubclassData / 8;
 	} else if (elem_type->ID == VOLVOX_IntegerTyID) {
+		if (!(flags & A_packed))
+			elem_ptr = ptr_align(elem_ptr, 8);
 		sprt(s, cap, pos, pre, elem_type, *(uint64_t*)(elem_ptr), w, p, flags, nullptr, nullptr);
 		elem_ptr += elem_type->SubclassData / 8;
 	} else if (elem_type->ID == VOLVOX_DoubleTyID) {
+		if (!(flags & A_packed))
+			elem_ptr = ptr_align(elem_ptr, 8);
 		sprt(s, cap, pos, pre, elem_type, *(double*)(elem_ptr), w, p, flags, nullptr, nullptr);
 		elem_ptr = (const char*)((double*)elem_ptr + 1);
 	} else {
