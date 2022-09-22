@@ -240,6 +240,8 @@ static void HandleTypeDef(unsigned share_kind) {
 		ft->mangled_name = strdup(mangled_name.c_str());
 	}
 	lex.add_type(type_name.c_str(), ft);
+	if (verbosity >= 2)
+		errs() << "declared new type '" << type_name << "' as " << *ft->type << '\n';
 }
 
 static void HandleImport() {

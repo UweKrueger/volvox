@@ -86,10 +86,14 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
 
    when no literal is parsed ParseType with exprs = nullptr and only
    the second case is considered
+
+   when resolve_ref is true a pointer type is created if preceded with '&'
+   (this is needed for struct declarations) - otherwise A_ref is set
  */
 volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
                              const char* tname,
-                             std::vector<std::unique_ptr<ExprAST>>* exprs, bool is_index) {
+                             std::vector<std::unique_ptr<ExprAST>>* exprs,
+                             bool is_index, bool resolve_ref) {
 	unsigned attribs = 0;
 	std::vector<uint64_t> lens = {};
 	bool is_packed = false;
@@ -218,7 +222,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 				}
 				FieldNames.push_back(IdentifierStr);
 				getNextToken(eType);
-				auto type = ParseType(true, eComma);
+				auto type = ParseType(true, eComma, nullptr, nullptr, false, true);
 				if (!type) {
 					errs() << CurLoc << ": unexpected '" << CurTok.str() << "' in struct declaration - type name expected\n";
 					return nullptr;
@@ -271,13 +275,14 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 		return nullptr;
 	}
 	getNextToken(expect);
-	bool is_ref = (bool)(attribs & A_ref);
-	attribs &= ~A_ref;
+	bool is_ptr = resolve_ref && (attribs & A_ref);
+	if (is_ptr)
+		attribs &= ~A_ref;
 	if (attribs != type->type_attr) {
 		type = new_FullType(*type);
 		type->type_attr |= attribs;
 	}
-	if (is_ref) {
+	if (is_ptr) {
 		llvm::Type* ptr_type = type->type->getPointerTo();
 		type = new_FullType(ptr_type, 0, nullptr, type);
 	}
