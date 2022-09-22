@@ -44,3 +44,41 @@ fn test_array_call_by_ref_3() bool
 	ma := [7]f64{1.5, -2.25, 2.5, -3.125, -0.0625, 0.5, -0.25}
 	s79 := mod_val_array_4(ma)
 	return ma[2] == -5.375 & s79 == -16.125
+
+
+type QwF {
+	o2a i32
+	pgh f64
+	rtt f32
+}
+
+lfg := QwF{
+	rtt: 34.5f32
+	o2a: 4234
+}
+
+fn test_struct_1() bool
+	return lfg.pgh == 0. & lfg.o2a == 4234 & lfg.rtt == 34.5
+
+type XXt {
+	a i32
+	b f64
+}
+
+type YYt {
+	rz i32
+	w XXt
+}
+
+suo := YYt{
+	rz: -345
+	w: XXt{
+		a: 12
+		b: 2.3
+	}
+}
+
+suo.w.b = -67.25
+
+fn test_packed_struct_1() bool
+	return suo.w.a == 12 & suo.w.b == -67.25 & suo.rz == -345
