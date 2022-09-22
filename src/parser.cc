@@ -980,6 +980,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						return nullptr;
 					}
 				}
+			} else {
+				LHS = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
+				continue;
 			}
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),

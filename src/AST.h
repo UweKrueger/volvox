@@ -162,6 +162,44 @@ public:
 #endif
 };
 
+// struct field selection like 'struct.field'
+class SelectExprAST : public LvalueExprAST {
+public:
+	std::unique_ptr<ExprAST> Struct, Field;
+	const char* FieldName = nullptr;
+	unsigned FieldIndex = (unsigned)(-1);
+	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<ExprAST> _Field) :
+		LvalueExprAST(Loc), Struct(std::move(_Struct)), Field(std::move(_Field))
+		{
+			if (auto Ident = dynamic_cast<IdentExprAST*>(Field.get())) {
+				FieldName = Ident->Name.c_str();
+				if (Struct->ft && Struct->ft->type) {
+					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Struct->ft->type)) {
+						MapValue* mv = map_string_get(Struct->ft->fields, FieldName);
+						if (mv) {
+							FieldIndex = *(unsigned*)((char*)mv + mv->offset);
+							char* adr = (char*)mv + mv->offset + 4;
+							memcpy(&ft, adr, sizeof(void*));
+						} else {
+							llvm::StringRef struct_name = struct_type->hasName() ?
+								struct_type->getName() :
+								"<anonymous>";
+							errs() << Struct->Loc << ": struct type '" << struct_name << "' has no field named '"
+							       << FieldName << "'\n";
+						}
+					} else {
+						errs() << Struct->Loc << ": LHS of '.' must be a struct (not " << *Struct->ft->type << ")\n";
+					}
+				} else {
+					errs() << Struct->Loc << ": LHS of '.' has no defined type\n";
+				}
+			} else {
+				errs() << Field->Loc << ": RHS of '.' must be an identifier\n";
+			}
+		}
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
+};
+
 // IndexExprAST - Expressions like x[2] or y["key"]
 class IndexExprAST : public LvalueExprAST {
 
