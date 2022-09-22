@@ -12,7 +12,7 @@
 #define A_map    (1U<<6) // llvm-type is key type
 #define A_signed_key (1U<<7) //for maps with integer key
 #define A_fn     (1U<<8) // function (or function pointer)
-#define A_packed (1U<<9)
+#define A_packed (1U<<9) // only set for RtType, otherwise part of llvm::Type
 // symbol visibility attributes
 #define A_pub    (1U<<16)
 #define A_global (1U<<17)

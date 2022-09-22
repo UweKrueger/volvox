@@ -427,22 +427,26 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		unsigned key;
 	};
 	unsigned subclassdata = 0; // bitwidth for int types, order for arrays, number of elements for structs
+	unsigned additional_attribs = 0; // e.g. A_packed for structs
 	llvm::Type* elem_type = ft->type;
 	while (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 		subclassdata++;
 		elem_type = array_type->getElementType();
 	}
 	if (!subclassdata) {
-		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type))
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 			subclassdata = struct_type->getNumElements();
-		else
+			if (struct_type->isPacked())
+				additional_attribs |= A_packed;
+		} else {
 			// if it's no array nor a struct use LLVM's subclassdata (e.g. integer bitwidth)
 			subclassdata = ((genType*)ft->type)->SubClassData();
+		}
 	}
 	llvmtype = VOLVOX_gen_val_type_t{ .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = subclassdata };
 	llvm::SmallVector<llvm::Constant*, 16> fields;
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)key));
-	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)ft->type_attr));
+	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)(ft->type_attr | additional_attribs)));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), (uint64_t)(
 		                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
 	llvm::Constant* TypeName;
