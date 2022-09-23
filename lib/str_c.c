@@ -420,9 +420,28 @@ static const char* ptr_align(const char* ptr, size_t bytes) {
 	return ptr;
 }
 
-static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, const char* FieldName, VOLVOX_RtType* elem_type, const char* elem_ptr, int w, int p, unsigned flags)
+static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* struct_type,
+                         const char* elem_ptr, unsigned num_fields, int indent, int w, int p, unsigned flags);
+
+static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* elem_type,
+                        const char* elem_ptr, uint64_t dims[], uint64_t subsz[], int order, int indent,
+                        int w, int p, unsigned flags);
+
+static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double val, int w, int p,
+                      unsigned flags);
+
+static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned long long vall,
+                    unsigned bits, int w, int p, unsigned flags);
+
+static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, const char* FieldName,
+                                      VOLVOX_RtType* elem_type, const char* elem_ptr, int indent,
+                                      int w, int p, unsigned flags)
 {
-	prtstring(s, cap, pos, "\n    ");
+	char* indentbuf = (char*)alloca(indent+2);
+	indentbuf[0] = '\n';
+	memset(indentbuf + 1, ' ', indent);
+	indentbuf[indent + 1] = '\0';
+	prtstring(s, cap, pos, indentbuf);
 	if (FieldName) {
 		prtstring(s, cap, pos, FieldName);
 		prtstring(s, cap, pos, ": ");
@@ -462,7 +481,7 @@ static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, co
 }
 
 static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* struct_type, const char* elem_ptr,
-                         unsigned num_fields, int w, int p, unsigned flags)
+                         unsigned num_fields, int indent, int w, int p, unsigned flags)
 {
 	if (struct_type->name)
 		prtstring(s, cap, pos, struct_type->name);
@@ -474,7 +493,7 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
 			elem_ptr = print_struct_field(s, cap, pos,
 			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.FieldName,
 			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.rttype,
-			                              elem_ptr, w, p, flags);
+			                              elem_ptr, indent + 4, w, p, flags);
 		}
 		prtstring(s, cap, pos, "\n}");
 	} else {
@@ -675,7 +694,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
-			print_struct(s, cap, pos, ft, elem_ptr, num_fields, w, p, flags);
+			print_struct(s, cap, pos, ft, elem_ptr, num_fields, 0, w, p, flags);
 		}
 			break;
 		default:
