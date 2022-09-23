@@ -235,7 +235,9 @@ static void HandleTypeDef(unsigned share_kind) {
 		purgeLine();
 		return;
 	}
-	if (!lex.module->import_path.empty()) {
+	if (lex.module->import_path.empty()) {
+		ft->mangled_name = strdup(type_name.c_str());
+	} else {
 		auto mangled_name = MangleBase(lex.module->import_path, type_name);
 		ft->mangled_name = strdup(mangled_name.c_str());
 	}
