@@ -46,7 +46,7 @@ fn test_array_call_by_ref_3() bool
 	return ma[2] == -5.375 & s79 == -16.125
 
 
-type QwF {
+type QwF packed {
 	o2a i32
 	pgh f64
 	rtt f32
@@ -57,7 +57,7 @@ lfg := QwF{
 	o2a: 4234
 }
 
-fn test_struct_1() bool
+fn test_packed_struct_1() bool
 	return lfg.pgh == 0. & lfg.o2a == 4234 & lfg.rtt == 34.5
 
 type XXt {
@@ -80,5 +80,14 @@ suo := YYt{
 
 suo.w.b = -67.25
 
-fn test_packed_struct_1() bool
+fn test_struct_1() bool
 	return suo.w.a == 12 & suo.w.b == -67.25 & suo.rz == -345
+
+fn get_field() f64
+	lld := XXt{ a: -94, b: 127.75 }
+	p := lld.b
+	return p
+
+fn test_struct_2() bool
+	cc := get_field()
+	return cc == 127.75
