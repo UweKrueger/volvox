@@ -675,8 +675,21 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref(bool silent_fail)
 			return { ft->type, Builder->CreateConstGEP2_32(struct_ref.first, struct_ref.second, 0, FieldIndex) };
 	}
 	if (!silent_fail)
-		errs() << "LHS of '.' expression must be an lvalue\n";
+		errs() << Struct->Loc << ": LHS of '.' expression must be an lvalue\n";
 	return { ft->type, nullptr };
+}
+
+llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
+	auto V = codegen_ref(true);
+	if (auto val = ref2val(V))
+		return val;
+	if (V.first) {
+		llvm::Value* struct_val = Struct->codegen_raw(target);
+		if (struct_val)
+			return Builder->CreateExtractValue(struct_val, FieldIndex);
+	}
+	errs() << Loc << ": cannot generate code for select expression\n";
+	return nullptr;
 }
 
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
@@ -1120,7 +1133,13 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		uint64_t el_allocsz = 0;
 		llvm::Value* Struct = nullptr;
 		if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
-			auto ValR = RHS_Lval->codegen_ref();
+			auto ValR = RHS_Lval->codegen_ref(true);
+			if (!ValR.second) {
+				if (ValR.first)
+					goto use_val;
+				errs() << RHS->Loc << ": unable to generate code for RHS of assignment\n";
+				return nullptr;
+			}
 			// update allocsz in case codegen_ref() has revealed a fixed compile time size
 			allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
 			if (!allocsz) {
@@ -1146,20 +1165,25 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 				}
 			} else {
-				if (allocsz <= 16)
+				if (allocsz <= 16) {
 					Val = RHS_Lval->ref2val(ValR);
+					if (!Val)
+						goto use_val;;
+				}
 				else
 					ValPtr = ValR.second;
 			}
-		} else {
-			if (allocsz <= 16) {
-				Val = RHS->codegen();
-				if (!Val)
-					return nullptr;
-			}
+			goto have_val_or_valptr;
 		}
-		if (allocsz <= 16 && conv.compat.RHS)
-			Val = conv.compat.RHS(Val);
+	use_val:
+		if (allocsz <= 16) {
+			Val = RHS->codegen();
+			if (!Val)
+				return nullptr;
+			if (conv.compat.RHS)
+				Val = conv.compat.RHS(Val);
+		}
+	have_val_or_valptr:
 		// Look up the name.
 		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
 			varname = RegularVar->getName().c_str();

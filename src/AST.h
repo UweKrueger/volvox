@@ -198,6 +198,7 @@ public:
 			}
 		}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
 // IndexExprAST - Expressions like x[2] or y["key"]

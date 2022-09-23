@@ -91,3 +91,7 @@ fn get_field() f64
 fn test_struct_2() bool
 	cc := get_field()
 	return cc == 127.75
+
+fn test_struct_3() bool
+	qb := XXt{ a: -94, b: -93.0625 }.b
+	return qb == -93.0625
