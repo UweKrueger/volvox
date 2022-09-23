@@ -540,6 +540,17 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 	prtstring(s, cap, pos, " ]");
 }
 
+static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double val, int w, int p, unsigned flags) {
+	const char* fmt = getFmtFlt(flags);
+	int expected_nchar = Max(abs(w)+1, p+7+1);
+	while (space < expected_nchar) {
+		*cap += expected_nchar + (*cap >> 1);
+		*s = (char*)realloc(*s, *cap);
+		space = *cap - *pos;
+	}
+	*pos += sprintf(*s + *pos, fmt, w, p, val);
+}
+
 static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, va_list ap) {
 	if (!*cap) {
 		*cap = 128;
@@ -559,17 +570,8 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			unsigned flags = va_arg(ap, unsigned);
 			const char* fmt = getFmtFlt(flags);
 			if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
-			int expected_nchar = Max(abs(w)+1, p+7+1);
-			while (space < expected_nchar) {
-				*cap += expected_nchar + (*cap >> 1);
-				*s = (char*)realloc(*s, *cap);
-				space = *cap - *pos;
-			}
-			*pos += sprintf(*s + *pos, fmt, w, p, val);
-			space = *cap - *pos;
-			if (space < 1)
-				abort(); // error in calculation 
-					            }
+			prt_float(s, cap, pos, space, val, w, p, flags);
+		}
 			break;
 		case VOLVOX_IntegerTyID: {
 			if (ft->SubclassData <= 32) {
@@ -598,9 +600,6 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 					space = *cap - *pos;
 				}
 				*pos += sprintf(*s + *pos, fmt, w, val);
-				space = *cap - *pos;
-				if (space < 1)
-					abort(); // error in calculation 
 			} else {
 				long long int val = va_arg(ap, long long int);
 				int w = va_arg(ap, int);
@@ -614,9 +613,6 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 					space = *cap - *pos;
 				}
 				*pos += sprintf(*s + *pos, fmt, w, val);
-				space = *cap - *pos;
-				if (space < 1)
-					abort(); // error in calculation
 			}
 		}
 			break;
@@ -643,7 +639,6 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 				for (unsigned n = 0; n < order; n++)
 					prtstring(s, cap, pos, "]");
 			}
-			space = *cap - *pos;
 		}
 			break;
 		case VOLVOX_PointerTyID: {
@@ -666,10 +661,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 				space = *cap - *pos;
 			}
 			*pos += sprintf(*s + *pos, "function: <%p>", fn);
-			space = *cap - *pos;
-			if (space < 1)
-				abort(); // error in calculation 
-					            }
+		}
 			break;
 		case VOLVOX_StructTyID: {
 			unsigned num_fields = ft->SubclassData;
@@ -684,6 +676,10 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			fprintf(stderr, "TypeID: %u\n", ft->ID);
 			abort();
 		}
+		space = *cap - *pos;
+		if (space < 1)
+			// error in calculation
+			abort();
 		const char* post = va_arg(ap, char*);
 		if (post) {
 			prtstring(s, cap, pos, post);
