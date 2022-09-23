@@ -474,6 +474,11 @@ static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, co
 			elem_ptr = ptr_align(elem_ptr, 8);
 		sprt(s, cap, pos, pre, elem_type, *(double*)(elem_ptr), w, p, flags, nullptr, nullptr);
 		elem_ptr = (const char*)((double*)elem_ptr + 1);
+	} else if (elem_type->ID == VOLVOX_StructTyID) {
+		if (!(flags & A_packed))
+			elem_ptr = ptr_align(elem_ptr, elem_type->type_size);
+		print_struct(s, cap, pos, elem_type, elem_ptr, elem_type->SubclassData, indent, w, p, flags);
+		elem_ptr += elem_type->type_size;
 	} else {
 		prtstring(s, cap, pos, "<unsupported type>");
 	}
@@ -495,7 +500,12 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
 			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.rttype,
 			                              elem_ptr, indent + 4, w, p, flags);
 		}
-		prtstring(s, cap, pos, "\n}");
+		char* indentbuf = (char*)alloca(indent+3);
+		indentbuf[0] = '\n';
+		memset(indentbuf + 1, ' ', indent);
+		indentbuf[indent + 1] = '}';
+		indentbuf[indent + 2] = '\0';
+		prtstring(s, cap, pos, indentbuf);
 	} else {
 		prtstring(s, cap, pos, "{}");
 	}
