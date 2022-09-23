@@ -95,3 +95,28 @@ fn test_struct_2() bool
 fn test_struct_3() bool
 	qb := XXt{ a: -94, b: -93.0625 }.b
 	return qb == -93.0625
+
+fn test_struct_4() bool
+	qe := YYt{ rz: 17, w: XXt{ a: 27, b: 33.25 }}.w
+	return qe.b == 33.25
+
+fn get_big_struct() YYt
+	qe := YYt{ rz: 14, w: XXt{ a: -63, b: -11.125 }}
+	return qe
+
+fn test_struct_return_1() bool
+	hsm := get_big_struct()
+	return hsm.rz == 14 & hsm.w.a == -63 & hsm.w.b == -11.125
+
+type PPl {
+	b i32
+	t i32
+}
+
+fn get_small_struct() PPl
+	qf := PPl{ b: -34, t: 27 }
+	return qf
+
+fn test_struct_return_2() bool
+	hlw := get_small_struct()
+	return hlw.b == -34 & hlw.t == 27
