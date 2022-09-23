@@ -551,6 +551,39 @@ static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double 
 	*pos += sprintf(*s + *pos, fmt, w, p, val);
 }
 
+static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned long long vall, unsigned bits, int w, int p, unsigned flags) {
+	int expected_nchar;
+	unsigned val;
+	const char* fmt;
+	if (bits <= 32) {
+		val = (unsigned)vall;
+		if (bits < 32) {
+			if (bits == 1) {
+				// bool
+				prtstring(s, cap, pos, val & 1 ? "true" : "false");
+				return;
+			}
+			// extend upper bits according to signedness
+			if (!(flags & FMT_UNSIGNED))
+				val = (unsigned)((int)(val << (32 - bits)) >> (32 - bits));
+		}
+		fmt = getFmtInt(flags);
+		expected_nchar = Max(abs(w)+1, 21+1);
+	} else {
+		fmt = getFmtLong(flags);
+		expected_nchar = Max(abs(w)+1, 11+1);
+	}
+	while (space < expected_nchar) {
+		*cap += expected_nchar + (*cap >> 1);
+		*s = (char*)realloc(*s, *cap);
+		space = *cap - *pos;
+	}
+	if (bits <= 32)
+		*pos += sprintf(*s + *pos, fmt, w, val);
+	else
+		*pos += sprintf(*s + *pos, fmt, w, vall);
+}
+
 static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, va_list ap) {
 	if (!*cap) {
 		*cap = 128;
@@ -574,46 +607,19 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 		}
 			break;
 		case VOLVOX_IntegerTyID: {
+			unsigned long long vall;
 			if (ft->SubclassData <= 32) {
-				int val = va_arg(ap, int);
-				int w = va_arg(ap, int);
-				int p = va_arg(ap, int);
-				unsigned flags = va_arg(ap, unsigned);
-				if (!(ft->type_attr & A_signed))
-					flags |= FMT_UNSIGNED;
-				if (ft->SubclassData < 32)
-					if (ft->SubclassData == 1) {
-						// bool
-						prtstring(s, cap, pos, val & 1 ? "true" : "false");
-						break;
-					}
-				// extend upper bits according to signedness
-				if (ft->type_attr & A_signed)
-					val = (int)((unsigned)val << (32 - ft->SubclassData)) >> (32 - ft->SubclassData);
-				else
-					val = (int)(((unsigned)val << (32 - ft->SubclassData)) >> (32 - ft->SubclassData));
-				const char* fmt = getFmtInt(flags);
-				int expected_nchar = Max(abs(w)+1, 21+1);
-				while (space < expected_nchar) {
-					*cap += expected_nchar + (*cap >> 1);
-					*s = (char*)realloc(*s, *cap);
-					space = *cap - *pos;
-				}
-				*pos += sprintf(*s + *pos, fmt, w, val);
+				unsigned val = va_arg(ap, unsigned);
+				vall = val;
 			} else {
-				long long int val = va_arg(ap, long long int);
-				int w = va_arg(ap, int);
-				int p = va_arg(ap, int);
-				unsigned flags = va_arg(ap, unsigned);
-				const char* fmt = getFmtLong(flags);
-				int expected_nchar = Max(abs(w)+1, 11+1);
-				while (space < expected_nchar) {
-					*cap += expected_nchar + (*cap >> 1);
-					*s = (char*)realloc(*s, *cap);
-					space = *cap - *pos;
-				}
-				*pos += sprintf(*s + *pos, fmt, w, val);
+				vall = va_arg(ap, unsigned long long);
 			}
+			int w = va_arg(ap, int);
+			int p = va_arg(ap, int);
+			unsigned flags = va_arg(ap, unsigned);
+			if (!(ft->type_attr & A_signed))
+				flags |= FMT_UNSIGNED;
+			prt_int(s, cap, pos, space, vall, ft->SubclassData, w, p, flags);
 		}
 			break;
 		case VOLVOX_ArrayTyID: {
