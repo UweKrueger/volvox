@@ -120,3 +120,32 @@ fn get_small_struct() PPl
 fn test_struct_return_2() bool
 	hlw := get_small_struct()
 	return hlw.b == -34 & hlw.t == 27
+
+fn small_struct_arg(vx PPl) i32
+	mmd := vx.t
+	return mmd
+
+ggds := PPl{ b: -65343, t: 24453 }
+
+fn test_small_struct_arg_1() bool
+	llq := small_struct_arg(ggds)
+	return llq == 24453
+
+fn test_small_struct_arg_2() bool
+	llq := small_struct_arg(PPl{ b: 6634, t: -7334 })
+	return llq == -7334
+
+fn big_struct_arg(vb YYt) f64
+	mkd := vb.w.b
+	return mkd
+
+fn test_big_struct_arg_1() bool
+	llq := big_struct_arg(suo)
+	return llq == -67.25
+
+fn test_big_struct_arg_2() bool
+	return -67.25 == big_struct_arg(suo)
+
+fn test_big_struct_arg_3() bool
+	llqr := big_struct_arg(YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }})
+	return llqr == 66.5

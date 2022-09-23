@@ -1709,11 +1709,20 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			if (!arg) {
 				if (is_address) {
 					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
-						auto argref = lval->codegen_ref();
+						auto argref = lval->codegen_ref(true);
+						if (!argref.first) {
+							errs() << Args[i]->Loc << ": cannot generate code for expression\n";
+							return nullptr;
+						}
 						arg = argref.second;
-					} else {
-						arg = Builder->CreateAlloca(Proto->LLVMArgTypes[i+arg_offs]);
+					}
+					if (!arg) {
+						arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
 						auto tmparg = Args[i]->codegen();
+						if (!tmparg) {
+							errs() << Args[i]->Loc << ": cannot generate code for expression\n";
+							return nullptr;
+						}
 						Builder->CreateStore(tmparg, arg);
 					}
 				} else
