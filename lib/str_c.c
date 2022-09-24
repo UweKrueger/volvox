@@ -514,6 +514,8 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* struct_type, const char* elem_ptr,
                          unsigned num_fields, int indent, int w, int p, unsigned flags)
 {
+	if (indent < 0)
+		prtstring(s, cap, pos, " ");
 	if (struct_type->name)
 		prtstring(s, cap, pos, struct_type->name);
 	if (num_fields) { // should empty structs be allowed? not sure...
@@ -526,12 +528,16 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
 			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.rttype,
 			                              elem_ptr, indent + 4, w, p, flags);
 		}
-		char* indentbuf = (char*)alloca(indent+3);
-		indentbuf[0] = '\n';
-		memset(indentbuf + 1, ' ', indent);
-		indentbuf[indent + 1] = '}';
-		indentbuf[indent + 2] = '\0';
-		prtstring(s, cap, pos, indentbuf);
+		if (indent >= 0) {
+			char* indentbuf = (char*)alloca(indent+3);
+			indentbuf[0] = '\n';
+			memset(indentbuf + 1, ' ', indent);
+			indentbuf[indent + 1] = '}';
+			indentbuf[indent + 2] = '\0';
+			prtstring(s, cap, pos, indentbuf);
+		} else {
+			prtstring(s, cap, pos, "\n}");
+		}
 	} else {
 		prtstring(s, cap, pos, "{}");
 	}
@@ -558,7 +564,8 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 	}
 	pre1[idx1] = '\0';
 	int suborder = order - 1;
-	if (!suborder) {
+	if (!suborder && (elem_type->ID == VOLVOX_BFloatTyID || elem_type->ID == VOLVOX_FloatTyID
+		    || elem_type->ID == VOLVOX_DoubleTyID || elem_type->ID == VOLVOX_IntegerTyID)) {
 		// we want the field to be in an eye-pleasing pitch by default
 		if (!w)
 			w = ARRAY_DEFAULT_FIELD_WIDTH;
