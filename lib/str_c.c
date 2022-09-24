@@ -434,14 +434,16 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned 
                     unsigned bits, int w, int p, unsigned flags);
 
 static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, const char* FieldName,
-                                      VOLVOX_RtType* elem_type, const char* elem_ptr, int indent,
+                                      const VOLVOX_RtType* elem_type, const char* elem_ptr, int indent,
                                       int w, int p, unsigned flags)
 {
-	char* indentbuf = (char*)alloca(indent+2);
-	indentbuf[0] = '\n';
-	memset(indentbuf + 1, ' ', indent);
-	indentbuf[indent + 1] = '\0';
-	prtstring(s, cap, pos, indentbuf);
+	if (indent >= 0) {
+		char* indentbuf = (char*)alloca(indent+2);
+		indentbuf[0] = '\n';
+		memset(indentbuf + 1, ' ', indent);
+		indentbuf[indent + 1] = '\0';
+		prtstring(s, cap, pos, indentbuf);
+	}
 	if (FieldName) {
 		prtstring(s, cap, pos, FieldName);
 		prtstring(s, cap, pos, ": ");
@@ -563,33 +565,15 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 		if (!p)
 			p = ARRAY_DEFAULT_PRECISION;
 	}
-	uint64_t offset = 0;
 	for (int i = 0; i < dims[0]; i++) {
 		const char* pre = i ? pre1 : pre0;
+		prtstring(s, cap, pos, pre);
 		if (suborder) {
-			prtstring(s, cap, pos, pre);
-			print_array(s, cap, pos, elem_type, elem_ptr + offset, &dims[1], &subsz[1], suborder, indent, w, p, flags);
+			print_array(s, cap, pos, elem_type, elem_ptr, &dims[1], &subsz[1], suborder, indent, w, p, flags);
+			elem_ptr += subsz[1];
 		} else {
-			if (elem_type->ID == VOLVOX_FloatTyID) {
-				sprt(s, cap, pos, pre, elem_type, (double)*((float*)elem_ptr + i), w, p, flags, nullptr, nullptr);
-			} else if (elem_type->ID == VOLVOX_IntegerTyID && subsz[1] <= 4) {
-				unsigned elem;
-				memcpy(&elem, (char*)elem_ptr + offset, subsz[1]);
-				if (subsz[1] < 4 && (elem_type->type_attr & A_signed)) {
-					// sign expand integer using logic left and arithmetic right shifts
-					unsigned shift = 8 * (4 - subsz[1]);
-					elem = (unsigned)((int)(elem << shift) >> shift);
-				}
-				sprt(s, cap, pos, pre, elem_type, elem, w, p, flags, nullptr, nullptr);
-			} else if (elem_type->ID == VOLVOX_IntegerTyID) {
-				sprt(s, cap, pos, pre, elem_type, *(uint64_t*)(elem_ptr + offset), w, p, flags, nullptr, nullptr);
-			} else if (elem_type->ID == VOLVOX_DoubleTyID) {
-				sprt(s, cap, pos, pre, elem_type, *(double*)(elem_ptr + offset), w, p, flags, nullptr, nullptr);
-			} else {
-				prtstring(s, cap, pos, "<unsupported type>");
-			}
+			elem_ptr = print_struct_field(s, cap, pos, nullptr, elem_type, elem_ptr, -1, w, p, flags);
 		}
-		offset += subsz[1];
 	}
 	prtstring(s, cap, pos, " ]");
 }
