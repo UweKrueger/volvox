@@ -324,7 +324,7 @@ enum eXpect {
 extern bool Expect(int tok, eXpect expect = eNone, int terminator = 0);
 extern volvoxc::FullType* ParseType(
 	bool allow_attribute = false, eXpect expect = eComma,
-	const char* tname = nullptr,
+	int terminator = 0, const char* tname = nullptr,
 	std::vector<std::unique_ptr<ExprAST>>* exprs = nullptr,
 	bool is_index = false, bool resolve_ref = false);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);

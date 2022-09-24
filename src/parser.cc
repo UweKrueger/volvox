@@ -90,7 +90,7 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
    when resolve_ref is true a pointer type is created if preceded with '&'
    (this is needed for struct declarations) - otherwise A_ref is set
  */
-volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
+volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator,
                              const char* tname,
                              std::vector<std::unique_ptr<ExprAST>>* exprs,
                              bool is_index, bool resolve_ref) {
@@ -151,7 +151,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 						if (exprs) {
 							if (!exprs->size() && (is_index || !Lexer::is_type_start(lex.peek_strict()))) {
 								// this is a vector - just return elements
-								if (!Expect(']', expect)) {
+								if (!Expect(']', expect, terminator)) {
 									exprs->clear();
 									return nullptr;
 								}
@@ -191,7 +191,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 					}
 				}
 			} while (CurTok.kind == '[');
-			auto elem_type = ParseType(false, expect);
+			auto elem_type = ParseType(false, expect, terminator);
 			if (!elem_type) {
 				errs() << CurLoc << ": type expected\n";
 				if (exprs)
@@ -222,7 +222,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect,
 				}
 				FieldNames.push_back(IdentifierStr);
 				getNextToken(eType);
-				auto type = ParseType(true, eComma, nullptr, nullptr, false, true);
+				auto type = ParseType(true, eComma, 0, nullptr, nullptr, false, true);
 				if (!type) {
 					errs() << CurLoc << ": unexpected '" << CurTok.str() << "' in struct declaration - type name expected\n";
 					return nullptr;
@@ -435,7 +435,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	bool key_is_signed = false;
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
-	volvoxc::FullType* ft = ParseType(false, eBinOp, nullptr, &Dims, is_index);
+	volvoxc::FullType* ft = ParseType(false, eBinOp, terminator, nullptr, &Dims, is_index);
 	SourceLocation loc = CurLoc;
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
@@ -866,7 +866,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	case tok_map:
 	case tok_set:
 	case tok_chan:
-		return ParseAggregateExpr(terminator);
+		return ParseAggregateExpr(false, terminator);
 	case tok_if:
 	case tok_while:
 	case tok_repeat:

@@ -230,7 +230,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	}
 	auto type_name = IdentifierStr;
 	getNextToken(eType);
-	auto ft = ParseType(false, eComma, type_name.c_str());
+	auto ft = ParseType(false, eComma, 0, type_name.c_str());
 	if (!ft) {
 		purgeLine();
 		return;

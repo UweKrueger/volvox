@@ -432,7 +432,7 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 				do {
 					CurChar = advance();
 				} while (isspace(CurChar));
-				if (isalpha(CurChar) || CurChar == '_') {
+				if (isalnum(CurChar) || CurChar == '_' || CurChar == '(' || CurChar == '{' || CurChar == '[') {
 					IdentifierStr = ',';
 					return tok_comma;
 				} else if (CurChar == terminator) {
