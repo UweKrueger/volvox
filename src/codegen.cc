@@ -143,7 +143,12 @@ llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type
 			if (auto sub_list = dynamic_cast<ListExprAST*>(List->Elements[idx].get()))
 				ini = Builder->CreateInsertValue(ini, getArrayLitVal(llvm::cast<llvm::ArrayType>(sub_type), sub_list), idx, "arrlitsub");
 			else
-				ini = Builder->CreateInsertValue(ini, Elem_convs[iter_idx++](List->Elements[idx]->codegen_raw()), idx, "arrlitval");
+				if (iter_idx < Elem_convs.size() && Elem_convs[iter_idx]) {
+					ini = Builder->CreateInsertValue(ini, Elem_convs[iter_idx++](List->Elements[idx]->codegen_raw()), idx, "arrlitval");
+				} else {
+					ini = Builder->CreateInsertValue(ini, List->Elements[idx]->codegen_raw(), idx, "arrlitval");
+					iter_idx++;
+				}
 	return ini;
 }
 
