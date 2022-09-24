@@ -433,7 +433,7 @@ static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double 
 static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned long long vall,
                     unsigned bits, int w, int p, unsigned flags);
 
-static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, const char* FieldName,
+static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, const char* FieldName,
                                       const VOLVOX_RtType* elem_type, const char* elem_ptr, int indent,
                                       int w, int p, unsigned flags)
 {
@@ -521,7 +521,7 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
 		if (struct_type->type_attr & A_packed)
 			flags |= A_packed;
 		for (unsigned n=0; n<num_fields; ++n) {
-			elem_ptr = print_struct_field(s, cap, pos,
+			elem_ptr = prt_aggregate_elem(s, cap, pos,
 			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.FieldName,
 			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.rttype,
 			                              elem_ptr, indent + 4, w, p, flags);
@@ -572,7 +572,7 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 			print_array(s, cap, pos, elem_type, elem_ptr, &dims[1], &subsz[1], suborder, indent, w, p, flags);
 			elem_ptr += subsz[1];
 		} else {
-			elem_ptr = print_struct_field(s, cap, pos, nullptr, elem_type, elem_ptr, -1, w, p, flags);
+			elem_ptr = prt_aggregate_elem(s, cap, pos, nullptr, elem_type, elem_ptr, -1, w, p, flags);
 		}
 	}
 	prtstring(s, cap, pos, " ]");
