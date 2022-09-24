@@ -492,6 +492,8 @@ static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, co
 		for (int n = order - 1; n >= 0; n--)
 			subsz[n] = elem_type->dims[n] * subsz[n + 1];
 		if (subsz[0]) {
+			if (FieldName)
+				indent += strlen(FieldName) + 2;
 			print_array(s, cap, pos, elem_type->elem_type, elem_ptr,
 			            elem_type->dims, subsz, order, indent, w, p, flags);
 			elem_ptr += subsz[0];
@@ -545,11 +547,12 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 		pre0[idx0++] = ' ';
 	pre0[idx0] = '\0';
 	unsigned idx1 = 0;
-	pre1[idx1++] = ',';
 	if (order > 1) {
 		pre1[idx1++] = '\n';
 		memset(pre1 + idx1, ' ', indent);
 		idx1 += indent;
+	} else {
+		pre1[idx1++] = ',';
 	}
 	pre1[idx1] = '\0';
 	int suborder = order - 1;
