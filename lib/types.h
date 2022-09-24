@@ -132,7 +132,10 @@ namespace volvox {
 			unsigned key;
 		};
 		unsigned type_attr;
-		uint64_t type_size;
+		union {
+			uint64_t type_size;
+			uint64_t* dims; // for (multi dimensional) arrays
+		};
 		const char* name;
 		union {
 			const VOLVOX_RtType* elem_type;

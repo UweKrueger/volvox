@@ -149,3 +149,15 @@ fn test_big_struct_arg_2() bool
 fn test_big_struct_arg_3() bool
 	llqr := big_struct_arg(YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }})
 	return llqr == 66.5
+
+type ZZu {
+	p i32
+	aq [2][3]f64
+}
+
+qql := ZZu{
+	aq: [ [ 1.25, -3.25, 17.125 ],
+	      [ -4.5, 8.75, 9.0625 ] ],
+	p: -517
+}
+

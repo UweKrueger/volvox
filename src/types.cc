@@ -429,8 +429,10 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	unsigned subclassdata = 0; // bitwidth for int types, order for arrays, number of elements for structs
 	unsigned additional_attribs = 0; // e.g. A_packed for structs
 	llvm::Type* elem_type = ft->type;
+	llvm::SmallVector<size_t, 16> Dims; // for multi dimensional arrays
 	while (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 		subclassdata++;
+		Dims.push_back(array_type->getNumElements());
 		elem_type = array_type->getElementType();
 	}
 	if (!subclassdata) {
@@ -447,8 +449,19 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	llvm::SmallVector<llvm::Constant*, 16> fields;
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)key));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)(ft->type_attr | additional_attribs)));
-	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), (uint64_t)(
-		                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
+		auto dim_array = llvm::ConstantDataArray::get(Context, Dims);
+		auto GV = new llvm::GlobalVariable(*TheModule, dim_array->getType(), true, llvm::GlobalValue::PrivateLinkage,
+		                                        dim_array, "", nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
+		GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+		GV->setAlignment(llvm::Align(sizeof(void*)));
+		llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);
+		llvm::Constant *Indices[] = {Zero, Zero};
+		fields.push_back(llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices));
+	} else {
+		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), (uint64_t)(
+			                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
+	}
 	llvm::Constant* TypeName;
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		if (struct_type->hasName()) {

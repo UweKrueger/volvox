@@ -483,6 +483,24 @@ static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, co
 			elem_ptr = ptr_align(elem_ptr, elem_type->type_size);
 		print_struct(s, cap, pos, elem_type, elem_ptr, elem_type->SubclassData, indent, w, p, flags);
 		elem_ptr += elem_type->type_size;
+	} else if (elem_type->ID == VOLVOX_ArrayTyID) {
+		if (!(flags & A_packed))
+			elem_ptr = ptr_align(elem_ptr, elem_type->elem_type->type_size);
+		unsigned order = elem_type->SubclassData;
+		uint64_t* subsz = (uint64_t*)alloca((order + 1) * sizeof(uint64_t));
+		subsz[order] = elem_type->elem_type->type_size;
+		for (int n = order - 1; n >= 0; n--)
+			subsz[n] = elem_type->dims[n] * subsz[n + 1];
+		if (subsz[0]) {
+			print_array(s, cap, pos, elem_type->elem_type, elem_ptr,
+			            elem_type->dims, subsz, order, indent, w, p, flags);
+			elem_ptr += subsz[0];
+		} else {
+			for (unsigned n = 0; n < order; n++)
+				prtstring(s, cap, pos, "[");
+			for (unsigned n = 0; n < order; n++)
+				prtstring(s, cap, pos, "]");
+		}
 	} else {
 		prtstring(s, cap, pos, "<unsupported type>");
 	}
