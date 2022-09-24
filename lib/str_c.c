@@ -450,7 +450,9 @@ static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, co
 	if (elem_type->ID == VOLVOX_FloatTyID) {
 		if (!(flags & A_packed))
 			elem_ptr = ptr_align(elem_ptr, sizeof(float));
-		sprt(s, cap, pos, pre, elem_type, (double)*((float*)elem_ptr), w, p, flags, nullptr, nullptr);
+		if (p <= 0)
+			p = F32_DEFAULT_PRECISION;
+		prt_float(s, cap, pos, *cap - *pos, (double)*((float*)elem_ptr), w, p, flags);
 		elem_ptr = (const char*)((float*)elem_ptr + 1); // TODO: packed/unpacked?
 	} else if (elem_type->ID == VOLVOX_IntegerTyID && elem_type->SubclassData <= 4*8) {
 		unsigned elem = 0;
@@ -462,17 +464,19 @@ static const char* print_struct_field(char** s, unsigned* cap, unsigned* pos, co
 			unsigned shift = 4*8 - elem_type->SubclassData;
 			elem = (unsigned)((int)(elem << shift) >> shift);
 		}
-		sprt(s, cap, pos, pre, elem_type, elem, w, p, flags, nullptr, nullptr);
+		prt_int(s, cap, pos, *cap - *pos, (unsigned long long)elem, elem_type->SubclassData, w, p, flags);
 		elem_ptr += elem_type->SubclassData / 8;
 	} else if (elem_type->ID == VOLVOX_IntegerTyID) {
 		if (!(flags & A_packed))
 			elem_ptr = ptr_align(elem_ptr, 8);
-		sprt(s, cap, pos, pre, elem_type, *(uint64_t*)(elem_ptr), w, p, flags, nullptr, nullptr);
+		prt_int(s, cap, pos, *cap - *pos, *(uint64_t*)elem_ptr, elem_type->SubclassData, w, p, flags);
 		elem_ptr += elem_type->SubclassData / 8;
 	} else if (elem_type->ID == VOLVOX_DoubleTyID) {
 		if (!(flags & A_packed))
 			elem_ptr = ptr_align(elem_ptr, 8);
-		sprt(s, cap, pos, pre, elem_type, *(double*)(elem_ptr), w, p, flags, nullptr, nullptr);
+		if (p <= 0)
+			p = F64_DEFAULT_PRECISION;
+		prt_float(s, cap, pos, *cap - *pos, *(double*)elem_ptr, w, p, flags);
 		elem_ptr = (const char*)((double*)elem_ptr + 1);
 	} else if (elem_type->ID == VOLVOX_StructTyID) {
 		if (!(flags & A_packed))
