@@ -1044,41 +1044,41 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 ///   ::= unary LETTER (id)
 static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 	std::string FnName;
-
+	volvoxc::FullType* ReceiverType = nullptr;
+	std::string UnmagledReceiverTypeName;
 	SourceLocation FnLoc = CurLoc;
 
 	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary.
-	unsigned BinaryPrecedence = 30;
 	std::vector<std::string> ArgNames;
 	std::vector<volvoxc::FullType*> ArgTypes;
 	std::vector<SourceLocation> ArgPos;
-	bool is_method;
 	bool isVarArgs = false;
 
-	switch ((int)CurTok.kind) {
-	case '(': {
-		is_method = true;
-		unsigned attribs = 0;
-		getNextToken();
-		if (CurTok.kind != tok_identifier) {
-			errs() << "Unexpected '" << CurTok.str() << "' in method prototype - receiver name expected\n";
+	if (CurTok.kind != tok_identifier) {
+		errs() << ": identifier expected (function name or receiver type)\n";
+		return nullptr;
+	}
+	if (lex.peek() == '.') {
+		// method declaration IdentifierStr is type name
+		// we cannot use ParseType() here because this would treat "x" in "x.y" as module name
+		auto tmp_rec_type = lex.get_full_type(IdentifierStr.c_str());
+		if (!tmp_rec_type) {
+			errs() << CurLoc << ": error in method parsing - '" << IdentifierStr << "' is not a known type\n";
 			return nullptr;
 		}
-		ArgNames.push_back(IdentifierStr);
+		ReceiverType = new_FullType(*tmp_rec_type);
+		// TODO: avoid creating new FullTypes just for adding attributes
+		// This will require ParseType() to return attributes separately
+		// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
+		ReceiverType->type_attr |= A_ref;
+		UnmagledReceiverTypeName = std::move(IdentifierStr);
+		ArgNames.push_back("this");
+		ArgTypes.push_back(ReceiverType);
 		ArgPos.push_back(CurLoc);
-		getNextToken(eType);
-		auto type = ParseType(true);
-		if (!type->type) {
-			errs() << "Unexpected '" << CurTok.str() << "' in method prototype - type name expected\n";
-			return nullptr;
-		}
-		ArgTypes.push_back(type);
-		Expect(')');
+		getNextToken(eBinOp, '(');
+		Expect(tok_selector);
 	}
-	default:
-		is_method = false;
-	}
-	switch (CurTok.kind) {
+	switch ((int)CurTok.kind) {
 	case tok_identifier:
 		FnName = IdentifierStr;
 		Kind = 0;
@@ -1112,7 +1112,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 				errs() << "Invalid precedence: must be 1..100\n";
 				return nullptr;
 			}
-			BinaryPrecedence = (unsigned)CurTok.Val.Int;
 			getNextToken();
 		}
 		break;
