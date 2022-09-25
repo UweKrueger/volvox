@@ -1173,7 +1173,7 @@ noargs:
 		return nullptr;
 	}
 
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs, (bool)ReceiverType);
 }
 
 #define TEST_FN_PREFIX "test_"

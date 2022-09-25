@@ -569,7 +569,7 @@ public:
 	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
 	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
 	             std::vector<volvoxc::FullType*> ArgTypes = {},
-	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);
+	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false, bool IsMethod = false);
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
