@@ -148,7 +148,7 @@ class FunctionExprAST : public ExprAST {
 public:
 	std::string Name;
 	int selected_proto = 0; // should be set by call expr
-	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos)
+	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos = nullptr)
 		: ExprAST(Loc), Name(Name) {
 		ft = new_FullType((*Protos)[0]->FT, 0);
 		ft->Protos = Protos;
@@ -162,39 +162,53 @@ public:
 #endif
 };
 
+class MethodExprAST : public FunctionExprAST {
+public:
+	std::unique_ptr<ExprAST> Receiver;
+	std::unique_ptr<IdentExprAST> Method;
+	MethodExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Receiver, std::unique_ptr<IdentExprAST> _Method)
+		: FunctionExprAST(Loc, _Method->Name), Receiver(std::move(_Receiver)), Method(std::move(_Method)) {
+		if (Receiver->ft && Receiver->ft->type && Receiver->ft->mangled_name) {
+			auto proto = MethodProtos.find({Receiver->ft->mangled_name, Name});
+			if (proto == MethodProtos.end()) {
+				errs() << Method->Loc << ": no know method " << Name << "for type " << *Receiver->ft->mangled_name << '\n'; // TODO: demangle
+			} else {
+				ft->Protos = &proto->second;
+			}
+		}
+	}
+};
+
 // struct field selection like 'struct.field'
 class SelectExprAST : public LvalueExprAST {
 public:
-	std::unique_ptr<ExprAST> Struct, Field;
+	std::unique_ptr<ExprAST> Struct;
+	std::unique_ptr<IdentExprAST> Field;
 	const char* FieldName = nullptr;
 	unsigned FieldIndex = (unsigned)(-1);
-	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<ExprAST> _Field) :
+	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field) :
 		LvalueExprAST(Loc), Struct(std::move(_Struct)), Field(std::move(_Field))
 		{
-			if (auto Ident = dynamic_cast<IdentExprAST*>(Field.get())) {
-				FieldName = Ident->Name.c_str();
-				if (Struct->ft && Struct->ft->type) {
-					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Struct->ft->type)) {
-						MapValue* mv = map_string_get(Struct->ft->fields, FieldName);
-						if (mv) {
-							FieldIndex = *(unsigned*)((char*)mv + mv->offset);
-							char* adr = (char*)mv + mv->offset + 4;
-							memcpy(&ft, adr, sizeof(void*));
-						} else {
-							llvm::StringRef struct_name = struct_type->hasName() ?
-								struct_type->getName() :
-								"<anonymous>";
-							errs() << Struct->Loc << ": struct type '" << struct_name << "' has no field named '"
-							       << FieldName << "'\n";
-						}
+			FieldName = Field->Name.c_str();
+			if (Struct->ft && Struct->ft->type) {
+				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Struct->ft->type)) {
+					MapValue* mv = map_string_get(Struct->ft->fields, FieldName);
+					if (mv) {
+						FieldIndex = *(unsigned*)((char*)mv + mv->offset);
+						char* adr = (char*)mv + mv->offset + 4;
+						memcpy(&ft, adr, sizeof(void*));
 					} else {
-						errs() << Struct->Loc << ": LHS of '.' must be a struct (not " << *Struct->ft->type << ")\n";
+						llvm::StringRef struct_name = struct_type->hasName() ?
+							struct_type->getName() :
+							"<anonymous>";
+						errs() << Struct->Loc << ": struct type '" << struct_name << "' has no field named '"
+						       << FieldName << "'\n";
 					}
 				} else {
-					errs() << Struct->Loc << ": LHS of '.' has no defined type\n";
+					errs() << Struct->Loc << ": LHS of '.' must be a struct (not " << *Struct->ft->type << ")\n";
 				}
 			} else {
-				errs() << Field->Loc << ": RHS of '.' must be an identifier\n";
+				errs() << Struct->Loc << ": LHS of '.' has no defined type\n";
 			}
 		}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;

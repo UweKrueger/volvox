@@ -966,8 +966,14 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
 			continue;
 		} else if (is_dotselect) {
+			auto ident = dynamic_cast<IdentExprAST*>(RHS.get());
+			if (!ident) {
+				errs() << RHS->Loc << ": identifier expected\n";
+				return nullptr;
+			}
+			auto Ident = std::unique_ptr<IdentExprAST>(ident);
+			RHS.release();
 			if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
-				auto ident = dynamic_cast<IdentExprAST*>(RHS.get());
 				auto im = lex.module->ImportedSymbols.find({ mod->Name, ident->Name });
 				if (im != lex.module->ImportedSymbols.end()) {
 					std::string fqname = mod->Name + "." + ident->Name;
@@ -984,7 +990,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					}
 				}
 			} else {
-				LHS = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
+				LHS = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
 				continue;
 			}
 		}
