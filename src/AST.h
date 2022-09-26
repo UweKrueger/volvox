@@ -148,7 +148,7 @@ class FunctionExprAST : public ExprAST {
 public:
 	std::string Name;
 	int selected_proto = 0; // should be set by call expr
-	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos = nullptr)
+	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos)
 		: ExprAST(Loc), Name(Name) {
 		ft = new_FullType((*Protos)[0]->FT, 0);
 		ft->Protos = Protos;
@@ -166,17 +166,8 @@ class MethodExprAST : public FunctionExprAST {
 public:
 	std::unique_ptr<ExprAST> Receiver;
 	std::unique_ptr<IdentExprAST> Method;
-	MethodExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Receiver, std::unique_ptr<IdentExprAST> _Method)
-		: FunctionExprAST(Loc, _Method->Name), Receiver(std::move(_Receiver)), Method(std::move(_Method)) {
-		if (Receiver->ft && Receiver->ft->type && Receiver->ft->mangled_name) {
-			auto proto = MethodProtos.find({Receiver->ft->mangled_name, Name});
-			if (proto == MethodProtos.end()) {
-				errs() << Method->Loc << ": no know method " << Name << "for type " << *Receiver->ft->mangled_name << '\n'; // TODO: demangle
-			} else {
-				ft->Protos = &proto->second;
-			}
-		}
-	}
+	MethodExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Receiver, std::unique_ptr<IdentExprAST> _Method, std::vector<std::unique_ptr<PrototypeAST>>* Protos)
+		: FunctionExprAST(Loc, _Method->Name, Protos), Receiver(std::move(_Receiver)), Method(std::move(_Method)) {}
 };
 
 // struct field selection like 'struct.field'

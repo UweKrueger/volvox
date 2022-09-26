@@ -989,9 +989,19 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						return nullptr;
 					}
 				}
-			} else {
+			} else if (LHS->ft && LHS->ft->type) {
+				if (LHS->ft->mangled_name) {
+					auto proto = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
+					if (proto != MethodProtos.end()) {
+						LHS = std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &proto->second);
+						continue;
+					}
+				}
 				LHS = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
 				continue;
+			} else {
+				errs() << LHS->Loc << ": cannot evaluate select expression\n";
+				return nullptr;
 			}
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
