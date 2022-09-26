@@ -299,7 +299,7 @@ extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
-extern llvm::SmallString<128> MangleBase(const std::vector<std::string>& path, const std::string& name);
+extern llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path, const std::string& name);
 extern llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name, std::vector<volvoxc::FullType*>& arg_types);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind);
 extern std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind);

@@ -235,12 +235,9 @@ static void HandleTypeDef(unsigned share_kind) {
 		purgeLine();
 		return;
 	}
-	if (lex.module->import_path.empty()) {
-		ft->mangled_name = strdup(type_name.c_str());
-	} else {
-		auto mangled_name = MangleBase(lex.module->import_path, type_name);
-		ft->mangled_name = strdup(mangled_name.c_str());
-	}
+	llvm::SmallString<128> buf;
+	auto mangled_name = MangleBase(buf, lex.module->import_path, type_name);
+	ft->mangled_name = strdup(mangled_name.c_str());
 	lex.add_type(type_name.c_str(), ft);
 	if (verbosity >= 2)
 		errs() << "declared new type '" << type_name << "' as " << *ft->type << '\n';

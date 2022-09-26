@@ -34,13 +34,12 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 				errs() << "Cannot mangle type " << *ft->type << '\n';
 				return out;
 			}
-			out << strlen(ft->mangled_name) << ft->mangled_name;
+			out << ft->mangled_name;
 		}
 	return out;
 }
 
-llvm::SmallString<128> MangleBase(const std::vector<std::string>& path, const std::string& name) {
-	llvm::SmallString<128> buf = llvm::StringRef("_Z");
+llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path, const std::string& name) {
 	llvm::raw_svector_ostream mangled(buf);
 	if (!path.empty()) {
 		mangled << 'N';
@@ -54,7 +53,8 @@ llvm::SmallString<128> MangleBase(const std::vector<std::string>& path, const st
 }
 
 llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name, std::vector<volvoxc::FullType*>& arg_types) {
-	llvm::SmallString<128> buf = MangleBase(path, name);
+	llvm::SmallString<128> buf = llvm::StringRef("_Z");
+	buf = MangleBase(buf, path, name);
 	llvm::raw_svector_ostream mangled(buf);
 	if (arg_types.size() > 0)
 		for (auto type : arg_types)

@@ -902,9 +902,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	if (auto Val = expr->RHS->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const std::string& unmangled_name = LHSE->getName();
-		std::string varname = lex.module->import_path.empty() ?
-			unmangled_name :
-			std::string(MangleBase(lex.module->import_path, unmangled_name));
+		std::string varname;
+		if (lex.module->import_path.empty()) {
+			varname = unmangled_name;
+		} else {
+			llvm::SmallString<128> buf = llvm::StringRef("_Z");
+			varname = std::string(MangleBase(buf, lex.module->import_path, unmangled_name));
+		}
 		llvm::Type* val_type = Val->getType();
 		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
 		llvm::Type* type = std::get<0>(type_descr);
