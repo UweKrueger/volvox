@@ -1670,7 +1670,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 		ArgsV.push_back(target);
 	}
-	unsigned arg_offs = (Proto->IsMethod ? 1 : 0) + (Proto->IsStructRet ? 1 : 0);
+	unsigned arg_offs = (Proto->isMethod ? 1 : 0) + (Proto->IsStructRet ? 1 : 0);
 	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
 		if (i < v && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
 		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()

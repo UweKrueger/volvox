@@ -13,6 +13,9 @@ Lexer lex;
 Token CurTok;
 std::vector<const char*> module_names = {};
 
+// methods table - keys: { mangled_type_name, method_name }
+std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
+
 FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
 extern llvm::ExitOnError ExitOnErr;
@@ -1076,6 +1079,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 		ArgTypes.push_back(ReceiverType);
 		ArgPos.push_back(CurLoc);
 		getNextToken(eBinOp, '(');
+		if (visibility & A_c_api) {
+			errs() << CurLoc << ": methods cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
+			return nullptr;
+		}
 		Expect(tok_selector);
 	}
 	switch ((int)CurTok.kind) {
@@ -1205,7 +1212,10 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned visibility) {
 	if (!(visibility & A_c_api)) {
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes).c_str();
 	}
-	if (!strncmp(unmangledName.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {
+	if (Proto->isMethod) {
+		std::string mangled_receiver_type(Proto->ArgTypes[0]->mangled_name);
+		MethodProtos[{mangled_receiver_type, unmangledName}].push_back(std::move(Proto));
+	} else if (!strncmp(unmangledName.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {
 		if (sz) {
 			errs() << Proto->ArgPos[0] << ": 'test_...()' functions must not have any arguments\n";
 			prompt_indent = 0;

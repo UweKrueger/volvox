@@ -447,10 +447,16 @@ public:
 			return 0;
 		}
 	}
+	// method for adding built-in types - no mangling is used
 	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr) {
+		const char* existing_name = get_name(type);
+		// keep only one "canonical name" in FullType - the first one used for this LLVM-type
+		// no "strdup()" is necessary since this is always called with literal constant names
+		const char* canonical_name = existing_name ? existing_name : name;
 		volvoxc::FullType ft = {
 			.type = type,
 			.type_attr = type_attr,
+			.mangled_name = canonical_name,
 			.ditype = ditype,
 			.fields = fields
 		};
@@ -559,7 +565,7 @@ public:
 	llvm::FunctionType* FT;
 	bool IsVarArgs;
 	bool IsOperator;
-	bool IsMethod = false;
+	bool isMethod = false;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
 	unsigned visibility;
 	llvm::GlobalValue::LinkageTypes link_type;
@@ -569,7 +575,7 @@ public:
 	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
 	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
 	             std::vector<volvoxc::FullType*> ArgTypes = {},
-	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false, bool IsMethod = false);
+	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false, bool isMethod = false);
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
@@ -625,6 +631,7 @@ public:
 };
 
 extern std::map<std::string, Module> Modules;
+extern std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
 
 enum NameKind {
 	NK_Module,

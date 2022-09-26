@@ -550,10 +550,10 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
                            std::vector<std::string> Args, unsigned visibility, SourceLocation retLoc,
                            bool IsOperator, volvoxc::FullType* RetType_,
                            std::vector<volvoxc::FullType*> _ArgTypes,
-                           std::vector<SourceLocation> _ArgPos, bool IsVarArgs, bool IsMethod)
+                           std::vector<SourceLocation> _ArgPos, bool IsVarArgs, bool isMethod)
 		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
 		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(std::move(_ArgTypes)),
-		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs), IsMethod(IsMethod),
+		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs), isMethod(isMethod),
 		  visibility(visibility)
 {
 	size_t ret_size = RetType->type->isSized() ?
