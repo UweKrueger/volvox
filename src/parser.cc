@@ -987,6 +987,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						LHS = std::make_unique<VariableExprAST>(mod->Loc, ident->Name /*fqname*/, var);
 						// TODO: mangle variable name here and in HandleGlobalVariable()
 						continue;
+					} else if (auto type = im->second.getFullType()) {
+						LHS = ParseStructExpr(type, terminator);
+						continue;
 					} else {
 						errs() << LHS->Loc << ": cannot evaluate '" << fqname << "'\n";
 						return nullptr;
