@@ -171,3 +171,11 @@ fn ZZu.jjc(x f64) f64
 
 fn test_method_call_1() bool
 	return qql.jjc(12.5) == 156.25
+
+fn ZZu.change(y f64) f64
+	this.aq[0][1] = -17.125
+	return y * this.p
+
+fn test_method_call_2() bool
+	gghd := qql.change(2.5)
+	return gghd == -1292.5 & qql.aq[0][1] == -17.125
