@@ -56,12 +56,24 @@ static llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, st
 static llvm::DISubprogram *SP;
 static llvm::DIFile *Unit;
 
-std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes, volvoxc::FullType* receiver_ft = nullptr) {
-	if (receiver_ft)
-		errs() << "getting method for " << receiver_ft->mangled_name << '.' << unmangledName << '\n';
+// global function to find method protos
+std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName) {
+	auto FI = MethodProtos.find({ mangledType, unmangledName });
+	if (FI != MethodProtos.end())
+		return &FI->second;
 	else
+		return nullptr;
+}
+
+std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes, volvoxc::FullType* receiver_ft = nullptr) {
+	std::vector<std::unique_ptr<PrototypeAST>>* FI;
+	if (receiver_ft) {
+		errs() << "getting method for " << receiver_ft->mangled_name << '.' << unmangledName << '\n';
+		FI = findProtos(receiver_ft->mangled_name, unmangledName);
+	} else {
 		errs() << "getting function for " << unmangledName << '\n';
-	auto FI = lex.findProtos(unmangledName);
+		FI = lex.findProtos(unmangledName);
+	}
 	if (!FI)
 		return { nullptr, nullptr };
 	// See if the function has already been added to the current module.
