@@ -67,13 +67,10 @@ std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangle
 
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes, volvoxc::FullType* receiver_ft = nullptr) {
 	std::vector<std::unique_ptr<PrototypeAST>>* FI;
-	if (receiver_ft) {
-		errs() << "getting method for " << receiver_ft->mangled_name << '.' << unmangledName << '\n';
+	if (receiver_ft)
 		FI = findProtos(receiver_ft->mangled_name, unmangledName);
-	} else {
-		errs() << "getting function for " << unmangledName << '\n';
+	else
 		FI = lex.findProtos(unmangledName);
-	}
 	if (!FI)
 		return { nullptr, nullptr };
 	// See if the function has already been added to the current module.
@@ -1671,11 +1668,13 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// If argument mismatch error.
-	unsigned arg_offs = (Proto->isMethod ? 1 : 0) + (Proto->IsStructRet ? 1 : 0);
+	unsigned proto_arg_offs = Proto->isMethod ? 1 : 0;
+	unsigned arg_offs = proto_arg_offs + (Proto->IsStructRet ? 1 : 0);
+	unsigned proto_args_size = Proto->Args.size() - proto_arg_offs;
 	unsigned ft_num_params = FT->getNumParams() - arg_offs;
-	if (ft_num_params > Args.size() || ft_num_params < Args.size() && !Proto->IsVarArgs || ft_num_params != Proto->Args.size()) {
+	if (ft_num_params > Args.size() || ft_num_params < Args.size() && !Proto->IsVarArgs || ft_num_params != proto_args_size) {
 		errs() << "Incorrect number of arguments passed: expected " << ft_num_params << (Proto->IsVarArgs ? "+" : "")
-		       << ", got " << Args.size() << "\n";
+		       << " respective " << proto_args_size << ", got " << Args.size() << "\n";
 		return nullptr;
 	}
 
@@ -1705,7 +1704,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 	}
-	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
+	for (unsigned i = 0, e = Args.size(), v = proto_args_size; i != e; ++i) {
 		if (i < v && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
 		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()
 		        || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
@@ -2292,7 +2291,6 @@ llvm::Value *ForExprAST::codegen_raw(llvm::Value* target) {
 llvm::Function *PrototypeAST::codegen() {
 	llvm::Function *F =
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
-	errs() << "created function " << Name << '\n';
 	// Set names for all arguments.
 	unsigned Idx = 0;
 	if (IsStructRet && ArgAttrs[Idx].hasAttributes()) {
