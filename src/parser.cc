@@ -974,8 +974,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			auto Ident = std::unique_ptr<IdentExprAST>(ident);
 			RHS.release();
 			if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
-				auto im = lex.module->ImportedSymbols.find({ mod->Name, ident->Name });
-				if (im != lex.module->ImportedSymbols.end()) {
+				auto im = lex.module->ImportedSymbols.find({ mod->Name, Ident->Name });
+				if (im == lex.module->ImportedSymbols.end()) {
+					errs() << Ident->Loc << ": no 'pub' symbol '" << Ident->Name << "' in module '" << mod->Name << "'\n";
+					return nullptr;
+				} else {
 					std::string fqname = mod->Name + "." + ident->Name;
 					if (auto protos = im->second.getProtos()) {
 						LHS = std::make_unique<FunctionExprAST>(mod->Loc, fqname, protos);
