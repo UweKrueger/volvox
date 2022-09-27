@@ -166,6 +166,18 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 			for (int n = 0; n < module_source_files.size; n++)
 				source_files.back().emplace_back(module_source_files.dirs[n]);
 			volvox_free_glob(&module_source_files);
+			if (source_files.back().empty()) {
+				errs() << CurLoc << ": module '";
+				bool pdot = false;
+				for (auto& dir: new_module.first->second.import_path) {
+					if (pdot)
+						errs() << '.';
+					else
+						pdot = true;
+					errs() << dir;
+				}
+				errs() << "' does not refer to any valid source (*.vx) files\n";
+			}
 		}
 		return next_input_file();
 	} else {
