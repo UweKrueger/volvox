@@ -1655,10 +1655,8 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// If argument mismatch error.
-	unsigned params_offset = 0;
-	if (Proto->IsStructRet)
-		params_offset++;
-	unsigned ft_num_params = FT->getNumParams() - params_offset;
+	unsigned arg_offs = (Proto->isMethod ? 1 : 0) + (Proto->IsStructRet ? 1 : 0);
+	unsigned ft_num_params = FT->getNumParams() - arg_offs;
 	if (ft_num_params > Args.size() || ft_num_params < Args.size() && !Proto->IsVarArgs || ft_num_params != Proto->Args.size()) {
 		errs() << "Incorrect number of arguments passed: expected " << ft_num_params << (Proto->IsVarArgs ? "+" : "")
 		       << ", got " << Args.size() << "\n";
@@ -1674,7 +1672,23 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 		ArgsV.push_back(target);
 	}
-	unsigned arg_offs = (Proto->isMethod ? 1 : 0) + (Proto->IsStructRet ? 1 : 0);
+	if (Proto->isMethod) {
+		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
+			if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
+				auto receiver_ref = receiver_lval->codegen_ref();
+				if (!receiver_ref.second) {
+					errs() << method->Receiver->Loc << ": could not get receiver reference\n";
+					return nullptr;
+				}
+				ArgsV.push_back(receiver_ref.second);
+			} else {
+				errs() << method->Receiver->Loc << ": receiver is not an lvalue\n";
+			}
+		} else {
+			errs() << Callee->Loc << ": method prototype but not a method call\n";
+			return nullptr;
+		}
+	}
 	for (unsigned i = 0, e = Args.size(), v = Proto->Args.size(); i != e; ++i) {
 		if (i < v && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
 		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()
