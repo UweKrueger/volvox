@@ -56,7 +56,11 @@ static llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, st
 static llvm::DISubprogram *SP;
 static llvm::DIFile *Unit;
 
-std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes) {
+std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes, volvoxc::FullType* receiver_ft = nullptr) {
+	if (receiver_ft)
+		errs() << "getting method for " << receiver_ft->mangled_name << '.' << unmangledName << '\n';
+	else
+		errs() << "getting function for " << unmangledName << '\n';
 	auto FI = lex.findProtos(unmangledName);
 	if (!FI)
 		return { nullptr, nullptr };
@@ -2276,7 +2280,7 @@ llvm::Value *ForExprAST::codegen_raw(llvm::Value* target) {
 llvm::Function *PrototypeAST::codegen() {
 	llvm::Function *F =
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
-
+	errs() << "created function " << Name << '\n';
 	// Set names for all arguments.
 	unsigned Idx = 0;
 	if (IsStructRet && ArgAttrs[Idx].hasAttributes()) {
@@ -2312,7 +2316,15 @@ llvm::Function *FunctionAST::codegen() {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
-	auto CalleeF = getFunction(unmangledName, &P.ArgTypes);
+	volvoxc::FullType* receiver_ft;
+	if (Proto->isMethod)
+		if (Proto->IsStructRet)
+			receiver_ft = Proto->ArgTypes[1];
+		else
+			receiver_ft = Proto->ArgTypes[0];
+	else
+		receiver_ft = nullptr;
+	auto CalleeF = getFunction(unmangledName, &P.ArgTypes, receiver_ft);
 	llvm::Function* TheFunction = CalleeF.first;
 	if (!TheFunction) {
 		errs() << "Function '" << unmangledName << "()' not found in module\n";
