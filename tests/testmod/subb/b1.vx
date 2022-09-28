@@ -1,0 +1,7 @@
+import tests.testmod as lop
+from tests.testmod.suba import QQrt
+
+pub type CCv {
+	w QQrt
+	z lop.DDfg
+}
