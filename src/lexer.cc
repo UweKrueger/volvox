@@ -54,9 +54,10 @@ static char prompt[1024];
 #define VOLVOX_PROMPT "\001\033[38;5;%" PRIu8 "m\033[48;5;%" PRIu8 "m\001% 4d\001\033[38;5;%" PRIu8 "m\001>\001\033[0m\001 "
 #endif
 
-static ssize_t fdgetline(char **lineptr, size_t *offset, size_t *n) {
+static ssize_t fdgetline(char **lineptr, size_t *n) {
 	static char* kept_buf = nullptr;
 	static ssize_t kept_bufsize = 0;
+	size_t offset = 0;
     if (!(*lineptr)) {
 	    *n = 100;
 	    *lineptr = (char*)malloc(*n);
@@ -65,7 +66,9 @@ static ssize_t fdgetline(char **lineptr, size_t *offset, size_t *n) {
 	    int c;
 	    do {
 		    if (lex.use_readline) {
-			    if (!kept_buf) {
+			    if (kept_buf) {
+				    free(*lineptr);
+			    } else {
 				    kept_buf = *lineptr;
 				    kept_bufsize = *n;
 			    }
@@ -122,18 +125,19 @@ static ssize_t fdgetline(char **lineptr, size_t *offset, size_t *n) {
 			    c = '\r'; // abuse Windows logic to repeat read
 		    }
 	    } while (c == '\r');
-	    while (*offset + 1 >= *n) {
-		    auto oldn = *n;
-		    *n += 50 + *n / 2;
-		    *lineptr = oldn ? (char*)realloc(*lineptr, *n) : (char*)malloc(*n);
+	    if (offset + 1 >= *n) {
+		    do
+			    *n += 50 + *n / 2;
+		    while (offset + 1 >= *n);
+		    *lineptr = (char*)realloc(*lineptr, *n);
 	    }
-	    *(*lineptr + (*offset)++) = c;
+	    *(*lineptr + offset++) = c;
 	    if (c == '\n') {
 		    break;
 	    }
     }
-    *(*lineptr + *offset) = '\0';
-    return *offset;
+    *(*lineptr + offset) = '\0';
+    return offset;
 }
 
 SourceLocation CurLoc;
@@ -154,10 +158,10 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 	auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 	if (new_module.second) {
 		int old_input_fd = input_fd;
+		auto oldbs = bufsize;
 		source_stack.emplace_back(this);
 		module = &new_module.first->second;
 		linelen = 0;
-		offset = 0;
 		bufsize = 100;
 		linebuf = (char*)malloc(bufsize);
 		if (old_input_fd != builtin_input_fd)
@@ -308,8 +312,7 @@ void Lexer::pop_state() {
 	Loc = source_stack.back().Loc;
 	module = std::move(source_stack.back().module);
 	linelen = source_stack.back().linelen;
-	offset = source_stack.back().offset;
-	bufsize = source_stack.back().bufsize ;
+	bufsize = source_stack.back().bufsize;
 	linebuf = source_stack.back().linebuf;
 	source_stack.back().linebuf = nullptr;
 	input_fd = source_stack.back().input_fd;
@@ -329,6 +332,7 @@ bool Lexer::next_input_file() {
 			auto keep_linebuf = linebuf;
 			linebuf = nullptr;
 			auto res = push_state({}, "", {});
+			free(linebuf);
 			linebuf = keep_linebuf;
 			return res;
 		} else {
@@ -369,8 +373,7 @@ int Lexer::advance() {
 			for (int i=0; i<prompt_indent && i<200; i++)
 				strcat(prompt, "    ");
 		}
-		offset = 0;
-		linelen = fdgetline(&linebuf, &offset, &bufsize);
+		linelen = fdgetline(&linebuf, &bufsize);
 		if (linelen < 0 || !use_readline && linelen <= 0) {
 			return EOF;
 		}

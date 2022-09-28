@@ -763,7 +763,6 @@ struct SourceLocState {
 	SourceLocation Loc = {0};
 	Module* module;
 	ssize_t linelen = 0;
-	size_t offset = 0;
 	size_t bufsize = 0;
 	char* linebuf = nullptr;
 	int input_fd = 0;
@@ -772,10 +771,11 @@ struct SourceLocState {
 	std::map<std::string, SourceLocation> fromlist = {};
 	SourceLocState() = default;
 	SourceLocState(SourceLocState* old):
-		Loc(old->Loc), module(std::move(old->module)), linelen(old->linelen), linebuf(old->linebuf), input_fd(old->input_fd),
-		use_readline(old->use_readline), as(std::move(old->as)), fromlist(std::move(old->fromlist))
+		Loc(old->Loc), module(std::move(old->module)), linelen(old->linelen), bufsize(old->bufsize), linebuf(old->linebuf),
+		input_fd(old->input_fd), use_readline(old->use_readline), as(std::move(old->as)), fromlist(std::move(old->fromlist))
 		{
 			old->linebuf = nullptr;
+			old->bufsize = 0;
 			old->as = "";
 			old->fromlist = {};
 			old->input_fd = -1;
@@ -786,10 +786,6 @@ struct SourceLocState {
 			if (_input_fd)
 				*_input_fd = -1; // to prevent 'next_input_file()' from calling 'close()'
 		}
-	virtual ~SourceLocState() {
-		free(linebuf);
-		linebuf = nullptr;
-	}
 };
 
 class Lexer : public SourceLocState {
@@ -810,6 +806,9 @@ public:
 				abort();
 			}
 		}
+	~Lexer() {
+		free(linebuf);
+	}
 	int advance();
 	Token gettok(eXpect expect = eNone, int terminator = 0);
 	Token purge_line();
