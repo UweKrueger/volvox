@@ -846,10 +846,16 @@ public:
 	}
 	volvoxc::FullType* get_full_type(const char* name) {
 		auto ft = module->type_table.get_full(name);
-		if (!ft && source_stack.size())
-			ft = source_stack.front().module->type_table.get_full(name);
+		if (!ft) {
+			// try to look up in from-imported symbols
+			ft = get_full_type("", name);
+			if (!ft && source_stack.size())
+				ft = source_stack.front().module->type_table.get_full(name);
+		}
 		return ft;
 	}
+	// reverse lookup, i.e. type -> name is only supported for built-in types like 'int', 'real', 'f32'
+	// they are looked up only in the lowest module of source_stack
 	volvoxc::FullType* get_full_type(unsigned _key) {
 		auto ft = module->type_table.get_full(_key);
 		if (!ft && source_stack.size())
