@@ -877,7 +877,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	case tok_for:
 		return ParseForExpr(terminator);
 	default:
-		errs() << "unknown token '" << CurTok.kind << "' '" << CurTok.str() << "' when expecting an expression\n";;
+		errs() << CurLoc << ": unknown token '" << CurTok.kind << "' '" << CurTok.str() << "' when expecting an expression\n";;
 		purgeLine();
 		return nullptr;
 	}

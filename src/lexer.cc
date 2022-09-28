@@ -162,6 +162,7 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 			use_readline = false;
 		if (module->import_path.size()) {
 			source_files.push_back({});
+			source_index.push_back(0);
 			volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
 			for (int n = 0; n < module_source_files.size; n++)
 				source_files.back().emplace_back(module_source_files.dirs[n]);
@@ -315,6 +316,7 @@ void Lexer::pop_state() {
 	fromlist = std::move(source_stack.back().fromlist);
 	source_stack.pop_back();
 	source_files.pop_back();
+	source_index.pop_back();
 	import_from_module(processed_module);
 }
 
