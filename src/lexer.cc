@@ -248,23 +248,22 @@ void Lexer::import_from_module(Module* import_module) {
 	}
 	for (auto type = import_module->type_table.first(); type; ++type) {
 		auto ft = (volvoxc::FullType*)((char*)type.getValue() + type.getValue()->offset);
-		if (ft->type_attr & A_pub) {
-			bool success = true;
-			if (is_from_import) {
-				if (fromlist.contains(type.getKey())) {
-					auto _success = module->ImportedSymbols.try_emplace({ "", type.getKey() }, ft);
-					success = _success.second;
-					if (success)
-						processed_symbols_from_from_list.insert(type.getKey());
-				}
-			} else {
-				auto _success = module->ImportedSymbols.try_emplace({ as, type.getKey() }, ft);
+		// types are always public - so no need to checking for A_pub
+		bool success = true;
+		if (is_from_import) {
+			if (fromlist.contains(type.getKey())) {
+				auto _success = module->ImportedSymbols.try_emplace({ "", type.getKey() }, ft);
 				success = _success.second;
+				if (success)
+					processed_symbols_from_from_list.insert(type.getKey());
 			}
-			if (!success) {
-				errs() << CurLoc << "cannot import '" << ((is_from_import || as == "") ? "" : (as + "."))
-				       << type.getKey() << "' - symbol aleady in use\n";
-			}
+		} else {
+			auto _success = module->ImportedSymbols.try_emplace({ as, type.getKey() }, ft);
+			success = _success.second;
+		}
+		if (!success) {
+			errs() << CurLoc << "cannot import '" << ((is_from_import || as == "") ? "" : (as + "."))
+			       << type.getKey() << "' - symbol aleady in use\n";
 		}
 	}
 	// if 'from' list was provided check that every element has been used somehow

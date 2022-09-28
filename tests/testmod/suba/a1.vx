@@ -1,4 +1,4 @@
-pub type QQrt {
+type QQrt {
 	q [5]f64
 	pp f64
 }

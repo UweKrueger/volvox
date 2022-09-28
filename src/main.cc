@@ -238,8 +238,6 @@ static void HandleTypeDef(unsigned share_kind) {
 	llvm::SmallString<128> buf;
 	auto mangled_name = MangleBase(buf, lex.module->import_path, type_name);
 	ft->mangled_name = strdup(mangled_name.c_str());
-	if (share_kind & A_pub)
-		ft->type_attr |= A_pub;
 	lex.add_type(type_name.c_str(), ft);
 	if (verbosity >= 2)
 		errs() << "declared new type '" << type_name << "' as " << *ft->type << '\n';
@@ -561,6 +559,8 @@ static void MainLoop() {
 		case tok_ctype:
 			sym_kind |= A_c_api;
 		case tok_type:
+			if (sym_kind & A_pub)
+				errs() << CurLoc << ": 'pub' is not needed for type declarations\n";
 			HandleTypeDef(sym_kind);
 			break;
 		default:
