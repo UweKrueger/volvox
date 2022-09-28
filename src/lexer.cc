@@ -122,7 +122,7 @@ static ssize_t fdgetline(char **lineptr, size_t *offset, size_t *n) {
 			    c = '\r'; // abuse Windows logic to repeat read
 		    }
 	    } while (c == '\r');
-	    while (*offset + 2 >= *n) {
+	    while (*offset + 1 >= *n) {
 		    auto oldn = *n;
 		    *n += 50 + *n / 2;
 		    *lineptr = oldn ? (char*)realloc(*lineptr, *n) : (char*)malloc(*n);
@@ -158,6 +158,7 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 		module = &new_module.first->second;
 		linelen = 0;
 		offset = 0;
+		bufsize = 100;
 		linebuf = (char*)malloc(bufsize);
 		if (old_input_fd != builtin_input_fd)
 			use_readline = false;

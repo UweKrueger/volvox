@@ -1,2 +1,12 @@
 import tests.testmod.subb
 import tests.testmod.suba
+
+hjggd := subb.CCv{
+	w: suba.QQrt{
+		q: [1.25, -6.75, 0.0625, 1.5, -3.75]
+		pp: 67.0625
+	}
+}
+
+fn test_multi_level_type_import() bool
+	return hjggd.w.q[1] == -6.75 & hjggd.w.pp == 67.0625 & hjggd.z.q.e == 0.
