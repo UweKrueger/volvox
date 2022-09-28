@@ -1,2 +1,2 @@
-# import tests.testmod.subb
+import tests.testmod.subb
 import tests.testmod.suba

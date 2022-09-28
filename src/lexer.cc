@@ -54,14 +54,13 @@ static char prompt[1024];
 #define VOLVOX_PROMPT "\001\033[38;5;%" PRIu8 "m\033[48;5;%" PRIu8 "m\001% 4d\001\033[38;5;%" PRIu8 "m\001>\001\033[0m\001 "
 #endif
 
-static ssize_t fdgetline(char **lineptr, size_t *n) {
+static ssize_t fdgetline(char **lineptr, size_t *offset, size_t *n) {
 	static char* kept_buf = nullptr;
 	static ssize_t kept_bufsize = 0;
     if (!(*lineptr)) {
 	    *n = 100;
 	    *lineptr = (char*)malloc(*n);
     }
-    size_t offset = 0;
     for (;;) {
 	    int c;
 	    do {
@@ -123,17 +122,18 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    c = '\r'; // abuse Windows logic to repeat read
 		    }
 	    } while (c == '\r');
-	    if (offset >= (*n - 1)) {
+	    while (*offset + 2 >= *n) {
+		    auto oldn = *n;
 		    *n += 50 + *n / 2;
-		    *lineptr = (char*)realloc(*lineptr, *n);
+		    *lineptr = oldn ? (char*)realloc(*lineptr, *n) : (char*)malloc(*n);
 	    }
-	    *(*lineptr + offset++) = c;
+	    *(*lineptr + (*offset)++) = c;
 	    if (c == '\n') {
 		    break;
 	    }
     }
-    *(*lineptr + offset) = '\0';
-    return offset;
+    *(*lineptr + *offset) = '\0';
+    return *offset;
 }
 
 SourceLocation CurLoc;
@@ -157,6 +157,7 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 		source_stack.emplace_back(this);
 		module = &new_module.first->second;
 		linelen = 0;
+		offset = 0;
 		linebuf = (char*)malloc(bufsize);
 		if (old_input_fd != builtin_input_fd)
 			use_readline = false;
@@ -307,6 +308,7 @@ void Lexer::pop_state() {
 	Loc = source_stack.back().Loc;
 	module = std::move(source_stack.back().module);
 	linelen = source_stack.back().linelen;
+	offset = source_stack.back().offset;
 	bufsize = source_stack.back().bufsize ;
 	linebuf = source_stack.back().linebuf;
 	source_stack.back().linebuf = nullptr;
@@ -367,7 +369,8 @@ int Lexer::advance() {
 			for (int i=0; i<prompt_indent && i<200; i++)
 				strcat(prompt, "    ");
 		}
-		linelen = fdgetline(&linebuf, &bufsize);
+		offset = 0;
+		linelen = fdgetline(&linebuf, &offset, &bufsize);
 		if (linelen < 0 || !use_readline && linelen <= 0) {
 			return EOF;
 		}

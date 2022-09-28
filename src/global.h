@@ -763,6 +763,7 @@ struct SourceLocState {
 	SourceLocation Loc = {0};
 	Module* module;
 	ssize_t linelen = 0;
+	size_t offset = 0;
 	size_t bufsize = 0;
 	char* linebuf = nullptr;
 	int input_fd = 0;
