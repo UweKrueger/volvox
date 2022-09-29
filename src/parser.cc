@@ -20,8 +20,14 @@ FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
 extern llvm::ExitOnError ExitOnErr;
 
-Token getNextToken(eXpect expect, int terminator) { return CurTok = lex.gettok(expect, terminator); }
-Token purgeLine() { return CurTok = lex.purge_line(); }
+Token& getNextToken(eXpect expect, int terminator) {
+	CurTok = lex.gettok(expect, terminator);
+	return CurTok;
+}
+Token& purgeLine() {
+	CurTok = std::move(lex.purge_line());
+	return CurTok;
+}
 
 /// GetTokPrecedence - Get the precedence of the pending binary operator token.
 static inline int GetTokPrecedence() {

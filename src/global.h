@@ -732,7 +732,19 @@ public:
 	};
 	union LitValue Val;
 	bool is_unknown_type = false;
-
+	Token(const Token& old) = delete;
+	Token(Token&& old) : kind(old.kind), gen_type(old.gen_type), Val(old.Val), is_unknown_type(old.is_unknown_type) {
+		old.Val.Ptr = nullptr;
+	}
+	Token& operator=(const Token& old) = delete;
+	Token& operator=(Token&& old) {
+		kind = old.kind;
+		gen_type = old.gen_type;
+		Val = old.Val;
+		is_unknown_type = old.is_unknown_type;
+		old.Val.Ptr = nullptr;
+		return *this;
+	}
 	Token(int _kind = 0);
 	Token(char** s_ptr);
 	Token(void* ptr);
@@ -766,8 +778,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, TokenKind kind);
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok);
 
 extern Token CurTok;
-extern Token getNextToken(eXpect expect = eNone, int terminator = 0);
-extern Token purgeLine();
+extern Token& getNextToken(eXpect expect = eNone, int terminator = 0);
+extern Token& purgeLine();
 
 struct SourceLocState {
 	SourceLocation Loc = {0};
