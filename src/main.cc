@@ -68,7 +68,6 @@ llvm::LoopAnalysisManager LAM;
 llvm::FunctionAnalysisManager FAM;
 llvm::CGSCCAnalysisManager CGAM;
 llvm::ModuleAnalysisManager MAM;
-llvm::ModulePassManager MPM;
 #endif
 
 std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT = nullptr;
@@ -656,6 +655,7 @@ char* output_file = nullptr;
 char* exe_file = nullptr;
 #ifndef LEGACY_PASS_MANAGER
 llvm::OptimizationLevel optimization_level = llvm::OptimizationLevel::O2;
+llvm::PassBuilder PB;
 #endif
 
 bool parse_pcol(char* s) {
@@ -1133,7 +1133,7 @@ int main(int argc, char* argv[]) {
 			errs() << "using native TLS\n";
 	}
 #ifndef LEGACY_PASS_MANAGER
-	llvm::PassBuilder PB(TheTargetMachine, PTO);
+	PB = llvm::PassBuilder(TheTargetMachine, PTO);
 
 	PB.registerModuleAnalyses(MAM);
 	PB.registerCGSCCAnalyses(CGAM);
@@ -1143,20 +1143,6 @@ int main(int argc, char* argv[]) {
 	if (dump_IR > 2) {
 		errs() << "known passes:\n";
 		PB.printPassNames(errs());
-		errs() << '\n';
-	}
-	// Create the pass manager.
-	if (optimization_level == llvm::OptimizationLevel::O0)
-		if (comp_mode == comp_jit)
-			; // -O0 is known to have problems with JIT - leave MPM empty
-		else
-			MPM = PB.buildO0DefaultPipeline(optimization_level);
-	else {
-		MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
-	}
-	if (dump_IR) {
-		errs() << "passes:\n";
-		MPM.printPipeline(errs(), [](llvm::StringRef ClassName) { return ClassName; });
 		errs() << '\n';
 	}
 #endif
@@ -1186,6 +1172,7 @@ int main(int argc, char* argv[]) {
 		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
 			if (auto *FnIR = FnAST->codegen()) {
 #ifndef LEGACY_PASS_MANAGER
+				auto MPM = GET_MPM(PB, optimization_level);
 				MPM.run(*TheModule, MAM);
 				if (dump_IR && dump_opt) {
 					auto end = TheModule->end();

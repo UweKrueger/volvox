@@ -205,8 +205,9 @@ extern uint64_t stacksize;
 
 #ifndef LEGACY_PASS_MANAGER
 extern llvm::OptimizationLevel optimization_level;
+extern llvm::PassBuilder PB;
 extern llvm::ModuleAnalysisManager MAM;
-extern llvm::ModulePassManager MPM;
+#define GET_MPM(p, opt) ((opt == llvm::OptimizationLevel::O0) ? p.buildO0DefaultPipeline(opt) : p.buildPerModuleDefaultPipeline(opt));
 #endif
 
 namespace volvoxc {

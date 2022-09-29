@@ -12,9 +12,9 @@ ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	SUFFIX :=
 	NIXTYPE := mingw64
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config14 && echo -n true),true)
+ifeq ($(shell test -x /usr/local/bin/llvm-config15 && echo -n true),true)
 	PREFIX := /usr/local
-	SUFFIX := 14
+	SUFFIX := 15
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
 	PREFIX := /usr/local
@@ -90,8 +90,11 @@ LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
 CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))
 
-# there seem to be problems with new pass manager for LLVM-15 and LLVM-16 (regression?)
-ifneq ($(LLVMVERSION),14)
+# use new pass manager for LLVM-14, 15 and 16
+ifeq ($(LLVMVERSION),12)
+	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DLEGACY_PASS_MANAGER
+endif
+ifeq ($(LLVMVERSION),13)
 	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DLEGACY_PASS_MANAGER
 endif
 
