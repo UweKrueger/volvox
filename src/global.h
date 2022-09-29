@@ -754,6 +754,10 @@ public:
 		gen_type = { .ID = VOLVOX_DoubleTyID };
 		is_unknown_type = true;
 	}
+	~Token() {
+		if (kind == tok_str_lit)
+			free((void*)Val.Ptr);
+	}
 	std::string str() const;
 };
 

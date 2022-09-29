@@ -58,7 +58,14 @@ public:
 	union LitValue Val;
 	LiteralExprAST(const Token& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
 		  (((tok.int_type.ID == llvm::Type::IntegerTyID &&
-		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {}
+		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {
+		if (tok.kind == tok_str_lit)
+			Val.Ptr = strdup((const char*)Val.Ptr);
+	}
+	~LiteralExprAST() {
+		if (ft->type->getTypeID() == llvm::Type::PointerTyID && !(ft->type_attr & A_signed))
+			free((void*)Val.Ptr);
+	}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		switch (ft->type->getTypeID()) {
