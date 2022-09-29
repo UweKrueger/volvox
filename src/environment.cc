@@ -109,6 +109,7 @@ const char* volvox_root() {
 	// we must not modify exe_path - so make a copy
 	char* root_from_exe = (char*)malloc(l+1);
 	memcpy(root_from_exe, exe_path, l);
+	free((void*)exe_path);
 	root_from_exe[l] = '\0';
 	root = root_from_exe;
 	return root;
