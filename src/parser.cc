@@ -300,19 +300,19 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 
 /// numberexpr ::= number
 static std::unique_ptr<ExprAST> ParseNumberExpr(int terminator = 0) {
-	auto Result = std::make_unique<LiteralExprAST>(CurTok);
+	auto Result = std::make_unique<LiteralExprAST>(std::move(CurTok));
 	getNextToken(eBinOp, terminator); // consume the number
 	return Result;
 }
 
 static std::unique_ptr<ExprAST> ParseStringExpr(int terminator = 0) {
-	auto Result = std::make_unique<LiteralExprAST>(CurTok);
+	auto Result = std::make_unique<LiteralExprAST>(std::move(CurTok));
 	getNextToken(eBinOp, terminator); // consume the string
 	return Result;
 }
 
 static std::unique_ptr<ExprAST> ParsePointerExpr(int terminator = 0) {
-	auto Result = std::make_unique<LiteralExprAST>(CurTok);
+	auto Result = std::make_unique<LiteralExprAST>(std::move(CurTok));
 	getNextToken(eBinOp, terminator); // consume the pointer
 	return Result;
 }
