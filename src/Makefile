@@ -1,6 +1,6 @@
 # do 'make distclean' when changing optimization options or compiler version
 
-OPT = -O3
+OPT = -O2
 
 SHELL := bash
 RM = rm -f
