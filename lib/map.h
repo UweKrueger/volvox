@@ -83,13 +83,13 @@ namespace volvox {
 		_DECL Node* f32_insert(Node** root_ptr, f32 key, Value value, int value_size, bool allow_replace);
 		_DECL Node* f64_insert(Node** root_ptr, f64 key, Value value, int value_size, bool allow_replace);
 
-		_DECL bool string_delete(Node** root_ptr, const char* key);
-		_DECL bool u64_delete(Node** root_ptr, u64 key);
-		_DECL bool i64_delete(Node** root_ptr, i64 key);
-		_DECL bool u32_delete(Node** root_ptr, u32 key);
-		_DECL bool i32_delete(Node** root_ptr, i32 key);
-		_DECL bool f32_delete(Node** root_ptr, f32 key);
-		_DECL bool f64_delete(Node** root_ptr, f64 key);
+		_DECL bool string_delete(Node** root_ptr, const char* key, void (*destruct)(Value* ptr));
+		_DECL bool u64_delete(Node** root_ptr, u64 key, void (*destruct)(Value* ptr));
+		_DECL bool i64_delete(Node** root_ptr, i64 key, void (*destruct)(Value* ptr));
+		_DECL bool u32_delete(Node** root_ptr, u32 key, void (*destruct)(Value* ptr));
+		_DECL bool i32_delete(Node** root_ptr, i32 key, void (*destruct)(Value* ptr));
+		_DECL bool f32_delete(Node** root_ptr, f32 key, void (*destruct)(Value* ptr));
+		_DECL bool f64_delete(Node** root_ptr, f64 key, void (*destruct)(Value* ptr));
 
 		_DECL void destroy(Node* root, void (*destruct)(Value* ptr));
 

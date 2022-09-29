@@ -456,7 +456,7 @@ namespace volvox {
 			printf("\": %d %u \"%s\"\n", bf, *(unsigned*)((const char*)value + value->offset), (const char*)value + value->offset + 4);
 		}
 
-		static bool delete_priv(Node** root_ptr, Node* curr) {
+		static bool delete_priv(Node** root_ptr, Node* curr, void (*destruct)(Value* ptr)) {
 			Node* new_mom;
 			Node* parent = PARENT(curr);
 			Node* n0 = curr;
@@ -606,18 +606,20 @@ namespace volvox {
 				if (!bf)
 					break;
 			}
+			if (destruct)
+				destruct(&curr->value);
 			free(curr);
 			return true;
 		}
 
-		_DECL bool string_delete(Node** root_ptr, const char* key) {
+		_DECL bool string_delete(Node** root_ptr, const char* key, void (*destruct)(Value* ptr)) {
 			NodePosition pos = string_find(root_ptr, key);
-			return pos.is_parent ? false : delete_priv(root_ptr, pos.node);
+			return pos.is_parent ? false : delete_priv(root_ptr, pos.node, destruct);
 		}
 
-#define DEFINE_DELETE_FOR(typ) _DECL bool typ ## _delete(Node** root_ptr, typ key) { \
+#define DEFINE_DELETE_FOR(typ) _DECL bool typ ## _delete(Node** root_ptr, typ key, void (*destruct)(Value* ptr)) { \
 			NodePosition pos = typ ## _find(root_ptr, key); \
-			return pos.is_parent ? false : delete_priv(root_ptr, pos.node); \
+			return pos.is_parent ? false : delete_priv(root_ptr, pos.node, destruct); \
 		}
 
 		DEFINE_DELETE_FOR(u64)

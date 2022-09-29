@@ -58,17 +58,17 @@ extern "C" {
 #define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE
 #define map_iter_up _ZN6volvox3map7iter_upEPNS0_4NodeE
 #define map_iter_down _ZN6volvox3map9iter_downEPNS0_4NodeE
-#define map_string_delete _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKc
+#define map_string_delete _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE
 #define map_min _ZN6volvox3map3MinEPNS0_4NodeE
 #define map_max _ZN6volvox3map3MaxEPNS0_4NodeE
 	_DECL MapNode* map_string_new_map();
 	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace);
 	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace);
 	_DECL MapValue* map_string_get(MapNode* root, const char* key);
-	_DECL void map_destroy(MapNode* root, void (*destruct)(void* ptr));
+	_DECL void map_destroy(MapNode* root, void (*destruct)(MapValue* ptr));
 	_DECL MapNode* map_iter_up(MapNode* elem);
 	_DECL MapNode* map_iter_down(MapNode* elem);
-	_DECL bool map_string_delete(MapNode** root_ptr, const char* key);
+	_DECL bool map_string_delete(MapNode** root_ptr, const char* key, void (*destruct)(MapValue* ptr));
 	_DECL MapNode* map_min(MapNode* node);
 	_DECL MapNode* map_max(MapNode* node);
 }
@@ -546,7 +546,7 @@ public:
 		return val ? (FullVar*)((char*)val + val->offset) : nullptr;
 	}
 	bool erase(const char* name) {
-		return map_string_delete(&table, name);
+		return map_string_delete(&table, name, destroy_FV);
 	}
 };
 
@@ -673,7 +673,7 @@ public:
 		return node ? (NsItem*)((char*)node + node->offset) : nullptr;
 	}
 	bool erase(const char* name) {
-		return map_string_delete(&table, name);
+		return map_string_delete(&table, name, nullptr);
 	}
 };
 
