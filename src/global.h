@@ -621,7 +621,12 @@ class Module {
 public:
 	Module(std::vector<std::string> _import_path) :
 		import_path(std::move(_import_path)) {}
-	~Module() = default;
+	~Module() {
+		for (auto global = globals_table.first(); global; ++global) {
+			auto var = (FullVar*)((char*)global.getValue() + global.getValue()->offset);
+			free((void*)var->mangled_name);
+		}
+	}
 	std::vector<std::string> import_path;
 	TypeTable type_table;
 	std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
