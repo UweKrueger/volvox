@@ -91,7 +91,7 @@ namespace volvox {
 		_DECL bool f32_delete(Node** root_ptr, f32 key);
 		_DECL bool f64_delete(Node** root_ptr, f64 key);
 
-		_DECL void destroy(Node* root);
+		_DECL void destroy(Node* root, void (*destruct)(void* ptr));
 
 		_DECL void dump(Node* root, node_printer* prt);
 		_DECL int check_avl_get_depth(Node* node);

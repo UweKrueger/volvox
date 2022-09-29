@@ -55,7 +55,7 @@ extern "C" {
 #define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEib
 #define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEib
 #define map_string_get _ZN6volvox3map10string_getEPNS0_4NodeEPKc
-#define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeE
+#define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeEPFvPvE
 #define map_iter_up _ZN6volvox3map7iter_upEPNS0_4NodeE
 #define map_iter_down _ZN6volvox3map9iter_downEPNS0_4NodeE
 #define map_string_delete _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKc
@@ -65,7 +65,7 @@ extern "C" {
 	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace);
 	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace);
 	_DECL MapValue* map_string_get(MapNode* root, const char* key);
-	_DECL void map_destroy(MapNode* root);
+	_DECL void map_destroy(MapNode* root, void (*destruct)(void* ptr));
 	_DECL MapNode* map_iter_up(MapNode* elem);
 	_DECL MapNode* map_iter_down(MapNode* elem);
 	_DECL bool map_string_delete(MapNode** root_ptr, const char* key);
@@ -394,7 +394,7 @@ public:
 	MapNode* table;
 	Table() : table(map_string_new_map()) {}
 	Table(MapNode* t) : table(t) {}
-	~Table() { map_destroy(table); }
+	// ~Table() { map_destroy(table, nullptr); }
 	Table first() { return map_min(table); }
 	Table last() { return map_max(table); }
 	Table& operator++() { table = map_iter_up(table); return *this; }
@@ -405,7 +405,7 @@ public:
 	MapValue* getValue() { return &table->value; }
 	MapNode* getNode() { return table; }
 	void clear() {
-		map_destroy(table);
+		map_destroy(table, nullptr);
 		table = map_string_new_map();
 	}
 };
@@ -413,6 +413,7 @@ public:
 class TypeTable : public Table {
 public:
 	TypeTable() = default;
+	~TypeTable() { map_destroy(table, nullptr); }
 	unsigned add(const char* name, volvoxc::FullType* ft) {
 		bool is_int = ft->type->isIntegerTy();
 		if ((ft->type_attr & A_signed) && !is_int) {
@@ -523,13 +524,16 @@ protected:
 extern MapNode* keyword_toks; // all language keywords like 'if', 'else', 'fn', ...
 extern void init_token_map();
 
+extern void destroy_FV(void* mapval);
+
 class VarTable : public Table {
 public:
 	VarTable() = default;
 	VarTable(VarTable&& o) { table = o.table; o.table = nullptr; }
+	~VarTable() { map_destroy(table, destroy_FV); }
 	VarTable& operator=(VarTable&& o) { table = o.table; o.table = nullptr; return *this; }
 	void clear() {
-		map_destroy(table);
+		map_destroy(table, nullptr);
 		table = map_string_new_map();
 	}
 	bool insert(const char* key, const FullVar& value) {
@@ -622,12 +626,6 @@ class Module {
 public:
 	Module(std::vector<std::string> _import_path) :
 		import_path(std::move(_import_path)) {}
-	~Module() {
-		for (auto global = globals_table.first(); global; ++global) {
-			auto var = (FullVar*)((char*)global.getValue() + global.getValue()->offset);
-			free((void*)var->mangled_name);
-		}
-	}
 	std::vector<std::string> import_path;
 	TypeTable type_table;
 	std::map<std::string, std::vector<std::unique_ptr<PrototypeAST>>> FunctionProtos;
@@ -660,9 +658,9 @@ protected:
 		MapNode* table;
 public:
 	NameTable() : table(map_string_new_map()) {}
-	~NameTable() { map_destroy(table); }
+	~NameTable() { map_destroy(table, nullptr); }
 	void clear() {
-		map_destroy(table);
+		map_destroy(table, nullptr);
 		table = map_string_new_map();
 	}
 	bool insert(const char* key, const NsItem& value) {

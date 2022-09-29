@@ -627,19 +627,21 @@ namespace volvox {
 		DEFINE_DELETE_FOR(f32)
 		DEFINE_DELETE_FOR(f64)
 
-		static void destroy_priv(Node* node) {
+		static void destroy_priv(Node* node, void (*destruct)(void* ptr)) {
 			Node* leftChild = node->leftChild;
 			if (leftChild)
-				destroy_priv(leftChild);
+				destroy_priv(leftChild, destruct);
 			Node* rightChild = node->rightChild;
 			if (rightChild)
-				destroy_priv(rightChild);
+				destroy_priv(rightChild, destruct);
+			if (destruct)
+				destruct(&node->value);
 			free(node);
 		}
 
-		_DECL void destroy(Node* root) {
+		_DECL void destroy(Node* root, void (*destruct)(void* ptr)) {
 			if (root)
-				destroy_priv(root);
+				destroy_priv(root, destruct);
 		}
 
 		_DECL int check_avl_get_depth(Node* node) {
