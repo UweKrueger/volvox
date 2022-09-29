@@ -404,8 +404,8 @@ public:
 	const char* getKey() { return table->key.string; }
 	MapValue* getValue() { return &table->value; }
 	MapNode* getNode() { return table; }
-	void clear() {
-		map_destroy(table, nullptr);
+	void clear(void (*destruct)(MapValue* ptr)) {
+		map_destroy(table, destruct);
 		table = map_string_new_map();
 	}
 };
@@ -533,7 +533,7 @@ public:
 	~VarTable() { map_destroy(table, destroy_FV); }
 	VarTable& operator=(VarTable&& o) { table = o.table; o.table = nullptr; return *this; }
 	void clear() {
-		map_destroy(table, nullptr);
+		map_destroy(table, destroy_FV);
 		table = map_string_new_map();
 	}
 	bool insert(const char* key, const FullVar& value) {
