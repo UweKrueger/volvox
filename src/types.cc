@@ -593,7 +593,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 	FT = llvm::FunctionType::get(llvm_ret_type, LLVMArgTypes, IsVarArgs);
 }
 
-void destroy_FV(void* mapval) {
-	auto var = (FullVar*)((char*)mapval + ((MapValue*)mapval)->offset);
+void destroy_FV(MapValue* mapval) {
+	auto var = (FullVar*)((char*)mapval + mapval->offset);
 	free((void*)var->mangled_name);
 }

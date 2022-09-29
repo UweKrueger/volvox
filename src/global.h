@@ -55,7 +55,7 @@ extern "C" {
 #define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEib
 #define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEib
 #define map_string_get _ZN6volvox3map10string_getEPNS0_4NodeEPKc
-#define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeEPFvPvE
+#define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE
 #define map_iter_up _ZN6volvox3map7iter_upEPNS0_4NodeE
 #define map_iter_down _ZN6volvox3map9iter_downEPNS0_4NodeE
 #define map_string_delete _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKc
@@ -524,7 +524,7 @@ protected:
 extern MapNode* keyword_toks; // all language keywords like 'if', 'else', 'fn', ...
 extern void init_token_map();
 
-extern void destroy_FV(void* mapval);
+extern void destroy_FV(MapValue* mapval);
 
 class VarTable : public Table {
 public:
