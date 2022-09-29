@@ -637,46 +637,6 @@ public:
 extern std::map<std::string, Module> Modules;
 extern std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
 
-enum NameKind {
-	NK_Module,
-	NK_Type,
-	NK_FunctionAlias,
-	NK_VariableAlias
-};
-
-struct NsItem {
-	NameKind kind;
-	union {
-		volvoxc::FullType* ft;
-		PrototypeAST* proto;
-		FullVar* var;
-	};
-};
-
-class NameTable {
-protected:
-		MapNode* table;
-public:
-	NameTable() : table(map_string_new_map()) {}
-	~NameTable() { map_destroy(table, nullptr); }
-	void clear() {
-		map_destroy(table, nullptr);
-		table = map_string_new_map();
-	}
-	bool insert(const char* key, const NsItem& value) {
-		MapValue mv = { .src_ptr = const_cast<NsItem*>(&value) };
-		auto res = map_string_insert(&table, key, mv, sizeof(NsItem), false);
-		return res;
-	}
-	NsItem* operator[](const char* key) {
-		MapValue* node = map_string_get(table, key);
-		return node ? (NsItem*)((char*)node + node->offset) : nullptr;
-	}
-	bool erase(const char* name) {
-		return map_string_delete(&table, name, nullptr);
-	}
-};
-
 enum CompModes {
 	comp_undefined = 0,
 	comp_jit,
