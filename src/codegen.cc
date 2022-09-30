@@ -65,6 +65,12 @@ std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangle
 		return nullptr;
 }
 
+llvm::Function* getFunction(PrototypeAST* FI) {
+	if (auto F = TheModule->getFunction(FI->Name))
+		return F;
+	return FI->codegen();
+}
+
 std::pair<llvm::Function*, PrototypeAST*> getFunction(std::string unmangledName, std::vector<volvoxc::FullType*>* ArgTypes, volvoxc::FullType* receiver_ft = nullptr) {
 	std::vector<std::unique_ptr<PrototypeAST>>* FI;
 	if (receiver_ft)
@@ -2336,8 +2342,7 @@ llvm::Function *FunctionAST::codegen() {
 			receiver_ft = Proto->ArgTypes[0];
 	else
 		receiver_ft = nullptr;
-	auto CalleeF = getFunction(unmangledName, &P.ArgTypes, receiver_ft);
-	llvm::Function* TheFunction = CalleeF.first;
+	llvm::Function* TheFunction = getFunction(Proto);
 	if (!TheFunction) {
 		errs() << "Function '" << unmangledName << "()' not found in module\n";
 		for (auto& expr : Body)
