@@ -966,6 +966,12 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						return nullptr;
 					}
 				}
+			} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
+				errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
+				return nullptr;
+			} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
+				errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
+				return nullptr;
 			} else {
 				errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
 				return nullptr;
