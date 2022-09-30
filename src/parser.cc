@@ -353,8 +353,18 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 	if (im != lex.module->ImportedSymbols.end())
 		if (im->second.isPrefix())
 			return std::make_unique<ModuleExprAST>(LitLoc, std::move(IdName));
-	if (auto type = lex.get_full_type(IdName.c_str()))
-		return ParseStructExpr(type, terminator);
+	if (auto type = lex.get_full_type(IdName.c_str())) {
+		if (auto s = ParseStructExpr(type, terminator))
+			return s;
+		else {
+			errs() << LitLoc << ": an expression is expected here - '" << IdName << "' is known as type name so a valid expression would be an aggregate literal \"" << IdName << "{...}\"";
+			if (CurTok.kind == tok_assign)
+				errs() << " - however this would not be allowed as LHS of a" << ((IdentifierStr == ":=") ? " declaration\n" : "n assignment\n");
+			else
+				errs() << '\n';
+			return nullptr;
+		}
+	}
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
 }
 
@@ -388,7 +398,8 @@ static void aggr_prop_redefinition(SourceLocation Loc, const char* prop) {
 
 static std::unique_ptr<ListExprAST> ParseListExpr(int terminator = 0) {
 	SourceLocation loc = CurLoc;
-	getNextToken();
+	if (!Expect('{', eNone))
+		return nullptr;
 	if (CurTok.kind == '}') {
 		getNextToken(eBinOp, terminator);
 		return std::make_unique<ListExprAST>(loc);
