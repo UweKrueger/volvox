@@ -944,7 +944,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_type = RHS->ft ? RHS->ft->type : nullptr;
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
-		if (inside_function && BinOp == ":=") {
+		if (BinOp == ":=") {
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
 				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				llvm::Type* type = std::get<0>(type_descr);
@@ -955,10 +955,16 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				};
 				fv.ft.type = type;
 				fv.ft.type_attr = is_signed ? 1U : 0U;
-
-				if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
-					errs() << VarL->Loc << ": variable " << VarL->Name << " already exists in current scope\n";
-					return nullptr;
+				if (inside_function) {
+					if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
+						errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
+						return nullptr;
+					}
+				} else {
+					if (!lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
+						errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
+						return nullptr;
+					}
 				}
 			} else {
 				errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";

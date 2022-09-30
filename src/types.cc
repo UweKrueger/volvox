@@ -295,11 +295,7 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned l
                        bool left_is_unknown_type, bool right_is_unknown_type,
                        const char* Op, SourceLocation Loc)
 {
-	if (!strcmp(Op, ":=") && left_type) {
-		errs() << Loc << ": convBinOp(): " << *left_type << " internal error\n";
-		abort();
-	}
-	if (!left_type || Op[0] == ',') {// variable declaration, i.e. := operator
+	if (!strcmp(Op, ":=") || !left_type || Op[0] == ',') {// variable declaration, i.e. := operator
 		return {{ nullptr, nullptr, nullptr, 0, false, nullptr }, { nullptr, nullptr, nullptr, 0, false, nullptr }};
 	}
 	if (!left_type->isSingleValueType() || !right_type || !right_type->isSingleValueType()) {

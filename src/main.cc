@@ -58,6 +58,7 @@ llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
 volvoxc::FullType* void_type;
+volvoxc::FullType* bool_type;
 volvoxc::FullType* uintptr_type;
 
 #ifdef LEGACY_PASS_MANAGER
@@ -118,6 +119,7 @@ void init() {
 	void_type = lex.get_full_type("void");
 	llvm_bool_type = llvm::Type::getInt1Ty(Context);
 	lex.add_type("bool", llvm::Type::getInt1Ty(Context), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
+	bool_type = lex.get_full_type("bool");
 	lex.add_type("i8", llvm::Type::getInt8Ty(Context), DBuilder ? DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	lex.add_type("i16", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("i16", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	lex.add_type("i32", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("i32", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
@@ -402,11 +404,22 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 
 void PrepareTestFramework() {
 	// create (global) variables to collect Results
+	FullVar fv = {
+		.ft = *bool_type
+	};
+	if (!lex.module->globals_table.insert(single_test_result_name.c_str(), fv)) {
+		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"main\" scope\n";
+		abort();
+	}
 	auto single_res_def = std::make_unique<BinaryExprAST>(
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(false))));
 	HandleGlobalVariable(single_res_def.get(), A_pub);
+	if (!lex.module->globals_table.insert(collector_name.c_str(), fv)) {
+		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"main\" scope\n";
+		abort();
+	}
 	auto collector_def = std::make_unique<BinaryExprAST>(
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),

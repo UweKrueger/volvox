@@ -950,15 +950,16 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			                              false, link_type,
 			                              initializer, varname, nullptr,
 			                              llvm::GlobalVariable::GeneralDynamicTLSModel);
-			volvoxc::FullType ft = *expr->RHS->ft;
-			ft.type = type;
-			ft.type_attr = sym_kind | (is_signed ? A_signed : 0U);
-			FullVar fv = {
-				.storage_type = initializer->getType(),
-				.mangled_name = strdup(varname.c_str()),
-				.ft = ft,
-			};
-			lex.module->globals_table.insert(unmangled_name.c_str(), fv);
+			FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
+			if (!fv) {
+				errs() << expr->RHS->Loc << ": internal error variable '" << unmangled_name << "' not found in database\n";
+				return nullptr;
+			}
+			fv->storage_type = initializer->getType();
+			fv->mangled_name = strdup(varname.c_str());
+			fv->ft = *expr->RHS->ft;
+			fv->ft.type = type;
+			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U);
 			if (comp_mode == comp_jit && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
