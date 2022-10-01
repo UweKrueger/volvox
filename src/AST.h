@@ -272,10 +272,10 @@ public:
 };
 
 class ExprListIterator {
-	ListExprAST* list;
+	ListExprAST* list = nullptr;
 	bool struct_err = false;
 	TokenKind kind = TokenKind('[');
-	bool explicit_order;
+	bool explicit_order = false;
 public:
 	std::vector<std::unique_ptr<ExprAST>> Dims; // Dims.size() = order of tensor - 1 for vector, 2 for matrix, ...
 	                                            // Dims[i] = dimension of tensor in level 'i'
@@ -297,8 +297,8 @@ public:
 
 class AggregateExprAST : public ListExprAST {
 public:
-	llvm::Type* key_type;
-	unsigned key_type_attr;
+	llvm::Type* key_type = nullptr;
+	unsigned key_type_attr = 0;
 	std::vector<ExprAST*> valid_exprs;
 	std::vector<std::function<llvm::Value*(llvm::Value*)>> Elem_convs;
 	std::vector<unsigned> LitDims; // maximum used index in literal for each level
@@ -343,7 +343,7 @@ union AggregateKey {
 	int64_t Int;
 	double Double;
 	float Float;
-	llvm::Constant* String;
+	llvm::Constant* String = nullptr;
 };
 
 class MapExprAST : public AggregateExprAST {
@@ -357,7 +357,7 @@ public:
 };
 
 class FixedArrayExprAST : public AggregateExprAST {
-	uint64_t iter_idx;
+	uint64_t iter_idx = 0;
 public:
 	std::vector<std::unique_ptr<ExprAST>> Dims; // known at run time
 	std::vector<SourceLocation> LenLocs;
@@ -401,7 +401,7 @@ public:
 
 /// UnaryExprAST - Expression class for a unary operator.
 class UnaryExprAST : public ExprAST {
-	char Opcode[4];
+	char Opcode[4] = { 0, 0, 0, 0 };
 	std::unique_ptr<ExprAST> Operand;
 
 public:
@@ -423,10 +423,10 @@ public:
 struct BinOpConv {
 	std::function<llvm::Value*(llvm::Value*)> LHS;
 	std::function<llvm::Value*(llvm::Value*)> RHS;
-	llvm::Type* res_type;
-	unsigned res_attr;
-	bool is_unknown_type;
-	const char* err_msg;
+	llvm::Type* res_type = nullptr;
+	unsigned res_attr = 0;
+	bool is_unknown_type = false;
+	const char* err_msg = nullptr;
 };
 
 // there are two sets of conversions. E.g. `u16 * u16(u8) -> u16` works, but could overflow
@@ -446,7 +446,7 @@ extern BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type,
 class BinaryExprAST : public ExprAST {
 	
 public:
-	char Op[4];
+	char Op[4] = { 0, 0, 0, 0 };
 	std::unique_ptr<ExprAST> LHS, RHS;
 	BinOpConvSet conv;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
@@ -539,7 +539,7 @@ class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond;
 	std::vector<std::unique_ptr<ExprAST>> Then, Else;
 	BinOpConvSet conv;
-	TokenKind if_kind;
+	TokenKind if_kind = (TokenKind)0;
 	VarTable then_locals_table;
 	VarTable else_locals_table;
 
@@ -577,7 +577,7 @@ public:
 class IteratorAST {
 public:
 	std::unique_ptr<ExprAST> Cond, Iterate, Init, Key, Value;
-	bool skip_1st_check;
+	bool skip_1st_check = false;
 	IteratorAST(std::unique_ptr<ExprAST> Cond, std::unique_ptr<ExprAST> Iterate, bool skip_1st_check, std::unique_ptr<ExprAST> Init, std::unique_ptr<ExprAST> Key, std::unique_ptr<ExprAST> Value)
 		: Cond(std::move(Cond)), Iterate(std::move(Iterate)), skip_1st_check(skip_1st_check), Init(std::move(Init)), Key(std::move(Key)), Value(std::move(Value)) {}
 	virtual ~IteratorAST() = default;
@@ -610,10 +610,10 @@ public:
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
 public:
-	PrototypeAST* Proto;
+	PrototypeAST* Proto = nullptr;
 	std::string unmangledName;
 	std::vector<std::unique_ptr<ExprAST>> Body;
-	int EndKind;
+	int EndKind = 0;
 	
 	FunctionAST(PrototypeAST* Proto,
 	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName)

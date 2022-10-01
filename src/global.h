@@ -239,12 +239,12 @@ public:
 namespace volvoxc {
 
 	struct FullType {
-		llvm::Type* type; // used by compiler
-		unsigned type_attr; // signed, atomic, shared, iso, ref, num_indices
-		const char* mangled_name; // maybe NULL for anonymous types
-		llvm::DIType* ditype;
+		llvm::Type* type = nullptr; // used by compiler
+		unsigned type_attr = 0; // signed, atomic, shared, iso, ref, num_indices
+		const char* mangled_name = nullptr; // maybe NULL for anonymous types
+		llvm::DIType* ditype = nullptr;
 		union {
-			FullType* elem_type; // for array or tuples
+			FullType* elem_type = nullptr; // for array or tuples
 			//PrototypeAST* proto; // for functions
 			std::vector<std::unique_ptr<PrototypeAST>>* Protos; // for overloaded functions
 			MapNode* fields;     // for structs
@@ -261,8 +261,8 @@ namespace volvoxc {
 	   This can be done in a single linked list */
 
 	struct FTListElem {
-		FTListElem* next;
-		FullType ft;
+		FTListElem* next = nullptr;
+		FullType ft = {0};
 	};
 
 }
@@ -343,16 +343,16 @@ struct int_val_type_t {
 
 struct FullVar {
 	union {
-		llvm::Value* val;
+		llvm::Value* val = nullptr;
 		llvm::Type* storage_type; // for global variables
 	};
 	const char* mangled_name = nullptr; // only for pub globals
-	volvoxc::FullType ft;
+	volvoxc::FullType ft = {0};
 };
 
 struct FVListElem {
-	FVListElem* next;
-	FullVar fv;
+	FVListElem* next = nullptr;
+	FullVar fv = {0};
 };
 
 extern FVListElem* anon_fullvars;
@@ -566,14 +566,14 @@ public:
 	std::vector<llvm::Type*> LLVMArgTypes = {}; // to get LLVM function type
 	std::vector<llvm::AttributeSet> ArgAttrs = {};
 	std::vector<SourceLocation> ArgPos;
-	volvoxc::FullType* RetType;
+	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc;
-	llvm::FunctionType* FT;
-	bool IsVarArgs;
-	bool IsOperator;
+	llvm::FunctionType* FT = nullptr;
+	bool IsVarArgs = false;
+	bool IsOperator = false;
 	bool isMethod = false;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
-	unsigned visibility;
+	unsigned visibility = 0;
 	llvm::GlobalValue::LinkageTypes link_type;
 	int Line;
 	std::string Name;
@@ -606,12 +606,12 @@ enum SymbolKind : uint8_t {
 // representation of imported symbols
 class SymbolRef {
 	union {
-		volvoxc::FullType* full_type;
+		volvoxc::FullType* full_type = nullptr;
 		FullVar* full_var;
 		std::vector<std::unique_ptr<PrototypeAST>>* protos;
 		std::nullptr_t module_prefix;
 	};
-	SymbolKind kind;
+	SymbolKind kind = (SymbolKind)0;
 public:
 	SymbolRef(volvoxc::FullType* _full_type) : full_type(_full_type), kind(SymbolType) {}
 	SymbolRef(FullVar* _full_var) : full_var(_full_var), kind(SymbolVar) {}
@@ -742,7 +742,7 @@ extern Token& purgeLine();
 
 struct SourceLocState {
 	SourceLocation Loc = {0};
-	Module* module;
+	Module* module = nullptr;
 	ssize_t linelen = 0;
 	size_t bufsize = 0;
 	char* linebuf = nullptr;
@@ -919,7 +919,7 @@ inline std::pair<FullVar*, bool> lookup_var(const char* Name) {
 class ExprAST {
 public:
 	SourceLocation Loc;
-	volvoxc::FullType* ft;
+	volvoxc::FullType* ft = nullptr;
 	llvm::Type* desired_type = nullptr;
 	unsigned desired_type_attr = 0;
 	MapNode* desired_elems = nullptr; // element-name -> { index, FullType }
@@ -980,7 +980,7 @@ template<typename T> llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::
 }
 
 struct DebugInfo {
-	llvm::DICompileUnit *TheCU;
+	llvm::DICompileUnit *TheCU = nullptr;
 	std::vector<llvm::DIScope *> LexicalBlocks;
 
 	void emitLocation(ExprAST *AST);
