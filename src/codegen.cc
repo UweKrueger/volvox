@@ -959,6 +959,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				// running the new PassManager on an empty module causes trouble :-(
 				// let's avoid this...
 				if (TheModule->end() != TheModule->begin()) {
+					NEW_MAM();
 					auto MPM = GET_MPM(PB, optimization_level);
 					MPM.run(*TheModule, MAM);
 					if (dump_IR && dump_opt) {

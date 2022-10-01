@@ -69,7 +69,9 @@ llvm::LoopAnalysisManager LAM;
 llvm::FunctionAnalysisManager FAM;
 llvm::CGSCCAnalysisManager CGAM;
 llvm::ModuleAnalysisManager MAM;
+llvm::PipelineTuningOptions PTO;
 #endif
+llvm::TargetMachine* TheTargetMachine = nullptr;
 
 std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT = nullptr;
 
@@ -1087,7 +1089,6 @@ int main(int argc, char* argv[]) {
 	InitializeModuleAndPassManager();
 #ifndef LEGACY_PASS_MANAGER
 	// Register all the basic analyses with the managers.
-	llvm::PipelineTuningOptions PTO;
 	// PTO.LoopInterleaving = false;
 	// PTO.LoopVectorization = false;
 	// PTO.SLPVectorization = false;
@@ -1126,7 +1127,6 @@ int main(int argc, char* argv[]) {
 	auto Features = "";
 	llvm::TargetOptions target_opts;
 	auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
-	llvm::TargetMachine* TheTargetMachine = nullptr;
 	std::unique_ptr<llvm::TargetMachine> u_tartgetm = nullptr;
 	if (comp_mode == comp_jit) {
 		if (auto ptr = TheJIT->createTargetMachine()) {
@@ -1145,20 +1145,6 @@ int main(int argc, char* argv[]) {
 		else
 			errs() << "using native TLS\n";
 	}
-#ifndef LEGACY_PASS_MANAGER
-	PB = llvm::PassBuilder(TheTargetMachine, PTO);
-
-	PB.registerModuleAnalyses(MAM);
-	PB.registerCGSCCAnalyses(CGAM);
-	PB.registerFunctionAnalyses(FAM);
-	PB.registerLoopAnalyses(LAM);
-	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
-	if (dump_IR > 2) {
-		errs() << "known passes:\n";
-		PB.printPassNames(errs());
-		errs() << '\n';
-	}
-#endif
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.
 		TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version",
@@ -1185,6 +1171,7 @@ int main(int argc, char* argv[]) {
 		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
 			if (auto *FnIR = FnAST->codegen()) {
 #ifndef LEGACY_PASS_MANAGER
+				NEW_MAM();
 				auto MPM = GET_MPM(PB, optimization_level);
 				MPM.run(*TheModule, MAM);
 				if (dump_IR && dump_opt) {
