@@ -432,7 +432,7 @@ class TypeTable : public Table {
 public:
 	TypeTable() = default;
 	~TypeTable() { map_destroy(table, nullptr); }
-	unsigned add(const char* name, volvoxc::FullType* ft) {
+	MapNode* add(const char* name, volvoxc::FullType* ft) {
 		bool is_int = ft->type->isIntegerTy();
 		if ((ft->type_attr & A_signed) && !is_int) {
 			errs() << "non-int type '" << name << "' aka " << *ft->type << " cannot be signed\n";
@@ -461,14 +461,14 @@ public:
 				typeptr_table[(llvm::Type*)((uintptr_t)ft->type | A_signed)] = { name, ft->ditype };
 			else
 				typeptr_table[ft->type] = { name, ft->ditype };
-			return key;
+			return new_node;
 		} else {
 			errs() << "Cannot add new type '" << name << "' - name already exists\n";
-			return 0;
+			return nullptr;
 		}
 	}
 	// method for adding built-in types - no mangling is used
-	unsigned add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr) {
+	MapNode* add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr) {
 		const char* existing_name = get_name(type);
 		// keep only one "canonical name" in FullType - the first one used for this LLVM-type
 		// no "strdup()" is necessary since this is always called with literal constant names
@@ -819,8 +819,8 @@ public:
 	void import_from_module(Module* import_module);
 	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
 	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }
-	unsigned add_type(const char* name, volvoxc::FullType* ft) { return module->type_table.add(name, ft); }
-	unsigned add_type(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr)
+	MapNode* add_type(const char* name, volvoxc::FullType* ft) { return module->type_table.add(name, ft); }
+	MapNode* add_type(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr)
 		{ return module->type_table.add(name, type, ditype, type_attr, fields); }
 	/* the 'lookup' methods must search in both the current namespace
 	   and the 'builtin' namespace aka 'source_stack.front()' */
