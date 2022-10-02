@@ -242,7 +242,12 @@ static void HandleTypeDef(unsigned share_kind) {
 	llvm::SmallString<128> buf;
 	auto mangled_name = MangleBase(buf, lex.module->import_path, type_name);
 	ft->mangled_name = strdup(mangled_name.c_str());
-	lex.add_type(type_name.c_str(), ft);
+	MapNode* new_node = lex.add_type(type_name.c_str(), ft);
+	if (!new_node) {
+		errs() << "cannot define '" << type_name << "' - type already exists\n";
+		return;
+	}
+	last_definded_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "declared new type '" << type_name << "' as " << *ft->type << '\n';
 }
@@ -544,7 +549,7 @@ static void MainLoop() {
 			return;
 		case ';': // ignore top-level semicolons.
 			getNextToken();
-			break;
+			goto startmainloop;
 		case tok_fn:
 			if (share_tok) {
 				errs() << CurLoc << "functions cannot be declared as " << share_tok << '\n';
