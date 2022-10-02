@@ -1259,7 +1259,7 @@ noargs:
 /// definition ::= 'fn' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned visibility) {
 	getNextToken(); // eat fn.
-	if (CurTok.kind == '~') {
+	if (CurTok.kind == tok_unary && IdentifierStr == "~") {
 		visibility |= A_destructor;
 		getNextToken();
 	}
