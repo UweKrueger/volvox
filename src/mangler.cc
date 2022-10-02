@@ -41,13 +41,16 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 
 llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path, const std::string& name) {
 	llvm::raw_svector_ostream mangled(buf);
-	if (!path.empty()) {
+	if (!path.empty() || name[0] == '~') {
 		mangled << 'N';
 		for (auto& dir : path)
 			mangled << dir.size() << dir;
 	}
-	mangled << name.size() << name;
-	if (!path.empty())
+	if (name[0] == '~')
+		mangled << name.size()-1 << name.c_str()+1 << "D2";
+	else
+		mangled << name.size() << name;
+	if (!path.empty() || name[0] == '~')
 		mangled << 'E';
 	return buf;
 }
@@ -56,7 +59,7 @@ llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::s
 	llvm::SmallString<128> buf = llvm::StringRef("_Z");
 	buf = MangleBase(buf, path, name);
 	llvm::raw_svector_ostream mangled(buf);
-	if (arg_types.size() > 0)
+	if (arg_types.size() > 0 && name[0] != '~')
 		for (auto type : arg_types)
 			mangled << type;
 	else
