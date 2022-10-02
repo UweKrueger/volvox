@@ -10,5 +10,3 @@ hjggd := subb.CCv{
 
 fn test_multi_level_type_import() bool
 	return hjggd.w.q[1] == -6.75 & hjggd.w.pp == 67.0625 & hjggd.z.q.e == 0.
-
-exit(0)
