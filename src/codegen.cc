@@ -19,6 +19,16 @@ VarTable* IfWhileVarTable = nullptr;
 // the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
 unsigned condnesting = 0;
 
+// list of list of destructors for each context
+
+struct DestructorCall {
+	llvm::FunctionType* FTy;
+	llvm::Function* F;
+	llvm::Value* objref;
+};
+
+std::vector<std::vector<DestructorCall>> destructors;
+
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
 		C->setTailCall();
