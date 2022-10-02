@@ -149,7 +149,7 @@ LIBCSRC := $(LIBCOBJS:%.o=../lib/%.c)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $(EXTRAINC) $<
 
 %.o: ../lib/%.cc
-	$(CXX) -c $(CXXFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
+	$(CXX) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
 
 %.o: ../lib/%.c
 	$(CC) -c -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
