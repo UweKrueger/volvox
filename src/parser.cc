@@ -1250,7 +1250,18 @@ noargs:
 		errs() << "Invalid number of operands for operator\n";
 		return nullptr;
 	}
-
+	if ((visibility & A_destructor) && (RetType || ArgTypes.size() != 1)) {
+		errs() << CurLoc << ": definition of '" << FnName << "()' - destructors are not allowed to have ";
+		if (ArgTypes.size() != 1) {
+			errs() << "arguments";
+			if (RetType)
+				errs() << " or ";
+		}
+		if (RetType)
+			errs() << "a return value";
+		errs() << '\n';
+		return nullptr;
+	}
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs, (bool)ReceiverType);
 }
 
