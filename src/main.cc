@@ -18,6 +18,7 @@ std::vector<int> source_index = { 0 };
 int prompt_indent = 0;
 std::map<std::string, Module> Modules;
 DebugInfo KSDbgInfo;
+const char* last_definded_type = nullptr;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -489,6 +490,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	for (;;) {
+		last_definded_type = nullptr;
 	startmainloop:
 		unsigned sym_kind = 0; // 'pub', 'extern', 'fn', 'cfn', ...
 		auto share_tok = TokenKind(0);
@@ -576,7 +578,7 @@ static void MainLoop() {
 			if (sym_kind & A_pub)
 				errs() << CurLoc << ": 'pub' is not needed for type declarations\n";
 			HandleTypeDef(sym_kind);
-			break;
+			goto startmainloop;
 		default:
 			if (comp_mode == comp_jit && !do_test)
 				HandleTopLevelExpression(sym_kind);

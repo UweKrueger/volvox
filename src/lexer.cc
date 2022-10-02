@@ -326,6 +326,7 @@ void Lexer::pop_state() {
 }
 
 bool Lexer::next_input_file() {
+	last_definded_type = nullptr;
 	if (input_fd > 0) {
 		if (input_fd == builtin_input_fd) {
 			builtin_input_fd = -1;

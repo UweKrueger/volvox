@@ -18,6 +18,7 @@
 #define A_global (1U<<17)
 #define A_inline (1U<<18)
 #define A_c_api  (1U<<19)
+#define A_destructor (1U<<20) // fn is destructor or type has destructor
 
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)
