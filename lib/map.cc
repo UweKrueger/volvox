@@ -344,16 +344,22 @@ namespace volvox {
 			NodePosition insert_pos = string_find(root_ptr, key);
 			if(insert_pos.is_parent || allow_replace) {
 				Node* node = string_tag_new_node(key, tag, value, value_size, use_tag);
-				insert_priv(root_ptr, node, (Node*)((uintptr_t)insert_pos.node & ~1ULL), insert_pos.parent_ptr);
+				insert_priv(root_ptr, node, (Node*)((uintptr_t)insert_pos.node & ~0x01), insert_pos.parent_ptr);
 				if (insert_pos.is_parent) {
-					return node;
+					if (!allow_replace)
+						return node;
+					else
+						return NULL;
 				} else {
 					// replace current element with new
 					node->parent = insert_pos.node->parent;
 					node->leftChild = insert_pos.node->leftChild;
 					node->rightChild = insert_pos.node->rightChild;
-					free(insert_pos.node);
-					return (Node*)((uintptr_t)node | 0x01);
+					// return replaced element as new map
+					insert_pos.node->parent = NULL;
+					insert_pos.node->leftChild = NULL;
+					insert_pos.node->rightChild = NULL;
+					return insert_pos.node;
 				}
 			} else {
 				return NULL;
@@ -366,21 +372,27 @@ namespace volvox {
 
 #define DEFINE_INSERT_FOR(typ) _DECL Node* typ ## _insert(Node** root_ptr, typ key, Value value, int value_size, bool allow_replace) { \
 			NodePosition insert_pos = typ ## _find(root_ptr, key); \
-			if(insert_pos.is_parent) { \
+			if(insert_pos.is_parent || allow_replace) { \
 				Node* node = typ ## _new_node(key, value, value_size); \
 				insert_priv(root_ptr, node, (Node*)((uintptr_t)insert_pos.node & ~0x01), insert_pos.parent_ptr); \
 				return node; \
-			} else { \
-				if (allow_replace) { \
+				if (insert_pos.is_parent) { \
+					if (!allow_replace) \
+						return node; \
+					else \
+						return NULL; \
+				} else { \
 					Node* node = typ ## _new_node(key, value, value_size); \
 					node->parent = insert_pos.node->parent; \
 					node->leftChild = insert_pos.node->leftChild; \
 					node->rightChild = insert_pos.node->rightChild; \
-					free(insert_pos.node); \
-					return (Node*)((uintptr_t)node | 0x01); \
-				} else { \
-					return NULL; \
+					insert_pos.node->parent = NULL; \
+					insert_pos.node->leftChild = NULL; \
+					insert_pos.node->rightChild = NULL; \
+					return insert_pos.node; \
 				} \
+			} else { \
+				return NULL; \
 			} \
 		}
 
