@@ -359,9 +359,9 @@ bool spawn_bool_expr(bool (*expr)()) {
 }
 #endif
 
-static void HandleTopLevelExpression(unsigned sym_kind) {
+static void HandleTopLevelExpression(std::unique_ptr<ExprAST> E) {
 	// Evaluate a top-level expression into an anonymous function.
-	if (auto FnAST = ParseTopLevelExpr(sym_kind)) {
+	if (auto FnAST = ParseTopLevelExpr(std::move(E))) {
 		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();
 			if (!anon_expr->getReturnType()->isIntegerTy() || !(anon_expr->getReturnType()->getIntegerBitWidth() == 1)) {
@@ -585,11 +585,12 @@ static void MainLoop() {
 			HandleTypeDef(sym_kind);
 			goto startmainloop;
 		default:
-			if (comp_mode == comp_jit && !do_test)
-				HandleTopLevelExpression(sym_kind);
-			else
-				if (auto expr = GetTopLevelExpression(sym_kind))
+			if (auto expr = GetTopLevelExpression(sym_kind)) {
+				if (comp_mode == comp_jit && !do_test)
+					HandleTopLevelExpression(std::move(expr));
+				else
 					GlobalExprList.push_back(std::move(expr));
+			}
 		}
 	}
 }

@@ -322,7 +322,7 @@ extern llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::
 extern llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name, std::vector<volvoxc::FullType*>& arg_types);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned share_kind);
 extern std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind);
-extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(unsigned sym_kind);
+extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST>);
 extern std::unique_ptr<ExprAST> ParseExpression(int terminator = 0);
 extern std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft, int terminator = 0);
 extern std::unique_ptr<PrototypeAST> ParseExtern(unsigned share_kind);

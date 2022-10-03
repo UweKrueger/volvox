@@ -1353,92 +1353,89 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 	}
 }
 
-std::unique_ptr<FunctionAST> ParseTopLevelExpr(unsigned sym_kind) {
-	SourceLocation FnLoc = CurLoc;
-	if (auto E = GetTopLevelExpression(sym_kind)) {
-		if (comp_mode == comp_jit) {
+std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E) {
+	SourceLocation FnLoc = E->Loc;
+	if (comp_mode == comp_jit) {
 #ifndef LEGACY_PASS_MANAGER
-			// running the new PassManager on an empty module causes trouble :-(
-			// let's avoid this...
-			if (TheModule->end() != TheModule->begin()) {
-				NEW_MAM();
-				auto MPM = GET_MPM(PB, optimization_level);
-				MPM.run(*TheModule, MAM);
-				if (dump_IR && dump_opt) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
-				}
+		// running the new PassManager on an empty module causes trouble :-(
+		// let's avoid this...
+		if (TheModule->end() != TheModule->begin()) {
+			NEW_MAM();
+			auto MPM = GET_MPM(PB, optimization_level);
+			MPM.run(*TheModule, MAM);
+			if (dump_IR && dump_opt) {
+				auto end = TheModule->end();
+				for (auto it = TheModule->begin(); it != end; ++it)
+					it->print(errs());
 			}
+		}
 #endif
-			ExitOnErr(TheJIT->addModule(
-				          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
-			InitializeModuleAndPassManager();
-		}
-		// Make an anonymous proto.
-		volvoxc::FullType* TheType = lex.get_full_type("bool");
-		auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
-		                                            std::vector<std::string>(),
-		                                            A_c_api,
-		                                            FnLoc, false, TheType);
-		std::vector<std::unique_ptr<ExprAST>> ExprList;
-		if (last_shadow_restorer) {
-			auto restorer_proto = lex.findProtos(last_shadow_restorer);
-			if (!restorer_proto) {
-				errs() << "could not find restorer '" << last_shadow_restorer << "'\n";
-			} else {
-				auto restorer = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_restorer, restorer_proto);
-				auto restorer_call = std::make_unique<CallExprAST>(FnLoc, std::move(restorer), std::move(std::vector<std::unique_ptr<ExprAST>>()));
-				ExprList.push_back(std::move(restorer_call));
-			}
-		}
-		if (E->ft->type->isVoidTy()) {
-			ExprList.push_back(std::move(E));
-			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
-		} else {
-			std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
-			auto println_proto = lex.findProtos(mangled_println);
-			if (!println_proto) {
-				errs() << "Fatal error: could not find 'println' function\n";
-				return nullptr;
-			}
-			auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto);
-			std::vector<std::unique_ptr<ExprAST>> PrintArgs;
-			bool is_string = E->ft->type->isPointerTy();
-			if (is_string)
-				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("\"")))));
-			else
-				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-			PrintArgs.push_back(std::make_unique<InterfaceExprAST>(std::move(E)));
-			// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
-			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-			if (is_string)
-				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("\"")))));
-			else
-				PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-			auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
-			ExprList.push_back(std::move(print_call));
-		}
-		if (last_shadow_saver) {
-			auto saver_proto = lex.findProtos(last_shadow_saver);
-			if (!saver_proto) {
-				errs() << "could not find saver '" << last_shadow_saver << "\n";
-			} else {
-				auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, saver_proto);
-				auto saver_call = std::make_unique<CallExprAST>(FnLoc, std::move(saver), std::move(std::vector<std::unique_ptr<ExprAST>>()));
-				ExprList.push_back(std::move(saver_call));
-				ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
-			}
-		}
-		auto ProtoRef = Proto.get();
-		std::string unmangledName = Proto->getName();
-		lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
-		return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName));
+		ExitOnErr(TheJIT->addModule(
+			          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
+		InitializeModuleAndPassManager();
 	}
-	return nullptr;
+	// Make an anonymous proto.
+	volvoxc::FullType* TheType = lex.get_full_type("bool");
+	auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
+	                                            std::vector<std::string>(),
+	                                            A_c_api,
+	                                            FnLoc, false, TheType);
+	std::vector<std::unique_ptr<ExprAST>> ExprList;
+	if (last_shadow_restorer) {
+		auto restorer_proto = lex.findProtos(last_shadow_restorer);
+		if (!restorer_proto) {
+			errs() << "could not find restorer '" << last_shadow_restorer << "'\n";
+		} else {
+			auto restorer = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_restorer, restorer_proto);
+			auto restorer_call = std::make_unique<CallExprAST>(FnLoc, std::move(restorer), std::move(std::vector<std::unique_ptr<ExprAST>>()));
+			ExprList.push_back(std::move(restorer_call));
+		}
+	}
+	if (E->ft->type->isVoidTy()) {
+		ExprList.push_back(std::move(E));
+		ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+	} else {
+		std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
+		auto println_proto = lex.findProtos(mangled_println);
+		if (!println_proto) {
+			errs() << "Fatal error: could not find 'println' function\n";
+			return nullptr;
+		}
+		auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto);
+		std::vector<std::unique_ptr<ExprAST>> PrintArgs;
+		bool is_string = E->ft->type->isPointerTy();
+		if (is_string)
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("\"")))));
+		else
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
+		PrintArgs.push_back(std::make_unique<InterfaceExprAST>(std::move(E)));
+		// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		if (is_string)
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string("\"")))));
+		else
+			PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
+		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
+		auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
+		ExprList.push_back(std::move(print_call));
+	}
+	if (last_shadow_saver) {
+		auto saver_proto = lex.findProtos(last_shadow_saver);
+		if (!saver_proto) {
+			errs() << "could not find saver '" << last_shadow_saver << "\n";
+		} else {
+			auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, saver_proto);
+			auto saver_call = std::make_unique<CallExprAST>(FnLoc, std::move(saver), std::move(std::vector<std::unique_ptr<ExprAST>>()));
+			ExprList.push_back(std::move(saver_call));
+			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+		}
+	}
+	auto ProtoRef = Proto.get();
+	std::string unmangledName = Proto->getName();
+	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
+	return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName));
 }
 
 /// external ::= 'extern' prototype
