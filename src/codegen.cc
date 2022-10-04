@@ -1245,77 +1245,73 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << LHS->Loc << ": unknown variable name '" << varname << "'\n";
 			return nullptr;
 		}
-		// variable declaration
-		if (inside_function) {
-			llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-			auto type_descr = MakeType(RHS->ft->type, RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
-			llvm::Type* type = std::get<0>(type_descr);
-			auto conversion = std::get<1>(type_descr);
-			bool is_signed = std::get<2>(type_descr);
-			FullVar* entry = locals_table.back()[varname];
-			// Entry has already been created by parser but we might have to adjust the type of the new
-			// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
-			entry->ft.type = type;
-			if (is_signed)
-				entry->ft.type_attr |= A_signed;
-			else
-				entry->ft.type_attr &= ~A_signed;
-			if (Val) {
-				auto convertedVal = conversion(Val);
-				auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
-				entry->val = Alloca;
-				if (comp_mode == comp_dbg) {
-					// Create a debug descriptor for the variable.
-					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-						SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, is_signed),
-						true);
-					
-					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-					                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
-					                        Builder->GetInsertBlock());
-				}
-			} else if (ValPtr) {
-				if (allocsz) {
-					auto align = getAlignment(allocsz);
-					auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
-					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
-					entry->val = Alloca;
-				} else {
-					auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
-					auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
-					llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
-					Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
-					if (Struct) {
-						auto strt = llvm::cast<llvm::StructType>(Struct->getType());
-						llvm::Value* Entry = llvm::UndefValue::get(strt);
-						unsigned ndim = strt->getNumElements() - 1;
-						for (unsigned i = 0; i < ndim; i++)
-							Entry = Builder->CreateInsertValue(Entry, Builder->CreateExtractValue(Struct, i), i);
-						Entry = Builder->CreateInsertValue(Entry, Alloca, ndim);
-						entry->val = Entry;
-					} else {
-						entry->val = Alloca;
-					}
-				}
-			} else if (allocsz > 16) {
+		// variable declaration - we know it's no global variable since this has already been handled
+		// in parser.cc
+		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+		auto type_descr = MakeType(RHS->ft->type, RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
+		llvm::Type* type = std::get<0>(type_descr);
+		auto conversion = std::get<1>(type_descr);
+		bool is_signed = std::get<2>(type_descr);
+		FullVar* entry = locals_table.back()[varname];
+		// Entry has already been created by parser but we might have to adjust the type of the new
+		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
+		entry->ft.type = type;
+		if (is_signed)
+			entry->ft.type_attr |= A_signed;
+		else
+			entry->ft.type_attr &= ~A_signed;
+		if (Val) {
+			auto convertedVal = conversion(Val);
+			auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
+			entry->val = Alloca;
+			if (comp_mode == comp_dbg) {
+				// Create a debug descriptor for the variable.
+				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
+					SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, is_signed),
+					true);
+				
+				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+				                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
+				                        Builder->GetInsertBlock());
+			}
+		} else if (ValPtr) {
+			if (allocsz) {
 				auto align = getAlignment(allocsz);
 				auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
-				auto voidval = RHS->codegen_raw(Alloca);
-				if (!voidval->getType()->isVoidTy()) {
-					errs() << Loc << ": internal error: sret call does not return void\n";
-					return nullptr;
-				}
+				Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
 				entry->val = Alloca;
 			} else {
-				errs() << "unhandled case\n";
+				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
+				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
+				llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
+				Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
+				if (Struct) {
+					auto strt = llvm::cast<llvm::StructType>(Struct->getType());
+					llvm::Value* Entry = llvm::UndefValue::get(strt);
+					unsigned ndim = strt->getNumElements() - 1;
+					for (unsigned i = 0; i < ndim; i++)
+						Entry = Builder->CreateInsertValue(Entry, Builder->CreateExtractValue(Struct, i), i);
+					Entry = Builder->CreateInsertValue(Entry, Alloca, ndim);
+					entry->val = Entry;
+				} else {
+					entry->val = Alloca;
+				}
+			}
+		} else if (allocsz > 16) {
+			auto align = getAlignment(allocsz);
+			auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+			auto voidval = RHS->codegen_raw(Alloca);
+			if (!voidval->getType()->isVoidTy()) {
+				errs() << Loc << ": internal error: sret call does not return void\n";
 				return nullptr;
 			}
-			ft->type = llvm::Type::getVoidTy(Context);
-			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+			entry->val = Alloca;
 		} else {
-			return Val;
+			errs() << "unhandled case\n";
+			return nullptr;
 		}
-		return Val;
+		ft->type = llvm::Type::getVoidTy(Context);
+		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}
 	llvm::Value* result;
 	std::function<llvm::Value*(llvm::Value*)> convLHS = nullptr;
