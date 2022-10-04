@@ -911,6 +911,10 @@ llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* i
 }
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
+	llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
+	llvm::Function* tmpf = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, "__global_tmp", TheModule.get());
+	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
+	Builder->SetInsertPoint(BB);
 	if (auto Val = expr->RHS->codegen()) {
 		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 		const std::string& unmangled_name = LHSE->getName();
@@ -930,7 +934,18 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
 			llvm::GlobalValue::ExternalLinkage :
 			llvm::GlobalValue::InternalLinkage;
-		if (auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal)) {
+		auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal);
+		bool needs_store;
+		if (initializer) {
+			needs_store = false;
+			tmpf->eraseFromParent();
+		} else {
+			needs_store = true;
+			initializer = llvm::Constant::getNullValue(convertedVal->getType());
+			tmpf->eraseFromParent();
+			// TODO: use value to store
+		}
+		if (!needs_store || !(sym_kind & A_visible)) {
 			llvm::GlobalVariable* GV;
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type)) {
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
