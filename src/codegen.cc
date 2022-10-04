@@ -247,28 +247,28 @@ llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 }
 
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
-	if (!full_var.first) {
+	if (!full_var) {
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
 		return { nullptr, nullptr };
 	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
-	if (full_var.second) { // global variable
-		if (!full_var.first->mangled_name) {
+	if (full_var->ft.type_attr & A_global) { // global variable
+		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
 		}
-		V = TheModule->getGlobalVariable(full_var.first->mangled_name, true);
+		V = TheModule->getGlobalVariable(full_var->mangled_name, true);
 		if (!V) {
-			V = new llvm::GlobalVariable(*TheModule, full_var.first->storage_type,
+			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
-			                             nullptr, full_var.first->mangled_name, nullptr,
+			                             nullptr, full_var->mangled_name, nullptr,
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
 			                             0, true);
 		}
-		storage_type = full_var.first->storage_type;
+		storage_type = full_var->storage_type;
 	} else {
-		V = full_var.first->val;
+		V = full_var->val;
 		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
 		if (storage_type->isFunctionTy())
 			storage_type = storage_type->getPointerTo();
@@ -952,11 +952,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				errs() << expr->RHS->Loc << ": internal error variable '" << unmangled_name << "' not found in database\n";
 				return nullptr;
 			}
+			// errs() << "old attr " << fv->ft.type_attr << '\n';
 			fv->storage_type = initializer->getType();
 			fv->mangled_name = strdup(varname.c_str());
 			fv->ft = *expr->RHS->ft;
 			fv->ft.type = type;
-			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U);
+			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_global;
+			// errs() << "use attr " << fv->ft.type_attr << '\n';
 			if (comp_mode == comp_jit && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
@@ -1211,12 +1213,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// Look up the name.
 		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
 			varname = RegularVar->getName().c_str();
-			FullVar* full_var = RegularVar->full_var.first;
+			FullVar* full_var = RegularVar->full_var;
 			if (!full_var)
 				goto not_found;
 		}
 		if (kind == decl_assign_op) {
-			errs() << "cannot initialize existing variable";
+			errs() << LHS->Loc << ": cannot initialize existing variable";
 			return nullptr;
 		} else {
 			auto Variable = LHSE->codegen_ref();

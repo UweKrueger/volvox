@@ -967,11 +967,14 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				fv.ft.type = type;
 				fv.ft.type_attr = is_signed ? 1U : 0U;
 				if (inside_function) {
-					if (!locals_table.back().insert(VarL->Name.c_str(), fv)) {
+					if (locals_table.back().insert(VarL->Name.c_str(), fv)) {
+						VarL->full_var = nullptr; // in case a global with the same name had been found
+					} else {
 						errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
 						return nullptr;
 					}
 				} else {
+					fv.ft.type_attr |= A_global;
 					if (!lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
 						errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
 						return nullptr;
@@ -1334,7 +1337,7 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 					return HandleGlobalVariable(B, sym_kind);
 				if (!strcmp(B->Op, "="))
 					if (auto leftVar = dynamic_cast<VariableExprAST*>(B->LHS.get()))
-						if (!leftVar->full_var.first) {
+						if (!leftVar->full_var) {
 							errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
 							return nullptr;
 						}

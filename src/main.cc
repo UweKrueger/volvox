@@ -413,8 +413,12 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 void PrepareTestFramework() {
 	// create (global) variables to collect Results
 	FullVar fv = {
-		.ft = *bool_type
+		.ft = {
+			.type = llvm_bool_type,
+			.type_attr = A_global
+		}
 	};
+	fv.ft.type_attr |= A_global;
 	if (!lex.module->globals_table.insert(single_test_result_name.c_str(), fv)) {
 		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"main\" scope\n";
 		abort();

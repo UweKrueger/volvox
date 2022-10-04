@@ -124,19 +124,18 @@ public:
 class VariableExprAST : public LvalueExprAST {
 
 public:
-	std::pair<FullVar*, bool> full_var; // and if it's global
+	FullVar* full_var; // and if it's global
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: LvalueExprAST(Loc, Name), full_var(lookup_var(Name.c_str())) {
-		if (full_var.first) {
-			dbgs() << "found variable " << Name << " type " << *full_var.first->ft.type << '\n';
-			ft = &full_var.first->ft;
+		if (full_var) {
+			ft = &full_var->ft;
 		}
 		// if the variable name has not found in the database we don't generate
 		// an error message here because this VariableExprAST could be the LHS of
 		// an initialization e.g. `a := 42`
 	}
 	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv)
-		: LvalueExprAST(Loc, Name), full_var({ fv, true }) {
+		: LvalueExprAST(Loc, Name), full_var(fv) {
 		ft = &fv->ft;
 	}
 	const std::string &getName() const { return Name; }
