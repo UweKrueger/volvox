@@ -924,11 +924,15 @@ inline FullVar* lookup_var(const char* Name) {
 	// it's no function local var - maybe a global one from this module
 	full_var = lex.module->globals_table[Name];
 	// or from an imported module
-	if (!full_var)
+	if (!full_var || !(full_var->ft.type_attr & A_visible) && inside_function)
 		full_var = lookup_var("", Name);
+	if (full_var && !(full_var->ft.type_attr & A_visible) && inside_function)
+		full_var = nullptr;
 	if (!full_var && lex.source_stack.size())
 		// search in "builtin" as last resort - lowest in source_stack
 		full_var = lex.source_stack.front().module->globals_table[Name];
+	if (full_var && !(full_var->ft.type_attr & A_visible) && inside_function)
+		full_var = nullptr;
 	return full_var;
 }
 

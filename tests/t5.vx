@@ -1,7 +1,7 @@
 import tests.testmod.subb
 import tests.testmod.suba
 
-hjggd := subb.CCv{
+global hjggd := subb.CCv{
 	w: suba.QQrt{
 		q: [1.25, -6.75, 0.0625, 1.5, -3.75]
 		pp: 67.0625

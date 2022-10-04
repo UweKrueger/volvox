@@ -946,10 +946,12 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
 			                              initializer, varname, nullptr,
-			                              llvm::GlobalVariable::GeneralDynamicTLSModel);
+			                              (sym_kind & A_visible) ?
+			                              llvm::GlobalVariable::GeneralDynamicTLSModel :
+			                              llvm::GlobalVariable::NotThreadLocal);
 			FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
 			if (!fv) {
-				errs() << expr->RHS->Loc << ": internal error variable '" << unmangled_name << "' not found in database\n";
+				errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
 				return nullptr;
 			}
 			// errs() << "old attr " << fv->ft.type_attr << '\n';

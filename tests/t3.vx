@@ -1,9 +1,9 @@
-d := [1, -7, 3, 4]
+global d := [1, -7, 3, 4]
 
 fn test_simple_fixed_array_lit() bool
 	return d[0] == 1 & d[1] == -7 & d[2] == 3 & d[3] == 4
 
-c := [7, 2: -2, 5: 19]
+global c := [7, 2: -2, 5: 19]
 
 c
 
@@ -11,7 +11,7 @@ fn test_array_lit_with_keys_and_holes() bool
 	return c[0] == 7 & c[1] == 0 & c[2] == -2 & c[3] == 0 &
 		c[4] == 0 & c[5] == 19
 
-b := [1 + 2, 4 * 5, 1 + 2: 9 + 10, 2 * 2 + 1: 7 + 8]
+global b := [1 + 2, 4 * 5, 1 + 2: 9 + 10, 2 * 2 + 1: 7 + 8]
 
 fn test_array_lit_with_expr_keys_and_values() bool
 	return b[0] == 3 & b[1] == 20 & b[2] == 0 & b[3] == 19 &
@@ -40,8 +40,8 @@ fn test_explicit_array_len() bool
 	ar3 := [1.25, 2.75, len: 200]
 	return ar3[0] == 1.25 & ar3[1] == 2.75 & ar3[2] == 0. & ar3[101] == 0 & ar3[199] == 0.
 
-yy := 17
-je := 5
+global yy := 17
+global je := 5
 
 fn test_array_lit_var_len_var_idx() bool
 	return [yy]f64{1.2, 3.5, 5: 17.625, 3.1}[je] == 17.625
@@ -58,9 +58,9 @@ fn test_array_lit_fixed_len_fixed_idx() bool
 fn test_array_lit_fixed_len_var_idx() bool
 	return [9]f64{1.2, 3.5, 5: -27.0625, 3.1}[je] == -27.0625
 
-yn := 4
-zn := 5
-wn := 3
+global yn := 4
+global zn := 5
+global wn := 3
 
 fn test_var_array_multi_level_index_direct() bool
 	vv := [yn][zn][wn]f64{2: {1: {2: -17.125}}}

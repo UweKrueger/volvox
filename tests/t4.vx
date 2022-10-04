@@ -3,7 +3,7 @@ fn call_by_ref_1(x &f64) f64
 	x = a / 2
 	return a
 
-p32 := -12.25
+global p32 := -12.25
 
 fn test_call_by_ref_1() bool
 	rrq := call_by_ref_1(p32)
@@ -52,7 +52,7 @@ type QwF packed {
 	rtt f32
 }
 
-lfg := QwF{
+global lfg := QwF{
 	rtt: 34.5f32
 	o2a: 4234
 }
@@ -70,7 +70,7 @@ type YYt {
 	w XXt
 }
 
-suo := YYt{
+global suo := YYt{
 	rz: -345
 	w: XXt{
 		a: 12
@@ -125,7 +125,7 @@ fn small_struct_arg(vx PPl) i32
 	mmd := vx.t
 	return mmd
 
-ggds := PPl{ b: -65343, t: 24453 }
+global ggds := PPl{ b: -65343, t: 24453 }
 
 fn test_small_struct_arg_1() bool
 	llq := small_struct_arg(ggds)
@@ -155,16 +155,16 @@ type ZZu {
 	aq [2][3]f64
 }
 
-qql := ZZu{
+global qql := ZZu{
 	aq: [ [ 1.25, -3.25
 	17.125 ]
 	      [ -4.5, 8.75, 9.0625 ] ]
 	p: -517
 }
 
-fgsde := [ ZZu{ p: -17 }, ZZu{ aq: [[13.5,3,2],[-34.5,0,7]]}]
+global fgsde := [ ZZu{ p: -17 }, ZZu{ aq: [[13.5,3,2],[-34.5,0,7]]}]
 
-fgh211 := [ PPl{ b: -34 }, PPl{ t: 23 } ]
+global fgh211 := [ PPl{ b: -34 }, PPl{ t: 23 } ]
 
 fn ZZu.jjc(x f64) f64
 	return x*x

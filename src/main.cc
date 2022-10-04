@@ -415,10 +415,9 @@ void PrepareTestFramework() {
 	FullVar fv = {
 		.ft = {
 			.type = llvm_bool_type,
-			.type_attr = A_global
+			.type_attr = A_global | A_visible
 		}
 	};
-	fv.ft.type_attr |= A_global;
 	if (!lex.module->globals_table.insert(single_test_result_name.c_str(), fv)) {
 		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"main\" scope\n";
 		abort();
@@ -516,12 +515,15 @@ static void MainLoop() {
 					goto startmainloop;
 				}
 				sym_kind |= A_pub;
+				sym_kind |= A_global;
+				sym_kind |= A_visible;
 				break;
 			case tok_inline:
 				sym_kind |= A_inline;
 				break;
 			case tok_global:
-				sharebits = A_global;
+				sym_kind |= A_global;
+				sym_kind |= A_visible;
 				break;
 			case tok_atomic:
 				sharebits = sharebits ? sharebits : A_atomic;

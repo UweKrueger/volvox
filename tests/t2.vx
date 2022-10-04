@@ -1,4 +1,4 @@
-zz := 34.53
+global zz := 34.53
 
 zz
 
@@ -6,7 +6,7 @@ zz = 3.2
 
 zz
 
-a0 := [3.4, 6.7, -12.3, 3.1, -13.1]
+global a0 := [3.4, 6.7, -12.3, 3.1, -13.1]
 
 fn u() [5]f64
 	p := [3.3, 1.2, -4.5, 6.75, 8.08e12]
@@ -58,13 +58,13 @@ fn test_nested_call_with_array_result() bool
 	wq := r(u())
 	return wq == 6.75
 
-pp := 12.4375
+global pp := 12.4375
 
 fn kk()
 	pp=pp + 0.25
 	return
 
-l := true
+global l := true
 
 if l; kk().
 

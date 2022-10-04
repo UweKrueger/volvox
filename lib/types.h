@@ -15,10 +15,11 @@
 #define A_packed (1U<<9) // only set for RtType, otherwise part of llvm::Type
 // symbol visibility attributes
 #define A_pub    (1U<<16)
-#define A_global (1U<<17)
-#define A_inline (1U<<18)
-#define A_c_api  (1U<<19)
-#define A_destructor (1U<<20) // fn is destructor or type has destructor
+#define A_global (1U<<17) // global for LLVM
+#define A_visible (1U<<18) // in jit jit all main symbols are global for LLVM, so an additional flag for logical visibility is needed
+#define A_inline (1U<<19)
+#define A_c_api  (1U<<20)
+#define A_destructor (1U<<21) // fn is destructor or type has destructor
 
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)
