@@ -253,7 +253,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
-	if (full_var->ft.type_attr & A_global) { // global variable
+	if (full_var->ft.type_attr & A_global && (comp_mode == comp_jit || (full_var->ft.type_attr & A_visible))) { // global variable
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
@@ -1258,7 +1258,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Type* type = std::get<0>(type_descr);
 		auto conversion = std::get<1>(type_descr);
 		bool is_signed = std::get<2>(type_descr);
-		FullVar* entry = locals_table.back()[varname];
+		FullVar* entry;
+		if (locals_table.empty()) {
+			entry = lex.module->globals_table[varname];
+			if (!entry || (entry->ft.type_attr & A_visible)) {
+				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
+				return nullptr;
+			}
+		} else {
+			entry = locals_table.back()[varname];
+		}
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		entry->ft.type = type;
