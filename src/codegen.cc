@@ -263,7 +263,9 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, full_var->mangled_name, nullptr,
-			                             llvm::GlobalVariable::GeneralDynamicTLSModel,
+			                             (full_var->ft.type_attr & A_visible) ?
+			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
+			                             llvm::GlobalVariable::NotThreadLocal,
 			                             0, true);
 		}
 		storage_type = full_var->storage_type;
@@ -961,7 +963,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			fv->ft.type = type;
 			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_global;
 			// errs() << "use attr " << fv->ft.type_attr << '\n';
-			if (comp_mode == comp_jit && !do_test) {
+			if (comp_mode == comp_jit && (sym_kind & A_visible) && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 				std::string shadow_var_name = std::string("__") + varname + "_shadow_";

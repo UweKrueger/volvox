@@ -10,3 +10,12 @@ global hjggd := subb.CCv{
 
 fn test_multi_level_type_import() bool
 	return hjggd.w.q[1] == -6.75 & hjggd.w.pp == 67.0625 & hjggd.z.q.e == 0.
+
+rrwe := 78.5
+
+global oolt := 12.25
+
+oolt = oolt + rrwe
+
+fn test_non_global_main_var_1() bool
+	return oolt == 90.75
