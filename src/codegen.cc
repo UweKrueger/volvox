@@ -911,20 +911,21 @@ llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* i
 }
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
-	llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
-	llvm::Function* tmpf = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, "__global_tmp", TheModule.get());
+	VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
+	const std::string& unmangled_name = LHSE->getName();
+	std::string varname;
+	if (lex.module->import_path.empty()) {
+		varname = unmangled_name;
+	} else {
+		llvm::SmallString<128> buf = llvm::StringRef("_Z");
+		varname = std::string(MangleBase(buf, lex.module->import_path, unmangled_name));
+	}
+	auto setter_name = "__global_" + varname + "_setter";
+	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(Context), {}, false);
+	llvm::Function* tmpf = llvm::Function::Create(ptr_fn_t, llvm::Function::ExternalLinkage, setter_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
 	Builder->SetInsertPoint(BB);
 	if (auto Val = expr->RHS->codegen()) {
-		VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
-		const std::string& unmangled_name = LHSE->getName();
-		std::string varname;
-		if (lex.module->import_path.empty()) {
-			varname = unmangled_name;
-		} else {
-			llvm::SmallString<128> buf = llvm::StringRef("_Z");
-			varname = std::string(MangleBase(buf, lex.module->import_path, unmangled_name));
-		}
 		llvm::Type* val_type = Val->getType();
 		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
 		llvm::Type* type = std::get<0>(type_descr);
@@ -941,11 +942,15 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			tmpf->eraseFromParent();
 		} else {
 			needs_store = true;
-			initializer = llvm::Constant::getNullValue(convertedVal->getType());
-			tmpf->eraseFromParent();
-			// TODO: use value to store
+			auto initype = convertedVal->getType();
+			if (initype->isSized() && TheModule->getDataLayout().getTypeAllocSize(initype) > 0) {
+				initializer = llvm::Constant::getNullValue(convertedVal->getType());
+			} else {
+				errs() << expr->Loc << "variable sized globals not supported, yet\n";
+				return nullptr;
+			}
 		}
-		if (!needs_store || !(sym_kind & A_visible)) {
+		if (true || !needs_store || !(sym_kind & A_visible)) {
 			llvm::GlobalVariable* GV;
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type)) {
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
@@ -978,6 +983,53 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			fv->ft.type = type;
 			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_global;
 			// errs() << "use attr " << fv->ft.type_attr << '\n';
+			if (needs_store) {
+				if (comp_mode != comp_jit) {
+					errs() << expr->Loc <<"internal error: non-global main variable '" << varname
+					       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
+					abort();
+				}
+				//Builder->SetInsertPoint(BB);
+				Builder->CreateStore(convertedVal, GV);
+				Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+				verifyFunction(*tmpf);
+				if (dump_IR >= 3 && dump_raw) {
+					errs() << "Read tmpf definition (raw):\n";
+					tmpf->print(errs());
+					errs() << "\n";
+				}
+#ifdef LEGACY_PASS_MANAGER
+				TheFPM->run(*tmpf);
+				if (dump_IR >= 3 && dump_opt) {
+					errs() << "Read tmpf definition (after optimization):\n";
+					Frestorer->print(errs());
+					errs() << "\n";
+				}
+#else
+				if (TheModule->end() != TheModule->begin()) {
+					NEW_MAM();
+					auto MPM = GET_MPM(PB, optimization_level);
+					MPM.run(*TheModule, MAM);
+					if (dump_IR && dump_opt) {
+						auto end = TheModule->end();
+						for (auto it = TheModule->begin(); it != end; ++it)
+							it->print(errs());
+					}
+				}
+#endif
+				ExitOnErr(TheJIT->addModule(
+					          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
+				InitializeModuleAndPassManager();
+				// Search the JIT for the __anon_expr symbol.
+				auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
+				// Get the symbol's address and cast it to the right type (takes no
+				// arguments, returns a bool) so we can call it as a native function.
+				char* (*PTR)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
+				char* varptr = PTR();
+				if (varptr)
+					errs() << "... aborted\n";
+				// Delete the anonymous expression module from the JIT.
+			}
 			if (comp_mode == comp_jit && (sym_kind & A_visible) && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
