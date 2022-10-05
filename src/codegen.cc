@@ -956,25 +956,17 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			tmpf->eraseFromParent();
 		} else {
 			needs_store = true;
-			auto initype = convertedVal->getType();
-			if (initype->isSized() && TheModule->getDataLayout().getTypeAllocSize(initype) > 0) {
+			if (expr->RHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) > 0) {
 				initializer = llvm::Constant::getNullValue(convertedVal->getType());
 			}
-			// else {
-			// 	errs() << expr->Loc << "variable sized globals not supported, yet\n";
-			// 	return nullptr;
-			// }
 		}
-		if (true || !needs_store || !(sym_kind & A_visible)) {
+		if (!needs_store || !(sym_kind & A_visible)) {
 			llvm::GlobalVariable* GV;
-			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type)) {
-				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
-					initializer = llvm::dyn_cast<llvm::Constant>(expandArrayInitializer(initializer, ini_array_type, array_type));
-				if (!initializer) {
-					errs() << expr->RHS->Loc << ": non-const initializer for global variable\n";
-					return nullptr;
-				}
-			}
+			if (initializer)
+				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type))
+					if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
+						if (auto const_initializer = llvm::dyn_cast<llvm::Constant>(expandArrayInitializer(initializer, ini_array_type, array_type)))
+							initializer = const_initializer;
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				DBuilder->createGlobalVariableExpression(
@@ -993,13 +985,14 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				return nullptr;
 			}
 			// errs() << "old attr " << fv->ft.type_attr << '\n';
-			fv->storage_type = initializer->getType();
+			fv->storage_type = initializer ? initializer->getType() : nullptr;
 			fv->mangled_name = strdup(varname.c_str());
 			fv->ft = *expr->RHS->ft;
 			fv->ft.type = type;
 			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_global;
 			// errs() << "use attr " << fv->ft.type_attr << '\n';
 			if (needs_store) {
+				llvm::Type* array_ptr_ty = nullptr;
 				if (comp_mode != comp_jit) {
 					errs() << expr->Loc <<"internal error: non-global main variable '" << varname
 					       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
@@ -1019,7 +1012,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 								break;
 							Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm::Type::getInt64Ty(Context)), Builder->getInt64(sizeof(size_t))), Arg->getType());
 						}
-						Builder->CreateRet(Builder->CreateBitCast(Builder->CreateExtractValue(retVal, ndim), llvm::Type::getInt8PtrTy(Context)));
+						auto ptrRet = Builder->CreateExtractValue(retVal, ndim);
+						array_ptr_ty = ptrRet->getType();
+						Builder->CreateRet(Builder->CreateBitCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
 					} else {
 						errs() << expr->Loc << ": internal error; stuct expected\n";
 						abort();
@@ -1059,9 +1054,18 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				char* (*PTR)(size_t*) = (char* (*)(size_t*))(intptr_t)ExprSymbol.getAddress();
 				size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
 				char* varptr = PTR(Dims);
-				if (varptr)
-					errs() << "... aborted\n";
-				// Delete the anonymous expression module from the JIT.
+				if (varptr) {
+					// errs() << llvm::format("varptr: %p\n", varptr);
+					std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm::Type::getInt64Ty(Context));
+					struct_type_el[ndim] = array_ptr_ty;
+					llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
+					llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
+					for (unsigned u = 0; u<ndim; u++)
+						the_struct = Builder->CreateInsertValue(the_struct, Builder->getInt64(Dims[u]), u);
+					the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(Builder->getInt64((uintptr_t)varptr), array_ptr_ty), ndim);
+					fv->val = the_struct;
+					fv->ft.type_attr &= ~A_global;
+				}
 			}
 			if (comp_mode == comp_jit && (sym_kind & A_visible) && !do_test) {
 				llvm::Type* V_type = initializer->getType();
