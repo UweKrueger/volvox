@@ -928,10 +928,16 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		llvm::SmallString<128> buf = llvm::StringRef("_Z");
 		varname = std::string(MangleBase(buf, lex.module->import_path, unmangled_name));
 	}
+	// We do not know in advance if the RHS of the 'main' var  initialization is a compile
+	// time const. In order to be able to run 'RHS->codegen()' in any case, a function
+	// context is needed. If the initializer turns out to be a compile time const this
+	// function is not needed and can be 'erased'
 	auto setter_name = "__global_" + varname + "_setter";
-	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(Context), {}, false);
+	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(Context),
+	                                                       { llvm::Type::getInt64Ty(Context)->getPointerTo() }, false);
 	llvm::Function* tmpf = llvm::Function::Create(ptr_fn_t, llvm::Function::ExternalLinkage, setter_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
+	llvm::Value* Arg = tmpf->getArg(0);
 	Builder->SetInsertPoint(BB);
 	if (auto Val = expr->RHS->codegen()) {
 		llvm::Type* val_type = Val->getType();
@@ -999,9 +1005,26 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
 					abort();
 				}
-				//Builder->SetInsertPoint(BB);
-				Builder->CreateStore(convertedVal, GV);
-				Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+				unsigned ndim = 0;
+				if (initializer) { // constant size initializer
+					Builder->CreateStore(convertedVal, GV);
+					Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+				} else {
+					auto retVal = StoreValue(convertedVal, expr->RHS->ft);
+					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
+						ndim = struct_type->getNumElements() - 1;
+						for (int dim = 0; ; ) {
+							Builder->CreateStore(Builder->CreateExtractValue(retVal, dim), Arg);
+							if (++dim >= ndim)
+								break;
+							Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm::Type::getInt64Ty(Context)), Builder->getInt64(sizeof(size_t))), Arg->getType());
+						}
+						Builder->CreateRet(Builder->CreateBitCast(Builder->CreateExtractValue(retVal, ndim), llvm::Type::getInt8PtrTy(Context)));
+					} else {
+						errs() << expr->Loc << ": internal error; stuct expected\n";
+						abort();
+					}
+				}
 				verifyFunction(*tmpf);
 				if (dump_IR >= 3 && dump_raw) {
 					errs() << "Read tmpf definition (raw):\n";
@@ -1030,12 +1053,12 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
 				InitializeModuleAndPassManager();
-				// Search the JIT for the __anon_expr symbol.
+				// Search the JIT for the <setter_name> symbol.
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
-				// Get the symbol's address and cast it to the right type (takes no
-				// arguments, returns a bool) so we can call it as a native function.
-				char* (*PTR)() = (char* (*)())(intptr_t)ExprSymbol.getAddress();
-				char* varptr = PTR();
+				// C syntax at its best...
+				char* (*PTR)(size_t*) = (char* (*)(size_t*))(intptr_t)ExprSymbol.getAddress();
+				size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
+				char* varptr = PTR(Dims);
 				if (varptr)
 					errs() << "... aborted\n";
 				// Delete the anonymous expression module from the JIT.
