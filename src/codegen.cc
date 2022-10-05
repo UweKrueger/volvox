@@ -451,6 +451,8 @@ static llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayT
 	if (!returnDims.size()) {
 		return ArrayAlloc;
 	} else {
+		if (auto str_ty = llvm::dyn_cast<llvm::StructType>(val->getType()))
+			val = Builder->CreateExtractValue(val, str_ty->getNumElements() - 1);
 		std::vector<llvm::Type*> struct_types(returnDims.size() + 1, llvm::Type::getInt64Ty(Context));
 		struct_types[returnDims.size()] = val->getType();
 		llvm::Type* ret_struct_type = llvm::StructType::get(Context, struct_types);
