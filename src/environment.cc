@@ -23,10 +23,14 @@
  * way so we have to do some OS specific trickery... */
 const char* getThisExePath() {
 #if defined(_WIN32)
-	if (_pgmptr)
-		return _pgmptr;
-	else {
-		errno = EFAULT;
+	static const char* volvox_exe_path = nullptr;
+	if (volvox_exe_path)
+		return volvox_exe_path;
+	errno_t err = _get_pgmptr((char**)&volvox_exe_path);
+	if (volvox_exe_path) {
+		return volvox_exe_path;
+	} else {
+		errno = err;
 		goto generror;
 	}
 #elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
@@ -109,7 +113,6 @@ const char* volvox_root() {
 	// we must not modify exe_path - so make a copy
 	char* root_from_exe = (char*)malloc(l+1);
 	memcpy(root_from_exe, exe_path, l);
-	free((void*)exe_path);
 	root_from_exe[l] = '\0';
 	root = root_from_exe;
 	return root;

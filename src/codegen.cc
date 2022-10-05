@@ -1008,7 +1008,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					auto retVal = StoreValue(convertedVal, expr->RHS->ft);
 					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
 						ndim = struct_type->getNumElements() - 1;
-						for (int dim = 0; ; ) {
+						for (unsigned dim = 0; ; ) {
 							Builder->CreateStore(Builder->CreateExtractValue(retVal, dim), Arg);
 							if (++dim >= ndim)
 								break;
