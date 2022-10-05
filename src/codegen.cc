@@ -370,7 +370,15 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
 		}
 	} else {
-		ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
+		if (inside_function || comp_mode != comp_jit)
+			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
+		else {
+			ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
+			                                          llvm::Type::getInt64Ty(Context), llvm::Type::getInt8PtrTy(Context),
+			                                          ElemSize, Len,
+			                                          nullptr, Name);
+			ArrayAlloc = Builder->Insert(ArrayAlloc);
+		}
 	}
 	ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
 	// TODO: Insert run time check that initialization values fit into allocation size
@@ -945,10 +953,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			auto initype = convertedVal->getType();
 			if (initype->isSized() && TheModule->getDataLayout().getTypeAllocSize(initype) > 0) {
 				initializer = llvm::Constant::getNullValue(convertedVal->getType());
-			} else {
-				errs() << expr->Loc << "variable sized globals not supported, yet\n";
-				return nullptr;
 			}
+			// else {
+			// 	errs() << expr->Loc << "variable sized globals not supported, yet\n";
+			// 	return nullptr;
+			// }
 		}
 		if (true || !needs_store || !(sym_kind & A_visible)) {
 			llvm::GlobalVariable* GV;
@@ -965,12 +974,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				DBuilder->createGlobalVariableExpression(
 					SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed), false);
 			}
-			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-			                              false, link_type,
-			                              initializer, varname, nullptr,
-			                              (sym_kind & A_visible) ?
-			                              llvm::GlobalVariable::GeneralDynamicTLSModel :
-			                              llvm::GlobalVariable::NotThreadLocal);
+			if (initializer)
+				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+				                              false, link_type,
+				                              initializer, varname, nullptr,
+				                              (sym_kind & A_visible) ?
+				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
+				                              llvm::GlobalVariable::NotThreadLocal);
 			FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
 			if (!fv) {
 				errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
