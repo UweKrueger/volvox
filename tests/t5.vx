@@ -13,12 +13,14 @@ fn test_multi_level_type_import() bool
 
 global oolt := 12.125
 
+oolt = oolt + 3
+
 rrwe := 78.5 + oolt
 
 oolt = oolt + rrwe
 
 fn test_non_global_main_var_1() bool
-	return oolt == 102.75
+	return oolt == 108.75
 
 kkq93 := 6
 pp372 := 5
