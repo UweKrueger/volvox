@@ -516,7 +516,6 @@ static void MainLoop() {
 				}
 				sym_kind |= A_pub;
 				sym_kind |= A_mainvar;
-				sym_kind |= A_global;
 				break;
 			case tok_inline:
 				sym_kind |= A_inline;
