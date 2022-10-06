@@ -415,7 +415,7 @@ void PrepareTestFramework() {
 	FullVar fv = {
 		.ft = {
 			.type = llvm_bool_type,
-			.type_attr = A_mainvar | A_visible
+			.type_attr = A_mainvar | A_global
 		}
 	};
 	if (!lex.module->globals_table.insert(single_test_result_name.c_str(), fv)) {
@@ -426,7 +426,7 @@ void PrepareTestFramework() {
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(false))));
-	HandleGlobalVariable(single_res_def.get(), A_pub | A_visible);
+	HandleGlobalVariable(single_res_def.get(), A_pub | A_global);
 	if (!lex.module->globals_table.insert(collector_name.c_str(), fv)) {
 		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"main\" scope\n";
 		abort();
@@ -435,7 +435,7 @@ void PrepareTestFramework() {
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(true))));
-	HandleGlobalVariable(collector_def.get(), A_pub | A_visible);
+	HandleGlobalVariable(collector_def.get(), A_pub | A_global);
 }
 
 void CallTestFunction() {
@@ -516,14 +516,14 @@ static void MainLoop() {
 				}
 				sym_kind |= A_pub;
 				sym_kind |= A_mainvar;
-				sym_kind |= A_visible;
+				sym_kind |= A_global;
 				break;
 			case tok_inline:
 				sym_kind |= A_inline;
 				break;
 			case tok_global:
 				sym_kind |= A_mainvar;
-				sym_kind |= A_visible;
+				sym_kind |= A_global;
 				break;
 			case tok_atomic:
 				sharebits = sharebits ? sharebits : A_atomic;

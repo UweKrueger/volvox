@@ -263,7 +263,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
-	if (full_var->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & A_visible))) { // global variable
+	if (full_var->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & A_global))) { // global variable
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
@@ -273,7 +273,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, full_var->mangled_name, nullptr,
-			                             (full_var->ft.type_attr & A_visible) ?
+			                             (full_var->ft.type_attr & A_global) ?
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
 			                             llvm::GlobalVariable::NotThreadLocal,
 			                             0, true);
@@ -977,7 +977,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				initializer = llvm::Constant::getNullValue(convertedVal->getType());
 			}
 		}
-		if (needs_store && (sym_kind & A_visible)) {
+		if (needs_store && (sym_kind & A_global)) {
 			errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
 			tmpf->eraseFromParent();
 			// the parser should have added this global variable to lex.module - revert this
@@ -999,7 +999,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, link_type,
 				                              initializer, varname, nullptr,
-				                              (sym_kind & A_visible) ?
+				                              (sym_kind & A_global) ?
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
 				                              llvm::GlobalVariable::NotThreadLocal);
 			FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
@@ -1101,7 +1101,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					fv->ft.type_attr &= ~A_mainvar;
 				}
 			}
-			if (comp_mode == comp_jit && (sym_kind & A_visible) && !do_test) {
+			if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
 				llvm::Type* V_type = initializer->getType();
 				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 				std::string shadow_var_name = std::string("__") + varname + "_shadow_";
@@ -1395,7 +1395,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		FullVar* entry;
 		if (locals_table.empty()) {
 			entry = lex.module->globals_table[varname];
-			if (!entry || (entry->ft.type_attr & A_visible)) {
+			if (!entry || (entry->ft.type_attr & A_global)) {
 				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 				return nullptr;
 			}
