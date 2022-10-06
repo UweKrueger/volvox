@@ -1334,7 +1334,7 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 				if (B->conv.compat.err_msg)
 					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);
 				if (!strcmp(B->Op, ":=")) {
-					if (comp_mode == comp_jit || (sym_kind & A_global))
+					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_global))
 						return HandleGlobalVariable(B, sym_kind);
 					else
 						return E;
