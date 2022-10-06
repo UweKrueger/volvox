@@ -949,8 +949,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	                                                       { llvm::Type::getInt64Ty(Context)->getPointerTo() }, false);
 	llvm::Function* tmpf = llvm::Function::Create(ptr_fn_t, llvm::Function::ExternalLinkage, setter_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
-	llvm::Value* Arg = tmpf->getArg(0);
 	Builder->SetInsertPoint(BB);
+	llvm::Value* Arg = tmpf->getArg(0);
+	if (last_shadow_restorer && comp_mode == comp_jit && !do_test) {
+		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
+		auto last_restorer = getFunction(last_restorer_proto);
+		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callrestorer");
+	}
 	if (auto Val = expr->RHS->codegen()) {
 		llvm::Type* val_type = Val->getType();
 		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
@@ -1019,6 +1024,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				unsigned ndim = 0;
 				if (initializer) { // constant size initializer
 					Builder->CreateStore(convertedVal, GV);
+					if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
+						auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
+						auto last_saver = getFunction(last_saver_proto);
+						Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
+					}
 					Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 				} else {
 					auto retVal = StoreValue(convertedVal, expr->RHS->ft);
@@ -1032,6 +1042,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 						}
 						auto ptrRet = Builder->CreateExtractValue(retVal, ndim);
 						array_ptr_ty = ptrRet->getType();
+						if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
+							auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
+							auto last_saver = getFunction(last_saver_proto);
+							Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
+						}
 						Builder->CreateRet(Builder->CreateBitCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
 					} else {
 						errs() << expr->Loc << ": internal error; stuct expected\n";
