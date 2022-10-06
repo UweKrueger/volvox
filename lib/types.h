@@ -15,7 +15,7 @@
 #define A_packed (1U<<9) // only set for RtType, otherwise part of llvm::Type
 // symbol visibility attributes
 #define A_pub    (1U<<16)
-#define A_global (1U<<17) // global for LLVM
+#define A_mainvar (1U<<17) // global for LLVM
 #define A_visible (1U<<18) // in jit jit all main symbols are global for LLVM, so an additional flag for logical visibility is needed
 #define A_inline (1U<<19)
 #define A_c_api  (1U<<20)

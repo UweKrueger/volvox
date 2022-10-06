@@ -974,7 +974,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						return nullptr;
 					}
 				} else {
-					fv.ft.type_attr |= A_global;
+					fv.ft.type_attr |= A_mainvar;
 					if (!lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
 						errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
 						return nullptr;
@@ -1334,7 +1334,7 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 				if (B->conv.compat.err_msg)
 					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);
 				if (!strcmp(B->Op, ":=")) {
-					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_global))
+					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_mainvar))
 						return HandleGlobalVariable(B, sym_kind);
 					else
 						return E;

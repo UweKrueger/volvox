@@ -263,7 +263,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
-	if (full_var->ft.type_attr & A_global && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & A_visible))) { // global variable
+	if (full_var->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & A_visible))) { // global variable
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
@@ -1012,7 +1012,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			fv->mangled_name = strdup(varname.c_str());
 			fv->ft = *expr->RHS->ft;
 			fv->ft.type = type;
-			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_global;
+			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_mainvar;
 			// errs() << "use attr " << fv->ft.type_attr << '\n';
 			if (needs_store) {
 				llvm::Type* array_ptr_ty = nullptr;
@@ -1098,7 +1098,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 						the_struct = Builder->CreateInsertValue(the_struct, Builder->getInt64(Dims[u]), u);
 					the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(Builder->getInt64((uintptr_t)varptr), array_ptr_ty), ndim);
 					fv->val = the_struct;
-					fv->ft.type_attr &= ~A_global;
+					fv->ft.type_attr &= ~A_mainvar;
 				}
 			}
 			if (comp_mode == comp_jit && (sym_kind & A_visible) && !do_test) {
