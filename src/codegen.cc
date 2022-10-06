@@ -1042,7 +1042,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				TheFPM->run(*tmpf);
 				if (dump_IR >= 3 && dump_opt) {
 					errs() << "Read tmpf definition (after optimization):\n";
-					Frestorer->print(errs());
+					tmpf->print(errs());
 					errs() << "\n";
 				}
 #else
