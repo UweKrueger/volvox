@@ -972,7 +972,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				initializer = llvm::Constant::getNullValue(convertedVal->getType());
 			}
 		}
-		if (!needs_store || !(sym_kind & A_visible)) {
+		if (needs_store && (sym_kind & A_visible)) {
+			errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
+			tmpf->eraseFromParent();
+			// the parser should have added this global variable to lex.module - revert this
+			lex.module->globals_table.erase(unmangled_name.c_str());
+			return nullptr;
+		} else {
 			llvm::GlobalVariable* GV;
 			if (initializer)
 				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type))
@@ -1187,15 +1193,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				last_shadow_restorer = restorerProto->Name.c_str();
 				module->FunctionProtos[restorer].push_back(std::move(restorerProto));
 			}
-		} else {
-			goto nonconst;
 		}
 	} else {
 		errs() << "Could not generate assigned expression\n";
+		tmpf->eraseFromParent();
 	}
-	return nullptr;
-nonconst:
-	errs() << "global variable must be initialized with compile time const\n";
 	return nullptr;
 }
 
