@@ -380,7 +380,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
 		}
 	} else {
-		if (inside_function || comp_mode != comp_jit)
+		if (inside_function || comp_mode != comp_jit || do_test)
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 		else {
 			ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
