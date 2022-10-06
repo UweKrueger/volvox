@@ -19,8 +19,18 @@ VarTable* IfWhileVarTable = nullptr;
 // the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
 unsigned condnesting = 0;
 
-// list of list of destructors for each context
+// variable size main vars are "malloc()ed" in jit mode. On exit these blocks would be
+// orphaned - so let's keep track of then to avoid memory leaks:
+class AutoFreeMem {
+public:
+	char* memblock;
+	AutoFreeMem(char* memblock) : memblock(memblock) {}
+	~AutoFreeMem() { free(memblock); }
+};
 
+std::vector<AutoFreeMem> jit_main_variables;
+
+// list of list of destructors for each context
 struct DestructorCall {
 	llvm::FunctionType* FTy;
 	llvm::Function* F;
@@ -1057,6 +1067,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
 				char* varptr = PTR(Dims);
 				if (varptr) {
+					jit_main_variables.emplace_back(varptr);
 					// errs() << llvm::format("varptr: %p\n", varptr);
 					std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm::Type::getInt64Ty(Context));
 					struct_type_el[ndim] = array_ptr_ty;
