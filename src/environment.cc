@@ -22,11 +22,11 @@
  * unfortunately there is no standard way to do this in a portable
  * way so we have to do some OS specific trickery... */
 const char* getThisExePath() {
-#if defined(_WIN32)
-	static const char* volvox_exe_path = nullptr;
+	static char* volvox_exe_path = nullptr;
 	if (volvox_exe_path)
 		return volvox_exe_path;
-	errno_t err = _get_pgmptr((char**)&volvox_exe_path);
+#if defined(_WIN32)
+	errno_t err = _get_pgmptr(&volvox_exe_path);
 	if (volvox_exe_path) {
 		return volvox_exe_path;
 	} else {
@@ -36,47 +36,45 @@ const char* getThisExePath() {
 #elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__NetBSD__)
 	// all BSDs (except OpenBSD) have a KERN_PROC_PATHNAME sysctl
 	size_t bufsize = 0;
-	char* buf = nullptr;
 #if defined(__NetBSD__)
 	char* oldbuf;
 	int cmd[4] = { CTL_KERN, KERN_PROC_ARGS, -1, KERN_PROC_PATHNAME };
 #else
 	int cmd[4] = { CTL_KERN, KERN_PROC, KERN_PROC_PATHNAME, -1 };
 #endif
-	int res = sysctl(cmd, 4, buf, &bufsize, nullptr, 0);
+	int res = sysctl(cmd, 4, volvox_exe_path, &bufsize, nullptr, 0);
 	if (res == -1)
 		goto generror;
-	buf = (char*)malloc(bufsize);
-	if (!buf)
+	volvox_exe_path = (char*)malloc(bufsize);
+	if (!volvox_exe_path)
 		goto generror;
-	res = sysctl(cmd, 4, buf, &bufsize, nullptr, 0);
+	res = sysctl(cmd, 4, volvox_exe_path, &bufsize, nullptr, 0);
 	if (res == -1)
 		goto generror;
 #if defined(__NetBSD__)
-	oldbuf = buf;
-	buf = realpath(oldbuf, nullptr);
-	if (!buf)
+	oldbuf = volvox_exe_path;
+	volvox_exe_path = realpath(oldbuf, nullptr);
+	if (!volvox_exe_path)
 		goto generror;
 	free(oldbuf);
 #endif
-	return buf;
+	return volvox_exe_path;
 #elif defined(__linux__)
 	// we cannot get the necessary buffer size in advance so
 	// a loop is required to gradually increase the buffer
 	uint32_t bufsize = 64;
-	char* buf = nullptr; // to make realloc() behave like malloc()
 	ssize_t res;
 	do {
 		bufsize = bufsize + (bufsize >> 1);
-		buf = (char*)realloc(buf, bufsize);
-		if (!buf)
+		volvox_exe_path = (char*)realloc(volvox_exe_path, bufsize);
+		if (!volvox_exe_path)
 			goto generror;
-		res = readlink(THISEXELINK, buf, bufsize);
+		res = readlink(THISEXELINK, volvox_exe_path, bufsize);
 		if (res < 0)
 			goto generror;
 	} while (res >= bufsize);
-	buf[res] = '\0';
-	return buf;
+	volvox_exe_path[res] = '\0';
+	return volvox_exe_path;
 #elif defined(__OpenBSD__)
 	// we rely on environment variables and hard coded paths for now
 	return nullptr;
