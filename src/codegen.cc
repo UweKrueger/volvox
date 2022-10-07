@@ -1030,13 +1030,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
 				return nullptr;
 			}
-			// errs() << "old attr " << fv->ft.type_attr << '\n';
 			fv->storage_type = initializer ? initializer->getType() : nullptr;
 			fv->mangled_name = strdup(varname.c_str());
 			fv->ft = *expr->RHS->ft;
 			fv->ft.type = type;
 			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_mainvar;
-			// errs() << "use attr " << fv->ft.type_attr << '\n';
 			if (needs_store) {
 				llvm::Type* array_ptr_ty = nullptr;
 				if (comp_mode != comp_jit) {
@@ -1094,7 +1092,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					NEW_MAM();
 					auto MPM = GET_MPM(PB, optimization_level);
 					MPM.run(*TheModule, MAM);
-					if (dump_IR && dump_opt) {
+					if (dump_IR >= 3 && dump_opt) {
 						auto end = TheModule->end();
 						for (auto it = TheModule->begin(); it != end; ++it)
 							it->print(errs());
@@ -1112,8 +1110,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 					                              false, link_type,
 					                              initializer, varname, nullptr,
-					                              (sym_kind & A_global) ?
-					                              llvm::GlobalVariable::GeneralDynamicTLSModel :
 					                              llvm::GlobalVariable::NotThreadLocal, 0, false);
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
