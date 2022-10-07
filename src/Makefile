@@ -51,7 +51,7 @@ endif
 LLVMCONFIG := $(PREFIX)/bin/llvm-config$(SUFFIX)
 
 ifeq ($(shell uname),FreeBSD)
-	CPPEXTRAFLAGS :=  -I/usr/include/edit/readline -I/usr/local/include
+	CPPEXTRAFLAGS :=  -I/usr/include/edit/readline -I/usr/local/include -DEMUTLS_USE_POSIX_MEMALIGN
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := # we use system provided BSD editline
 else
@@ -66,7 +66,7 @@ ifeq ($(shell uname),OpenBSD)
 	EDITLINEOBJS := # we use system provided BSD editline
 else
 ifeq ($(shell uname),DragonFly)
-	CPPEXTRAFLAGS := -I/usr/local/include/editline
+	CPPEXTRAFLAGS := -I/usr/local/include/editline -DEMUTLS_USE_POSIX_MEMALIGN
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := # we use system provided BSD editline
 	LINKEXTRAFLAGS := -L/usr/local/lib $(LINKEXTRAFLAGS)
@@ -149,10 +149,10 @@ LIBCSRC := $(LIBCOBJS:%.o=../lib/%.c)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $(EXTRAINC) $<
 
 %.o: ../lib/%.cc
-	$(CXX) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
+	$(CXX) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) -fPIC $(OPT) $<
 
 %.o: ../lib/%.c
-	$(CC) -c -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
+	$(CC) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
 
 ifeq ($(NIXTYPE),mingw64)
 %.o: ../wineditline/%.c
@@ -186,12 +186,12 @@ distclean:
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend
 ifneq ($(EXTRASRC),)
-	$(CC) -MM $(OPT) $(EXTRASRC) >> .depend
+	$(CC) -MM $(OPT) $(CPPEXTRAFLAGS) $(EXTRASRC) >> .depend
 endif
 ifneq ($(EDITLINESRC),)
 	$(CC) -MM $(OPT) $(EXTRAINC) $(EDITLINESRC) >> .depend
 endif
-	$(CC) -MM $(LIBCSRC) $(OPT) $(EXTRASRC) >> .depend
+	$(CC) -MM $(LIBCSRC) $(CPPEXTRAFLAGS) $(OPT) $(EXTRASRC) >> .depend
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
 
 -include .depend
