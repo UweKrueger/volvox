@@ -124,8 +124,19 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 		// running the new PassManager on an empty module causes trouble :-(
 		// let's avoid this...
 		if (TheModule->end() != TheModule->begin()) {
-			NEW_MAM();
-			auto MPM = GET_MPM(PB, optimization_level);
+			LAM = llvm::LoopAnalysisManager();
+			FAM = llvm::FunctionAnalysisManager();
+			CGAM = llvm::CGSCCAnalysisManager();
+			MAM = llvm::ModuleAnalysisManager();
+			PB = llvm::PassBuilder(TheTargetMachine, PTO);
+			PB.registerModuleAnalyses(MAM);
+			PB.registerCGSCCAnalyses(CGAM);
+			PB.registerFunctionAnalyses(FAM);
+			PB.registerLoopAnalyses(LAM);
+			PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
+			auto MPM = (optimization_level == llvm::OptimizationLevel::O0) ?
+				PB.buildO0DefaultPipeline(optimization_level) :
+				PB.buildPerModuleDefaultPipeline(optimization_level);
 			MPM.run(*TheModule, MAM);
 			if (dump_IR >= dumpLevel && dump_opt) {
 				auto end = TheModule->end();

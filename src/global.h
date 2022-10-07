@@ -212,19 +212,6 @@ extern llvm::ModuleAnalysisManager MAM;
 extern llvm::PipelineTuningOptions PTO;
 extern llvm::PassBuilder PB;
 extern llvm::TargetMachine* TheTargetMachine;
-
-#define NEW_MAM() \
-	LAM = llvm::LoopAnalysisManager(); \
-	FAM = llvm::FunctionAnalysisManager(); \
-	CGAM = llvm::CGSCCAnalysisManager(); \
-	MAM = llvm::ModuleAnalysisManager(); \
-	PB = llvm::PassBuilder(TheTargetMachine, PTO); \
-	PB.registerModuleAnalyses(MAM); \
-	PB.registerCGSCCAnalyses(CGAM); \
-	PB.registerFunctionAnalyses(FAM); \
-	PB.registerLoopAnalyses(LAM); \
-	PB.crossRegisterProxies(LAM, FAM, CGAM, MAM)
-#define GET_MPM(p, opt) ((opt == llvm::OptimizationLevel::O0) ? p.buildO0DefaultPipeline(opt) : p.buildPerModuleDefaultPipeline(opt));
 #endif
 
 namespace volvoxc {
