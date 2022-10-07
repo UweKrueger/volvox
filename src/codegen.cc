@@ -931,6 +931,26 @@ llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* i
 }
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
+	if (comp_mode == comp_jit && !(sym_kind & A_global)) {
+		// This might be a non-const initializen main var that needs a temporary
+		// 'setter' function. So finish the corrent module to be able to remove
+		// the setter after usage
+#ifndef LEGACY_PASS_MANAGER
+		if (TheModule->end() != TheModule->begin()) {
+			NEW_MAM();
+			auto MPM = GET_MPM(PB, optimization_level);
+			MPM.run(*TheModule, MAM);
+			if (dump_IR && dump_opt) {
+				auto end = TheModule->end();
+				for (auto it = TheModule->begin(); it != end; ++it)
+					it->print(errs());
+			}
+		}
+#endif
+		ExitOnErr(TheJIT->addModule(
+			          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
+		InitializeModuleAndPassManager();
+	}
 	VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 	const std::string& unmangled_name = LHSE->getName();
 	std::string varname;
@@ -996,12 +1016,15 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed), false);
 			}
 			if (initializer)
+				// If 'needs_store' this here is part of a module which is going to be
+				// removed later. So in this case it's only a declaration and the 'real'
+				// variable is defined below in a separate module that will stay.
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, link_type,
-				                              initializer, varname, nullptr,
+				                              needs_store ? nullptr : initializer, varname, nullptr,
 				                              (sym_kind & A_global) ?
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
-				                              llvm::GlobalVariable::NotThreadLocal);
+				                              llvm::GlobalVariable::NotThreadLocal, 0, needs_store);
 			FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
 			if (!fv) {
 				errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
@@ -1078,6 +1101,20 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					}
 				}
 #endif
+				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
+				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+				InitializeModuleAndPassManager();
+				// We want to remove the 'setter' module below but the global variable
+				// must stay, so put the latter in a new module that is not freed
+				// by the resource tracker
+				if (initializer)
+					GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+					                              false, link_type,
+					                              initializer, varname, nullptr,
+					                              (sym_kind & A_global) ?
+					                              llvm::GlobalVariable::GeneralDynamicTLSModel :
+					                              llvm::GlobalVariable::NotThreadLocal, 0, false);
 				ExitOnErr(TheJIT->addModule(
 					          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
 				InitializeModuleAndPassManager();
@@ -1100,6 +1137,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					fv->val = the_struct;
 					fv->ft.type_attr &= ~A_mainvar;
 				}
+				ExitOnErr(RT->remove());
 			}
 			if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
 				llvm::Type* V_type = initializer->getType();
