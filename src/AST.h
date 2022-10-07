@@ -617,7 +617,7 @@ public:
 	FunctionAST(PrototypeAST* Proto,
 	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName)
 		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind), unmangledName(std::move(unmName)) {}
-	llvm::Function *codegen();
+	llvm::Function *codegen(bool finishModule = false, bool getNewModule = false);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		indent(out, ind) << "FunctionAST\n";

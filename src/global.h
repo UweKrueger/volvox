@@ -1011,6 +1011,8 @@ extern DebugInfo KSDbgInfo;
 extern int builtin_input_fd;
 extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind = 0);
 extern void InitializeModuleAndPassManager();
+extern void finishFunctionOrModule(llvm::Function* F = nullptr, unsigned dumpLevel = 1,
+                                   bool finishModule = true, bool newModule = true);
 extern std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);
 extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);

@@ -102,6 +102,46 @@ static llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Tw
 	return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
+void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishModule, bool newModule) {
+	if (F) {
+		verifyFunction(*F);
+		if (dump_IR >= dumpLevel && dump_raw) {
+			errs() << "Read \"" << F->getName() << "()\" definition (raw):\n";
+			F->print(errs());
+			errs() << "\n";
+		}
+#ifdef LEGACY_PASS_MANAGER
+		TheFPM->run(F);
+		if (dump_IR >= dumpLevel && dump_opt) {
+			errs() << "Read \"" << F->getName() << "()\" definition (after optimization):\n";
+			F->print(errs());
+			errs() << "\n";
+		}
+#endif
+	}
+	if (finishModule) {
+#ifndef LEGACY_PASS_MANAGER
+		// running the new PassManager on an empty module causes trouble :-(
+		// let's avoid this...
+		if (TheModule->end() != TheModule->begin()) {
+			NEW_MAM();
+			auto MPM = GET_MPM(PB, optimization_level);
+			MPM.run(*TheModule, MAM);
+			if (dump_IR >= dumpLevel && dump_opt) {
+				auto end = TheModule->end();
+				for (auto it = TheModule->begin(); it != end; ++it)
+					it->print(errs());
+			}
+		}
+#endif
+		if (newModule) {
+			ExitOnErr(TheJIT->addModule(
+				          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
+			InitializeModuleAndPassManager();
+		}
+	}
+}
+
 llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -932,24 +972,10 @@ llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* i
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	if (comp_mode == comp_jit && !(sym_kind & A_global)) {
-		// This might be a non-const initializen main var that needs a temporary
+		// This might be a non-const initialized main var that needs a temporary
 		// 'setter' function. So finish the corrent module to be able to remove
 		// the setter after usage
-#ifndef LEGACY_PASS_MANAGER
-		if (TheModule->end() != TheModule->begin()) {
-			NEW_MAM();
-			auto MPM = GET_MPM(PB, optimization_level);
-			MPM.run(*TheModule, MAM);
-			if (dump_IR && dump_opt) {
-				auto end = TheModule->end();
-				for (auto it = TheModule->begin(); it != end; ++it)
-					it->print(errs());
-			}
-		}
-#endif
-		ExitOnErr(TheJIT->addModule(
-			          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
-		InitializeModuleAndPassManager();
+		finishFunctionOrModule();
 	}
 	VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
 	const std::string& unmangled_name = LHSE->getName();
@@ -1074,31 +1100,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 						abort();
 					}
 				}
-				verifyFunction(*tmpf);
-				if (dump_IR >= 3 && dump_raw) {
-					errs() << "Read tmpf definition (raw):\n";
-					tmpf->print(errs());
-					errs() << "\n";
-				}
-#ifdef LEGACY_PASS_MANAGER
-				TheFPM->run(*tmpf);
-				if (dump_IR >= 3 && dump_opt) {
-					errs() << "Read tmpf definition (after optimization):\n";
-					tmpf->print(errs());
-					errs() << "\n";
-				}
-#else
-				if (TheModule->end() != TheModule->begin()) {
-					NEW_MAM();
-					auto MPM = GET_MPM(PB, optimization_level);
-					MPM.run(*TheModule, MAM);
-					if (dump_IR >= 3 && dump_opt) {
-						auto end = TheModule->end();
-						for (auto it = TheModule->begin(); it != end; ++it)
-							it->print(errs());
-					}
-				}
-#endif
+				finishFunctionOrModule(tmpf, 3, true, false);
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
@@ -1111,9 +1113,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					                              false, link_type,
 					                              initializer, varname, nullptr,
 					                              llvm::GlobalVariable::NotThreadLocal, 0, false);
-				ExitOnErr(TheJIT->addModule(
-					          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
-				InitializeModuleAndPassManager();
+				finishFunctionOrModule();
 				// Search the JIT for the <setter_name> symbol.
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
 				// C syntax at its best...
@@ -1143,23 +1143,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					                             false, link_type,
 					                             initializer, shadow_var_name, nullptr,
 					                             llvm::GlobalVariable::NotThreadLocal);
-#ifndef LEGACY_PASS_MANAGER
-				// running the new PassManager on an empty module causes trouble :-(
-				// let's avoid this...
-				if (TheModule->end() != TheModule->begin()) {
-					NEW_MAM();
-					auto MPM = GET_MPM(PB, optimization_level);
-					MPM.run(*TheModule, MAM);
-					if (dump_IR && dump_opt) {
-						auto end = TheModule->end();
-						for (auto it = TheModule->begin(); it != end; ++it)
-							it->print(errs());
-					}
-				}
-#endif
-				ExitOnErr(TheJIT->addModule(
-					          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
-				InitializeModuleAndPassManager();
+				finishFunctionOrModule();
 				GV = TheModule->getGlobalVariable(varname, true);
 				if (!GV) {
 					GV = new llvm::GlobalVariable(*TheModule, V_type,
@@ -1193,20 +1177,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				} else {
 					Builder->CreateRetVoid();
 				}
-				verifyFunction(*Fsaver);
-				if (dump_IR >= 3 && dump_raw) {
-					errs() << "Read saver definition (raw):\n";
-					Fsaver->print(errs());
-					errs() << "\n";
-				}
-#ifdef LEGACY_PASS_MANAGER
-				TheFPM->run(*Fsaver);
-				if (dump_IR >= 3 && dump_opt) {
-					errs() << "Read saver definition (after optimization):\n";
-					Fsaver->print(errs());
-					errs() << "\n";
-				}
-#endif
+				finishFunctionOrModule(Fsaver, 3, false);
 				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 				last_shadow_saver = saverProto->Name.c_str();
 				// savers/restorers must be always accessible so force them into builtin namespace
@@ -1224,20 +1195,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				} else {
 					Builder->CreateRetVoid();
 				}
-				verifyFunction(*Frestorer);
-				if (dump_IR >= 3 && dump_raw) {
-					errs() << "Read restorer definition (raw):\n";
-					Frestorer->print(errs());
-					errs() << "\n";
-				}
-#ifdef LEGACY_PASS_MANAGER
-				TheFPM->run(*Frestorer);
-				if (dump_IR >= 3 && dump_opt) {
-					errs() << "Read restorer definition (after optimization):\n";
-					Frestorer->print(errs());
-					errs() << "\n";
-				}
-#endif
+				finishFunctionOrModule(Frestorer, 3, false);
 				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 				last_shadow_restorer = restorerProto->Name.c_str();
 				module->FunctionProtos[restorer].push_back(std::move(restorerProto));
@@ -2504,7 +2462,7 @@ llvm::Function *PrototypeAST::codegen() {
 	return F;
 }
 
-llvm::Function *FunctionAST::codegen() {
+llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
@@ -2626,20 +2584,6 @@ llvm::Function *FunctionAST::codegen() {
 		KSDbgInfo.LexicalBlocks.pop_back();
 	}
 	// Validate the generated code, checking for consistency.
-	verifyFunction(*TheFunction);
-	if (dump_raw && (dump_IR >= 2 || dump_IR && unmangledName != "__anon_expr")) {
-		errs() << "Read function definition (raw):\n";
-		TheFunction->print(errs());
-		errs() << "\n";
-	}
-#ifdef LEGACY_PASS_MANAGER
-	// Run the optimizer on the function.
-	TheFPM->run(*TheFunction);
-	if (dump_opt && (dump_IR >= 2 || dump_IR && unmangledName != "__anon_expr")) {
-		errs() << "Read function definition (after optimization):\n";
-		TheFunction->print(errs());
-		errs() << "\n";
-	}
-#endif
+	finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
 	return TheFunction;
 }

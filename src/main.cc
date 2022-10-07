@@ -1182,17 +1182,7 @@ int main(int argc, char* argv[]) {
 	MainLoop();
 	if (do_test || comp_mode != comp_jit) {
 		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
-			if (auto *FnIR = FnAST->codegen()) {
-#ifndef LEGACY_PASS_MANAGER
-				NEW_MAM();
-				auto MPM = GET_MPM(PB, optimization_level);
-				MPM.run(*TheModule, MAM);
-				if (dump_IR && dump_opt) {
-					auto end = TheModule->end();
-					for (auto it = TheModule->begin(); it != end; ++it)
-						it->print(errs());
-				}
-#endif
+			if (auto *FnIR = FnAST->codegen(true)) {
 				if (comp_mode == comp_jit) {
 					// call test_main()
 

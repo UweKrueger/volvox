@@ -1362,25 +1362,8 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 
 std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E) {
 	SourceLocation FnLoc = E->Loc;
-	if (comp_mode == comp_jit) {
-#ifndef LEGACY_PASS_MANAGER
-		// running the new PassManager on an empty module causes trouble :-(
-		// let's avoid this...
-		if (TheModule->end() != TheModule->begin()) {
-			NEW_MAM();
-			auto MPM = GET_MPM(PB, optimization_level);
-			MPM.run(*TheModule, MAM);
-			if (dump_IR && dump_opt) {
-				auto end = TheModule->end();
-				for (auto it = TheModule->begin(); it != end; ++it)
-					it->print(errs());
-			}
-		}
-#endif
-		ExitOnErr(TheJIT->addModule(
-			          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
-		InitializeModuleAndPassManager();
-	}
+	if (comp_mode == comp_jit)
+		finishFunctionOrModule();
 	// Make an anonymous proto.
 	volvoxc::FullType* TheType = lex.get_full_type("bool");
 	auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
