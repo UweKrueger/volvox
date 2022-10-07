@@ -593,3 +593,28 @@ void destroy_FV(MapValue* mapval) {
 	auto var = (FullVar*)((char*)mapval + mapval->offset);
 	free((void*)var->mangled_name);
 }
+
+llvm::Function* getDestructor(volvoxc::FullType* ft) {
+	if (!ft->mangled_name || !(ft->type_attr & A_destructor))
+		return nullptr;
+	std::string fn_name = "_Z";
+	if (ft->mangled_name[0] == 'N') {
+		fn_name += ft->mangled_name;
+		unsigned sz = fn_name.size() - 1;
+		if (fn_name[sz] == 'E')
+			fn_name.resize(sz);
+		else {
+			errs() << "inconsistent mangled type name '" << ft->mangled_name << "'\n";
+			return nullptr;
+		}
+	} else {
+		fn_name += 'N';
+		fn_name += ft->mangled_name;
+	}
+	fn_name += "D2Ev";
+	if (auto F = TheModule->getFunction(fn_name))
+		return F;
+	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { ft->type->getPointerTo() }, false);
+	auto F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, fn_name, TheModule.get());
+	return F;
+}

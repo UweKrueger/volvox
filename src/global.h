@@ -351,6 +351,7 @@ struct FullVar {
 		llvm::Type* storage_type; // for global variables
 	};
 	const char* mangled_name = nullptr; // only for pub globals
+	llvm::Function* destructor = nullptr;
 	volvoxc::FullType ft = {0};
 };
 
@@ -530,6 +531,7 @@ extern MapNode* keyword_toks; // all language keywords like 'if', 'else', 'fn', 
 extern void init_token_map();
 
 extern void destroy_FV(MapValue* mapval);
+extern llvm::Function* getDestructor(volvoxc::FullType* ft);
 
 class VarTable : public Table {
 public:
@@ -544,7 +546,12 @@ public:
 	FullVar* insert(const char* key, const FullVar& value) {
 		MapValue mv = { .src_ptr = const_cast<FullVar*>(&value) };
 		MapNode* res = map_string_insert(&table, key, mv, sizeof(FullVar), false);
-		return res ? (FullVar*)((char*)&res->value + res->value.offset) : nullptr;
+		if (!res)
+			return nullptr;
+		auto fv = (FullVar*)((char*)&res->value + res->value.offset);
+		if (fv->ft.type_attr & A_destructor)
+			fv->destructor = getDestructor(&fv->ft);
+		return fv;
 	}
 	FullVar* operator[](const char* key) {
 		MapValue* val = map_string_get(table, key);
