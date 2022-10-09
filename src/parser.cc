@@ -1102,7 +1102,6 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 	std::string FnName;
 	volvoxc::FullType* ReceiverType = nullptr;
-	volvoxc::FullType* tmp_rec_type = nullptr;
 	std::string UnmagledReceiverTypeName;
 	SourceLocation FnLoc = CurLoc;
 
@@ -1116,32 +1115,31 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 		errs() << CurLoc << ": identifier expected (function name or receiver type)\n";
 		return nullptr;
 	}
-	if (visibility & A_destructor) {
-		if (!last_definded_type) {
-			errs() << FnLoc << ": destructor definition is only valid immediately after type definition\n";
-			return nullptr;
-		} else if (IdentifierStr != last_definded_type) {
-			errs() << CurLoc << ": destructor must refer to type of preceding definition ('" << last_definded_type << "')\n";
-			return nullptr;
-		}
-		tmp_rec_type = lex.get_full_type(IdentifierStr.c_str());
-		if (!tmp_rec_type) {
-			errs() << CurLoc << ": internal error in destructor parsing - '" << IdentifierStr << "' is not a known type\n";
-			return nullptr;
-		}
-		tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
-	} else if (lex.peek() == '.') {
-		// method declaration IdentifierStr is type name
-		// we cannot use ParseType() here because this would treat "x" in "x.y" as module name
-		tmp_rec_type = lex.get_full_type(IdentifierStr.c_str());
-		if (!tmp_rec_type) {
-			errs() << CurLoc << ": error in method parsing - '" << IdentifierStr << "' is not a known type\n";
+	// all kinds of methods start with a type name - even destructors as we
+	// have eaten the '~' already in ParseDefinition()
+	if (auto tmp_rec_type = lex.get_full_type(IdentifierStr.c_str())) {
+		if (visibility & A_destructor) {
+			if (!last_definded_type) {
+				errs() << FnLoc << ": destructor definition is only valid immediately after type definition\n";
+				return nullptr;
+			} else if (IdentifierStr != last_definded_type) {
+				errs() << CurLoc << ": destructor must refer to type of preceding definition ('" << last_definded_type << "')\n";
+				return nullptr;
+			}
+			tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
+		} else if (lex.peek() == '(') {
+			tmp_rec_type->type_attr |= A_constructor;
+			visibility |= A_constructor;
+		} else if (lex.peek() != '.') {
+			errs() << CurLoc << ": '.' or '(' expected\n";
 			return nullptr;
 		}
-	}
-	if (tmp_rec_type) {
 		if (visibility & A_c_api) {
-			errs() << CurLoc << ": methods/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
+			errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
+			return nullptr;
+		}
+		if ((tmp_rec_type->type_attr & (A_destructor | A_constructor)) && (IdentifierStr != last_definded_type)) {
+			errs() << CurLoc << ": constructor/destructor must refer to type of preceding definition ('" << last_definded_type << "')\n";
 			return nullptr;
 		}
 		ReceiverType = new_FullType(*tmp_rec_type);
@@ -1153,15 +1151,22 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 		ArgNames.push_back("this");
 		ArgTypes.push_back(ReceiverType);
 		ArgPos.push_back(CurLoc);
-		if (!(visibility & A_destructor)) {
+		if (!(visibility & (A_destructor | A_constructor))) {
 			getNextToken(eBinOp, '(');
 			if (!Expect(tok_selector))
 				return nullptr;
 		}
+	} else {
+		if (lex.peek() == '.' || (visibility & A_destructor)) {
+			errs() << CurLoc << ": internal error in " << ((visibility & A_destructor) ? "destructor" : "method")
+			       << " parsing - '" << IdentifierStr << "' is not a known type\n";
+			return nullptr;
+		}
 	}
 	switch ((int)CurTok.kind) {
 	case tok_identifier:
-		FnName = (visibility & A_destructor) ? ("~" + UnmagledReceiverTypeName) : std::move(IdentifierStr);
+		FnName = (visibility & A_destructor) ? ("~" + UnmagledReceiverTypeName) :
+			(visibility & A_constructor) ? std::move(UnmagledReceiverTypeName) : std::move(IdentifierStr);
 		Kind = 0;
 		getNextToken();
 		break;
@@ -1431,5 +1436,5 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E) {
 /// external ::= 'extern' prototype
 std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
 	getNextToken(); // eat extern.
-	return ParsePrototype(visibility);
+	return ParsePrototype(visibility | A_extern);
 }
