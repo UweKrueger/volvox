@@ -1118,6 +1118,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	// all kinds of methods start with a type name - even destructors as we
 	// have eaten the '~' already in ParseDefinition()
 	if (auto tmp_rec_type = lex.get_full_type(IdentifierStr.c_str())) {
+		visibility |= A_method; // 1st token of function name is known type -> must be method
 		if (visibility & A_destructor) {
 			if (!last_defined_type) {
 				errs() << FnLoc << ": destructor definition is only valid immediately after type definition\n";
@@ -1270,7 +1271,7 @@ noargs:
 		errs() << '\n';
 		return nullptr;
 	}
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs, (bool)ReceiverType);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
 }
 
 #define TEST_FN_PREFIX "test_"
@@ -1306,7 +1307,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_c_api)) {
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes).c_str();
 	}
-	if (Proto->isMethod) {
+	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type(Proto->ArgTypes[0]->mangled_name);
 		MethodProtos[{mangled_receiver_type, unmangledName}].push_back(std::move(Proto));
 	} else if (!strncmp(unmangledName.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {

@@ -21,7 +21,8 @@
 #define A_c_api  (1U<<20)
 #define A_destructor (1U<<21) // fn is destructor or type has destructor
 #define A_constructor (1U<<22) // fn is default c. or type has default c.
-#define A_extern (1U<<23)
+#define A_method (1U<<23)
+#define A_extern (1U<<24)
 
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)

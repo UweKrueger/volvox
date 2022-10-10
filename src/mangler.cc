@@ -39,7 +39,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 	return out;
 }
 
-llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path, const std::string& name) {
+llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path,
+                                  const std::string& name, unsigned flags) {
 	llvm::raw_svector_ostream mangled(buf);
 	if (!path.empty() || name[0] == '~') {
 		mangled << 'N';
@@ -55,7 +56,8 @@ llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<
 	return buf;
 }
 
-llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name, std::vector<volvoxc::FullType*>& arg_types) {
+llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name,
+                              std::vector<volvoxc::FullType*>& arg_types, unsigned flags) {
 	llvm::SmallString<128> buf = llvm::StringRef("_Z");
 	buf = MangleBase(buf, path, name);
 	llvm::raw_svector_ostream mangled(buf);

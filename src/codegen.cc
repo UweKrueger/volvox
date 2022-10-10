@@ -1819,7 +1819,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// If argument mismatch error.
-	unsigned proto_arg_offs = Proto->isMethod ? 1 : 0;
+	unsigned proto_arg_offs = (Proto->visibility & A_method) ? 1 : 0;
 	unsigned arg_offs = proto_arg_offs + (Proto->IsStructRet ? 1 : 0);
 	unsigned proto_args_size = Proto->Args.size() - proto_arg_offs;
 	unsigned ft_num_params = FT->getNumParams() - arg_offs;
@@ -1838,7 +1838,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 		ArgsV.push_back(target);
 	}
-	if (Proto->isMethod) {
+	if (Proto->visibility & A_method) {
 		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
 			if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
 				auto receiver_ref = receiver_lval->codegen_ref();
@@ -2480,7 +2480,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	// reference to it for use below.
 	auto &P = *Proto;
 	volvoxc::FullType* receiver_ft;
-	if (Proto->isMethod)
+	if (Proto->visibility & A_method)
 		if (Proto->IsStructRet)
 			receiver_ft = Proto->ArgTypes[1];
 		else

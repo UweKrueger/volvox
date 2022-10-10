@@ -305,8 +305,10 @@ extern const char* last_shadow_restorer;
 
 extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
-extern llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path, const std::string& name);
-extern llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name, std::vector<volvoxc::FullType*>& arg_types);
+extern llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path,
+                                         const std::string& name, unsigned flags = 0);
+extern llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name,
+                                     std::vector<volvoxc::FullType*>& arg_types, unsigned flags = 0);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned& share_kind);
 extern std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind);
 extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST>);
@@ -582,7 +584,6 @@ public:
 	llvm::FunctionType* FT = nullptr;
 	bool IsVarArgs = false;
 	bool IsOperator = false;
-	bool isMethod = false;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
 	unsigned visibility = 0;
 	llvm::GlobalValue::LinkageTypes link_type;
@@ -592,7 +593,7 @@ public:
 	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
 	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
 	             std::vector<volvoxc::FullType*> ArgTypes = {},
-	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false, bool isMethod = false);
+	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
