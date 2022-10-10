@@ -1138,7 +1138,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 			errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
 			return nullptr;
 		}
-		if ((tmp_rec_type->type_attr & (A_destructor | A_constructor)) && (IdentifierStr != last_definded_type)) {
+		if ((visibility & (A_destructor | A_constructor)) && (!last_definded_type || IdentifierStr != last_definded_type)) {
 			errs() << CurLoc << ": constructor/destructor must refer to type of preceding definition ('" << last_definded_type << "')\n";
 			return nullptr;
 		}
