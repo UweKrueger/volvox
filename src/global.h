@@ -202,7 +202,7 @@ extern SourceLocation CurLoc;
 extern bool inside_function;
 extern int prompt_indent;
 extern uint64_t stacksize;
-extern const char* last_definded_type;
+extern const char* last_defined_type;
 #ifndef LEGACY_PASS_MANAGER
 extern llvm::OptimizationLevel optimization_level;
 extern llvm::LoopAnalysisManager LAM;

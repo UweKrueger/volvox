@@ -1119,11 +1119,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 	// have eaten the '~' already in ParseDefinition()
 	if (auto tmp_rec_type = lex.get_full_type(IdentifierStr.c_str())) {
 		if (visibility & A_destructor) {
-			if (!last_definded_type) {
+			if (!last_defined_type) {
 				errs() << FnLoc << ": destructor definition is only valid immediately after type definition\n";
 				return nullptr;
-			} else if (IdentifierStr != last_definded_type) {
-				errs() << CurLoc << ": destructor must refer to type of preceding definition ('" << last_definded_type << "')\n";
+			} else if (IdentifierStr != last_defined_type) {
+				errs() << CurLoc << ": destructor must refer to type of preceding definition ('" << last_defined_type << "')\n";
 				return nullptr;
 			}
 			tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
@@ -1138,8 +1138,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
 			errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
 			return nullptr;
 		}
-		if ((visibility & (A_destructor | A_constructor)) && (!last_definded_type || IdentifierStr != last_definded_type)) {
-			errs() << CurLoc << ": constructor/destructor must refer to type of preceding definition ('" << last_definded_type << "')\n";
+		if ((visibility & (A_destructor | A_constructor)) && (!last_defined_type || IdentifierStr != last_defined_type)) {
+			errs() << CurLoc << ": constructor/destructor must refer to type of preceding definition ('" << last_defined_type << "')\n";
 			return nullptr;
 		}
 		ReceiverType = new_FullType(*tmp_rec_type);

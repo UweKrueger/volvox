@@ -18,7 +18,7 @@ std::vector<int> source_index = { 0 };
 int prompt_indent = 0;
 std::map<std::string, Module> Modules;
 DebugInfo KSDbgInfo;
-const char* last_definded_type = nullptr;
+const char* last_defined_type = nullptr;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -247,7 +247,7 @@ static void HandleTypeDef(unsigned share_kind) {
 		errs() << "cannot define '" << type_name << "' - type already exists\n";
 		return;
 	}
-	last_definded_type = new_node->key.string;
+	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "declared new type '" << type_name << "' as " << *ft->type << '\n';
 }
@@ -498,7 +498,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	for (;;) {
-		last_definded_type = nullptr;
+		last_defined_type = nullptr;
 	startmainloop:
 		unsigned sym_kind = 0; // 'pub', 'extern', 'fn', 'cfn', ...
 		auto share_tok = TokenKind(0);
