@@ -2444,15 +2444,17 @@ llvm::Function *PrototypeAST::codegen() {
 		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
 	// Set names for all arguments.
 	unsigned Idx = 0;
-	if (IsStructRet && ArgAttrs[Idx].hasAttributes()) {
+	if (IsStructRet) {
+		if (ArgAttrs[Idx].hasAttributes()) {
 #if LLVM_VERSION_MAJOR >= 14
-		llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx]);
-		F->getArg(Idx++)->addAttrs(attr_builder);
+			llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx]);
+			F->getArg(Idx)->addAttrs(attr_builder);
 #else
-		for (auto attr: ArgAttrs[Idx])
-			F->getArg(Idx)->addAttr(attr);
-		Idx++;
+			for (auto attr: ArgAttrs[Idx])
+				F->getArg(Idx)->addAttr(attr);
 #endif
+		}
+		Idx++;
 	}
 	for (auto &Arg : Args) {
 		auto fnarg = F->getArg(Idx);
@@ -2530,7 +2532,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		auto Arg = TheFunction->getArg(ArgIdx);
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
 		if (!mapitem) {
-			errs() << "internal compiler error: arg '" << Arg->getName() << "' not found in table";
+			errs() << "internal compiler error: arg #" << ArgIdx << " - '" << Arg->getName() << "' not found in table\n";
 			exit(1);
 		}
 		if (Arg->hasByValAttr() || Arg->hasByRefAttr()) {

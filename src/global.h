@@ -549,7 +549,7 @@ public:
 		if (!res)
 			return nullptr;
 		auto fv = (FullVar*)((char*)&res->value + res->value.offset);
-		if (fv->ft.type_attr & A_destructor)
+		if (!(fv->ft.type_attr & A_ref) && (fv->ft.type_attr & A_destructor))
 			fv->destructor = getDestructor(&fv->ft);
 		return fv;
 	}
