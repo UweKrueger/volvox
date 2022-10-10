@@ -1304,9 +1304,10 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	}
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
-	if (!(visibility & A_c_api)) {
-		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes).c_str();
-	}
+	if (visibility & A_c_api)
+		Proto->Name = unmangledName;
+	else
+		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, Proto->visibility).c_str();
 	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type(Proto->ArgTypes[0]->mangled_name);
 		MethodProtos[{mangled_receiver_type, unmangledName}].push_back(std::move(Proto));
