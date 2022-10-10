@@ -74,7 +74,7 @@ llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::s
 	if (arg_types.size() > 0 && !(flags & A_method) || arg_types.size() > 1) {
 		unsigned idx = 0;
 		for (auto type : arg_types) {
-			if (idx || !(flags & A_method))
+			if (idx++ || !(flags & A_method))
 				mangled << type;
 		}
 	} else
