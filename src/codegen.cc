@@ -2530,7 +2530,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		auto Arg = TheFunction->getArg(ArgIdx);
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
 		if (!mapitem) {
-			errs() << "internal compiler error: arg not found in table";
+			errs() << "internal compiler error: arg '" << Arg->getName() << "' not found in table";
 			exit(1);
 		}
 		if (Arg->hasByValAttr() || Arg->hasByRefAttr()) {
