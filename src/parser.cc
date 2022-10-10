@@ -1099,7 +1099,7 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 ///   ::= id '(' id* ')'
 ///   ::= binary LETTER number? (id, id)
 ///   ::= unary LETTER (id)
-static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned visibility) {
+static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	std::string FnName;
 	volvoxc::FullType* ReceiverType = nullptr;
 	std::string UnmagledReceiverTypeName;
@@ -1276,7 +1276,7 @@ noargs:
 #define TEST_FN_PREFIX "test_"
 
 /// definition ::= 'fn' prototype expression
-std::unique_ptr<FunctionAST> ParseDefinition(unsigned visibility) {
+std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	getNextToken(); // eat fn.
 	if (CurTok.kind == tok_unary && IdentifierStr == "~") {
 		visibility |= A_destructor;
@@ -1436,5 +1436,6 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E) {
 /// external ::= 'extern' prototype
 std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
 	getNextToken(); // eat extern.
-	return ParsePrototype(visibility | A_extern);
+	visibility |= A_extern;
+	return ParsePrototype(visibility);
 }

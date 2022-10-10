@@ -174,7 +174,7 @@ void InitializeModuleAndPassManager() {
 #endif
 }
 
-static void HandleDefinition(unsigned visibility) {
+static void HandleDefinition(unsigned& visibility) {
 	inside_function = true;
 	condnesting = 0;
 	IfWhileVarTable = nullptr;
@@ -567,7 +567,10 @@ static void MainLoop() {
 					CallTestFunction();
 				TestFunction = nullptr;
 			}
-			break;
+			if (sym_kind & (A_destructor | A_constructor))
+				goto startmainloop;
+			else
+				break;
 		case tok_cdecl:
 			sym_kind |= A_c_api;
 		case tok_decl:
