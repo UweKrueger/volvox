@@ -42,22 +42,22 @@ type XX {
 global cntd := 10
 
 type YY {
-	kkgd i32
+	r i32
 	w XX
 }
 
 fn ~YY()
-	cntd = cntd - this.kkgd
-	this.kkgd = 79
+	cntd = cntd - this.r
+	this.r = 79
 	return
 
 fn YY()
-	this.kkgd = -23
+	this.r = -23
 	return
 
 fn hhwe() i32
-   llk3e := YY{ kkgd: 17 }
-   return llk3e.kkgd
+   llk3e := YY{ r: 17 }
+   return llk3e.r
 
 fn test_destructor_1() bool
 	z := hhwe()

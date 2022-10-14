@@ -492,15 +492,23 @@ public:
 		for (auto& field: list->Elements) {
 			if (auto field_val = dynamic_cast<BinaryExprAST*>(field.get())) {
 				if (field_val->Op[0] == ':' && !field_val->Op[1]) {
-					if (auto nameAST = dynamic_cast<VariableExprAST*>(field_val->LHS.get())) {
-						auto insert = Fields.try_emplace(nameAST->Name, std::move(field_val->RHS));
-						if (insert.second) {
-							continue;
-						} else {
-							errs() << nameAST->Loc << "field already initialized\n";
-						}
-					} else {
-						errs() << field_val->LHS->Loc << "field name expected\n";
+					std::string* field_key = nullptr;
+					// we are only interested in the "ident" of the LHS of "ident: value"
+					// the parser might have found the ident in tables so we have to handle these cases
+					// it does not seems effective to declare a common base class "NamedExprAST" to derive
+					// these cases because 'VariableExprAST' is derived from 'LvalueExprAST', the others are not
+					if (auto nameAST = dynamic_cast<VariableExprAST*>(field_val->LHS.get()))
+						field_key = &nameAST->Name;
+					else if (auto nameAST = dynamic_cast<FunctionExprAST*>(field_val->LHS.get()))
+						field_key = &nameAST->Name;
+					else if (auto nameAST = dynamic_cast<IdentExprAST*>(field_val->LHS.get()))
+						field_key = &nameAST->Name;
+					else
+						errs() << field_val->LHS->Loc << " field name expected\n";
+					if (field_key) {
+						auto insert = Fields.try_emplace(*field_key, std::move(field_val->RHS));
+						if (!insert.second)
+							errs() << field_val->LHS->Loc << ": field '" << field_key << "' already initialized\n";
 					}
 					continue;
 				}
