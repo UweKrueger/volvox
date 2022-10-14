@@ -552,12 +552,8 @@ public:
 		if (!res)
 			return nullptr;
 		auto fv = (FullVar*)((char*)&res->value + res->value.offset);
-		if (!(fv->ft.type_attr & A_ref) && (fv->ft.type_attr & A_destructor)) {
+		if (!(fv->ft.type_attr & A_ref) && (fv->ft.type_attr & A_destructor))
 			fv->destructor = getDestructor(&fv->ft);
-			errs() << "found destructor for '" << key << "': " << *fv->destructor << '\n';
-		} else {
-			errs() << "not searching destructor for '" << key << "': " << (unsigned)fv->ft.type_attr << '\n';
-		}
 		return fv;
 	}
 	FullVar* operator[](const char* key) {

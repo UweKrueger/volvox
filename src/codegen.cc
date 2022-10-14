@@ -161,7 +161,8 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
 		if (fv->destructor && fv->val && fv->val != retp) {
-			errs() << "creating destructor call for '" << var_node.getKey() << "'\n";
+			auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
+			Builder->CreateCall(FT, fv->destructor, fv->val);
 		}
 	}
 }
