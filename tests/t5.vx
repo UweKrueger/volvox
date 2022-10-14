@@ -62,3 +62,13 @@ fn hhwe() i32
 fn test_destructor_1() bool
 	z := hhwe()
 	return z == 17 & cntd == -7
+
+fn hhwe2(n i32) i32
+	if n<=0
+		llk3e := YY{ r: n-8 }
+		return llk3e.r .
+	return 5
+
+fn test_destructor_2() bool
+	z := hhwe2(-5)
+	return cntd == 6 & z == -13
