@@ -965,7 +965,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					.ft = *RHS->ft
 				};
 				fv.ft.type = type;
-				fv.ft.type_attr = is_signed ? 1U : 0U;
+				if (is_signed)
+					fv.ft.type_attr |= A_signed;
+				else
+					fv.ft.type_attr &= ~A_signed;
 				if (inside_function) {
 					if (locals_table.back().insert(VarL->Name.c_str(), fv)) {
 						VarL->full_var = nullptr; // in case a global with the same name had been found
