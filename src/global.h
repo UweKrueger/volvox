@@ -552,8 +552,12 @@ public:
 		if (!res)
 			return nullptr;
 		auto fv = (FullVar*)((char*)&res->value + res->value.offset);
-		if (!(fv->ft.type_attr & A_ref) && (fv->ft.type_attr & A_destructor))
+		if (!(fv->ft.type_attr & A_ref) && (fv->ft.type_attr & A_destructor)) {
 			fv->destructor = getDestructor(&fv->ft);
+			errs() << "found destructor for '" << key << "': " << *fv->destructor << '\n';
+		} else {
+			errs() << "not searching destructor for '" << key << "': " << (unsigned)fv->ft.type_attr << '\n';
+		}
 		return fv;
 	}
 	FullVar* operator[](const char* key) {
@@ -568,6 +572,7 @@ public:
 extern std::vector<VarTable> locals_table; // including function arguments
 extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
+extern llvm::Value* ret_ptr; // for sret
 
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number

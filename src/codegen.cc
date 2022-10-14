@@ -14,6 +14,7 @@ const char* last_shadow_restorer = nullptr;
 // list of boolean values that indicate that this loop branch is run for the first time
 // this is used to avoid multiple  allocations of variables that are declared inside a then/while/repaet loop
 VarTable* IfWhileVarTable = nullptr;
+llvm::Value* ret_ptr = nullptr; // for sret
 // both in loop bodies and in 'else' blocks array allocation should *not* be done in the entry block
 // since the array size might be run time determined in one or the other block. To ensure this we track
 // the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
@@ -151,6 +152,23 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 			InitializeModuleAndPassManager();
 		}
 	}
+}
+
+// insert destructors for given var table - retp is a poniter to the function return value
+// in case of struct-return - so this one will not be destructed but moved to the caller, instead
+void InsertDestructors(VarTable& t, llvm::Value* retp) {
+	for (auto var_node = t.first(); var_node; ++var_node) {
+		MapValue* node = var_node.getValue();
+		auto fv = (FullVar*)((char*)node + node->offset);
+		if (fv->destructor && fv->val && fv->val != retp) {
+			errs() << "creating destructor call for '" << var_node.getKey() << "'\n";
+		}
+	}
+}
+
+void InsertDestructors(llvm::Value* retp) {
+	for (auto t = locals_table.rbegin(); t != locals_table.rend(); ++t )
+		InsertDestructors(*t, retp);
 }
 
 llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
@@ -1959,9 +1977,10 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	if (!BranchV && !isElse)
 		return { nullptr, nullptr };
 	if (ft->type->isVoidTy() && !(BranchV && BranchV->getType()->isVoidTy())) {
-		if (EndKind == tok_return)
+		if (EndKind == tok_return) {
+			InsertDestructors(nullptr);
 			Builder->CreateRetVoid();
-		else {
+		} else {
 			BranchV = llvm::UndefValue::get(ft->type);
 			firstBreak = Builder->CreateBr(MergeBB);
 		}
@@ -1982,7 +2001,14 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 			}
 		}
 		if (EndKind == tok_return) {
-			Builder->CreateRet(CheckTailCall(BranchV));
+			if (ret_ptr) {
+				Builder->CreateStore(BranchV, ret_ptr);
+				InsertDestructors(ret_ptr);
+				Builder->CreateRetVoid();
+			} else {
+				InsertDestructors(nullptr);
+				Builder->CreateRet(CheckTailCall(BranchV));
+			}
 		} else {
 			firstBreak = Builder->CreateBr(MergeBB);
 		}
@@ -2489,9 +2515,6 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		receiver_ft = nullptr;
 	llvm::Function* TheFunction = getFunction(Proto);
 	if (!TheFunction) {
-		errs() << "Function '" << unmangledName << "()' not found in module\n";
-		for (auto& expr : Body)
-			llvm::Value *RetVal = expr->codegen();
 		return nullptr;
 	}
 	// Create a new basic block to start insertion into.
@@ -2523,11 +2546,8 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	}
 	// Record the function arguments in the NamedValues map.
 	unsigned ArgIdx = 0;
-	llvm::Value* ret_ptr; // for sret
 	if (P.IsStructRet)
 		ret_ptr = TheFunction->getArg(ArgIdx++);
-	else
-		ret_ptr = nullptr;
 	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
 		auto Arg = TheFunction->getArg(ArgIdx);
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
@@ -2576,21 +2596,25 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 				// unconditionally.
 				KSDbgInfo.LexicalBlocks.pop_back();
 			}
+			ret_ptr = nullptr;
 			return nullptr;
 		}
 	}
 	// Finish off the function.
 	if (P.RetType->type->isVoidTy()) {
+		InsertDestructors(nullptr);
 		Builder->CreateRetVoid();
 	} else {
 		// auto ret_type = RetVal->getType();
 		//type = ret_type; // TODO: hande conversion if != proto->type;
 		if (P.IsStructRet) {
 			Builder->CreateStore(RetVal, ret_ptr);
+			InsertDestructors(ret_ptr);
 			Builder->CreateRetVoid();
-		}
-		else
+		} else {
+			InsertDestructors(nullptr);
 			Builder->CreateRet(CheckTailCall(RetVal));
+		}
 	}		
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function.
@@ -2598,5 +2622,6 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	}
 	// Validate the generated code, checking for consistency.
 	finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
+	ret_ptr = nullptr;
 	return TheFunction;
 }
