@@ -33,3 +33,32 @@ jjf04 = xpps29[0][0][0] + xpps29[2][1][3] + xpps29[5][6][4]
 
 fn test_non_const_size_main_array() bool
 	return jjf04 == 4.75
+
+type XX {
+	a i32
+	b f64
+}
+
+global cntd := 10
+
+type YY {
+	kkgd i32
+	w XX
+}
+
+fn ~YY()
+	cntd = cntd - this.kkgd
+	this.kkgd = 79
+	return
+
+fn YY()
+	this.kkgd = -23
+	return
+
+fn hhwe() i32
+   llk3e := YY{ kkgd: 17 }
+   return llk3e.kkgd
+
+fn test_destructor_1() bool
+	z := hhwe()
+	return z == 17 & cntd == -7
