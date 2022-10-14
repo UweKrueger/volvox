@@ -15,6 +15,7 @@ const char* last_shadow_restorer = nullptr;
 // this is used to avoid multiple  allocations of variables that are declared inside a then/while/repaet loop
 VarTable* IfWhileVarTable = nullptr;
 llvm::Value* ret_ptr = nullptr; // for sret
+volvoxc::FullType* theFunction_ret_ft = nullptr;
 // both in loop bodies and in 'else' blocks array allocation should *not* be done in the entry block
 // since the array size might be run time determined in one or the other block. To ensure this we track
 // the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
@@ -1977,16 +1978,23 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 		BranchV = expr->codegen_raw();
 	if (!BranchV && !isElse)
 		return { nullptr, nullptr };
-	if (ft->type->isVoidTy() && !(BranchV && BranchV->getType()->isVoidTy())) {
-		if (EndKind == tok_return) {
+	if (EndKind == tok_return) {
+		if (theFunction_ret_ft->type->isVoidTy()) {
 			InsertDestructors(nullptr);
 			Builder->CreateRetVoid();
 		} else {
-			BranchV = llvm::UndefValue::get(ft->type);
-			firstBreak = Builder->CreateBr(MergeBB);
+			if (ret_ptr) {
+				Builder->CreateStore(BranchV, ret_ptr);
+				InsertDestructors(ret_ptr);
+				Builder->CreateRetVoid();
+			} else {
+				InsertDestructors(nullptr);
+				// TODO: type conversion
+				Builder->CreateRet(CheckTailCall(BranchV));
+			}
 		}
 	} else {
-		if (ft->type->isVoidTy()) {
+		if (ft->type->isVoidTy() && (!BranchV || !BranchV->getType()->isVoidTy())) {
 			BranchV = llvm::UndefValue::get(ft->type);
 		} else if (ft->type->isSingleValueType()) {
 			auto PreConv = getBestPreConv(Branch.back()->Loc, desired_type, conv.compat.res_type,
@@ -2001,18 +2009,7 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 				Branch.back()->ft->type = BranchV->getType();
 			}
 		}
-		if (EndKind == tok_return) {
-			if (ret_ptr) {
-				Builder->CreateStore(BranchV, ret_ptr);
-				InsertDestructors(ret_ptr);
-				Builder->CreateRetVoid();
-			} else {
-				InsertDestructors(nullptr);
-				Builder->CreateRet(CheckTailCall(BranchV));
-			}
-		} else {
-			firstBreak = Builder->CreateBr(MergeBB);
-		}
+		firstBreak = Builder->CreateBr(MergeBB);
 	}
 	return { BranchV, firstBreak };
 }
@@ -2547,6 +2544,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	}
 	// Record the function arguments in the NamedValues map.
 	unsigned ArgIdx = 0;
+	theFunction_ret_ft = P.RetType;
 	if (P.IsStructRet)
 		ret_ptr = TheFunction->getArg(ArgIdx++);
 	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
@@ -2598,6 +2596,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 				KSDbgInfo.LexicalBlocks.pop_back();
 			}
 			ret_ptr = nullptr;
+			theFunction_ret_ft = nullptr;
 			return nullptr;
 		}
 	}
@@ -2624,5 +2623,6 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	// Validate the generated code, checking for consistency.
 	finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
 	ret_ptr = nullptr;
+	theFunction_ret_ft = nullptr;
 	return TheFunction;
 }
