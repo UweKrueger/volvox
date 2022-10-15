@@ -341,6 +341,8 @@ extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 extern void PrepareTestFramework();
 extern const char* TestFunction;
 extern bool do_test;
+extern void check_destructor(const char* type_name, volvoxc::FullType* ft);
+extern void check_constructor(const char* type_name, volvoxc::FullType* ft);
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
@@ -534,7 +536,7 @@ extern MapNode* keyword_toks; // all language keywords like 'if', 'else', 'fn', 
 extern void init_token_map();
 
 extern void destroy_FV(MapValue* mapval);
-extern llvm::Function* getDestructor(volvoxc::FullType* ft);
+extern llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created = false);
 
 class VarTable : public Table {
 public:

@@ -176,6 +176,36 @@ static void InsertDestructors(llvm::Value* retp) {
 		InsertDestructors(*t, retp);
 }
 
+void check_destructor(const char* type_name, volvoxc::FullType* ft) {
+	bool needs_destructors = false;
+	if (llvm::isa<llvm::StructType>(ft->type)) {
+		auto D = getDestructor(ft, true);
+		auto thisarg = D->getArg(0);
+		llvm::BasicBlock *BB = llvm::BasicBlock::Create(Context, "entry", D);
+		Builder->SetInsertPoint(BB);
+		for (auto field = ft->first(); field; ++field) {
+			auto el_ft = field.getFt();
+			if (el_ft->type_attr & A_destructor) {
+				needs_destructors = true;
+				unsigned idx = field.getIndex();
+				llvm::Value* elem_ref = Builder->CreateConstGEP2_32(el_ft->type, thisarg, 0, idx);
+				llvm::Function* field_destructor = getDestructor(el_ft);
+				auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { el_ft->type->getPointerTo() }, false);
+				Builder->CreateCall(FT, field_destructor, elem_ref);
+			}
+		}
+		if (!needs_destructors) {
+			D->eraseFromParent();
+			return;
+		}
+		Builder->CreateRetVoid();
+		finishFunctionOrModule(D, 1, false);
+	}
+}
+
+void check_constructor(const char* type_name, volvoxc::FullType* ft) {
+}
+
 llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);

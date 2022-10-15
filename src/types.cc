@@ -593,8 +593,8 @@ void destroy_FV(MapValue* mapval) {
 	free((void*)var->mangled_name);
 }
 
-llvm::Function* getDestructor(volvoxc::FullType* ft) {
-	if (!ft->mangled_name || !(ft->type_attr & A_destructor))
+llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created) {
+	if (!ft->mangled_name || !(ft->type_attr & A_destructor) && !is_created)
 		return nullptr;
 	std::string fn_name = "_Z";
 	if (ft->mangled_name[0] == 'N') {
@@ -611,9 +611,25 @@ llvm::Function* getDestructor(volvoxc::FullType* ft) {
 		fn_name += ft->mangled_name;
 	}
 	fn_name += "D2Ev";
-	if (auto F = TheModule->getFunction(fn_name))
-		return F;
+	if (!is_created)
+		if (auto F = TheModule->getFunction(fn_name))
+			return F;
 	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { ft->type->getPointerTo() }, false);
 	auto F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, fn_name, TheModule.get());
+	auto thisarg = F->getArg(0);
+	auto argsize = ft->type->isSized() ?
+		TheModule->getDataLayout().getTypeAllocSize(ft->type) : 0;
+	auto attr_set = llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+			llvm::Attribute::getWithByRefType(Context, ft->type),
+			llvm::Attribute::getWithDereferenceableBytes(Context, argsize)
+		});
+#if LLVM_VERSION_MAJOR >= 14
+	llvm::AttrBuilder attr_builder(Context, attr_set);
+	thisarg->addAttrs(attr_builder);
+#else
+	for (auto attr: attr_set)
+		thisarg->addAttr(attr);
+#endif
+	thisarg->setName("this");
 	return F;
 }
