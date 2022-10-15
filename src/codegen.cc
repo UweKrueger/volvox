@@ -188,7 +188,7 @@ void check_destructor(const char* type_name, volvoxc::FullType* ft) {
 			if (el_ft->type_attr & A_destructor) {
 				needs_destructors = true;
 				unsigned idx = field.getIndex();
-				llvm::Value* elem_ref = Builder->CreateConstGEP2_32(el_ft->type, thisarg, 0, idx);
+				llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
 				llvm::Function* field_destructor = getDestructor(el_ft);
 				auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { el_ft->type->getPointerTo() }, false);
 				Builder->CreateCall(FT, field_destructor, elem_ref);
@@ -200,6 +200,7 @@ void check_destructor(const char* type_name, volvoxc::FullType* ft) {
 		}
 		Builder->CreateRetVoid();
 		finishFunctionOrModule(D, 1, false);
+		ft->type_attr |= A_destructor;
 	}
 }
 
