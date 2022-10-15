@@ -84,3 +84,17 @@ fn hhwe3(n i32) i32
 fn test_destructor_then_branch_1() bool
 	k := hhwe3(8)
 	return cntd == -2 & k == -63
+
+fn hhwe4(n i32) i32
+	w := n
+	repeat
+		x := YY{ r: n, w: XX{ a: 13 }}
+		n = n - 1
+		w = w + n
+	until n <= 2
+	x.r = -25
+	return w
+
+fn test_destructor_repeat_stack_restore_1() bool
+	p := hhwe4(7)
+	return cntd == 1 & p == 27

@@ -2237,15 +2237,15 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			switchInst->addCase(Builder->getInt8(3), StackSaveBB);
 		}
 	}
-	llvm::Value* savedStack;
+	llvm::Instruction* StackRestoreInst = nullptr; // to insert destructors before that
 	if (if_kind != tok_if) {
 		TheFunction->getBasicBlockList().push_back(StackSaveBB);
 		Builder->SetInsertPoint(StackSaveBB);
-		savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {}, nullptr, "savedstack");
+		llvm::Value* savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {}, nullptr, "savedstack");
 		Builder->CreateBr(ThenBB);
 		TheFunction->getBasicBlockList().push_back(StackRestoreBB);
 		Builder->SetInsertPoint(StackRestoreBB);
-		Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
+		StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(ThenBB);
 	}
 	TheFunction->getBasicBlockList().push_back(ThenBB);
@@ -2338,15 +2338,25 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				then_var->ft.type_attr |= A_merged;
 			}
 		}
-		// iterate over then/else-declared objects and insert destructors for those that are not merged
 	}
 	MergeBB = Builder->GetInsertBlock();
+	// iterate over then/else-declared objects and insert destructors for those that are not merged
 	if (if_kind != tok_repeat && then_locals_table.table && thenLast) {
 		Builder->SetInsertPoint(thenLast);
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (then_var->destructor && !(then_var->ft.type_attr & A_merged))
+				InsertDestructor(then_var);
+		}
+	}
+	// objects declared in while/repat branches have to be always destructed when the stack is restored
+	if (if_kind != tok_if && then_locals_table.table && StackRestoreInst) {
+		Builder->SetInsertPoint(StackRestoreInst);
+		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
+			MapValue* node = then_node.getValue();
+			auto then_var = (FullVar*)((char*)node + node->offset);
+			if (then_var->destructor)
 				InsertDestructor(then_var);
 		}
 	}
