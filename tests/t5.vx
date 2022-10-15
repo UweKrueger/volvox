@@ -72,3 +72,15 @@ fn hhwe2(n i32) i32
 fn test_destructor_2() bool
 	z := hhwe2(-5)
 	return cntd == 6 & z == -13
+
+fn hhwe3(n i32) i32
+	if n>7
+		x := YY{ r: n, w: XX{ a: -71 }}
+		n = n + x.w.a
+	else
+		n = n - 1 .
+	return n
+
+fn test_destructor_then_branch_1() bool
+	k := hhwe3(8)
+	return cntd == -2 & k == -63

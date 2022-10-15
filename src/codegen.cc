@@ -155,20 +155,23 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 	}
 }
 
+inline static void InsertDestructor(FullVar* fv) {
+	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
+	Builder->CreateCall(FT, fv->destructor, fv->val);
+}
+
 // insert destructors for given var table - retp is a poniter to the function return value
 // in case of struct-return - so this one will not be destructed but moved to the caller, instead
-void InsertDestructors(VarTable& t, llvm::Value* retp) {
+static void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	for (auto var_node = t.first(); var_node; ++var_node) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
-		if (fv->destructor && fv->val && fv->val != retp) {
-			auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
-			Builder->CreateCall(FT, fv->destructor, fv->val);
-		}
+		if (fv->destructor && fv->val && fv->val != retp)
+			InsertDestructor(fv);
 	}
 }
 
-void InsertDestructors(llvm::Value* retp) {
+static void InsertDestructors(llvm::Value* retp) {
 	for (auto t = locals_table.rbegin(); t != locals_table.rend(); ++t )
 		InsertDestructors(*t, retp);
 }
@@ -2308,16 +2311,16 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
 				abort();
 			}
-			entry->ft.type = then_var->ft.type; // TODO: merge different but compatible array types
+			entry->ft.type = then_var->ft.type;
 			entry->ft.type_attr = then_var->ft.type_attr;
 			entry->val = then_var->val;
 		}
 	} else if (then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			FullVar* else_var = else_locals_table[then_node.getKey()];
+			MapValue* node = then_node.getValue();
+			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (else_var) {
-				MapValue* node = then_node.getValue();
-				auto then_var = (FullVar*)((char*)node + node->offset);
 				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
 				                          else_var->ft.type, else_var->val, ElseBB, elseLast);
 				if (!merge.second)
@@ -2331,9 +2334,32 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				entry->ft.type = merge.first;
 				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
 				entry->val = mergeVal;
+				else_var->ft.type_attr |= A_merged; // mark as merged to avoid destructor call below
+				then_var->ft.type_attr |= A_merged;
 			}
 		}
+		// iterate over then/else-declared objects and insert destructors for those that are not merged
 	}
+	MergeBB = Builder->GetInsertBlock();
+	if (if_kind != tok_repeat && then_locals_table.table && thenLast) {
+		Builder->SetInsertPoint(thenLast);
+		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
+			MapValue* node = then_node.getValue();
+			auto then_var = (FullVar*)((char*)node + node->offset);
+			if (then_var->destructor && !(then_var->ft.type_attr & A_merged))
+				InsertDestructor(then_var);
+		}
+	}
+	if (if_kind != tok_repeat && else_locals_table.table && elseLast) {
+		Builder->SetInsertPoint(elseLast);
+		for (auto else_node = else_locals_table.first(); else_node; ++else_node) {
+			MapValue* node = else_node.getValue();
+			auto else_var = (FullVar*)((char*)node + node->offset);
+			if (else_var->destructor && !(else_var->ft.type_attr & A_merged))
+				InsertDestructor(else_var);
+		}
+	}
+	Builder->SetInsertPoint(MergeBB);
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
 	else {
