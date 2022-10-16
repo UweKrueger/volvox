@@ -118,3 +118,14 @@ fn test_array_destructor_1() bool
 		prtz := [5][cntd][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 2 }}}}, 4: { 99: { 1: LL{ p: YY{ r: 3 }}}}}
 		prtz[3][4][0].p.r = 7 .
 	return cntd == 88
+
+fn call_array_destructor() f64
+	iorrt := 34.5
+	n := 7
+	prtz := [82][5][n]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 7 }}}}, 80: { 3: { 6: LL{ p: YY{ r: 31 }}}}}
+	prtz[1][1][1].p.r = -13
+	return iorrt + prtz[3][4][0].p.r
+
+fn test_array_destructor_2() bool
+	call_array_destructor()
+	return cntd == 63
