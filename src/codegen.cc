@@ -162,17 +162,17 @@ inline static void InsertSingleDestructor(FullVar* fv) {
 	Builder->CreateCall(FT, fv->destructor, fv->val);
 }
 
-static void InsertArrayDestructor(FullVar* var);
+static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before = nullptr);
 
-inline static void InsertDestructor(FullVar* fv) {
+inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
 	errs() << "generating array destructors0 " << *fv->ft.type << '\n';
 	if (llvm::isa<llvm::ArrayType>(fv->ft.type))
-		InsertArrayDestructor(fv);
+		InsertArrayDestructor(fv, before);
 	else
 		InsertSingleDestructor(fv);
 }
 
-static void InsertArrayDestructor(FullVar* var) {
+static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
 	errs() << "generating array destructors " << *var->ft.type << '\n';
 	llvm::Function* destructor = getDestructor(var->ft.elem_type);
 	if (!destructor)
@@ -198,27 +198,44 @@ static void InsertArrayDestructor(FullVar* var) {
 	AllocSize = Builder->CreateMul(AllocSize, ElemAllocSize);
 	llvm::Type* elem_ptr_ty = elem_type->getPointerTo();
 	auto elDestructorFT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { elem_ptr_ty }, false);
-	llvm::Value* Ptr = i ? Builder->CreateExtractValue(var->val, i) : var->val;
-	Ptr = Builder->CreatePtrToInt(Ptr, llvm::Type::getInt64Ty(Context));
-	llvm::Value* UpperLimit = Builder->CreateAdd(Ptr, AllocSize);
 	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB->getParent();
+	llvm::Value* Ptr = i ? Builder->CreateExtractValue(var->val, i) : var->val;
+	Ptr = Builder->CreatePtrToInt(Ptr, llvm::Type::getInt64Ty(Context));
+	llvm::Value* PtrStore = CreateEntryBlockAlloca(llvm::Type::getInt64Ty(Context), "", TheFunction);
+	Builder->CreateStore(Ptr, PtrStore);
+	llvm::Value* UpperLimit = Builder->CreateAdd(Ptr, AllocSize);
+	llvm::BasicBlock* ContBB;
 	llvm::BasicBlock* CondBB = llvm::BasicBlock::Create(Context, "array_destructor_loop");
+	if (!before)
+		Builder->CreateBr(CondBB);
+	if (before) {
+		ContBB = enterBB->splitBasicBlock(before);
+		auto term = enterBB->getTerminator();
+		auto br = llvm::dyn_cast<llvm::BranchInst>(term);
+		br->setSuccessor(0, CondBB);
+	} else
+		ContBB = llvm::BasicBlock::Create(Context, "contloop");
+	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "loopwhile");
+	TheFunction->getBasicBlockList().push_back(DestructorBB);
+	Builder->SetInsertPoint(DestructorBB);
+	Ptr = Builder->CreateLoad(llvm::Type::getInt64Ty(Context), PtrStore);
+	llvm::Value* ElPtr = Builder->CreateIntToPtr(Ptr, elem_ptr_ty);
+	Builder->CreateCall(elDestructorFT, destructor, ElPtr);
+	llvm::Value* NewPtr = Builder->CreateAdd(Ptr, ElemAllocSize);
+	Builder->CreateStore(NewPtr, PtrStore);
 	Builder->CreateBr(CondBB);
 	TheFunction->getBasicBlockList().push_back(CondBB);
 	Builder->SetInsertPoint(CondBB);
+	Ptr = Builder->CreateLoad(llvm::Type::getInt64Ty(Context), PtrStore);
 	auto is_less = Builder->CreateICmpULT(Ptr, UpperLimit);
-	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "loopwhile");
-	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "contloop");
 	Builder->CreateCondBr(is_less, DestructorBB, ContBB);
-	TheFunction->getBasicBlockList().push_back(DestructorBB);
-	Builder->SetInsertPoint(DestructorBB);
-	llvm::Value* ElPtr = Builder->CreateIntToPtr(Ptr, elem_ptr_ty);
-	Builder->CreateCall(elDestructorFT, destructor, ElPtr);
-	Ptr = Builder->CreateAdd(Ptr, ElemAllocSize);
-	Builder->CreateBr(CondBB);
-	TheFunction->getBasicBlockList().push_back(ContBB);
-	Builder->SetInsertPoint(ContBB);
+	if (before)
+		Builder->SetInsertPoint(before);
+	else {
+		TheFunction->getBasicBlockList().push_back(ContBB);
+		Builder->SetInsertPoint(ContBB);
+	}
 }
 
 // insert destructors for given var table - retp is a poniter to the function return value
@@ -2460,7 +2477,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if ((then_var->ft.type_attr & A_destructor) && !(then_var->ft.type_attr & A_merged))
-				InsertDestructor(then_var);
+				InsertDestructor(then_var, thenLast);
 		}
 	}
 	// objects declared in while/repat branches have to be always destructed when the stack is restored
@@ -2470,7 +2487,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (then_var->ft.type_attr & A_destructor)
-				InsertDestructor(then_var);
+				InsertDestructor(then_var, StackRestoreInst);
 		}
 	}
 	if (if_kind != tok_repeat && else_locals_table.table && elseLast) {
@@ -2479,7 +2496,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = else_node.getValue();
 			auto else_var = (FullVar*)((char*)node + node->offset);
 			if ((else_var->ft.type_attr & A_destructor) && !(else_var->ft.type_attr & A_merged))
-				InsertDestructor(else_var);
+				InsertDestructor(else_var, elseLast);
 		}
 	}
 	Builder->SetInsertPoint(MergeBB);
