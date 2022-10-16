@@ -165,7 +165,6 @@ inline static void InsertSingleDestructor(FullVar* fv) {
 static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before = nullptr);
 
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
-	errs() << "generating array destructors0 " << *fv->ft.type << '\n';
 	if (llvm::isa<llvm::ArrayType>(fv->ft.type))
 		InsertArrayDestructor(fv, before);
 	else
@@ -173,11 +172,9 @@ inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nul
 }
 
 static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
-	errs() << "generating array destructors " << *var->ft.type << '\n';
 	llvm::Function* destructor = getDestructor(var->ft.elem_type);
 	if (!destructor)
 		return;
-	errs() << "generating array destructors2 " << *var->ft.type << '\n';
 	llvm::Type* elem_type = var->ft.type;
 	auto struct_type = llvm::dyn_cast<llvm::StructType>(var->val->getType());
 	llvm::Value* AllocSize = Builder->getInt64(1);
@@ -246,8 +243,6 @@ static void InsertDestructors(VarTable& t, llvm::Value* retp) {
 		auto fv = (FullVar*)((char*)node + node->offset);
 		if ((fv->ft.type_attr & A_destructor) && fv->val && fv->val != retp)
 			InsertDestructor(fv);
-		else
-			errs() << "not generating destructor for " << var_node.getKey() << (fv->ft.type_attr & A_destructor) << '\n';
 	}
 }
 
