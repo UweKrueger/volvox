@@ -341,8 +341,7 @@ extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 extern void PrepareTestFramework();
 extern const char* TestFunction;
 extern bool do_test;
-extern void check_destructor(const char* type_name, volvoxc::FullType* ft);
-extern void check_constructor(const char* type_name, volvoxc::FullType* ft);
+extern void finish_constructors_and_destructor();
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type

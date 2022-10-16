@@ -176,7 +176,7 @@ static void InsertDestructors(llvm::Value* retp) {
 		InsertDestructors(*t, retp);
 }
 
-void check_destructor(const char* type_name, volvoxc::FullType* ft) {
+static void check_destructor(const char* type_name, volvoxc::FullType* ft) {
 	bool needs_destructors = false;
 	if (llvm::isa<llvm::StructType>(ft->type)) {
 		auto D = getDestructor(ft, true);
@@ -204,7 +204,26 @@ void check_destructor(const char* type_name, volvoxc::FullType* ft) {
 	}
 }
 
-void check_constructor(const char* type_name, volvoxc::FullType* ft) {
+static void check_constructor(const char* type_name, volvoxc::FullType* ft) {
+}
+
+/* Destructor and constructor declarations are only allowed right after the corresponding
+ * type declaration. The following function is called when the next code is something else
+ * i.e. the constructor/destructor section is finished. The point is that the type may need
+ * a destructor/default constructor an to handle struct fields even if none has been explicitly
+ * defined. In this case a destructor/default constructor is created automatically
+ */
+void finish_constructors_and_destructor() {
+	auto ft = lex.get_full_type(last_defined_type);
+	if (ft) {
+		if (!(ft->type_attr & A_destructor))
+			check_destructor(last_defined_type, ft);
+		if (!(ft->type_attr & A_constructor))
+			check_constructor(last_defined_type, ft);
+	} else {
+		errs() << "could not find type '" << last_defined_type << "'\n";
+	}
+	last_defined_type = nullptr;
 }
 
 llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {

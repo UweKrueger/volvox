@@ -1167,21 +1167,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			return nullptr;
 		}
 	}
-	if (last_defined_type && !(visibility & (A_constructor | A_destructor))) {
-		// see comment in MainLoop() in main.cc
-		// if a function definition follows after typedef here is the last possibility
-		// to auto-generate destructors/constructors...
-		auto ft = lex.get_full_type(last_defined_type);
-		if (ft) {
-			if (!(ft->type_attr & A_destructor))
-				check_destructor(last_defined_type, ft);
-			if (!(ft->type_attr & A_constructor))
-				check_constructor(last_defined_type, ft);
-		} else {
-			errs() << "could not find type '" << last_defined_type << "'\n";
-		}
-		last_defined_type = nullptr;
-	}
+	if (last_defined_type && !(visibility & (A_constructor | A_destructor)))
+		// there is still a destructor/constructor section pending for the last type declaration
+		// which is unrelated - let's finish that before we continue with this definition here
+		finish_constructors_and_destructor();
 	switch ((int)CurTok.kind) {
 	case tok_identifier:
 		FnName = (visibility & A_destructor) ? ("~" + UnmagledReceiverTypeName) :

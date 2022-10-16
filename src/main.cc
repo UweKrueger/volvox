@@ -498,21 +498,8 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 /// top ::= definition | external | expression | ';'
 static void MainLoop() {
 	for (;;) {
-		if (last_defined_type) {
-			// A type has just been declared and all con/destructors have been
-			// defined. However the type may need a destructor/default constructor even
-			// if not manually defined an to handle struct fields. Let' check this...
-			auto ft = lex.get_full_type(last_defined_type);
-			if (ft) {
-				if (!(ft->type_attr & A_destructor))
-					check_destructor(last_defined_type, ft);
-				if (!(ft->type_attr & A_constructor))
-					check_constructor(last_defined_type, ft);
-			} else {
-				errs() << "could not find type '" << last_defined_type << "'\n";
-			}
-			last_defined_type = nullptr;
-		}
+		if (last_defined_type)
+			finish_constructors_and_destructor();
 	startmainloop:
 		unsigned sym_kind = 0; // 'pub', 'extern', 'fn', 'cfn', ...
 		auto share_tok = TokenKind(0);
