@@ -568,22 +568,20 @@ static void MainLoop() {
 					CallTestFunction();
 				TestFunction = nullptr;
 			}
-			if (sym_kind & (A_destructor | A_constructor))
-				goto startmainloop;
-			else
-				break;
+			goto startmainloop;
 		case tok_cdecl:
 			sym_kind |= A_c_api;
 		case tok_decl:
 			if (sym_kind & A_inline) {
 				errs() << CurLoc << ": " << CurTok.kind << " cannot be used in combination with " << tok_inline << '\n';
 				purgeLine();
-				goto startmainloop;
-			}
-			HandleExtern(sym_kind);
-			break;
+			} else
+				HandleExtern(sym_kind);
+			goto startmainloop;
 		case tok_import:
 		case tok_from:
+			if (last_defined_type)
+				finish_constructors_and_destructor();
 			HandleImport();
 			break;
 		case tok_ctype:
@@ -591,9 +589,13 @@ static void MainLoop() {
 		case tok_type:
 			if (sym_kind & A_pub)
 				errs() << CurLoc << ": 'pub' is not needed for type declarations\n";
+			if (last_defined_type)
+				finish_constructors_and_destructor();
 			HandleTypeDef(sym_kind);
 			goto startmainloop;
 		default:
+			if (last_defined_type)
+				finish_constructors_and_destructor();
 			if (auto expr = GetTopLevelExpression(sym_kind)) {
 				if (comp_mode == comp_jit && !do_test)
 					HandleTopLevelExpression(std::move(expr));
