@@ -110,3 +110,11 @@ fn test_auto_destructor_1() bool
 		p.p.r = p.p.r - 1 .
 	return cntd == -3
 
+cntd = 100
+
+fn test_array_destructor_1() bool
+	if cntd > 99
+		iorrt := 34.5
+		prtz := [5][cntd][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 2 }}}}, 4: { 99: { 1: LL{ p: YY{ r: 3 }}}}}
+		prtz[3][4][0].p.r = 7 .
+	return cntd == 88

@@ -969,6 +969,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					fv.ft.type_attr |= A_signed;
 				else
 					fv.ft.type_attr &= ~A_signed;
+				if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
+					fv.ft.type_attr |= A_destructor;
+					errs() << "setting destructor for " << *fv.ft.type << '\n';
+				}
 				if (inside_function) {
 					if (locals_table.back().insert(VarL->Name.c_str(), fv)) {
 						VarL->full_var = nullptr; // in case a global with the same name had been found

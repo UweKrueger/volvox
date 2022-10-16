@@ -155,15 +155,29 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 	}
 }
 
-inline static void InsertDestructor(FullVar* fv) {
+inline static void InsertSingleDestructor(FullVar* fv) {
+	if (!fv->destructor)
+		return;
 	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
 	Builder->CreateCall(FT, fv->destructor, fv->val);
 }
 
+static void InsertArrayDestructor(FullVar* var);
+
+inline static void InsertDestructor(FullVar* fv) {
+	errs() << "generating array destructors0 " << *fv->ft.type << '\n';
+	if (llvm::isa<llvm::ArrayType>(fv->ft.type))
+		InsertArrayDestructor(fv);
+	else
+		InsertSingleDestructor(fv);
+}
+
 static void InsertArrayDestructor(FullVar* var) {
+	errs() << "generating array destructors " << *var->ft.type << '\n';
 	llvm::Function* destructor = getDestructor(var->ft.elem_type);
 	if (!destructor)
 		return;
+	errs() << "generating array destructors2 " << *var->ft.type << '\n';
 	llvm::Type* elem_type = var->ft.type;
 	auto struct_type = llvm::dyn_cast<llvm::StructType>(var->val->getType());
 	llvm::Value* AllocSize = Builder->getInt64(1);
@@ -175,8 +189,8 @@ static void InsertArrayDestructor(FullVar* var) {
 		else
 			AllocSize = Builder->CreateMul(AllocSize, Builder->CreateExtractValue(var->val, i++));
 	}
-	if (i && (!struct_type || i != struct_type->getNumElements())) {
-		errs() << "internal error in array destructor creation - value does not match type\n";
+	if (i && (!struct_type || i != struct_type->getNumElements()-1)) {
+		errs() << "internal error in array destructor creation - value does not match type " << i << ' ' << *struct_type << "\n";
 		abort();
 	}
 	auto elem_sz = TheModule->getDataLayout().getTypeAllocSize(elem_type);
@@ -213,8 +227,10 @@ static void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	for (auto var_node = t.first(); var_node; ++var_node) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
-		if (fv->destructor && fv->val && fv->val != retp)
+		if ((fv->ft.type_attr & A_destructor) && fv->val && fv->val != retp)
 			InsertDestructor(fv);
+		else
+			errs() << "not generating destructor for " << var_node.getKey() << (fv->ft.type_attr & A_destructor) << '\n';
 	}
 }
 
@@ -2443,7 +2459,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
-			if (then_var->destructor && !(then_var->ft.type_attr & A_merged))
+			if ((then_var->ft.type_attr & A_destructor) && !(then_var->ft.type_attr & A_merged))
 				InsertDestructor(then_var);
 		}
 	}
@@ -2453,7 +2469,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
-			if (then_var->destructor)
+			if (then_var->ft.type_attr & A_destructor)
 				InsertDestructor(then_var);
 		}
 	}
@@ -2462,7 +2478,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		for (auto else_node = else_locals_table.first(); else_node; ++else_node) {
 			MapValue* node = else_node.getValue();
 			auto else_var = (FullVar*)((char*)node + node->offset);
-			if (else_var->destructor && !(else_var->ft.type_attr & A_merged))
+			if ((else_var->ft.type_attr & A_destructor) && !(else_var->ft.type_attr & A_merged))
 				InsertDestructor(else_var);
 		}
 	}
