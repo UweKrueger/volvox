@@ -121,8 +121,7 @@ fn test_array_destructor_1() bool
 
 fn call_array_destructor() f64
 	iorrt := 34.5
-	n := 7
-	prtz := [82][5][n]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 7 }}}}, 80: { 3: { 6: LL{ p: YY{ r: 31 }}}}}
+	prtz := [82][5][7]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 7 }}}}, 80: { 3: { 6: LL{ p: YY{ r: 31 }}}}}
 	prtz[1][1][1].p.r = -13
 	return iorrt + prtz[3][4][0].p.r
 
