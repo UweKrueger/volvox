@@ -140,3 +140,22 @@ fn test_array_destructor_3() bool
 		rr := QQ{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
 	.
 	return cntd == 171
+
+type RR {
+	z f64
+	a [5]YY
+}
+
+fn ~RR()
+	this.z = 45.8
+	return
+
+cntd = 150
+
+fn call_array_destr2() i32
+	rr := RR{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
+	return rr.a[2].r
+
+fn test_array_destructor_4() bool
+	x := call_array_destr2()
+	return x == -7 & cntd == 121
