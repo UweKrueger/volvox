@@ -258,29 +258,34 @@ static void InsertDestructors(llvm::Value* retp) {
 		InsertDestructors(*t, retp);
 }
 
-static void check_destructor(const char* type_name, volvoxc::FullType* ft) {
+static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* thisarg) {
 	bool needs_destructors = false;
+	for (auto field = ft->first(); field; ++field) {
+		auto el_ft = field.getFt();
+		if (el_ft->type_attr & A_destructor) {
+			needs_destructors = true;
+			unsigned idx = field.getIndex();
+			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
+			llvm::Function* field_destructor = getDestructor(el_ft);
+			auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { el_ft->type->getPointerTo() }, false);
+			Builder->CreateCall(FT, field_destructor, elem_ref);
+		} else if (isa<llvm::ArrayType>(el_ft->type) && (el_ft->elem_type->type_attr & A_destructor)) {
+			needs_destructors = true;
+			unsigned idx = field.getIndex();
+			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
+			InsertArrayDestructor(el_ft->type, el_ft->elem_type, elem_ref);
+		}
+	}
+	return needs_destructors;
+}
+
+static void check_destructor(const char* type_name, volvoxc::FullType* ft) {
 	if (llvm::isa<llvm::StructType>(ft->type)) {
 		auto D = getDestructor(ft, true);
 		auto thisarg = D->getArg(0);
 		llvm::BasicBlock *BB = llvm::BasicBlock::Create(Context, "entry", D);
 		Builder->SetInsertPoint(BB);
-		for (auto field = ft->first(); field; ++field) {
-			auto el_ft = field.getFt();
-			if (el_ft->type_attr & A_destructor) {
-				needs_destructors = true;
-				unsigned idx = field.getIndex();
-				llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
-				llvm::Function* field_destructor = getDestructor(el_ft);
-				auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { el_ft->type->getPointerTo() }, false);
-				Builder->CreateCall(FT, field_destructor, elem_ref);
-			} else if (isa<llvm::ArrayType>(el_ft->type) && (el_ft->elem_type->type_attr & A_destructor)) {
-				needs_destructors = true;
-				unsigned idx = field.getIndex();
-				llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
-				InsertArrayDestructor(el_ft->type, el_ft->elem_type, elem_ref);
-			}
-		}
+		bool needs_destructors = insert_field_destructors(ft, thisarg);
 		if (!needs_destructors) {
 			D->eraseFromParent();
 			return;
