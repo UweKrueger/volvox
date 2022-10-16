@@ -2782,6 +2782,9 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	}
 	// Finish off the function.
 	if (P.RetType->type->isVoidTy()) {
+		if (P.visibility & A_destructor) {
+			insert_field_destructors(receiver_ft, TheFunction->getArg(0));
+		}
 		InsertDestructors(nullptr);
 		Builder->CreateRetVoid();
 	} else {
