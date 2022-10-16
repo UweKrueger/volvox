@@ -160,6 +160,53 @@ inline static void InsertDestructor(FullVar* fv) {
 	Builder->CreateCall(FT, fv->destructor, fv->val);
 }
 
+static void InsertArrayDestructor(FullVar* var) {
+	llvm::Function* destructor = getDestructor(var->ft.elem_type);
+	if (!destructor)
+		return;
+	llvm::Type* elem_type = var->ft.type;
+	auto struct_type = llvm::dyn_cast<llvm::StructType>(var->val->getType());
+	llvm::Value* AllocSize = Builder->getInt64(1);
+	unsigned i = 0;
+	while (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
+		elem_type = array_type->getElementType();
+		if (auto n = array_type->getNumElements())
+			AllocSize = Builder->CreateMul(AllocSize, Builder->getInt64(n));
+		else
+			AllocSize = Builder->CreateMul(AllocSize, Builder->CreateExtractValue(var->val, i++));
+	}
+	if (i && (!struct_type || i != struct_type->getNumElements())) {
+		errs() << "internal error in array destructor creation - value does not match type\n";
+		abort();
+	}
+	auto elem_sz = TheModule->getDataLayout().getTypeAllocSize(elem_type);
+	auto ElemAllocSize = Builder->getInt64(elem_sz);
+	AllocSize = Builder->CreateMul(AllocSize, ElemAllocSize);
+	llvm::Type* elem_ptr_ty = elem_type->getPointerTo();
+	auto elDestructorFT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { elem_ptr_ty }, false);
+	llvm::Value* Ptr = i ? Builder->CreateExtractValue(var->val, i) : var->val;
+	Ptr = Builder->CreatePtrToInt(Ptr, llvm::Type::getInt64Ty(Context));
+	llvm::Value* UpperLimit = Builder->CreateAdd(Ptr, AllocSize);
+	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
+	llvm::Function* TheFunction = enterBB->getParent();
+	llvm::BasicBlock* CondBB = llvm::BasicBlock::Create(Context, "array_destructor_loop");
+	Builder->CreateBr(CondBB);
+	TheFunction->getBasicBlockList().push_back(CondBB);
+	Builder->SetInsertPoint(CondBB);
+	auto is_less = Builder->CreateICmpULT(Ptr, UpperLimit);
+	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "loopwhile");
+	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "contloop");
+	Builder->CreateCondBr(is_less, DestructorBB, ContBB);
+	TheFunction->getBasicBlockList().push_back(DestructorBB);
+	Builder->SetInsertPoint(DestructorBB);
+	llvm::Value* ElPtr = Builder->CreateIntToPtr(Ptr, elem_ptr_ty);
+	Builder->CreateCall(elDestructorFT, destructor, ElPtr);
+	Ptr = Builder->CreateAdd(Ptr, ElemAllocSize);
+	Builder->CreateBr(CondBB);
+	TheFunction->getBasicBlockList().push_back(ContBB);
+	Builder->SetInsertPoint(ContBB);
+}
+
 // insert destructors for given var table - retp is a poniter to the function return value
 // in case of struct-return - so this one will not be destructed but moved to the caller, instead
 static void InsertDestructors(VarTable& t, llvm::Value* retp) {
