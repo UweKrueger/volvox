@@ -171,12 +171,19 @@ inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nul
 		InsertSingleDestructor(fv);
 }
 
+static void InsertArrayDestructor(llvm::Type* elem_type, volvoxc::FullType* array_elem_type,
+                                  llvm::Value* val, llvm::Instruction* before = nullptr);
+
 static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
-	llvm::Function* destructor = getDestructor(var->ft.elem_type);
+	InsertArrayDestructor(var->ft.type, var->ft.elem_type, var->val, before);
+}
+
+static void InsertArrayDestructor(llvm::Type* elem_type, // actually array_type
+                                  volvoxc::FullType* array_elem_type, llvm::Value* val, llvm::Instruction* before) {
+	llvm::Function* destructor = getDestructor(array_elem_type);
 	if (!destructor)
 		return;
-	llvm::Type* elem_type = var->ft.type;
-	auto struct_type = llvm::dyn_cast<llvm::StructType>(var->val->getType());
+	auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType());
 	llvm::Value* AllocSize = Builder->getInt64(1);
 	unsigned i = 0;
 	while (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
@@ -184,7 +191,7 @@ static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
 		if (auto n = array_type->getNumElements())
 			AllocSize = Builder->CreateMul(AllocSize, Builder->getInt64(n));
 		else
-			AllocSize = Builder->CreateMul(AllocSize, Builder->CreateExtractValue(var->val, i++));
+			AllocSize = Builder->CreateMul(AllocSize, Builder->CreateExtractValue(val, i++));
 	}
 	if (i && (!struct_type || i != struct_type->getNumElements()-1)) {
 		errs() << "internal error in array destructor creation - value does not match type " << i << ' ' << *struct_type << "\n";
@@ -197,7 +204,7 @@ static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
 	auto elDestructorFT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { elem_ptr_ty }, false);
 	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB->getParent();
-	llvm::Value* Ptr = i ? Builder->CreateExtractValue(var->val, i) : var->val;
+	llvm::Value* Ptr = i ? Builder->CreateExtractValue(val, i) : val;
 	Ptr = Builder->CreatePtrToInt(Ptr, llvm::Type::getInt64Ty(Context));
 	llvm::Value* PtrStore = CreateEntryBlockAlloca(llvm::Type::getInt64Ty(Context), "", TheFunction);
 	Builder->CreateStore(Ptr, PtrStore);
@@ -267,6 +274,11 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft) {
 				llvm::Function* field_destructor = getDestructor(el_ft);
 				auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { el_ft->type->getPointerTo() }, false);
 				Builder->CreateCall(FT, field_destructor, elem_ref);
+			} else if (isa<llvm::ArrayType>(el_ft->type) && (el_ft->elem_type->type_attr & A_destructor)) {
+				needs_destructors = true;
+				unsigned idx = field.getIndex();
+				llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
+				InsertArrayDestructor(el_ft->type, el_ft->elem_type, elem_ref);
 			}
 		}
 		if (!needs_destructors) {

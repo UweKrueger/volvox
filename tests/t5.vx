@@ -128,3 +128,15 @@ fn call_array_destructor() f64
 fn test_array_destructor_2() bool
 	call_array_destructor()
 	return cntd == 63
+
+type QQ {
+	a [5]YY
+}
+
+cntd = 200
+
+fn test_array_destructor_3() bool
+	if cntd > 100
+		rr := QQ{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
+	.
+	return cntd == 171
