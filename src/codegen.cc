@@ -171,16 +171,17 @@ inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nul
 		InsertSingleDestructor(fv);
 }
 
-static void InsertArrayDestructor(llvm::Type* elem_type, volvoxc::FullType* array_elem_type,
-                                  llvm::Value* val, llvm::Instruction* before = nullptr);
+static void InsertArrayConDestructor(llvm::Type* elem_type, volvoxc::FullType* array_elem_type,
+                                  llvm::Value* val, llvm::Instruction* before = nullptr, bool is_constructor = false);
 
 static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
-	InsertArrayDestructor(var->ft.type, var->ft.elem_type, var->val, before);
+	InsertArrayConDestructor(var->ft.type, var->ft.elem_type, var->val, before);
 }
 
-static void InsertArrayDestructor(llvm::Type* elem_type, // actually array_type
-                                  volvoxc::FullType* array_elem_type, llvm::Value* val, llvm::Instruction* before) {
-	llvm::Function* destructor = getDestructor(array_elem_type);
+static void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
+                                     volvoxc::FullType* array_elem_type, llvm::Value* val, llvm::Instruction* before,
+                                     bool is_constructor) {
+	llvm::Function* destructor = getDestructor(array_elem_type, false, is_constructor);
 	if (!destructor)
 		return;
 	auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType());
@@ -258,7 +259,7 @@ static void InsertDestructors(llvm::Value* retp) {
 		InsertDestructors(*t, retp);
 }
 
-static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* thisarg) {
+static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* thisarg, bool is_constructor = false) {
 	bool needs_destructors = false;
 	for (auto field = ft->first(); field; ++field) {
 		auto el_ft = field.getFt();
@@ -266,37 +267,34 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 			needs_destructors = true;
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
-			llvm::Function* field_destructor = getDestructor(el_ft);
+			llvm::Function* field_destructor = getDestructor(el_ft, false, is_constructor);
 			auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { el_ft->type->getPointerTo() }, false);
 			Builder->CreateCall(FT, field_destructor, elem_ref);
 		} else if (isa<llvm::ArrayType>(el_ft->type) && (el_ft->elem_type->type_attr & A_destructor)) {
 			needs_destructors = true;
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
-			InsertArrayDestructor(el_ft->type, el_ft->elem_type, elem_ref);
+			InsertArrayConDestructor(el_ft->type, el_ft->elem_type, elem_ref, nullptr, is_constructor);
 		}
 	}
 	return needs_destructors;
 }
 
-static void check_destructor(const char* type_name, volvoxc::FullType* ft) {
+static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool is_constructor) {
 	if (llvm::isa<llvm::StructType>(ft->type)) {
-		auto D = getDestructor(ft, true);
+		auto D = getDestructor(ft, true, is_constructor);
 		auto thisarg = D->getArg(0);
 		llvm::BasicBlock *BB = llvm::BasicBlock::Create(Context, "entry", D);
 		Builder->SetInsertPoint(BB);
-		bool needs_destructors = insert_field_destructors(ft, thisarg);
+		bool needs_destructors = insert_field_destructors(ft, thisarg, is_constructor);
 		if (!needs_destructors) {
 			D->eraseFromParent();
 			return;
 		}
 		Builder->CreateRetVoid();
 		finishFunctionOrModule(D, 1, false);
-		ft->type_attr |= A_destructor;
+		ft->type_attr |= (is_constructor ? A_constructor : A_destructor);
 	}
-}
-
-static void check_constructor(const char* type_name, volvoxc::FullType* ft) {
 }
 
 /* Destructor and constructor declarations are only allowed right after the corresponding
@@ -309,9 +307,9 @@ void finish_constructors_and_destructor() {
 	auto ft = lex.get_full_type(last_defined_type);
 	if (ft) {
 		if (!(ft->type_attr & A_destructor))
-			check_destructor(last_defined_type, ft);
+			check_destructor(last_defined_type, ft, false);
 		if (!(ft->type_attr & A_constructor))
-			check_constructor(last_defined_type, ft);
+			check_destructor(last_defined_type, ft, true);
 	} else {
 		errs() << "could not find type '" << last_defined_type << "'\n";
 	}

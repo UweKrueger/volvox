@@ -593,7 +593,7 @@ void destroy_FV(MapValue* mapval) {
 	free((void*)var->mangled_name);
 }
 
-llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created) {
+llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_constructor) {
 	if (!ft->mangled_name || !(ft->type_attr & A_destructor) && !is_created)
 		return nullptr;
 	std::string fn_name = "_Z";
@@ -610,7 +610,7 @@ llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created) {
 		fn_name += 'N';
 		fn_name += ft->mangled_name;
 	}
-	fn_name += "D2Ev";
+	fn_name += (is_constructor ? "C2Ev" : "D2Ev");
 	if (!is_created)
 		if (auto F = TheModule->getFunction(fn_name))
 			return F;
