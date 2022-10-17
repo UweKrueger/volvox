@@ -25,11 +25,11 @@ fn test_non_global_main_var_1() bool
 kkq93 := 6
 pp372 := 5
 
-xpps29 := [kkq93][7][pp372]f64{2: {1: {3: 8.25}}, 5: {6: {4: -3.5}}}
+xpps29 := [kkq93][3][pp372]f64{2: {1: {3: 8.25}}, 5: {2: {4: -3.5}}}
 
 global jjf04 := 0.
 
-jjf04 = xpps29[0][0][0] + xpps29[2][1][3] + xpps29[5][6][4]
+jjf04 = xpps29[0][0][0] + xpps29[2][1][3] + xpps29[5][2][4]
 
 fn test_non_const_size_main_array() bool
 	return jjf04 == 4.75
@@ -115,15 +115,15 @@ cntd = 100
 fn test_array_destructor_1() bool
 	if cntd > 99
 		iorrt := 34.5
-		prtz := [5][cntd][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 2 }}}}, 4: { 99: { 1: LL{ p: YY{ r: 3 }}}}}
-		prtz[3][4][0].p.r = 7 .
+		prtz := [2][cntd-95][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 2 }}}}, 1: { 4: { 1: LL{ p: YY{ r: 3 }}}}}
+		prtz[1][4][0].p.r = 7 .
 	return cntd == 88
 
 fn call_array_destructor() f64
 	iorrt := 34.5
-	prtz := [82][5][7]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 7 }}}}, 80: { 3: { 6: LL{ p: YY{ r: 31 }}}}}
+	prtz := [2][5][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 7 }}}}, 1: { 3: { 1: LL{ p: YY{ r: 31 }}}}}
 	prtz[1][1][1].p.r = -13
-	return iorrt + prtz[3][4][0].p.r
+	return iorrt + prtz[1][4][0].p.r
 
 fn test_array_destructor_2() bool
 	call_array_destructor()
