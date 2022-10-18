@@ -155,6 +155,12 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 	}
 }
 
+static void EraseInstruction(llvm::Instruction* inst) {
+	llvm::BasicBlock::iterator BI(inst);
+	llvm::BasicBlock::InstListType& BIL = inst->getParent()->getInstList();
+	BIL.erase(BI);
+}
+
 inline static void InsertSingleDestructor(FullVar* fv) {
 	if (!fv->destructor)
 		return;
