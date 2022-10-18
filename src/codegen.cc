@@ -1053,16 +1053,6 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value *UnaryExprAST::codegen_raw(llvm::Value* target) {
-	if (Opcode[0] == '&') {
-		if (auto V = dynamic_cast<LvalueExprAST*>(Operand.get())) {
-			return V->codegen_ref().second;
-		} else {
-			auto operand = Operand->codegen();
-			// the above and the below lines have to be separated because 'codegen()' may change 'ft'
-			// and the order of function arg evaluation is "unspecified" in C++ ISO 14882
-			return StoreValue(operand, Operand->ft);
-		}
-	}
 	llvm::Value *OperandV = Operand->codegen();
 	if (!OperandV)
 		return nullptr;

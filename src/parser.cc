@@ -910,9 +910,20 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	
 	// If this is a unary operator, read it.
 	std::string Op = IdentifierStr;
+	auto Loc = CurLoc;
 	getNextToken();
-	if (auto Operand = ParseUnary(terminator))
-		return std::make_unique<UnaryExprAST>(Op.c_str(), std::move(Operand));
+	if (auto Operand = ParseUnary(terminator)) {
+		if (Op == "&") {
+			if (auto lval = dynamic_cast<LvalueExprAST*>(Operand.get())) {
+				auto Lval = std::unique_ptr<LvalueExprAST>(lval);
+				Operand.release();
+				return std::make_unique<ReferenceExprAST>(Loc, std::move(Lval));
+			}
+			errs() << Loc << ": reference operator '&' cannot be applied to rvalue\n";
+			return nullptr;
+		} else
+			return std::make_unique<UnaryExprAST>(Op.c_str(), std::move(Operand));
+	}
 	return nullptr;
 }
 

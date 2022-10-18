@@ -418,6 +418,34 @@ public:
 #endif
 };
 
+// Expression class for a unary '&' operator
+class ReferenceExprAST : public LvalueExprAST {
+	std::unique_ptr<LvalueExprAST> Operand;
+
+public:
+	ReferenceExprAST(SourceLocation Loc, std::unique_ptr<LvalueExprAST> _Operand)
+		: LvalueExprAST(Loc), Operand(std::move(_Operand)) {
+		ft = new_FullType(*Operand->ft);
+		ft->type_attr |= A_ref;
+	}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
+		errs() << "cannot generate \"value\" code for reference expression\n";
+		return nullptr;
+	}
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override {
+		auto pair = Operand->codegen_ref(silent_fail);
+		ft->type = pair.first;
+		return pair;
+	}
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		ExprAST::dump(out << "unary &", ind);
+		Operand->dump(out, ind + 1);
+		return out;
+	}
+#endif
+};
+
 // conversions that have to be applied to Operands of binary Operator to make them compatible
 struct BinOpConv {
 	std::function<llvm::Value*(llvm::Value*)> LHS;
