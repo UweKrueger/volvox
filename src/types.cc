@@ -590,7 +590,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 
 void destroy_FV(MapValue* mapval) {
 	auto var = (FullVar*)((char*)mapval + mapval->offset);
-	free((void*)var->mangled_name);
+	var->destroy();
 }
 
 llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_constructor) {

@@ -356,7 +356,30 @@ struct FullVar {
 	};
 	const char* mangled_name = nullptr; // only for pub globals
 	llvm::Function* destructor = nullptr;
+	llvm::Instruction* constructor; // to erase in auto-conversion to move
+	FullVar** possible_references = nullptr; // if 'this' is accessed constructors of those can't be elided
+	unsigned n_p_r = 0;
+	unsigned c_p_r = 0;
 	volvoxc::FullType ft = {0};
+	bool may_reference(FullVar* v) {
+		for (int i=0; i<n_p_r; i++)
+			if (possible_references[i] == v)
+				return true;
+		return false;
+	}
+	void mark_as_referencing(FullVar* v) {
+		if (!may_reference(v)) {
+			if (c_p_r <= n_p_r) {
+				c_p_r = c_p_r + (c_p_r >> 1) + 8;
+				possible_references = (FullVar**)realloc(possible_references, c_p_r);
+			}
+			possible_references[++n_p_r] = v;
+		}
+	}
+	void destroy() { // we cannot call it "~FullVar()" because it must not be called automatically
+		free((void*)this->mangled_name);
+		free((void*)this->possible_references);
+	}
 };
 
 struct FVListElem {
