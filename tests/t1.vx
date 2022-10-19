@@ -104,11 +104,11 @@ fn vecrep(a7 int) f64
 		vd[a7-1] = vd[5] + bpp
 		bpp = .5 + vd[a7-1]
 		a7 = a7 + 873
-	until a7 >= 897543
+	until a7 >= 100000
 	return vd[a7-874]
 
 fn test_repeat_dyn_array() bool
-	return vecrep(100000) == 13016.75
+	return vecrep(1000) == 1616.75
 
 fn merge_array(i int) real
 	if i > 3
