@@ -113,7 +113,7 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 			errs() << "\n";
 		}
 #ifdef LEGACY_PASS_MANAGER
-		TheFPM->run(F);
+		TheFPM->run(*F);
 		if (dump_IR >= dumpLevel && dump_opt) {
 			errs() << "Read \"" << F->getName() << "()\" definition (after optimization):\n";
 			F->print(errs());

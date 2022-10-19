@@ -111,7 +111,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    }
 			    if (comp_mode == comp_jit && lex.input_fd == 0) {
 #ifdef MONOCHROME_PROMPT
-				    sprintf(prompt, VOLVOX_PROMPT, LexLoc.Line + 1);
+				    sprintf(prompt, VOLVOX_PROMPT, lex.Loc.Line + 1);
 #else
 				    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, lex.Loc.Line + 1, p_col.greater);
 #endif
