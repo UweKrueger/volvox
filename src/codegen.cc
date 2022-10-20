@@ -1205,7 +1205,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				DBuilder->createGlobalVariableExpression(
 					SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed), false);
 			}
-			if (initializer)
+			if (initializer) {
 				// If 'needs_store' this here is part of a module which is going to be
 				// removed later. So in this case it's only a declaration and the 'real'
 				// variable is defined below in a separate module that will stay.
@@ -1215,6 +1215,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                              (sym_kind & A_global) ?
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
 				                              llvm::GlobalVariable::NotThreadLocal, 0, needs_store);
+				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
+			}
 			FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
 			if (!fv) {
 				errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
