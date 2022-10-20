@@ -928,7 +928,7 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref(bool silent_fail)
 	if (auto LV = dynamic_cast<LvalueExprAST*>(Struct.get())) {
 		auto struct_ref = LV->codegen_ref(silent_fail);
 		if (struct_ref.second)
-			return { ft->type, Builder->CreateConstGEP2_32(struct_ref.first, struct_ref.second, 0, FieldIndex) };
+			return { ft->type, Builder->CreateStructGEP(struct_ref.first, struct_ref.second, FieldIndex) };
 	}
 	if (!silent_fail)
 		errs() << Struct->Loc << ": LHS of '.' expression must be an lvalue\n";
