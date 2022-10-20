@@ -114,11 +114,6 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 		}
 #ifdef LEGACY_PASS_MANAGER
 		TheFPM->run(*F);
-		if (dump_IR >= dumpLevel && dump_opt) {
-			errs() << "Read \"" << F->getName() << "()\" definition (after optimization):\n";
-			F->print(errs());
-			errs() << "\n";
-		}
 #endif
 	}
 	if (finishModule) {
@@ -140,13 +135,10 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 				PB.buildO0DefaultPipeline(optimization_level) :
 				PB.buildPerModuleDefaultPipeline(optimization_level);
 			MPM.run(*TheModule, MAM);
-			if (dump_IR >= dumpLevel && dump_opt) {
-				auto end = TheModule->end();
-				for (auto it = TheModule->begin(); it != end; ++it)
-					it->print(errs());
-			}
 		}
 #endif
+		if (dump_IR >= dumpLevel && dump_opt)
+			TheModule->print(errs(), nullptr);
 		if (newModule) {
 			ExitOnErr(TheJIT->addModule(
 				          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
