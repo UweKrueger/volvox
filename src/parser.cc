@@ -1380,9 +1380,7 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 				errs() << E->Loc << ' ' << B->Op << ": Cannot evaluate expression\n";
 				return nullptr;
 			} else {
-				errs() << E->Loc << ": Cannot deduce type of expression\n";
-				if (E->ft)
-					E->ft->dump();
+				errs() << E->Loc << ": indeterminate expression\n";
 				return nullptr;
 			}
 		}
