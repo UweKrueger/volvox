@@ -1372,8 +1372,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			}
 		}
 	} else {
-		errs() << "Could not generate assigned expression\n";
+		errs() << expr->RHS->Loc << ": could not generate code for initialization expression\n";
 		tmpf->eraseFromParent();
+		lex.module->globals_table.erase(unmangled_name.c_str());
 	}
 	return nullptr;
 }
