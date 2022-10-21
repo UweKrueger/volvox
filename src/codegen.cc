@@ -1145,7 +1145,18 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		// the setter after usage
 		finishFunctionOrModule();
 	}
-	VariableExprAST* LHSE = static_cast<VariableExprAST *>(expr->LHS.get());
+	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
+	ReferenceExprAST* LREF;
+	if (LHSE)
+		LREF = nullptr;
+	else
+		if ((LREF = dynamic_cast<ReferenceExprAST*>(expr->LHS.get())))
+			LHSE = dynamic_cast<VariableExprAST*>(LREF->Operand.get());
+	if (!LHSE) {
+		errs() << LHSE->Loc << ": LHS of declaration must be a variable name\n";
+		return nullptr;
+	}
+	errs() << "Var: " << (uintptr_t)LHSE << " Ref: " << (uintptr_t)LREF << '\n';
 	const std::string& unmangled_name = LHSE->getName();
 	std::string varname;
 	if (lex.module->import_path.empty()) {

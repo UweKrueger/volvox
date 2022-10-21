@@ -905,7 +905,8 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 ///   ::= '!' unary
 static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	// If the current token is not an operator, it must be a primary expr.
-	if (CurTok.kind != tok_unary)
+	auto kind = CurTok.kind;
+	if (kind != tok_unary && kind != tok_ref)
 		return ParsePrimary(terminator);
 	
 	// If this is a unary operator, read it.
@@ -913,7 +914,7 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	auto Loc = CurLoc;
 	getNextToken();
 	if (auto Operand = ParseUnary(terminator)) {
-		if (Op == "&") {
+		if (kind == tok_ref) {
 			if (auto lval = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 				auto Lval = std::unique_ptr<LvalueExprAST>(lval);
 				Operand.release();
