@@ -1036,6 +1036,8 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 		// pass by value
 		val = expr->codegen();
 	}
+	if (!val)
+		return nullptr;
 	llvm::Constant* rttype_ptr = getRtType(expr->ft);
 	llvm::Type* real_type = expr->ft->type;
 	std::vector<llvm::Type*> types = { rttype_ptr->getType(), val->getType() };
