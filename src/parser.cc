@@ -967,6 +967,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		if (BinOp == ":=") {
+			if (!RHS_type) {
+				errs() << RHS->Loc << ": RHS of declaration is indeterminate\n";
+				return nullptr;
+			}
 			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
 				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				llvm::Type* type = std::get<0>(type_descr);
