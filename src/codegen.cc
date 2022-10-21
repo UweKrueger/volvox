@@ -464,8 +464,10 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 
 llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	auto V = codegen_ref();
-	// Load the value.
-	return Builder->CreateLoad(V.first, V.second, Name.c_str());
+	if (V.first && V.second)
+		// Load the value.
+		return Builder->CreateLoad(V.first, V.second, Name.c_str());
+	return nullptr;
 }
 
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
