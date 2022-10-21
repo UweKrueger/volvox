@@ -125,11 +125,11 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 				attribs |= A_const;
 				attribs |= A_ref;
 				break;
+			case tok_ref:
+				attribs |= A_ref;
+				break;
 			default:
-				if (CurTok.kind == '&')
-					attribs |= A_ref;
-				else
-					goto no_attribute;;
+				goto no_attribute;;
 			}
 			getNextToken(eType);
 			allow_attribute = false;

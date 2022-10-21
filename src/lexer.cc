@@ -781,11 +781,9 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 		return tok_eof;
 		// unary operators
 	case '&':
-		if (expect == eType) {
-			IdentifierStr = CurChar;
-			CurChar = advance();
-			return '&';
-		}
+		IdentifierStr = CurChar;
+		CurChar = advance();
+		return tok_ref;
 	case '+':
 	case '-':
 	case '!':

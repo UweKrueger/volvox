@@ -48,7 +48,8 @@ TOKEN(last_op) /* only used for comparisons to identify operators */ \
 TOKEN(selector) /* '.' (struct.field, module.ident), invisible operator in `sin(x)` - so `sin(x)a` = `(sin(x))a */ \
 TOKEN(postfix) /* ++, -- (return old result) - these and the following operators can be redefined for user types */ \
 TOKEN(pow) /* ** */ \
-TOKEN(unary) /* +, -, !, ~, &, <- */ \
+TOKEN(ref) /* & */ \
+TOKEN(unary) /* +, -, !, ~, <- */ \
 TOKEN(invisible) /* invisible operator in `sin x` or `2a` or `sin 2x` = `sin(2x)` - right binding */ \
 TOKEN(mult) /* *, /, %, <<, >> */ \
 TOKEN(add) /* +, -, ~ */ \
