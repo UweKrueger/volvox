@@ -992,7 +992,12 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				else
 					fv.ft.type_attr &= ~A_signed;
 				if (RefL)
-					fv.ft.type_attr = (fv.ft.type_attr  | A_ref) & ~A_destructor; // references need no destructors
+					if (dynamic_cast<LvalueExprAST*>(LHS.get()))
+						fv.ft.type_attr = (fv.ft.type_attr  | A_ref) & ~A_destructor; // references need no destructors
+					else {
+						errs() << RHS->Loc << ": RHS of reference declaration must be an lvalue\n";
+						return nullptr;
+					}
 				else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
 					fv.ft.type_attr |= A_destructor;
 				}
