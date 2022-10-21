@@ -971,7 +971,14 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				errs() << RHS->Loc << ": RHS of declaration is indeterminate\n";
 				return nullptr;
 			}
-			if (auto VarL = dynamic_cast<VariableExprAST*>(LHS.get())) {
+			ReferenceExprAST* RefL;
+			VariableExprAST* VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+			if (VarL)
+				RefL = nullptr;
+			else
+				if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get())))
+					VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
+			if (VarL) {
 				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				llvm::Type* type = std::get<0>(type_descr);
 				bool is_signed = std::get<2>(type_descr);
@@ -984,7 +991,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					fv.ft.type_attr |= A_signed;
 				else
 					fv.ft.type_attr &= ~A_signed;
-				if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
+				if (RefL)
+					fv.ft.type_attr = (fv.ft.type_attr  | A_ref) & ~A_destructor; // references need no destructors
+				else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
 					fv.ft.type_attr |= A_destructor;
 				}
 				if (inside_function) {

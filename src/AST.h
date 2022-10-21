@@ -420,9 +420,8 @@ public:
 
 // Expression class for a unary '&' operator
 class ReferenceExprAST : public LvalueExprAST {
-	std::unique_ptr<LvalueExprAST> Operand;
-
 public:
+	std::unique_ptr<LvalueExprAST> Operand;
 	ReferenceExprAST(SourceLocation Loc, std::unique_ptr<LvalueExprAST> _Operand)
 		: LvalueExprAST(Loc), Operand(std::move(_Operand)) {
 		ft = new_FullType(*Operand->ft);
