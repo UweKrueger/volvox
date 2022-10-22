@@ -362,7 +362,7 @@ struct FullVar {
 	unsigned c_p_r = 0;
 	volvoxc::FullType ft = {0};
 	bool may_reference(FullVar* v) {
-		for (int i=0; i<n_p_r; i++)
+		for (unsigned i=0; i<n_p_r; i++)
 			if (possible_references[i] == v)
 				return true;
 		return false;
