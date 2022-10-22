@@ -1181,211 +1181,226 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		auto last_restorer = getFunction(last_restorer_proto);
 		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callrestorer");
 	}
-	if (auto Val = expr->RHS->codegen()) {
-		llvm::Type* val_type = Val->getType();
-		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
-		llvm::Type* type = std::get<0>(type_descr);
-		auto conversion = std::get<1>(type_descr);
-		bool is_signed = std::get<2>(type_descr);
-		auto convertedVal = conversion(Val);
-		llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
-			llvm::GlobalValue::ExternalLinkage :
-			llvm::GlobalValue::InternalLinkage;
-		auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal);
-		bool needs_store;
-		if (initializer) {
-			needs_store = false;
-			tmpf->eraseFromParent();
+	llvm::Value* Val;
+	llvm::Type* val_type;
+	llvm::Type* type;
+	llvm::Value* convertedVal;
+	std::function<llvm::Value*(llvm::Value*)> conversion;
+	bool is_signed;
+	if (LREF) {
+		if (auto refexpr = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
+			auto t_v = refexpr->codegen_ref();
+			val_type = type = t_v.first;
+			convertedVal = Val = t_v.second;
 		} else {
-			needs_store = true;
-			if (expr->RHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) > 0) {
-				initializer = llvm::Constant::getNullValue(convertedVal->getType());
-			}
+			Val = nullptr;
 		}
-		if (needs_store && (sym_kind & A_global)) {
-			errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
-			tmpf->eraseFromParent();
-			// the parser should have added this global variable to lex.module - revert this
-			lex.module->globals_table.erase(unmangled_name.c_str());
+	} else
+		Val = expr->RHS->codegen();
+	if (!Val) {
+		errs() << expr->RHS->Loc << ": could not generate code for initialization expression\n";
+		tmpf->eraseFromParent();
+		lex.module->globals_table.erase(unmangled_name.c_str());
+	}
+	if (!LREF) {
+		val_type = Val->getType();
+		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
+		type = std::get<0>(type_descr);
+		conversion = std::get<1>(type_descr);
+		is_signed = std::get<2>(type_descr);
+		convertedVal = conversion(Val);
+	}
+	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
+		llvm::GlobalValue::ExternalLinkage :
+		llvm::GlobalValue::InternalLinkage;
+	auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal);
+	bool needs_store;
+	if (initializer) {
+		needs_store = false;
+		tmpf->eraseFromParent();
+	} else {
+		needs_store = true;
+		if (expr->RHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) > 0) {
+			initializer = llvm::Constant::getNullValue(convertedVal->getType());
+		}
+	}
+	if (needs_store && (sym_kind & A_global)) {
+		errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
+		tmpf->eraseFromParent();
+		// the parser should have added this global variable to lex.module - revert this
+		lex.module->globals_table.erase(unmangled_name.c_str());
+		return nullptr;
+	} else {
+		llvm::GlobalVariable* GV;
+		if (initializer)
+			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type))
+				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
+					if (auto const_initializer = llvm::dyn_cast<llvm::Constant>(expandArrayInitializer(initializer, ini_array_type, array_type)))
+						initializer = const_initializer;
+		if (comp_mode == comp_dbg) {
+			// Create a debug descriptor for the variable.
+			DBuilder->createGlobalVariableExpression(
+				SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed), false);
+		}
+		if (initializer) {
+			// If 'needs_store' this here is part of a module which is going to be
+			// removed later. So in this case it's only a declaration and the 'real'
+			// variable is defined below in a separate module that will stay.
+			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+			                              false, link_type,
+			                              needs_store ? nullptr : initializer, varname, nullptr,
+			                              (sym_kind & A_global) ?
+			                              llvm::GlobalVariable::GeneralDynamicTLSModel :
+			                              llvm::GlobalVariable::NotThreadLocal, 0, needs_store);
+			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
+		}
+		FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
+		if (!fv) {
+			errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
 			return nullptr;
-		} else {
-			llvm::GlobalVariable* GV;
-			if (initializer)
-				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type))
-					if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
-						if (auto const_initializer = llvm::dyn_cast<llvm::Constant>(expandArrayInitializer(initializer, ini_array_type, array_type)))
-							initializer = const_initializer;
-			if (comp_mode == comp_dbg) {
-				// Create a debug descriptor for the variable.
-				DBuilder->createGlobalVariableExpression(
-					SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed), false);
+		}
+		fv->storage_type = initializer ? initializer->getType() : nullptr;
+		fv->mangled_name = strdup(varname.c_str());
+		fv->ft = *expr->RHS->ft;
+		fv->ft.type = type;
+		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_mainvar;
+		if (needs_store) {
+			llvm::Type* array_ptr_ty = nullptr;
+			if (comp_mode != comp_jit) {
+				errs() << expr->Loc <<"internal error: non-global main variable '" << varname
+				       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
+				abort();
 			}
-			if (initializer) {
-				// If 'needs_store' this here is part of a module which is going to be
-				// removed later. So in this case it's only a declaration and the 'real'
-				// variable is defined below in a separate module that will stay.
-				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-				                              false, link_type,
-				                              needs_store ? nullptr : initializer, varname, nullptr,
-				                              (sym_kind & A_global) ?
-				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
-				                              llvm::GlobalVariable::NotThreadLocal, 0, needs_store);
-				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
-			}
-			FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
-			if (!fv) {
-				errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
-				return nullptr;
-			}
-			fv->storage_type = initializer ? initializer->getType() : nullptr;
-			fv->mangled_name = strdup(varname.c_str());
-			fv->ft = *expr->RHS->ft;
-			fv->ft.type = type;
-			fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_mainvar;
-			if (needs_store) {
-				llvm::Type* array_ptr_ty = nullptr;
-				if (comp_mode != comp_jit) {
-					errs() << expr->Loc <<"internal error: non-global main variable '" << varname
-					       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
-					abort();
+			unsigned ndim = 0;
+			if (initializer) { // constant size initializer
+				Builder->CreateStore(convertedVal, GV);
+				if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
+					auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
+					auto last_saver = getFunction(last_saver_proto);
+					Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
 				}
-				unsigned ndim = 0;
-				if (initializer) { // constant size initializer
-					Builder->CreateStore(convertedVal, GV);
+				Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+			} else {
+				auto retVal = StoreValue(convertedVal, expr->RHS->ft);
+				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
+					ndim = struct_type->getNumElements() - 1;
+					for (unsigned dim = 0; ; ) {
+						Builder->CreateStore(Builder->CreateExtractValue(retVal, dim), Arg);
+						if (++dim >= ndim)
+							break;
+						Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm::Type::getInt64Ty(Context)), Builder->getInt64(sizeof(size_t))), Arg->getType());
+					}
+					auto ptrRet = Builder->CreateExtractValue(retVal, ndim);
+					array_ptr_ty = ptrRet->getType();
 					if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
 						auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 						auto last_saver = getFunction(last_saver_proto);
 						Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
 					}
-					Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+					Builder->CreateRet(Builder->CreateBitCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
 				} else {
-					auto retVal = StoreValue(convertedVal, expr->RHS->ft);
-					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
-						ndim = struct_type->getNumElements() - 1;
-						for (unsigned dim = 0; ; ) {
-							Builder->CreateStore(Builder->CreateExtractValue(retVal, dim), Arg);
-							if (++dim >= ndim)
-								break;
-							Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm::Type::getInt64Ty(Context)), Builder->getInt64(sizeof(size_t))), Arg->getType());
-						}
-						auto ptrRet = Builder->CreateExtractValue(retVal, ndim);
-						array_ptr_ty = ptrRet->getType();
-						if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
-							auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
-							auto last_saver = getFunction(last_saver_proto);
-							Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
-						}
-						Builder->CreateRet(Builder->CreateBitCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
-					} else {
-						errs() << expr->Loc << ": internal error; stuct expected\n";
-						abort();
-					}
+					errs() << expr->Loc << ": internal error; stuct expected\n";
+					abort();
 				}
-				finishFunctionOrModule(tmpf, 3, true, false);
-				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
-				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-				InitializeModuleAndPassManager();
-				// We want to remove the 'setter' module below but the global variable
-				// must stay, so put the latter in a new module that is not freed
-				// by the resource tracker
-				if (initializer)
-					GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-					                              false, link_type,
-					                              initializer, varname, nullptr,
-					                              llvm::GlobalVariable::NotThreadLocal, 0, false);
-				finishFunctionOrModule();
-				// Search the JIT for the <setter_name> symbol.
-				auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
-				// C syntax at its best...
-				char* (*PTR)(size_t*) = (char* (*)(size_t*))(intptr_t)ExprSymbol.getAddress();
-				size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
-				char* varptr = PTR(Dims);
-				if (varptr) {
-					jit_main_variables.emplace_back(varptr);
-					// errs() << llvm::format("varptr: %p\n", varptr);
-					std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm::Type::getInt64Ty(Context));
-					struct_type_el[ndim] = array_ptr_ty;
-					llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
-					llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
-					for (unsigned u = 0; u<ndim; u++)
-						the_struct = Builder->CreateInsertValue(the_struct, Builder->getInt64(Dims[u]), u);
-					the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(Builder->getInt64((uintptr_t)varptr), array_ptr_ty), ndim);
-					fv->val = the_struct;
-					fv->ft.type_attr &= ~A_mainvar;
-				}
-				ExitOnErr(RT->remove());
 			}
-			if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
-				llvm::Type* V_type = initializer->getType();
-				size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
-				std::string shadow_var_name = std::string("__") + varname + "_shadow_";
-				auto V = new llvm::GlobalVariable(*TheModule, V_type,
-					                             false, link_type,
-					                             initializer, shadow_var_name, nullptr,
-					                             llvm::GlobalVariable::NotThreadLocal);
-				finishFunctionOrModule();
-				GV = TheModule->getGlobalVariable(varname, true);
-				if (!GV) {
-					GV = new llvm::GlobalVariable(*TheModule, V_type,
-					                              false, link_type,
-					                              nullptr, varname, nullptr,
-					                              llvm::GlobalVariable::GeneralDynamicTLSModel,
-					                              0, true);
-				}
-				V = TheModule->getGlobalVariable(shadow_var_name, true);
-				if (!V) {
-					V = new llvm::GlobalVariable(*TheModule, V_type,
-					                             false, link_type,
-					                             nullptr, shadow_var_name, nullptr,
-					                             llvm::GlobalVariable::NotThreadLocal,
-					                             0, true);
-				}
-				auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), storage_sz);
-				auto align = getAlignment(sz_const);
-				auto saver = std::string("__") + varname + "_saver";
-				auto restorer = std::string("__") + varname + "_restorer";
-				llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
-
-				llvm::Function* Fsaver = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, saver, TheModule.get());
-				auto BB = llvm::BasicBlock::Create(Context, "entry", Fsaver);
-				Builder->SetInsertPoint(BB);
-				Builder->CreateMemCpy(V, align, GV, align, storage_sz);
-				if (last_shadow_saver) {
-					auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
-					auto last_saver = getFunction(last_saver_proto);
-					Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callold")));
-				} else {
-					Builder->CreateRetVoid();
-				}
-				finishFunctionOrModule(Fsaver, 3, false);
-				auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
-				last_shadow_saver = saverProto->Name.c_str();
-				// savers/restorers must be always accessible so force them into builtin namespace
-				Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
-				module->FunctionProtos[saver].push_back(std::move(saverProto));
-
-				llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
-				BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
-				Builder->SetInsertPoint(BB);
-				Builder->CreateMemCpy(GV, align, V, align, storage_sz);
-				if (last_shadow_restorer) {
-					auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
-					auto last_restorer = getFunction(last_restorer_proto);
-					Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callold")));
-				} else {
-					Builder->CreateRetVoid();
-				}
-				finishFunctionOrModule(Frestorer, 3, false);
-				auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
-				last_shadow_restorer = restorerProto->Name.c_str();
-				module->FunctionProtos[restorer].push_back(std::move(restorerProto));
+			finishFunctionOrModule(tmpf, 3, true, false);
+			auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+			auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
+			ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+			InitializeModuleAndPassManager();
+			// We want to remove the 'setter' module below but the global variable
+			// must stay, so put the latter in a new module that is not freed
+			// by the resource tracker
+			if (initializer)
+				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+				                              false, link_type,
+				                              initializer, varname, nullptr,
+				                              llvm::GlobalVariable::NotThreadLocal, 0, false);
+			finishFunctionOrModule();
+			// Search the JIT for the <setter_name> symbol.
+			auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
+			// C syntax at its best...
+			char* (*PTR)(size_t*) = (char* (*)(size_t*))(intptr_t)ExprSymbol.getAddress();
+			size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
+			char* varptr = PTR(Dims);
+			if (varptr) {
+				jit_main_variables.emplace_back(varptr);
+				// errs() << llvm::format("varptr: %p\n", varptr);
+				std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm::Type::getInt64Ty(Context));
+				struct_type_el[ndim] = array_ptr_ty;
+				llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
+				llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
+				for (unsigned u = 0; u<ndim; u++)
+					the_struct = Builder->CreateInsertValue(the_struct, Builder->getInt64(Dims[u]), u);
+				the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(Builder->getInt64((uintptr_t)varptr), array_ptr_ty), ndim);
+				fv->val = the_struct;
+				fv->ft.type_attr &= ~A_mainvar;
 			}
+			ExitOnErr(RT->remove());
 		}
-	} else {
-		errs() << expr->RHS->Loc << ": could not generate code for initialization expression\n";
-		tmpf->eraseFromParent();
-		lex.module->globals_table.erase(unmangled_name.c_str());
+		if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
+			llvm::Type* V_type = initializer->getType();
+			size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
+			std::string shadow_var_name = std::string("__") + varname + "_shadow_";
+			auto V = new llvm::GlobalVariable(*TheModule, V_type,
+			                                  false, link_type,
+			                                  initializer, shadow_var_name, nullptr,
+			                                  llvm::GlobalVariable::NotThreadLocal);
+			finishFunctionOrModule();
+			GV = TheModule->getGlobalVariable(varname, true);
+			if (!GV) {
+				GV = new llvm::GlobalVariable(*TheModule, V_type,
+				                              false, link_type,
+				                              nullptr, varname, nullptr,
+				                              llvm::GlobalVariable::GeneralDynamicTLSModel,
+				                              0, true);
+			}
+			V = TheModule->getGlobalVariable(shadow_var_name, true);
+			if (!V) {
+				V = new llvm::GlobalVariable(*TheModule, V_type,
+				                             false, link_type,
+				                             nullptr, shadow_var_name, nullptr,
+				                             llvm::GlobalVariable::NotThreadLocal,
+				                             0, true);
+			}
+			auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), storage_sz);
+			auto align = getAlignment(sz_const);
+			auto saver = std::string("__") + varname + "_saver";
+			auto restorer = std::string("__") + varname + "_restorer";
+			llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
+			llvm::Function* Fsaver = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, saver, TheModule.get());
+			auto BB = llvm::BasicBlock::Create(Context, "entry", Fsaver);
+			Builder->SetInsertPoint(BB);
+			Builder->CreateMemCpy(V, align, GV, align, storage_sz);
+			if (last_shadow_saver) {
+				auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
+				auto last_saver = getFunction(last_saver_proto);
+				Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callold")));
+			} else {
+				Builder->CreateRetVoid();
+			}
+			finishFunctionOrModule(Fsaver, 3, false);
+			auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
+			last_shadow_saver = saverProto->Name.c_str();
+			// savers/restorers must be always accessible so force them into builtin namespace
+			Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
+			module->FunctionProtos[saver].push_back(std::move(saverProto));
+			llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
+			BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
+			Builder->SetInsertPoint(BB);
+			Builder->CreateMemCpy(GV, align, V, align, storage_sz);
+			if (last_shadow_restorer) {
+				auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
+				auto last_restorer = getFunction(last_restorer_proto);
+				Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callold")));
+			} else {
+				Builder->CreateRetVoid();
+			}
+			finishFunctionOrModule(Frestorer, 3, false);
+			auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
+			last_shadow_restorer = restorerProto->Name.c_str();
+			module->FunctionProtos[restorer].push_back(std::move(restorerProto));
+		}
 	}
 	return nullptr;
 }
