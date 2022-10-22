@@ -482,8 +482,9 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
 		}
+		storage_type = full_var->storage_type;
 		V = TheModule->getGlobalVariable(full_var->mangled_name, true);
-		if (!V) {
+		if (!V)
 			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, full_var->mangled_name, nullptr,
@@ -491,8 +492,6 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
 			                             llvm::GlobalVariable::NotThreadLocal,
 			                             0, true);
-		}
-		storage_type = full_var->storage_type;
 	} else {
 		V = full_var->val;
 		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
@@ -501,6 +500,10 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
+	}
+	if (full_var->ft.type_attr & A_ref) {
+		auto the_ref = Builder->CreateLoad(storage_type, V);
+		return { full_var->ft.type, the_ref };
 	}
 	return { storage_type, V };
 }
@@ -1156,7 +1159,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		errs() << LHSE->Loc << ": LHS of declaration must be a variable name\n";
 		return nullptr;
 	}
-	errs() << "Var: " << (uintptr_t)LHSE << " Ref: " << (uintptr_t)LREF << '\n';
 	const std::string& unmangled_name = LHSE->getName();
 	std::string varname;
 	if (lex.module->import_path.empty()) {
@@ -1263,7 +1265,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		fv->mangled_name = strdup(varname.c_str());
 		fv->ft = *expr->RHS->ft;
 		fv->ft.type = type;
-		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | A_mainvar;
+		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | (LREF ? A_ref : 0U) | A_mainvar;
 		if (needs_store) {
 			llvm::Type* array_ptr_ty = nullptr;
 			if (comp_mode != comp_jit) {
