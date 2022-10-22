@@ -501,7 +501,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	if (full_var->ft.type_attr & A_ref) {
+	if (full_var->ft.type_attr & A_ptrref) {
 		auto the_ref = Builder->CreateLoad(storage_type, V);
 		return { full_var->ft.type, the_ref };
 	}
@@ -1265,7 +1265,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		fv->mangled_name = strdup(varname.c_str());
 		fv->ft = *expr->RHS->ft;
 		fv->ft.type = type;
-		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | (LREF ? A_ref : 0U) | A_mainvar;
+		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | (LREF ? A_ptrref : 0U) | A_mainvar;
 		if (needs_store) {
 			llvm::Type* array_ptr_ty = nullptr;
 			if (comp_mode != comp_jit) {
