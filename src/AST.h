@@ -112,6 +112,7 @@ public:
 	// but the llvm::Value is NULL
 	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) = 0;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	virtual VariableExprAST* getBase() = 0;
 	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
 		if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
 			return Builder->CreateLoad(ref.first, ref.second, Name.c_str());
@@ -139,6 +140,7 @@ public:
 		ft = &fv->ft;
 	}
 	const std::string &getName() const { return Name; }
+	VariableExprAST* getBase() override { return this; }
 	// create reference to this variable - second result is the storage_type
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 #ifndef NDEBUG
@@ -210,6 +212,11 @@ public:
 		}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	VariableExprAST* getBase() override {
+		if (auto lval = dynamic_cast<LvalueExprAST*>(Struct.get()))
+			return lval->getBase();
+		return nullptr;
+	}
 };
 
 // IndexExprAST - Expressions like x[2] or y["key"]
@@ -242,6 +249,11 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
 	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type);
+	VariableExprAST* getBase() override {
+		if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get()))
+			return lval->getBase();
+		return nullptr;
+	}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "index", ind);
@@ -436,6 +448,7 @@ public:
 		ft->type = pair.first;
 		return pair;
 	}
+	VariableExprAST* getBase() override { return nullptr; }
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "unary &", ind);
