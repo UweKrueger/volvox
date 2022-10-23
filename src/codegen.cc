@@ -1188,12 +1188,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	llvm::Type* type;
 	llvm::Value* convertedVal;
 	std::function<llvm::Value*(llvm::Value*)> conversion;
-	bool is_signed = false;
+	bool is_signed;
 	if (LREF) {
 		if (auto refexpr = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 			auto t_v = refexpr->codegen_ref();
 			val_type = type = t_v.first;
 			convertedVal = Val = t_v.second;
+			is_signed = expr->RHS->ft->type_attr & A_signed;
 		} else {
 			Val = nullptr;
 		}

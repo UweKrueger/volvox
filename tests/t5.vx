@@ -159,3 +159,16 @@ fn call_array_destr2() i32
 fn test_array_destructor_4() bool
 	x := call_array_destr2()
 	return x == -7 & cntd == 121
+
+global tzv := 3
+
+tzv
+
+# &mkc3 := tzv
+
+# mkc3
+
+# mkc3 = -78
+
+# fn test_global_reference_1() bool
+# 	return tzv == -78
