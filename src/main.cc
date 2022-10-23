@@ -622,6 +622,11 @@ extern "C" DLLEXPORT double putchard(double X) {
 	return 0;
 }
 
+/// printadr
+extern "C" DLLEXPORT void printadr(double* X) {
+	fprintf(stderr, "Adr: %p %g\n", X, *X);
+}
+
 /// printd - printf that takes a double prints it as "%f\n", returning 0.
 extern "C" DLLEXPORT double printd(double X) {
 	errs() << X << "\n";
