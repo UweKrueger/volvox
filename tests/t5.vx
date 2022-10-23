@@ -162,13 +162,15 @@ fn test_array_destructor_4() bool
 
 global tzv := 3
 
-tzv
+rklr := 56
 
-# &mkc3 := tzv
+# &mkc3 := rklr
 
 # mkc3
 
 # mkc3 = -78
+
+# tzv = rklr
 
 # fn test_global_reference_1() bool
 # 	return tzv == -78
