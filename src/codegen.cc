@@ -1191,6 +1191,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	bool is_signed;
 	if (LREF) {
 		if (auto refexpr = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
+			auto BaseVar = refexpr->getBase();
+			if (BaseVar->ft->type_attr & A_global) {
+				errs() << BaseVar->Loc << ": cannot create reference to global variable\n";
+				tmpf->eraseFromParent();
+				lex.module->globals_table.erase(unmangled_name.c_str());
+				return nullptr;
+			}
 			auto t_v = refexpr->codegen_ref();
 			val_type = type = t_v.first;
 			convertedVal = Val = t_v.second;
