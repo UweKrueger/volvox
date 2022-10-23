@@ -1142,9 +1142,9 @@ llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* i
 }
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
-	if (comp_mode == comp_jit && !(sym_kind & A_global)) {
+	if (comp_mode == comp_jit && !do_test) {
 		// This might be a non-const initialized main var that needs a temporary
-		// 'setter' function. So finish the corrent module to be able to remove
+		// 'setter' function. So finish the current module to be able to remove
 		// the setter after usage
 		finishFunctionOrModule();
 	}
