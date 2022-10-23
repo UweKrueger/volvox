@@ -1188,7 +1188,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	llvm::Type* type;
 	llvm::Value* convertedVal;
 	std::function<llvm::Value*(llvm::Value*)> conversion;
-	bool is_signed;
+	bool is_signed = false;
 	if (LREF) {
 		if (auto refexpr = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 			auto t_v = refexpr->codegen_ref();
@@ -1217,7 +1217,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		llvm::GlobalValue::InternalLinkage;
 	auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal);
 	bool needs_store;
-	if (initializer) {
+	if (initializer && !LREF) {
 		needs_store = false;
 		tmpf->eraseFromParent();
 	} else {
@@ -1227,14 +1227,17 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		}
 	}
 	if (needs_store && (sym_kind & A_global)) {
-		errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
+		if (LREF)
+			errs() << expr->LHS->Loc << ": references are not allowed to be global\n";
+		else
+			errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
 		tmpf->eraseFromParent();
 		// the parser should have added this global variable to lex.module - revert this
 		lex.module->globals_table.erase(unmangled_name.c_str());
 		return nullptr;
 	} else {
 		llvm::GlobalVariable* GV;
-		if (initializer)
+		if (initializer && !LREF)
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type))
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
 					if (auto const_initializer = llvm::dyn_cast<llvm::Constant>(expandArrayInitializer(initializer, ini_array_type, array_type)))
