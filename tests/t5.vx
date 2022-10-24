@@ -174,3 +174,21 @@ tzv = rklr
 
 fn test_mainvar_reference_1() bool
 	return tzv == -78
+
+w3e := 3
+
+ssa := [4][w3e][2]f64{ 3: { 2: { 1: 56.0625 }}}
+
+&qjf1 := ssa[3][2][1]
+
+&qjf2 := ssa[1][0][1]
+
+global fr1 := 0.0
+global fr2 := 0.0
+
+fr1 = qjf1
+qjf2 = -27.5625
+fr2 = ssa[1][0][1]
+
+fn test_mainvar_reference_2() bool
+	return fr1 == 56.0625 & fr2 == -27.5625
