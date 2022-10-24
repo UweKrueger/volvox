@@ -175,7 +175,7 @@ tzv = rklr
 fn test_mainvar_reference_1() bool
 	return tzv == -78
 
-w3e := 3
+global w3e := 3
 
 ssa := [4][w3e][2]f64{ 3: { 2: { 1: 56.0625 }}}
 
@@ -192,3 +192,12 @@ fr2 = ssa[1][0][1]
 
 fn test_mainvar_reference_2() bool
 	return fr1 == 56.0625 & fr2 == -27.5625
+
+fn ggeewf() f64
+	a := [4][5][2]f64{ 3: { 3: { 1: 56.0625 }}}
+	&u2 := a[3][w3e][1]
+	u2 = 24.25
+	return u2 + a[3][3][1]
+
+fn test_mainvar_reference_3() bool
+   return ggeewf() == 48.5
