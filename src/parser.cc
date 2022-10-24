@@ -994,7 +994,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					fv.ft.type_attr &= ~A_signed;
 				if (RefL)
 					if (dynamic_cast<LvalueExprAST*>(LHS.get()))
-						fv.ft.type_attr = (fv.ft.type_attr  | A_ref) & ~A_destructor; // references need no destructors
+						fv.ft.type_attr = (fv.ft.type_attr | A_ptrref) & ~A_destructor; // references need no destructors
 					else {
 						errs() << RHS->Loc << ": RHS of reference declaration must be an lvalue\n";
 						return nullptr;
@@ -1015,6 +1015,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
 						return nullptr;
 					}
+					// errs() << VarL->Loc << ": inserted " << VarL->Name << ", " << fv.ft.type_attr << " in mainvars\n";
 				}
 			} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
 				errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";

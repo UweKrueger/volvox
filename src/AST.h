@@ -437,7 +437,7 @@ public:
 	ReferenceExprAST(SourceLocation Loc, std::unique_ptr<LvalueExprAST> _Operand)
 		: LvalueExprAST(Loc), Operand(std::move(_Operand)) {
 		ft = new_FullType(*Operand->ft);
-		ft->type_attr |= A_ref;
+		ft->type_attr |= A_ptrref;
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
 		errs() << "cannot generate \"value\" code for reference expression\n";
@@ -501,7 +501,7 @@ public:
 				ft = RHS->ft;
 			else if (conv.ideal.res_type && (!conv.compat.res_type || conv.ideal.res_type == llvm_bool_type)
 			         && strcmp(Op, "=")) { // '=' means assignment by default - compare if bool is expected
-				dbgs() << "setting expression type to " << *conv.ideal.res_type << '\n';
+				// errs() << "setting expression type to " << *conv.ideal.res_type << '\n';
 				ft->type = conv.ideal.res_type;
 				ft->type_attr = conv.ideal.res_attr;
 			}

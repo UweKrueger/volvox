@@ -495,7 +495,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	} else {
 		V = full_var->val;
 		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
-		if (storage_type->isFunctionTy())
+		if (storage_type->isFunctionTy() || (ft->type_attr & A_ptrref))
 			storage_type = storage_type->getPointerTo();
 	}
 	if (comp_mode == comp_dbg) {
@@ -1486,10 +1486,13 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << "destination of '=' must be an lvalue";
 			return nullptr;
 		}
+		ReferenceExprAST* LREF = dynamic_cast<ReferenceExprAST*>(LHS.get());
 		RHS->desired_type = LHSE->ft->type;
 		RHS->desired_type_attr = LHSE->ft->type_attr;
 		// Codegen the RHS.
-		uint64_t allocsz = (RHS->desired_type && RHS->desired_type->isSized()) ?
+		uint64_t allocsz = LREF ?
+			sizeof(void*) :
+			(RHS->desired_type && RHS->desired_type->isSized()) ?
 			TheModule->getDataLayout().getTypeAllocSize(RHS->desired_type) : 0; // if size is compile time const
 		llvm::Value* Val = nullptr; // 
 		llvm::Value* ValPtr = nullptr;
@@ -1501,13 +1504,17 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref(true);
 			if (!ValR.second) {
+				if (LREF) {
+					errs() << RHS->Loc << ": reference requires lvalue for initialization\n";
+				}
 				if (ValR.first)
 					goto use_val;
 				errs() << RHS->Loc << ": unable to generate code for RHS of assignment\n";
 				return nullptr;
 			}
 			// update allocsz in case codegen_ref() has revealed a fixed compile time size
-			allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
+			if (!LREF)
+				allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
 			if (!allocsz) {
 				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type)) {
 					std::vector<llvm::Value*> Dims;
@@ -1531,7 +1538,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 				}
 			} else {
-				if (allocsz <= 16) {
+				if (!LREF && allocsz <= 16) {
 					Val = RHS_Lval->ref2val(ValR);
 					if (!Val)
 						goto use_val;;
@@ -1540,6 +1547,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					ValPtr = ValR.second;
 			}
 			goto have_val_or_valptr;
+		} else {
+			if (LREF) {
+				errs() << RHS->Loc << ": reference requires lvalue for initialization\n";
+				return nullptr;
+			}
 		}
 	use_val:
 		if (allocsz <= 16) {
@@ -1551,14 +1563,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	have_val_or_valptr:
 		// Look up the name.
-		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
+		ExprAST* MaybeVar = LREF ? LREF->Operand.get() : LHS.get();
+		if (auto RegularVar = dynamic_cast<VariableExprAST*>(MaybeVar)) {
 			varname = RegularVar->getName().c_str();
 			FullVar* full_var = RegularVar->full_var;
 			if (!full_var)
 				goto not_found;
 		}
 		if (kind == decl_assign_op) {
-			errs() << LHS->Loc << ": cannot initialize existing variable";
+			errs() << LHS->Loc << ": cannot initialize existing variable\n";
 			return nullptr;
 		} else {
 			auto Variable = LHSE->codegen_ref();
@@ -1627,9 +1640,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		} else if (ValPtr) {
 			if (allocsz) {
+				llvm::AllocaInst* Alloca;
 				auto align = getAlignment(allocsz);
-				auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
-				Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
+				if (LREF) {
+					entry->ft.type_attr |= A_ptrref;
+					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
+					Builder->CreateAlignedStore(ValPtr, Alloca, align);
+				} else {
+					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
+				}
 				entry->val = Alloca;
 			} else {
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
