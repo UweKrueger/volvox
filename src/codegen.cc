@@ -2809,6 +2809,8 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		}
 	}
 	if (!P.RetType->type->isVoidTy()) {
+		if (Body.empty() || !Body.back())
+			goto cleanup;
 		Body.back()->desired_type = P.RetType->type;
 		Body.back()->desired_type_attr = P.RetType->type_attr;
 	}
@@ -2819,17 +2821,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 				KSDbgInfo.emitLocation(Expr.get());
 			}
 		} else {
-			// Error reading body, remove function.
-			TheFunction->eraseFromParent();
-			
-			if (comp_mode == comp_dbg) {
-				// Pop off the lexical block for the function since we added it
-				// unconditionally.
-				KSDbgInfo.LexicalBlocks.pop_back();
-			}
-			ret_ptr = nullptr;
-			theFunction_ret_ft = nullptr;
-			return nullptr;
+			goto cleanup;
 		}
 	}
 	// Finish off the function.
@@ -2860,4 +2852,15 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
 	return TheFunction;
+cleanup:
+	// Error reading body, remove function.
+	TheFunction->eraseFromParent();
+	if (comp_mode == comp_dbg) {
+		// Pop off the lexical block for the function since we added it
+		// unconditionally.
+		KSDbgInfo.LexicalBlocks.pop_back();
+	}
+	ret_ptr = nullptr;
+	theFunction_ret_ft = nullptr;
+	return nullptr;
 }
