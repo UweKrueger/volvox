@@ -1363,7 +1363,15 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			prompt_indent = 0;
 			return nullptr;
 		}
-		lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
+		std::vector<std::unique_ptr<PrototypeAST>>& protos = lex.module->FunctionProtos[unmangledName];
+		for (auto& p: protos) {
+			if (Proto->Name == p->Name) {
+				errs() << Proto->retLoc << ": function '" << unmangledName << "()' with the same signature has already been defined\n";
+				prompt_indent = 0;
+				return nullptr;
+			}
+		}
+		protos.push_back(std::move(Proto));
 		// 'unmangledName' will not outlive this function so to have a long-lived pointer to
 		// the unmangled function name we find the map key's address
 		TestFunction = lex.module->FunctionProtos.find(unmangledName)->first.c_str();
