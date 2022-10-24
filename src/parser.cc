@@ -1315,6 +1315,22 @@ noargs:
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
 }
 
+
+// append prototype to list after checking that it does not already exist
+static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& protos, std::unique_ptr<PrototypeAST> Proto,
+                                std::string& unmangledName, bool isMethod = false) {
+	for (auto& p: protos) {
+		if (Proto->Name == p->Name) {
+			errs() << Proto->retLoc << (isMethod ? ": method '" : ": function '") << unmangledName
+			       << "()' with the same signature has already been defined\n";
+			prompt_indent = 0;
+			return false;
+		}
+	}
+	protos.push_back(std::move(Proto));
+	return true;
+}
+
 #define TEST_FN_PREFIX "test_"
 
 /// definition ::= 'fn' prototype expression
@@ -1351,7 +1367,8 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, Proto->visibility).c_str();
 	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type(Proto->ArgTypes[0]->mangled_name);
-		MethodProtos[{mangled_receiver_type, unmangledName}].push_back(std::move(Proto));
+		if (!check_and_add_proto(MethodProtos[{mangled_receiver_type, unmangledName}], std::move(Proto), unmangledName, true))
+			return nullptr;
 	} else if (!strncmp(unmangledName.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {
 		if (sz) {
 			errs() << Proto->ArgPos[0] << ": 'test_...()' functions must not have any arguments\n";
@@ -1363,20 +1380,14 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			prompt_indent = 0;
 			return nullptr;
 		}
-		std::vector<std::unique_ptr<PrototypeAST>>& protos = lex.module->FunctionProtos[unmangledName];
-		for (auto& p: protos) {
-			if (Proto->Name == p->Name) {
-				errs() << Proto->retLoc << ": function '" << unmangledName << "()' with the same signature has already been defined\n";
-				prompt_indent = 0;
-				return nullptr;
-			}
-		}
-		protos.push_back(std::move(Proto));
+		if (!check_and_add_proto(lex.module->FunctionProtos[unmangledName], std::move(Proto), unmangledName))
+			return nullptr;
 		// 'unmangledName' will not outlive this function so to have a long-lived pointer to
 		// the unmangled function name we find the map key's address
 		TestFunction = lex.module->FunctionProtos.find(unmangledName)->first.c_str();
 	} else {
-		lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
+		if (!check_and_add_proto(lex.module->FunctionProtos[unmangledName], std::move(Proto), unmangledName))
+			return nullptr;
 	}
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList();
 	prompt_indent = 0;
