@@ -1225,7 +1225,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		llvm::GlobalValue::InternalLinkage;
 	auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal);
 	bool needs_store;
-	if (initializer && !LREF) {
+	if (initializer) {
 		needs_store = false;
 		tmpf->eraseFromParent();
 	} else {
