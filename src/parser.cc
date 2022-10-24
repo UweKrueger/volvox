@@ -1032,6 +1032,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
 			continue;
 		} else if (is_index) {
+			if (!LHS->ft || !LHS->ft->type) {
+				errs() << LHS->Loc << ": undefined expression - array expected\n";
+				return nullptr;
+			}
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
 			continue;
 		} else if (is_dotselect) {
