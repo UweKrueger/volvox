@@ -23,23 +23,16 @@ unsigned condnesting = 0;
 
 // variable size main vars are "malloc()ed" in jit mode. On exit these blocks would be
 // orphaned - so let's keep track of then to avoid memory leaks:
-class AutoFreeMem {
-public:
-	char* memblock;
-	AutoFreeMem(char* memblock) : memblock(memblock) {}
-	~AutoFreeMem() {}
-};
-
 class MainVars {
 public:
-	std::vector<AutoFreeMem> vars;
+	std::vector<char*> vars;
 	MainVars() : vars() {}
 	void emplace_back(char* adr) {
 		vars.emplace_back(adr);
 	}
 	~MainVars() {
 		for (auto& v: vars) {
-			free(v.memblock);
+			free(v);
 		}
 	}
 };
