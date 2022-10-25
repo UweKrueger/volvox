@@ -357,7 +357,7 @@ struct FullVar {
 	const char* mangled_name = nullptr; // only for pub globals
 	llvm::Function* destructor = nullptr;
 	llvm::Instruction* constructor; // to erase in auto-conversion to move
-	FullVar** possible_references = nullptr; // if 'this' is accessed constructors of those can't be elided
+	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
 	unsigned n_p_r = 0;
 	unsigned c_p_r = 0;
 	volvoxc::FullType ft = {0};
@@ -370,8 +370,8 @@ struct FullVar {
 	void mark_as_referencing(FullVar* v) {
 		if (!may_reference(v)) {
 			if (c_p_r <= n_p_r) {
-				c_p_r = c_p_r + (c_p_r >> 1) + 8;
-				possible_references = (FullVar**)realloc(possible_references, c_p_r);
+				c_p_r = c_p_r + (c_p_r >> 1) + 4;
+				possible_references = (FullVar**)realloc(possible_references, c_p_r*sizeof(FullVar*));
 			}
 			possible_references[++n_p_r] = v;
 		}
