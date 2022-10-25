@@ -1186,6 +1186,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	llvm::Type* type;
 	llvm::Value* convertedVal;
 	FullVar* is_referencing = nullptr;
+	std::string* rname;
 	std::function<llvm::Value*(llvm::Value*)> conversion;
 	bool is_signed;
 	if (LREF) {
@@ -1200,8 +1201,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			auto t_v = refexpr->codegen_ref();
 			val_type = type = t_v.first;
 			convertedVal = Val = t_v.second;
-			if (Val)
+			if (Val) {
 				is_referencing = BaseVar->full_var;
+				rname = &BaseVar->Name;
+			}
 			is_signed = expr->RHS->ft->type_attr & A_signed;
 		} else {
 			Val = nullptr;
@@ -1278,8 +1281,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		fv->ft = *expr->RHS->ft;
 		fv->ft.type = type;
 		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | (LREF ? A_ptrref : 0U) | A_mainvar;
-		if (is_referencing)
+		if (is_referencing) {
 			fv->mark_as_referencing(is_referencing);
+			errs() << "mark " << varname << "->" << *rname << '\n'; }
 		if (needs_store) {
 			llvm::Type* array_ptr_ty = nullptr;
 			if (comp_mode != comp_jit) {
@@ -1504,6 +1508,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		uint64_t el_allocsz = 0;
 		llvm::Value* Struct = nullptr;
 		FullVar* is_referencing = nullptr;
+		std::string* rname = nullptr;
 		if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref(true);
 			if (!ValR.second) {
@@ -1516,8 +1521,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			// update allocsz in case codegen_ref() has revealed a fixed compile time size
-			if (LREF)
+			if (LREF) {
 				is_referencing = RHS_Lval->getBase()->full_var;
+				rname = &RHS_Lval->getBase()->Name;
+			}
 			else
 				allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
 			if (!allocsz) {
@@ -1652,6 +1659,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
 					Builder->CreateAlignedStore(ValPtr, Alloca, align);
 					entry->mark_as_referencing(is_referencing);
+					errs() << "mark " << varname << "->" << *rname << '\n';
 				} else {
 					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
