@@ -27,10 +27,24 @@ class AutoFreeMem {
 public:
 	char* memblock;
 	AutoFreeMem(char* memblock) : memblock(memblock) {}
-	~AutoFreeMem() { free(memblock); }
+	~AutoFreeMem() {}
 };
 
-std::vector<AutoFreeMem> jit_main_variables;
+class MainVars {
+public:
+	std::vector<AutoFreeMem> vars;
+	MainVars() : vars() {}
+	void emplace_back(char* adr) {
+		vars.emplace_back(adr);
+	}
+	~MainVars() {
+		for (auto& v: vars) {
+			free(v.memblock);
+		}
+	}
+};
+
+MainVars jit_main_variables;
 
 // list of list of destructors for each context
 struct DestructorCall {
@@ -1294,7 +1308,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				}
 				Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 			} else {
-				auto retVal = StoreValue(convertedVal, expr->RHS->ft);
+				auto retVal = StoreValue(convertedVal, expr->RHS->ft, nullptr, varname);
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
 					ndim = struct_type->getNumElements() - 1;
 					for (unsigned dim = 0; ; ) {
@@ -1338,7 +1352,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			char* varptr = PTR(Dims);
 			if (varptr) {
 				jit_main_variables.emplace_back(varptr);
-				// errs() << llvm::format("varptr: %p\n", varptr);
 				std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm::Type::getInt64Ty(Context));
 				struct_type_el[ndim] = array_ptr_ty;
 				llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
