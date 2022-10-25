@@ -39,15 +39,6 @@ public:
 
 MainVars jit_main_variables;
 
-// list of list of destructors for each context
-struct DestructorCall {
-	llvm::FunctionType* FTy;
-	llvm::Function* F;
-	llvm::Value* objref;
-};
-
-std::vector<std::vector<DestructorCall>> destructors;
-
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
 		C->setTailCall();
