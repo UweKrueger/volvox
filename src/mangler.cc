@@ -14,7 +14,9 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 		else if (auto intty = llvm::dyn_cast<llvm::IntegerType>(ft->type)) {
 			auto bitwidth = intty->getBitWidth();
 			auto is_signed = (bool)(ft->type_attr & A_signed);
-			if (bitwidth <= 8)
+			if (bitwidth == 1)
+				out << 'b';
+			else if (bitwidth <= 8)
 				out << (is_signed ? 'c' : 'h');
 			else if (bitwidth <= 16)
 				out << (is_signed ? 's' : 't');
