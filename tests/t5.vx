@@ -55,8 +55,8 @@ fn YY()
 	this.r = -23
 	return
 
-# fn YY() bool
-# 	return this.r == -13
+fn YY() f64
+	return this.w.b
 
 fn hhwe() i32
    llk3e := YY{ r: 17 }

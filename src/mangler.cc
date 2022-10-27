@@ -56,7 +56,7 @@ llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<
 		mangled << name.size() << name << "C2";
 	else
 		mangled << name.size() << name;
-	if (!path.empty() || (flags & A_method))
+	if (!path.empty() || (flags & A_method) && !(flags & A_conversion))
 		mangled << 'E';
 	return buf;
 }
@@ -65,12 +65,14 @@ llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::s
                               std::vector<volvoxc::FullType*>& arg_types, unsigned flags) {
 	llvm::SmallString<128> buf = llvm::StringRef("_Z");
 	const char* rec_tname;
-	if ((flags & A_method) && !(flags & (A_destructor | A_constructor)))
+	if ((flags & A_method) && !(flags & (A_destructor | A_constructor | A_conversion)))
 		rec_tname = arg_types[0]->mangled_name;
 	else
 		rec_tname = nullptr;
 	buf = MangleBase(buf, path, name, rec_tname, flags);
 	llvm::raw_svector_ostream mangled(buf);
+	if (flags & A_conversion)
+		mangled << "cv";
 	if (arg_types.size() > 0 && !(flags & A_method) || arg_types.size() > 1) {
 		unsigned idx = 0;
 		for (auto type : arg_types) {
@@ -79,5 +81,7 @@ llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::s
 		}
 	} else
 		mangled << 'v';
+	if (flags & A_conversion)
+		mangled << "Ev";
 	return buf;
 }

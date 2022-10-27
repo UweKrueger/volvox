@@ -1375,6 +1375,10 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	std::string unmangledName = Proto->getName();
 	if (visibility & A_c_api)
 		Proto->Name = unmangledName;
+	else if (visibility & A_conversion) {
+		std::vector<volvoxc::FullType*> targetType = { Proto->ArgTypes[0], Proto->RetType };
+		Proto->Name = Mangle(lex.module->import_path, unmangledName, targetType, Proto->visibility).c_str();
+	}
 	else
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, Proto->visibility).c_str();
 	if (Proto->visibility & A_method) {
