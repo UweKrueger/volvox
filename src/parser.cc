@@ -1315,6 +1315,14 @@ noargs:
 			errs() << "a return value";
 		errs() << '\n';
 		return nullptr;
+	} else if (visibility & A_constructor) {
+		if (RetType) {
+			if (ArgTypes.size() != 1) {
+				errs() << CurLoc << ": definition of '" << FnName << "()' - conversions are not allowed to have arguments and constructors are not allowed to have a return value\n";
+				return nullptr;
+			}
+			visibility = (visibility & ~A_constructor) | A_conversion;
+		}
 	}
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
 }
