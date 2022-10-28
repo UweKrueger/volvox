@@ -463,9 +463,9 @@ struct BinOpConv {
 	std::function<llvm::Value*(llvm::Value*)> LHS;
 	std::function<llvm::Value*(llvm::Value*)> RHS;
 	llvm::Type* res_type = nullptr;
-	unsigned res_attr = 0;
-	bool is_unknown_type = false;
 	const char* err_msg = nullptr;
+	bool res_is_signed = false;
+	bool is_unknown_type = false;
 };
 
 // there are two sets of conversions. E.g. `u16 * u16(u8) -> u16` works, but could overflow
@@ -477,7 +477,7 @@ struct BinOpConvSet {
 };
 
 extern BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type,
-                              unsigned left_attr, unsigned right_attr,
+                              bool left_is_signed, bool right_is_signed,
                               bool left_is_unknown_type, bool right_is_unknown_type,
                               const char* Op, SourceLocation Loc = CurLoc);
 
@@ -490,7 +490,7 @@ public:
 	BinOpConvSet conv;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv = {})
-		: ExprAST(conv.compat.res_type, conv.compat.res_attr, Loc,
+		: ExprAST(conv.compat.res_type, conv.compat.res_is_signed ? A_signed : 0, Loc,
 		          _RHS->is_unknown_type && _LHS->is_unknown_type),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
 		strcpy(Op, _Op);
@@ -503,7 +503,7 @@ public:
 			         && strcmp(Op, "=")) { // '=' means assignment by default - compare if bool is expected
 				// errs() << "setting expression type to " << *conv.ideal.res_type << '\n';
 				ft->type = conv.ideal.res_type;
-				ft->type_attr = conv.ideal.res_attr;
+				ft->type_attr = conv.ideal.res_is_signed ? A_signed : 0;
 			}
 		} else {
 			LHS->ft = RHS->ft;
@@ -596,7 +596,7 @@ public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table, BinOpConvSet conv = {}, TokenKind if_kind = tok_if)
-		: ExprAST(_Else.size() ? conv.compat.res_type : llvm::Type::getVoidTy(Context), conv.compat.res_attr, Loc,
+		: ExprAST(_Else.size() ? conv.compat.res_type : llvm::Type::getVoidTy(Context), conv.compat.res_is_signed ? A_signed : 0, Loc,
 		          _Else.size() && _Then.back()->is_unknown_type & _Else.back()->is_unknown_type),
 		  Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
 		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)),

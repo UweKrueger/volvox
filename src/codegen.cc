@@ -1709,7 +1709,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		goto no_conversion;
 	}
 	OperandType = conv.compat.res_type ? conv.compat.res_type : conv.ideal.res_type;
-	OperandSigned = conv.compat.res_type ? !(!(conv.compat.res_attr & A_signed)) : !(!(conv.ideal.res_attr & A_signed));
+	OperandSigned = conv.compat.res_type ? conv.compat.res_is_signed : conv.ideal.res_is_signed;
 	if (is_bool) {
 		if (desired_type) {
 			if (desired_type != llvm_bool_type) {
@@ -1720,16 +1720,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (conv.compat.err_msg)
 			return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
 		LHS->desired_type = RHS->desired_type = conv.compat.res_type;
-		LHS->desired_type_attr = RHS->desired_type_attr = conv.compat.res_attr;
+		LHS->desired_type_attr = RHS->desired_type_attr = (conv.compat.res_is_signed ? A_signed : 0);
 		convLHS = conv.compat.LHS;
 		convRHS = conv.compat.RHS;
 	} else {
 		if (desired_type) {
-			auto ana_default = conv.compat.err_msg ? std::pair<bool, bool>{ false, false } : analyze_types({ conv.compat.res_type, conv.compat.res_attr }, { desired_type, desired_type_attr });
-			auto ana_ideal = analyze_types({ conv.ideal.res_type, conv.ideal.res_attr }, { desired_type, desired_type_attr });
+			auto ana_default = conv.compat.err_msg ? std::pair<bool, bool>{ false, false } : analyze_types({ conv.compat.res_type, conv.compat.res_is_signed }, { desired_type, desired_type_attr & A_signed });
+			auto ana_ideal = analyze_types({ conv.ideal.res_type, conv.ideal.res_is_signed }, { desired_type, desired_type_attr & A_signed});
 			if (ana_ideal.second) {
 				LHS->desired_type = RHS->desired_type = conv.ideal.res_type;
-				LHS->desired_type_attr = RHS->desired_type_attr = conv.ideal.res_attr;
+				LHS->desired_type_attr = RHS->desired_type_attr = (conv.ideal.res_is_signed ? A_signed : 0);
 				convLHS = conv.ideal.LHS;
 				convRHS = conv.ideal.RHS;
 			} else {
@@ -1744,7 +1744,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (conv.compat.err_msg)
 				return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
 			LHS->desired_type = RHS->desired_type = conv.compat.res_type;
-			LHS->desired_type_attr = RHS->desired_type_attr = conv.compat.res_attr;
+			LHS->desired_type_attr = RHS->desired_type_attr = (conv.compat.res_is_signed ? A_signed : 0);
 			convLHS = conv.compat.LHS;
 			convRHS = conv.compat.RHS;
 		}
@@ -2070,9 +2070,9 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()
 		        || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
 			auto conversion = getConv(
-				Args[i]->ft->type, Proto->ArgTypes[i+arg_offs]->type,
-				Args[i]->ft->type_attr, Proto->ArgTypes[i+arg_offs]->type_attr,
-				Args[i]->Loc, false, Args[i]->is_unknown_type);
+				Args[i]->ft->type, Proto->ArgTypes[i+arg_offs]->type, Args[i]->Loc,
+				Args[i]->ft->type_attr & A_signed, Proto->ArgTypes[i+arg_offs]->type_attr & A_signed,
+				false, Args[i]->is_unknown_type);
 			if (!conversion)
 				return nullptr;
 			llvm::Value* arg = conversion(Args[i]->codegen());
@@ -2190,7 +2190,7 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 			auto PreConv = getBestPreConv(Branch.back()->Loc, desired_type, conv.compat.res_type,
 			                              conv.ideal.res_type, isElse ? conv.compat.RHS : conv.compat.LHS,
 			                              isElse ? conv.ideal.RHS : conv.ideal.LHS,
-			                              conv.ideal.res_attr & A_signed);
+			                              conv.ideal.res_is_signed);
 			if (!PreConv)
 				return { nullptr, nullptr };
 			BranchV = PreConv(BranchV);

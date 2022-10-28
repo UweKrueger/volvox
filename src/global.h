@@ -279,11 +279,11 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc
 }
 
 extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
-                              unsigned expr_attr, unsigned desired_attr, const char* reason);
+                              bool expr_is_signed, bool desired_is_signed, const char* reason);
 extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b);
 extern std::function<llvm::Value*(llvm::Value*)> getConv(
-	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
-	SourceLocation Loc = CurLoc, bool is_explicit = false, bool is_unknown_type = false);
+	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc = CurLoc, bool expr_is_signed = false,
+	bool desired_is_signed = false, bool is_explicit = false, bool is_unknown_type = false);
 extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation Loc, llvm::Type* desired_type,
                                                                 llvm::Type* min_type, llvm::Type* ideal_type,
                                                                 std::function<llvm::Value*(llvm::Value*)> min_conv,
@@ -991,8 +991,8 @@ public:
 	llvm::Value* codegen() {
 		auto rawV = codegen_raw();
 		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
-			auto postConv = getConv(rawV->getType(), desired_type, ft->type_attr, desired_type_attr,
-			                        Loc, true, is_unknown_type);
+			auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
+			                        desired_type_attr & A_signed, true, is_unknown_type);
 			return postConv(rawV);
 		} else {
 			return rawV;

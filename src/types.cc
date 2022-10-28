@@ -12,10 +12,10 @@ volvoxc::FTListElem* anon_types = nullptr;
 volvoxc::FTListElem** anon_types_end = &anon_types;
 
 std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
-                              unsigned expr_attr, unsigned desired_attr, const char* reason) {
+                              bool expr_is_signed, bool desired_is_signed, const char* reason) {
 	errs() << Loc << ": cannot automatically convert "
-	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
-	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed))) << ' ';
+	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_is_signed ? A_signed : 0))) << "/"
+	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_is_signed ? A_signed : 0))) << ' ';
 	if (reason)
 		errs() << reason;
 	errs() << "\n";
@@ -23,10 +23,10 @@ std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* de
 }
 
 static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
-                                  unsigned expr_attr, unsigned desired_attr, const char* reason) {
+                              bool expr_is_signed, bool desired_is_signed, const char* reason) {
 	errs() << Loc << ": cannot convert "
-	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_attr & A_signed))) << "/"
-	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_attr & A_signed)));
+	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_is_signed ? A_signed : 0))) << "/"
+	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_is_signed ? A_signed : 0))) << ' ';
 	if (reason)
 		errs() << reason;
 	errs() << "\n";
@@ -89,8 +89,8 @@ std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<ll
 // return an error if not possible or no explicit conversion
 // is requested but precision would be lost
 std::function<llvm::Value*(llvm::Value*)> getConv(
-	llvm::Type* expr_type, llvm::Type* desired_type, unsigned expr_attr, unsigned desired_attr,
-	SourceLocation Loc, bool is_explicit, bool is_unknown_type)
+	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc, bool expr_is_signed,
+	bool desired_is_signed, bool is_explicit, bool is_unknown_type)
 {
 	const char* reason = "";
 	auto desired_descr = getBitWidth(desired_type);
@@ -106,31 +106,31 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 			else if (is_explicit || is_unknown_type || desired_bitwidth >= expr_bitwidth)
 				return [=](llvm::Value* v) { return Builder->CreateFPCast(v, desired_type, "convfptmp"); };
 			else
-				return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "float truncation");
+				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "float truncation");
 		else
 			if (is_explicit || is_unknown_type || desired_bitwidth >= expr_bitwidth
 			    || desired_bitwidth >= 53) // always allow conversion to f64
-				if (expr_attr & A_signed)
+				if (expr_is_signed)
 					return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, desired_type, "convsfptmp"); };
 				else
 					return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, desired_type, "convufptmp"); };
 			else
-				return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "int->float would lose precision");
+				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "int->float would lose precision");
 	else
 		if (float_expr)
 			if (is_explicit)
-				if (desired_attr & A_signed)
+				if (desired_is_signed)
 					return [=](llvm::Value* v) { return Builder->CreateFPToSI(v, desired_type, "convfpstmp"); };
 				else
 					return [=](llvm::Value* v) { return Builder->CreateFPToUI(v, desired_type, "convfputmp"); };
 			else 
-				return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "float -> integer");
+				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "float -> integer");
 		else
-			if (!(desired_attr & A_signed))
-				if (expr_attr & A_signed)
+			if (!desired_is_signed)
+				if (expr_is_signed)
 					// signed -> unsigned
 					if (!is_explicit && !is_unknown_type)
-						return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "signed->unsigned");
+						return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "signed->unsigned");
 					else
 						if (desired_bitwidth == expr_bitwidth)
 							return NoConversion;
@@ -143,20 +143,20 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 						if (is_explicit || is_unknown_type)
 							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "trunctmp"); };
 						else
-							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate upper bits");
+							return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "would truncate upper bits");
 					else
 						if (desired_bitwidth == expr_bitwidth)
 							return NoConversion;
 						else
 							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandutmp"); };
 			else
-				if (expr_attr & A_signed)
+				if (expr_is_signed)
 					// signed -> signed
 					if (desired_bitwidth < expr_bitwidth)
 						if (is_explicit || is_unknown_type)
 							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, true, "trunctmp"); };
 						else
-							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate upper bits");
+							return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "would truncate upper bits");
 					else
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, true, "expandstmp"); };
 				else
@@ -168,7 +168,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 							else
 								return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "trunctmp"); };
 						else
-							return AutoErr(Loc, expr_type, desired_type, expr_attr, desired_attr, "would truncate/reinterpret upper bits");
+							return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "would truncate/reinterpret upper bits");
 					else
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandstmp"); };
 }
@@ -196,7 +196,7 @@ inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
 // min result, ideal result, result is signed, result has unknown type, errormessage
-std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
+std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 	unsigned left_bitwidth, bool left_is_float, bool left_is_signed, bool left_is_unknown_type,
 	unsigned right_bitwidth, bool right_is_float, bool right_is_signed, bool right_is_unknown_type, const char* Op)
 {
@@ -207,7 +207,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
 	bool res_is_float = left_is_float || right_is_float;
 	bool res_ideal_is_float = res_is_float;
-	unsigned res_is_signed = (left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type || left_is_signed && right_is_signed) ? A_signed : 0; 
+	bool res_is_signed = left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type || left_is_signed && right_is_signed; 
 	bool is_shift = false;
 	bool is_logical = false;
 	// in simple cases one operand is converted to the type of the other
@@ -222,7 +222,7 @@ std::tuple<llvm::Type*, llvm::Type*, unsigned, bool, const char*> getResType(
 		    (right_is_float ||
 		     !left_is_signed && right_is_signed && !right_is_unknown_type ||
 		     left_is_signed && !right_is_signed && right_bitwidth >= left_bitwidth))
-			return { nullptr, nullptr, 0, false, "illegal usage of %s: RHS would degrade\n" };
+			return { nullptr, nullptr, false, false, "illegal usage of %s: RHS would degrade\n" };
 		goto calc_types;
 	}
 	switch (Op[0]) {
@@ -291,47 +291,33 @@ calc_types:
 }
 
 // compute the conversion functions for binary Operators
-BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, unsigned left_attr, unsigned right_attr,
+BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, bool left_is_signed, bool right_is_signed,
                        bool left_is_unknown_type, bool right_is_unknown_type,
                        const char* Op, SourceLocation Loc)
 {
-	if (!strcmp(Op, ":=") || !left_type || Op[0] == ',') {// variable declaration, i.e. := operator
-		return {{ nullptr, nullptr, nullptr, 0, false, nullptr }, { nullptr, nullptr, nullptr, 0, false, nullptr }};
-	}
-	if (!left_type->isSingleValueType() || !right_type || !right_type->isSingleValueType()) {
-		return {{ nullptr, nullptr, left_type, left_attr, false, nullptr }, { nullptr, nullptr, left_type, left_attr, false, nullptr }};
-	}
+	if (!strcmp(Op, ":=") || !left_type || Op[0] == ',') // variable declaration, i.e. := operator
+		return {{ nullptr, nullptr, nullptr, nullptr, false, false }, { nullptr, nullptr, nullptr, nullptr, false, false }};
+	if (!left_type->isSingleValueType() || !right_type || !right_type->isSingleValueType())
+		return {{ nullptr, nullptr, left_type, nullptr, left_is_signed, false }, { nullptr, nullptr, left_type, nullptr, left_is_signed, false }};
 	auto left_descr = getBitWidth(left_type);
 	unsigned left_bitwidth = left_descr.first;
 	bool left_is_float = left_descr.second;
-	bool left_is_signed = left_attr & A_signed;
 	auto right_descr = getBitWidth(right_type);
 	unsigned right_bitwidth = right_descr.first;
 	bool right_is_float = right_descr.second;
-	bool right_is_signed = right_attr & A_signed;
 
-	// TODO: use C++-17 structured bindings instead of anonymous tuple in the future - for now:
-	// std::get<0>(res_t): minimum (natual) type to convert operands to
-	// std::get<1>(res_t): ideal result type that avoids overflow in the result, e.g i32*i32->i64
-	// std::get<2>(res_t): if the result is signed
-	// std::get<3>(res_t): if the result type is unknown (i.e. consists of number literals, only)
-	// std::get<4>(res_t): error message if error has occured
-	std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> res_t = getResType(
+	auto [res_type_min, res_type, res_is_signed, res_is_unknown_type, err_msg] = getResType(
 		left_bitwidth, left_is_float, left_is_signed, left_is_unknown_type,
 		right_bitwidth, right_is_float, right_is_signed, right_is_unknown_type, Op);
-	llvm::Type* res_type_min = std::get<0>(res_t);
-	llvm::Type* res_type = std::get<1>(res_t);
-	bool res_is_signed = std::get<2>(res_t);
-	bool res_is_unknown_type = std::get<3>(res_t);
-	const char* err_msg = std::get<4>(res_t);
+
 	unsigned res_bitwidth_min = res_type_min ? getBitWidth(res_type_min).first : 0;
 	unsigned res_bitwidth = getBitWidth(res_type).first;
-	auto left_conv_min = res_type_min ? getConv(left_type, res_type_min, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type) : nullptr;
-	auto right_conv_min = res_type_min ? getConv(right_type, res_type_min, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type) : nullptr;
-	auto left_conv = res_bitwidth_min <= res_bitwidth ? getConv(left_type, res_type, left_attr, res_is_signed ? A_signed : 0, Loc, false, left_is_unknown_type) : nullptr;
-	auto right_conv = res_bitwidth_min <= res_bitwidth ? getConv(right_type, res_type, right_attr, res_is_signed ? A_signed : 0, Loc, false, right_is_unknown_type) : nullptr;
-	return {{ left_conv_min, right_conv_min, res_type_min, res_is_signed, res_is_unknown_type, err_msg },
-	        { left_conv, right_conv, res_type, res_is_signed && res_bitwidth > 1, res_is_unknown_type, nullptr }};
+	auto left_conv_min = res_type_min ? getConv(left_type, res_type_min, Loc, left_is_signed, res_is_signed, false, left_is_unknown_type) : nullptr;
+	auto right_conv_min = res_type_min ? getConv(right_type, res_type_min, Loc, right_is_signed, res_is_signed, false, right_is_unknown_type) : nullptr;
+	auto left_conv = res_bitwidth_min <= res_bitwidth ? getConv(left_type, res_type, Loc, left_is_signed, res_is_signed, false, left_is_unknown_type) : nullptr;
+	auto right_conv = res_bitwidth_min <= res_bitwidth ? getConv(right_type, res_type, Loc, right_is_signed, res_is_signed, false, right_is_unknown_type) : nullptr;
+	return {{ left_conv_min, right_conv_min, res_type_min, err_msg, res_is_signed, res_is_unknown_type },
+	        { left_conv, right_conv, res_type, nullptr, res_is_signed && res_bitwidth > 1, res_is_unknown_type }};
 }
 
 std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
@@ -411,7 +397,7 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 			// TODO: implement full type lookup that doesn't need getting name string
 			res_ft = lex.get_full_type(type_name);
 			for (auto& elem: valid_exprs)
-				conv.push_back(getConv(elem->ft->type, res_type, elem->ft->type_attr, (is_signed && !is_float) ? A_signed : 0, elem->Loc));
+				conv.push_back(getConv(elem->ft->type, res_type, elem->Loc, elem->ft->type_attr & A_signed, is_signed && !is_float));
 			return { res_ft, conv };
 		}
 	}

@@ -793,11 +793,11 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	auto conv = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
 	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
 		convBinOp(Then.first.back()->ft->type, Else.first.back()->ft->type,
-		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
+		          Then.first.back()->ft->type_attr & A_signed, Else.first.back()->ft->type_attr & A_signed,
 		          Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type,
 		          "-")
-		: BinOpConvSet{{ nullptr, nullptr, llvm::Type::getVoidTy(Context), 0, false, nullptr },
-		               { nullptr, nullptr, llvm::Type::getVoidTy(Context), 0, false, nullptr }};
+		: BinOpConvSet{{ nullptr, nullptr, llvm::Type::getVoidTy(Context), nullptr, false, false },
+		               { nullptr, nullptr, llvm::Type::getVoidTy(Context), nullptr, false, false }};
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), conv, kind);
 }
@@ -1084,7 +1084,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			}
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
-		                                      convBinOp(LHS_type, RHS_type, LHS_attr, RHS_attr,
+		                                      convBinOp(LHS_type, RHS_type, LHS_attr & A_signed, RHS_attr & A_signed,
 		                                                LHS_is_unknown_type, RHS_is_unknown_type, BinOp.c_str()));
 	}
 }
