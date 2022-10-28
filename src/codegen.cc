@@ -2017,30 +2017,7 @@ no_conversion:
 		}
 		break;
 	}
-	if (result) {
-		if (!is_bool && desired_type) {
-			auto conv = getConv(ft->type, desired_type, ft->type_attr, desired_type_attr, Loc, true, is_unknown_type);
-			if (conv) {
-				if (verbosity >= 4)
-					errs() << "converted result of binop from " << *result->getType() << ' '
-					       << *ft->type << " signed: " << !(!(ft->type_attr & A_signed)) << " to "
-					       << *desired_type << " signed: " << !(!(desired_type_attr & A_signed))
-					       << (is_unknown_type ? " literal" : " explicit type") << "\n";
-				result = conv(result);
-			}
-		}
-		return result;
-	} else {
-		return nullptr;
-	}
-	// If it wasn't a builtin binary operator, it must be a user defined one. Emit
-	// a call to it.
-	// auto F = getFunction(std::string("binary") + Op, nullptr);
-	// assert(F.first && "binary operator not found!");
-
-	// llvm::Value *Ops[] = {L, R};
-	// return Builder->CreateCall(F.first, Ops, "binop");
-	return nullptr;
+	return result;
 }
 
 llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
