@@ -964,8 +964,6 @@ public:
 	volvoxc::FullType* ft = nullptr;
 	llvm::Type* desired_type = nullptr;
 	unsigned desired_type_attr = 0;
-	MapNode* desired_elems = nullptr; // element-name -> { index, FullType }
-
 	bool is_unknown_type = false;
 
 	// construct from type and attributes
