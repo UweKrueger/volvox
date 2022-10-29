@@ -91,6 +91,16 @@ llvm::Function* getFunction(PrototypeAST* FI) {
 	return FI->codegen();
 }
 
+llvm::Function* getAutoMethod(std::string& mangled_name) {
+	if (auto F = TheModule->getFunction(mangled_name))
+		return F;
+	auto fn_type = AutoMethods.find(mangled_name);
+	if (fn_type == AutoMethods.end())
+		return nullptr;
+	auto F = llvm::Function::Create(fn_type->second, llvm::Function::ExternalLinkage, mangled_name, TheModule.get());
+	return F;
+}
+
 /// CreateEntryBlockAlloca - Create an alloca instruction in the entry block of
 /// the function.  This is used for mutable variables etc.
 static llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& VarName = "",

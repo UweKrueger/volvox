@@ -99,6 +99,51 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 	auto expr_descr = getBitWidth(expr_type);
 	unsigned expr_bitwidth = expr_descr.first;
 	bool float_expr = expr_descr.second;
+	if (is_explicit) {
+		// find type conversion constructor
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(desired_type)) {
+			if (struct_type->hasName()) {
+				llvm::SmallString<128> buf = llvm::StringRef("_ZN");
+				llvm::raw_svector_ostream mangled(buf);
+				mangled << struct_type->getName()  << "C2E";
+				auto ft = new_FullType(expr_type, expr_is_signed ? A_signed : 0);
+				std::string m_name;
+				if (auto expr_struct = llvm::dyn_cast<llvm::StructType>(expr_type)) {
+					if (!expr_struct->hasName())
+						goto no_explicit_constructor;
+					m_name = expr_struct->getName();
+					ft->mangled_name = m_name.c_str();
+				}
+				mangled << ft;
+				m_name = buf.c_str();
+				auto convFN = getAutoMethod(m_name);
+				if (convFN)
+					return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
+			}
+		}
+	}
+no_explicit_constructor:
+	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr_type)) {
+		if (!struct_type->hasName())
+			return NoConversion; // TODO: return nullptr - and handle this in caller
+		llvm::SmallString<128> buf = llvm::StringRef("_ZN");
+		llvm::raw_svector_ostream mangled(buf);
+		mangled << struct_type->getName() << "cv";
+		auto ft = new_FullType(desired_type, desired_is_signed ? A_signed : 0);
+		std::string m_name;
+		if (auto desired_struct = llvm::dyn_cast<llvm::StructType>(desired_type)) {
+			if (!desired_struct->hasName())
+				return NoConversion;
+			m_name = desired_struct->getName();
+			ft->mangled_name = m_name.c_str();
+		}
+		mangled << ft;
+		m_name = buf.c_str();
+		auto convFN = getAutoMethod(m_name);
+		if (convFN)
+			return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
+		
+	}
 	if (float_desired)
 		if (float_expr)
 			if (desired_bitwidth == expr_bitwidth)

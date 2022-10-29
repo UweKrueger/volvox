@@ -12,6 +12,7 @@
 Lexer lex;
 Token CurTok;
 std::vector<const char*> module_names = {};
+std::map<std::string,llvm::FunctionType*> AutoMethods;
 
 // methods table - keys: { mangled_type_name, method_name }
 std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
@@ -1381,6 +1382,8 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	}
 	else
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, Proto->visibility).c_str();
+	if (visibility & (A_destructor | A_constructor | A_conversion))
+		AutoMethods[Proto->Name] = Proto->FT;
 	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type(Proto->ArgTypes[0]->mangled_name);
 		if (!check_and_add_proto(MethodProtos[{mangled_receiver_type, unmangledName}], std::move(Proto), unmangledName, true))
