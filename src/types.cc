@@ -66,15 +66,15 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 
 // is the definition area bigger (not the precision)
 // input: type, is_signed
-// results: b fits completely, b fits with presision loss
+// results: a fits completely (into b), a fits with presision loss
 std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b) {
 	auto a_id = a.first->getTypeID();
 	auto b_id = b.first->getTypeID();
 	auto a_descr = getBitWidth(a.first);
 	auto b_descr = getBitWidth(b.first);
 	// signed type have a slightly smaller effective bitwidth
-	unsigned a_bitwidth = a.second ? (a_descr.first - 1) : a_descr.first;
-	unsigned b_bitwidth = b.second ? (b_descr.first - 1) : b_descr.first;
+	unsigned a_bitwidth = a_descr.first;
+	unsigned b_bitwidth = b_descr.first;
 	// cannot convert a signed to an unsigned
 	bool ill_i_u = (!b_descr.second && !b.second) && a.second;
 	// cannot convert float to int
