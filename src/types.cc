@@ -300,10 +300,9 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 			res_bitwidth = Op[0] == '<' ? 64 : res_bitwidth_min;
 			res_is_signed = left_is_signed;
 		} else {
-			res_bitwidth = 1;
 			if (Op[0] == '=' && !Op[1]) {
 				// this is an assignment by default, i.e. if no bool result is expected
-				res_bitwidth_min = left_bitwidth;
+				res_bitwidth = res_bitwidth_min = left_bitwidth;
 				res_is_float = left_is_float;
 				res_is_signed = left_is_signed;
 			} else {
