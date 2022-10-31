@@ -306,7 +306,7 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 				res_is_float = left_is_float;
 				res_is_signed = left_is_signed;
 			} else {
-				if (left_is_signed != right_is_signed) {
+				if (left_is_signed != right_is_signed && !left_is_unknown_type && !right_is_unknown_type) {
 					res_is_signed = true;
 					res_bitwidth_min++;
 				}
