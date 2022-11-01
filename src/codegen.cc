@@ -1059,7 +1059,28 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	return the_struct;
 }
 
-llvm::Value *UnaryExprAST::codegen_raw(llvm::Value* target) {
+llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
+	auto OperandV = Operand->codegen_ref();
+	if (!OperandV.second) {
+		errs() << Operand->Loc << ": cannot generate code for postfix operand reference\n";
+		return nullptr;
+	}
+	if (auto int_ty = llvm::dyn_cast<llvm::IntegerType>(OperandV.first)) {
+		auto One = llvm::ConstantInt::get(int_ty, 1);
+		llvm::Value* oldVal = Builder->CreateLoad(int_ty, OperandV.second);
+		llvm::Value* newVal;
+		if (Opcode[0] == '+')
+			newVal = Builder->CreateAdd(oldVal, One);
+		else
+			newVal = Builder->CreateSub(oldVal, One);
+		Builder->CreateStore(newVal, OperandV.second);
+		return oldVal;
+	}
+	errs() << Operand->Loc << ": postfix operator not supported for type '" << *OperandV.first << '\n';
+	return nullptr;
+}
+
+llvm::Value* UnaryExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value *OperandV = Operand->codegen();
 	if (!OperandV)
 		return nullptr;
