@@ -61,5 +61,5 @@ TOKEN(range) /* .. */ \
 TOKEN(colon) \
 TOKEN(comma) \
 TOKEN(assign) /* = (possibly multiple assignees, result(s): old value(s), right binding) */ \
-TOKEN(none)
+TOKEN(error)
 constexpr int TOKEND = __LINE__;

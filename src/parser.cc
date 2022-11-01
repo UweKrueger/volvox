@@ -20,13 +20,17 @@ std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<Prototy
 FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
 extern llvm::ExitOnError ExitOnErr;
+bool parseOk = true;
 
 Token& getNextToken(eXpect expect, int terminator) {
 	CurTok = lex.gettok(expect, terminator);
+	if (CurTok.kind == tok_error)
+		parseOk = false;
 	return CurTok;
 }
 Token& purgeLine() {
-	CurTok = std::move(lex.purge_line());
+	parseOk = true;
+	CurTok = lex.purge_line();
 	return CurTok;
 }
 
@@ -1095,10 +1099,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 ///
 std::unique_ptr<ExprAST> ParseExpression(int terminator) {
 	auto LHS = ParseUnary(terminator);
-	if (!LHS)
+	if (LHS && parseOk)
+		LHS = ParseBinOpRHS(0, std::move(LHS), terminator);
+	if (!parseOk) {
+		parseOk = true;
 		return nullptr;
-
-	return ParseBinOpRHS(0, std::move(LHS), terminator);
+	}
+	return LHS;
 }
 
 static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {

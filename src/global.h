@@ -777,6 +777,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, TokenKind kind);
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok);
 
 extern Token CurTok;
+extern bool parseOk;
 extern Token& getNextToken(eXpect expect = eNone, int terminator = 0);
 extern Token& purgeLine();
 

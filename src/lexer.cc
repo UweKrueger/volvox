@@ -515,8 +515,7 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 				CurChar = advance();
 				return tok_cmp;
 			} else {
-				IdentifierStr = "!";
-				return tok_or;
+				return tok_error;
 			}
 		case '>':
 		case '<':
