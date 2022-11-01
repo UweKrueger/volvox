@@ -1805,7 +1805,7 @@ no_conversion:
 		L = convLHS(L);
 	if (!L)
 		return nullptr;
-	if (kind == logical_op && Op[0] == '&') { // &&, ||
+	if (kind == logical_op) { // &&, ||
 		R = nullptr;
 		// codegen is postponed - we do lazy evaluation
 	} else {
@@ -1934,7 +1934,29 @@ no_conversion:
 	case '|':
 		switch(typeclass) {
 		case is_int:
-			result = Builder->CreateOr(L, R, "ortmp");
+			if (!Op[1])
+				result = Builder->CreateOr(L, R, "ortmp");
+			else {
+				auto enterBB = Builder->GetInsertBlock();
+				auto TheFunction = enterBB->getParent();
+				auto RHSBB = llvm::BasicBlock::Create(Context, "lazy_rhs");
+				auto ContBB = llvm::BasicBlock::Create(Context, "logic_or");
+				Builder->CreateCondBr(L, ContBB, RHSBB);
+				TheFunction->getBasicBlockList().push_back(RHSBB);
+				Builder->SetInsertPoint(RHSBB);
+				R = RHS->codegen_raw();
+				if (R && convRHS)
+					R = convRHS(R);
+				if (!R)
+					return nullptr;
+				Builder->CreateBr(ContBB);
+				TheFunction->getBasicBlockList().push_back(ContBB);
+				Builder->SetInsertPoint(ContBB);
+				auto PN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "merged_lazy");
+				PN->addIncoming(Builder->getTrue(), enterBB);
+				PN->addIncoming(R, RHSBB);
+				result = PN;
+			}
 			break;
 		default:
 			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
