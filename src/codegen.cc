@@ -1485,6 +1485,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			kind = other_op;
 		}
 		break;
+	case '>':
+	case '<':
+		if (Op[2] == '=') {
+			kind = modification_op;
+			break;
+		}
 	default:
 		kind = other_op;
 	}
