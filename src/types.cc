@@ -265,8 +265,7 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 		if ((right_bitwidth > left_bitwidth && !right_is_unknown_type)
 		    || !left_is_float &&
 		    (right_is_float ||
-		     !left_is_signed && right_is_signed && !right_is_unknown_type ||
-		     left_is_signed && !right_is_signed && right_bitwidth >= left_bitwidth))
+		     !left_is_signed && right_is_signed && !right_is_unknown_type))
 			return { nullptr, nullptr, false, false, "illegal usage of %s: RHS would degrade\n" };
 		goto calc_types;
 	}

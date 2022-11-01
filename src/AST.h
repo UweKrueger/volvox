@@ -150,6 +150,25 @@ public:
 #endif
 };
 
+class RefExprAST : public LvalueExprAST {
+	llvm::Value* ref;
+	VariableExprAST* var;
+public:
+	RefExprAST(SourceLocation Loc, volvoxc::FullType* _ft, VariableExprAST* var, llvm::Value* ref, std::string Name = "") : LvalueExprAST(Loc, Name), var(var), ref(ref) {
+		if (!ref) {
+			errs() << "RefExprAST: no valid value\n";
+			ft->type = nullptr;
+		} else {
+			*ft = *_ft;
+			ft->type_attr |= A_ref;
+		}
+	}
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override {
+		return { ft->type, ref };
+	}
+	VariableExprAST* getBase() override { return var; }
+};
+
 /// FunctionExprAST - classic named functions (not function pointers)
 class FunctionExprAST : public ExprAST {
 

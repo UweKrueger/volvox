@@ -1449,7 +1449,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		switch (Op[0]) {
 		case '=':
 			kind = assign_op;
-			is_bool = desired_type == llvm::Type::getInt1Ty(Context);
 			break;
 		case '>':
 		case '<':
@@ -1491,7 +1490,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (kind == decl_assign_op || kind == assign_op && !is_bool) {
+	if (kind == decl_assign_op || kind == assign_op || kind == modification_op) {
+		std::pair<llvm::Type*,llvm::Value*> Variable = { nullptr, nullptr };
 		const char* varname = nullptr;
 		// Assignment requires the LHS to be an identifier.
 		// This assume we're building without RTTI because LLVM builds that way by
@@ -1499,10 +1499,21 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// dynamic_cast for automatic error checking.
 		LvalueExprAST *LHSE = dynamic_cast<LvalueExprAST*>(LHS.get());
 		if (!LHSE) {
-			errs() << "destination of '=' must be an lvalue";
+			errs() << "left side of '" << Op << "' must be an lvalue\n";
 			return nullptr;
 		}
 		ReferenceExprAST* LREF = dynamic_cast<ReferenceExprAST*>(LHS.get());
+		if (kind != decl_assign_op)
+			Variable = LHSE->codegen_ref();
+		if (kind == modification_op) {
+			auto new_LHS = std::make_unique<RefExprAST>(LHS->Loc, LHS->ft, LHSE->getBase(), Variable.second, LHSE->Name);
+			char newOp[4];
+			int m=0;
+			for ( ; Op[m] != '='; m++)
+				newOp[m] = Op[m];
+			newOp[m] = '\0';
+			RHS = std::make_unique<BinaryExprAST>(Loc, newOp, std::move(new_LHS), std::move(RHS), conv);
+		}
 		RHS->desired_type = LHSE->ft->type;
 		RHS->desired_type_attr = LHSE->ft->type_attr;
 		// Codegen the RHS.
@@ -1596,7 +1607,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << LHS->Loc << ": cannot initialize existing variable\n";
 			return nullptr;
 		} else {
-			auto Variable = LHSE->codegen_ref();
 			if (allocsz > 16) {
 				auto align = getAlignment(allocsz);
 				if (target)
