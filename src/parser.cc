@@ -207,7 +207,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 			} while (CurTok.kind == '[');
 			auto elem_type = ParseType(false, expect, terminator);
 			if (!elem_type) {
-				errs() << CurLoc << ": type expected\n";
+				errs() << CurLoc << ": type specifier expected\n";
 				if (exprs)
 					*exprs = std::vector<std::unique_ptr<ExprAST>>{};
 				return nullptr;
@@ -231,14 +231,14 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 			std::vector<llvm::Type*> LLVMFieldTypes;
 			for (;;) {
 				if (CurTok.kind != tok_identifier) {
-					errs () << CurLoc << ": unexpected '" << CurTok.str() << "' in struct declaration - field name expected\n";
+					errs () << CurLoc << ": unexpected '" << CurTok << "' in struct declaration - field name expected\n";
 					return nullptr;
 				}
 				FieldNames.push_back(IdentifierStr);
 				getNextToken(eType);
 				auto type = ParseType(true, eComma, 0, nullptr, nullptr, false, true);
 				if (!type) {
-					errs() << CurLoc << ": unexpected '" << CurTok.str() << "' in struct declaration - type name expected\n";
+					errs() << CurLoc << ": unexpected '" << CurTok << "' in struct declaration - type name expected\n";
 					return nullptr;
 				}
 				FieldTypes.push_back(type);
@@ -470,7 +470,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 		for (auto& dim: Dims)
 			LenLocs.push_back(dim ? dim->Loc : SourceLocation{0});
 		if (CurTok.kind != '{') {
-			errs() << CurLoc << ": expression list ('{...}')expected\n";
+			errs() << CurLoc << ": expression list ('{...}') expected\n";
 			return nullptr;
 		}
 		init_list = ParseListExpr(terminator);
@@ -899,7 +899,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	case tok_for:
 		return ParseForExpr(terminator);
 	default:
-		errs() << CurLoc << ": unknown token '" << CurTok.kind << "' '" << CurTok.str() << "' when expecting an expression\n";;
+		errs() << CurLoc << ": unexpected token '" << CurTok.str() << "' when expecting a " << lex.Expected << " or an expression\n";
 		purgeLine();
 		return nullptr;
 	}

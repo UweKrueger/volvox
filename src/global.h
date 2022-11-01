@@ -775,6 +775,7 @@ public:
 
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, TokenKind kind);
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok);
+llvm::raw_ostream& operator<<(llvm::raw_ostream& out, eXpect expect);
 
 extern Token CurTok;
 extern bool parseOk;
@@ -813,6 +814,7 @@ struct SourceLocState {
 class Lexer : public SourceLocState {
 public:
 	std::vector<SourceLocState> source_stack = {};
+	eXpect Expected; // only used for error messages
 	Lexer() = default;
 	Lexer(int* _inputfd, const char* _input_file_name, size_t _bufsize = 100)
 		: SourceLocState(SourceLocation{ _input_file_name, 0, 0 }, 0, _bufsize,

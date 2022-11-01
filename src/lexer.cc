@@ -432,6 +432,7 @@ Token Lexer::purge_line() {
 }
 
 Token Lexer::gettok(eXpect expect, int terminator) {
+	Expected = expect; // for error messages in parser, etc.
 	if (KeepIdentifierStr != "") {
 		IdentifierStr = KeepIdentifierStr;
 		KeepIdentifierStr = "";
@@ -515,6 +516,7 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 				CurChar = advance();
 				return tok_cmp;
 			} else {
+				IdentifierStr = '!';
 				return tok_error;
 			}
 		case '>':
@@ -824,3 +826,21 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 		return Token(ThisChar);
 	}
 }
+
+llvm::raw_ostream& operator<<(llvm::raw_ostream& out, eXpect expect) {
+	switch (expect) {
+	case eNone:
+		return out << "valid token";
+	case eBinOp:
+		return out << "binary operator";
+	case eComma:
+		return out << "comma";
+	case eColon:
+		return out << "semicolon";
+	case ePath:
+		return out << "path";
+	case eType:
+		return out << "type specifier";
+	}
+}
+
