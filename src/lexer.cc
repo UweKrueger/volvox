@@ -479,6 +479,7 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 					IdentifierStr = ',';
 					return tok_comma;
 				} else if (CurChar == terminator) {
+					IdentifierStr = CurChar;
 					CurChar = advance();
 					return terminator;
 				} else {
@@ -521,100 +522,74 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 			}
 		case '>':
 		case '<':
-		{
-			auto c0 = CurChar;
-			IdentifierStr = c0;
-			CurChar = advance();
-			if (CurChar == c0) { // <<, >>
-				IdentifierStr += CurChar;
-				CurChar = advance();
-				if (CurChar == '=') { // <<=, >>=
-					IdentifierStr += CurChar;
-					CurChar = advance();
-					return tok_assign;
-				} else {
-					return tok_mult;
-				}
-			} else if (c0 == '>' && CurChar == '<') {
-				IdentifierStr += CurChar;
-				CurChar = advance();
-				return tok_or;
-			} else if (CurChar == '=') { // <=, >=
-				IdentifierStr += CurChar;
-				CurChar = advance();
-				if (c0 == '<' && CurChar == '>') { // <=>
-					IdentifierStr += CurChar;
-					CurChar = advance();
-				}
-				return tok_cmp;
-			} else if (CurChar == '-' && c0 == '<') { // <-
-				IdentifierStr += CurChar;
-				CurChar = advance();
-				return tok_arrow;
-			} else {
-				return tok_cmp;
-			}
-		}
 		case '|':
-		case '^':
-		{
-			IdentifierStr = CurChar;
-			CurChar = advance();
-			return tok_or;
-		}
+		case '&':
 		case '+':
 		case '-':
-		case '~':
-		{
-			auto c0 = CurChar;
-			IdentifierStr = c0;
-			CurChar = advance();
-			if (CurChar == c0) {
-				IdentifierStr += CurChar;
-				CurChar = advance();
-				// postfix ++, --, ~~
-				return tok_postfix;
-			} else {
-				if (CurChar == '=') {
-					IdentifierStr += CurChar;
-					CurChar = advance();
-					if (c0 == '!') { // !=
-						return tok_cmp;
-					} else { // +=, -=, |=, ^=, ~=
-						return tok_assign;
-					}
-				} else { // +, -, |, ^, !, ~
-					return tok_add;
-				}
-			}
-		}
-		case '&':
-		{
-			IdentifierStr = CurChar;
-			CurChar = advance();
-			return tok_and;
-		}
 		case '*':
 		case '/':
 		case '%':
-		{ // <<, >> already handled in <, > case	
+		{
 			auto c0 = CurChar;
 			IdentifierStr = c0;
 			CurChar = advance();
-			if (CurChar == c0) {
-				int tok;
-				if (c0 == '&') { // &&
-					tok = tok_and;
-				} else if (c0 == '*') { // **
-					tok = tok_pow;
-				} else { // error - catch in parser
-					return tok_mult;
+			bool doubled = false;
+			switch (c0) {
+			case '>':
+			case '<':
+			case '&':
+			case '|':
+			case '+':
+			case '-':
+				if (CurChar == c0 || c0 == '>' && CurChar == '<') {
+					IdentifierStr += c0;
+					doubled = true;
+					CurChar = advance();
+					if (c0 == '+' || c0 == '-')
+						return tok_postfix; // x++, x--
 				}
+			default:
+				;
+			}
+			if (CurChar == '=') { // <<=, >>=
 				IdentifierStr += CurChar;
 				CurChar = advance();
-				return tok;
-			} else {
+				if (!doubled && (c0 == '>' || c0 == '<'))
+					return tok_cmp; // >=, <=
+				return tok_assign; // +=, <<=, ...
+			}
+			if (doubled) {
+				switch (c0) {
+				case '>':
+					if (IdentifierStr[1] == '<')
+						return tok_or;
+				case '<':
+					return tok_mult;
+				case '+':
+				case '-':
+					return tok_postfix;
+				default:
+					;
+				}
+			}
+			// single character binary operators
+			switch (c0) {
+			case '>':
+			case '<':
+				return tok_cmp;
+			case '|':
+				return tok_or;
+			case '&':
+				return tok_and;
+			case '+':
+			case '-':
+				return tok_add;
+			case '*':
+			case '/':
+			case '%':
 				return tok_mult;
+			default:
+				abort();
 			}
 		}
 		case '(':
