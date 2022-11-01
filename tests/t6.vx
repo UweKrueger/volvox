@@ -29,3 +29,19 @@ qrret2 = 14
 fn test_logical_and_1() bool
 	x := do_q_2() && do_q_1()
 	return !x && qrret2 == 27
+
+fn test_mod_assign_1() bool
+	z := 12.5
+	z += 3
+	z *= 2.5
+	return z == 38.75
+
+fn test_postfix_1() bool
+	a := 13
+	b := a++
+	return a == 14 && b == 13
+
+fn test_postfix_2() bool
+	a := -34.75
+	b := a--
+	return a == -35.75 && b == -34.75
