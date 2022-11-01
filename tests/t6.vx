@@ -1,0 +1,31 @@
+global qrret2 := 37
+
+fn do_q_1() bool
+	qrret2 += 7
+	return true
+
+fn do_q_2() bool
+	qrret2 += 13
+	return false
+
+fn test_bitwise_or_1() bool
+	x := do_q_1() | do_q_2()
+	return x && qrret2 == 57
+
+qrret2 = -5
+
+fn test_logical_or_1() bool
+	x := do_q_1() || do_q_2()
+	return x && qrret2 == 2
+
+qrret2 = 27
+
+fn test_bitwise_and_1() bool
+	x := do_q_2() & do_q_1()
+	return !x && qrret2 == 47
+
+qrret2 = 14
+
+fn test_logical_and_1() bool
+	x := do_q_2() && do_q_1()
+	return !x && qrret2 == 27
