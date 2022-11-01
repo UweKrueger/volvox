@@ -429,14 +429,14 @@ public:
 #endif
 };
 
-/// UnaryExprAST - Expression class for a unary operator.
+/// UnaryExprAST - Expression class for a unary operator (-x, !e). Also used for postfix expressions (c++, b--)
 class UnaryExprAST : public ExprAST {
 	char Opcode[4] = { 0, 0, 0, 0 };
 	std::unique_ptr<ExprAST> Operand;
 
 public:
-	UnaryExprAST(const char* Op, std::unique_ptr<ExprAST> Operand)
-		: ExprAST(Operand->ft->type, Operand->ft->type_attr), Operand(std::move(Operand)) {
+	UnaryExprAST(SourceLocation Loc, const char* Op, std::unique_ptr<ExprAST> Operand)
+		: ExprAST(Operand->ft->type, Operand->ft->type_attr, Loc), Operand(std::move(Operand)) {
 		strcpy(Opcode, Op); 
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;

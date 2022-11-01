@@ -928,7 +928,7 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 			errs() << Loc << ": reference operator '&' cannot be applied to rvalue\n";
 			return nullptr;
 		} else
-			return std::make_unique<UnaryExprAST>(Op.c_str(), std::move(Operand));
+			return std::make_unique<UnaryExprAST>(Loc, Op.c_str(), std::move(Operand));
 	}
 	return nullptr;
 }
@@ -948,7 +948,12 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		std::string BinOp = IdentifierStr;
 		SourceLocation BinLoc = CurLoc;
 		auto BinKind = CurTok.kind;
-		getNextToken(); // eat binop
+		if (BinKind == tok_postfix) {
+			LHS = std::make_unique<UnaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS));
+			getNextToken(eBinOp); // eat postfix operator and expect binop/terminator
+			continue;
+		} else
+			getNextToken(); // eat binop
 		bool is_index = BinKind == tok_selector && CurTok.kind == '[';
 		bool is_dotselect = BinKind == tok_selector && BinOp == ".";
 		// Parse the unary expression after the binary operator.
