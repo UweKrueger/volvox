@@ -542,7 +542,7 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 			case '+':
 			case '-':
 				if (CurChar == c0 || c0 == '>' && CurChar == '<') {
-					IdentifierStr += c0;
+					IdentifierStr += CurChar;
 					doubled = true;
 					CurChar = advance();
 					if (c0 == '+' || c0 == '-')
