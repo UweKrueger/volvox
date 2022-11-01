@@ -9,7 +9,7 @@ global hjggd := subb.CCv{
 }
 
 fn test_multi_level_type_import() bool
-	return hjggd.w.q[1] == -6.75 & hjggd.w.pp == 67.0625 & hjggd.z.q.e == 0.
+	return hjggd.w.q[1] == -6.75 && hjggd.w.pp == 67.0625 && hjggd.z.q.e == 0.
 
 global oolt := 12.125
 
@@ -64,7 +64,7 @@ fn hhwe() i32
 
 fn test_destructor_1() bool
 	z := hhwe()
-	return z == 17 & cntd == -7
+	return z == 17 && cntd == -7
 
 fn hhwe2(n i32) i32
 	if n<=0
@@ -74,7 +74,7 @@ fn hhwe2(n i32) i32
 
 fn test_destructor_2() bool
 	z := hhwe2(-5)
-	return cntd == 6 & z == -13
+	return cntd == 6 && z == -13
 
 fn hhwe3(n i32) i32
 	if n>7
@@ -86,7 +86,7 @@ fn hhwe3(n i32) i32
 
 fn test_destructor_then_branch_1() bool
 	k := hhwe3(8)
-	return cntd == -2 & k == -63
+	return cntd == -2 && k == -63
 
 fn hhwe4(n i32) i32
 	w := n
@@ -100,7 +100,7 @@ fn hhwe4(n i32) i32
 
 fn test_destructor_repeat_stack_restore_1() bool
 	p := hhwe4(7)
-	return cntd == 1 & p == 27
+	return cntd == 1 && p == 27
 
 type LL {
 	a i32
@@ -161,7 +161,7 @@ fn call_array_destr2() i32
 
 fn test_array_destructor_4() bool
 	x := call_array_destr2()
-	return x == -7 & cntd == 121
+	return x == -7 && cntd == 121
 
 global tzv := 3
 
@@ -194,7 +194,7 @@ qjf2 = -27.5625
 fr2 = ssa[1][0][1]
 
 fn test_mainvar_reference_2() bool
-	return fr1 == 56.0625 & fr2 == -27.5625
+	return fr1 == 56.0625 && fr2 == -27.5625
 
 fn ggeewf() f64
 	a := [4][5][2]f64{ 3: { 3: { 1: 56.0625 }}}

@@ -1,21 +1,21 @@
 global d := [1, -7, 3, 4]
 
 fn test_simple_fixed_array_lit() bool
-	return d[0] == 1 & d[1] == -7 & d[2] == 3 & d[3] == 4
+	return d[0] == 1 && d[1] == -7 && d[2] == 3 && d[3] == 4
 
 global c := [7, 2: -2, 5: 19]
 
 c
 
 fn test_array_lit_with_keys_and_holes() bool
-	return c[0] == 7 & c[1] == 0 & c[2] == -2 & c[3] == 0 &
-		c[4] == 0 & c[5] == 19
+	return c[0] == 7 && c[1] == 0 && c[2] == -2 && c[3] == 0 &
+		c[4] == 0 && c[5] == 19
 
 global b := [1 + 2, 4 * 5, 1 + 2: 9 + 10, 2 * 2 + 1: 7 + 8]
 
 fn test_array_lit_with_expr_keys_and_values() bool
-	return b[0] == 3 & b[1] == 20 & b[2] == 0 & b[3] == 19 &
-		b[4] == 0 & b[5] == 15
+	return b[0] == 3 && b[1] == 20 && b[2] == 0 && b[3] == 19 &
+		b[4] == 0 && b[5] == 15
 
 b
 
@@ -29,7 +29,7 @@ fn test_array_elem_type_1() bool
 	ar1 := [-2, 9, 67, 7: 5.25]
 	ar1[2] = ar1[2] + 0.75
 	ar1[7] = ar1[7] + 0.125
-	return ar1[2] == 67.75 & ar1[7] == 5.375
+	return ar1[2] == 67.75 && ar1[7] == 5.375
 
 fn test_explicit_array_type() bool
 	ar2 := [12]f64{2, 5, 7}
@@ -38,7 +38,7 @@ fn test_explicit_array_type() bool
 
 fn test_explicit_array_len() bool
 	ar3 := [1.25, 2.75, len: 200]
-	return ar3[0] == 1.25 & ar3[1] == 2.75 & ar3[2] == 0. & ar3[101] == 0 & ar3[199] == 0.
+	return ar3[0] == 1.25 && ar3[1] == 2.75 && ar3[2] == 0. && ar3[101] == 0 && ar3[199] == 0.
 
 global yy := 17
 global je := 5
@@ -70,7 +70,7 @@ fn test_var_array_multi_level_index_direct() bool
 fn test_var_array_multi_level_index_indirect1() bool
 	vv := [4][5][7]f64{2: {1: {2: 41.25}}}
 	x := vv[2][1]
-	return x[2] == 41.25 & x[0] == 0 & x[6] == 0
+	return x[2] == 41.25 && x[0] == 0 && x[6] == 0
 
 fn test_var_array_multi_level_cp() bool
 	vv := [zn][wn]f64{1: {2: -17.125}}
@@ -90,4 +90,4 @@ fn test_mixed_array_multi_level_index_indirect() bool
 fn test_mixed2_array_multi_level_index_indirect() bool
 	vv := [5][7][wn]f64{3: {1: {-13.5, 763.0625}}}
 	x := vv[3][1]
-	return x[1] == 763.0625 & x[2] == 0 & x[0] == -13.5
+	return x[1] == 763.0625 && x[2] == 0 && x[0] == -13.5

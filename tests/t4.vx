@@ -7,7 +7,7 @@ global p32 := -12.25
 
 fn test_call_by_ref_1() bool
 	rrq := call_by_ref_1(p32)
-	return rrq == -12.25 & p32 == -6.125
+	return rrq == -12.25 && p32 == -6.125
 
 fn mod_val_array(qq4 [7]f64) f64
 	qq4[2] = qq4[3] + qq4[1]
@@ -16,7 +16,7 @@ fn mod_val_array(qq4 [7]f64) f64
 fn test_array_call_by_value_1() bool
 	ma := [7]f64{2.25, 3.5, -12.125, 13.75, 0.5, -0.75, 0.125}
 	s78 := mod_val_array(ma)
-	return ma[2] == -12.125 & s78 == 34.5
+	return ma[2] == -12.125 && s78 == 34.5
 
 fn mod_val_array_2(qq5 [7]f64) f64
 	ri := mod_val_array(qq5)
@@ -25,7 +25,7 @@ fn mod_val_array_2(qq5 [7]f64) f64
 fn test_array_call_by_value_2() bool
 	ma := [7]f64{1.5, -2.25, 2.5, -3.125, -0.0625, 0.5, -0.25}
 	s79 := mod_val_array_2(ma)
-	return ma[2] == 2.5 & s79 == -8.25
+	return ma[2] == 2.5 && s79 == -8.25
 
 fn mod_val_array_3(qq4 &[7]f64) f64
 	qq4[2] = qq4[3] + qq4[1]
@@ -34,7 +34,7 @@ fn mod_val_array_3(qq4 &[7]f64) f64
 fn test_array_call_by_ref_2() bool
 	ma := [7]f64{2.25, 3.5, -12.125, 13.75, 0.5, -0.75, 0.125}
 	s78 := mod_val_array_3(ma)
-	return ma[2] == 17.25 & s78 == 34.5
+	return ma[2] == 17.25 && s78 == 34.5
 
 fn mod_val_array_4(qq5 &[7]f64) f64
 	ri := mod_val_array_3(qq5)
@@ -43,7 +43,7 @@ fn mod_val_array_4(qq5 &[7]f64) f64
 fn test_array_call_by_ref_3() bool
 	ma := [7]f64{1.5, -2.25, 2.5, -3.125, -0.0625, 0.5, -0.25}
 	s79 := mod_val_array_4(ma)
-	return ma[2] == -5.375 & s79 == -16.125
+	return ma[2] == -5.375 && s79 == -16.125
 
 
 type QwF packed {
@@ -58,7 +58,7 @@ global lfg := QwF{
 }
 
 fn test_packed_struct_1() bool
-	return lfg.pgh == 0. & lfg.o2a == 4234 & lfg.rtt == 34.5
+	return lfg.pgh == 0. && lfg.o2a == 4234 && lfg.rtt == 34.5
 
 type XXt {
 	a i32
@@ -81,7 +81,7 @@ global suo := YYt{
 suo.w.b = -67.25
 
 fn test_struct_1() bool
-	return suo.w.a == 12 & suo.w.b == -67.25 & suo.rz == -345
+	return suo.w.a == 12 && suo.w.b == -67.25 && suo.rz == -345
 
 fn get_field() f64
 	lld := XXt{ a: -94, b: 127.75 }
@@ -106,7 +106,7 @@ fn get_big_struct() YYt
 
 fn test_struct_return_1() bool
 	hsm := get_big_struct()
-	return hsm.rz == 14 & hsm.w.a == -63 & hsm.w.b == -11.125
+	return hsm.rz == 14 && hsm.w.a == -63 && hsm.w.b == -11.125
 
 type PPl {
 	b i32
@@ -119,7 +119,7 @@ fn get_small_struct() PPl
 
 fn test_struct_return_2() bool
 	hlw := get_small_struct()
-	return hlw.b == -34 & hlw.t == 27
+	return hlw.b == -34 && hlw.t == 27
 
 fn small_struct_arg(vx PPl) i32
 	mmd := vx.t
@@ -178,4 +178,4 @@ fn ZZu.change(y f64) f64
 
 fn test_method_call_2() bool
 	gghd := qql.change(2.5)
-	return gghd == -1292.5 & qql.aq[0][1] == -17.125
+	return gghd == -1292.5 && qql.aq[0][1] == -17.125

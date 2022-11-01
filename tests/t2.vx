@@ -39,7 +39,7 @@ fn h() [5]f64
 
 fn test_function_literal() bool
 	la := h()
-	return la[2] == -4.5 & la[3] == 6.75
+	return la[2] == -4.5 && la[3] == 6.75
 
 fn v() [5]i32
 	p := [3, 8, -17, 123, -1074]
@@ -47,7 +47,7 @@ fn v() [5]i32
 
 fn test_return_local_array() bool
 	z := v()
-	return z[0] == 3 & z[4] == -1074
+	return z[0] == 3 && z[4] == -1074
 
 
 fn r(x [5]f64) f64
@@ -95,4 +95,4 @@ fn test_if_else_3() bool
 
 fn test_type_propagation_1() bool
 	pr := 2.3f64 * ((4000000000u32 - 13i32) + 0.1f32)
-	return pr < 9199999970.33001 & pr > 9199999970.32999
+	return pr < 9199999970.33001 && pr > 9199999970.32999
