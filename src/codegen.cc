@@ -1900,16 +1900,23 @@ no_conversion:
 		}
 		break;
 	case '&':
+	case '|':
 		switch(typeclass) {
 		case is_int:
 			if (!Op[1])
-				result = Builder->CreateAnd(L, R, "andtmp");
+				if (Op[0] == '&')
+					result = Builder->CreateAnd(L, R, "andtmp");
+				else
+					result = Builder->CreateOr(L, R, "ortmp");
 			else {
 				auto enterBB = Builder->GetInsertBlock();
 				auto TheFunction = enterBB->getParent();
 				auto RHSBB = llvm::BasicBlock::Create(Context, "lazy_rhs");
-				auto ContBB = llvm::BasicBlock::Create(Context, "logic_and");
-				Builder->CreateCondBr(L, RHSBB, ContBB);
+				auto ContBB = llvm::BasicBlock::Create(Context, "logic_op");
+				if (Op[0] == '&')
+					Builder->CreateCondBr(L, RHSBB, ContBB);
+				else
+					Builder->CreateCondBr(L, ContBB, RHSBB);
 				TheFunction->getBasicBlockList().push_back(RHSBB);
 				Builder->SetInsertPoint(RHSBB);
 				R = RHS->codegen_raw();
@@ -1921,7 +1928,7 @@ no_conversion:
 				TheFunction->getBasicBlockList().push_back(ContBB);
 				Builder->SetInsertPoint(ContBB);
 				auto PN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "merged_lazy");
-				PN->addIncoming(Builder->getFalse(), enterBB);
+				PN->addIncoming(Op[0] == '&' ? Builder->getFalse() : Builder->getTrue(), enterBB);
 				PN->addIncoming(R, RHSBB);
 				result = PN;
 			}
@@ -1929,37 +1936,6 @@ no_conversion:
 		default:
 			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 			return nullptr;
-		}
-		break;
-	case '|':
-		switch(typeclass) {
-		case is_int:
-			if (!Op[1])
-				result = Builder->CreateOr(L, R, "ortmp");
-			else {
-				auto enterBB = Builder->GetInsertBlock();
-				auto TheFunction = enterBB->getParent();
-				auto RHSBB = llvm::BasicBlock::Create(Context, "lazy_rhs");
-				auto ContBB = llvm::BasicBlock::Create(Context, "logic_or");
-				Builder->CreateCondBr(L, ContBB, RHSBB);
-				TheFunction->getBasicBlockList().push_back(RHSBB);
-				Builder->SetInsertPoint(RHSBB);
-				R = RHS->codegen_raw();
-				if (R && convRHS)
-					R = convRHS(R);
-				if (!R)
-					return nullptr;
-				Builder->CreateBr(ContBB);
-				TheFunction->getBasicBlockList().push_back(ContBB);
-				Builder->SetInsertPoint(ContBB);
-				auto PN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "merged_lazy");
-				PN->addIncoming(Builder->getTrue(), enterBB);
-				PN->addIncoming(R, RHSBB);
-				result = PN;
-			}
-			break;
-		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
 		}
 		break;
 	case '^':
