@@ -1075,8 +1075,18 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 			newVal = Builder->CreateSub(oldVal, One);
 		Builder->CreateStore(newVal, OperandV.second);
 		return oldVal;
+	} else if (OperandV.first->isFloatingPointTy()) {
+		auto One = Builder->CreateUIToFP(Builder->getInt32(1), OperandV.first);
+		llvm::Value* oldVal = Builder->CreateLoad(OperandV.first, OperandV.second);
+		llvm::Value* newVal;
+		if (Opcode[0] == '+')
+			newVal = Builder->CreateFAdd(oldVal, One);
+		else
+			newVal = Builder->CreateFSub(oldVal, One);
+		Builder->CreateStore(newVal, OperandV.second);
+		return oldVal;
 	}
-	errs() << Operand->Loc << ": postfix operator not supported for type '" << *OperandV.first << '\n';
+	errs() << Operand->Loc << ": postfix operator not supported for type '" << *OperandV.first << "'\n";
 	return nullptr;
 }
 
