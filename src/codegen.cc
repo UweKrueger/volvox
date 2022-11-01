@@ -1121,12 +1121,17 @@ enum TypeClass {
 	is_other
 };
 
+/* while the TokenKind enum is used in the parser to figure out operator
+   precedences here in codegen we need another operator classification
+   according to functionality */
+
 enum OpKind {
 	other_op = 0,
 	assign_op,
 	decl_assign_op,
 	modification_op,
-	comparison_op
+	comparison_op,
+	logical_op
 };
 
 llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* ini_array_type, llvm::ArrayType* array_type) {
@@ -1490,7 +1495,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (Op[2] == '=') {
 			kind = modification_op;
 			break;
-		}
+		} else
+			kind = other_op;
+		break;
+	case '&':
+	case '|':
+		if (Op[0] == Op[1])
+			kind = logical_op;
+		else
+			kind = other_op;
+		break;
 	default:
 		kind = other_op;
 	}
@@ -1794,16 +1808,23 @@ no_conversion:
 	}
 	else
 		L = LHS->codegen();
-	if (convRHS) {
-		R = RHS->codegen_raw();
-		if (!R)
+	if (kind == logical_op && Op[0] == '&') { // &&, ||
+		if (!L)
 			return nullptr;
-		R = convRHS(R);
+		R = nullptr;
+		// codegen is postponed - we do lazy evaluation
+	} else {
+		if (convRHS) {
+			R = RHS->codegen_raw();
+			if (!R)
+				return nullptr;
+			R = convRHS(R);
+		}
+		else
+			R = RHS->codegen();
+		if (!L || !R)
+			return nullptr;
 	}
-	else
-		R = RHS->codegen();
-	if (!L || !R)
-		return nullptr;
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
 	TypeClass typeclass = is_unknown;
 	switch(OperandType->getTypeID()) {
@@ -1891,10 +1912,38 @@ no_conversion:
 	case '&':
 		switch(typeclass) {
 		case is_int:
-			result = Builder->CreateAnd(L, R, "andtmp");
+			if (!Op[1])
+				result = Builder->CreateAnd(L, R, "andtmp");
+			else {
+				auto enterBB = Builder->GetInsertBlock();
+				auto TheFunction = enterBB->getParent();
+				auto RHSBB = llvm::BasicBlock::Create(Context, "lazy_rhs");
+				auto ContBB = llvm::BasicBlock::Create(Context, "logic_and");
+				Builder->CreateCondBr(L, RHSBB, ContBB);
+				TheFunction->getBasicBlockList().push_back(RHSBB);
+				Builder->SetInsertPoint(RHSBB);
+				if (convRHS) {
+					R = RHS->codegen_raw();
+					if (!R)
+						return nullptr;
+					R = convRHS(R);
+				}
+				else
+					R = RHS->codegen();
+				if (!R)
+					return nullptr;
+				Builder->CreateBr(ContBB);
+				TheFunction->getBasicBlockList().push_back(ContBB);
+				Builder->SetInsertPoint(ContBB);
+				auto PN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "merged_lazy");
+				PN->addIncoming(Builder->getFalse(), enterBB);
+				PN->addIncoming(R, RHSBB);
+				result = PN;
+			}
 			break;
 		default:
 			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			return nullptr;
 		}
 		break;
 	case '|':
