@@ -32,9 +32,9 @@ fn test_logical_and_1() bool
 
 fn test_mod_assign_1() bool
 	z := 12.5
-	z += 3
+	ff := z += 3
 	z *= 2.5
-	return z == 38.75
+	return ff == 12.5 && z == 38.75
 
 fn test_postfix_1() bool
 	a := 13

@@ -941,7 +941,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		int TokPrec = GetTokPrecedence();
 		// If this is a binop that binds at least as tightly as the current binop,
 		// consume it, otherwise we are done.
-		if (TokPrec <= ExprPrec) {
+		if (NextTokPrecedence() <= ExprPrec) {
 			return LHS;
 		}
 		// Okay, we know this is a binop.
