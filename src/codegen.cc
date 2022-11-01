@@ -1800,29 +1800,19 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 no_conversion:
 	llvm::Value *L, *R;
-	if (convLHS) {
-		L = LHS->codegen_raw();
-		if (!L)
-			return nullptr;
+	L = LHS->codegen_raw();
+	if (L && convLHS)
 		L = convLHS(L);
-	}
-	else
-		L = LHS->codegen();
+	if (!L)
+		return nullptr;
 	if (kind == logical_op && Op[0] == '&') { // &&, ||
-		if (!L)
-			return nullptr;
 		R = nullptr;
 		// codegen is postponed - we do lazy evaluation
 	} else {
-		if (convRHS) {
-			R = RHS->codegen_raw();
-			if (!R)
-				return nullptr;
+		R = RHS->codegen_raw();
+		if (R && convRHS)
 			R = convRHS(R);
-		}
-		else
-			R = RHS->codegen();
-		if (!L || !R)
+		if (!R)
 			return nullptr;
 	}
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
@@ -1922,14 +1912,9 @@ no_conversion:
 				Builder->CreateCondBr(L, RHSBB, ContBB);
 				TheFunction->getBasicBlockList().push_back(RHSBB);
 				Builder->SetInsertPoint(RHSBB);
-				if (convRHS) {
-					R = RHS->codegen_raw();
-					if (!R)
-						return nullptr;
+				R = RHS->codegen_raw();
+				if (R && convRHS)
 					R = convRHS(R);
-				}
-				else
-					R = RHS->codegen();
 				if (!R)
 					return nullptr;
 				Builder->CreateBr(ContBB);
