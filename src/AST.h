@@ -429,20 +429,40 @@ public:
 #endif
 };
 
-/// UnaryExprAST - Expression class for a unary operator (-x, !e). Also used for postfix expressions (c++, b--)
+/// UnaryExprAST - Expression class for a unary operator (-x, !e)
 class UnaryExprAST : public ExprAST {
 	char Opcode[4] = { 0, 0, 0, 0 };
 	std::unique_ptr<ExprAST> Operand;
 
 public:
-	UnaryExprAST(SourceLocation Loc, const char* Op, std::unique_ptr<ExprAST> Operand)
-		: ExprAST(Operand->ft->type, Operand->ft->type_attr, Loc), Operand(std::move(Operand)) {
+	UnaryExprAST(SourceLocation Loc, const char* Op, std::unique_ptr<ExprAST> _Operand)
+		: ExprAST(_Operand->ft->type, _Operand->ft->type_attr, Loc), Operand(std::move(_Operand)) {
 		strcpy(Opcode, Op); 
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "unary" << Opcode, ind);
+		Operand->dump(out, ind + 1);
+		return out;
+	}
+#endif
+};
+
+/// postfix expressions (c++, b--) - similar to UnaryExprAST above but operand must be an lvalue
+class PostfixExprAST : public ExprAST {
+	char Opcode[4] = { 0, 0, 0, 0 };
+	std::unique_ptr<LvalueExprAST> Operand;
+
+public:
+	PostfixExprAST(SourceLocation Loc, const char* Op, std::unique_ptr<LvalueExprAST> _Operand)
+		: ExprAST(_Operand->ft->type, _Operand->ft->type_attr, Loc), Operand(std::move(_Operand)) {
+		strcpy(Opcode, Op); 
+	}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		ExprAST::dump(out << "postfix" << Opcode, ind);
 		Operand->dump(out, ind + 1);
 		return out;
 	}

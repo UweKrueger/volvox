@@ -949,7 +949,14 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		SourceLocation BinLoc = CurLoc;
 		auto BinKind = CurTok.kind;
 		if (BinKind == tok_postfix) {
-			LHS = std::make_unique<UnaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS));
+			auto lval = dynamic_cast<LvalueExprAST*>(LHS.get());
+			if (!lval) {
+				errs() << LHS->Loc << ": postfix operator '" << BinOp << "' requires lvalue as operand\n";
+				return nullptr;
+			}
+			auto Lvalue = std::unique_ptr<LvalueExprAST>(lval);
+			LHS.release();
+			LHS = std::make_unique<PostfixExprAST>(BinLoc, BinOp.c_str(), std::move(Lvalue));
 			getNextToken(eBinOp); // eat postfix operator and expect binop/terminator
 			continue;
 		} else
