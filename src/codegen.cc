@@ -1973,7 +1973,7 @@ no_conversion:
 		break;
 	case '^':
 		// TODO: use '^' for pow()
-		if (auto int_exp_type = llvm::dyn_cast<llvm::IntegerType>(R->getType()))
+		if (auto int_exp_type = llvm::dyn_cast<llvm::IntegerType>(R->getType())) {
 			if (auto int_base_type = llvm::dyn_cast<llvm::IntegerType>(L->getType())) {
 				if (int_base_type->getBitWidth() <= 32) {
 					if (int_base_type->getBitWidth() < 32)
@@ -1992,10 +1992,13 @@ no_conversion:
 					auto powfn = getFunction(powfn_proto);
 					result = Builder->CreateCall(powfn_proto->FT, powfn, std::vector<llvm::Value*>{ L, R });
 				}
-			} else
+			} else {
+				errs() << "int exp " << *L << " " << *R << "\n";
 				result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::powi, L, R);
-		else
+			}
+		} else {
 			result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::pow, L, R);
+		}
 		break;
 	case '!':
 		if (Op[1] == '=') {
