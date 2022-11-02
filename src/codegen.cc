@@ -2219,7 +2219,9 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
 				// C convention: variadic float args must be promoted to double
-				arg = Builder->CreateFPCast(arg, llvm::Type::getDoubleTy(Context), "convfptmp");
+				if (!arg->getType()->isFloatTy())
+					arg = Builder->CreateFPCast(arg, llvm::Type::getFloatTy(Context), "convfptmp");
+				arg = Builder->CreateBitCast(arg, llvm::Type::getInt32Ty(Context));
 			} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(arg->getType())) {
 				// same with short integers 
 				if (intT->getBitWidth() < 32)
@@ -2228,7 +2230,18 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			if (auto interf_t = dynamic_cast<InterfaceExprAST*>(Args[i].get()))
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType()))
 					for (unsigned i = 0; i < struct_type->getNumElements(); i++) {
-						ArgsV.push_back(Builder->CreateExtractValue(arg, i));
+						llvm::Value* argi = Builder->CreateExtractValue(arg, i);
+						if (argi->getType()->isFloatingPointTy() && !argi->getType()->isDoubleTy()) {
+							// C convention: variadic float args must be promoted to double
+							if (!argi->getType()->isFloatTy())
+								argi = Builder->CreateFPCast(argi, llvm::Type::getFloatTy(Context), "convfptmp");
+							argi = Builder->CreateBitCast(argi, llvm::Type::getInt32Ty(Context));
+						} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(argi->getType())) {
+							// same with short integers 
+							if (intT->getBitWidth() < 32)
+								argi = Builder->CreateIntCast(argi, llvm::Type::getInt32Ty(Context), Args[i]->ft->type_attr & A_signed);
+						}
+						ArgsV.push_back(argi);
 					}
 				else
 					ArgsV.push_back(arg);

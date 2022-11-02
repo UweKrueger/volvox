@@ -642,7 +642,14 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 		case VOLVOX_BFloatTyID:
 		case VOLVOX_FloatTyID:
 		case VOLVOX_DoubleTyID: {
-			double val = va_arg(ap, double);
+			double val;
+			if (ft->ID != VOLVOX_DoubleTyID) {
+				// C does not support variadic floats - so use some workaround
+				uint32_t u = va_arg(ap, uint32_t);
+				val = (double)*(float*)&u;
+			} else {
+				val = va_arg(ap, double);
+			}
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
