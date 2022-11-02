@@ -995,7 +995,9 @@ public:
 		auto rawV = codegen_raw();
 		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
 			auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
-			                        desired_type_attr & A_signed, true, is_unknown_type);
+			                        desired_type_attr & A_signed, false, is_unknown_type);
+			if (!postConv)
+				return nullptr;
 			return postConv(rawV);
 		} else {
 			return rawV;
