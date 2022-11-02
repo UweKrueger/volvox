@@ -1974,7 +1974,22 @@ no_conversion:
 	case '^':
 		// TODO: use '^' for pow()
 		if (auto int_exp_type = llvm::dyn_cast<llvm::IntegerType>(R->getType()))
-			result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::powi, L, R);
+			if (auto int_base_type = llvm::dyn_cast<llvm::IntegerType>(L->getType())) {
+				if (int_base_type->getBitWidth() <= 32) {
+					if (int_base_type->getBitWidth() < 32)
+						L = Builder->CreateIntCast(L, llvm::Type::getInt32Ty(Context), LHS->ft->type_attr & A_signed);
+					if (int_exp_type->getBitWidth() != 32)
+						R = Builder->CreateIntCast(R, llvm::Type::getInt32Ty(Context), RHS->ft->type_attr & A_signed);
+					auto powfn_proto = (*lex.findProtos("__i32_pow"))[0].get();
+					auto powfn = getFunction(powfn_proto);
+					errs() << "32 bit " << *powfn << '\n';
+					result = Builder->CreateCall(powfn_proto->FT, powfn, std::vector<llvm::Value*>{ L, R });
+				} else {
+					errs() << "64 bit not supported, yet\n";
+					result = nullptr;
+				}
+			} else
+				result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::powi, L, R);
 		else
 			result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::pow, L, R);
 		break;

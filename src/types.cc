@@ -287,12 +287,15 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 		res_bitwidth = left_bitwidth;
 		break;
 	case '^':
-		if (!left_is_float || left_bitwidth != 53 && left_bitwidth != 24)
-			return { nullptr, nullptr, false, false, "base of '%s' must be f32 or f64\n" };
-		res_bitwidth = 53;
-		res_bitwidth_min = left_bitwidth;
-		res_ideal_is_float = true;
-		res_is_float = true;
+		if (!left_is_float && !right_is_float) {
+			res_bitwidth = left_bitwidth;
+			res_bitwidth_min = left_bitwidth;
+		} else {
+			res_bitwidth = 53;
+			res_bitwidth_min = left_bitwidth;
+			res_ideal_is_float = true;
+			res_is_float = true;
+		}
 		break;
 	case '>':
 		if (Op[1] == '<')
