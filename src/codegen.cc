@@ -1935,11 +1935,13 @@ no_conversion:
 		switch(typeclass) {
 		case is_int:
 			if (!Op[1])
+				// bitwise &, |
 				if (Op[0] == '&')
 					result = Builder->CreateAnd(L, R, "andtmp");
 				else
 					result = Builder->CreateOr(L, R, "ortmp");
 			else {
+				// lazy logical &&, ||
 				auto enterBB = Builder->GetInsertBlock();
 				auto TheFunction = enterBB->getParent();
 				auto RHSBB = llvm::BasicBlock::Create(Context, "lazy_rhs");
@@ -1971,13 +1973,10 @@ no_conversion:
 		break;
 	case '^':
 		// TODO: use '^' for pow()
-		switch(typeclass) {
-		case is_int:
-			result = Builder->CreateXor(L, R, "xortmp");
-			break;
-		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
-		}
+		if (auto int_exp_type = llvm::dyn_cast<llvm::IntegerType>(R->getType()))
+			result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::powi, L, R);
+		else
+			result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::pow, L, R);
 		break;
 	case '!':
 		if (Op[1] == '=') {

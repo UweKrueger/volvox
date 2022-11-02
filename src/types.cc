@@ -286,6 +286,14 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 	case '%':
 		res_bitwidth = left_bitwidth;
 		break;
+	case '^':
+		if (!left_is_float || left_bitwidth != 53 && left_bitwidth != 24)
+			return { nullptr, nullptr, false, false, "base of '%s' must be f32 or f64\n" };
+		res_bitwidth = 53;
+		res_bitwidth_min = left_bitwidth;
+		res_ideal_is_float = true;
+		res_is_float = true;
+		break;
 	case '>':
 		if (Op[1] == '<')
 			goto op_xor;
@@ -293,7 +301,6 @@ std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getResType(
 	case '=':
 	comparison:
 		if (Op[1] == Op[0] && Op[0] != '=') {
-			// <<, >> TODO: forbid shift operations for floats
 			is_shift = true; // to allow signed / unsigend mismatch
 			res_bitwidth_min = left_bitwidth;
 			res_bitwidth = Op[0] == '<' ? 64 : res_bitwidth_min;
@@ -355,10 +362,17 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, bool left_
 
 	unsigned res_bitwidth_min = res_type_min ? getBitWidth(res_type_min).first : 0;
 	unsigned res_bitwidth = getBitWidth(res_type).first;
+	std::function<llvm::Value*(llvm::Value*)> right_conv_min;
+	std::function<llvm::Value*(llvm::Value*)> right_conv;
+	if (Op[0] == '^' && !right_is_float) { // special treatment for a^b whene b is int
+		auto desired_exp_type = (right_bitwidth <= 16) ? llvm::Type::getInt16Ty(Context) : llvm::Type::getInt32Ty(Context);
+		right_conv_min = right_conv = [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_exp_type, true, "convpowexp"); };
+	} else {
+		right_conv_min = res_type_min ? getConv(right_type, res_type_min, Loc, right_is_signed, res_is_signed, false, right_is_unknown_type) : nullptr;
+		right_conv = res_bitwidth_min <= res_bitwidth ? getConv(right_type, res_type, Loc, right_is_signed, res_is_signed, false, right_is_unknown_type) : nullptr;
+	}
 	auto left_conv_min = res_type_min ? getConv(left_type, res_type_min, Loc, left_is_signed, res_is_signed, false, left_is_unknown_type) : nullptr;
-	auto right_conv_min = res_type_min ? getConv(right_type, res_type_min, Loc, right_is_signed, res_is_signed, false, right_is_unknown_type) : nullptr;
 	auto left_conv = res_bitwidth_min <= res_bitwidth ? getConv(left_type, res_type, Loc, left_is_signed, res_is_signed, false, left_is_unknown_type) : nullptr;
-	auto right_conv = res_bitwidth_min <= res_bitwidth ? getConv(right_type, res_type, Loc, right_is_signed, res_is_signed, false, right_is_unknown_type) : nullptr;
 	return {{ left_conv_min, right_conv_min, res_type_min, err_msg, res_is_signed, res_is_unknown_type },
 	        { left_conv, right_conv, res_type, nullptr, res_is_signed && res_bitwidth > 1, res_is_unknown_type }};
 }

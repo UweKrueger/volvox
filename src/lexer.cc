@@ -529,6 +529,7 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 		case '*':
 		case '/':
 		case '%':
+		case '^':
 		{
 			auto c0 = CurChar;
 			IdentifierStr = c0;
@@ -588,6 +589,8 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 			case '/':
 			case '%':
 				return tok_mult;
+			case '^':
+				return tok_pow;
 			default:
 				abort();
 			}
