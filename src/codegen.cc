@@ -2265,8 +2265,12 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
+	if (EndKind == tok_return) {
+		Branch.back()->desired_type = theFunction_ret_ft->type;
+		Branch.back()->desired_type_attr = theFunction_ret_ft->type_attr;
+	}
 	for (auto& expr : Branch)
-		BranchV = expr->codegen_raw();
+		BranchV = expr->codegen();
 	if (!BranchV && !isElse)
 		return { nullptr, nullptr };
 	if (EndKind == tok_return) {
@@ -2280,11 +2284,6 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 				Builder->CreateRetVoid();
 			} else {
 				InsertDestructors(nullptr);
-				if (BranchV->getType() != theFunction_ret_ft->type) {
-					auto conv = getConv(BranchV->getType(), theFunction_ret_ft->type, Branch.back()->Loc,
-					                    Branch.back()->ft->type_attr & A_signed, theFunction_ret_ft->type_attr & A_signed);
-					BranchV = conv(BranchV);
-				}
 				Builder->CreateRet(CheckTailCall(BranchV));
 			}
 		}
@@ -2936,11 +2935,6 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			Builder->CreateRetVoid();
 		} else {
 			InsertDestructors(nullptr);
-			if (RetVal->getType() != theFunction_ret_ft->type) {
-				auto conv = getConv(RetVal->getType(), theFunction_ret_ft->type, Body.back()->Loc,
-				                    Body.back()->ft->type_attr & A_signed, theFunction_ret_ft->type_attr & A_signed);
-				RetVal = conv(RetVal);
-			}
 			Builder->CreateRet(CheckTailCall(RetVal));
 		}
 	}		
