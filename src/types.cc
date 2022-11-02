@@ -174,9 +174,9 @@ no_explicit_constructor:
 			if (!desired_is_signed)
 				if (expr_is_signed)
 					// signed -> unsigned
-					if (!is_explicit && !is_unknown_type)
-						return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "signed->unsigned");
-					else
+					// if (!is_explicit && !is_unknown_type)
+					// 	return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "signed->unsigned");
+					// else
 						if (desired_bitwidth == expr_bitwidth)
 							return NoConversion;
 						else
