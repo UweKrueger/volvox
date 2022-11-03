@@ -117,7 +117,7 @@ fn test_int_int_exponentiation_2() bool
 	a := -17i64
 	b := 13i8
 	c := a^b
-	return c == -9904578032905937i64
+	return c == -9904578032905937
 
 fn test_int_int_exponentiation_3() bool
 	a := 7

@@ -328,7 +328,18 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	}
 	switch (ft->type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		return llvm::ConstantInt::get(Context, llvm::APInt(ft->type->getIntegerBitWidth(), Val.Uint, ft->type_attr & A_signed));
+	{
+		unsigned bw = 0;
+		if (desired_type) {
+			if (auto it = llvm::dyn_cast<llvm::IntegerType>(desired_type))
+				bw = it->getBitWidth();
+			else if (desired_type->isDoubleTy())
+				return llvm::ConstantFP::get(Context, llvm::APFloat(ft->type_attr & A_signed ? (double)Val.Int : (double)Val.Uint));
+		}
+		if (!bw)
+			bw = ft->type->getIntegerBitWidth();
+		return llvm::ConstantInt::get(Context, llvm::APInt(bw, Val.Uint, ft->type_attr & A_signed));
+	}
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
 		errs() << "Sorry, 16 bit floats are not supported, yet\n";
@@ -1823,6 +1834,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			convLHS = conv.compat.LHS;
 			convRHS = conv.compat.RHS;
 		}
+		if (Op[0] == '^')
+			RHS->desired_type = nullptr;
 	}
 	if (verbosity >= 4) {
 		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
