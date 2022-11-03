@@ -101,3 +101,42 @@ fn test_f64_exponentiation_int_exp_3() bool
 	a = b
 	return a > -295.2828636106025 && a < -295.2828636106015
 
+fn test_f64_exponentiation_int_exp_4() bool
+	a := -0.0625
+	b := a^-7
+	a = b
+	return a == -268435456.
+
+fn test_int_int_exponentiation_1() bool
+	a := 17
+	b := 3
+	c := a^b
+	return c == 4913
+
+fn test_int_int_exponentiation_2() bool
+	a := -17i64
+	b := 13i8
+	c := a^b
+	return c == -9904578032905937i64
+
+fn test_int_int_exponentiation_3() bool
+	a := 7
+	return a^0 == 1 && a^1 == 7 && a^2 == 49 && a^3 == 343 && a^4 == 2401
+
+fn test_int_int_exponentiation_4() bool
+	a := -7532i64
+	return a^0 == 1 && a^1 == -7532 && a^2 == 56731024 && a^3 == -427298072768i64 && a^4 == 3218409084088576i64
+
+fn test_int_int_exponentiation_5() bool
+	a := -5
+	b := -7i64
+	c := 17
+	d := 23
+	return a^-1 == 0 && b^-1 == 0 && c^-1 == 0 && d^-1 ==0 && a^-2 == 0 && b^-3 ==0 && c^-4 == 0 && d^-7 == 0
+
+fn test_int_int_exponentiation_6() bool
+	a := -1
+	b := -1i64
+	c := 1
+	d := 1i64
+	return a^-1 == -1 && b^-1 == -1 && c^-1 == 1 && d^-1 == 1 && a^-2 == 1 && b^-3 == -1 && a^-7 == -1 && b^-4 == 1 && c^-7 == 1 && d^-9 == 1
