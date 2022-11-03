@@ -53,10 +53,7 @@ inline fn __i32_pow(b i32, e i32) i32
 				return r .
 			b *= b
 			if (e & 1) != 0
-				r *= b
-			.
-		.
-	.
+				r *= b . . .
 	if b == -1
 		if (e & 1) != 0
 			return -1 .
@@ -98,10 +95,7 @@ inline fn __i64_pow(b i64, e i32) i64
 				return r .
 			b *= b
 			if (e & 1) != 0
-				r *= b
-			.
-		.
-	.
+				r *= b . . .
 	if b == -1
 		if (e & 1) != 0
 			return -1 .

@@ -793,7 +793,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	} else {
 		if (!Expect(tok_end, eBinOp))
 			return nullptr;
-		getNextToken(eBinOp, terminator);
 	}
 	auto conv = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
 	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
