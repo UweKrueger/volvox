@@ -1025,6 +1025,10 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 				val = getInterfaceArrayValue(val, array_type);
 		} else {
 			llvm::Value* array = expr->codegen_raw(target);
+			if (!array) {
+				errs() << Loc << ": cannot generate code for expression\n";
+				return nullptr;
+			}
 			if (array->getType()->isVoidTy())
 				return array;
 			// if it's an rvalue we have to store it on stack to get a reference
@@ -1662,8 +1666,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				auto align = getAlignment(allocsz);
 				if (target)
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
-				if (ValPtr)
-					Builder->CreateMemCpy(Variable.second, align, Val, align, allocsz);
+				else if (ValPtr)
+					Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
 				else {
 					auto voidval = RHS->codegen_raw(Variable.second);
 					if (!voidval->getType()->isVoidTy()) {
