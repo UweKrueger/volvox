@@ -1992,10 +1992,10 @@ no_conversion:
 					result = Builder->CreateCall(powfn_proto->FT, powfn, std::vector<llvm::Value*>{ L, R });
 				}
 			} else {
-				result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::powi, L, R);
+				result = Builder->CreateIntrinsic(llvm::Intrinsic::powi, { L->getType(), R->getType() }, { L, R });
 			}
 		} else {
-			result = Builder->CreateBinaryIntrinsic(llvm::Intrinsic::pow, L, R);
+			result = Builder->CreateIntrinsic(llvm::Intrinsic::pow, { L->getType(), R->getType() }, { L, R });
 		}
 		break;
 	case '!':
