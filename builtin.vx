@@ -40,43 +40,90 @@ inline fn __check_array_index(index u64, length u64)
 	return
 
 inline fn __i32_pow(b i32, e i32) i32
-	if e < 0
-		if b == 1
-			return 1 .
-		if b == -1
+	if e >= 0
+		r := if (e & 1) != 0
+			b
+		else
+			1 .
+		while true
+			e >>= 1
+			if e == 0
+				return r .
+			b *= b
 			if (e & 1) != 0
-				return -1 .
-			return 1 .
-		return 0 .
-	r := if (e & 1) != 0
-		b
-	else
-		1 .
-	e >>= 1
-	while e != 0
-		b *= b
+				r *= b
+			.
+		.
+	.
+	if b == 1
+		return 1 .
+	if b == -1
 		if (e & 1) != 0
-			r *= b .
-		e >>= 1 .
-	return r
+			return -1 .
+		return 1 .
+	return 0
+
+# specialized version for constant exponents - all conditions are resolved at compile time
+inline fn __i32_pow_constexp(b i32, e i32) i32
+	if e == 0
+		return 1 .
+	if e == 1
+		return b .
+	if e == 2
+		return b * b .
+	if e == 3
+		return b * b * b .
+	if e == 4
+		t := b * b
+		return t * t .
+	if e == 5
+		return b * __i32_pow_constexp(b, 4) .
+	if e == 8
+		t := b * b
+		t *= t
+		return t * t .
+	return __i32_pow(b, e)
 
 inline fn __i64_pow(b i64, e i32) i64
-	if e < 0
-		if b == 1
-			return 1 .
-		if b == -1
+	if e >= 0
+		r := if (e & 1) != 0
+			b
+		else
+			1 .
+		while true
+			e >>= 1
+			if e == 0
+				return r .
+			b *= b
 			if (e & 1) != 0
-				return -1 .
-			return 1 .
-		return 0 .
-	r := if (e & 1) != 0
-		b
-	else
-		1 .
-	e >>= 1
-	while e != 0
-		b *= b
+				r *= b
+			.
+		.
+	.
+	if b == 1
+		return 1 .
+	if b == -1
 		if (e & 1) != 0
-			r *= b .
-		e >>= 1 .
-	return r
+			return -1 .
+		return 1 .
+	return 0
+
+inline fn __i64_pow_constexp(b i64, e i32) i64
+	if e == 0
+		return 1 .
+	if e == 1
+		return b .
+	if e == 2
+		return b * b .
+	if e == 3
+		return b * b * b .
+	if e == 4
+		t := b * b
+		return t * t .
+	if e == 5
+		return b * __i64_pow_constexp(b, 4) .
+	if e == 8
+		t := b * b
+		t *= t
+		return t * t .
+	return __i64_pow(b, e)

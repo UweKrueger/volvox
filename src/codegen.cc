@@ -1983,7 +1983,8 @@ no_conversion:
 						L = Builder->CreateIntCast(L, llvm::Type::getInt32Ty(Context), LHS->ft->type_attr & A_signed);
 					if (int_exp_type->getBitWidth() != 32)
 						R = Builder->CreateIntCast(R, llvm::Type::getInt32Ty(Context), RHS->ft->type_attr & A_signed);
-					auto powfn_proto = (*lex.findProtos("__i32_pow"))[0].get();
+					auto powfn_proto = llvm::isa<llvm::Constant>(R) ? (*lex.findProtos("__i32_pow_constexp"))[0].get()
+						: (*lex.findProtos("__i32_pow"))[0].get();
 					auto powfn = getFunction(powfn_proto);
 					result = Builder->CreateCall(powfn_proto->FT, powfn, std::vector<llvm::Value*>{ L, R });
 				} else {
@@ -1991,7 +1992,8 @@ no_conversion:
 						L = Builder->CreateIntCast(L, llvm::Type::getInt64Ty(Context), LHS->ft->type_attr & A_signed);
 					if (int_exp_type->getBitWidth() != 32)
 						R = Builder->CreateIntCast(R, llvm::Type::getInt32Ty(Context), RHS->ft->type_attr & A_signed);
-					auto powfn_proto = (*lex.findProtos("__i64_pow"))[0].get();
+					auto powfn_proto = llvm::isa<llvm::Constant>(R) ? (*lex.findProtos("__i64_pow_constexp"))[0].get()
+						: (*lex.findProtos("__i64_pow"))[0].get();
 					auto powfn = getFunction(powfn_proto);
 					result = Builder->CreateCall(powfn_proto->FT, powfn, std::vector<llvm::Value*>{ L, R });
 				}
