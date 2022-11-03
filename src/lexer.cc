@@ -819,6 +819,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, eXpect expect) {
 		return out << "path";
 	case eType:
 		return out << "type specifier";
+	default: // make gcc happy - we'll never get here for valid values of eXpect
+		return out << "### internal error ###";
 	}
 }
 
