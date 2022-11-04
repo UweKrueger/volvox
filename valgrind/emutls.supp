@@ -15,3 +15,15 @@
    fun:_ZL8MainLoopv
    fun:main
 }
+# when compiled with optimizations MainLoop() might be inlined
+{
+   emutls/aligned_malloc_opt
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:emutls_alloc
+   fun:__emutls_get_address
+   obj:*
+   fun:_Z21GetTopLevelExpressionj
+   fun:main
+}
