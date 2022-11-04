@@ -1850,10 +1850,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (Op[0] == '^') {
 			// exponantiation is tricky because float^int is desirable in principle
 			// unless the exponent is a fraction
-			if (RHS->desired_type)
-				errs() << "check frac " << *RHS->desired_type << ' ' << is_fractional(RHS.get()) << "\n";
-			else
-				errs() << "no desired type\n";
 			if (RHS->ft->type->isIntegerTy() && (!LHS->ft->type->isIntegerTy() || LHS->desired_type && !LHS->desired_type->isIntegerTy()))
 				if (is_fractional(RHS.get()))
 					RHS->desired_type = LHS->desired_type ? LHS->desired_type : LHS->ft->type;
@@ -1864,11 +1860,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					RHS->desired_type = LHS->desired_type ? LHS->desired_type : LHS->ft->type;
 				else
 					RHS->desired_type = nullptr;
-			if (RHS->desired_type)
-				errs() << "got frac " << *RHS->desired_type << "\n";
 		}
 	}
-	if (true) {
+	if (false) {
 		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
 		if (RHS->desired_type) errs() << "RHS desired_type: " << *RHS->desired_type << ' ';
 		errs() << "expr: ";
