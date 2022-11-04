@@ -1860,7 +1860,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				else
 					RHS->desired_type = nullptr;
 			else
-				RHS->desired_type = nullptr;
+				if (!RHS->ft->type->isIntegerTy() && RHS->is_unknown_type)
+					RHS->desired_type = LHS->desired_type ? LHS->desired_type : LHS->ft->type;
+				else
+					RHS->desired_type = nullptr;
 			if (RHS->desired_type)
 				errs() << "got frac " << *RHS->desired_type << "\n";
 		}
@@ -1997,9 +2000,9 @@ no_conversion:
 					Builder->CreateCondBr(L, ContBB, RHSBB);
 				TheFunction->getBasicBlockList().push_back(RHSBB);
 				Builder->SetInsertPoint(RHSBB);
-				R = RHS->codegen_raw();
-				if (R && convRHS)
-					R = convRHS(R);
+				R = RHS->codegen();
+				// if (R && convRHS)
+				//	R = convRHS(R);
 				if (!R)
 					return nullptr;
 				Builder->CreateBr(ContBB);
