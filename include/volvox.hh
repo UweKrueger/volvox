@@ -1,4 +1,9 @@
 #pragma once
+/*
+ * Copyright © Uwe Krüger 2021, 2022
+ * Licensed under the Apache License, Version 2.0
+ * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 #include <llvm/ADT/APFloat.h>
 #include <llvm/ADT/Optional.h>
 #include <llvm/ADT/STLExtras.h>

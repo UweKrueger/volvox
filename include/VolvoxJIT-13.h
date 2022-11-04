@@ -1,17 +1,9 @@
 #pragma once
-
-//===- VolvoxJIT.h - A simple JIT for Volvox --------*- C++ -*-===//
-//
-// Part of the Volvox Project, under the Apache License v2.0 with LLVM Exceptions.
-// See https://llvm.org/LICENSE.txt for license information.
-// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-//
-//===----------------------------------------------------------------------===//
-//
-// Contains a simple JIT definition derived from the LLVM kaleidoscope tutorials.
-//
-//===----------------------------------------------------------------------===//
-
+/*
+ * Copyright © Uwe Krüger 2021, 2022
+ * Licensed under the Apache License, Version 2.0
+ * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/CompileUtils.h"

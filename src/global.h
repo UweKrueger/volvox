@@ -1,3 +1,8 @@
+/*
+ * Copyright © Uwe Krüger 2021, 2022
+ * Licensed under the Apache License, Version 2.0
+ * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
+ */
 #pragma once
 #if defined (_WIN32)
 #include "../include/volvox-14.hh"
