@@ -1865,7 +1865,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				errs() << "got frac " << *RHS->desired_type << "\n";
 		}
 	}
-	if (verbosity >= 4) {
+	if (true) {
 		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
 		if (RHS->desired_type) errs() << "RHS desired_type: " << *RHS->desired_type << ' ';
 		errs() << "expr: ";
@@ -1876,24 +1876,24 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 no_conversion:
 	llvm::Value *L, *R;
-	L = LHS->codegen_raw();
-	if (L && convLHS)
-		L = convLHS(L);
+	L = LHS->codegen();
+	// if (L && convLHS)
+	// 	L = convLHS(L);
 	if (!L)
 		return nullptr;
 	if (kind == logical_op) { // &&, ||
 		R = nullptr;
 		// codegen is postponed - we do lazy evaluation
 	} else {
-		R = RHS->codegen_raw();
-		if (R && convRHS)
-			R = convRHS(R);
+		R = RHS->codegen();
+		// if (R && convRHS)
+		// 	R = convRHS(R);
 		if (!R)
 			return nullptr;
 	}
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
 	TypeClass typeclass = is_unknown;
-	switch(OperandType->getTypeID()) {
+	switch(L->getType()->getTypeID()) {
 	case llvm::Type::IntegerTyID:
 		typeclass = is_int;
 		break;
