@@ -1485,6 +1485,19 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	return nullptr;
 }
 
+// helper function to find out if an expression is fractional
+inline bool is_fractional(ExprAST* expr) {
+	if (auto binexpr = dynamic_cast<BinaryExprAST*>(expr)) {
+		if (!binexpr->Op[1]) {
+			if (binexpr->Op[0] == '/')
+				return true;
+			if (binexpr->Op[0] == '+' || binexpr->Op[0] == '-' || binexpr->Op[0] == '*')
+				return is_fractional(binexpr->LHS.get()) || is_fractional(binexpr->RHS.get());
+		}
+	}
+	return false;
+}
+
 llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -1834,8 +1847,23 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			convLHS = conv.compat.LHS;
 			convRHS = conv.compat.RHS;
 		}
-		if (Op[0] == '^')
-			RHS->desired_type = nullptr;
+		if (Op[0] == '^') {
+			// exponantiation is tricky because float^int is desirable in principle
+			// unless the exponent is a fraction
+			if (RHS->desired_type)
+				errs() << "check frac " << *RHS->desired_type << ' ' << is_fractional(RHS.get()) << "\n";
+			else
+				errs() << "no desired type\n";
+			if (RHS->ft->type->isIntegerTy() && (!LHS->ft->type->isIntegerTy() || LHS->desired_type && !LHS->desired_type->isIntegerTy()))
+				if (is_fractional(RHS.get()))
+					RHS->desired_type = LHS->desired_type ? LHS->desired_type : LHS->ft->type;
+				else
+					RHS->desired_type = nullptr;
+			else
+				RHS->desired_type = nullptr;
+			if (RHS->desired_type)
+				errs() << "got frac " << *RHS->desired_type << "\n";
+		}
 	}
 	if (verbosity >= 4) {
 		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
