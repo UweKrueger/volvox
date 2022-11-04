@@ -1,9 +1,9 @@
+#pragma once
 /*
  * Copyright © Uwe Krüger 2021, 2022
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
-#pragma once
 #if defined (_WIN32)
 #include "../include/volvox-14.hh"
 #include <windows.h>
@@ -201,6 +201,7 @@ struct SourceLocation {
 	int Col;
 };
 
+extern bool needs_libm;
 extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;
 #define Context *TS_Context->getContext()
 extern SourceLocation CurLoc;

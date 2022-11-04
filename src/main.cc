@@ -24,6 +24,7 @@ int prompt_indent = 0;
 std::map<std::string, Module> Modules;
 DebugInfo KSDbgInfo;
 const char* last_defined_type = nullptr;
+bool needs_libm = false;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -1379,6 +1380,8 @@ int main(int argc, char* argv[]) {
 					clang_argv.push_back(const_cast<char*>("-lvolvox"));
 					clang_argv.push_back(rpath);
 				}
+				if (needs_libm)
+					clang_argv.push_back(const_cast<char*>("-lm"));
 #endif
 				if(verbosity)
 					clang_argv.push_back(const_cast<char*>("-v"));

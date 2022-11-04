@@ -2045,6 +2045,7 @@ no_conversion:
 			}
 		} else {
 			result = Builder->CreateIntrinsic(llvm::Intrinsic::pow, { L->getType(), R->getType() }, { L, R });
+			needs_libm = true;
 		}
 		break;
 	case '!':
