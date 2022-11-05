@@ -1675,8 +1675,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			Val = RHS->codegen();
 			if (!Val)
 				return nullptr;
-			if (conv.compat.RHS)
-				Val = conv.compat.RHS(Val);
 		}
 	have_val_or_valptr:
 		// Look up the name.
@@ -1803,8 +1801,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}
 	llvm::Value* result;
-	std::function<llvm::Value*(llvm::Value*)> convLHS = nullptr;
-	std::function<llvm::Value*(llvm::Value*)> convRHS = nullptr;
 	llvm::Type* OperandType;
 	bool OperandSigned;
 	if (!conv.compat.LHS && !conv.compat.RHS && !conv.ideal.LHS && !conv.ideal.RHS) {
@@ -1825,8 +1821,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
 		LHS->desired_type = RHS->desired_type = conv.compat.res_type;
 		LHS->desired_type_attr = RHS->desired_type_attr = (conv.compat.res_is_signed ? A_signed : 0);
-		convLHS = conv.compat.LHS;
-		convRHS = conv.compat.RHS;
 	} else {
 		if (desired_type) {
 			auto ana_default = conv.compat.err_msg ? std::pair<bool, bool>{ false, false } : analyze_types({ conv.compat.res_type, conv.compat.res_is_signed }, { desired_type, desired_type_attr & A_signed });

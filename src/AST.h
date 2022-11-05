@@ -504,8 +504,6 @@ public:
 
 // conversions that have to be applied to Operands of binary Operator to make them compatible
 struct BinOpConv {
-	std::function<llvm::Value*(llvm::Value*)> LHS;
-	std::function<llvm::Value*(llvm::Value*)> RHS;
 	llvm::Type* res_type = nullptr;
 	const char* err_msg = nullptr;
 	bool res_is_signed = false;

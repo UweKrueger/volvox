@@ -805,8 +805,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		          Then.first.back()->ft->type_attr & A_signed, Else.first.back()->ft->type_attr & A_signed,
 		          Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type,
 		          "-")
-		: BinOpConvSet{{ nullptr, nullptr, llvm::Type::getVoidTy(Context), nullptr, false, false },
-		               { nullptr, nullptr, llvm::Type::getVoidTy(Context), nullptr, false, false }};
+		: BinOpConvSet{{ llvm::Type::getVoidTy(Context), nullptr, false, false },
+		               { llvm::Type::getVoidTy(Context), nullptr, false, false }};
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), conv, kind);
 }
