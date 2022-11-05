@@ -201,6 +201,7 @@ struct SourceLocation {
 	int Col;
 };
 
+extern bool support_fp80;
 extern bool needs_libm;
 extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;
 #define Context *TS_Context->getContext()

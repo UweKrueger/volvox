@@ -25,6 +25,7 @@ std::map<std::string, Module> Modules;
 DebugInfo KSDbgInfo;
 const char* last_defined_type = nullptr;
 bool needs_libm = false;
+bool support_fp80;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -1175,6 +1176,7 @@ int main(int argc, char* argv[]) {
 		else
 			errs() << "using native TLS\n";
 	}
+	support_fp80 = TheTargetMachine->getTargetTriple().isX86();
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.
 		TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version",
