@@ -66,9 +66,9 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 	if (is_float)
 		if (bitwidth > 53) // only used for intermediate results during comparisons
 			if (support_fp80 && bitwidth <= 64)
-				return getX86_FP80Ty(Context);
+				return llvm::Type::getX86_FP80Ty(Context);
 			else
-				return getFP128Ty(Context);
+				return llvm::Type::getFP128Ty(Context);
 		else
 			if (bitwidth > 24)
 				return llvm::Type::getDoubleTy(Context);
@@ -268,7 +268,7 @@ std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation Loc, llv
 inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }
 inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
-// classificatio of binary operators with result type calculation in mind
+// classification of binary operator with result type calculation in mind
 enum OpClass {
 	OpNormal,
 	OpAssign,
@@ -316,126 +316,66 @@ static inline OpClass getOpClass(const char* Op) {
 			return OpAssign;
 		case '&':
 		case '|':
-			return OBitwise;
-		case '=':
-			return OpAssign;
+			return OpBitwise;
 		case '^':
 			return OpExponentiation;
 		default:
-			OpNormal;
+			return OpNormal;
 		}
 	default:
 		abort();
+	}
 }
 
 // desired_left_type, desired_right_type, left_signed, right_signed, errormessage
-std::tuple<llvm::Type*, llvm::Type*, bool, bool, const char*> getDesiredTypes(llvm::Type* desired_res,
-	        llvm::Type* left_type, llvm::Type* right_type, const char* Op, bool desired_signed,
-	        bool left_signed, bool right_signed, bool left_is_unknown_type, bool right_is_unknown_type)
+std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* res_type, llvm::Type* desired_res,
+	        llvm::Type* left_type, llvm::Type* right_type, OpClass opclass, bool res_min_is_signed, bool desired_is_signed,
+	        bool left_is_signed, bool right_is_signed, bool left_is_unknown_type, bool right_is_unknown_type)
 {
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
-	auto [desired_res_bitwidth, desired_res_is_float] = desired_res ? getBitWidth(desired_res) : { 0U, false };
-	unsigned res_bitwidth_min = right_is_unknown_type ?
-		(left_is_unknown_type ? (desired_res_bitwidth ? desired_res_bitwidth : Max(right_bitwidth, left_bitwidth))
-		 : left_bitwidth) :
-		left_is_unknown_type ? right_bitwidth : Max(right_bitwidth, left_bitwidth);
-	unsigned res_bitwidth = res_bitwidth_min; // will be refined based on operator
-	bool res_is_float = left_is_float || right_is_float;
-	bool res_ideal_is_float = res_is_float;
-	bool res_is_signed = left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type || left_is_signed && right_is_signed; 
-	bool is_shift = false;
-	bool is_logical = false;
-	// in simple cases one operand is converted to the type of the other
-	// here we calculate the ideal result bitwidth to prevent data loss due to overflow
-	unsigned opsz = strlen(Op);
-	if (Op[opsz-1] == '=') {
-		if (opsz == 2 && Op[0] == '>' || Op[0] == '<' || Op[0] == '!' || Op[0] == '=') {
-			// comparison
-				if (left_is_signed != right_is_signed && !left_is_unknown_type && !right_is_unknown_type) {
-					res_is_signed = true;
-					res_bitwidth_min++;
-				}
-				res_bitwidth = 1;
-			goto comparison;
-		}
-		res_bitwidth_min = res_bitwidth = left_bitwidth;
-		if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
-			return { nullptr, nullptr, false, false, "illegal usage of %s: RHS would degrade\n" };
-		goto calc_types;
-	}
-	switch (Op[0]) {
-	case '+':
-	case '-':
-		res_bitwidth++;
-		break;
-	case '*':
-		if (Op[1] != '*') {
-			res_bitwidth = left_bitwidth + right_bitwidth;
-			goto calc_types;
-		}
-		// fallthrough for **
-	case '/':
-		res_ideal_is_float = true;
-		res_bitwidth = 53; // double
-	case '%':
-		res_bitwidth = left_bitwidth;
-		break;
-	case '^':
-		if (!left_is_float && !right_is_float) {
-			res_bitwidth = left_bitwidth;
-			res_bitwidth_min = left_bitwidth;
+	auto [desired_res_bitwidth, desired_res_is_float] = desired_res ? getBitWidth(desired_res)
+		: std::pair<unsigned,bool>{ 0, false };
+	unsigned desired_bitwidth = desired_res_bitwidth ? desired_res_bitwidth : Max(right_bitwidth, left_bitwidth);
+	bool res_is_float = desired_res_is_float || left_is_float || right_is_float;
+	llvm::Type* desired_left_type = nullptr;
+	llvm::Type* desired_right_type = nullptr;
+	switch (opclass) {
+	case OpAssign:
+		desired_right_type = left_type;
+		return { nullptr, desired_right_type, nullptr };
+	case OpComparison:
+		if (left_type == right_type && left_is_signed == right_is_signed) {
+			return { nullptr, nullptr, nullptr };
 		} else {
-			res_bitwidth = 53;
-			res_bitwidth_min = left_bitwidth;
-			res_ideal_is_float = true;
-			res_is_float = true;
-		}
-		break;
-	case '>':
-		if (Op[1] == '<')
-			goto op_xor;
-	case '<':
-	case '=':
-	comparison:
-		if (Op[1] == Op[0] && Op[0] != '=') {
-			is_shift = true; // to allow signed / unsigend mismatch
-			res_bitwidth_min = left_bitwidth;
-			res_bitwidth = Op[0] == '<' ? 64 : res_bitwidth_min;
-			res_is_signed = left_is_signed;
-		} else {
-			if (Op[0] == '=' && !Op[1]) {
-				// this is an assignment by default, i.e. if no bool result is expected
-				res_bitwidth = res_bitwidth_min = left_bitwidth;
-				res_is_float = left_is_float;
-				res_is_signed = left_is_signed;
-			} else {
-				if (left_is_signed != right_is_signed && !left_is_unknown_type && !right_is_unknown_type) {
-					res_is_signed = true;
-					res_bitwidth_min++;
+			auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
+			auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
+			desired_bitwidth = Max(left_bitwidth, right_bitwidth);
+			bool desire_float = left_is_float || right_is_float;
+			if (!desire_float) {
+				if (left_is_signed || right_is_signed) {
+					if (!left_is_signed && left_bitwidth >= right_bitwidth
+					    || !right_is_signed && right_bitwidth >= left_bitwidth)
+						desired_bitwidth++;;
+					desired_left_type = desired_right_type = getFittingType(desired_bitwidth, desire_float);
+					return { desired_left_type, desired_right_type, nullptr };
 				}
-				res_bitwidth = 1;
 			}
 		}
 		break;
-	case '&':
-	case '|':
-	op_xor:
-		res_is_signed = false; // default to unsigned for (possibly bitwise) &, |, ><
-		break;
+	case OpShift:
+	case OpExponentiation:
+		desired_left_type = desired_res_bitwidth ? getFittingType(desired_res_bitwidth, false) : nullptr;
+		return { desired_left_type, nullptr, nullptr };
+	case OpLogical:
+		desired_right_type = desired_left_type = llvm::Type::getInt1Ty(Context);
+		return { desired_left_type, desired_right_type, nullptr };
 	default:
 		;
 	}
-calc_types:
-	res_ideal_is_float = res_ideal_is_float || res_is_float;
-	bool left_is_promoted = (res_bitwidth_min > left_bitwidth || res_is_float && !left_is_float) && !left_is_unknown_type;
-	bool right_is_promoted = (res_bitwidth_min > right_bitwidth || res_is_float && !right_is_float) && !is_shift && !left_is_unknown_type;
-	llvm::Type* def_type = (left_is_promoted && right_is_promoted && res_bitwidth != 1) ?
-		nullptr : // forbid both-side promotion as default
-		getFittingType(res_bitwidth_min, res_is_float);
-	return { def_type, getFittingType(res_bitwidth, res_ideal_is_float), res_is_signed,
-		left_is_unknown_type && (right_is_unknown_type || is_shift),
-		def_type ? nullptr : "would require promotions on both sides" };
+	if (desired_bitwidth)
+		desired_left_type = desired_right_type = getFittingType(desired_bitwidth, res_is_float);
+	return { desired_left_type, desired_right_type, nullptr };
 }
 
 // get "natural" result type for binary operators, i.e if desired type is not known (yet)
@@ -446,7 +386,7 @@ calc_types:
 // result_type, result is signed, result is unknown type, errormessage
 std::tuple<llvm::Type*, bool, bool, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
-	bool left_signed, bool right_signed, bool left_is_unknown_type, bool right_is_unknown_type)
+	bool left_is_signed, bool right_is_signed, bool left_is_unknown_type, bool right_is_unknown_type)
 {
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
@@ -457,7 +397,7 @@ std::tuple<llvm::Type*, bool, bool, const char*> getResType(
 	auto opclass = getOpClass(Op);
 	switch (opclass) {
 	case OpComparison:
-		return { llvm::Type::getInt1Ty(Context), false, false, nullprt };
+		return { llvm::Type::getInt1Ty(Context), false, false, nullptr };
 	case OpAssign:
 		res_bitwidth = left_bitwidth;
 		if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
@@ -487,7 +427,7 @@ std::tuple<llvm::Type*, bool, bool, const char*> getResType(
 	}
 	return { getFittingType(res_bitwidth, res_is_float), res_is_signed, res_is_unknown_type, nullptr };
 }
-
+#if 0
 // compute the conversion functions for binary Operators
 BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, bool left_is_signed, bool right_is_signed,
                        bool left_is_unknown_type, bool right_is_unknown_type,
@@ -524,7 +464,7 @@ BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, bool left_
 	return {{ left_conv_min, right_conv_min, res_type_min, err_msg, res_is_signed, res_is_unknown_type },
 	        { left_conv, right_conv, res_type, nullptr, res_is_signed && res_bitwidth > 1, res_is_unknown_type }};
 }
-
+#endif
 std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
 	if(!is_unknown_type)
 		return { type, NoConversion, is_signed };
