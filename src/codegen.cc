@@ -2280,6 +2280,8 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	}
 	for (auto& expr : Branch)
 		BranchV = expr->codegen();
+	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
+		Branch.back()->ft->type = Branch.back()->desired_type;
 	if (!BranchV && !isElse)
 		return { nullptr, nullptr };
 	if (EndKind == tok_return) {
