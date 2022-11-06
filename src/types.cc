@@ -397,7 +397,8 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 	case OpComparison:
 		return { llvm::Type::getInt1Ty(Context), false, false, opclass, nullptr };
 	case OpDeclAssign:
-		return { llvm::Type::getVoidTy(Context), false, false, opclass, nullptr };
+		// nullptr as type is reserved for this particular case
+		return { nullptr, false, false, opclass, nullptr };
 	case OpAssign:
 		res_bitwidth = left_bitwidth;
 		if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
