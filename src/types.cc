@@ -42,6 +42,8 @@ llvm::Value* NoConversion(llvm::Value* v) { return v; }
 
 // returns { significant_bits, is_float }
 std::pair<unsigned, bool> getBitWidth(llvm::Type* type) {
+	if (!type)
+		return { 0, false };
 	switch(type->getTypeID()) {
 	case llvm::Type::IntegerTyID:
 		return { type->getIntegerBitWidth(), false };

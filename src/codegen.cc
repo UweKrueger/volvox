@@ -2504,10 +2504,11 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		if (if_kind == tok_while)
 			CondBB = Builder->GetInsertBlock();
 		const char* new_err_msg;
-		std::tie(Then.back()->desired_type, Else.back()->desired_type, new_err_msg) = getDesiredTypes(
-			ft->type, desired_type, Then.back()->ft->type, Else.back()->ft->type, OpNormal, ft->type_attr & A_signed,
-			Then.back()->ft->type_attr & A_signed, Else.back()->ft->type_attr & A_signed, Then.back()->is_unknown_type,
-			Else.back()->is_unknown_type);
+		if (!Else.empty() && !Then.empty())
+			std::tie(Then.back()->desired_type, Else.back()->desired_type, new_err_msg) = getDesiredTypes(
+				ft->type, desired_type, Then.back()->ft->type, Else.back()->ft->type, OpNormal, ft->type_attr & A_signed,
+				Then.back()->ft->type_attr & A_signed, Else.back()->ft->type_attr & A_signed,
+				Then.back()->is_unknown_type, Else.back()->is_unknown_type);
 		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
 			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
 			return nullptr;
