@@ -327,7 +327,7 @@ static inline OpClass getOpClass(const char* Op) {
 	}
 }
 
-// desired_left_type, desired_right_type, left_signed, right_signed, errormessage
+// desired_left_type, desired_right_type, errormessage
 std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* res_type, llvm::Type* desired_res,
 	        llvm::Type* left_type, llvm::Type* right_type, OpClass opclass, bool res_min_is_signed, bool desired_is_signed,
 	        bool left_is_signed, bool right_is_signed, bool left_is_unknown_type, bool right_is_unknown_type)
@@ -427,44 +427,7 @@ std::tuple<llvm::Type*, bool, bool, const char*> getResType(
 	}
 	return { getFittingType(res_bitwidth, res_is_float), res_is_signed, res_is_unknown_type, nullptr };
 }
-#if 0
-// compute the conversion functions for binary Operators
-BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type, bool left_is_signed, bool right_is_signed,
-                       bool left_is_unknown_type, bool right_is_unknown_type,
-                       const char* Op, SourceLocation Loc)
-{
-	if (!strcmp(Op, ":=") || !left_type || Op[0] == ',') // variable declaration, i.e. := operator
-		return {{ nullptr, nullptr, nullptr, nullptr, false, false }, { nullptr, nullptr, nullptr, nullptr, false, false }};
-	if (!left_type->isSingleValueType() || !right_type || !right_type->isSingleValueType())
-		return {{ nullptr, nullptr, left_type, nullptr, left_is_signed, false }, { nullptr, nullptr, left_type, nullptr, left_is_signed, false }};
-	auto left_descr = getBitWidth(left_type);
-	unsigned left_bitwidth = left_descr.first;
-	bool left_is_float = left_descr.second;
-	auto right_descr = getBitWidth(right_type);
-	unsigned right_bitwidth = right_descr.first;
-	bool right_is_float = right_descr.second;
 
-	auto [res_type_min, res_type, res_is_signed, res_is_unknown_type, err_msg] = getResType(
-		left_bitwidth, left_is_float, left_is_signed, left_is_unknown_type,
-		right_bitwidth, right_is_float, right_is_signed, right_is_unknown_type, Op);
-
-	unsigned res_bitwidth_min = res_type_min ? getBitWidth(res_type_min).first : 0;
-	unsigned res_bitwidth = getBitWidth(res_type).first;
-	std::function<llvm::Value*(llvm::Value*)> right_conv_min;
-	std::function<llvm::Value*(llvm::Value*)> right_conv;
-	if (Op[0] == '^' && !right_is_float) { // special treatment for a^b whene b is int
-		auto desired_exp_type = (right_bitwidth <= 16) ? llvm::Type::getInt16Ty(Context) : llvm::Type::getInt32Ty(Context);
-		right_conv_min = right_conv = [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_exp_type, true, "convpowexp"); };
-	} else {
-		right_conv_min = res_type_min ? getConv(right_type, res_type_min, Loc, right_is_signed, res_is_signed, false, right_is_unknown_type) : nullptr;
-		right_conv = res_bitwidth_min <= res_bitwidth ? getConv(right_type, res_type, Loc, right_is_signed, res_is_signed, false, right_is_unknown_type) : nullptr;
-	}
-	auto left_conv_min = res_type_min ? getConv(left_type, res_type_min, Loc, left_is_signed, res_is_signed, false, left_is_unknown_type) : nullptr;
-	auto left_conv = res_bitwidth_min <= res_bitwidth ? getConv(left_type, res_type, Loc, left_is_signed, res_is_signed, false, left_is_unknown_type) : nullptr;
-	return {{ left_conv_min, right_conv_min, res_type_min, err_msg, res_is_signed, res_is_unknown_type },
-	        { left_conv, right_conv, res_type, nullptr, res_is_signed && res_bitwidth > 1, res_is_unknown_type }};
-}
-#endif
 std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
 	if(!is_unknown_type)
 		return { type, NoConversion, is_signed };
