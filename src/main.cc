@@ -493,7 +493,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		auto if_e = std::make_unique<IfExprAST>(
 			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 			std::move(_then), std::move(_else), tok_end, tok_end, std::move(VarTable()), std::move(VarTable()),
-			convBinOp(llvm_int_type, llvm_int_type, true, true, false, false, "-"));
+			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm_int_type, true, false, OpNormal, nullptr });
 		if_e->desired_type = llvm_int_type;
 		if_e->desired_type_attr = A_signed;
 		GlobalExprList.push_back(

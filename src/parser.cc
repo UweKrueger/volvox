@@ -799,16 +799,14 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (!Expect(tok_end, eBinOp))
 			return nullptr;
 	}
-	auto conv = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
+	auto res_t =(kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
 	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
-		convBinOp(Then.first.back()->ft->type, Else.first.back()->ft->type,
+		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
 		          Then.first.back()->ft->type_attr & A_signed, Else.first.back()->ft->type_attr & A_signed,
-		          Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type,
-		          "-")
-		: BinOpConvSet{{ llvm::Type::getVoidTy(Context), nullptr, false, false },
-		               { llvm::Type::getVoidTy(Context), nullptr, false, false }};
+		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
+		: std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), false, false, OpNormal, nullptr };
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), conv, kind);
+	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind);
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
@@ -1105,8 +1103,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			}
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
-		                                      convBinOp(LHS_type, RHS_type, LHS_attr & A_signed, RHS_attr & A_signed,
-		                                                LHS_is_unknown_type, RHS_is_unknown_type, BinOp.c_str()));
+		                                      getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr & A_signed, RHS_attr & A_signed,
+		                                                 LHS_is_unknown_type, RHS_is_unknown_type));
 	}
 }
 
@@ -1440,9 +1438,9 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 	if (auto E = ParseExpression()) {
 		if (!E->ft || !E->ft->type) {
 			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
-				if (B->conv.compat.err_msg)
-					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->conv.compat.err_msg);
-				if (!strcmp(B->Op, ":=")) {
+				if (B->err_msg)
+					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->err_msg);
+				if (B->opclass == OpDeclAssign) {
 					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_mainvar))
 						return HandleGlobalVariable(B, sym_kind);
 					else

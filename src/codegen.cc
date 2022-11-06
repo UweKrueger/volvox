@@ -1596,7 +1596,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			for ( ; Op[m] != '='; m++)
 				newOp[m] = Op[m];
 			newOp[m] = '\0';
-			RHS = std::make_unique<BinaryExprAST>(Loc, newOp, std::move(new_LHS), std::move(RHS), conv);
+			RHS = std::make_unique<BinaryExprAST>(Loc, newOp, std::move(new_LHS), std::move(RHS), std::tuple<llvm::Type*, bool, bool, OpClass,
+			                                      const char*>{ ft->type, ft->type_attr & A_signed, is_unknown_type, getOpClass(newOp), err_msg });
 		}
 		RHS->desired_type = LHSE->ft->type;
 		RHS->desired_type_attr = LHSE->ft->type_attr;
@@ -1801,67 +1802,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}
 	llvm::Value* result;
-	llvm::Type* OperandType;
-	bool OperandSigned;
-	if (!conv.compat.LHS && !conv.compat.RHS && !conv.ideal.LHS && !conv.ideal.RHS) {
-		OperandType = LHS->ft->type;
-		OperandSigned = LHS->ft->type_attr & A_signed;
-		goto no_conversion;
-	}
-	OperandType = conv.compat.res_type ? conv.compat.res_type : conv.ideal.res_type;
-	OperandSigned = conv.compat.res_type ? conv.compat.res_is_signed : conv.ideal.res_is_signed;
-	if (is_bool) {
-		if (desired_type) {
-			if (desired_type != llvm_bool_type) {
-				errs() << Loc << "boolean expression cannot be used where " << *desired_type << " is expected\n";
-				return nullptr;
-			}
-		}
-		if (conv.compat.err_msg)
-			return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
-		LHS->desired_type = RHS->desired_type = conv.compat.res_type;
-		LHS->desired_type_attr = RHS->desired_type_attr = (conv.compat.res_is_signed ? A_signed : 0);
-	} else {
-		if (desired_type) {
-			auto ana_default = conv.compat.err_msg ? std::pair<bool, bool>{ false, false } : analyze_types({ conv.compat.res_type, conv.compat.res_is_signed }, { desired_type, desired_type_attr & A_signed });
-			auto ana_ideal = analyze_types({ conv.ideal.res_type, conv.ideal.res_is_signed }, { desired_type, desired_type_attr & A_signed});
-			if (ana_ideal.second) {
-				LHS->desired_type = RHS->desired_type = conv.ideal.res_type;
-				LHS->desired_type_attr = RHS->desired_type_attr = (conv.ideal.res_is_signed ? A_signed : 0);
-				convLHS = conv.ideal.LHS;
-				convRHS = conv.ideal.RHS;
-			} else {
-				LHS->desired_type = RHS->desired_type = desired_type;
-				LHS->desired_type_attr = RHS->desired_type_attr = desired_type_attr;
-				if (conv.compat.res_type) {
-					convLHS = conv.compat.LHS;
-					convRHS = conv.compat.RHS;
-				}
-			}
-		} else {
-			if (conv.compat.err_msg)
-				return AutoErr(Loc, LHS->ft->type, RHS->ft->type, LHS->ft->type_attr, RHS->ft->type_attr, conv.compat.err_msg);
-			LHS->desired_type = RHS->desired_type = conv.compat.res_type;
-			LHS->desired_type_attr = RHS->desired_type_attr = (conv.compat.res_is_signed ? A_signed : 0);
-			convLHS = conv.compat.LHS;
-			convRHS = conv.compat.RHS;
-		}
-		if (Op[0] == '^') {
-			// exponantiation is tricky because float^int is desirable in principle
-			// unless the exponent is a fraction
-			if (RHS->ft->type->isIntegerTy() && (!LHS->ft->type->isIntegerTy() || LHS->desired_type && !LHS->desired_type->isIntegerTy()))
-				if (is_fractional(RHS.get()))
-					RHS->desired_type = LHS->desired_type ? LHS->desired_type : LHS->ft->type;
-				else
-					RHS->desired_type = nullptr;
-			else
-				if (!RHS->ft->type->isIntegerTy() && RHS->is_unknown_type)
-					RHS->desired_type = LHS->desired_type ? LHS->desired_type : LHS->ft->type;
-				else
-					RHS->desired_type = nullptr;
-		}
-	}
-	if (false) {
+	bool OperandSigned = ft->type_attr & A_signed;
+	const char* new_err_msg;
+	std::tie(LHS->desired_type, RHS->desired_type, new_err_msg) = getDesiredTypes(
+		ft->type, desired_type, LHS->ft->type, RHS->ft->type, opclass, ft->type_attr & A_signed,
+		LHS->ft->type_attr & A_signed, RHS->ft->type_attr & A_signed, LHS->is_unknown_type, RHS->is_unknown_type);
+	if (true) {
 		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
 		if (RHS->desired_type) errs() << "RHS desired_type: " << *RHS->desired_type << ' ';
 		errs() << "expr: ";
@@ -1870,7 +1816,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		else
 			errs() << "none\n";
 	}
-no_conversion:
 	llvm::Value *L, *R;
 	L = LHS->codegen();
 	// if (L && convLHS)
@@ -1913,7 +1858,7 @@ no_conversion:
 			result = Builder->CreateFAdd(L, R, "addtmp");
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '-':
@@ -1925,7 +1870,7 @@ no_conversion:
 			result = Builder->CreateFSub(L, R, "subtmp");
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '*':
@@ -1938,7 +1883,7 @@ no_conversion:
 			result = Builder->CreateFMul(L, R, "multmp");
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '/':
@@ -1953,7 +1898,7 @@ no_conversion:
 			result = Builder->CreateFDiv(L, R, "divtmp");
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '%':
@@ -1968,7 +1913,7 @@ no_conversion:
 			result = Builder->CreateFRem(L, R, "remtmp");
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '&':
@@ -2008,7 +1953,7 @@ no_conversion:
 			}
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			return nullptr;
 		}
 		break;
@@ -2052,7 +1997,7 @@ no_conversion:
 				result = Builder->CreateFCmpONE(L, R, "neftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		} else {
 			switch(typeclass) {
@@ -2060,7 +2005,7 @@ no_conversion:
 				result = Builder->CreateNot(Builder->CreateXor(L, R, "xortmp"), "nxortmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		}
 		break;
@@ -2073,7 +2018,7 @@ no_conversion:
 			result = Builder->CreateFCmpOEQ(L, R, "eqftmp");
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '<':
@@ -2089,7 +2034,7 @@ no_conversion:
 				result = Builder->CreateFCmpOLE(L, R, "leftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		} else if (Op[1] == '<') {
 			switch(typeclass) {
@@ -2097,7 +2042,7 @@ no_conversion:
 				result = Builder->CreateShl(L, R, "remtmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 			break;
 		} else {
@@ -2112,7 +2057,7 @@ no_conversion:
 				result = Builder->CreateFCmpOLT(L, R, "ltftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		}
 		break;
@@ -2129,7 +2074,7 @@ no_conversion:
 				result = Builder->CreateFCmpOGE(L, R, "geftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		} else if (Op[1] == '>') {
 			switch(typeclass) {
@@ -2140,7 +2085,7 @@ no_conversion:
 					result = Builder->CreateLShr(L, R, "remtmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 			break;
 		} else if (Op[1] == '<') {
@@ -2149,7 +2094,7 @@ no_conversion:
 				result = Builder->CreateXor(L, R, "remtmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 			break;
 		} else {
@@ -2164,7 +2109,7 @@ no_conversion:
 				result = Builder->CreateFCmpOGT(L, R, "gtftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *OperandType << "\n";
+				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		}
 		break;
@@ -2352,21 +2297,8 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 			}
 		}
 	} else {
-		if (ft->type->isVoidTy() && (!BranchV || !BranchV->getType()->isVoidTy())) {
+		if (ft->type->isVoidTy() && (!BranchV || !BranchV->getType()->isVoidTy()))
 			BranchV = llvm::UndefValue::get(ft->type);
-		} else if (ft->type->isSingleValueType()) {
-			auto PreConv = getBestPreConv(Branch.back()->Loc, desired_type, conv.compat.res_type,
-			                              conv.ideal.res_type, isElse ? conv.compat.RHS : conv.compat.LHS,
-			                              isElse ? conv.ideal.RHS : conv.ideal.LHS,
-			                              conv.ideal.res_is_signed);
-			if (!PreConv)
-				return { nullptr, nullptr };
-			BranchV = PreConv(BranchV);
-			if (Branch.back()->ft->type != BranchV->getType()) {
-				Branch.back()->ft = new_FullType(*Branch.back()->ft);
-				Branch.back()->ft->type = BranchV->getType();
-			}
-		}
 		firstBreak = Builder->CreateBr(MergeBB);
 	}
 	return { BranchV, firstBreak };
@@ -2571,10 +2503,11 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		if (if_kind == tok_while)
 			CondBB = Builder->GetInsertBlock();
-		if (desired_type) {
-			Then.back()->desired_type = desired_type;
-			Else.back()->desired_type = desired_type;
-		}
+		const char* new_err_msg;
+		std::tie(Then.back()->desired_type, Else.back()->desired_type, new_err_msg) = getDesiredTypes(
+			ft->type, desired_type, Then.back()->ft->type, Else.back()->ft->type, OpNormal, ft->type_attr & A_signed,
+			Then.back()->ft->type_attr & A_signed, Else.back()->ft->type_attr & A_signed, Then.back()->is_unknown_type,
+			Else.back()->is_unknown_type);
 		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
 			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
 			return nullptr;

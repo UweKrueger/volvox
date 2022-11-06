@@ -502,59 +502,23 @@ public:
 #endif
 };
 
-// conversions that have to be applied to Operands of binary Operator to make them compatible
-struct BinOpConv {
-	llvm::Type* res_type = nullptr;
-	const char* err_msg = nullptr;
-	bool res_is_signed = false;
-	bool is_unknown_type = false;
-};
-
-// there are two sets of conversions. E.g. `u16 * u16(u8) -> u16` works, but could overflow
-// ideal would be `u32(u16) * u32(u8) -> u32`, which will never overflow but is only
-// feasible if an `u32` is desired
-struct BinOpConvSet {
-	BinOpConv compat; // conversion (only one side) to make operands match
-	BinOpConv ideal; // conversions to best prevent overflow/precision loss
-};
-
-extern BinOpConvSet convBinOp(llvm::Type* left_type, llvm::Type* right_type,
-                              bool left_is_signed, bool right_is_signed,
-                              bool left_is_unknown_type, bool right_is_unknown_type,
-                              const char* Op, SourceLocation Loc = CurLoc);
-
 /// BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
 	
 public:
-	char Op[4] = { 0, 0, 0, 0 };
 	std::unique_ptr<ExprAST> LHS, RHS;
-	BinOpConvSet conv;
+	const char* err_msg = nullptr;
+	char Op[4] = { 0, 0, 0, 0 };
+	OpClass opclass = OpNormal;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
-	              std::unique_ptr<ExprAST> _RHS, BinOpConvSet conv = {})
-		: ExprAST(conv.compat.res_type, conv.compat.res_is_signed ? A_signed : 0, Loc,
-		          _RHS->is_unknown_type && _LHS->is_unknown_type),
-		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), conv(conv) {
-		strcpy(Op, _Op);
-		if (strcmp(Op, ":=")) {
-			if (LHS->ft->type && !LHS->ft->type->isSingleValueType())
-				ft = LHS->ft;
-			else if (RHS->ft->type && !RHS->ft->type->isSingleValueType())
-				ft = RHS->ft;
-			else if (conv.ideal.res_type && (!conv.compat.res_type || conv.ideal.res_type == llvm_bool_type)
-			         && strcmp(Op, "=")) { // '=' means assignment by default - compare if bool is expected
-				// errs() << "setting expression type to " << *conv.ideal.res_type << '\n';
-				ft->type = conv.ideal.res_type;
-				ft->type_attr = conv.ideal.res_is_signed ? A_signed : 0;
-			}
-		} else {
-			LHS->ft = RHS->ft;
+	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, bool, bool, OpClass,
+	              const char*> res_t = { llvm::Type::getVoidTy(Context), false, false, OpDeclAssign, nullptr })
+		: ExprAST(std::get<0>(res_t), std::get<1>(res_t) ? A_signed : 0, Loc,
+		          std::get<2>(res_t)),
+		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
+		{
+			strcpy(Op, _Op);
 		}
-		if (!strcmp(Op, "|") || !strcmp(Op, "&") || !strcmp(Op, "><")) {
-			if (!ft->type)
-				ft->type = LHS->ft->type;
-		}
-	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -627,7 +591,7 @@ public:
 class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond;
 	std::vector<std::unique_ptr<ExprAST>> Then, Else;
-	BinOpConvSet conv;
+	const char* errmsg = nullptr;
 	TokenKind if_kind = (TokenKind)0;
 	VarTable then_locals_table;
 	VarTable else_locals_table;
@@ -637,12 +601,11 @@ public:
 
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
-	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table, BinOpConvSet conv = {}, TokenKind if_kind = tok_if)
-		: ExprAST(_Else.size() ? conv.compat.res_type : llvm::Type::getVoidTy(Context), conv.compat.res_is_signed ? A_signed : 0, Loc,
-		          _Else.size() && _Then.back()->is_unknown_type & _Else.back()->is_unknown_type),
-		  Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
-		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)),
-		  else_locals_table(std::move(_else_locals_table)), conv(conv), if_kind(if_kind)
+	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
+	          std::tuple<llvm::Type*, bool, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if)
+		: ExprAST(_Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context), std::get<1>(res_t) ? A_signed : 0, Loc, std::get<2>(res_t)),
+		  errmsg(std::get<4>(res_t)), Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
+		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)), if_kind(if_kind)
 		{
 			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
 			if (Then.size() && Then.back()->ft && Then.back()->ft->type && !Then.back()->ft->type->isSingleValueType() && !Then.back()->ft->type->isVoidTy()
