@@ -1802,7 +1802,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}
 	llvm::Value* result;
-	bool OperandSigned = ft->type_attr & A_signed;
+	bool ResSigned = ft->type_attr & A_signed;
+	bool OperandSigned = LHS->ft->type_attr & A_signed || RHS->ft->type_attr & A_signed;
 	const char* new_err_msg;
 	std::tie(LHS->desired_type, RHS->desired_type, new_err_msg) = getDesiredTypes(
 		ft->type, desired_type, LHS->ft->type, RHS->ft->type, opclass, ft->type_attr & A_signed,
@@ -1889,7 +1890,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	case '/':
 		switch(typeclass) {
 		case is_int:
-			if (OperandSigned)
+			if (ResSigned)
 				result = Builder->CreateSDiv(L, R, "divtmp");
 			else
 				result = Builder->CreateUDiv(L, R, "divtmp");
@@ -1904,7 +1905,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	case '%':
 		switch(typeclass) {
 		case is_int:
-			if (OperandSigned)
+			if (ResSigned)
 				result = Builder->CreateSRem(L, R, "remtmp");
 			else
 				result = Builder->CreateURem(L, R, "remtmp");
