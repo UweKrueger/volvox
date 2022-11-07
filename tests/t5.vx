@@ -62,6 +62,13 @@ fn hhwe() i32
    llk3e := YY{ r: 17 }
    return llk3e.r
 
+fn test_local_shadow_of_global() bool
+	hjggd := 34.125
+	subb := 1.25
+	hhwe := -3.5
+	z := hjggd + subb - hhwe
+	return z == 38.875
+
 fn test_destructor_1() bool
 	z := hhwe()
 	return z == 17 && cntd == -7

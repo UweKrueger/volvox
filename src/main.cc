@@ -636,9 +636,8 @@ extern "C" DLLEXPORT void printadr(double* X) {
 }
 
 /// printd - printf that takes a double prints it as "%f\n", returning 0.
-extern "C" DLLEXPORT double printd(double X) {
-	errs() << X << "\n";
-	return 0;
+extern "C" DLLEXPORT void printd(double X) {
+	fprintf(stderr, "%g\n", X);
 }
 
 //===----------------------------------------------------------------------===//

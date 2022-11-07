@@ -142,7 +142,10 @@ public:
 	}
 	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv)
 		: LvalueExprAST(Loc, Name), full_var(fv) {
-		ft = &fv->ft;
+		if (fv)
+			ft = &fv->ft;
+		else
+			ft = nullptr;
 	}
 	const std::string &getName() const { return Name; }
 	VariableExprAST* getBase() override { return this; }

@@ -354,15 +354,20 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 	SourceLocation LitLoc = CurLoc;
 
 	getNextToken(eBinOp, terminator); // eat identifier.
-	// first try to find a function with this name
+	// first lookup variable name
+	if (auto fv = lookup_var(IdName.c_str()))
+		return std::make_unique<VariableExprAST>(LitLoc, IdName, fv);
+	// maybe it's a function with this name
 	auto F = lex.findProtos(IdName);
 	if (F) {
 		return std::make_unique<FunctionExprAST>(LitLoc, IdName, F);
 	}
+	// or a module prefix
 	auto im = lex.module->ImportedSymbols.find({ IdName, "" });
 	if (im != lex.module->ImportedSymbols.end())
 		if (im->second.isPrefix())
 			return std::make_unique<ModuleExprAST>(LitLoc, std::move(IdName));
+	// or a type name
 	if (auto type = lex.get_full_type(IdName.c_str())) {
 		if (auto s = ParseStructExpr(type, terminator))
 			return s;
@@ -375,6 +380,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 			return nullptr;
 		}
 	}
+	// last resort: yet undeclared variable name - used in declaration "x := ..."
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
 }
 
@@ -992,13 +998,35 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				return nullptr;
 			}
 			ReferenceExprAST* RefL;
-			VariableExprAST* VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+			VariableExprAST* VarL = nullptr;
+			if (auto v = dynamic_cast<VariableExprAST*>(LHS.get())) {
+				VarL = v;
+			} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
+				if (inside_function) { // local variable will shadow function name
+					LHS = std::make_unique<VariableExprAST>(function->Loc, function->Name, nullptr);
+					VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+				} else {
+					errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
+					return nullptr;
+				}
+			} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
+				if (inside_function) {
+					LHS = std::make_unique<VariableExprAST>(mod->Loc, mod->Name, nullptr);
+					VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+				} else {
+					errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
+					return nullptr;
+				}
+			}
 			if (VarL)
 				RefL = nullptr;
 			else
 				if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get())))
 					VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
-			if (VarL) {
+			if (!VarL) {
+				errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
+				return nullptr;
+			} else {
 				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				llvm::Type* type = std::get<0>(type_descr);
 				bool is_signed = std::get<2>(type_descr);
@@ -1036,15 +1064,6 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					}
 					// errs() << VarL->Loc << ": inserted " << VarL->Name << ", " << fv.ft.type_attr << " in mainvars\n";
 				}
-			} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
-				errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
-				return nullptr;
-			} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
-				errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
-				return nullptr;
-			} else {
-				errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
-				return nullptr;
 			}
 		} else if (LHS_type && LHS_type->isFunctionTy() && (BinOp[0] == '(' || BinOp[0] == '\0')) {
 			auto Args = SplitExprList(std::move(RHS));
