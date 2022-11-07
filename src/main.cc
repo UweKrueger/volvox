@@ -475,7 +475,9 @@ void CallTestFunction() {
 				std::make_unique<BinaryExprAST>(
 					CurLoc, "&",
 					std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-					std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)))));
+					std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
+					std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+						llvm::Type::getInt1Ty(Context), false, false, OpBitwise, nullptr })));
 	} else {
 		errs() << "internal error - could not find test function " << TestFunction << '\n';
 	}
