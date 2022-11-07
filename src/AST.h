@@ -571,6 +571,14 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
+class TypeExprAST : public ExprAST {
+public:
+	std::string Name;
+	TypeExprAST(SourceLocation Loc, std::string TypeName, volvoxc::FullType* ft)
+		: ExprAST(ft, Loc), Name(std::move(TypeName)) {}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override { return nullptr; }
+};
+
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
 public:

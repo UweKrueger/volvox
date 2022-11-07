@@ -33,6 +33,7 @@ Token& getNextToken(eXpect expect, int terminator) {
 		parseOk = false;
 	return CurTok;
 }
+
 Token& purgeLine() {
 	parseOk = true;
 	CurTok = lex.purge_line();
@@ -338,6 +339,17 @@ static std::unique_ptr<ExprAST> ParseParenExpr(int terminator = 0) {
 	return V;
 }
 
+static std::unique_ptr<ExprAST> ParseConstructorCall(std::string TypeName, SourceLocation TypeLoc, volvoxc::FullType* ft, int terminator = 0) {
+	getNextToken();
+	auto args = ParseParenExpr(terminator);
+	if (!args)
+		return nullptr;
+	auto type_expr = std::make_unique<TypeExprAST>(TypeLoc, std::move(TypeName), ft);
+	auto Args = SplitExprList(std::move(args));
+	errs() << "Parsing Constructor: " << *ft->type << '\n';
+	return std::make_unique<CallExprAST>(TypeLoc, std::move(type_expr), std::move(Args));
+}
+
 static std::unique_ptr<ExprAST> ParseIdent(int terminator = 0) {
 	std::string Id = IdentifierStr;
 	getNextToken(eBinOp, terminator); // eat identifier.
@@ -369,6 +381,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 			return std::make_unique<ModuleExprAST>(LitLoc, std::move(IdName));
 	// or a type name
 	if (auto type = lex.get_full_type(IdName.c_str())) {
+		if (lex.peek() == '(')
+			return ParseConstructorCall(std::move(IdName), LitLoc, type, terminator);
 		if (auto s = ParseStructExpr(type, terminator))
 			return s;
 		else {
