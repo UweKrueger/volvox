@@ -198,7 +198,7 @@ no_explicit_constructor:
 					return [=](llvm::Value* v) { return Builder->CreateFPToSI(v, desired_type, "convfpstmp"); };
 				else
 					return [=](llvm::Value* v) { return Builder->CreateFPToUI(v, desired_type, "convfputmp"); };
-			else 
+			else
 				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "float -> integer");
 		else
 			if (!desired_is_signed)
@@ -363,7 +363,7 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 		break;
 	case OpShift:
 	case OpExponentiation:
-		desired_left_type = desired_res_bitwidth ? getFittingType(desired_res_bitwidth, false) : nullptr;
+		desired_left_type = desired_res_bitwidth ? getFittingType(desired_res_bitwidth, res_is_float) : nullptr;
 		return { desired_left_type, nullptr, nullptr };
 	case OpLogical:
 		desired_right_type = desired_left_type = llvm::Type::getInt1Ty(Context);

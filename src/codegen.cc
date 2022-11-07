@@ -1808,7 +1808,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	std::tie(LHS->desired_type, RHS->desired_type, new_err_msg) = getDesiredTypes(
 		ft->type, desired_type, LHS->ft->type, RHS->ft->type, opclass, ft->type_attr & A_signed,
 		LHS->ft->type_attr & A_signed, RHS->ft->type_attr & A_signed, LHS->is_unknown_type, RHS->is_unknown_type);
-	if (true) {
+	if (false) {
 		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
 		if (RHS->desired_type) errs() << "RHS desired_type: " << *RHS->desired_type << ' ';
 		errs() << "expr: ";
