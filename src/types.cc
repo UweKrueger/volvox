@@ -332,7 +332,18 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
 	auto [desired_res_bitwidth, desired_res_is_float] = desired_res ? getBitWidth(desired_res)
 		: std::pair<unsigned,bool>{ 0, false };
-	unsigned desired_bitwidth = desired_res_bitwidth ? desired_res_bitwidth : Max(right_bitwidth, left_bitwidth);
+	unsigned desired_bitwidth;
+	if (desired_res_bitwidth)
+		desired_bitwidth = desired_res_bitwidth;
+	else if (left_is_unknown_type)
+		if (right_is_unknown_type)
+			desired_bitwidth = Max(right_bitwidth, left_bitwidth);
+		else
+			desired_bitwidth = right_bitwidth;
+	else if (right_is_unknown_type)
+		desired_bitwidth = left_bitwidth;
+	else
+		desired_bitwidth = Max(right_bitwidth, left_bitwidth);
 	bool res_is_float = desired_res_is_float || left_is_float || right_is_float;
 	llvm::Type* desired_left_type = nullptr;
 	llvm::Type* desired_right_type = nullptr;
@@ -363,8 +374,22 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 		break;
 	case OpShift:
 	case OpExponentiation:
-		desired_left_type = desired_res_bitwidth ? getFittingType(desired_res_bitwidth, res_is_float) : nullptr;
-		return { desired_left_type, nullptr, nullptr };
+		if (desired_res_bitwidth) {
+			if (res_is_float && left_is_float)
+				desired_left_type = desired_right_type = getFittingType(desired_res_bitwidth, true);
+			else {
+				desired_left_type = getFittingType(desired_res_bitwidth, res_is_float);
+				desired_right_type = nullptr;// float^int no pre-conversion on RHS necessary
+			}
+		} else {
+			if (res_is_float && left_is_float)
+				desired_left_type = desired_right_type = getFittingType(desired_bitwidth, true);
+			else if (left_is_float)
+				desired_left_type = desired_right_type = nullptr; // float^int no pre-conversions necessary
+			else
+				desired_left_type = desired_right_type = getFittingType(desired_bitwidth >= 32 ? desired_bitwidth : 32, false);
+		}
+		return { desired_left_type, desired_right_type, nullptr };
 	case OpLogical:
 		desired_right_type = desired_left_type = llvm::Type::getInt1Ty(Context);
 		return { desired_left_type, desired_right_type, nullptr };
@@ -408,7 +433,10 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		if (res_is_float)
 			return { nullptr, false, false, opclass, "shift operator %s can only be used with integer operands\n" };
 	case OpExponentiation:
-		res_bitwidth = left_bitwidth;
+		if (!right_is_unknown_type && right_bitwidth > left_bitwidth && (right_is_float || !left_is_float))
+			res_bitwidth = right_bitwidth;
+		else
+			res_bitwidth = left_bitwidth;
 		res_is_signed = left_is_signed;
 		break;
 	case OpLogical:
