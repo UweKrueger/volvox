@@ -346,7 +346,6 @@ static std::unique_ptr<ExprAST> ParseConstructorCall(std::string TypeName, Sourc
 		return nullptr;
 	auto type_expr = std::make_unique<TypeExprAST>(TypeLoc, std::move(TypeName), ft);
 	auto Args = SplitExprList(std::move(args));
-	errs() << "Parsing Constructor: " << *ft->type << '\n';
 	return std::make_unique<CallExprAST>(TypeLoc, std::move(type_expr), std::move(Args));
 }
 
