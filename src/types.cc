@@ -94,27 +94,6 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 		return llvm::IntegerType::get(Context, bitwidth);
 }
 
-// is the definition area bigger (not the precision)
-// input: type, is_signed
-// results: a fits completely (into b), a fits with presision loss
-std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b) {
-	auto a_id = a.first->getTypeID();
-	auto b_id = b.first->getTypeID();
-	auto a_descr = getBitWidth(a.first);
-	auto b_descr = getBitWidth(b.first);
-	// signed type have a slightly smaller effective bitwidth
-	unsigned a_bitwidth = a_descr.first;
-	unsigned b_bitwidth = b_descr.first;
-	// cannot convert a signed to an unsigned
-	bool ill_i_u = (!b_descr.second && !b.second) && a.second;
-	// cannot convert float to int
-	bool ill_f_i = a_descr.second && !b_descr.second;
-	// source exceeds target range
-	bool overflow = a_bitwidth > b_bitwidth && !(b_descr.second && !a_descr.second);
-	bool convertable = !overflow && !ill_f_i && !ill_f_i;
-	return { convertable && b_bitwidth <= a_bitwidth, convertable };
-}
-
 // Try to convert 'expr_type' to 'desired_type'
 // return an error if not possible or no explicit conversion
 // is requested but precision would be lost
@@ -246,25 +225,6 @@ no_explicit_constructor:
 							return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "would truncate/reinterpret upper bits");
 					else
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandstmp"); };
-}
-
-std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation Loc, llvm::Type* desired_type, llvm::Type* min_type, llvm::Type* ideal_type,
-                                                      std::function<llvm::Value*(llvm::Value*)> min_conv,
-                                                      std::function<llvm::Value*(llvm::Value*)> ideal_conv, bool is_signed) {
-	if (!desired_type || desired_type == min_type)
-		return min_conv;
-	auto ana_min = analyze_types({min_type, is_signed}, {desired_type, is_signed});
-	auto ana_ideal = analyze_types({ideal_type, is_signed}, {desired_type, is_signed});
-	if (ana_ideal.first)
-		return ideal_conv;
-	if (!ana_min.first) {
-		if (ana_ideal.second)
-			return ideal_conv;
-		else
-			return min_conv;
-	}
-	errs() << Loc << " cannot convert " << *min_type << " to " << *desired_type << '\n';
-	return nullptr;
 }
 
 inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }

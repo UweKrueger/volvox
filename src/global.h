@@ -299,7 +299,6 @@ enum OpClass : uint8_t {
 
 extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                               bool expr_is_signed, bool desired_is_signed, const char* reason);
-extern std::pair<bool, bool> analyze_types(std::pair<llvm::Type*, bool> a, std::pair<llvm::Type*, bool> b);
 extern OpClass getOpClass(const char* Op);
 extern std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc = CurLoc, bool expr_is_signed = false,
@@ -311,11 +310,6 @@ extern std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(
 extern std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
 	bool left_is_signed, bool right_is_signed, bool left_is_unknown_type, bool right_is_unknown_type);
-extern std::function<llvm::Value*(llvm::Value*)> getBestPreConv(SourceLocation Loc, llvm::Type* desired_type,
-                                                                llvm::Type* min_type, llvm::Type* ideal_type,
-                                                                std::function<llvm::Value*(llvm::Value*)> min_conv,
-                                                                std::function<llvm::Value*(llvm::Value*)> ideal_conv,
-                                                                bool is_signed);
 extern llvm::Value* NoConversion(llvm::Value* v);
 extern const char* getThisExePath();
 extern const char* volvox_root();
