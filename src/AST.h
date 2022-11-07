@@ -518,6 +518,8 @@ public:
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
 		{
 			strcpy(Op, _Op);
+			if (opclass == OpDeclAssign)
+				LHS->ft = RHS->ft;
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
