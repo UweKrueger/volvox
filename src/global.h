@@ -995,7 +995,6 @@ public:
 	SourceLocation Loc;
 	volvoxc::FullType* ft = nullptr;
 	llvm::Type* desired_type = nullptr;
-	unsigned desired_type_attr = 0;
 	bool is_unknown_type = false;
 
 	// construct from type and attributes
@@ -1022,7 +1021,7 @@ public:
 		auto rawV = codegen_raw();
 		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
 			auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
-			                        desired_type_attr & A_signed, false, is_unknown_type);
+			                        ft->type_attr & A_signed, false, is_unknown_type);
 			if (!postConv)
 				return nullptr;
 			return postConv(rawV);

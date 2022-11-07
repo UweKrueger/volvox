@@ -1600,7 +1600,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			                                      const char*>{ ft->type, ft->type_attr & A_signed, is_unknown_type, getOpClass(newOp), err_msg });
 		}
 		RHS->desired_type = LHSE->ft->type;
-		RHS->desired_type_attr = LHSE->ft->type_attr;
 		// Codegen the RHS.
 		uint64_t allocsz = LREF ?
 			sizeof(void*) :
@@ -2275,10 +2274,8 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
-	if (EndKind == tok_return) {
+	if (EndKind == tok_return)
 		Branch.back()->desired_type = theFunction_ret_ft->type;
-		Branch.back()->desired_type_attr = theFunction_ret_ft->type_attr;
-	}
 	for (auto& expr : Branch)
 		BranchV = expr->codegen();
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
@@ -2908,7 +2905,6 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		if (Body.empty() || !Body.back())
 			goto cleanup;
 		Body.back()->desired_type = P.RetType->type;
-		Body.back()->desired_type_attr = P.RetType->type_attr;
 	}
 	llvm::Value* RetVal;
 	for (auto& Expr : Body) {

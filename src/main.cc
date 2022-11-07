@@ -497,7 +497,6 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 			std::move(_then), std::move(_else), tok_end, tok_end, std::move(VarTable()), std::move(VarTable()),
 			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm_int_type, true, false, OpNormal, nullptr });
 		if_e->desired_type = llvm_int_type;
-		if_e->desired_type_attr = A_signed;
 		GlobalExprList.push_back(
 			std::move(if_e));
 		return CreateMain("main", true, "i32");
