@@ -313,8 +313,10 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	llvm::Type* desired_right_type = nullptr;
 	switch (opclass) {
 	case OpAssign:
+		desired_left_type = nullptr;
 		desired_right_type = left_type;
-		return { nullptr, desired_right_type, nullptr };
+		goto normal_return;
+		return { nullptr, desired_right_type != right_type ? desired_right_type : nullptr, nullptr };
 	case OpDeclAssign:
 		return { nullptr, nullptr, nullptr };
 	case OpComparison:
@@ -331,7 +333,7 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 					    || !right_is_signed && right_bitwidth >= left_bitwidth)
 						desired_bitwidth++;;
 					desired_left_type = desired_right_type = getFittingType(desired_bitwidth, desire_float);
-					return { desired_left_type, desired_right_type, nullptr };
+					goto normal_return;
 				}
 			}
 		}
@@ -356,27 +358,20 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 			else
 				desired_left_type = desired_right_type = getFittingType(desired_bitwidth >= 32 ? desired_bitwidth : 32, false);
 		}
-		/*
-		errs() << "desired types: " << desired_res_bitwidth << ' ';
-		if (desired_left_type)
-			errs() << *desired_left_type << ' ';
-		else
-			errs() << "none ";
-		if (desired_right_type)
-			errs() << *desired_right_type << ' ';
-		else
-			errs() << "none ";
-		errs() << '\n';
-		*/
-		return { desired_left_type, desired_right_type, nullptr };
+		goto normal_return;
 	case OpLogical:
 		desired_right_type = desired_left_type = llvm::Type::getInt1Ty(Context);
-		return { desired_left_type, desired_right_type, nullptr };
+		goto normal_return;
 	default:
 		;
 	}
 	if (desired_bitwidth)
 		desired_left_type = desired_right_type = getFittingType(desired_bitwidth, res_is_float);
+normal_return:
+	if (desired_left_type == left_type)
+		desired_left_type = nullptr;
+	if (desired_right_type == right_type)
+		desired_right_type = nullptr;
 	return { desired_left_type, desired_right_type, nullptr };
 }
 
