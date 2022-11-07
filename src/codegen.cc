@@ -2123,15 +2123,9 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
 		if (Args.size() == 1) {
-			llvm::Value* val = Args[0]->codegen_raw();
-			if (!val)
-				return nullptr;
-			auto Conv = getConv(
-				val->getType(), ft->type, Loc, Args[0]->ft->type_attr & A_signed,
-				ft->type_attr & A_signed, true, Args[0]->is_unknown_type);
-			if (!Conv)
-				return nullptr;
-			return Conv(val);
+			Args[0]->desired_type = ft->type;
+			Args[0]->conv_kind = ft->type_attr & A_signed ? ConvSigned : ConvUnsigned;
+			return Args[0]->codegen();
 		}
 		errs() << "constructors with #arg!=1 not supported, yet\n";
 		return nullptr;

@@ -983,12 +983,19 @@ inline FullVar* lookup_var(const char* Name) {
 	return full_var;
 }
 
+enum ConversionKind : uint8_t {
+	ConvImplicit = 0,
+	ConvSigned,
+	ConvUnsigned
+};
+
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
 public:
 	SourceLocation Loc;
 	volvoxc::FullType* ft = nullptr;
 	llvm::Type* desired_type = nullptr;
+	ConversionKind conv_kind = ConvImplicit;
 	bool is_unknown_type = false;
 
 	// construct from type and attributes
@@ -1015,7 +1022,8 @@ public:
 		auto rawV = codegen_raw();
 		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
 			auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
-			                        ft->type_attr & A_signed, false, is_unknown_type);
+			                        conv_kind == ConvImplicit ? ft->type_attr & A_signed : conv_kind == ConvSigned,
+			                        conv_kind != ConvImplicit, is_unknown_type);
 			if (!postConv)
 				return nullptr;
 			return postConv(rawV);
