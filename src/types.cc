@@ -379,11 +379,14 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	case OpShift:
 	case OpExponentiation:
 		if (desired_res_bitwidth) {
-			if (res_is_float && left_is_float)
-				desired_left_type = desired_right_type = getFittingType(desired_res_bitwidth, true);
-			else {
-				desired_left_type = getFittingType(desired_res_bitwidth, res_is_float);
-				desired_right_type = nullptr;// float^int no pre-conversion on RHS necessary
+			if (res_is_float) {
+				desired_left_type = getFittingType(desired_res_bitwidth, true);
+				if (right_is_float)
+					desired_right_type = desired_left_type;
+				else
+					desired_right_type = nullptr;// float^int no pre-conversion on RHS necessary
+			} else {
+				desired_left_type = desired_right_type = getFittingType(desired_bitwidth, false);
 			}
 		} else {
 			if (res_is_float && left_is_float)
@@ -393,6 +396,18 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 			else
 				desired_left_type = desired_right_type = getFittingType(desired_bitwidth >= 32 ? desired_bitwidth : 32, false);
 		}
+		/*
+		errs() << "desired types: " << desired_res_bitwidth << ' ';
+		if (desired_left_type)
+			errs() << *desired_left_type << ' ';
+		else
+			errs() << "none ";
+		if (desired_right_type)
+			errs() << *desired_right_type << ' ';
+		else
+			errs() << "none ";
+		errs() << '\n';
+		*/
 		return { desired_left_type, desired_right_type, nullptr };
 	case OpLogical:
 		desired_right_type = desired_left_type = llvm::Type::getInt1Ty(Context);
