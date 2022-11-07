@@ -329,7 +329,11 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	        bool left_is_signed, bool right_is_signed, bool left_is_unknown_type, bool right_is_unknown_type)
 {
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
+	if (!left_bitwidth)
+		return { nullptr, nullptr, nullptr };
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
+	if (!right_bitwidth)
+		return { nullptr, nullptr, nullptr };
 	auto [desired_res_bitwidth, desired_res_is_float] = desired_res ? getBitWidth(desired_res)
 		: std::pair<unsigned,bool>{ 0, false };
 	unsigned desired_bitwidth;
@@ -425,10 +429,10 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		// nullptr as type is reserved for this particular case
 		return { nullptr, false, false, opclass, nullptr };
 	case OpAssign:
-		res_bitwidth = left_bitwidth;
-		if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
-			return { nullptr, false, false, opclass, "illegal usage of %s: RHS would degrade\n" };
-		break;
+		if (left_bitwidth)
+			if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
+				return { nullptr, false, false, opclass, "illegal usage of %s: RHS would degrade\n" };
+		return { left_type, left_is_signed, false, OpAssign, nullptr };
 	case OpShift:
 		if (res_is_float)
 			return { nullptr, false, false, opclass, "shift operator %s can only be used with integer operands\n" };
