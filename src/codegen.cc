@@ -1507,74 +1507,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	dbgs() << "binary desired type: ";
-	if (desired_type)
-		dbgs() << *desired_type;
-	dbgs() << '\n';
-	bool is_bool = false;
-	OpKind kind;
-	switch (Op[1]) {
-	case '\0':
-		switch (Op[0]) {
-		case '=':
-			kind = assign_op;
-			break;
-		case '>':
-		case '<':
-			kind = comparison_op;
-			is_bool = true;
-			break;
-		default:
-			kind = other_op;
-		}
-		break;
-	case '=':
-		switch (Op[0]) {
-		case ':':
-			kind = decl_assign_op;
-			break;
-		case '+':
-		case '-':
-		case '*':
-		case '/':
-		case '%':
-		case '&':
-		case '|':
-		case '^':
-			kind = modification_op;
-			break;
-		case '>':
-		case '<':
-		case '!':
-		case '=':
-			kind = comparison_op;
-			is_bool = true;
-			break;
-		default:
-			kind = other_op;
-		}
-		break;
-	case '>':
-	case '<':
-		if (Op[2] == '=') {
-			kind = modification_op;
-			break;
-		} else
-			kind = other_op;
-		break;
-	case '&':
-	case '|':
-		if (Op[0] == Op[1])
-			kind = logical_op;
-		else
-			kind = other_op;
-		break;
-	default:
-		kind = other_op;
-	}
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (kind == decl_assign_op || kind == assign_op || kind == modification_op) {
+	if (opclass == OpDeclAssign || opclass == OpAssign) {
 		std::pair<llvm::Type*,llvm::Value*> Variable = { nullptr, nullptr };
 		const char* varname = nullptr;
 		// Assignment requires the LHS to be an identifier.
@@ -1587,17 +1522,18 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 		ReferenceExprAST* LREF = dynamic_cast<ReferenceExprAST*>(LHS.get());
-		if (kind != decl_assign_op)
+		if (opclass != OpDeclAssign)
 			Variable = LHSE->codegen_ref();
-		if (kind == modification_op) {
+		if (opclass == OpAssign && Op[0] != '=') { // +=, <<=, ...
 			auto new_LHS = std::make_unique<RefExprAST>(LHS->Loc, LHS->ft, LHSE->getBase(), Variable.second, LHSE->Name);
 			char newOp[4];
 			int m=0;
 			for ( ; Op[m] != '='; m++)
 				newOp[m] = Op[m];
 			newOp[m] = '\0';
-			RHS = std::make_unique<BinaryExprAST>(Loc, newOp, std::move(new_LHS), std::move(RHS), std::tuple<llvm::Type*, bool, bool, OpClass,
-			                                      const char*>{ ft->type, ft->type_attr & A_signed, is_unknown_type, getOpClass(newOp), err_msg });
+			RHS = std::make_unique<BinaryExprAST>(Loc, newOp, std::move(new_LHS), std::move(RHS),
+			                                      std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+				                                      ft->type, ft->type_attr & A_signed, is_unknown_type, getOpClass(newOp), err_msg });
 		}
 		RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
@@ -1605,7 +1541,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			sizeof(void*) :
 			(RHS->desired_type && RHS->desired_type->isSized()) ?
 			TheModule->getDataLayout().getTypeAllocSize(RHS->desired_type) : 0; // if size is compile time const
-		llvm::Value* Val = nullptr; // 
+		llvm::Value* Val = nullptr;
 		llvm::Value* ValPtr = nullptr;
 		llvm::Value* AllocSize = nullptr;
 		llvm::Type* elem_type = nullptr;
@@ -1685,7 +1621,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (!full_var)
 				goto not_found;
 		}
-		if (kind == decl_assign_op) {
+		if (opclass == OpDeclAssign) {
 			errs() << LHS->Loc << ": cannot initialize existing variable\n";
 			return nullptr;
 		} else {
@@ -1710,7 +1646,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 	not_found:
-		if (kind != decl_assign_op) {
+		if (opclass != OpDeclAssign) {
 			errs() << LHS->Loc << ": unknown variable name '" << varname << "'\n";
 			return nullptr;
 		}
@@ -1822,7 +1758,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	// 	L = convLHS(L);
 	if (!L)
 		return nullptr;
-	if (kind == logical_op) { // &&, ||
+	if (opclass == OpLogical) { // &&, ||
 		R = nullptr;
 		// codegen is postponed - we do lazy evaluation
 	} else {
