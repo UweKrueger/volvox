@@ -459,7 +459,9 @@ void CallTestFunction() {
 				CurLoc, "=",
 				std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 				std::move(std::make_unique<CallExprAST>(
-					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F)))));
+					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F))),
+				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+					llvm::Type::getInt1Ty(Context), false, false, OpAssign, nullptr }));
 		std::vector<std::unique_ptr<ExprAST>> Args;
 		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
@@ -477,7 +479,9 @@ void CallTestFunction() {
 					std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 					std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 					std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
-						llvm::Type::getInt1Ty(Context), false, false, OpBitwise, nullptr })));
+						llvm::Type::getInt1Ty(Context), false, false, OpBitwise, nullptr }),
+				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+					llvm::Type::getInt1Ty(Context), false, false, OpAssign, nullptr }));
 	} else {
 		errs() << "internal error - could not find test function " << TestFunction << '\n';
 	}
