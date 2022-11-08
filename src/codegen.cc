@@ -2058,13 +2058,17 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		KSDbgInfo.emitLocation(this);
 	}
 	if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
-		if (Args.size() == 1) {
+		switch (Args.size()) {
+		case 0:
+			return llvm::Constant::getNullValue(ft->type);
+		case 1:
 			Args[0]->desired_type = ft->type;
 			Args[0]->conv_kind = ft->type_attr & A_signed ? ConvSigned : ConvUnsigned;
 			return Args[0]->codegen();
+		default:
+			errs() << "constructors with #arg!=1 not supported, yet\n";
+			return nullptr;
 		}
-		errs() << "constructors with #arg!=1 not supported, yet\n";
-		return nullptr;
 	}
 	// Look up the name in the global module table.
 	PrototypeAST* Proto = (*Callee->ft->Protos)[0].get();
