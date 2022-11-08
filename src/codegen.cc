@@ -1172,19 +1172,6 @@ enum TypeClass {
 	is_other
 };
 
-/* while the TokenKind enum is used in the parser to figure out operator
-   precedences here in codegen we need another operator classification
-   according to functionality */
-
-enum OpKind {
-	other_op = 0,
-	assign_op,
-	decl_assign_op,
-	modification_op,
-	comparison_op,
-	logical_op
-};
-
 llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* ini_array_type, llvm::ArrayType* array_type) {
 	uint64_t n_type = array_type->getNumElements();
 	uint64_t n_ini = ini_array_type->getNumElements();
