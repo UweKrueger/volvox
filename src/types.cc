@@ -241,7 +241,7 @@ OpClass getOpClass(const char* Op) {
 			if (!Op[2])
 				return OpShift;
 			else
-				return OpAssign; // <<=, >>=
+				return OpModification; // <<=, >>=
 		}
 	case '=':
 		switch (Op[0]) {
@@ -253,14 +253,14 @@ OpClass getOpClass(const char* Op) {
 		case ':':
 			return OpDeclAssign;
 		default:
-			return OpAssign; // +=, -=, ...
+			return OpModification; // +=, -=, ...
 		}
 	case '&':
 	case '|':
 		if (!Op[2])
 			return OpLogical;
 		else
-			return OpAssign; // &&=, ||=
+			return OpModification; // &&=, ||=
 	case '\0':
 		switch (Op[0]) {
 		case '>':
@@ -313,6 +313,7 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	llvm::Type* desired_right_type = nullptr;
 	switch (opclass) {
 	case OpAssign:
+	case OpModification:
 		desired_left_type = nullptr;
 		desired_right_type = left_type;
 		goto normal_return;
@@ -399,10 +400,11 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		// nullptr as type is reserved for this particular case
 		return { nullptr, false, false, opclass, nullptr };
 	case OpAssign:
+	case OpModification:
 		if (left_bitwidth)
 			if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
 				return { nullptr, false, false, opclass, "illegal usage of %s: RHS would degrade\n" };
-		return { left_type, left_is_signed, false, OpAssign, nullptr };
+		return { left_type, left_is_signed, false, opclass, nullptr };
 	case OpShift:
 		if (res_is_float)
 			return { nullptr, false, false, opclass, "shift operator %s can only be used with integer operands\n" };
