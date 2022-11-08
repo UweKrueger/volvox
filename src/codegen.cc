@@ -2045,6 +2045,12 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		KSDbgInfo.emitLocation(this);
 	}
 	if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
+		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
+		llvm::Value* ret_val = nullptr;
+		if (!target && (allocsz > 16 || (type_expr->ft->type_attr & A_constructor)))
+			target = ret_val = CreateEntryBlockAlloca(type_expr->ft->type, "");
+		if (target)
+			Builder->CreateStore(llvm::Constant::getNullValue(ft->type), target);
 		switch (Args.size()) {
 		case 0:
 			return llvm::Constant::getNullValue(ft->type);
