@@ -333,6 +333,12 @@ extern volvoxc::FullType* uintptr_type;
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
 
+struct FnArg {
+	std::function<llvm::Value*(llvm::Value*)> Conv = nullptr;
+	llvm::Type* argtype;
+	bool arg_signed;
+};
+
 extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
 extern std::map<std::string,llvm::FunctionType*> AutoMethods;

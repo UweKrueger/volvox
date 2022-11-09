@@ -44,7 +44,13 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (!bw)
 			bw = ft->type->getIntegerBitWidth();
-		return llvm::ConstantInt::get(Context, llvm::APInt(bw, Val.Uint, ft->type_attr & A_signed));
+		if (bw == 1) // bool - treat anything != 0 as 'true'
+			if (Val.Uint)
+				return Builder->getTrue();
+			else
+				return Builder->getFalse();
+		else
+			return llvm::ConstantInt::get(Context, llvm::APInt(bw, Val.Uint, ft->type_attr & A_signed));
 	}
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:

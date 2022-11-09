@@ -153,6 +153,20 @@ no_explicit_constructor:
 			return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
 		
 	}
+	if (desired_bitwidth == 1) {
+		if (expr_bitwidth == 1)
+			return NoConversion;
+		if (!is_explicit) {
+			if (float_expr)
+				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "float -> bool");
+			if (expr_is_signed)
+				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "signed -> bool");
+		}
+		if (float_expr)
+			return [=](llvm::Value* v) { return Builder->CreateFCmpONE(v, llvm::Constant::getNullValue(v->getType()), "convfltbool"); };
+		else
+			return [=](llvm::Value* v) { return Builder->CreateIsNotNull(v, "convintbool"); };
+	}
 	if (float_desired)
 		if (float_expr)
 			if (desired_bitwidth == expr_bitwidth)
@@ -420,8 +434,9 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		res_is_signed = left_is_signed;
 		break;
 	case OpLogical:
-		if (left_bitwidth != 1 || right_bitwidth != 1)
-			return { nullptr, false, false, opclass, "logical operator '%s' can only be used with bool operands\n" };
+		if (left_is_float || (left_bitwidth != 1 && left_is_signed)
+		    || right_is_float || (right_bitwidth != 1 && right_is_signed))
+			return { nullptr, false, false, opclass, "logical operator '%s' can only be used with bool or unsigned operands\n" };
 		res_bitwidth = 1;
 		res_is_signed = false;
 		break;
