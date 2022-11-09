@@ -681,6 +681,24 @@ inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	return V;
 }
 
+extern llvm::MaybeAlign getAlignment(size_t elem_size);
+extern llvm::MaybeAlign getAlignment(llvm::Value* size);
+extern llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
+                               llvm::Type* expected_type = nullptr, const llvm::Twine &Name = "");
+extern llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayType* array_type,
+                                                  llvm::ArrayType* expected_array_type = nullptr,
+                                                  bool do_store = false, const llvm::Twine &Name = "");
+extern llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* ini_array_type,
+                                           llvm::ArrayType* array_type);
+extern llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type,
+                                std::vector<llvm::Value*>& Dims, std::vector<llvm::Value*>& returnDims,
+                                llvm::ArrayType* expected_array_type = nullptr);
+
+inline llvm::Value* getInterfaceArrayValue(llvm::Value* val, llvm::ArrayType* array_type,
+                                           llvm::ArrayType* expected_array_type = nullptr) {
+	return getInterfaceArrayOrStoreValue(val, array_type, expected_array_type, false);
+}
+
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes), as well as if it is an operator.

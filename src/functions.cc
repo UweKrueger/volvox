@@ -299,6 +299,177 @@ llvm::Function *PrototypeAST::codegen() {
 	return F;
 }
 
+llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
+	if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
+		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
+		llvm::Value* ret_val = nullptr;
+		if (!target && (allocsz > 16 || (type_expr->ft->type_attr & A_constructor)))
+			target = ret_val = CreateEntryBlockAlloca(type_expr->ft->type, "");
+		if (target)
+			Builder->CreateStore(llvm::Constant::getNullValue(ft->type), target);
+		switch (Args.size()) {
+		case 0:
+			return llvm::Constant::getNullValue(ft->type);
+		case 1:
+			Args[0]->desired_type = ft->type;
+			Args[0]->conv_kind = ft->type_attr & A_signed ? ConvSigned : ConvUnsigned;
+			return Args[0]->codegen();
+		default:
+			errs() << "constructors with #arg!=1 not supported, yet\n";
+			return nullptr;
+		}
+	}
+	// Look up the name in the global module table.
+	PrototypeAST* Proto = (*Callee->ft->Protos)[0].get();
+	llvm::Value* theFunction = Callee->codegen();
+	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
+	// If argument mismatch error.
+	unsigned proto_arg_offs = (Proto->visibility & A_method) ? 1 : 0;
+	unsigned arg_offs = proto_arg_offs + (Proto->IsStructRet ? 1 : 0);
+	unsigned proto_args_size = Proto->Args.size() - proto_arg_offs;
+	unsigned ft_num_params = FT->getNumParams() - arg_offs;
+	if (ft_num_params > Args.size() || ft_num_params < Args.size() && !Proto->IsVarArgs || ft_num_params != proto_args_size) {
+		errs() << "Incorrect number of arguments passed: expected " << ft_num_params << (Proto->IsVarArgs ? "+" : "")
+		       << " respective " << proto_args_size << ", got " << Args.size() << "\n";
+		return nullptr;
+	}
+
+	std::vector<llvm::Value *> ArgsV;
+	llvm::Value* ret_struct = nullptr;
+	if (Proto->IsStructRet) {
+		if (!target) {
+			errs() << Loc << ": " << Proto->Name << " - internal error: no target for struct return\n";
+			return nullptr;
+		}
+		ArgsV.push_back(target);
+	}
+	if (Proto->visibility & A_method) {
+		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
+			if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
+				auto receiver_ref = receiver_lval->codegen_ref();
+				if (!receiver_ref.second) {
+					errs() << method->Receiver->Loc << ": could not get receiver reference\n";
+					return nullptr;
+				}
+				ArgsV.push_back(receiver_ref.second);
+			} else {
+				errs() << method->Receiver->Loc << ": receiver is not an lvalue\n";
+			}
+		} else {
+			errs() << Callee->Loc << ": method prototype but not a method call\n";
+			return nullptr;
+		}
+	}
+	for (unsigned i = 0, e = Args.size(), v = proto_args_size; i != e; ++i) {
+		if (i < v && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
+		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()
+		        || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
+			auto conversion = getConv(
+				Args[i]->ft->type, Proto->ArgTypes[i+arg_offs]->type, Args[i]->Loc,
+				Args[i]->ft->type_attr & A_signed, Proto->ArgTypes[i+arg_offs]->type_attr & A_signed,
+				false, Args[i]->is_unknown_type);
+			if (!conversion)
+				return nullptr;
+			llvm::Value* arg = conversion(Args[i]->codegen());
+			ArgsV.push_back(arg);
+		} else {
+			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i+arg_offs]->type->getTypeID()
+			    && !Proto->ArgTypes[i+arg_offs]->type->isPointerTy()) {
+				// TODO: better check compatibility and make error message human readable
+				errs() << "Wrong type passed for function arg #" << i + 1 << ": expected " << *Proto->ArgTypes[i+arg_offs]->type << ", got " << *Args[i]->ft->type << "\n";
+				return nullptr;
+			}
+			llvm::Value* arg = nullptr;
+			bool is_address = i < v && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
+			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
+			if (auto call = dynamic_cast<CallExprAST*>(Args[i].get())) {
+				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[0].get(); // 'g' in 'f(g())'
+				if (CallProto->IsStructRet) {
+					if (is_address) {
+						// 'g' returns by reference and 'f' exprects a reference (i.e. an address)
+						// so we have to allocate memory for the indermediate result
+						arg = Builder->CreateAlloca(call->ft->type);
+						auto voidval = call->codegen_raw(arg);
+						if (!voidval->getType()->isVoidTy()) {
+							errs() << Loc << ": internal error: sret call does not return void\n";
+							return nullptr;
+						}
+					} else {
+						errs() << Loc << ": " << Proto->Name << " arg: " << i << " missing ByVal attribute\n";
+						return nullptr;
+					}
+				}
+			}
+			if (!arg) {
+				if (is_address) {
+					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
+						auto argref = lval->codegen_ref(true);
+						if (!argref.first) {
+							errs() << Args[i]->Loc << ": cannot generate code for expression\n";
+							return nullptr;
+						}
+						arg = argref.second;
+					}
+					if (!arg) {
+						arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
+						auto tmparg = Args[i]->codegen();
+						if (!tmparg) {
+							errs() << Args[i]->Loc << ": cannot generate code for expression\n";
+							return nullptr;
+						}
+						Builder->CreateStore(tmparg, arg);
+					}
+				} else
+					arg = Args[i]->codegen();
+			}
+			if (!arg)
+				return nullptr;
+			if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
+				// C convention: variadic float args must be promoted to double
+				if (!arg->getType()->isFloatTy())
+					arg = Builder->CreateFPCast(arg, llvm::Type::getFloatTy(Context), "convfptmp");
+				arg = Builder->CreateBitCast(arg, llvm::Type::getInt32Ty(Context));
+			} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(arg->getType())) {
+				// same with short integers 
+				if (intT->getBitWidth() < 32)
+					arg = Builder->CreateIntCast(arg, llvm::Type::getInt32Ty(Context), !(!(Args[i]->ft->type_attr & A_signed)));
+			}
+			if (auto interf_t = dynamic_cast<InterfaceExprAST*>(Args[i].get()))
+				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType()))
+					for (unsigned i = 0; i < struct_type->getNumElements(); i++) {
+						llvm::Value* argi = Builder->CreateExtractValue(arg, i);
+						if (argi->getType()->isFloatingPointTy() && !argi->getType()->isDoubleTy()) {
+							// C convention: variadic float args must be promoted to double
+							if (!argi->getType()->isFloatTy())
+								argi = Builder->CreateFPCast(argi, llvm::Type::getFloatTy(Context), "convfptmp");
+							argi = Builder->CreateBitCast(argi, llvm::Type::getInt32Ty(Context));
+						} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(argi->getType())) {
+							// same with short integers 
+							if (intT->getBitWidth() < 32)
+								argi = Builder->CreateIntCast(argi, llvm::Type::getInt32Ty(Context), Args[i]->ft->type_attr & A_signed);
+						}
+						ArgsV.push_back(argi);
+					}
+				else
+					ArgsV.push_back(arg);
+			else
+				ArgsV.push_back(arg);
+		}
+		if (!ArgsV.back())
+			return nullptr;
+	}
+	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
+		// Callee was a function symbol like `sin`
+		return Builder->CreateCall(F, ArgsV, "calltmp");
+	} else {
+		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
+		return Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
+	}
+}
+
 llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
