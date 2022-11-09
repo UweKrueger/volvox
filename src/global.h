@@ -289,7 +289,7 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc
 enum OpClass : uint8_t {
 	OpNormal,
 	OpAssign,
-	OpModification,
+	OpModAssign,
 	OpDeclAssign,
 	OpComparison,
 	OpShift,

@@ -241,7 +241,7 @@ OpClass getOpClass(const char* Op) {
 			if (!Op[2])
 				return OpShift;
 			else
-				return OpModification; // <<=, >>=
+				return OpModAssign; // <<=, >>=
 		}
 	case '=':
 		switch (Op[0]) {
@@ -253,14 +253,14 @@ OpClass getOpClass(const char* Op) {
 		case ':':
 			return OpDeclAssign;
 		default:
-			return OpModification; // +=, -=, ...
+			return OpModAssign; // +=, -=, ...
 		}
 	case '&':
 	case '|':
 		if (!Op[2])
 			return OpLogical;
 		else
-			return OpModification; // &&=, ||=
+			return OpModAssign; // &&=, ||=
 	case '\0':
 		switch (Op[0]) {
 		case '>':
@@ -313,7 +313,7 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	llvm::Type* desired_right_type = nullptr;
 	switch (opclass) {
 	case OpAssign:
-	case OpModification:
+	case OpModAssign:
 		desired_left_type = nullptr;
 		desired_right_type = left_type;
 		goto normal_return;
@@ -400,7 +400,7 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		// nullptr as type is reserved for this particular case
 		return { nullptr, false, false, opclass, nullptr };
 	case OpAssign:
-	case OpModification:
+	case OpModAssign:
 		if (left_bitwidth)
 			if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
 				return { nullptr, false, false, opclass, "illegal usage of %s: RHS would degrade\n" };

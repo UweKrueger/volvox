@@ -1496,7 +1496,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (opclass == OpDeclAssign || opclass == OpAssign || opclass == OpModification) {
+	if (opclass == OpDeclAssign || opclass == OpAssign || opclass == OpModAssign) {
 		std::pair<llvm::Type*,llvm::Value*> Variable = { nullptr, nullptr };
 		const char* varname = nullptr;
 		// Assignment requires the LHS to be an identifier.
@@ -1511,7 +1511,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		ReferenceExprAST* LREF = dynamic_cast<ReferenceExprAST*>(LHS.get());
 		if (opclass != OpDeclAssign)
 			Variable = LHSE->codegen_ref();
-		if (opclass == OpModification) { // +=, <<=, ...
+		if (opclass == OpModAssign) { // +=, <<=, ...
 			auto new_LHS = std::make_unique<RefExprAST>(LHS->Loc, LHS->ft, LHSE->getBase(), Variable.second, LHSE->Name);
 			char newOp[4];
 			int m=0;
