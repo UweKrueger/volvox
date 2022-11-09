@@ -201,6 +201,14 @@ struct SourceLocation {
 	int Col;
 };
 
+extern std::string IdentifierStr; // string parsed as CurTok
+extern std::unique_ptr<llvm::Module> TheModule;
+extern std::unique_ptr<llvm::IRBuilder<>> Builder;
+extern std::unique_ptr<llvm::MDBuilder> MDBuilder;
+extern std::unique_ptr<llvm::DIBuilder> DBuilder;
+#ifdef LEGACY_PASS_MANAGER
+extern std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
+#endif
 extern bool support_fp80;
 extern bool needs_libm;
 extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;
@@ -354,6 +362,24 @@ enum eXpect {
 	eType
 };
 
+// variable size main vars are "malloc()ed" in jit mode. On exit these blocks would be
+// orphaned - so let's keep track of then to avoid memory leaks:
+class MainVars {
+public:
+	std::vector<char*> vars;
+	MainVars() : vars() {}
+	void emplace_back(char* adr) {
+		vars.emplace_back(adr);
+	}
+	~MainVars() {
+		for (auto& v: vars) {
+			free(v);
+		}
+	}
+};
+
+extern MainVars jit_main_variables;
+
 extern bool Expect(int tok, eXpect expect = eNone, int terminator = 0);
 extern volvoxc::FullType* ParseType(
 	bool allow_attribute = false, eXpect expect = eComma,
@@ -366,6 +392,14 @@ extern void PrepareTestFramework();
 extern const char* TestFunction;
 extern bool do_test;
 extern void finish_constructors_and_destructor();
+extern llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& VarName = "",
+                                                llvm::Function* TheFunction = nullptr);
+extern llvm::Function* getFunction(PrototypeAST* FI);
+extern llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, std::vector<volvoxc::FullType*>& ArgTypes, llvm::DIFile *Unit);
+extern llvm::ExitOnError ExitOnErr;
+extern llvm::DISubprogram *SP;
+extern llvm::DIFile *Unit;
+extern volvoxc::FullType* theFunction_ret_ft;
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
@@ -413,7 +447,6 @@ struct FVListElem {
 
 extern FVListElem* anon_fullvars;
 extern FVListElem** anon_fullvars_end;
-
 // small hack to access protected method
 class genType : protected llvm::Type {
 public:
@@ -618,6 +651,36 @@ extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
 
+extern void InsertArrayConDestructor(
+	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
+	llvm::Instruction* before = nullptr, bool is_constructor = false);
+extern void InsertDestructors(VarTable& t, llvm::Value* retp);
+extern void InsertDestructors(llvm::Value* retp);
+
+inline static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
+	InsertArrayConDestructor(var->ft.type, var->ft.elem_type, var->val, before);
+}
+
+inline static void InsertSingleDestructor(FullVar* fv) {
+	if (!fv->destructor)
+		return;
+	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
+	Builder->CreateCall(FT, fv->destructor, fv->val);
+}
+
+inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
+	if (llvm::isa<llvm::ArrayType>(fv->ft.type))
+		InsertArrayDestructor(fv, before);
+	else
+		InsertSingleDestructor(fv);
+}
+
+inline static llvm::Value* CheckTailCall(llvm::Value* V) {
+	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
+		C->setTailCall();
+	return V;
+}
+
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes), as well as if it is an operator.
@@ -718,15 +781,6 @@ extern LinkModes link_mode;
 extern unsigned dump_IR;
 extern bool dump_opt;
 extern bool dump_raw;
-
-extern std::string IdentifierStr; // Filled in if tok_identifier
-extern std::unique_ptr<llvm::Module> TheModule;
-extern std::unique_ptr<llvm::IRBuilder<>> Builder;
-extern std::unique_ptr<llvm::MDBuilder> MDBuilder;
-extern std::unique_ptr<llvm::DIBuilder> DBuilder;
-#ifdef LEGACY_PASS_MANAGER
-extern std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
-#endif
 
 // AST
 

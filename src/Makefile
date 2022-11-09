@@ -114,7 +114,7 @@ endif
 
 PROG = $(TARGETDIR)volvox
 
-CCOBJS :=  main.o lexer.o parser.o token.o codegen.o types.o mangler.o environment.o
+CCOBJS :=  main.o lexer.o parser.o token.o codegen.o functions.o types.o mangler.o environment.o
 OBJS := $(CCOBJS) $(EXTRAOBJS) $(EDITLINEOBJS)
 
 LIBOBJS := map.o str.o array.o
