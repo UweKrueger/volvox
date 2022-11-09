@@ -818,12 +818,16 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (!Expect(tok_end, eBinOp))
 			return nullptr;
 	}
-	auto res_t =(kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
+	auto res_t = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
 	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
 		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
 		          Then.first.back()->ft->type_attr & A_signed, Else.first.back()->ft->type_attr & A_signed,
 		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
 		: std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), false, false, OpNormal, nullptr };
+	if (std::get<4>(res_t)) {
+		errs() << IfLoc << ": " << llvm::format(std::get<4>(res_t), kind == tok_if ? "if" : "while");
+		return nullptr;
+	}
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind);
 }
@@ -1134,9 +1138,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				return nullptr;
 			}
 		}
-		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS),
-		                                      getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr & A_signed, RHS_attr & A_signed,
-		                                                 LHS_is_unknown_type, RHS_is_unknown_type));
+		auto res_t = getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr & A_signed, RHS_attr & A_signed,
+		                        LHS_is_unknown_type, RHS_is_unknown_type);
+		if (std::get<4>(res_t)) {
+			errs() << BinLoc << ": " << llvm::format(std::get<4>(res_t), BinOp.c_str());
+			return nullptr;
+		}
+		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS), res_t);
 	}
 }
 

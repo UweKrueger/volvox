@@ -183,9 +183,9 @@ no_explicit_constructor:
 			if (!desired_is_signed)
 				if (expr_is_signed)
 					// signed -> unsigned
-					// if (!is_explicit && !is_unknown_type)
-					// 	return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "signed->unsigned");
-					// else
+					if (!is_explicit && !is_unknown_type)
+						return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "signed->unsigned");
+					else
 						if (desired_bitwidth == expr_bitwidth)
 							return NoConversion;
 						else
@@ -401,6 +401,8 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		return { nullptr, false, false, opclass, nullptr };
 	case OpAssign:
 	case OpModAssign:
+		if (!left_is_signed && !left_is_float && right_is_signed && !right_is_unknown_type)
+			return { nullptr, false, false, opclass, "LHS of %s is unsigned - cannot automatically convert signed RHS\n" };
 		if (left_bitwidth)
 			if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
 				return { nullptr, false, false, opclass, "illegal usage of %s: RHS would degrade\n" };
