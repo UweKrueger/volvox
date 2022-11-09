@@ -401,15 +401,17 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		return { nullptr, false, false, opclass, nullptr };
 	case OpAssign:
 	case OpModAssign:
+		if (!left_is_float && right_is_float)
+			return { nullptr, false, false, opclass, "LHS of '%s' is of integer type - cannot automatically convert float type RHS\n" };
 		if (!left_is_signed && !left_is_float && right_is_signed && !right_is_unknown_type)
-			return { nullptr, false, false, opclass, "LHS of %s is unsigned - cannot automatically convert signed RHS\n" };
+			return { nullptr, false, false, opclass, "LHS of '%s' is of unsigned type - cannot automatically convert signed type RHS\n" };
 		if (left_bitwidth)
-			if (right_bitwidth > left_bitwidth && !right_is_unknown_type || !left_is_float && right_is_float)
-				return { nullptr, false, false, opclass, "illegal usage of %s: RHS would degrade\n" };
+			if (right_bitwidth > left_bitwidth && !right_is_unknown_type)
+				return { nullptr, false, false, opclass, "LHS of '%s' has a lower bit width than RHS - automatic conversion not possible\n" };
 		return { left_type, left_is_signed, false, opclass, nullptr };
 	case OpShift:
 		if (res_is_float)
-			return { nullptr, false, false, opclass, "shift operator %s can only be used with integer operands\n" };
+			return { nullptr, false, false, opclass, "shift operator '%s' can only be used with integer operands\n" };
 	case OpExponentiation:
 		if (!right_is_unknown_type && right_bitwidth > left_bitwidth && (right_is_float || !left_is_float))
 			res_bitwidth = right_bitwidth;
@@ -419,7 +421,7 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		break;
 	case OpLogical:
 		if (left_bitwidth != 1 || right_bitwidth != 1)
-			return { nullptr, false, false, opclass, "logical operator %s can only be used with bool operands\n" };
+			return { nullptr, false, false, opclass, "logical operator '%s' can only be used with bool operands\n" };
 		res_bitwidth = 1;
 		res_is_signed = false;
 		break;
