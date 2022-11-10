@@ -568,12 +568,16 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 				switch (c0) {
 				case '>':
 					if (IdentifierStr[1] == '<')
-						return tok_or;
+						return tok_xor;
 				case '<':
 					return tok_mult;
 				case '+':
 				case '-':
 					return tok_postfix;
+				case '&':
+					return tok_and;
+				case '|':
+					return tok_or;
 				default:
 					;
 				}
@@ -584,9 +588,9 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 			case '<':
 				return tok_cmp;
 			case '|':
-				return tok_or;
+				return tok_bitor;
 			case '&':
-				return tok_and;
+				return tok_bitand;
 			case '+':
 			case '-':
 				return tok_add;

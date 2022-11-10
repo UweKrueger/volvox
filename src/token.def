@@ -54,8 +54,11 @@ TOKEN(invisible) /* invisible operator in `sin x` or `2a` or `sin 2x` = `sin(2x)
 TOKEN(mult) /* *, /, %, <<, >> */ \
 TOKEN(add) /* +, -, ~ */ \
 TOKEN(cmp) /* >=, >, ==, !=, <, <=, <=> */ \
-TOKEN(and) /* &&, & (between bool or int (&& bool only), result: bool or int) */ \
-TOKEN(or) /* ||, |, >< (between bool or int (|| bool only), result: bool or int) */ \
+TOKEN(bitand) /* & */ \
+TOKEN(xor) /* >< (bitwise between bool or int) */ \
+TOKEN(bitor) /* | */ \
+TOKEN(and) /* && (between bool or unsigned, result: bool) */ \
+TOKEN(or) /* || (between bool or unsigned, result: bool) */ \
 TOKEN(arrow) /* <- */ \
 TOKEN(range) /* .. */ \
 TOKEN(colon) \
