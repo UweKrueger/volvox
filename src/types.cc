@@ -420,7 +420,7 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 		if (!left_is_signed && !left_is_float && right_is_signed && !right_is_unknown_type)
 			return { nullptr, false, false, opclass, "LHS of '%s' is of unsigned type - cannot automatically convert signed type RHS\n" };
 		if (left_bitwidth)
-			if (right_bitwidth > left_bitwidth && !right_is_unknown_type)
+			if (right_bitwidth > left_bitwidth && !right_is_unknown_type && !(left_bitwidth == 1 && !right_is_signed))
 				return { nullptr, false, false, opclass, "LHS of '%s' has a lower bit width than RHS - automatic conversion not possible\n" };
 		return { left_type, left_is_signed, false, opclass, nullptr };
 	case OpShift:
