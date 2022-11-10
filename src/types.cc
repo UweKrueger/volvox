@@ -120,7 +120,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 				if (auto expr_struct = llvm::dyn_cast<llvm::StructType>(expr_type)) {
 					if (!expr_struct->hasName())
 						goto no_explicit_constructor;
-					m_name = expr_struct->getName();
+					m_name = expr_struct->getName().str();
 					ft->mangled_name = m_name.c_str();
 				}
 				mangled << ft;
@@ -143,7 +143,7 @@ no_explicit_constructor:
 		if (auto desired_struct = llvm::dyn_cast<llvm::StructType>(desired_type)) {
 			if (!desired_struct->hasName())
 				return NoConversion;
-			m_name = desired_struct->getName();
+			m_name = desired_struct->getName().str();
 			ft->mangled_name = m_name.c_str();
 		}
 		mangled << ft;
