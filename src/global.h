@@ -337,6 +337,7 @@ struct FnArg {
 	std::function<llvm::Value*(llvm::Value*)> Conv = nullptr;
 	llvm::Type* argtype;
 	bool arg_signed;
+	bool arg_unknown_type;
 };
 
 extern unsigned anon_struct_nr;

@@ -40,6 +40,64 @@ llvm::Function* getAutoMethod(std::string& mangled_name) {
 	return F;
 }
 
+std::pair<llvm::FunctionType*, llvm::Function*> getFunction(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
+                                                            std::vector<FnArg>& fnargs, SourceLocation Loc = {0}) {
+	bool exact_match = false;
+	bool more_than_1_conv_match = false;
+	int candidate = -1;
+	// in regular cases there is only one candidate
+	// only when there are more we create a vector
+	std::unique_ptr<std::vector<int>> canditates = nullptr;
+	unsigned i_proto = 0;
+	for (auto& proto: *protos) {
+		if (proto->ArgTypes.size() != fnargs.size()) {
+			i_proto++;
+			continue;
+		}
+		bool exact = true;
+		bool with_conv = true;
+		for (int i=0; i<fnargs.size(); i++) {
+			if (fnargs[i].argtype == proto->ArgTypes[i]->type && fnargs[i].arg_signed
+			    == (bool)(proto->ArgTypes[i]->type_attr & A_signed)) {
+				if (candidate < 0)
+					fnargs[i].Conv = nullptr;
+			} else {
+				exact = false;
+				auto conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
+				                    fnargs[i].arg_signed, (bool)(proto->ArgTypes[i]->type_attr & A_signed),
+				                    false, fnargs[i].arg_unknown_type);
+				if (conv) {
+					if (candidate < 0)
+						fnargs[i].Conv = conv;
+				} else {
+					with_conv = false;
+					break;
+				}
+			}
+		}
+		if (exact) {
+			for (int i=0; i<fnargs.size(); i++)
+				fnargs[i].Conv = nullptr;
+			return { proto->FT, getFunction(proto.get()) };
+		} else if (with_conv) {
+			if (candidate >= 0)
+				more_than_1_conv_match = true;
+			else
+				candidate = i_proto;
+		}
+		i_proto++;
+	}
+	if (more_than_1_conv_match) {
+		errs() << Loc << ": call of '" << name << "()' is ambiguous\n";
+		return { nullptr, nullptr };
+	}
+	if (candidate < 0) {
+		errs() << Loc << ": signature of call to '" << name << "()' does not match any known candidate\n";
+		return { nullptr, nullptr };
+	}
+	return { (*protos)[candidate]->FT, getFunction((*protos)[candidate].get()) };
+}
+
 void DebugInfo::emitLocation(ExprAST *AST) {
 	if (!AST)
 		return Builder->SetCurrentDebugLocation(llvm::DebugLoc());
