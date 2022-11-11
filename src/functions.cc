@@ -40,8 +40,10 @@ llvm::Function* getAutoMethod(std::string& mangled_name) {
 	return F;
 }
 
-std::pair<llvm::FunctionType*, llvm::Function*> getFunction(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
-                                                            std::vector<FnArg>& fnargs, SourceLocation Loc = {0}) {
+std::tuple<llvm::FunctionType*, llvm::Function*, unsigned> getFunction(
+	std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
+	std::vector<FnArg>& fnargs, SourceLocation Loc = {0})
+{
 	bool exact_match = false;
 	bool more_than_1_conv_match = false;
 	int candidate = -1;
@@ -79,7 +81,7 @@ std::pair<llvm::FunctionType*, llvm::Function*> getFunction(std::vector<std::uni
 		if (exact) {
 			for (int i=0; i<fnargs.size(); i++)
 				fnargs[i].Conv = nullptr;
-			return { proto->FT, getFunction(proto.get()) };
+			return { proto->FT, getFunction(proto.get()), i_proto };
 		} else if (with_conv) {
 			if (candidate >= 0)
 				more_than_1_conv_match = true;
@@ -90,20 +92,20 @@ std::pair<llvm::FunctionType*, llvm::Function*> getFunction(std::vector<std::uni
 	}
 	if (more_than_1_conv_match) {
 		errs() << Loc << ": call of '" << name << "()' is ambiguous\n";
-		return { nullptr, nullptr };
+		return { nullptr, nullptr, 0 };
 	}
 	if (candidate < 0) {
 		errs() << Loc << ": signature of call to '" << name << "()' does not match any known candidate\n";
-		return { nullptr, nullptr };
+		return { nullptr, nullptr, 0 };
 	}
 	auto selected_proto = (*protos)[candidate].get();
 	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
 		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv) {
 			errs() << Loc << ": cannot call '" << name << "()' canditate with matching signature would require conversion of "
 			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
-			return { nullptr, nullptr };
+			return { nullptr, nullptr, 0 };
 		}
-	return { selected_proto->FT, getFunction(selected_proto) };
+	return { selected_proto->FT, getFunction(selected_proto), candidate };
 }
 
 void DebugInfo::emitLocation(ExprAST *AST) {
