@@ -50,14 +50,15 @@ std::pair<llvm::FunctionType*, llvm::Function*> getFunction(std::vector<std::uni
 	std::unique_ptr<std::vector<int>> canditates = nullptr;
 	unsigned i_proto = 0;
 	for (auto& proto: *protos) {
-		if (proto->ArgTypes.size() != fnargs.size()) {
+		if (!proto->IsVarArgs && proto->ArgTypes.size() != fnargs.size()
+		    || proto->IsVarArgs && proto->ArgTypes.size() > fnargs.size()) {
 			i_proto++;
 			continue;
 		}
 		bool exact = true;
 		bool with_conv = true;
 		for (int i=0; i<fnargs.size(); i++) {
-			if (fnargs[i].argtype == proto->ArgTypes[i]->type && fnargs[i].arg_signed
+			if (i > proto->ArgTypes.size() || fnargs[i].argtype == proto->ArgTypes[i]->type && fnargs[i].arg_signed
 			    == (bool)(proto->ArgTypes[i]->type_attr & A_signed)) {
 				if (candidate < 0)
 					fnargs[i].Conv = nullptr;
@@ -95,7 +96,8 @@ std::pair<llvm::FunctionType*, llvm::Function*> getFunction(std::vector<std::uni
 		errs() << Loc << ": signature of call to '" << name << "()' does not match any known candidate\n";
 		return { nullptr, nullptr };
 	}
-	return { (*protos)[candidate]->FT, getFunction((*protos)[candidate].get()) };
+	auto selected_proto = (*protos)[candidate].get();
+	return { selected_proto->FT, getFunction(selected_proto) };
 }
 
 void DebugInfo::emitLocation(ExprAST *AST) {
@@ -319,7 +321,6 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 		}
 	}
 }
-
 
 llvm::Function *PrototypeAST::codegen() {
 	llvm::Function *F =
