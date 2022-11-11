@@ -16,26 +16,14 @@ unsigned anon_struct_nr = 0;
 volvoxc::FTListElem* anon_types = nullptr;
 volvoxc::FTListElem** anon_types_end = &anon_types;
 
-std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
-                              bool expr_is_signed, bool desired_is_signed, const char* reason) {
-	errs() << Loc << ": cannot automatically convert "
+void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
+                   bool expr_is_signed, bool desired_is_signed, const char* reason, bool is_explicit) {
+	errs() << Loc << "cannot " << (is_explicit ? "" : "automatically ") << "convert "
 	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_is_signed ? A_signed : 0))) << "/"
 	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_is_signed ? A_signed : 0))) << ' ';
 	if (reason)
 		errs() << reason;
 	errs() << "\n";
-	return nullptr;
-}
-
-static std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
-                              bool expr_is_signed, bool desired_is_signed, const char* reason) {
-	errs() << Loc << ": cannot convert "
-	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_is_signed ? A_signed : 0))) << "/"
-	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_is_signed ? A_signed : 0))) << ' ';
-	if (reason)
-		errs() << reason;
-	errs() << "\n";
-	return nullptr;
 }
 
 llvm::Value* NoConversion(llvm::Value* v) { return v; }
@@ -416,9 +404,9 @@ std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 	case OpAssign:
 	case OpModAssign:
 		if (!left_is_float && right_is_float)
-			return { nullptr, false, false, opclass, "LHS of '%s' is of integer type - cannot automatically convert float type RHS\n" };
+			return { nullptr, false, false, opclass, "LHS of '%s' is of integer type - cannot automatically convert float RHS\n" };
 		if (!left_is_signed && !left_is_float && right_is_signed && !right_is_unknown_type)
-			return { nullptr, false, false, opclass, "LHS of '%s' is of unsigned type - cannot automatically convert signed type RHS\n" };
+			return { nullptr, false, false, opclass, "LHS of '%s' is of unsigned type - cannot automatically convert signed RHS\n" };
 		if (left_bitwidth)
 			if (right_bitwidth > left_bitwidth && !right_is_unknown_type && !(left_bitwidth == 1 && !right_is_signed))
 				return { nullptr, false, false, opclass, "LHS of '%s' has a lower bit width than RHS - automatic conversion not possible\n" };

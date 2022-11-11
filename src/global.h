@@ -306,8 +306,20 @@ enum OpClass : uint8_t {
 	OpExponentiation
 };
 
-extern std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
-                              bool expr_is_signed, bool desired_is_signed, const char* reason);
+extern void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
+                       bool expr_is_signed, bool desired_is_signed, const char* reason, bool is_explicit);
+static inline std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
+                                     bool expr_is_signed, bool desired_is_signed, const char* reason) {
+	if (Loc.File)
+		ConversionErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, reason, false);
+	return nullptr;
+}
+static inline std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
+                                     bool expr_is_signed, bool desired_is_signed, const char* reason) {
+	if (Loc.File)
+		ConversionErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, reason, true);
+	return nullptr;
+}
 extern OpClass getOpClass(const char* Op);
 extern std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc = CurLoc, bool expr_is_signed = false,
