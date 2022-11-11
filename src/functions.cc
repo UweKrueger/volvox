@@ -97,6 +97,12 @@ std::pair<llvm::FunctionType*, llvm::Function*> getFunction(std::vector<std::uni
 		return { nullptr, nullptr };
 	}
 	auto selected_proto = (*protos)[candidate].get();
+	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
+		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv) {
+			errs() << Loc << ": cannot call '" << name << "()' canditate with matching signature would require conversion of "
+			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
+			return { nullptr, nullptr };
+		}
 	return { selected_proto->FT, getFunction(selected_proto) };
 }
 
