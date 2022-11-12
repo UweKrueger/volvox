@@ -40,6 +40,12 @@ llvm::Function* getAutoMethod(std::string& mangled_name) {
 	return F;
 }
 
+inline static uintptr_t getFnAddress(std::function<llvm::Value*(llvm::Value*)> f) {
+    typedef llvm::Value* (fnType)(llvm::Value*);
+    fnType** fnPointer = f.template target<fnType*>();
+    return (uintptr_t)*fnPointer;
+}
+
 int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
                 std::vector<FnArg>& fnargs, SourceLocation Loc = {0}) {
 	bool exact_match = false;
@@ -99,9 +105,8 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		return -1;
 	}
 	auto selected_proto = (*protos)[candidate].get();
-	std::function<llvm::Value*(llvm::Value*)> noconv = NoConversion;
 	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
-		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv && false) {
+		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv && getFnAddress(fnargs[i].Conv) != (uintptr_t)NoConversion) {
 			errs() << Loc << ": cannot call '" << name << "()' canditate with matching signature would require conversion of "
 			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
 			return -1;
