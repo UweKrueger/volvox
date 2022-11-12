@@ -40,10 +40,8 @@ llvm::Function* getAutoMethod(std::string& mangled_name) {
 	return F;
 }
 
-std::tuple<llvm::FunctionType*, llvm::Function*, unsigned> getFunction(
-	std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
-	std::vector<FnArg>& fnargs, SourceLocation Loc = {0})
-{
+int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
+                std::vector<FnArg>& fnargs, SourceLocation Loc = {0}) {
 	bool exact_match = false;
 	bool more_than_1_conv_match = false;
 	int candidate = -1;
@@ -81,7 +79,7 @@ std::tuple<llvm::FunctionType*, llvm::Function*, unsigned> getFunction(
 		if (exact) {
 			for (int i=0; i<fnargs.size(); i++)
 				fnargs[i].Conv = nullptr;
-			return { proto->FT, getFunction(proto.get()), i_proto };
+			return i_proto;
 		} else if (with_conv) {
 			if (candidate >= 0)
 				more_than_1_conv_match = true;
@@ -92,20 +90,20 @@ std::tuple<llvm::FunctionType*, llvm::Function*, unsigned> getFunction(
 	}
 	if (more_than_1_conv_match) {
 		errs() << Loc << ": call of '" << name << "()' is ambiguous\n";
-		return { nullptr, nullptr, 0 };
+		return -1;
 	}
 	if (candidate < 0) {
 		errs() << Loc << ": signature of call to '" << name << "()' does not match any known candidate\n";
-		return { nullptr, nullptr, 0 };
+		return -1;
 	}
 	auto selected_proto = (*protos)[candidate].get();
 	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
 		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv) {
 			errs() << Loc << ": cannot call '" << name << "()' canditate with matching signature would require conversion of "
 			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
-			return { nullptr, nullptr, 0 };
+			return -1;
 		}
-	return { selected_proto->FT, getFunction(selected_proto), candidate };
+	return candidate;
 }
 
 void DebugInfo::emitLocation(ExprAST *AST) {
@@ -390,7 +388,20 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	// Look up the name in the global module table.
-	PrototypeAST* Proto = (*Callee->ft->Protos)[0].get();
+	unsigned n_args = Args.size();
+	auto method = dynamic_cast<MethodExprAST*>(Callee.get());
+	if (method)
+		n_args++;
+	std::vector<FnArg> fn_args;
+	fn_args.reserve(n_args);
+	if (method)
+		fn_args.push_back(FnArg{nullptr, method->Receiver->ft->type, static_cast<bool>(method->Receiver->ft->type_attr & A_signed), method->Receiver->is_unknown_type});
+	for (auto& arg: Args)
+		fn_args.push_back(FnArg{nullptr, arg->ft->type, static_cast<bool>(arg->ft->type_attr & A_signed), arg->is_unknown_type});
+	int selected_proto = selectProto(Callee->ft->Protos, "func", fn_args, Callee->Loc);
+	if (selected_proto < 0)
+		return nullptr;
+	PrototypeAST* Proto = (*Callee->ft->Protos)[selected_proto].get();
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// If argument mismatch error.
