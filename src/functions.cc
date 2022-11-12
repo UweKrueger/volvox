@@ -99,8 +99,9 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		return -1;
 	}
 	auto selected_proto = (*protos)[candidate].get();
+	std::function<llvm::Value*(llvm::Value*)> noconv = NoConversion;
 	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
-		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv) {
+		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv && false) {
 			errs() << Loc << ": cannot call '" << name << "()' canditate with matching signature would require conversion of "
 			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
 			return -1;
@@ -122,9 +123,12 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		fn_args.push_back(FnArg{nullptr, method->Receiver->ft->type, static_cast<bool>(method->Receiver->ft->type_attr & A_signed), method->Receiver->is_unknown_type});
 	for (auto& arg: Args)
 		fn_args.push_back(FnArg{nullptr, arg->ft->type, static_cast<bool>(arg->ft->type_attr & A_signed), arg->is_unknown_type});
-	selected_proto = selectProto(Callee->ft->Protos, "func", fn_args, Callee->Loc);
-	if (selected_proto >= 0)
+	int selected_proto = selectProto(Callee->ft->Protos, "func", fn_args, Callee->Loc);
+	auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get());
+	if (selected_proto == 0 || selected_proto > 0 && functionexpr)
 		ft = (*Callee->ft->Protos)[selected_proto]->RetType;
+	if (functionexpr)
+		functionexpr->selected_proto = selected_proto;
 }
 
 void DebugInfo::emitLocation(ExprAST *AST) {
@@ -408,10 +412,14 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 	}
-	// Look up the name in the global module table.
-	if (selected_proto < 0)
-		return nullptr;
-	PrototypeAST* Proto = (*Callee->ft->Protos)[selected_proto].get();
+	PrototypeAST* Proto;
+	if (auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get())) {
+		if (functionexpr->selected_proto < 0)
+			return nullptr;
+		Proto = (*Callee->ft->Protos)[functionexpr->selected_proto].get();
+	} else {
+		Proto = (*Callee->ft->Protos)[0].get();
+	}
 	llvm::Value* theFunction = Callee->codegen();
 	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
 	// If argument mismatch error.

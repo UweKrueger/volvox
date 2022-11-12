@@ -584,7 +584,6 @@ class CallExprAST : public ExprAST {
 public:
 	std::unique_ptr<ExprAST> Callee;
 	std::vector<std::unique_ptr<ExprAST>> Args;
-	int selected_proto;
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {});
 	CallExprAST(SourceLocation Loc, std::unique_ptr<TypeExprAST> Type,
