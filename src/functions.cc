@@ -119,6 +119,11 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	: ExprAST(Loc), Callee(std::move(Callee_)),
 	  Args(std::move(Args_)) {
 	unsigned n_args = Args.size();
+	auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get());
+	if (functionexpr)
+		name = functionexpr->Name.c_str();
+	else if (auto varexpr = dynamic_cast<VariableExprAST*>(Callee.get()))
+		name = varexpr->Name.c_str();
 	auto method = dynamic_cast<MethodExprAST*>(Callee.get());
 	if (method)
 		n_args++;
@@ -128,8 +133,7 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		fn_args.push_back(FnArg{nullptr, method->Receiver->ft->type, static_cast<bool>(method->Receiver->ft->type_attr & A_signed), method->Receiver->is_unknown_type});
 	for (auto& arg: Args)
 		fn_args.push_back(FnArg{nullptr, arg->ft->type, static_cast<bool>(arg->ft->type_attr & A_signed), arg->is_unknown_type});
-	int selected_proto = selectProto(Callee->ft->Protos, "func", fn_args, Callee->Loc);
-	auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get());
+	int selected_proto = selectProto(Callee->ft->Protos, name, fn_args, Callee->Loc);
 	if (selected_proto == 0 || selected_proto > 0 && functionexpr)
 		ft = (*Callee->ft->Protos)[selected_proto]->RetType;
 	if (functionexpr)
