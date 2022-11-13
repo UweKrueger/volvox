@@ -46,6 +46,27 @@ inline static uintptr_t getFnAddress(std::function<llvm::Value*(llvm::Value*)> f
     return (uintptr_t)*fnPointer;
 }
 
+static void printCandidate(PrototypeAST* proto, const char* name) {
+	errs() << proto->retLoc << ": " << name << '(';
+	for (int i=0; i<proto->Args.size(); i++)
+		if (i>0 || proto->Args[i] != "this") {
+			errs() << proto->Args[i] << ' ' << *proto->ArgTypes[i];
+			if (i != proto->Args.size()-1)
+				errs() << ", ";
+		}
+	errs() << ")\n";
+}
+
+inline static void printCandidates(std::vector<int>* candidates, std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
+	for(auto c: *candidates)
+		printCandidate((*protos)[c].get(), name);
+}
+
+inline static void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
+	for (auto& proto: *protos)
+		printCandidate(proto.get(), name);
+}
+
 int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
                 std::vector<FnArg>& fnargs, SourceLocation Loc = {0}) {
 	bool exact_match = false;
@@ -101,20 +122,12 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	}
 	if (candidates) {
 		errs() << Loc << ": call of '" << name << "()' is ambiguous - candidates are:\n";
-		for(auto c: *candidates) {
-			errs() << (*protos)[c]->retLoc << ": " << name << '(';
-			for (int i=0; i<(*protos)[c]->Args.size(); i++)
-				if (i>0 || (*protos)[c]->Args[i] != "this") {
-					errs() << (*protos)[c]->Args[i] << ' ' << *(*protos)[c]->ArgTypes[i];
-					if (i != (*protos)[c]->Args.size()-1)
-						errs() << ", ";
-				}
-			errs() << ")\n";
-		}
+		printCandidates(candidates.get(), protos, name);
 		return -1;
 	}
 	if (candidate < 0) {
-		errs() << Loc << ": signature of call to '" << name << "()' does not match any known candidate\n";
+		errs() << Loc << ": signature of call to '" << name << "()' does not match any known candidate - candidates are:\n";
+		printAllProtos(protos, name);
 		return -1;
 	}
 	auto selected_proto = (*protos)[candidate].get();
