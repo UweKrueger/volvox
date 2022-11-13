@@ -293,6 +293,15 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc
 	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;
 }
 
+// there is another "FullType" printing routine in mangler.cc - use reference here to distinguish
+inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType& ft) {
+	if (ft.type)
+		// print LLVM type for now - TODO: print canonical Volvox names instead
+		return out << *ft.type;
+	else
+		return out << "(null)";
+}
+
 // classification of binary operator with result type calculation in mind
 enum OpClass : uint8_t {
 	OpNormal,

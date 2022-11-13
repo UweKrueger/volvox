@@ -53,8 +53,8 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	int candidate = -1;
 	// in regular cases there is only one candidate
 	// only when there are more we create a vector
-	std::unique_ptr<std::vector<int>> canditates = nullptr;
-	unsigned i_proto = 0;
+	std::unique_ptr<std::vector<int>> candidates = nullptr;
+	int i_proto = 0;
 	for (auto& proto: *protos) {
 		if (proto->IsVarArgs)
 			return i_proto;
@@ -90,14 +90,27 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 			return i_proto;
 		} else if (with_conv) {
 			if (candidate >= 0)
-				more_than_1_conv_match = true;
+				if (candidates)
+					candidates->push_back(candidate);
+				else
+					candidates = std::unique_ptr<std::vector<int>>(new std::vector<int>{ candidate, i_proto });
 			else
 				candidate = i_proto;
 		}
 		i_proto++;
 	}
-	if (more_than_1_conv_match) {
-		errs() << Loc << ": call of '" << name << "()' is ambiguous\n";
+	if (candidates) {
+		errs() << Loc << ": call of '" << name << "()' is ambiguous - candidates are:\n";
+		for(auto c: *candidates) {
+			errs() << (*protos)[c]->retLoc << ": " << name << '(';
+			for (int i=0; i<(*protos)[c]->Args.size(); i++)
+				if (i>0 || (*protos)[c]->Args[i] != "this") {
+					errs() << (*protos)[c]->Args[i] << ' ' << *(*protos)[c]->ArgTypes[i];
+					if (i != (*protos)[c]->Args.size()-1)
+						errs() << ", ";
+				}
+			errs() << ")\n";
+		}
 		return -1;
 	}
 	if (candidate < 0) {
