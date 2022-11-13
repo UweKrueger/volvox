@@ -743,7 +743,7 @@ llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_co
 // there is another "FullType" printing routine in mangler.cc - use reference here to distinguish
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType& ft) {
 	if (!ft.type)
-		return out << "(null)";
+		return out << "<nil>";
 	// print LLVM type for now - TODO: print canonical Volvox names instead
 	if (ft.type->isBFloatTy())
 		return out << "f16";
@@ -774,6 +774,12 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType& ft) {
 			arraytype = llvm::dyn_cast<llvm::ArrayType>(elem_type);
 		} while (arraytype);
 		return out << *ft.elem_type;
+	}
+	if (auto structtype = llvm::dyn_cast<llvm::StructType>(ft.type)) {
+		if (structtype->hasName())
+			return out << structtype->getName();
+		else
+			return out << "<anonymous struct>";
 	}
 	return out << *ft.type;
 }
