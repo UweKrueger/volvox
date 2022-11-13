@@ -117,7 +117,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 					candidates.push_back(i_proto);
 				}
 				else
-					candidates.push_back(candidate);
+					candidates.push_back(i_proto);
 			else
 				candidate = i_proto;
 		}
