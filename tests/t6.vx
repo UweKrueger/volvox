@@ -140,3 +140,34 @@ fn test_int_int_exponentiation_6() bool
 	c := 1
 	d := 1i64
 	return a^-1 == -1 && b^-1 == -1 && c^-1 == 1 && d^-1 == 1 && a^-2 == 1 && b^-3 == -1 && a^-7 == -1 && b^-4 == 1 && c^-7 == 1 && d^-9 == 1
+
+import tests.testmod
+
+fn fqq(x i32) i32
+    return x+x
+
+fn fqq(x u32) u32
+    return 3 * x
+
+fn fqq(z testmod.KKljh) f64
+	return z.d + z.e
+
+fn fqq(po [5][7]testmod.KKljh) f64
+	return po[0][0].d + po[1][2].e
+
+fn fqq(x f64) f64
+    return x*x
+
+fn test_overloaded_call_float() bool
+	pp := 7.5
+	return fqq(pp) == 56.25 && fqq(-3.25) == 10.5625
+
+fn test_overloaded_call_int() bool
+	pp := 3
+	return fqq(pp) == 6 && fqq(-7) == -14
+
+fn test_overloaded_call_array_1() bool
+	pp7 := [5][7]testmod.KKljh{
+		{testmod.KKljh{ d: 7, e: -12.25 }}
+		{2: testmod.KKljh{ d: 17, e: -112.625 }}}
+	return fqq(pp7)  == -105.625
