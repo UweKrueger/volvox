@@ -87,20 +87,23 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		bool exact = true;
 		bool with_conv = true;
 		for (int i=0; i<fnargs.size(); i++) {
-			if (i >= proto->ArgTypes.size() || fnargs[i].argtype == proto->ArgTypes[i]->type && fnargs[i].arg_signed
-			    == (bool)(proto->ArgTypes[i]->type_attr & A_signed)) {
+			bool arg_matches_exactly;
+			if (i >= proto->ArgTypes.size()) {
 				if (candidate < 0)
 					fnargs[i].Conv = nullptr;
 			} else {
-				exact = false;
 				auto conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
 				                    fnargs[i].arg_signed, (bool)(proto->ArgTypes[i]->type_attr & A_signed),
-				                    false, fnargs[i].arg_unknown_type);
-				if (conv) {
+				                    false, fnargs[i].arg_unknown_type, &arg_matches_exactly);
+				if (arg_matches_exactly) {
+					if (candidate < 0)
+						fnargs[i].Conv = nullptr;
+				} else if (conv) {
+					exact = false;
 					if (candidate < 0)
 						fnargs[i].Conv = conv;
 				} else {
-					with_conv = false;
+					exact = with_conv = false;
 					break;
 				}
 			}

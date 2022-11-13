@@ -87,8 +87,15 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
 // is requested but precision would be lost
 std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc, bool expr_is_signed,
-	bool desired_is_signed, bool is_explicit, bool is_unknown_type)
+	bool desired_is_signed, bool is_explicit, bool is_unknown_type, bool* exact_match)
 {
+	if (expr_type == desired_type && (expr_is_signed == desired_is_signed || !expr_type->isIntegerTy())) {
+		if (exact_match)
+			*exact_match = true;
+		return NoConversion;
+	}
+	if (exact_match)
+		*exact_match = false;
 	const char* reason = "";
 	auto desired_descr = getBitWidth(desired_type);
 	unsigned desired_bitwidth = desired_descr.first;
@@ -140,6 +147,31 @@ no_explicit_constructor:
 		if (convFN)
 			return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
 		
+	}
+	if (auto expr_array = llvm::dyn_cast<llvm::ArrayType>(expr_type)) {
+		auto desired_array = llvm::dyn_cast<llvm::ArrayType>(desired_type);
+		llvm::Type* expr_elem;
+		llvm::Type* desired_elem;
+		do {
+			if (!desired_array)
+				return nullptr;
+			auto n_elem_expr = expr_array->getNumElements();
+			auto n_elem_desired = desired_array->getNumElements();
+			// if both dimensions in this level are known at compile time they must match
+			if (n_elem_expr && n_elem_desired && n_elem_expr != n_elem_desired)
+				return nullptr;
+			expr_elem = expr_array->getElementType();
+			desired_elem = desired_array->getElementType();
+			expr_array = llvm::dyn_cast<llvm::ArrayType>(expr_elem);
+			desired_array = llvm::dyn_cast<llvm::ArrayType>(desired_elem);
+		} while (expr_array);
+		if (expr_elem == desired_elem && (expr_is_signed == desired_is_signed || !expr_elem->isIntegerTy())) {
+			if (exact_match)
+				*exact_match = true;
+			return NoConversion;
+		} else {
+			return nullptr;
+		}
 	}
 	if (desired_bitwidth == 1) {
 		if (expr_bitwidth == 1)
