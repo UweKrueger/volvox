@@ -57,8 +57,8 @@ static void printCandidate(PrototypeAST* proto, const char* name) {
 	errs() << ")\n";
 }
 
-inline static void printCandidates(std::vector<int>* candidates, std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
-	for(auto c: *candidates)
+inline static void printCandidates(std::vector<int>& candidates, std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
+	for(auto c: candidates)
 		printCandidate((*protos)[c].get(), name);
 }
 
@@ -74,7 +74,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	int candidate = -1;
 	// in regular cases there is only one candidate
 	// only when there are more we create a vector
-	std::unique_ptr<std::vector<int>> candidates = nullptr;
+	std::vector<int> candidates;
 	int i_proto = 0;
 	for (auto& proto: *protos) {
 		if (proto->IsVarArgs)
@@ -111,18 +111,21 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 			return i_proto;
 		} else if (with_conv) {
 			if (candidate >= 0)
-				if (candidates)
-					candidates->push_back(candidate);
+				if (candidates.empty()) {
+					candidates.reserve(2);
+					candidates.push_back(candidate);
+					candidates.push_back(i_proto);
+				}
 				else
-					candidates = std::unique_ptr<std::vector<int>>(new std::vector<int>{ candidate, i_proto });
+					candidates.push_back(candidate);
 			else
 				candidate = i_proto;
 		}
 		i_proto++;
 	}
-	if (candidates) {
+	if (!candidates.empty()) {
 		errs() << Loc << ": call of '" << name << "()' is ambiguous - candidates are:\n";
-		printCandidates(candidates.get(), protos, name);
+		printCandidates(candidates, protos, name);
 		return -1;
 	}
 	if (candidate < 0) {
