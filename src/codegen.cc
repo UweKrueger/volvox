@@ -737,7 +737,13 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* Struct = nullptr;
 		FullVar* is_referencing = nullptr;
 		std::string* rname = nullptr;
-		if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
+		bool is_constructor_call = false;
+		if (auto callexpr = dynamic_cast<CallExprAST*>(RHS.get())) {
+			if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
+				// check that this is not just an explicis basic type conversion like 'f64(i)'
+				if (llvm::isa<llvm::StructType>(type_expr->ft->type))
+					is_constructor_call = true;
+		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref(true);
 			if (!ValR.second) {
 				if (LREF) {
@@ -778,7 +784,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 				}
 			} else {
-				if (!LREF && allocsz <= 16) {
+				if (!LREF && allocsz <= 16 && !is_constructor_call) {
 					Val = RHS_Lval->ref2val(ValR);
 					if (!Val)
 						goto use_val;;
@@ -794,7 +800,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 	use_val:
-		if (allocsz <= 16) {
+		if (allocsz <= 16 && !is_constructor_call) {
 			Val = RHS->codegen();
 			if (!Val)
 				return nullptr;
@@ -812,7 +818,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << LHS->Loc << ": cannot initialize existing variable\n";
 			return nullptr;
 		} else {
-			if (allocsz > 16) {
+			if (allocsz > 16 || is_constructor_call) {
 				auto align = getAlignment(allocsz);
 				if (target)
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
