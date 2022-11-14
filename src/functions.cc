@@ -514,7 +514,9 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			bool is_address = i < v && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
 			if (auto call = dynamic_cast<CallExprAST*>(Args[i].get())) {
-				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[0].get(); // 'g' in 'f(g())'
+				auto functionexpr = dynamic_cast<FunctionExprAST*>(call->Callee.get());
+				unsigned sub_sel_proto = functionexpr ? functionexpr->selected_proto : 0;
+				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[sub_sel_proto].get(); // 'g' in 'f(g())'
 				if (CallProto->IsStructRet) {
 					if (is_address) {
 						// 'g' returns by reference and 'f' exprects a reference (i.e. an address)

@@ -146,7 +146,7 @@ import tests.testmod
 fn fqq(x i32) i32
     return x+x
 
-fn fqq(x u32) u32
+fn fqq(x u32) i32
     return 3 * x
 
 fn fqq(z testmod.KKljh) f64
@@ -171,3 +171,15 @@ fn test_overloaded_call_array_1() bool
 		{testmod.KKljh{ d: 7, e: -12.25 }}
 		{2: testmod.KKljh{ d: 17, e: -112.625 }}}
 	return fqq(pp7)  == -105.625
+
+fn test_nested_overloaded_call_1() bool
+	return fqq(fqq(4.5)) == 410.0625
+
+fn test_nested_overloaded_call_2() bool
+	return fqq(fqq(-7.)) == 2401
+
+fn test_nested_overloaded_call_3() bool
+	return fqq(fqq(-7)) == -28
+
+fn test_nested_overloaded_call_4() bool
+	return fqq(fqq(-7u32)) == -42
