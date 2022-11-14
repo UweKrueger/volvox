@@ -582,6 +582,7 @@ public:
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
 public:
+	std::vector<FnArg> fn_args;
 	const char* name = "*";
 	std::unique_ptr<ExprAST> Callee;
 	std::vector<std::unique_ptr<ExprAST>> Args;

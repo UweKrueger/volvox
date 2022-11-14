@@ -70,7 +70,6 @@ inline static void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* pr
 int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
                 std::vector<FnArg>& fnargs, SourceLocation Loc = {0}) {
 	bool exact_match = false;
-	bool more_than_1_conv_match = false;
 	int candidate = -1;
 	// in regular cases there is only one candidate
 	// only when there are more we create a vector
@@ -97,7 +96,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 				                    false, fnargs[i].arg_unknown_type, &arg_matches_exactly);
 				if (arg_matches_exactly) {
 					if (candidate < 0)
-						fnargs[i].Conv = nullptr;
+						fnargs[i].Conv = conv;
 				} else if (conv) {
 					exact = false;
 					if (candidate < 0)
@@ -110,7 +109,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		}
 		if (exact) {
 			for (int i=0; i<fnargs.size(); i++)
-				fnargs[i].Conv = nullptr;
+				fnargs[i].Conv = NoConversion;
 			return i_proto;
 		} else if (with_conv) {
 			if (candidate >= 0)
@@ -159,7 +158,6 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	auto method = dynamic_cast<MethodExprAST*>(Callee.get());
 	if (method)
 		n_args++;
-	std::vector<FnArg> fn_args;
 	fn_args.reserve(n_args);
 	if (method)
 		fn_args.push_back(FnArg{nullptr, method->Receiver->ft->type, static_cast<bool>(method->Receiver->ft->type_attr & A_signed), method->Receiver->is_unknown_type});
@@ -468,12 +466,6 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	unsigned arg_offs = proto_arg_offs + (Proto->IsStructRet ? 1 : 0);
 	unsigned proto_args_size = Proto->Args.size() - proto_arg_offs;
 	unsigned ft_num_params = FT->getNumParams() - arg_offs;
-	if (ft_num_params > Args.size() || ft_num_params < Args.size() && !Proto->IsVarArgs || ft_num_params != proto_args_size) {
-		errs() << "Incorrect number of arguments passed: expected " << ft_num_params << (Proto->IsVarArgs ? "+" : "")
-		       << " respective " << proto_args_size << ", got " << Args.size() << "\n";
-		return nullptr;
-	}
-
 	std::vector<llvm::Value *> ArgsV;
 	llvm::Value* ret_struct = nullptr;
 	if (Proto->IsStructRet) {
@@ -504,21 +496,20 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		if (i < v && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
 		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()
 		        || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
-			auto conversion = getConv(
-				Args[i]->ft->type, Proto->ArgTypes[i+arg_offs]->type, Args[i]->Loc,
-				Args[i]->ft->type_attr & A_signed, Proto->ArgTypes[i+arg_offs]->type_attr & A_signed,
-				false, Args[i]->is_unknown_type);
-			if (!conversion)
-				return nullptr;
-			llvm::Value* arg = conversion(Args[i]->codegen());
+			auto conversion = fn_args[i+arg_offs].Conv;
+			llvm::Value* arg;
+			if (conversion) {
+				if (auto binexpr = dynamic_cast<BinaryExprAST*>(Args[i].get())) {
+					binexpr->desired_type = Proto->ArgTypes[i+arg_offs]->type;
+					arg = Args[i]->codegen();
+				} else {
+					arg = conversion(Args[i]->codegen());
+				}
+			} else {
+				arg = conversion(Args[i]->codegen());
+			}
 			ArgsV.push_back(arg);
 		} else {
-			if (i < v && Args[i]->ft->type->getTypeID() != Proto->ArgTypes[i+arg_offs]->type->getTypeID()
-			    && !Proto->ArgTypes[i+arg_offs]->type->isPointerTy()) {
-				// TODO: better check compatibility and make error message human readable
-				errs() << "Wrong type passed for function arg #" << i + 1 << ": expected " << *Proto->ArgTypes[i+arg_offs]->type << ", got " << *Args[i]->ft->type << "\n";
-				return nullptr;
-			}
 			llvm::Value* arg = nullptr;
 			bool is_address = i < v && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
