@@ -586,11 +586,9 @@ public:
 	const char* name = "*";
 	std::unique_ptr<ExprAST> Callee;
 	std::vector<std::unique_ptr<ExprAST>> Args;
+	PrototypeAST* Proto = nullptr;
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {});
-	CallExprAST(SourceLocation Loc, std::unique_ptr<TypeExprAST> Type,
-	            std::vector<std::unique_ptr<ExprAST>> Args = {})
-		: ExprAST(Type->ft, Loc), name(Type->Name.c_str()), Callee(std::move(Type)), Args(std::move(Args)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

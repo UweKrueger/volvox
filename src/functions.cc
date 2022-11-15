@@ -46,6 +46,19 @@ inline static uintptr_t getFnAddress(std::function<llvm::Value*(llvm::Value*)> f
     return (uintptr_t)*fnPointer;
 }
 
+static void printArgTypes(std::vector<FnArg>& fnargs) {
+	bool first = true;
+	for (auto& arg: fnargs) {
+		if (first)
+			first = false;
+		else
+			errs() << ", ";
+		if (arg.arg_signed)
+			errs() << "signed ";
+		errs() << *arg.argtype;
+	}
+}
+
 static void printCandidate(PrototypeAST* proto, const char* name) {
 	errs() << proto->retLoc << ": " << name << '(';
 	for (int i=0; i<proto->Args.size(); i++)
@@ -63,8 +76,10 @@ inline static void printCandidates(std::vector<int>& candidates, std::vector<std
 }
 
 inline static void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
-	for (auto& proto: *protos)
+	for (auto& proto: *protos) {
+		errs() << proto->ArgTypes.size() << ' ';
 		printCandidate(proto.get(), name);
+	}
 }
 
 int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
@@ -131,7 +146,9 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		return -1;
 	}
 	if (candidate < 0) {
-		errs() << Loc << ": signature of call to '" << name << "()' does not match any known candidate - candidates are:\n";
+		errs() << Loc << ": signature of call to '" << name << '(';
+		printArgTypes(fnargs);
+		errs() <<")' does not match any known candidate - candidates are:\n";
 		printAllProtos(protos, name);
 		return -1;
 	}
@@ -149,6 +166,7 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
             std::vector<std::unique_ptr<ExprAST>> Args_)
 	: ExprAST(Loc), Callee(std::move(Callee_)),
 	  Args(std::move(Args_)) {
+	errs() << "constructing callexpr###\n";
 	unsigned n_args = Args.size();
 	auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get());
 	if (functionexpr)
@@ -156,18 +174,44 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	else if (auto varexpr = dynamic_cast<VariableExprAST*>(Callee.get()))
 		name = varexpr->Name.c_str();
 	auto method = dynamic_cast<MethodExprAST*>(Callee.get());
+	auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get());
+	if (type_expr) {
+		name = type_expr->Name.c_str();
+		ft = type_expr->ft;
+	}
+	errs() << "constructing callexpr0 '" << name << "' with " << n_args << " args " << !(!type_expr) << !(!method) << ' ' << *ft << '\n';
 	if (method)
 		n_args++;
+	errs() << "constructing callexpr '" << name << "' with " << n_args << " args " << !(!type_expr) << !(!method) << '\n';
 	fn_args.reserve(n_args);
 	if (method)
-		fn_args.push_back(FnArg{nullptr, method->Receiver->ft->type, static_cast<bool>(method->Receiver->ft->type_attr & A_signed), method->Receiver->is_unknown_type});
-	for (auto& arg: Args)
-		fn_args.push_back(FnArg{nullptr, arg->ft->type, static_cast<bool>(arg->ft->type_attr & A_signed), arg->is_unknown_type});
-	int selected_proto = selectProto(Callee->ft->Protos, name, fn_args, Callee->Loc);
-	if (selected_proto == 0 || selected_proto > 0 && functionexpr)
-		ft = (*Callee->ft->Protos)[selected_proto]->RetType;
-	if (functionexpr)
-		functionexpr->selected_proto = selected_proto;
+		fn_args.push_back(FnArg{nullptr, method->Receiver->ft->type,
+		                        static_cast<bool>(method->Receiver->ft->type_attr & A_signed),
+		                        method->Receiver->is_unknown_type});
+	else if (type_expr && type_expr->ft->type->isStructTy())
+		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, static_cast<bool>(type_expr->ft->type_attr & A_signed), false});
+	if (!type_expr || type_expr->ft->type->isStructTy()) {
+		for (auto& arg: Args)
+			fn_args.push_back(FnArg{nullptr, arg->ft->type, static_cast<bool>(arg->ft->type_attr & A_signed), arg->is_unknown_type});
+		std::vector<std::unique_ptr<PrototypeAST>>* protos;
+		if (type_expr) {
+			protos = findProtos(std::string(type_expr->ft->mangled_name), type_expr->Name);
+			if (!protos)
+				errs() << type_expr->Loc << ": no constructor " << type_expr->Name << "() found\n";
+		} else {
+			protos = Callee->ft->Protos;
+		}
+		int selected_proto = selectProto(protos, name, fn_args, Callee->Loc);
+		if (selected_proto >= 0)
+			Proto = (*protos)[selected_proto].get();
+		else
+			return;
+		if (!type_expr)
+			ft = Proto->RetType;
+		errs() << "ret type of '" << name << "()': " << *ft << '\n';
+		if (functionexpr)
+			functionexpr->selected_proto = selected_proto;
+	}
 }
 
 void DebugInfo::emitLocation(ExprAST *AST) {
@@ -433,7 +477,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		KSDbgInfo.emitLocation(this);
 	}
 	bool is_constructor_call;
-	PrototypeAST* Proto = nullptr;
+	//std::vector<std::unique_ptr<PrototypeAST>>* protos = nullptr;
 	if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
 		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
 		llvm::Value* ret_val = nullptr;
@@ -455,24 +499,19 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 		} else {
 			is_constructor_call = true;
-			auto protos = findProtos(std::string(type_expr->ft->mangled_name), type_expr->Name);
-			if (!protos) {
-				errs() << type_expr->Loc << ": no constructor " << type_expr->Name << "() found\n";
-				return nullptr;
-			}
-			Callee = std::make_unique<FunctionExprAST>(type_expr->Loc, type_expr->Name, protos);
 		}
 	} else
 		is_constructor_call = false;
-	if (auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get())) {
-		if (functionexpr->selected_proto < 0)
-			return nullptr;
-		Proto = (*Callee->ft->Protos)[functionexpr->selected_proto].get();
-	} else {
-		Proto = (*Callee->ft->Protos)[0].get();
+	if (!Proto) {
+		errs() << Loc << ": no prototype found\n";
+		return nullptr;
 	}
 	llvm::Value* theFunction = Callee->codegen();
-	auto FT = llvm::cast<llvm::FunctionType>(Callee->ft->type);
+	if (!theFunction)
+		theFunction = getFunction(Proto);
+	if (!theFunction)
+		abort();
+	auto FT = Proto->FT;
 	// If argument mismatch error.
 	unsigned proto_arg_offs = (Proto->visibility & A_method) ? 1 : 0;
 	unsigned arg_offs = proto_arg_offs + (Proto->IsStructRet ? 1 : 0);
@@ -480,14 +519,14 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	unsigned ft_num_params = FT->getNumParams() - arg_offs;
 	std::vector<llvm::Value *> ArgsV;
 	llvm::Value* ret_struct = nullptr;
-	if (Proto->IsStructRet) {
+	if (Proto->IsStructRet || (Proto->visibility & A_constructor)) {
 		if (!target) {
 			errs() << Loc << ": " << Proto->Name << " - internal error: no target for struct return\n";
 			return nullptr;
 		}
 		ArgsV.push_back(target);
 	}
-	if (Proto->visibility & A_method) {
+	if (Proto->visibility & A_method && !(Proto->visibility & A_constructor)) {
 		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
 			if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
 				auto receiver_ref = receiver_lval->codegen_ref();
@@ -529,7 +568,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				auto functionexpr = dynamic_cast<FunctionExprAST*>(call->Callee.get());
 				unsigned sub_sel_proto = functionexpr ? functionexpr->selected_proto : 0;
 				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[sub_sel_proto].get(); // 'g' in 'f(g())'
-				if (CallProto->IsStructRet) {
+				if (CallProto->IsStructRet || (CallProto->visibility & A_constructor)) {
 					if (is_address) {
 						// 'g' returns by reference and 'f' exprects a reference (i.e. an address)
 						// so we have to allocate memory for the indermediate result
@@ -617,11 +656,13 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	// reference to it for use below.
 	auto &P = *Proto;
 	volvoxc::FullType* receiver_ft;
-	if (Proto->visibility & A_method)
+	if (Proto->visibility & (A_method | A_constructor))
 		if (Proto->IsStructRet)
 			receiver_ft = Proto->ArgTypes[1];
-		else
+		else {
 			receiver_ft = Proto->ArgTypes[0];
+			errs() << "receiver_tf: " << Proto->Args[0] << ' ' << *receiver_ft << ' ' << *receiver_ft->type << '\n';
+		}
 	else
 		receiver_ft = nullptr;
 	llvm::Function* TheFunction = getFunction(Proto);
@@ -657,8 +698,8 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	}
 	// Record the function arguments in the NamedValues map.
 	unsigned ArgIdx = 0;
-	theFunction_ret_ft = P.RetType;
-	if (P.IsStructRet)
+	theFunction_ret_ft = (P.visibility & A_constructor) ? void_type : P.RetType;
+	if (P.IsStructRet && !(P.visibility & A_constructor))
 		ret_ptr = TheFunction->getArg(ArgIdx++);
 	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
 		auto Arg = TheFunction->getArg(ArgIdx);
@@ -705,7 +746,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		}
 	}
 	// Finish off the function.
-	if (P.RetType->type->isVoidTy()) {
+	if (P.RetType->type->isVoidTy() || (P.visibility & A_constructor)) {
 		if (P.visibility & A_destructor) {
 			insert_field_destructors(receiver_ft, TheFunction->getArg(0));
 		}
