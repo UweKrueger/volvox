@@ -11,6 +11,11 @@
 // Abstract Syntax Tree (aka Parse Tree)
 //===----------------------------------------------------------------------===//
 
+inline static llvm::Value* handle(llvm::Value* target, llvm::Value* val) {
+	if (!target)
+		return val;
+	return Builder->CreateStore(val, target);
+}
 
 /// ExprAST - Base class for all expression nodes.
 

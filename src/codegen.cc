@@ -40,17 +40,17 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 			if (auto it = llvm::dyn_cast<llvm::IntegerType>(desired_type))
 				bw = it->getBitWidth();
 			else if (desired_type->isDoubleTy())
-				return llvm::ConstantFP::get(Context, llvm::APFloat(ft->type_attr & A_signed ? (double)Val.Int : (double)Val.Uint));
+				return handle(target, llvm::ConstantFP::get(Context, llvm::APFloat(ft->type_attr & A_signed ? (double)Val.Int : (double)Val.Uint)));
 		}
 		if (!bw)
 			bw = ft->type->getIntegerBitWidth();
 		if (bw == 1) // bool - treat anything != 0 as 'true'
 			if (Val.Uint)
-				return Builder->getTrue();
+				return handle(target, Builder->getTrue());
 			else
-				return Builder->getFalse();
+				return handle(target, Builder->getFalse());
 		else
-			return llvm::ConstantInt::get(Context, llvm::APInt(bw, Val.Uint, ft->type_attr & A_signed));
+			return handle(target, llvm::ConstantInt::get(Context, llvm::APInt(bw, Val.Uint, ft->type_attr & A_signed)));
 	}
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
@@ -58,14 +58,14 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 		// passthrough to 32 bit float for now - but expect problems...
 	case llvm::Type::FloatTyID:
-		return llvm::ConstantFP::get(Context, llvm::APFloat((float)Val.Float));
+		return handle(target, llvm::ConstantFP::get(Context, llvm::APFloat((float)Val.Float)));
 	case llvm::Type::DoubleTyID:
-		return llvm::ConstantFP::get(Context, llvm::APFloat(Val.Float));
+		return handle(target, llvm::ConstantFP::get(Context, llvm::APFloat(Val.Float)));
 	case llvm::Type::PointerTyID:
 		if (ft->type_attr & A_signed)
-			return Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), Val.Uint, false), llvm::Type::getInt8PtrTy(Context));
+			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
 		else
-			return Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get());
+			return handle(target, Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get()));
 	default:
 		errs() << "internal compiler error: unhandled literal type " << *ft->type << "\n";
 		return nullptr;
@@ -85,7 +85,7 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value *V = llvm::UndefValue::get(list_type);
 		for (unsigned i = 0; i < Elements.size(); ++i)
 			V = Builder->CreateInsertValue(V, Elements[i]->codegen(), i, "listpush");
-		return V;
+		return handle(target, V);
 	} else {
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}
@@ -107,12 +107,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			else
 				V = Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
 		}
-		if (target) {
-			Builder->CreateStore(V, target);
-			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-		} else {
-			return V;
-		}
+		return handle(target, V);
 	} else
 		abort();
 }
@@ -121,7 +116,7 @@ llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	auto V = codegen_ref();
 	if (V.first && V.second)
 		// Load the value.
-		return Builder->CreateLoad(V.first, V.second, Name.c_str());
+		return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()));
 	return nullptr;
 }
 
@@ -231,11 +226,11 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref(bool silent_fail)
 llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 	auto V = codegen_ref(true);
 	if (auto val = ref2val(V))
-		return val;
+		return handle(target, val);
 	if (V.first) {
 		llvm::Value* struct_val = Struct->codegen_raw(target);
 		if (struct_val)
-			return Builder->CreateExtractValue(struct_val, FieldIndex);
+			return handle(target, Builder->CreateExtractValue(struct_val, FieldIndex));
 	}
 	errs() << Loc << ": cannot generate code for select expression\n";
 	return nullptr;
@@ -243,9 +238,9 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 
 llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 	if (auto F = TheModule->getFunction((*ft->Protos)[selected_proto]->Name)) {
-		return F;
+		return handle(target, F);
 	}
-	return (*ft->Protos)[selected_proto]->codegen();
+	return handle(target, (*ft->Protos)[selected_proto]->codegen());
 }
 
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
@@ -266,7 +261,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			if (array->getType()->isVoidTy())
-				return array;
+				return handle(target, array);
 			// if it's an rvalue we have to store it on stack to get a reference
 			if (!target)
 				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
@@ -279,7 +274,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 		} else {
 			llvm::Value* stuct_val = expr->codegen_raw(target);
 			if (stuct_val->getType()->isVoidTy())
-				return stuct_val;
+				return handle(target, stuct_val);
 			if (!target)
 				val = StoreValue(stuct_val, expr->ft);
 		}
@@ -296,7 +291,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, 0);
 	the_struct = Builder->CreateInsertValue(the_struct, val, 1);
-	return the_struct;
+	return handle(target, the_struct);
 }
 
 llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
@@ -314,7 +309,7 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 		else
 			newVal = Builder->CreateSub(oldVal, One);
 		Builder->CreateStore(newVal, OperandV.second);
-		return oldVal;
+		return handle(target, oldVal);
 	} else if (OperandV.first->isFloatingPointTy()) {
 		auto One = Builder->CreateUIToFP(Builder->getInt32(1), OperandV.first);
 		llvm::Value* oldVal = Builder->CreateLoad(OperandV.first, OperandV.second);
@@ -324,7 +319,7 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 		else
 			newVal = Builder->CreateFSub(oldVal, One);
 		Builder->CreateStore(newVal, OperandV.second);
-		return oldVal;
+		return handle(target, oldVal);
 	}
 	errs() << Operand->Loc << ": postfix operator not supported for type '" << *OperandV.first << "'\n";
 	return nullptr;
@@ -345,9 +340,9 @@ llvm::Value* UnaryExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::DoubleTyID:
 		switch (Opcode[0]) {
 		case '+':
-			return OperandV;
+			return handle(target, OperandV);
 		case '-':
-			return Builder->CreateFNeg(OperandV, "negftmp");
+			return handle(target, Builder->CreateFNeg(OperandV, "negftmp"));
 		// TODO: case '&'
 		default:
 			errs() << "unary operator '" << Opcode[0] << "' undefined for floats";
@@ -360,11 +355,11 @@ llvm::Value* UnaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		switch (Opcode[0]) {
 		case '+':
-			return OperandV;
+			return handle(target, OperandV);
 		case '-':
-			return Builder->CreateNeg(OperandV, "negtmp");
+			return handle(target, Builder->CreateNeg(OperandV, "negtmp"));
 		case '!':
-			return Builder->CreateNot(OperandV, "nottmp");
+			return handle(target, Builder->CreateNot(OperandV, "nottmp"));
 		default:
 			errs() << "unary operator '" << Opcode[0] << "' undefined for integers";
 			return nullptr;
@@ -835,7 +830,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			} else {
 				auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 				Builder->CreateStore(Val, Variable.second);
-				return OldVal;
+				return handle(target, OldVal);
 			}
 		}
 	not_found:
@@ -1243,7 +1238,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		break;
 	}
-	return result;
+	return handle(target, result);
 }
 
 std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
@@ -1645,7 +1640,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			ft = new_FullType(*ft);
 			ft-> type = merge.first;
 		}
-		return merge.second;
+		return handle(target, merge.second);
 	}
 }
 
