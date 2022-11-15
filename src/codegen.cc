@@ -440,7 +440,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	bool is_constructor_call = false;
 	bool use_target = false;
 	llvm::Value* target = nullptr;
-	size_t allocsz = expr->RHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type);
+	size_t allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 	if (LREF) {
 		if (auto refexpr = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 			auto BaseVar = refexpr->getBase();
@@ -468,9 +468,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					// check that this is not just an explicis basic type conversion like 'f64(i)'
 					is_constructor_call = true;
 			}
-			if (is_constructor_call || allocsz > 16) {
+			if (is_constructor_call || allocsz > 16 && !(sym_kind & A_global))
 				use_target = true;
-			}
 		}
 		if (!use_target)
 			Val = expr->RHS->codegen();
@@ -498,7 +497,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		tmpf->eraseFromParent();
 	} else {
 		needs_store = true;
-		if (expr->RHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) > 0) {
+		if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		}
 	}
@@ -543,7 +542,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		fv->storage_type = initializer ? initializer->getType() : nullptr;
 		fv->mangled_name = strdup(varname.c_str());
 		fv->ft = *expr->RHS->ft;
-		fv->ft.type = type;
+		fv->ft.type = use_target ? expr->RHS->ft->type : type;
 		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | (LREF ? A_ptrref : 0U) | A_mainvar;
 		if (is_referencing) {
 			fv->mark_as_referencing(is_referencing);
