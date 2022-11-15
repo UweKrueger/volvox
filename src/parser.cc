@@ -344,10 +344,8 @@ static std::unique_ptr<ExprAST> ParseConstructorCall(std::string TypeName, Sourc
 	auto args = ParseParenExpr(terminator);
 	if (!args)
 		return nullptr;
-	auto saveStr = TypeName;
 	auto type_expr = std::make_unique<TypeExprAST>(TypeLoc, std::move(TypeName), ft);
 	auto Args = SplitExprList(std::move(args));
-	errs() << TypeLoc << ": constructor call " << saveStr << " with " << Args.size() << " argumentps\n";
 	return std::make_unique<CallExprAST>(TypeLoc, std::move(type_expr), std::move(Args));
 }
 
@@ -1386,8 +1384,6 @@ noargs:
 				return nullptr;
 			}
 			visibility = (visibility & ~A_constructor) | A_conversion;
-		// } else {
-		// 	RetType = ReceiverType;
 		}
 	}
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
@@ -1447,10 +1443,8 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	}
 	else
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, Proto->visibility).c_str();
-	if (visibility & (A_destructor | A_constructor | A_conversion)) {
+	if (visibility & (A_destructor | A_constructor | A_conversion))
 		AutoMethods[Proto->Name] = Proto->FT;
-		errs() << "constructor name: " << Proto->Name << '\n';
-	}
 	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type(Proto->ArgTypes[0]->mangled_name);
 		if (!check_and_add_proto(MethodProtos[{mangled_receiver_type, unmangledName}], std::move(Proto), unmangledName, true))

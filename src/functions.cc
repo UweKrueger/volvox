@@ -76,10 +76,8 @@ inline static void printCandidates(std::vector<int>& candidates, std::vector<std
 }
 
 inline static void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
-	for (auto& proto: *protos) {
-		errs() << proto->ArgTypes.size() << ' ';
+	for (auto& proto: *protos)
 		printCandidate(proto.get(), name);
-	}
 }
 
 int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
@@ -166,7 +164,6 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
             std::vector<std::unique_ptr<ExprAST>> Args_)
 	: ExprAST(Loc), Callee(std::move(Callee_)),
 	  Args(std::move(Args_)) {
-	errs() << "constructing callexpr###\n";
 	unsigned n_args = Args.size();
 	auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get());
 	if (functionexpr)
@@ -179,10 +176,8 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		name = type_expr->Name.c_str();
 		ft = type_expr->ft;
 	}
-	errs() << "constructing callexpr0 '" << name << "' with " << n_args << " args " << !(!type_expr) << !(!method) << ' ' << *ft << '\n';
 	if (method)
 		n_args++;
-	errs() << "constructing callexpr '" << name << "' with " << n_args << " args " << !(!type_expr) << !(!method) << '\n';
 	fn_args.reserve(n_args);
 	if (method)
 		fn_args.push_back(FnArg{nullptr, method->Receiver->ft->type,
@@ -208,7 +203,6 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 			return;
 		if (!type_expr)
 			ft = Proto->RetType;
-		errs() << "ret type of '" << name << "()': " << *ft << '\n';
 		if (functionexpr)
 			functionexpr->selected_proto = selected_proto;
 	}
@@ -659,10 +653,8 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	if (Proto->visibility & (A_method | A_constructor))
 		if (Proto->IsStructRet)
 			receiver_ft = Proto->ArgTypes[1];
-		else {
+		else
 			receiver_ft = Proto->ArgTypes[0];
-			errs() << "receiver_tf: " << Proto->Args[0] << ' ' << *receiver_ft << ' ' << *receiver_ft->type << '\n';
-		}
 	else
 		receiver_ft = nullptr;
 	llvm::Function* TheFunction = getFunction(Proto);
