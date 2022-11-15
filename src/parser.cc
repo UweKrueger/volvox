@@ -272,7 +272,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 		}
 			break;
 		default:
-			errs() << "Unexpected '" << CurTok.kind << ' ' << IdentifierStr.c_str() << ' ' << CurTok.str() << "' - type name expected\n";
+			errs() << CurLoc << ": unexpected '" << CurTok << "' - type name expected\n";
 			return nullptr;
 		}
 		getNextToken(expect);
@@ -1322,13 +1322,13 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				isVarArgs = true;
 				getNextToken();
 				if (CurTok.kind != ')') {
-					errs() << "Unexpected '" << CurTok.str() << "' after '...' - ')' expected\n";
+					errs() << CurLoc << ": unexpected '" << CurTok << "' after '...' - ')' expected\n";
 					return nullptr;
 				}
 				else
 					break;
 			}
-			errs() << "Unexpected '" << CurTok.str() << "' in function arg list - arg name expected\n";
+			errs() << CurLoc << ": unexpected '" << CurTok << "' in function arg list - arg name expected\n";
 			return nullptr;
 		}	
 		ArgNames.push_back(IdentifierStr);
@@ -1336,7 +1336,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		getNextToken(eType);
 		auto type = ParseType(true);
 		if (!type) {
-			errs() << "Unexpected '" << CurTok.str() << "' in function arg list - type name expected\n";
+			errs() << CurLoc << ": unexpected '" << CurTok << "' in function arg list - type name expected\n";
 			return nullptr;
 		}
 		ArgTypes.push_back(type);

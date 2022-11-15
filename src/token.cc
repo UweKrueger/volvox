@@ -82,7 +82,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, TokenKind kind) {
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok) {
 	if (tok.kind > 0 || tok.kind < tok_last_keyword)
 		return out << TokenKind(tok.kind);
-	return out << '"' << tok.str() << '"';
+	return out << tok.str();
 }
 
 Token::Token(char** s_ptr) : kind(tok_number) {
