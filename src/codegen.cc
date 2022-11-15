@@ -437,6 +437,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	std::string* rname;
 	std::function<llvm::Value*(llvm::Value*)> conversion;
 	bool is_signed;
+	bool is_constructor_call = false;
+	bool use_target = false;
+	llvm::Value* target = nullptr;
+	size_t allocsz = expr->RHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type);
 	if (LREF) {
 		if (auto refexpr = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 			auto BaseVar = refexpr->getBase();
@@ -457,14 +461,26 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		} else {
 			Val = nullptr;
 		}
-	} else
-		Val = expr->RHS->codegen();
-	if (!Val) {
+	} else {
+		if (llvm::isa<llvm::StructType>(expr->RHS->ft->type)) {
+			if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
+				if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
+					// check that this is not just an explicis basic type conversion like 'f64(i)'
+					is_constructor_call = true;
+			}
+			if (is_constructor_call || allocsz > 16) {
+				use_target = true;
+			}
+		}
+		if (!use_target)
+			Val = expr->RHS->codegen();
+	}
+	if (!use_target && !Val) {
 		errs() << expr->RHS->Loc << ": could not generate code for initialization expression\n";
 		tmpf->eraseFromParent();
 		lex.module->globals_table.erase(unmangled_name.c_str());
 	}
-	if (!LREF) {
+	if (!LREF && !use_target) {
 		val_type = Val->getType();
 		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
 		type = std::get<0>(type_descr);
@@ -475,7 +491,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
 		llvm::GlobalValue::ExternalLinkage :
 		llvm::GlobalValue::InternalLinkage;
-	auto initializer = llvm::dyn_cast<llvm::Constant>(convertedVal);
+	llvm::Constant* initializer = use_target ? nullptr : llvm::dyn_cast<llvm::Constant>(convertedVal);
 	bool needs_store;
 	if (initializer) {
 		needs_store = false;
@@ -483,7 +499,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	} else {
 		needs_store = true;
 		if (expr->RHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) > 0) {
-			initializer = llvm::Constant::getNullValue(convertedVal->getType());
+			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		}
 	}
 	if (needs_store && (sym_kind & A_global)) {
@@ -541,7 +557,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			}
 			unsigned ndim = 0;
 			if (initializer) { // constant size initializer
-				Builder->CreateStore(convertedVal, GV);
+				if (use_target)
+					expr->RHS->codegen_raw(GV);
+				else
+					Builder->CreateStore(convertedVal, GV);
 				if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
 					auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 					auto last_saver = getFunction(last_saver_proto);
