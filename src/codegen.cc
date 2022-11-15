@@ -743,6 +743,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				// check that this is not just an explicis basic type conversion like 'f64(i)'
 				if (llvm::isa<llvm::StructType>(type_expr->ft->type))
 					is_constructor_call = true;
+			if (is_constructor_call)
+				errs() << RHS->Loc << ": costructor call\n";
 		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref(true);
 			if (!ValR.second) {
@@ -827,7 +829,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				else {
 					auto voidval = RHS->codegen_raw(Variable.second);
 					if (!voidval->getType()->isVoidTy()) {
-						errs() << Loc << ": internal error: sret call does not return void\n";
+						errs() << Loc << ": internal error: sret ++call does not return void\n";
 						return nullptr;
 					}
 				}
@@ -913,12 +915,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					entry->val = Alloca;
 				}
 			}
-		} else if (allocsz > 16) {
+		} else if (allocsz > 16 || is_constructor_call) {
 			auto align = getAlignment(allocsz);
 			auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 			auto voidval = RHS->codegen_raw(Alloca);
 			if (!voidval->getType()->isVoidTy()) {
-				errs() << Loc << ": internal error: sret call does not return void\n";
+				errs() << Loc << ": internal error: sret call-- does not return void\n";
 				return nullptr;
 			}
 			entry->val = Alloca;

@@ -432,6 +432,8 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	bool is_constructor_call;
+	PrototypeAST* Proto = nullptr;
 	if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
 		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
 		llvm::Value* ret_val = nullptr;
@@ -439,19 +441,29 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			target = ret_val = CreateEntryBlockAlloca(type_expr->ft->type, "");
 		if (target)
 			Builder->CreateStore(llvm::Constant::getNullValue(ft->type), target);
-		switch (Args.size()) {
-		case 0:
-			return llvm::Constant::getNullValue(ft->type);
-		case 1:
-			Args[0]->desired_type = ft->type;
-			Args[0]->conv_kind = ft->type_attr & A_signed ? ConvSigned : ConvUnsigned;
-			return Args[0]->codegen();
-		default:
-			errs() << "constructors with #arg!=1 not supported, yet\n";
-			return nullptr;
+		if (!llvm::isa<llvm::StructType>(ft->type)) {
+			switch (Args.size()) {
+			case 0:
+				return llvm::Constant::getNullValue(ft->type);
+			case 1:
+				Args[0]->desired_type = ft->type;
+				Args[0]->conv_kind = ft->type_attr & A_signed ? ConvSigned : ConvUnsigned;
+				return Args[0]->codegen();
+			default:
+				errs() << "constructors with #arg!=1 not supported, yet\n";
+				return nullptr;
+			}
+		} else {
+			is_constructor_call = true;
+			auto protos = findProtos(std::string(type_expr->ft->mangled_name), type_expr->Name);
+			if (!protos) {
+				errs() << type_expr->Loc << ": no constructor " << type_expr->Name << "() found\n";
+				return nullptr;
+			}
+			Callee = std::make_unique<FunctionExprAST>(type_expr->Loc, type_expr->Name, protos);
 		}
-	}
-	PrototypeAST* Proto;
+	} else
+		is_constructor_call = false;
 	if (auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get())) {
 		if (functionexpr->selected_proto < 0)
 			return nullptr;
