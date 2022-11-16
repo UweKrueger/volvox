@@ -201,3 +201,9 @@ qqgga = kkff
 
 fn test_imported_constructor_2() bool
 	return qqgga == 11
+
+fn test_imported_constructor_3() bool
+	x := testmod.Olgj(-3.25)
+	return x.s == -6.5
+
+
