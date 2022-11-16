@@ -1319,12 +1319,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		return nullptr;
 	}
 	if (!Expect('(')) return nullptr;
-	if (CurTok.kind == ')') {
-		if (visibility & A_constructor)
-			// default constructor - set flag in type
-			tmp_rec_type->type_attr |= A_constructor;
+	if (CurTok.kind == ')')
 		goto noargs;
-	}
 	for (;;) {
 		if (CurTok.kind != tok_identifier) {
 			if (CurTok.kind == tok_ellipsis) {
@@ -1393,6 +1389,9 @@ noargs:
 				return nullptr;
 			}
 			visibility = (visibility & ~A_constructor) | A_conversion;
+		} else {
+			// default constructor - set flag in type
+			tmp_rec_type->type_attr |= A_constructor;
 		}
 	}
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
