@@ -942,6 +942,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << "unhandled case\n";
 			return nullptr;
 		}
+		if (ft->type_attr & A_constructor && !is_constructor_call) {
+			// no explicit constructor call but there is a default constructor
+			auto F = getConstructorOrDestructor(&entry->ft);
+			if (!F) {
+				errs() << Loc << ": internal error - default constructor not found\n";
+				return nullptr;
+			}
+			Builder->CreateCall(F, { entry->val });
+		}
 		ft->type = llvm::Type::getVoidTy(Context);
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}

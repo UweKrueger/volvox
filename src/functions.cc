@@ -36,13 +36,27 @@ llvm::Function* getFunction(PrototypeAST* FI) {
 	return FI->codegen();
 }
 
-llvm::Function* getAutoMethod(std::string& mangled_name) {
+llvm::Function* getConversion(std::string& mangled_name) {
 	if (auto F = TheModule->getFunction(mangled_name))
 		return F;
-	auto fn_type = AutoMethods.find(mangled_name);
-	if (fn_type == AutoMethods.end())
+	auto fn_type = Conversions.find(mangled_name);
+	if (fn_type == Conversions.end())
 		return nullptr;
 	auto F = llvm::Function::Create(fn_type->second, llvm::Function::ExternalLinkage, mangled_name, TheModule.get());
+	return F;
+}
+
+llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor) {
+	auto Names = AutoMethods.find(ft->mangled_name);
+	if (Names == AutoMethods.end())
+		return nullptr;
+	std::string& thename = destructor ? Names->second.second : Names->second.first;
+	if (thename.empty())
+		return nullptr;
+	if (auto F = TheModule->getFunction(thename))
+		return F;
+	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { ft->type->getPointerTo() }, false);
+	auto F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, thename, TheModule.get());
 	return F;
 }
 

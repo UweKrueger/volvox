@@ -120,7 +120,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 				}
 				mangled << ft;
 				m_name = buf.c_str();
-				auto convFN = getAutoMethod(m_name);
+				auto convFN = getConversion(m_name);
 				if (convFN)
 					return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
 			}
@@ -143,7 +143,7 @@ no_explicit_constructor:
 		}
 		mangled << ft;
 		m_name = buf.c_str();
-		auto convFN = getAutoMethod(m_name);
+		auto convFN = getConversion(m_name);
 		if (convFN)
 			return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
 		
