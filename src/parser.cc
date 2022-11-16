@@ -1108,15 +1108,18 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					return nullptr;
 				} else {
 					std::string fqname = mod->Name + "." + ident->Name;
-					if (auto protos = im->second.getProtos()) {
+					// the following is similar to corresponding code in ParseIdentifierExpr()
+					if (auto var = im->second.getFullVar()) {
+						LHS = std::make_unique<VariableExprAST>(mod->Loc, ident->Name /*fqname?*/, var);
+						continue;
+					} else if (auto protos = im->second.getProtos()) {
 						LHS = std::make_unique<FunctionExprAST>(mod->Loc, fqname, protos);
 						continue;
-					} else if (auto var = im->second.getFullVar()) {
-						LHS = std::make_unique<VariableExprAST>(mod->Loc, ident->Name /*fqname*/, var);
-						// TODO: mangle variable name here and in HandleGlobalVariable()
-						continue;
 					} else if (auto type = im->second.getFullType()) {
-						LHS = ParseStructExpr(type, terminator);
+						if (lex.peek() == '(')
+							LHS = ParseConstructorCall(fqname, mod->Loc, type, terminator);
+						else
+							LHS = ParseStructExpr(type, terminator);
 						continue;
 					} else {
 						errs() << LHS->Loc << ": cannot evaluate '" << fqname << "'\n";

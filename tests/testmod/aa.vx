@@ -2,3 +2,16 @@ type KKljh {
 	d i32
 	e f64
 }
+
+type Olgj {
+	j i32
+	s f64
+}
+
+fn Olgj()
+	this.s -= 2.25
+	return
+
+fn Olgj(r f64)
+	this.s = 2*r
+	return

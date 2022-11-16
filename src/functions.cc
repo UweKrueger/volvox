@@ -17,7 +17,13 @@ volvoxc::FullType* theFunction_ret_ft = nullptr;
 
 // global function to find method protos
 std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName) {
-	auto FI = MethodProtos.find({ mangledType, unmangledName });
+	// 'unmangledName might be fully qualified like 'module.name' so strip the module name
+	const char* p = unmangledName.c_str();
+	while (*p)
+		if (*p++ == '.')
+			break;
+	auto FI = *p ? MethodProtos.find({ mangledType, p }) :
+		MethodProtos.find({ mangledType, unmangledName });
 	if (FI != MethodProtos.end())
 		return &FI->second;
 	else

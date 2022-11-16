@@ -183,3 +183,12 @@ fn test_nested_overloaded_call_3() bool
 
 fn test_nested_overloaded_call_4() bool
 	return fqq(fqq(-7u32)) == -42
+
+alp := testmod.Olgj(7.0625)
+
+global qqggf := 0.
+
+qqggf = alp.s
+
+fn test_imported_constructor_1() bool
+	return qqggf == 14.125
