@@ -1115,6 +1115,8 @@ public:
 	virtual llvm::Value *codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
 	llvm::Value* codegen() {
 		auto rawV = codegen_raw();
+		if (!rawV)
+			return nullptr;
 		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
 			auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
 			                        conv_kind == ConvImplicit ? ft->type_attr & A_signed : conv_kind == ConvSigned,

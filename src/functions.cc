@@ -494,7 +494,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				Args[0]->conv_kind = ft->type_attr & A_signed ? ConvSigned : ConvUnsigned;
 				return Args[0]->codegen();
 			default:
-				errs() << "constructors with #arg!=1 not supported, yet\n";
+				errs() << "conversions with #arg!=1 not supported\n";
 				return nullptr;
 			}
 		} else {
@@ -503,7 +503,6 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	} else
 		is_constructor_call = false;
 	if (!Proto) {
-		errs() << Loc << ": no prototype found\n";
 		return nullptr;
 	}
 	llvm::Value* theFunction = Callee->codegen();
@@ -574,8 +573,8 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 						// so we have to allocate memory for the indermediate result
 						arg = Builder->CreateAlloca(call->ft->type);
 						auto voidval = call->codegen_raw(arg);
-						if (!voidval->getType()->isVoidTy()) {
-							errs() << Loc << ": internal error: sret call does not return void\n";
+						if (!voidval || !voidval->getType()->isVoidTy()) {
+							errs() << Loc << ": cannot create function call\n";
 							return nullptr;
 						}
 					} else {

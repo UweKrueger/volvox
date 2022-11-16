@@ -475,9 +475,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			Val = expr->RHS->codegen();
 	}
 	if (!use_target && !Val) {
-		errs() << expr->RHS->Loc << ": could not generate code for initialization expression\n";
+		errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
 		tmpf->eraseFromParent();
 		lex.module->globals_table.erase(unmangled_name.c_str());
+		return nullptr;
 	}
 	if (!LREF && !use_target) {
 		val_type = Val->getType();
@@ -839,7 +840,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
 				else {
 					auto voidval = RHS->codegen_raw(Variable.second);
-					if (!voidval->getType()->isVoidTy()) {
+					if (!voidval || !voidval->getType()->isVoidTy()) {
 						errs() << Loc << ": internal error: sret ++call does not return void\n";
 						return nullptr;
 					}
@@ -930,7 +931,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			auto align = getAlignment(allocsz);
 			auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 			auto voidval = RHS->codegen_raw(Alloca);
-			if (!voidval || !voidval->getType()->isVoidTy()) {
+			if (!voidval)
+				return nullptr;
+			if (!voidval->getType()->isVoidTy()) {
 				errs() << Loc << ": internal error: sret call-- does not return void\n";
 				return nullptr;
 			}
@@ -960,8 +963,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	llvm::Value *L, *R;
 	L = LHS->codegen();
-	// if (L && convLHS)
-	// 	L = convLHS(L);
 	if (!L)
 		return nullptr;
 	if (opclass == OpLogical) { // &&, ||
@@ -969,8 +970,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// codegen is postponed - we do lazy evaluation
 	} else {
 		R = RHS->codegen();
-		// if (R && convRHS)
-		// 	R = convRHS(R);
 		if (!R)
 			return nullptr;
 	}
