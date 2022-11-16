@@ -817,3 +817,50 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType& ft) {
 	}
 	return out << *ft.type;
 }
+
+llvm::raw_ostream& operator<<(llvm::raw_ostream& out, FnArg& ft) {
+	if (!ft.argtype)
+		return out << "<nil>";
+	// print LLVM type for now - TODO: print canonical Volvox names instead
+	if (ft.argtype->isBFloatTy())
+		return out << "f16";
+	if (ft.argtype->isFloatTy())
+		return out << "f32";
+	if (ft.argtype->isDoubleTy())
+		return out << "f64";
+	if (ft.argtype->isX86_FP80Ty())
+		return out << "f80";
+	if (ft.argtype->isFP128Ty())
+		return out << "f128";
+	if (auto inttype = llvm::dyn_cast<llvm::IntegerType>(ft.argtype)) {
+		unsigned bw = inttype->getBitWidth();
+		if (bw == 1)
+			return out << "bool";
+		else
+			return out << (ft.arg_signed ? 'i' : 'u') << bw;
+	}
+	if (auto arraytype = llvm::dyn_cast<llvm::ArrayType>(ft.argtype)) {
+		llvm::Type* elem_type;
+		do {
+			uint64_t n_elem = arraytype->getNumElements();
+			out << '[';
+			if (n_elem)
+				out << n_elem;
+			out << ']';
+			elem_type = arraytype->getElementType();
+			arraytype = llvm::dyn_cast<llvm::ArrayType>(elem_type);
+		} while (arraytype);
+		FnArg elem = {
+			.argtype = elem_type,
+			.arg_signed = ft.arg_signed,
+		};
+		return out << elem;
+	}
+	if (auto structtype = llvm::dyn_cast<llvm::StructType>(ft.argtype)) {
+		if (structtype->hasName())
+			return out << structtype->getName();
+		else
+			return out << "<anonymous struct>";
+	}
+	return out << *ft.argtype;
+}

@@ -15,3 +15,7 @@ fn Olgj()
 fn Olgj(r f64)
 	this.s = 2*r
 	return
+
+fn Olgj(r i32)
+	this.j = r+7
+	return

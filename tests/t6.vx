@@ -192,3 +192,12 @@ qqggf = alp.s
 
 fn test_imported_constructor_1() bool
 	return qqggf == 14.125
+
+kkff := testmod.Olgj(4)
+
+global qqgga := 0
+
+qqgga = kkff
+
+fn test_imported_constructor_2() bool
+	return qqgga == 11

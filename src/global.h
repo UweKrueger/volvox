@@ -355,6 +355,8 @@ struct FnArg {
 	bool arg_unknown_type;
 };
 
+extern llvm::raw_ostream& operator<<(llvm::raw_ostream& out, FnArg& ft);
+
 extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
 extern std::map<std::string,llvm::FunctionType*> AutoMethods;

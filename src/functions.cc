@@ -52,16 +52,11 @@ inline static uintptr_t getFnAddress(std::function<llvm::Value*(llvm::Value*)> f
     return (uintptr_t)*fnPointer;
 }
 
-static void printArgTypes(std::vector<FnArg>& fnargs) {
-	bool first = true;
-	for (auto& arg: fnargs) {
-		if (first)
-			first = false;
-		else
+static void printArgTypes(std::vector<FnArg>& fnargs, unsigned offset = 0) {
+	for (unsigned i = offset; i<fnargs.size(); i++) {
+		if (i>offset)
 			errs() << ", ";
-		if (arg.arg_signed)
-			errs() << "signed ";
-		errs() << *arg.argtype;
+		errs() << fnargs[i];
 	}
 }
 
@@ -145,21 +140,23 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		i_proto++;
 	}
 	if (!candidates.empty()) {
-		errs() << Loc << ": call of '" << name << "()' is ambiguous - candidates are:\n";
+		errs() << Loc << ": call of '" << name << '(';
+		printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
+		errs() << ")' is ambiguous - candidates are:\n";
 		printCandidates(candidates, protos, name);
 		return -1;
 	}
 	if (candidate < 0) {
 		errs() << Loc << ": signature of call to '" << name << '(';
-		printArgTypes(fnargs);
-		errs() <<")' does not match any known candidate - candidates are:\n";
+		printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
+		errs() << ")' does not match any known candidate - candidates are:\n";
 		printAllProtos(protos, name);
 		return -1;
 	}
 	auto selected_proto = (*protos)[candidate].get();
 	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
 		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv && getFnAddress(fnargs[i].Conv) != (uintptr_t)NoConversion) {
-			errs() << Loc << ": cannot call '" << name << "()' canditate with matching signature would require conversion of "
+			errs() << Loc << ": cannot call '" << name << "()' candidate with matching signature would require conversion of "
 			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
 			return -1;
 		}
