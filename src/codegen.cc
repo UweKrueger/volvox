@@ -565,6 +565,15 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				if (needs_constructor) {
 					auto C = getConstructorOrDestructor(&fv->ft);
 					Builder->CreateCall(C, { GV });
+					if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
+						std::string shadow_var_name = std::string("__") + varname + "_shadow_";
+						auto V = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+						                                  false, link_type,
+						                                  nullptr, shadow_var_name, nullptr,
+						                                  llvm::GlobalVariable::NotThreadLocal, 0, true);
+						auto Vval = Builder->CreateLoad(initializer->getType(), GV);
+						Builder->CreateStore(Vval, V);
+					}
 				} else { // constant size initializer
 					if (use_target)
 						expr->RHS->codegen_raw(GV);
@@ -615,6 +624,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                              (sym_kind & A_global) ?
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
 				                              llvm::GlobalVariable::NotThreadLocal, 0, false);
+			if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
+				std::string shadow_var_name = std::string("__") + varname + "_shadow_";
+				auto V = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+				                                  false, link_type,
+				                                  llvm::Constant::getNullValue(initializer->getType()), shadow_var_name, nullptr,
+				                                  llvm::GlobalVariable::NotThreadLocal, 0, false);
+			}
 			finishFunctionOrModule();
 			// Search the JIT for the <setter_name> symbol.
 			auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
@@ -640,11 +656,14 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			llvm::Type* V_type = initializer->getType();
 			size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
 			std::string shadow_var_name = std::string("__") + varname + "_shadow_";
-			auto V = new llvm::GlobalVariable(*TheModule, V_type,
-			                                  false, link_type,
-			                                  initializer, shadow_var_name, nullptr,
-			                                  llvm::GlobalVariable::NotThreadLocal);
-			finishFunctionOrModule();
+			llvm::GlobalVariable* V;
+			if (!needs_constructor) {
+				auto V = new llvm::GlobalVariable(*TheModule, V_type,
+				                                  false, link_type,
+				                                  initializer, shadow_var_name, nullptr,
+				                                  llvm::GlobalVariable::NotThreadLocal);
+				finishFunctionOrModule();
+			}
 			GV = TheModule->getGlobalVariable(varname, true);
 			if (!GV) {
 				GV = new llvm::GlobalVariable(*TheModule, V_type,
