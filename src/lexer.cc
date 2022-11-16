@@ -47,6 +47,7 @@ extern "C" void volvox_free_glob(volvox_glob_t* rets);
 //===----------------------------------------------------------------------===//
 
 static char prompt[1024];
+static std::vector<std::string> SourceFileNames; // for SourceLocations to remain valid after files have been processed
 
 #ifdef MONOCHROME_PROMPT
 // OpendBSD's version of editline does not support colors
@@ -346,7 +347,8 @@ bool Lexer::next_input_file() {
 		}
 	}
 	if (source_index.back() < source_files.back().size()) {
-		Loc.File = source_files.back()[source_index.back()++].c_str();
+		SourceFileNames.emplace_back(source_files.back()[source_index.back()++]);
+		Loc.File = SourceFileNames.back().c_str();
 		input_fd = open(Loc.File, O_CLOEXEC);
 		if (input_fd < 0) {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
