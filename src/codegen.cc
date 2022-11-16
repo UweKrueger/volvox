@@ -493,15 +493,20 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		llvm::GlobalValue::InternalLinkage;
 	llvm::Constant* initializer = use_target ? nullptr : llvm::dyn_cast<llvm::Constant>(convertedVal);
 	bool needs_store;
+	bool needs_constructor = false;
 	if (initializer) {
 		needs_store = false;
-		tmpf->eraseFromParent();
+		if (expr->RHS->ft->type_attr & A_constructor)
+			needs_constructor = true;
+		else
+			tmpf->eraseFromParent();
 	} else {
 		needs_store = true;
 		if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		}
 	}
+	bool needs_call = needs_store || needs_constructor;
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF)
 			errs() << expr->LHS->Loc << ": references are not allowed to be global\n";
@@ -529,10 +534,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			// variable is defined below in a separate module that will stay.
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
-			                              needs_store ? nullptr : initializer, varname, nullptr,
+			                              needs_call ? nullptr : initializer, varname, nullptr,
 			                              (sym_kind & A_global) ?
 			                              llvm::GlobalVariable::GeneralDynamicTLSModel :
-			                              llvm::GlobalVariable::NotThreadLocal, 0, needs_store);
+			                              llvm::GlobalVariable::NotThreadLocal, 0, needs_call);
 			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 		}
 		FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
@@ -548,19 +553,24 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		if (is_referencing) {
 			fv->mark_as_referencing(is_referencing);
 			errs() << "mark " << varname << "->" << *rname << '\n'; }
-		if (needs_store) {
+		if (needs_call) {
 			llvm::Type* array_ptr_ty = nullptr;
-			if (comp_mode != comp_jit) {
+			if (needs_store && comp_mode != comp_jit) {
 				errs() << expr->Loc <<"internal error: non-global main variable '" << varname
 				       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
 				abort();
 			}
 			unsigned ndim = 0;
-			if (initializer) { // constant size initializer
-				if (use_target)
-					expr->RHS->codegen_raw(GV);
-				else
-					Builder->CreateStore(convertedVal, GV);
+			if (needs_call) {
+				if (needs_constructor) {
+					auto C = getConstructorOrDestructor(&fv->ft);
+					Builder->CreateCall(C, { GV });
+				} else { // constant size initializer
+					if (use_target)
+						expr->RHS->codegen_raw(GV);
+					else
+						Builder->CreateStore(convertedVal, GV);
+				}
 				if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
 					auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 					auto last_saver = getFunction(last_saver_proto);
@@ -602,6 +612,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, link_type,
 				                              initializer, varname, nullptr,
+				                              (sym_kind & A_global) ?
+				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
 				                              llvm::GlobalVariable::NotThreadLocal, 0, false);
 			finishFunctionOrModule();
 			// Search the JIT for the <setter_name> symbol.
