@@ -930,7 +930,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			auto align = getAlignment(allocsz);
 			auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 			auto voidval = RHS->codegen_raw(Alloca);
-			if (!voidval->getType()->isVoidTy()) {
+			if (!voidval || !voidval->getType()->isVoidTy()) {
 				errs() << Loc << ": internal error: sret call-- does not return void\n";
 				return nullptr;
 			}
