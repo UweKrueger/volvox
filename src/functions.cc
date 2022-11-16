@@ -380,6 +380,10 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 			return;
 		}
 		Builder->CreateRetVoid();
+		if (is_constructor)
+			AutoMethods[ft->mangled_name].first = D->getName();
+		else
+			AutoMethods[ft->mangled_name].second = D->getName();
 		finishFunctionOrModule(D, 1, false);
 		ft->type_attr |= (is_constructor ? A_constructor : A_destructor);
 	}

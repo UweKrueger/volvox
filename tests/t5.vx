@@ -52,7 +52,6 @@ fn ~YY()
 	return
 
 fn YY()
-	this.r = -23
 	return
 
 fn YY() bool

@@ -1224,7 +1224,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	}
 	// all kinds of methods start with a type name - even destructors as we
 	// have eaten the '~' already in ParseDefinition()
-	if (auto tmp_rec_type = lex.get_full_type(IdentifierStr.c_str())) {
+	volvoxc::FullType* tmp_rec_type = lex.get_full_type(IdentifierStr.c_str());
+	if (tmp_rec_type) {
 		visibility |= A_method; // 1st token of function name is known type -> must be method
 		if (visibility & A_destructor) {
 			if (!last_defined_type) {
@@ -1236,7 +1237,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			}
 			tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
 		} else if (lex.peek() == '(') {
-			tmp_rec_type->type_attr |= A_constructor;
+			// tmp_rec_type->type_attr |= A_constructor;
 			visibility |= A_constructor;
 		} else if (lex.peek() != '.') {
 			errs() << CurLoc << ": '.' or '(' expected\n";
@@ -1318,8 +1319,12 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		return nullptr;
 	}
 	if (!Expect('(')) return nullptr;
-	if (CurTok.kind == ')')
+	if (CurTok.kind == ')') {
+		if (visibility & A_constructor)
+			// default constructor - set flag in type
+			tmp_rec_type->type_attr |= A_constructor;
 		goto noargs;
+	}
 	for (;;) {
 		if (CurTok.kind != tok_identifier) {
 			if (CurTok.kind == tok_ellipsis) {
