@@ -584,6 +584,14 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override { return nullptr; }
 };
 
+class DefaultConstructorCall : public ExprAST {
+public:
+	std::unique_ptr<VariableExprAST> Var;
+	DefaultConstructorCall(SourceLocation Loc, std::unique_ptr<VariableExprAST> _Var)
+		: ExprAST(void_type, Loc), Var(std::move(_Var)) {}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+};
+
 /// CallExprAST - Expression class for function calls.
 class CallExprAST : public ExprAST {
 public:

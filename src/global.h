@@ -676,6 +676,7 @@ extern std::vector<VarTable> locals_table; // including function arguments
 extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
+extern std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 
 extern void InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,

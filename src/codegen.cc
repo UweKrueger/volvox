@@ -387,6 +387,17 @@ enum TypeClass {
 	is_other
 };
 
+llvm::Value* DefaultConstructorCall::codegen_raw(llvm::Value* target) {
+	auto C = getConstructorOrDestructor(Var->ft);
+	if (!C) {
+		errs() << Var->Loc << ": no constructor for " << Var->Name << " type " << *Var->ft << " found\n";
+		return nullptr;
+	}
+	auto GV = Var->codegen_ref();
+	errs() << "create constructor " << *C << " for " << *GV.second << " type " << *GV.first << " \n";
+	return Builder->CreateCall(C, { GV.second });
+}
+
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	if (comp_mode == comp_jit && !(sym_kind & A_global) && !do_test) {
 		// This might be a non-const initialized main var that needs a temporary
@@ -507,7 +518,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		}
 	}
-	bool needs_call = needs_store || needs_constructor;
+	bool needs_call = (needs_store || needs_constructor) && (comp_mode == comp_jit) && !do_test;
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF)
 			errs() << expr->LHS->Loc << ": references are not allowed to be global\n";
@@ -554,7 +565,14 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		if (is_referencing) {
 			fv->mark_as_referencing(is_referencing);
 			errs() << "mark " << varname << "->" << *rname << '\n'; }
-		if (needs_call) {
+		if (!needs_call) {
+			if (needs_constructor) {
+				errs() << "Need Constructor " << expr->Loc << '\n';
+				auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
+				auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
+				GlobalExprList.push_back(std::move(constructor_call));
+			}
+		} else {
 			llvm::Type* array_ptr_ty = nullptr;
 			llvm::Value* ptrRet = nullptr;
 			unsigned ndim = 0;
