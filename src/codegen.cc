@@ -535,10 +535,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			// variable is defined below in a separate module that will stay.
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 			                              false, link_type,
-			                              needs_store ? nullptr : initializer, varname, nullptr,
+			                              needs_call ? nullptr : initializer, varname, nullptr,
 			                              (sym_kind & A_global) ?
 			                              llvm::GlobalVariable::GeneralDynamicTLSModel :
-			                              llvm::GlobalVariable::NotThreadLocal, 0, needs_store);
+			                              llvm::GlobalVariable::NotThreadLocal, 0, needs_call);
 			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 		}
 		FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
@@ -618,13 +618,14 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			// We want to remove the 'setter' module below but the global variable
 			// must stay, so put the latter in a new module that is not freed
 			// by the resource tracker
-			if (initializer && needs_store)
+			if (initializer && needs_call) {
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, link_type,
 				                              initializer, varname, nullptr,
 				                              (sym_kind & A_global) ?
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
 				                              llvm::GlobalVariable::NotThreadLocal, 0, false);
+			}
 			if (comp_mode == comp_jit && (sym_kind & A_global) && needs_constructor && !do_test) {
 				std::string shadow_var_name = std::string("__") + varname + "_shadow_";
 				auto V = new llvm::GlobalVariable(*TheModule, initializer->getType(),
