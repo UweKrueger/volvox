@@ -197,7 +197,7 @@ kkff := testmod.Olgj(4)
 
 global qqgga := 0
 
-qqgga = kkff
+qqgga = kkff.j
 
 fn test_imported_constructor_2() bool
 	return qqgga == 11
@@ -206,4 +206,20 @@ fn test_imported_constructor_3() bool
 	x := testmod.Olgj(-3.25)
 	return x.s == -6.5
 
+type QwER {
+	h i32
+	w i32
+}
 
+fn QwER()
+	this.h += 3
+	this.w = (this.w + 3) * 7
+	return
+
+fn ~QwER()
+	return
+
+#global eewc := QwER{}
+
+#fn test_constructor_for_global() bool
+#	return eewc.h == 3 && eewc.w == 35

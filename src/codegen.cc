@@ -590,6 +590,10 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			}
 			if (needs_constructor) { // no array - but maybe global
 				auto C = getConstructorOrDestructor(&fv->ft);
+				if (!C) {
+					errs() << expr->LHS->Loc << ": no constructor for " << fv->ft << " found\n";
+					return nullptr;
+				}
 				Builder->CreateCall(C, { GV });
 				if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
 					std::string shadow_var_name = std::string("__") + varname + "_shadow_";
