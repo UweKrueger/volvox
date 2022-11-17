@@ -493,14 +493,16 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		llvm::GlobalValue::InternalLinkage;
 	llvm::Constant* initializer = use_target ? nullptr : llvm::dyn_cast<llvm::Constant>(convertedVal);
 	bool needs_store;
-	bool needs_constructor = false;
+	bool needs_constructor = expr->RHS->ft->type_attr & A_constructor;
 	if (initializer) {
 		needs_store = false;
-		if (expr->RHS->ft->type_attr & A_constructor)
-			needs_constructor = true;
-		else
+		if (!needs_constructor)
 			tmpf->eraseFromParent();
 	} else {
+		if (needs_constructor) {
+			errs() << expr->RHS->Loc << ": internal error - unszed type but constructor required\n";
+			abort();
+		}
 		needs_store = true;
 		if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
@@ -528,7 +530,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			DBuilder->createGlobalVariableExpression(
 				SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed), false);
 		}
-		if (initializer) {
+		if (initializer) { // i.e. constant size type
 			// If 'needs_store' this here is part of a module which is going to be
 			// removed later. So in this case it's only a declaration and the 'real'
 			// variable is defined below in a separate module that will stay.
@@ -553,62 +555,63 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		if (is_referencing) {
 			fv->mark_as_referencing(is_referencing);
 			errs() << "mark " << varname << "->" << *rname << '\n'; }
+		llvm::Type* array_ptr_ty = nullptr;
+		llvm::Value* ptrRet = nullptr;
+		unsigned ndim = 0;
 		if (needs_call) {
-			llvm::Type* array_ptr_ty = nullptr;
-			if (needs_store && comp_mode != comp_jit) {
-				errs() << expr->Loc <<"internal error: non-global main variable '" << varname
-				       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
-				abort();
-			}
-			unsigned ndim = 0;
-			if (needs_call) {
-				if (needs_constructor) {
-					auto C = getConstructorOrDestructor(&fv->ft);
-					Builder->CreateCall(C, { GV });
-					if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
-						std::string shadow_var_name = std::string("__") + varname + "_shadow_";
-						auto V = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-						                                  false, link_type,
-						                                  nullptr, shadow_var_name, nullptr,
-						                                  llvm::GlobalVariable::NotThreadLocal, 0, true);
-						auto Vval = Builder->CreateLoad(initializer->getType(), GV);
-						Builder->CreateStore(Vval, V);
-					}
-				} else { // constant size initializer
+			if (needs_store) { // no global
+				llvm::Type* array_ptr_ty = nullptr;
+				if (comp_mode != comp_jit) {
+					errs() << expr->Loc <<"internal error: non-global main variable '" << varname
+					       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
+					abort();
+				}
+				if (initializer) { // constant size initializer
 					if (use_target)
 						expr->RHS->codegen_raw(GV);
 					else
 						Builder->CreateStore(convertedVal, GV);
-				}
-				if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
-					auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
-					auto last_saver = getFunction(last_saver_proto);
-					Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
-				}
-				Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
-			} else {
-				auto retVal = StoreValue(convertedVal, expr->RHS->ft, nullptr, varname);
-				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
-					ndim = struct_type->getNumElements() - 1;
-					for (unsigned dim = 0; ; ) {
-						Builder->CreateStore(Builder->CreateExtractValue(retVal, dim), Arg);
-						if (++dim >= ndim)
-							break;
-						Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm::Type::getInt64Ty(Context)), Builder->getInt64(sizeof(size_t))), Arg->getType());
+				} else { // variable size array - no global
+					auto retVal = StoreValue(convertedVal, expr->RHS->ft, nullptr, varname);
+					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
+						ndim = struct_type->getNumElements() - 1;
+						for (unsigned dim = 0; ; ) {
+							Builder->CreateStore(Builder->CreateExtractValue(retVal, dim), Arg);
+							if (++dim >= ndim)
+								break;
+							Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm::Type::getInt64Ty(Context)),
+							                                                 Builder->getInt64(sizeof(size_t))), Arg->getType());
+						}
+						ptrRet = Builder->CreateExtractValue(retVal, ndim);
+						array_ptr_ty = ptrRet->getType();
+					} else {
+						errs() << expr->Loc << ": internal error; stuct expected\n";
+						abort();
 					}
-					auto ptrRet = Builder->CreateExtractValue(retVal, ndim);
-					array_ptr_ty = ptrRet->getType();
-					if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
-						auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
-						auto last_saver = getFunction(last_saver_proto);
-						Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
-					}
-					Builder->CreateRet(Builder->CreateBitCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
-				} else {
-					errs() << expr->Loc << ": internal error; stuct expected\n";
-					abort();
 				}
 			}
+			if (needs_constructor) { // no array - but maybe global
+				auto C = getConstructorOrDestructor(&fv->ft);
+				Builder->CreateCall(C, { GV });
+				if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
+					std::string shadow_var_name = std::string("__") + varname + "_shadow_";
+					auto V = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+					                                  false, link_type,
+					                                  nullptr, shadow_var_name, nullptr,
+					                                  llvm::GlobalVariable::NotThreadLocal, 0, true);
+					auto Vval = Builder->CreateLoad(initializer->getType(), GV);
+					Builder->CreateStore(Vval, V);
+				}
+			}
+			if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
+				auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
+				auto last_saver = getFunction(last_saver_proto);
+				Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
+			}
+			if (initializer)
+				Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+			else
+				Builder->CreateRet(Builder->CreateBitCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
 			finishFunctionOrModule(tmpf, 3, true, false);
 			auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 			auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
