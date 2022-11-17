@@ -436,7 +436,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	FullVar* is_referencing = nullptr;
 	std::string* rname;
 	std::function<llvm::Value*(llvm::Value*)> conversion;
-	bool is_signed;
+	bool is_signed = false;
 	bool is_constructor_call = false;
 	bool use_target = false;
 	llvm::Value* target = nullptr;

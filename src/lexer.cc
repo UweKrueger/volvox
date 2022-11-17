@@ -347,8 +347,8 @@ bool Lexer::next_input_file() {
 		}
 	}
 	if (source_index.back() < source_files.back().size()) {
-		SourceFileNames.emplace_back(source_files.back()[source_index.back()++]);
-		Loc.File = SourceFileNames.back().c_str();
+		Loc.File = source_files.back()[source_index.back()++].c_str();
+		SourceFileNames.push_back(Loc.File);
 		input_fd = open(Loc.File, O_CLOEXEC);
 		if (input_fd < 0) {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
