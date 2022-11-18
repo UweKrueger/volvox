@@ -15,6 +15,7 @@
 bool inside_function = false;
 const char* last_shadow_saver = nullptr;
 const char* last_shadow_restorer = nullptr;
+const char* last_thread_constructor_caller = nullptr;
 // list of boolean values that indicate that this loop branch is run for the first time
 // this is used to avoid multiple  allocations of variables that are declared inside a then/while/repaet loop
 VarTable* IfWhileVarTable = nullptr;

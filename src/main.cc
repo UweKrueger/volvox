@@ -451,7 +451,7 @@ void PrepareTestFramework() {
 	HandleGlobalVariable(collector_def.get(), A_pub | A_global);
 }
 
-void CallTestFunction() {
+void CallTestFunction(bool immediately = false) {
 	std::string showres = "showtestres";
 	auto show_res_fn = lex.findProtos(showres);
 	if (!show_res_fn) {
@@ -584,6 +584,8 @@ static void MainLoop() {
 			if (TestFunction) {
 				if (do_test)
 					CallTestFunction();
+				else if (do_repl_test)
+					CallTestFunction(true);
 				TestFunction = nullptr;
 			}
 			goto startmainloop;
@@ -702,6 +704,7 @@ static void debug_mode_conflict(const char* prog) {
 int verbosity = 0;
 unsigned dump_IR = 0;
 bool do_test = false;
+bool do_repl_test = false;
 bool jit_repl = false;
 bool gen_pic = false;
 bool run_program = false;
@@ -1025,6 +1028,10 @@ int main(int argc, char* argv[]) {
 	if (run_program && comp_mode == comp_jit) {
 		errs() << "Options '-r' makes no sense in JIT mode\n";
 		usage(argv[0]);
+	}
+	if (jit_repl && do_test) {
+		do_test = false;
+		do_repl_test = true;
 	}
 	if (output_file) {
 		if (comp_mode == comp_jit) {
