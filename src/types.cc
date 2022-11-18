@@ -588,7 +588,7 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		auto GV = new llvm::GlobalVariable(*TheModule, dim_array->getType(), true, llvm::GlobalValue::PrivateLinkage,
 		                                        dim_array, "", nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
 		GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
-		GV->setAlignment(llvm::Align(sizeof(void*)));
+		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(dim_array->getType()));
 		llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);
 		llvm::Constant *Indices[] = {Zero, Zero};
 		fields.push_back(llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices));
@@ -629,6 +629,7 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	}
 	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(Context, fields, true);
 	auto *GV = new llvm::GlobalVariable(*TheModule, rt_const->getType(), true, llvm::GlobalValue::PrivateLinkage, rt_const);
+	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(rt_const->getType()));
 	llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);
 	llvm::Constant *Indices[] = {Zero, Zero};
 	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV,

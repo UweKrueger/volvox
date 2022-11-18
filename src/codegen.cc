@@ -126,7 +126,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
 		return { nullptr, nullptr };
 	}
-	llvm::Value* V;
+	llvm::GlobalVariable* V;
 	llvm::Type* storage_type;
 	if (full_var->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & A_global))) { // global variable
 		if (!full_var->mangled_name) {
@@ -143,8 +143,9 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
 			                             llvm::GlobalVariable::NotThreadLocal,
 			                             0, true);
+		V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(full_var->storage_type));
 	} else {
-		V = full_var->val;
+		V = (llvm::GlobalVariable*)full_var->val;
 		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
 		if (storage_type->isFunctionTy() || (ft->type_attr & A_ptrref))
 			storage_type = storage_type->getPointerTo();
@@ -163,7 +164,7 @@ llvm::MaybeAlign getAlignment(size_t elem_size) {
 	uint64_t align = 1;
 	// MaybeAlign constructor only accepts powers of 2, so create one from elem_size
 	do {
-		if (align & elem_size)
+		if (align >= elem_size)
 			break;
 		align <<= 1;
 	} while (align < 8);
@@ -618,6 +619,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					                                  false, link_type,
 					                                  nullptr, shadow_var_name, nullptr,
 					                                  llvm::GlobalVariable::NotThreadLocal, 0, true);
+					V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 					auto Vval = Builder->CreateLoad(initializer->getType(), GV);
 					Builder->CreateStore(Vval, V);
 				}
@@ -646,6 +648,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                              (sym_kind & A_global) ?
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
 				                              llvm::GlobalVariable::NotThreadLocal, 0, false);
+				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 			}
 			if (comp_mode == comp_jit && (sym_kind & A_global) && needs_constructor && !do_test) {
 				std::string shadow_var_name = std::string("__") + varname + "_shadow_";
@@ -653,6 +656,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                                  false, link_type,
 				                                  llvm::Constant::getNullValue(initializer->getType()), shadow_var_name, nullptr,
 				                                  llvm::GlobalVariable::NotThreadLocal, 0, false);
+				V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 			}
 			finishFunctionOrModule();
 			// Search the JIT for the <setter_name> symbol.
@@ -685,6 +689,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                                  false, link_type,
 				                                  initializer, shadow_var_name, nullptr,
 				                                  llvm::GlobalVariable::NotThreadLocal);
+				V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
 				finishFunctionOrModule();
 			}
 			GV = TheModule->getGlobalVariable(varname, true);
@@ -694,6 +699,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                              nullptr, varname, nullptr,
 				                              llvm::GlobalVariable::GeneralDynamicTLSModel,
 				                              0, true);
+				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
 			}
 			V = TheModule->getGlobalVariable(shadow_var_name, true);
 			if (!V) {
@@ -702,9 +708,11 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                             nullptr, shadow_var_name, nullptr,
 				                             llvm::GlobalVariable::NotThreadLocal,
 				                             0, true);
+				V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
 			}
 			auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), storage_sz);
-			auto align = getAlignment(sz_const);
+			auto align = TheModule->getDataLayout().getPrefTypeAlign(V_type);
+			// auto align = getAlignment(sz_const);
 			auto saver = std::string("__") + varname + "_saver";
 			auto restorer = std::string("__") + varname + "_restorer";
 			llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
