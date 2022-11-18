@@ -223,3 +223,16 @@ global eewc := QwER{ w: 2 }
 
 fn test_constructor_for_global() bool
 	return eewc.h == 3 && eewc.w == 35
+
+global wef53 := YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }}
+
+fn big_struct_arg_3(lk YYt) f64
+	lk.w.b = 33.75
+	llqr := big_struct_arg(lk)
+	return llqr
+
+lkt := YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }}
+
+big_struct_arg_3(lkt)
+
+lkt
