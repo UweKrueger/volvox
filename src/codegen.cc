@@ -394,7 +394,6 @@ llvm::Value* DefaultConstructorCall::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	}
 	auto GV = Var->codegen_ref();
-	errs() << "create constructor " << *C << " for " << *GV.second << " type " << *GV.first << " \n";
 	return Builder->CreateCall(C, { GV.second });
 }
 
@@ -506,7 +505,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	bool needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
 	if (initializer) {
 		needs_store = false;
-		if (!needs_constructor)
+		if (!(needs_constructor && (comp_mode == comp_jit) && !do_test))
 			tmpf->eraseFromParent();
 	} else {
 		if (needs_constructor) {
@@ -567,7 +566,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			errs() << "mark " << varname << "->" << *rname << '\n'; }
 		if (!needs_call) {
 			if (needs_constructor) {
-				errs() << "Need Constructor " << expr->Loc << '\n';
 				auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
 				auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
 				GlobalExprList.push_back(std::move(constructor_call));

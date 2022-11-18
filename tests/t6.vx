@@ -219,7 +219,7 @@ fn QwER()
 fn ~QwER()
 	return
 
-#global eewc := QwER{}
+global eewc := QwER{ w: 2 }
 
-#fn test_constructor_for_global() bool
-#	return eewc.h == 3 && eewc.w == 35
+fn test_constructor_for_global() bool
+	return eewc.h == 3 && eewc.w == 35
