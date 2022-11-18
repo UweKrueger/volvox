@@ -1518,7 +1518,7 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 	}
 }
 
-std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E) {
+std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool suppress_output) {
 	SourceLocation FnLoc = E->Loc;
 	if (comp_mode == comp_jit)
 		finishFunctionOrModule();
@@ -1539,9 +1539,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E) {
 			ExprList.push_back(std::move(restorer_call));
 		}
 	}
-	if (E->ft->type->isVoidTy()) {
+	if (E->ft->type->isVoidTy() || suppress_output) {
 		ExprList.push_back(std::move(E));
-		ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+		if (!suppress_output)
+			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 	} else {
 		std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
 		auto println_proto = lex.findProtos(mangled_println);

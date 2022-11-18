@@ -71,4 +71,6 @@ namespace volvox {
 
 };
 
+_CDECL void showtestres(int fd, int width, const char* testcase, bool result);
+
 #endif

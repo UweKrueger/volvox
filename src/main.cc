@@ -372,14 +372,15 @@ bool spawn_bool_expr(bool (*expr)()) {
 }
 #endif
 
-static void HandleTopLevelExpression(std::unique_ptr<ExprAST> E) {
+static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_output = false) {
+	bool b; // result
 	// Evaluate a top-level expression into an anonymous function.
-	if (auto FnAST = ParseTopLevelExpr(std::move(E))) {
+	if (auto FnAST = ParseTopLevelExpr(std::move(E), suppress_output)) {
 		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();
 			if (!anon_expr->getReturnType()->isIntegerTy() || !(anon_expr->getReturnType()->getIntegerBitWidth() == 1)) {
 				errs() << "internal error: anonymous function does not return `bool`\n";
-				return;
+				return false;
 			}
 			if (comp_mode == comp_jit) {
 				// Create a ResourceTracker to track JIT'd memory allocated to our
@@ -394,9 +395,7 @@ static void HandleTopLevelExpression(std::unique_ptr<ExprAST> E) {
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
 				bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
-				bool b = spawn_bool_expr(BOOL);
-				if (!b)
-					errs() << "... aborted\n";
+				b = spawn_bool_expr(BOOL);
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
 			}
@@ -407,6 +406,7 @@ static void HandleTopLevelExpression(std::unique_ptr<ExprAST> E) {
 		// Skip rest for error recovery.
 		purgeLine();
 	}
+	return b;
 }
 
 std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return = false, const char* ret_type = "i32") {
@@ -466,12 +466,18 @@ void CallTestFunction(bool immediately = false) {
 	std::vector<std::unique_ptr<ExprAST>> LocalExprList;
 	
 	std::vector<std::unique_ptr<ExprAST>>& ExprList = immediately ? LocalExprList : GlobalExprList;
-	ExprList.push_back(
+	auto call_expr = std::make_unique<CallExprAST>(
+		CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F));
+	if (immediately) {
+		auto b = HandleTopLevelExpression(std::move(call_expr), true);
+		showtestres(1, 79, TestFunction, b);
+		return;
+	}
+	GlobalExprList.push_back(
 		std::make_unique<BinaryExprAST>(
 			CurLoc, "=",
 			std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
-			std::move(std::make_unique<CallExprAST>(
-				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F))),
+			std::move(call_expr),
 			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
 				llvm::Type::getInt1Ty(Context), false, false, OpAssign, nullptr }));
 	std::vector<std::unique_ptr<ExprAST>> Args;
@@ -479,11 +485,11 @@ void CallTestFunction(bool immediately = false) {
 	Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
 	Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string(TestFunction)))));
 	Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
-	ExprList.push_back(
+	GlobalExprList.push_back(
 		std::move(std::make_unique<CallExprAST>(
 			          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn),
 			          std::move(Args))));
-	ExprList.push_back(
+	GlobalExprList.push_back(
 		std::make_unique<BinaryExprAST>(
 			CurLoc, "=", std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 			std::make_unique<BinaryExprAST>(
@@ -494,6 +500,7 @@ void CallTestFunction(bool immediately = false) {
 					llvm::Type::getInt1Ty(Context), false, false, OpBitwise, nullptr }),
 			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
 				llvm::Type::getInt1Ty(Context), false, false, OpAssign, nullptr }));
+	return;
 }
 
 std::unique_ptr<FunctionAST> CreateTestRuns() {
