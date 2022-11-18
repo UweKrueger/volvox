@@ -373,7 +373,7 @@ bool spawn_bool_expr(bool (*expr)()) {
 #endif
 
 static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_output = false) {
-	bool b; // result
+	bool b = false; // result
 	// Evaluate a top-level expression into an anonymous function.
 	if (auto FnAST = ParseTopLevelExpr(std::move(E), suppress_output)) {
 		if (auto anon_expr = FnAST->codegen()) {

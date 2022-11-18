@@ -693,10 +693,11 @@ public:
 	std::string unmangledName;
 	std::vector<std::unique_ptr<ExprAST>> Body;
 	int EndKind = 0;
+	int return_val_idx = -1;
 	
 	FunctionAST(PrototypeAST* Proto,
-	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName)
-		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind), unmangledName(std::move(unmName)) {}
+	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName, int return_val_idx = -1)
+		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind), unmangledName(std::move(unmName)), return_val_idx(return_val_idx) {}
 	llvm::Function *codegen(bool finishModule = false, bool getNewModule = false);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {

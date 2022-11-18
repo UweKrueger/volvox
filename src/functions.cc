@@ -742,14 +742,17 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			                        Builder->GetInsertBlock());
 		}
 	}
+	llvm::Value* RetVal = nullptr;
+	llvm::Value* InterRetVal = nullptr;
 	if (!P.RetType->type->isVoidTy()) {
 		if (Body.empty() || !Body.back())
 			goto cleanup;
 		Body.back()->desired_type = P.RetType->type;
 	}
-	llvm::Value* RetVal;
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {
+			if (!return_val_idx--)
+				InterRetVal = RetVal;
 			if (comp_mode == comp_dbg) {
 				KSDbgInfo.emitLocation(Expr.get());
 			}
@@ -757,6 +760,8 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			goto cleanup;
 		}
 	}
+	if (InterRetVal)
+		RetVal = InterRetVal;
 	// Finish off the function.
 	if (P.RetType->type->isVoidTy() || (P.visibility & A_constructor)) {
 		if (P.visibility & A_destructor) {

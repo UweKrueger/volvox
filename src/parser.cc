@@ -1529,6 +1529,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 	                                            A_c_api,
 	                                            FnLoc, false, TheType);
 	std::vector<std::unique_ptr<ExprAST>> ExprList;
+	int return_val_idx = -1;
 	if (last_shadow_restorer) {
 		auto restorer_proto = lex.findProtos(last_shadow_restorer);
 		if (!restorer_proto) {
@@ -1543,6 +1544,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 		ExprList.push_back(std::move(E));
 		if (!suppress_output)
 			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+		return_val_idx = ExprList.size() - 1;
 	} else {
 		std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
 		auto println_proto = lex.findProtos(mangled_println);
@@ -1584,7 +1586,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
-	return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName));
+	return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName), return_val_idx);
 }
 
 /// external ::= 'extern' prototype
