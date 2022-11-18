@@ -459,38 +459,41 @@ void CallTestFunction(bool immediately = false) {
 		return;
 	}
 	auto F = lex.findProtos(TestFunction);
-	if (F) {
-		GlobalExprList.push_back(
-			std::make_unique<BinaryExprAST>(
-				CurLoc, "=",
-				std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
-				std::move(std::make_unique<CallExprAST>(
-					          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F))),
-				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
-					llvm::Type::getInt1Ty(Context), false, false, OpAssign, nullptr }));
-		std::vector<std::unique_ptr<ExprAST>> Args;
-		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
-		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
-		Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string(TestFunction)))));
-		Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
-		GlobalExprList.push_back(
-			std::move(std::make_unique<CallExprAST>(
-				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn),
-				          std::move(Args))));
-		GlobalExprList.push_back(
-			std::make_unique<BinaryExprAST>(
-				CurLoc, "=", std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-				std::make_unique<BinaryExprAST>(
-					CurLoc, "&",
-					std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-					std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
-					std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
-						llvm::Type::getInt1Ty(Context), false, false, OpBitwise, nullptr }),
-				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
-					llvm::Type::getInt1Ty(Context), false, false, OpAssign, nullptr }));
-	} else {
+	if (!F) {
 		errs() << "internal error - could not find test function " << TestFunction << '\n';
+		return;
 	}
+	std::vector<std::unique_ptr<ExprAST>> LocalExprList;
+	
+	std::vector<std::unique_ptr<ExprAST>>& ExprList = immediately ? LocalExprList : GlobalExprList;
+	ExprList.push_back(
+		std::make_unique<BinaryExprAST>(
+			CurLoc, "=",
+			std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
+			std::move(std::make_unique<CallExprAST>(
+				          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F))),
+			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+				llvm::Type::getInt1Ty(Context), false, false, OpAssign, nullptr }));
+	std::vector<std::unique_ptr<ExprAST>> Args;
+	Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
+	Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(79LL))));
+	Args.push_back(std::move(std::make_unique<LiteralExprAST>(Token(std::string(TestFunction)))));
+	Args.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)));
+	ExprList.push_back(
+		std::move(std::make_unique<CallExprAST>(
+			          CurLoc, std::make_unique<FunctionExprAST>(CurLoc, showres, show_res_fn),
+			          std::move(Args))));
+	ExprList.push_back(
+		std::make_unique<BinaryExprAST>(
+			CurLoc, "=", std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
+			std::make_unique<BinaryExprAST>(
+				CurLoc, "&",
+				std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
+				std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
+				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+					llvm::Type::getInt1Ty(Context), false, false, OpBitwise, nullptr }),
+			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+				llvm::Type::getInt1Ty(Context), false, false, OpAssign, nullptr }));
 }
 
 std::unique_ptr<FunctionAST> CreateTestRuns() {
