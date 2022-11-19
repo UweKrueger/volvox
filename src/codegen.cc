@@ -400,7 +400,7 @@ llvm::Value* DefaultConstructorCall::codegen_raw(llvm::Value* target) {
 }
 
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
-	if (comp_mode == comp_jit && !(sym_kind & A_global) && !do_test) {
+	if (comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test) {
 		// This might be a non-const initialized main var that needs a temporary
 		// 'setter' function. So finish the current module to be able to remove
 		// the setter after usage
@@ -567,7 +567,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			fv->mark_as_referencing(is_referencing);
 			errs() << "mark " << varname << "->" << *rname << '\n'; }
 		if (!needs_call) {
-			if (needs_constructor) {
+			if (needs_constructor) { // we are not in interactive JIT mode -> call constructor by main()
 				auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
 				auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
 				GlobalExprList.push_back(std::move(constructor_call));
@@ -612,6 +612,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					errs() << expr->LHS->Loc << ": no constructor for " << fv->ft << " found\n";
 					return nullptr;
 				}
+				// interactive JIT mode - immediately call constructor from setter function
 				Builder->CreateCall(C, { GV });
 				if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
 					std::string shadow_var_name = std::string("__") + varname + "_shadow_";
@@ -678,6 +679,43 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				fv->ft.type_attr &= ~A_mainvar;
 			}
 			ExitOnErr(RT->remove());
+		}
+		if (needs_constructor && (sym_kind & A_global)) {
+			// Since global variables are TLS the constructor has to be called for each newly
+			// started thread. For that we create a function that first calls 'last_thread_constructor_caller'
+			// and then the constructor of this GV. 'last_thread_constructor_caller' is then replaced by
+			// our new function
+			auto void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
+			auto constructor_caller = std::string("__") + varname + "_constructor_caller";
+			auto newConstructorCaller = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage,
+			                                                   constructor_caller, TheModule.get());
+			newConstructorCaller->addFnAttr(llvm::Attribute::AlwaysInline);
+			auto BB = llvm::BasicBlock::Create(Context, "entry", newConstructorCaller);
+			Builder->SetInsertPoint(BB);
+			if (last_thread_constructor_caller) {
+				auto last_thrconstr_proto = (*lex.findProtos(last_thread_constructor_caller))[0].get();
+				auto last_caller = getFunction(last_thrconstr_proto);
+				Builder->CreateCall(last_thrconstr_proto->FT, last_caller,
+				                    std::vector<llvm::Value*>(), "callold");
+			}
+			auto C = getConstructorOrDestructor(&fv->ft);
+			GV = TheModule->getGlobalVariable(varname, true);
+			if (!GV) {
+				GV = new llvm::GlobalVariable(*TheModule, fv->ft.type,
+				                              false, link_type,
+				                              nullptr, varname, nullptr,
+				                              llvm::GlobalVariable::GeneralDynamicTLSModel,
+				                              0, true);
+				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(fv->ft.type));
+			}
+			Builder->CreateCall(C, { GV });
+			Builder->CreateRetVoid();
+			finishFunctionOrModule(newConstructorCaller, 1, jit_repl);
+			auto constructor_caller_Proto = std::make_unique<PrototypeAST>(CurLoc, constructor_caller, std::vector<std::string>());
+			last_shadow_restorer = constructor_caller_Proto->Name.c_str();
+			// constructor callers must be always accessible so force them into builtin namespace
+			Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
+			module->FunctionProtos[constructor_caller].push_back(std::move(constructor_caller_Proto));
 		}
 		if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
 			llvm::Type* V_type = initializer->getType();
