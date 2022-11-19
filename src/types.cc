@@ -714,7 +714,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		}
 		LLVMArgTypes.push_back(fn_arg_type);
 	}
-	if (visibility & A_constructor) {
+	if (visibility & (A_constructor | A_destructor)) {
 		llvm_ret_type = llvm::Type::getVoidTy(Context);
 	} else if (ret_size <= 16) {
 		llvm_ret_type = RetType->type;
