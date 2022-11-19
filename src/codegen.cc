@@ -712,7 +712,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			Builder->CreateRetVoid();
 			finishFunctionOrModule(newConstructorCaller, 1, jit_repl);
 			auto constructor_caller_Proto = std::make_unique<PrototypeAST>(CurLoc, constructor_caller, std::vector<std::string>());
-			last_shadow_restorer = constructor_caller_Proto->Name.c_str();
+			last_thread_constructor_caller = constructor_caller_Proto->Name.c_str();
 			// constructor callers must be always accessible so force them into builtin namespace
 			Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
 			module->FunctionProtos[constructor_caller].push_back(std::move(constructor_caller_Proto));
