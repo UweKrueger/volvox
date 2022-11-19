@@ -308,12 +308,12 @@ OpClass getOpClass(const char* Op) {
 		case '^':
 			return OpExponentiation;
 		default:
-			return OpNormal;
+			return OpNormal; // +, -, *, /, %
 		}
 	case 'f':
 		return OpNormal; // "if", (also "while")
 	default:
-		abort();
+		return OpInvalid;
 	}
 }
 

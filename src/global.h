@@ -298,6 +298,7 @@ extern llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType& 
 
 // classification of binary operator with result type calculation in mind
 enum OpClass : uint8_t {
+	OpInvalid = 0,
 	OpNormal,
 	OpAssign,
 	OpModAssign,
