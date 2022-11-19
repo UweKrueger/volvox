@@ -563,9 +563,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		fv->ft = *expr->RHS->ft;
 		fv->ft.type = use_target ? expr->RHS->ft->type : type;
 		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | (LREF ? A_ptrref : 0U) | A_mainvar;
-		if (is_referencing) {
+		if (is_referencing)
 			fv->mark_as_referencing(is_referencing);
-			errs() << "mark " << varname << "->" << *rname << '\n'; }
 		if (!needs_call) {
 			if (needs_constructor) { // we are not in interactive JIT mode -> call constructor by main()
 				auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
@@ -1004,7 +1003,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
 					Builder->CreateAlignedStore(ValPtr, Alloca, align);
 					entry->mark_as_referencing(is_referencing);
-					errs() << "mark " << varname << "->" << *rname << '\n';
 				} else {
 					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
