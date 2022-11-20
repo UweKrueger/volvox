@@ -271,7 +271,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	getNextToken(eSemi);
 	if (CurTok.kind == ';')
 		return; // only declaration of incomplete type
-	auto newft = ParseType(false, eComma, 0, volvox_name.c_str());
+	auto newft = ParseType(false, eComma, 0, volvox_name.c_str(), nullptr, struct_type);
 	if (!newft) {
 		purgeLine();
 		return;

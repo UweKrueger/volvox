@@ -108,6 +108,8 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
    when no literal is parsed ParseType with exprs = nullptr and only
    the second case is considered
 
+   'existing' allows passing an opaque struct type that is completed
+
    when resolve_ref is true a pointer type is created if preceded with '&'
    (this is needed for struct declarations) - otherwise A_ref is set
  */
@@ -258,9 +260,14 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 					break;
 			}
 			getNextToken(eSemi);
-			llvm::Type* struct_type = tname ?
-				llvm::StructType::create(Context, LLVMFieldTypes, tname, is_packed) :
-				llvm::StructType::get(Context, LLVMFieldTypes, is_packed);
+			llvm::Type* struct_type = existing;
+			if (existing)
+				existing->setBody(LLVMFieldTypes, is_packed);
+			else
+				if (tname)
+					struct_type = llvm::StructType::create(Context, LLVMFieldTypes, tname, is_packed);
+				else
+					struct_type = llvm::StructType::get(Context, LLVMFieldTypes, is_packed);
 			MapNode* fields = map_string_new_map();
 			for (int i=0; i<FieldNames.size(); i++) {
 				bool replace = false;
