@@ -586,10 +586,13 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft, int terminator) {
 	auto Loc = CurLoc;
 	auto list = ParseListExpr(terminator);
-	if (list)
-		return std::make_unique<StructExprAST>(Loc, ft, std::move(list));
-	else
+	if (!list)
 		return nullptr;
+	if ((ft->type_attr & A_union) && list->getNumElements() > 1) {
+		errs() << list->Elements[1]->Loc << ": union literals can have at most 1 element\n";
+		return nullptr;
+	}
+	return std::make_unique<StructExprAST>(Loc, ft, std::move(list));
 }
 
 std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector<std::unique_ptr<ExprAST>> Elems, unsigned depth) {
