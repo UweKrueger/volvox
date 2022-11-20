@@ -532,8 +532,8 @@ class TypeTable : public Table {
 public:
 	TypeTable() = default;
 	~TypeTable() { map_destroy(table, nullptr); }
-	MapNode* add(const char* name, volvoxc::FullType* ft) {
-		bool is_int = ft->type->isIntegerTy();
+	MapNode* add(const char* name, volvoxc::FullType* ft, bool& replace) {
+		bool is_int = ft->type && ft->type->isIntegerTy();
 		if ((ft->type_attr & A_signed) && !is_int) {
 			errs() << "non-int type '" << name << "' aka " << *ft->type << " cannot be signed\n";
 			return 0;
@@ -541,11 +541,10 @@ public:
 		MapValue val = {
 			.src_ptr = ft
 		};
-		bool replace = false;
 		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), replace);
 		if (replace) {
-			errs() << "Cannot add new type '" << name << "' - name already exists\n";
-			return nullptr;
+			// errs() << "Cannot add new type '" << name << "' - name already exists\n";
+			return new_node; // actually existing node
 		}
 		auto mangled_name = ((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->mangled_name;
 		if (!mangled_name)
@@ -555,16 +554,18 @@ public:
 			VOLVOX_gen_val_type_t gen_type;
 			unsigned key;
 		};
-		if (is_int) {
-			int_type = { .ID = ft->type->getTypeID(), .BitWidth = ft->type->getIntegerBitWidth(), .is_signed = (bool)(ft->type_attr & A_signed) };
-		} else {
-			gen_type = { .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+		if (ft->type) {
+			if (is_int) {
+				int_type = { .ID = ft->type->getTypeID(), .BitWidth = ft->type->getIntegerBitWidth(), .is_signed = (bool)(ft->type_attr & A_signed) };
+			} else {
+				gen_type = { .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+			}
+			key32_table[key] = ft->type;
+			if (ft->type_attr & A_signed)
+				typeptr_table[(llvm::Type*)((uintptr_t)ft->type | A_signed)] = { name, ft->ditype };
+			else
+				typeptr_table[ft->type] = { name, ft->ditype };
 		}
-		key32_table[key] = ft->type;
-		if (ft->type_attr & A_signed)
-			typeptr_table[(llvm::Type*)((uintptr_t)ft->type | A_signed)] = { name, ft->ditype };
-		else
-			typeptr_table[ft->type] = { name, ft->ditype };
 		return new_node;
 	}
 	// method for adding built-in types - no mangling is used
@@ -580,7 +581,12 @@ public:
 			.ditype = ditype,
 			.fields = fields
 		};
-		return add(name, &ft);
+		bool replace = false;
+		return add(name, &ft, replace);
+		if (replace) {
+			errs() << "internal error - type '" << name << "' already exists\n";
+			abort();
+		}
 	}
 	llvm::Type* get(const char* name) {
 		MapValue* val = map_string_get(table, name);
@@ -969,7 +975,7 @@ public:
 	void import_from_module(Module* import_module);
 	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
 	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }
-	MapNode* add_type(const char* name, volvoxc::FullType* ft) { return module->type_table.add(name, ft); }
+	MapNode* add_type(const char* name, volvoxc::FullType* ft, bool& replace) { return module->type_table.add(name, ft, replace); }
 	MapNode* add_type(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr)
 		{ return module->type_table.add(name, type, ditype, type_attr, fields); }
 	/* the 'lookup' methods must search in both the current namespace

@@ -246,22 +246,39 @@ static void HandleTypeDef(unsigned share_kind) {
 		volvox_name += '.';
 	}
 	volvox_name += type_name;
+	volvoxc::FullType Ft = {
+		.type = nullptr,
+	};
+	volvoxc::FullType* ft = &Ft;
+	bool replace = false;
+	MapNode* new_node = lex.add_type(type_name.c_str(), ft, replace);
+	MapValue* val = &new_node->value;
+	ft = (volvoxc::FullType*)((char*)val + val->offset);
+	llvm::StructType* struct_type;
+	if (replace) { // new_node is actually an old node
+		struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
+		if (!struct_type || !struct_type->isOpaque()) {
+			errs() << "cannot define '" << type_name << "' - type already exists\n";
+			return;
+		}
+	} else {
+		struct_type = llvm::StructType::create(Context, volvox_name);
+		ft->type = struct_type;
+		llvm::SmallString<128> buf;
+		auto mangled_name = MangleBase(buf, lex.module->import_path, type_name);
+		ft->mangled_name = strdup(mangled_name.c_str());
+	}
 	getNextToken(eSemi);
 	if (CurTok.kind == ';')
 		return; // only declaration of incomplete type
-	auto ft = ParseType(false, eComma, 0, volvox_name.c_str());
-	if (!ft) {
+	auto newft = ParseType(false, eComma, 0, volvox_name.c_str());
+	if (!newft) {
 		purgeLine();
 		return;
 	}
-	llvm::SmallString<128> buf;
-	auto mangled_name = MangleBase(buf, lex.module->import_path, type_name);
-	ft->mangled_name = strdup(mangled_name.c_str());
-	MapNode* new_node = lex.add_type(type_name.c_str(), ft);
-	if (!new_node) {
-		errs() << "cannot define '" << type_name << "' - type already exists\n";
-		return;
-	}
+	const char* mangled_name = ft->mangled_name;
+	*ft = *newft;
+	ft->mangled_name = mangled_name;
 	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "declared new type '" << type_name << "' as " << *ft->type << '\n';
