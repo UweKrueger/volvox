@@ -541,31 +541,31 @@ public:
 		MapValue val = {
 			.src_ptr = ft
 		};
-		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), false);
-		if (new_node) {
-			auto mangled_name = ((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->mangled_name;
-			if (!mangled_name)
-				mangled_name = new_node->key.string;
-			union {
-				int_val_type_t int_type;
-				VOLVOX_gen_val_type_t gen_type;
-				unsigned key;
-			};
-			if (is_int) {
-				int_type = { .ID = ft->type->getTypeID(), .BitWidth = ft->type->getIntegerBitWidth(), .is_signed = (bool)(ft->type_attr & A_signed) };
-			} else {
-				gen_type = { .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
-			}
-			key32_table[key] = ft->type;
-			if (ft->type_attr & A_signed)
-				typeptr_table[(llvm::Type*)((uintptr_t)ft->type | A_signed)] = { name, ft->ditype };
-			else
-				typeptr_table[ft->type] = { name, ft->ditype };
-			return new_node;
-		} else {
+		bool replace = false;
+		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), replace);
+		if (replace) {
 			errs() << "Cannot add new type '" << name << "' - name already exists\n";
 			return nullptr;
 		}
+		auto mangled_name = ((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->mangled_name;
+		if (!mangled_name)
+			mangled_name = new_node->key.string;
+		union {
+			int_val_type_t int_type;
+			VOLVOX_gen_val_type_t gen_type;
+			unsigned key;
+		};
+		if (is_int) {
+			int_type = { .ID = ft->type->getTypeID(), .BitWidth = ft->type->getIntegerBitWidth(), .is_signed = (bool)(ft->type_attr & A_signed) };
+		} else {
+			gen_type = { .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
+		}
+		key32_table[key] = ft->type;
+		if (ft->type_attr & A_signed)
+			typeptr_table[(llvm::Type*)((uintptr_t)ft->type | A_signed)] = { name, ft->ditype };
+		else
+			typeptr_table[ft->type] = { name, ft->ditype };
+		return new_node;
 	}
 	// method for adding built-in types - no mangling is used
 	MapNode* add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr) {
@@ -657,8 +657,9 @@ public:
 	}
 	FullVar* insert(const char* key, const FullVar& value) {
 		MapValue mv = { .src_ptr = const_cast<FullVar*>(&value) };
-		MapNode* res = map_string_insert(&table, key, mv, sizeof(FullVar), false);
-		if (!res)
+		bool replace = false;
+		MapNode* res = map_string_insert(&table, key, mv, sizeof(FullVar), replace);
+		if (replace)
 			return nullptr;
 		auto fv = (FullVar*)((char*)&res->value + res->value.offset);
 		if (!(fv->ft.type_attr & A_ref) && (fv->ft.type_attr & A_destructor))

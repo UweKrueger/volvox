@@ -31,8 +31,9 @@ void init_token_map() {
 	for (int token = tok_1st_keyword + 1; token < tok_last_keyword; token++) {
 		MapValue val = { .i32 = token };
 		const char* tokenstr = tokens[token - 1 - tok_1st_keyword];
-		MapNode* res = map_string_insert(&keyword_toks, tokenstr, val, 0, false);
-		if (!res) {
+		bool replace = false;
+		MapNode* res = map_string_insert(&keyword_toks, tokenstr, val, 0, replace);
+		if (replace) {
 			errs() << "internal error: map entry for keyword \"" << tokenstr << " already exists\n";
 			abort();
 		}

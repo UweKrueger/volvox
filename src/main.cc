@@ -240,13 +240,15 @@ static void HandleTypeDef(unsigned share_kind) {
 		return;
 	}
 	auto type_name = IdentifierStr;
-	getNextToken(eType);
 	std::string volvox_name;
 	for (auto& p: lex.module->import_path) {
 		volvox_name += p;
 		volvox_name += '.';
 	}
 	volvox_name += type_name;
+	getNextToken(eSemi);
+	if (CurTok.kind == ';')
+		return; // only declaration of incomplete type
 	auto ft = ParseType(false, eComma, 0, volvox_name.c_str());
 	if (!ft) {
 		purgeLine();
