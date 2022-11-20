@@ -269,8 +269,11 @@ static void HandleTypeDef(unsigned share_kind) {
 		ft->mangled_name = strdup(mangled_name.c_str());
 	}
 	getNextToken(eSemi);
-	if (CurTok.kind == ';')
+	if (CurTok.kind == ';') {
+		if (verbosity >= 2)
+			errs() << "declared type " << *ft->type << '\n';
 		return; // only declaration of incomplete type
+	}
 	auto newft = ParseType(false, eComma, 0, volvox_name.c_str(), nullptr, struct_type);
 	if (!newft) {
 		purgeLine();
@@ -281,7 +284,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	ft->mangled_name = mangled_name;
 	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
-		errs() << "declared new type '" << type_name << "' as " << *ft->type << '\n';
+		errs() << "defined type " << *ft << " as " << *ft->type << '\n';
 }
 
 static void HandleImport() {

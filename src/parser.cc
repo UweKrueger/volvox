@@ -160,6 +160,18 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 			is_packed = true;
 			getNextToken(eType);
 		}
+		if (CurTok.kind == tok_union) {
+			if (attribs & A_union) {
+				errs() << CurLoc << ": superfluous 'union'\n";
+				return nullptr;
+			}
+			attribs |= A_union;
+			getNextToken(eType);
+		}
+		if (is_packed && (attribs & A_union)) {
+			errs() << CurLoc << ": 'packed' and 'union' are mutually exclusive\n";
+			return nullptr;
+		}
 		switch ((int)CurTok.kind) {
 		case '[': {
 			do {
@@ -260,6 +272,24 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 					break;
 			}
 			getNextToken(eSemi);
+			if (attribs & A_union) {
+				unsigned idx = LLVMFieldTypes.size();
+				if (!idx) {
+					errs() << CurLoc << "union must have elements\n";
+					return nullptr;
+				}
+				idx--;
+				size_t sz = TheModule->getDataLayout().getTypeAllocSize(LLVMFieldTypes[idx]);
+				while (idx) {
+					size_t sz2 = TheModule->getDataLayout().getTypeAllocSize(LLVMFieldTypes[idx-1]);
+					if (sz > sz2)
+						LLVMFieldTypes[idx-1] = LLVMFieldTypes[idx];
+					else
+						sz = sz2;
+					LLVMFieldTypes.pop_back();
+					idx--;
+				}
+			}
 			llvm::Type* struct_type = existing;
 			if (existing)
 				existing->setBody(LLVMFieldTypes, is_packed);

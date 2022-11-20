@@ -6,6 +6,7 @@ TOKEN(set) \
 TOKEN(map) \
 TOKEN(self) \
 TOKEN(packed) \
+TOKEN(union) \
 TOKEN(const) \
 TOKEN(unique) \
 TOKEN(shared) \
