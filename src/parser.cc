@@ -114,6 +114,7 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
 volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator,
                              const char* tname,
                              std::vector<std::unique_ptr<ExprAST>>* exprs,
+                             llvm::StructType* existing,
                              bool is_index, bool resolve_ref) {
 	unsigned attribs = 0;
 	std::vector<uint64_t> lens = {};
@@ -243,7 +244,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 				}
 				FieldNames.push_back(IdentifierStr);
 				getNextToken(eType);
-				auto type = ParseType(true, eComma, 0, nullptr, nullptr, false, true);
+				auto type = ParseType(true, eComma, 0, nullptr, nullptr, nullptr, false, true);
 				if (!type) {
 					errs() << CurLoc << ": unexpected '" << CurTok << "' in struct declaration - type name expected\n";
 					return nullptr;
@@ -486,7 +487,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	bool key_is_signed = false;
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
-	volvoxc::FullType* ft = ParseType(false, eBinOp, terminator, nullptr, &Dims, is_index);
+	volvoxc::FullType* ft = ParseType(false, eBinOp, terminator, nullptr, &Dims, nullptr, is_index);
 	SourceLocation loc = CurLoc;
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;

@@ -412,6 +412,7 @@ extern volvoxc::FullType* ParseType(
 	bool allow_attribute = false, eXpect expect = eComma,
 	int terminator = 0, const char* tname = nullptr,
 	std::vector<std::unique_ptr<ExprAST>>* exprs = nullptr,
+	llvm::StructType* existing = nullptr,
 	bool is_index = false, bool resolve_ref = false);
 extern llvm::Constant* getRtType(volvoxc::FullType* ft);
 extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
