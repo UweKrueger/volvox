@@ -57,8 +57,8 @@ extern "C" {
 		MapKey key;
 	};
 #define map_string_new_map _ZN6volvox3map11num_new_mapEv
-#define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEib
-#define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEib
+#define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiRb
+#define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEiRb
 #define map_string_get _ZN6volvox3map10string_getEPNS0_4NodeEPKc
 #define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE
 #define map_iter_up _ZN6volvox3map7iter_upEPNS0_4NodeE
@@ -67,8 +67,8 @@ extern "C" {
 #define map_min _ZN6volvox3map3MinEPNS0_4NodeE
 #define map_max _ZN6volvox3map3MaxEPNS0_4NodeE
 	_DECL MapNode* map_string_new_map();
-	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool allow_replace);
-	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool allow_replace);
+	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool& replace);
+	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool& replace);
 	_DECL MapValue* map_string_get(MapNode* root, const char* key);
 	_DECL void map_destroy(MapNode* root, void (*destruct)(MapValue* ptr));
 	_DECL MapNode* map_iter_up(MapNode* elem);
