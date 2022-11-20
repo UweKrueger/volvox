@@ -384,7 +384,7 @@ enum eXpect {
 	eNone,
 	eBinOp, // newline translates to ;
 	eComma,
-	eColon,
+	eSemi,
 	ePath,
 	eType
 };

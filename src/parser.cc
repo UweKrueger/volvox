@@ -256,7 +256,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 				if (CurTok.kind == '}')
 					break;
 			}
-			getNextToken(eColon);
+			getNextToken(eSemi);
 			llvm::Type* struct_type = tname ?
 				llvm::StructType::create(Context, LLVMFieldTypes, tname, is_packed) :
 				llvm::StructType::get(Context, LLVMFieldTypes, is_packed);
@@ -1172,7 +1172,7 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	auto kind = CurTok.kind;
 	if (kind == tok_return || kind == tok_else || kind == tok_end || kind == tok_until) {
 		if (kind == tok_return) {
-			getNextToken(eColon);
+			getNextToken(eSemi);
 			if (CurTok.kind == ';') 
 				return { nullptr, kind };
 			else
@@ -1350,12 +1350,12 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		Eat(',');
 	}
 noargs:
-	Eat(')', eColon); //getNextToken(); // eat ')'.
+	Eat(')', eSemi); //getNextToken(); // eat ')'.
 	// parse return type(s)
 	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc = CurLoc;
 	while (CurTok.kind != ';') {
-		auto type = ParseType(true, eColon);
+		auto type = ParseType(true, eSemi);
 		if (!type) {
 			errs() << "error parsing return type of function prototype\n";
 			return nullptr;

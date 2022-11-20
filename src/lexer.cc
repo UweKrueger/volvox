@@ -644,7 +644,7 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 		case eComma:
 			IdentifierStr = CurChar;
 			return ',';
-		case eColon:
+		case eSemi:
 		case ePath:
 			IdentifierStr = CurChar;
 			return ';';
@@ -824,7 +824,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, eXpect expect) {
 		return out << "binary operator";
 	case eComma:
 		return out << "comma";
-	case eColon:
+	case eSemi:
 		return out << "semicolon";
 	case ePath:
 		return out << "path";
