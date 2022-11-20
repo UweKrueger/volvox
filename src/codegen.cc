@@ -94,17 +94,23 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+		llvm::Value* V = llvm::UndefValue::get(ft->type);
 		unsigned num_fields = struct_type->getNumElements();
 		std::vector<std::unique_ptr<ExprAST>> initializers(num_fields);
 		for (auto& [fname, ini]: Fields) {
 			MapValue* mv = map_string_get(ft->fields, fname.c_str());
-			unsigned index = *(unsigned*)((char*)mv + mv->offset);
-			initializers[index] = std::move(ini);
+			auto node = StructFieldType((MapNode*)((uintptr_t)mv - ((uintptr_t)&ft->fields->value - (uintptr_t)ft->fields)));
+			unsigned index = node.getIndex();
+			auto field_ft = node.getFt();
+			ini->desired_type = field_ft->type;
+			initializers[(ft->type_attr & A_union) ? 0 : index] = std::move(ini);
 		}
-		llvm::Value* V = llvm::UndefValue::get(ft->type);
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i])
-				V = Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
+				if (ft->type_attr & A_union)
+					V = Builder->CreateInsertValue(V, Builder->CreateBitCast(initializers[i]->codegen(), struct_type->getElementType(0)), i, "unioninit");
+				else
+					V = Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
 			else
 				V = Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
 		}
