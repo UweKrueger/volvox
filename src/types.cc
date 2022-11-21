@@ -381,16 +381,18 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 				if (right_is_float)
 					desired_right_type = desired_left_type;
 				else
-					desired_right_type = nullptr;// float^int no pre-conversion on RHS necessary
+					desired_right_type = nullptr; // float^int no pre-conversion on RHS necessary
 			} else {
 				desired_left_type = desired_right_type = getFittingType(desired_bitwidth, false);
 			}
 		} else {
-			if (res_is_float && left_is_float)
-				desired_left_type = desired_right_type = getFittingType(desired_bitwidth, true);
-			else if (left_is_float)
-				desired_left_type = desired_right_type = nullptr; // float^int no pre-conversions necessary
-			else
+			if (res_is_float) {
+				desired_left_type = getFittingType(desired_bitwidth, true);
+				if (right_is_float)
+					desired_right_type = desired_left_type;
+				else
+					desired_right_type = nullptr; // float^int no pre-conversions necessary
+			} else
 				desired_left_type = desired_right_type = getFittingType(desired_bitwidth >= 32 ? desired_bitwidth : 32, false);
 		}
 		goto normal_return;
