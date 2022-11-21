@@ -108,18 +108,11 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i])
 				if (ft->type_attr & A_union) {
+					auto Store = CreateEntryBlockAlloca(ft->type);
+					Builder->CreateStore(llvm::Constant::getNullValue(ft->type), Store);
 					llvm::Value* val1 = initializers[i]->codegen();
-					uint64_t targetbitsize = TheModule->getDataLayout().getTypeSizeInBits(struct_type->getElementType(0));
-					if (targetbitsize > 64 /* llvm::IntegerType::MAX_INT_BITS */) {
-						errs() << Loc << ": union of bitsize " << targetbitsize << " cannot be handled as rvalue (maxium: " << 64 /* llvm::IntegerType::MAX_INT_BITS */ << ")\n";
-						return nullptr;
-					}
-					auto targettype = llvm::IntegerType::get(Context, targetbitsize);
-					uint64_t inibitsize = TheModule->getDataLayout().getTypeSizeInBits(initializers[i]->ft->type);
-					auto iniinttype = llvm::IntegerType::get(Context, inibitsize);
-					auto inval = Builder->CreateBitCast(initializers[i]->codegen(), iniinttype);
-					auto inival_ext = Builder->CreateZExt(inval, targettype);
-					V = Builder->CreateInsertValue(V, Builder->CreateBitCast(inival_ext, struct_type->getElementType(0)), i, "unioninit");
+					Builder->CreateStore(val1, Builder->CreatePointerCast(Store, val1->getType()->getPointerTo()));
+					V = Builder->CreateLoad(ft->type, Store);
 				} else
 					V = Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
 			else
@@ -254,9 +247,11 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* struct_val = Struct->codegen_raw(target);
 		if (struct_val) {
 			llvm::Value* val;
-			if (Struct->ft->type_attr & A_union)
-				val = Builder->CreateTruncOrBitCast(Builder->CreateExtractValue(struct_val, 0), ft->type);
-			else
+			if (Struct->ft->type_attr & A_union) {
+				auto Store = CreateEntryBlockAlloca(ft->type);
+				Builder->CreateStore(struct_val, Store);
+				val = Builder->CreateLoad(ft->type, Store);
+			} else
 				val = Builder->CreateExtractValue(struct_val, FieldIndex);
 			return handle(target, val);
 		}

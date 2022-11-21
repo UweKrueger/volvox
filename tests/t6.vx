@@ -249,7 +249,7 @@ type GFds {
 type OOWq union {
 	x i32
 	y f64
-	z [8]u8
+	z [18]u8
 	q GFds
 	t i64
 }
@@ -261,14 +261,12 @@ fn test_union_1() bool
 fn test_union_2() bool
 	return OOWq{ y: 45.125 }.t == 4631547596471533568
 
-global un1 := OOWq{ t: 5525823455454 }
-
 fn test_union_3() bool
-	return un1.t == 5525823455454 && un1.z[3] == 148
-
-fn test_union_4() bool
-	# fww := OOWq{ q: GFds{ n: 3365325, m: 5386776 }}
 	fww := OOWq{ t: 23136026754243021 }
 	return fww.q.n == 3365325 && fww.q.m == 5386776
+
+fn test_union_4() bool
+	fww := OOWq{ q: GFds{ n: 3365325, m: 5386776 }}
+	return fww.t == 23136026754243021
 
 # exit(0)
