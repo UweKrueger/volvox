@@ -1093,6 +1093,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		R = nullptr;
 		// codegen is postponed - we do lazy evaluation
 	} else {
+		if (opclass == OpExponentiation && !RHS->desired_type && is_fractional(RHS.get())) {
+			if (desired_type)
+				RHS->desired_type = desired_type;
+			else
+				RHS->desired_type = LHS->ft->type;
+		}
 		R = RHS->codegen();
 		if (!R)
 			return nullptr;

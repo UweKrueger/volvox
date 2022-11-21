@@ -391,6 +391,7 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 				if (right_is_float)
 					desired_right_type = desired_left_type;
 				else
+					// float^(int/int) is detected in codegen and desired_right_type will be set to float
 					desired_right_type = nullptr; // float^int no pre-conversions necessary
 			} else
 				desired_left_type = desired_right_type = getFittingType(desired_bitwidth >= 32 ? desired_bitwidth : 32, false);
