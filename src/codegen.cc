@@ -223,8 +223,12 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref(bool silent_fail)
 		return { nullptr, nullptr }; // error message was already generated in AST
 	if (auto LV = dynamic_cast<LvalueExprAST*>(Struct.get())) {
 		auto struct_ref = LV->codegen_ref(silent_fail);
-		if (struct_ref.second)
-			return { ft->type, Builder->CreateStructGEP(struct_ref.first, struct_ref.second, FieldIndex) };
+		if (struct_ref.second) {
+			if (Struct->ft->type_attr & A_union)
+				return { ft->type, Builder->CreatePointerCast(struct_ref.second, ft->type->getPointerTo()) };
+			else
+				return { ft->type, Builder->CreateStructGEP(struct_ref.first, struct_ref.second, FieldIndex) };
+		}
 	}
 	if (!silent_fail)
 		errs() << Struct->Loc << ": LHS of '.' expression must be an lvalue\n";
@@ -461,6 +465,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	std::string* rname;
 	std::function<llvm::Value*(llvm::Value*)> conversion;
 	bool is_signed = false;
+	unsigned is_union = expr->RHS->ft->type_attr & A_union;
 	bool is_constructor_call = false;
 	bool use_target = false;
 	llvm::Value* target = nullptr;
@@ -574,7 +579,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		fv->mangled_name = strdup(varname.c_str());
 		fv->ft = *expr->RHS->ft;
 		fv->ft.type = use_target ? expr->RHS->ft->type : type;
-		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | (LREF ? A_ptrref : 0U) | A_mainvar;
+		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | is_union | (LREF ? A_ptrref : 0U) | A_mainvar;
 		if (is_referencing)
 			fv->mark_as_referencing(is_referencing);
 		if (!needs_call) {
