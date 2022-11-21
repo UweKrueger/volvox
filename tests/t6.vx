@@ -236,4 +236,24 @@ lkt := YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }}
 big_struct_arg_3(lkt)
 
 lkt
+
+type OOWq union {
+	x i32
+	y f64
+	z [8]u8
+	t i64
+}
+
+fn test_union_1() bool
+	lk := OOWq{ y: -55435476.0625 }
+	return lk.x == -1602224128 && lk.y == -55435476.0625 && lk.z[5] == 111
+
+fn test_union_2() bool
+	return OOWq{ y: 45.125 }.t == 4631547596471533568
+
+global un1 := OOWq{ t: 5525823455454 }
+
+fn test_union_3() bool
+	return un1.t == 5525823455454 && un1.z[3] == 148
+
 exit(0)
