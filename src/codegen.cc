@@ -107,9 +107,20 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		}
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i])
-				if (ft->type_attr & A_union)
-					V = Builder->CreateInsertValue(V, Builder->CreateBitCast(initializers[i]->codegen(), struct_type->getElementType(0)), i, "unioninit");
-				else
+				if (ft->type_attr & A_union) {
+					llvm::Value* val1 = initializers[i]->codegen();
+					uint64_t targetbitsize = TheModule->getDataLayout().getTypeSizeInBits(struct_type->getElementType(0));
+					if (targetbitsize > 64 /* llvm::IntegerType::MAX_INT_BITS */) {
+						errs() << Loc << ": union of bitsize " << targetbitsize << " cannot be handled as rvalue (maxium: " << 64 /* llvm::IntegerType::MAX_INT_BITS */ << ")\n";
+						return nullptr;
+					}
+					auto targettype = llvm::IntegerType::get(Context, targetbitsize);
+					uint64_t inibitsize = TheModule->getDataLayout().getTypeSizeInBits(initializers[i]->ft->type);
+					auto iniinttype = llvm::IntegerType::get(Context, inibitsize);
+					auto inval = Builder->CreateBitCast(initializers[i]->codegen(), iniinttype);
+					auto inival_ext = Builder->CreateZExt(inval, targettype);
+					V = Builder->CreateInsertValue(V, Builder->CreateBitCast(inival_ext, struct_type->getElementType(0)), i, "unioninit");
+				} else
 					V = Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
 			else
 				V = Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
@@ -244,7 +255,7 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		if (struct_val) {
 			llvm::Value* val;
 			if (Struct->ft->type_attr & A_union)
-				val = Builder->CreateBitCast(Builder->CreateExtractValue(struct_val, 0), ft->type);
+				val = Builder->CreateTruncOrBitCast(Builder->CreateExtractValue(struct_val, 0), ft->type);
 			else
 				val = Builder->CreateExtractValue(struct_val, FieldIndex);
 			return handle(target, val);
