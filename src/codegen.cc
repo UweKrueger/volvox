@@ -237,8 +237,14 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		return handle(target, val);
 	if (V.first) {
 		llvm::Value* struct_val = Struct->codegen_raw(target);
-		if (struct_val)
-			return handle(target, Builder->CreateExtractValue(struct_val, FieldIndex));
+		if (struct_val) {
+			llvm::Value* val;
+			if (Struct->ft->type_attr & A_union)
+				val = Builder->CreateBitCast(Builder->CreateExtractValue(struct_val, 0), ft->type);
+			else
+				val = Builder->CreateExtractValue(struct_val, FieldIndex);
+			return handle(target, val);
+		}
 	}
 	errs() << Loc << ": cannot generate code for select expression\n";
 	return nullptr;

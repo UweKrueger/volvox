@@ -236,3 +236,4 @@ lkt := YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }}
 big_struct_arg_3(lkt)
 
 lkt
+exit(0)
