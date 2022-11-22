@@ -544,12 +544,8 @@ public:
 		};
 		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), replace);
 		if (replace) {
-			// errs() << "Cannot add new type '" << name << "' - name already exists\n";
 			return new_node; // actually existing node
 		}
-		auto mangled_name = ((volvoxc::FullType*)((char*)&(new_node->value) + new_node->value.offset))->mangled_name;
-		if (!mangled_name)
-			mangled_name = new_node->key.string;
 		union {
 			int_val_type_t int_type;
 			VOLVOX_gen_val_type_t gen_type;

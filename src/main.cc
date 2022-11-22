@@ -249,11 +249,10 @@ static void HandleTypeDef(unsigned share_kind) {
 	volvoxc::FullType Ft = {
 		.type = nullptr,
 	};
-	volvoxc::FullType* ft = &Ft;
 	bool replace = false;
-	MapNode* new_node = lex.add_type(type_name.c_str(), ft, replace);
+	MapNode* new_node = lex.add_type(type_name.c_str(), &Ft, replace);
 	MapValue* val = &new_node->value;
-	ft = (volvoxc::FullType*)((char*)val + val->offset);
+	volvoxc::FullType* ft = (volvoxc::FullType*)((char*)val + val->offset);
 	llvm::StructType* struct_type;
 	if (replace) { // new_node is actually an old node
 		struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
@@ -282,6 +281,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	const char* mangled_name = ft->mangled_name;
 	*ft = *newft;
 	ft->mangled_name = mangled_name;
+	new_FullType(*ft); // to keep a handle to mangled_name after lex.module has gone out of scope
 	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "defined type " << *ft << " as " << *ft->type << '\n';
