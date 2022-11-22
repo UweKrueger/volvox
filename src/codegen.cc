@@ -106,30 +106,34 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			initializers[(ft->type_attr & A_union) ? 0 : index] = std::move(ini);
 		}
 		for (unsigned i=0; i<initializers.size(); i++) {
-			if (initializers[i])
+			if (initializers[i]) {
+				llvm::Value* ini = initializers[i]->codegen();
+				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(ini->getType()))
+					if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(initializers[i]->ft->type))
+						ini = expandArrayInitializer(ini, ini_array_type, array_type);
 				if (ft->type_attr & A_union) {
 					size_t unionsize = TheModule->getDataLayout().getTypeAllocSize(ft->type);
-					llvm::Value* val0 = initializers[i]->codegen();
-					size_t valsize = TheModule->getDataLayout().getTypeAllocSize(val0->getType());
+					size_t valsize = TheModule->getDataLayout().getTypeAllocSize(ini->getType());
 					if (valsize > unionsize)
 						abort();
 					unsigned szdiff = unionsize - valsize;
 					if (szdiff) {
 						// fill up remaining bytes with 0x00
 						std::vector<llvm::Type*> types(1 + szdiff, llvm::Type::getInt8Ty(Context));
-						types[0] = val0->getType();
+						types[0] = ini->getType();
 						auto struct_type = llvm::StructType::get(Context, types);
 						V = llvm::UndefValue::get(struct_type);
-						V = Builder->CreateInsertValue(V, val0, 0, "unioninit");
+						V = Builder->CreateInsertValue(V, ini, 0, "unioninit");
 						auto char0 = Builder->getInt8(0);
 						for (unsigned i = szdiff; i; i--)
 							V = Builder->CreateInsertValue(V, char0, i, "unionpadding");
 					} else {
-						V = val0;
+						V = ini;
 					}
-				} else
-					V = Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
-			else
+				} else {
+					V = Builder->CreateInsertValue(V, ini, i, "structinit");
+				}
+			} else
 				V = Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
 		}
 		return handle(target, V);

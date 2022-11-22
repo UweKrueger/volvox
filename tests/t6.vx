@@ -274,4 +274,12 @@ global fsdgre := OOWq{ y: 5226454.0625 }
 fn test_global_union() bool
 	return fsdgre.x == -2080374784 && fsdgre.t == 4707369873292918784 && fsdgre.q.m == 1096019957 && fsdgre.z[6] == 83 && fsdgre.z[17] == 0
 
+type JFzu { z [8]u8 }
+
+global f337 := JFzu{ z: [8]u8{ 6u8, 7u8, 6u8, 7u8, 6u8 } }
+global hfdsw233 := OOWq{ z: [6, 7] }
+
+fn test_array_field_init() bool
+	return hfdsw233.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
+
 # exit(0)

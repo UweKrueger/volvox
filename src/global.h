@@ -1128,16 +1128,20 @@ public:
 		auto rawV = codegen_raw();
 		if (!rawV)
 			return nullptr;
-		if (desired_type && rawV && !rawV->getType()->isVoidTy()) {
+		if (desired_type && rawV && rawV->getType() != desired_type && !rawV->getType()->isVoidTy()) {
 			auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
 			                        conv_kind == ConvImplicit ? ft->type_attr & A_signed : conv_kind == ConvSigned,
 			                        conv_kind != ConvImplicit, is_unknown_type);
-			if (!postConv)
+			if (postConv)
+				return postConv(rawV);
+			auto raw_array_type = llvm::dyn_cast<llvm::ArrayType>(rawV->getType());
+			auto desired_array_type = llvm::dyn_cast<llvm::ArrayType>(desired_type);
+			if (!raw_array_type || !desired_array_type) {
+				errs() << Loc << "cannot automatically convert " << *rawV->getType() << " to " << *desired_type << '\n';
 				return nullptr;
-			return postConv(rawV);
-		} else {
-			return rawV;
+			}
 		}
+		return rawV;
 	}
 	int getLine() const { return Loc.Line; }
 	int getCol() const { return Loc.Col; }
