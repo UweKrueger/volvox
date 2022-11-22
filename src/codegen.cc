@@ -108,11 +108,25 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i])
 				if (ft->type_attr & A_union) {
-					auto Store = CreateEntryBlockAlloca(ft->type);
-					Builder->CreateStore(llvm::Constant::getNullValue(ft->type), Store);
-					llvm::Value* val1 = initializers[i]->codegen();
-					Builder->CreateStore(val1, Builder->CreatePointerCast(Store, val1->getType()->getPointerTo()));
-					V = Builder->CreateLoad(ft->type, Store);
+					size_t unionsize = TheModule->getDataLayout().getTypeAllocSize(ft->type);
+					llvm::Value* val0 = initializers[i]->codegen();
+					size_t valsize = TheModule->getDataLayout().getTypeAllocSize(val0->getType());
+					if (valsize > unionsize)
+						abort();
+					unsigned szdiff = unionsize - valsize;
+					if (szdiff) {
+						// fill up remaining bytes with 0x00
+						std::vector<llvm::Type*> types(1 + szdiff, llvm::Type::getInt8Ty(Context));
+						types[0] = val0->getType();
+						auto struct_type = llvm::StructType::get(Context, types);
+						V = llvm::UndefValue::get(struct_type);
+						V = Builder->CreateInsertValue(V, val0, 0, "unioninit");
+						auto char0 = Builder->getInt8(0);
+						for (unsigned i = szdiff; i; i--)
+							V = Builder->CreateInsertValue(V, char0, i, "unionpadding");
+					} else {
+						V = val0;
+					}
 				} else
 					V = Builder->CreateInsertValue(V, initializers[i]->codegen(), i, "structinit");
 			else
