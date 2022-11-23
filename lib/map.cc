@@ -349,15 +349,15 @@ namespace volvox {
 		 * lists return values (explicit return and new value of 'replace') for all
 		 * 4 conditions (passed value of 'replace' and if 'key' exists):
 		 *
-		 * ┏━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━┓
-		 * ┃               ┃ key does not exist │ key exists     ┃
-		 * ┣━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━┫
-		 * ┃ replace=false ┃ newNode, false     │ oldNode, true  ┃
-		 * ┠───────────────╂────────────────────┼────────────────┨
-		 * ┃ replace=true  ┃ newNode, false     │ newNode, true  ┃
-		 * ┗━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━┛
+		 * ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━┯━━━━━━━━━━━━━━━━━━┓
+		 * ┃                 ┃ key does not exist │ key exists       ┃
+		 * ┣━━━━━━━━━━━━━━━━━╋━━━━━━━━━━━━━━━━━━━━┿━━━━━━━━━━━━━━━━━━┫
+		 * ┃ replace=nullptr ┃ newNode, nullptr   │ oldNode, (-1)    ┃
+		 * ┠─────────────────╂────────────────────┼──────────────────┨
+		 * ┃ replace=target  ┃ newNode, nullptr   │ newNode, oldNode ┃
+		 * ┗━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━┛
 		 */
-		_DECL Node* string_tag_insert(Node** root_ptr, const char* key, unsigned tag, Value value, int value_size, bool& replace) {
+		_DECL Node* string_tag_insert(Node** root_ptr, const char* key, unsigned tag, Value value, int value_size, Node*& target) {
 			bool use_tag = false;
 			if ((uintptr_t)root_ptr & 0x01)
 				root_ptr = (Node**)((uintptr_t)root_ptr & ~1ULL);
@@ -365,12 +365,12 @@ namespace volvox {
 				use_tag = true;
 			NodePosition insert_pos = string_find(root_ptr, key);
 			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~0x01ULL);
-			if(insert_pos.is_parent || replace) {
+			if(insert_pos.is_parent || target) {
 				Node* node = string_tag_new_node(key, tag, value, value_size, use_tag);
 				insert_priv(root_ptr, node, insert_node, insert_pos.parent_ptr);
 				if (insert_pos.is_parent) {
-					replace = false;
-				} else {
+					target = nullptr;
+				} else { // target was set
 					// replace current element with new
 					node->parent = insert_pos.node->parent;
 					node->leftChild = insert_pos.node->leftChild;
@@ -379,26 +379,27 @@ namespace volvox {
 					insert_pos.node->parent = NULL;
 					insert_pos.node->leftChild = NULL;
 					insert_pos.node->rightChild = NULL;
+					target = insert_pos.node;
 				}
 				return node;
 			} else {
-				replace = true; // indicate that key already exists
+				target = (Node*)(intptr_t)(-1); // indicate that key already exists
 				return insert_node;
 			}
 		}
 
-		_DECL Node* string_insert(Node** root_ptr, const char* key, Value value, int value_size, bool& replace) {
-			return string_tag_insert((Node**)((uintptr_t)root_ptr | 0x01), key, 0, value, value_size, replace);
+		_DECL Node* string_insert(Node** root_ptr, const char* key, Value value, int value_size, Node*& target) {
+			return string_tag_insert((Node**)((uintptr_t)root_ptr | 0x01), key, 0, value, value_size, target);
 		}
 
-#define DEFINE_INSERT_FOR(typ) _DECL Node* typ ## _insert(Node** root_ptr, typ key, Value value, int value_size, bool& replace) { \
+#define DEFINE_INSERT_FOR(typ) _DECL Node* typ ## _insert(Node** root_ptr, typ key, Value value, int value_size, Node*& target) { \
 			NodePosition insert_pos = typ ## _find(root_ptr, key); \
 			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~0x01ULL); \
-			if(insert_pos.is_parent || replace) { \
+			if(insert_pos.is_parent || target) { \
 				Node* node = typ ## _new_node(key, value, value_size); \
 				insert_priv(root_ptr, node, insert_node, insert_pos.parent_ptr); \
 				if (insert_pos.is_parent) { \
-					replace = false; \
+					target = nullptr; \
 				} else { \
 					node->parent = insert_pos.node->parent; \
 					node->leftChild = insert_pos.node->leftChild; \
@@ -406,10 +407,11 @@ namespace volvox {
 					insert_pos.node->parent = NULL; \
 					insert_pos.node->leftChild = NULL; \
 					insert_pos.node->rightChild = NULL; \
+					target = insert_pos.node; \
 				} \
 				return node; \
 			} else { \
-				replace = true; \
+				target = (Node*)(intptr_t)(-1); \
 				return insert_node; \
 			} \
 		}

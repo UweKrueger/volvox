@@ -249,7 +249,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	volvoxc::FullType Ft = {
 		.type = nullptr,
 	};
-	bool replace = false;
+	MapNode* replace = nullptr;
 	MapNode* new_node = lex.add_type(type_name.c_str(), &Ft, replace);
 	MapValue* val = &new_node->value;
 	volvoxc::FullType* ft = (volvoxc::FullType*)((char*)val + val->offset);

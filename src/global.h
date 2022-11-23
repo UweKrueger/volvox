@@ -57,8 +57,8 @@ extern "C" {
 		MapKey key;
 	};
 #define map_string_new_map _ZN6volvox3map11num_new_mapEv
-#define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiRb
-#define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEiRb
+#define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_
+#define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEiRS2_
 #define map_string_get _ZN6volvox3map10string_getEPNS0_4NodeEPKc
 #define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE
 #define map_iter_up _ZN6volvox3map7iter_upEPNS0_4NodeE
@@ -67,8 +67,8 @@ extern "C" {
 #define map_min _ZN6volvox3map3MinEPNS0_4NodeE
 #define map_max _ZN6volvox3map3MaxEPNS0_4NodeE
 	_DECL MapNode* map_string_new_map();
-	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, bool& replace);
-	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, bool& replace);
+	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, MapNode*& replace);
+	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, MapNode*& replace);
 	_DECL MapValue* map_string_get(MapNode* root, const char* key);
 	_DECL void map_destroy(MapNode* root, void (*destruct)(MapValue* ptr));
 	_DECL MapNode* map_iter_up(MapNode* elem);
@@ -533,7 +533,7 @@ class TypeTable : public Table {
 public:
 	TypeTable() = default;
 	~TypeTable() { map_destroy(table, nullptr); }
-	MapNode* add(const char* name, volvoxc::FullType* ft, bool& replace) {
+	MapNode* add(const char* name, volvoxc::FullType* ft, MapNode*& target) {
 		bool is_int = ft->type && ft->type->isIntegerTy();
 		if ((ft->type_attr & A_signed) && !is_int) {
 			errs() << "non-int type '" << name << "' aka " << *ft->type << " cannot be signed\n";
@@ -542,8 +542,8 @@ public:
 		MapValue val = {
 			.src_ptr = ft
 		};
-		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), replace);
-		if (replace) {
+		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), target);
+		if (target) {
 			return new_node; // actually existing node
 		}
 		union {
@@ -578,9 +578,9 @@ public:
 			.ditype = ditype,
 			.fields = fields
 		};
-		bool replace = false;
-		return add(name, &ft, replace);
-		if (replace) {
+		MapNode* target = nullptr;
+		return add(name, &ft, target);
+		if (target) {
 			errs() << "internal error - type '" << name << "' already exists\n";
 			abort();
 		}
@@ -660,9 +660,9 @@ public:
 	}
 	FullVar* insert(const char* key, const FullVar& value) {
 		MapValue mv = { .src_ptr = const_cast<FullVar*>(&value) };
-		bool replace = false;
-		MapNode* res = map_string_insert(&table, key, mv, sizeof(FullVar), replace);
-		if (replace)
+		MapNode* target = nullptr;
+		MapNode* res = map_string_insert(&table, key, mv, sizeof(FullVar), target);
+		if (target)
 			return nullptr;
 		auto fv = (FullVar*)((char*)&res->value + res->value.offset);
 		if (!(fv->ft.type_attr & A_ref) && (fv->ft.type_attr & A_destructor))
@@ -972,7 +972,7 @@ public:
 	void import_from_module(Module* import_module);
 	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
 	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }
-	MapNode* add_type(const char* name, volvoxc::FullType* ft, bool& replace) { return module->type_table.add(name, ft, replace); }
+	MapNode* add_type(const char* name, volvoxc::FullType* ft, MapNode*& target) { return module->type_table.add(name, ft, target); }
 	MapNode* add_type(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr)
 		{ return module->type_table.add(name, type, ditype, type_attr, fields); }
 	/* the 'lookup' methods must search in both the current namespace

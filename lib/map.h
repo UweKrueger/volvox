@@ -79,14 +79,14 @@ namespace volvox {
 // value_size: size of generic value (including 0 for strings)
 // return address of inserted node with lowest bit set if existing node has been replaced
 
-		_DECL Node* string_insert(Node** root_ptr, const char* key, Value value, int value_size, bool& replace);
-		_DECL Node* string_tag_insert(Node** root_ptr, const char* key, unsigned tag, Value value, int value_size, bool& replace);
-		_DECL Node* u64_insert(Node** root_ptr, u64 key, Value value, int value_size, bool& replace);
-		_DECL Node* i64_insert(Node** root_ptr, i64 key, Value value, int value_size, bool& replace);
-		_DECL Node* u32_insert(Node** root_ptr, u32 key, Value value, int value_size, bool& replace);
-		_DECL Node* i32_insert(Node** root_ptr, i32 key, Value value, int value_size, bool& replace);
-		_DECL Node* f32_insert(Node** root_ptr, f32 key, Value value, int value_size, bool& replace);
-		_DECL Node* f64_insert(Node** root_ptr, f64 key, Value value, int value_size, bool& replace);
+		_DECL Node* string_insert(Node** root_ptr, const char* key, Value value, int value_size, Node*& target);
+		_DECL Node* string_tag_insert(Node** root_ptr, const char* key, unsigned tag, Value value, int value_size, Node*& target);
+		_DECL Node* u64_insert(Node** root_ptr, u64 key, Value value, int value_size, Node*& target);
+		_DECL Node* i64_insert(Node** root_ptr, i64 key, Value value, int value_size, Node*& target);
+		_DECL Node* u32_insert(Node** root_ptr, u32 key, Value value, int value_size, Node*& target);
+		_DECL Node* i32_insert(Node** root_ptr, i32 key, Value value, int value_size, Node*& target);
+		_DECL Node* f32_insert(Node** root_ptr, f32 key, Value value, int value_size, Node*& target);
+		_DECL Node* f64_insert(Node** root_ptr, f64 key, Value value, int value_size, Node*& target);
 
 		_DECL bool string_delete(Node** root_ptr, const char* key, void (*destruct)(Value* ptr));
 		_DECL bool u64_delete(Node** root_ptr, u64 key, void (*destruct)(Value* ptr));
