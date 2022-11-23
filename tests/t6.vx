@@ -276,7 +276,7 @@ fn test_global_union() bool
 
 type JFzu { z [8]u8 }
 
-global f337 := JFzu{ z: [8]u8{ 6u8, 7u8, 6u8, 7u8, 6u8 } }
+global f337 := JFzu{ z: [8]u8{ 6, 7, 6, 7, 6 } }
 global hfdsw233 := OOWq{ z: [6, 7] }
 
 fn test_array_field_init() bool

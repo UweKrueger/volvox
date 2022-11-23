@@ -551,8 +551,9 @@ std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*
 			auto type_name = lex.get_type_name(res_type, is_signed && !is_float);
 			// TODO: implement full type lookup that doesn't need getting name string
 			res_ft = lex.get_full_type(type_name);
+			// errs() << List->Loc << " got fitting type for array elements: " << *res_ft << '\n';
 			for (auto& elem: valid_exprs)
-				conv.push_back(getConv(elem->ft->type, res_type, elem->Loc, elem->ft->type_attr & A_signed, is_signed && !is_float));
+				conv.push_back(getConv(elem->ft->type, res_type, elem->Loc, elem->ft->type_attr & A_signed, is_signed && !is_float, false, elem->is_unknown_type));
 			return { res_ft, conv };
 		}
 	}
