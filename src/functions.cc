@@ -381,9 +381,9 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 		}
 		Builder->CreateRetVoid();
 		if (is_constructor)
-			AutoMethods[ft->mangled_name].first = D->getName();
+			AutoMethods[ft->mangled_name].first = std::string(D->getName());
 		else
-			AutoMethods[ft->mangled_name].second = D->getName();
+			AutoMethods[ft->mangled_name].second = std::string(D->getName());
 		finishFunctionOrModule(D, 1, false);
 		ft->type_attr |= (is_constructor ? A_constructor : A_destructor);
 	}

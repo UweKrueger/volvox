@@ -10,7 +10,7 @@
 
 #if defined (_WIN32)
 #define _DECL __declspec(dllexport)
-#define _CDECL __declspec(dllexport)
+#define _CDECL extern "C" __declspec(dllexport)
 #else
 #define _DECL
 #define _CDECL extern "C"

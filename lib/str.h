@@ -39,7 +39,7 @@ typedef struct volvox_glob_t {
 
 #if defined (_WIN32)
 #define _DECL __declspec(dllexport)
-#define _CDECL __declspec(dllexport)
+#define _CDECL extern "C" __declspec(dllexport)
 #define PATHLISTSEP ';'
 #define PATHDIRSEP '\\'
 #else
