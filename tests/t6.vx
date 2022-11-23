@@ -274,12 +274,16 @@ global fsdgre := OOWq{ y: 5226454.0625 }
 fn test_global_union() bool
 	return fsdgre.x == -2080374784 && fsdgre.t == 4707369873292918784 && fsdgre.q.m == 1096019957 && fsdgre.z[6] == 83 && fsdgre.z[17] == 0
 
-type JFzu { z [8]u8 }
+type JFzu { z [8]u8, u i8, v f32 }
 
 global f337 := JFzu{ z: [8]u8{ 6, 7, 6, 7, 6 } }
 global hfdsw233 := OOWq{ z: [6, 7] }
 
 fn test_array_field_init() bool
 	return hfdsw233.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
+
+fn test_untyped_struct_initializers() bool
+	eeg := JFzu{ u: 642, v: 12.500000154 }
+	return eeg.u == -126 && eeg.v == 12.5
 
 # exit(0)
