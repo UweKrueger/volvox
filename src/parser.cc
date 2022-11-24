@@ -276,6 +276,30 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			return new_FullType(struct_type, attribs, nullptr /*DIType*/, (volvoxc::FullType*)fields);
 		}
 			break;
+		case tok_map:
+		case tok_set: {
+			bool is_set = CurTok.kind == tok_set;
+			getNextToken();
+			if (!Expect('[', eType))
+				return nullptr;
+			auto KeyLoc = CurLoc;
+			auto key_ft = ParseType(0, eNone, ']');
+			if (!key_ft) {
+				errs() << KeyLoc << ": type (of map key) expected\n";
+				return nullptr;
+			}
+			if (!Expect(']', eType))
+				return nullptr;
+			auto val_ft = ParseType(0, expect, terminator);
+			if (!val_ft) {
+				errs() << KeyLoc << ": type (of map value) expected\n";
+				return nullptr;
+			}
+			auto ftpair = new_FullType(*key_ft, 1); // reserve space for 1 additional FullType
+			ftpair[1] = *val_ft;
+			auto ft = new_FullType(llvm::Type::getInt8PtrTy(Context), A_map, nullptr, ftpair);
+			return ft;
+		}
 		default:
 			errs() << CurLoc << ": unexpected '" << CurTok << "' - type name expected\n";
 			return nullptr;

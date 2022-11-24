@@ -499,8 +499,8 @@ inline volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llv
 	return &new_node->ft;
 }
 
-inline volvoxc::FullType* new_FullType(const volvoxc::FullType& orig) {
-	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem));
+inline volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned additional = 0) {
+	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem) + additional * sizeof(volvoxc::FullType));
 	new_node->next = nullptr;
 	new_node->ft = orig;
 	*anon_types_end = new_node;
