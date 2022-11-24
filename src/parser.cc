@@ -94,6 +94,8 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
 	return Args;
 }
 
+static std::pair<std::string,volvoxc::FullType*> ParseTypedIdent(int terminator, bool resolve_ref);
+
 /* parse a type - this function may be called by ParseAggregateExpr()
    for the initial part of "type{...}" literals
    it "type" starts with '[' there is an ambiguity
@@ -113,45 +115,14 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
    when resolve_ref is true a pointer type is created if preceded with '&'
    (this is needed for struct declarations) - otherwise A_ref is set
  */
-volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator,
+volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
                              const char* tname,
                              std::vector<std::unique_ptr<ExprAST>>* exprs,
                              llvm::StructType* existing,
                              bool is_index, bool resolve_ref) {
-	unsigned attribs = 0;
 	std::vector<uint64_t> lens = {};
 	bool is_packed = false;
 	while (CurTok.kind != tok_identifier) {
-		if (allow_attribute) {
-			switch (CurTok.kind) {
-			case tok_atomic:
-				attribs |= A_atomic;
-				attribs |= A_ref;
-				break;
-			case tok_shared:
-				attribs |= A_shared;
-				attribs |= A_ref;
-				break;
-			case tok_unique:
-				attribs |= A_unique;
-				attribs |= A_ref;
-				break;
-			case tok_const:
-				attribs |= A_const;
-				attribs |= A_ref;
-				break;
-			case tok_ref:
-				attribs |= A_ref;
-				break;
-			default:
-				goto no_attribute;;
-			}
-			getNextToken(eType);
-			allow_attribute = false;
-			continue;
-		no_attribute:
-			allow_attribute = false;
-		}
 		if (CurTok.kind == tok_packed) {
 			if (is_packed) {
 				errs() << CurLoc << ": superfluous 'packed'\n";
@@ -227,7 +198,7 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 					}
 				}
 			} while (CurTok.kind == '[');
-			auto elem_type = ParseType(false, expect, terminator);
+			auto elem_type = ParseType(0, expect, terminator);
 			if (!elem_type) {
 				errs() << CurLoc << ": type specifier expected\n";
 				if (exprs)
@@ -252,17 +223,11 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 			std::vector<volvoxc::FullType*> FieldTypes;
 			std::vector<llvm::Type*> LLVMFieldTypes;
 			for (;;) {
-				if (CurTok.kind != tok_identifier) {
-					errs () << CurLoc << ": unexpected '" << CurTok << "' in struct declaration - field name expected\n";
+				auto [name, ft] = ParseTypedIdent('}', true);
+				if (!ft)
 					return nullptr;
-				}
-				FieldNames.push_back(IdentifierStr);
-				getNextToken(eType);
-				auto type = ParseType(true, eComma, 0, nullptr, nullptr, nullptr, false, true);
-				if (!type) {
-					errs() << CurLoc << ": unexpected '" << CurTok << "' in struct declaration - type name expected\n";
-					return nullptr;
-				}
+				FieldNames.push_back(name);
+				auto type = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL);
 				FieldTypes.push_back(type);
 				LLVMFieldTypes.push_back(type->type);
 				if (CurTok.kind != '}')
@@ -347,6 +312,57 @@ volvoxc::FullType* ParseType(bool allow_attribute, eXpect expect, int terminator
 		type = new_FullType(ptr_type, 0, nullptr, type);
 	}
 	return type;
+}
+
+// parse argument of function prototype or or element in struct declaration
+// typically something like "x type[,)}\n]" - 'x' can be omitted in which case
+// the type name is used as name and the lowes bit of FullType* is set to
+// flag this condition
+static std::pair<std::string,volvoxc::FullType*> ParseTypedIdent(int terminator, bool resolve_ref) {
+	unsigned attribs = 0;
+	switch (CurTok.kind) {
+	case tok_atomic:
+		attribs |= A_atomic;
+		attribs |= A_ref;
+		break;
+	case tok_shared:
+		attribs |= A_shared;
+		attribs |= A_ref;
+		break;
+	case tok_unique:
+		attribs |= A_unique;
+		attribs |= A_ref;
+		break;
+	case tok_const:
+		attribs |= A_const;
+		attribs |= A_ref;
+		break;
+	case tok_ref:
+		attribs |= A_ref;
+		break;
+	default:
+		goto no_attribute;;
+	}
+	getNextToken();
+no_attribute:
+	if (CurTok.kind != tok_identifier) {
+		errs() << CurLoc << ": identifier expected\n";
+		return { "", nullptr };
+	}
+	std::string name = IdentifierStr;
+	getNextToken(eComma, terminator);
+	if (CurTok.kind == ',' || CurTok.kind == terminator) {
+		// type name as ident
+		volvoxc::FullType* ft = lex.get_full_type(name.c_str());
+		if (!ft) {
+			errs() << CurLoc << ": type of '" << name << "' expected\n";
+			return { "", nullptr };
+		}
+		// set lowest bit of 'ft' to indicat 'type as name' condition
+		// TODO: handle resolve_ref in this case
+		return { name, (volvoxc::FullType*)((uintptr_t)ft | 0x01) };
+	}
+	return { name, ParseType(attribs, eComma, terminator, nullptr, nullptr, nullptr, false, resolve_ref) };
 }
 
 /// numberexpr ::= number
@@ -524,7 +540,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	bool key_is_signed = false;
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
-	volvoxc::FullType* ft = ParseType(false, eBinOp, terminator, nullptr, &Dims, nullptr, is_index);
+	volvoxc::FullType* ft = ParseType(0, eBinOp, terminator, nullptr, &Dims, nullptr, is_index);
 	SourceLocation loc = CurLoc;
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
@@ -1364,28 +1380,23 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	if (CurTok.kind == ')')
 		goto noargs;
 	for (;;) {
-		if (CurTok.kind != tok_identifier) {
-			if (CurTok.kind == tok_ellipsis) {
-				isVarArgs = true;
-				getNextToken();
-				if (CurTok.kind != ')') {
-					errs() << CurLoc << ": unexpected '" << CurTok << "' after '...' - ')' expected\n";
-					return nullptr;
-				}
-				else
-					break;
+		if (CurTok.kind == tok_ellipsis) {
+			isVarArgs = true;
+			getNextToken();
+			if (CurTok.kind != ')') {
+				errs() << CurLoc << ": unexpected '" << CurTok << "' after '...' - ')' expected\n";
+				return nullptr;
 			}
-			errs() << CurLoc << ": unexpected '" << CurTok << "' in function arg list - arg name expected\n";
-			return nullptr;
-		}	
-		ArgNames.push_back(IdentifierStr);
-		ArgPos.push_back(CurLoc);
-		getNextToken(eType);
-		auto type = ParseType(true);
-		if (!type) {
-			errs() << CurLoc << ": unexpected '" << CurTok << "' in function arg list - type name expected\n";
-			return nullptr;
+			break;
 		}
+		auto ArgLoc = CurLoc;
+		auto [name, ft] = ParseTypedIdent(')', false);
+		if (!ft)
+			return nullptr;
+		bool is_black_ident = ((uintptr_t)ft & 1) || name == "_";
+		ArgNames.push_back(is_black_ident ? " " : name);
+		ArgPos.push_back(ArgLoc);
+		auto type = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL);
 		ArgTypes.push_back(type);
 		if (CurTok.kind == ')')
 			break;
@@ -1397,7 +1408,7 @@ noargs:
 	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc = CurLoc;
 	while (CurTok.kind != ';') {
-		auto type = ParseType(true, eSemi);
+		auto type = ParseType(0, eSemi);
 		if (!type) {
 			errs() << "error parsing return type of function prototype\n";
 			return nullptr;
