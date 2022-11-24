@@ -774,6 +774,10 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 		IdentifierStr = CurChar;
 		CurChar = advance();
 		return tok_ref;
+	case '?':
+		IdentifierStr = CurChar;
+		CurChar = advance();
+		return tok_optional;
 	case '+':
 	case '-':
 	case '!':
