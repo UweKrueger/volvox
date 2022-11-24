@@ -1,4 +1,4 @@
-fn call_by_ref_1(x &f64) f64
+fn call_by_ref_1(&x f64) f64
 	a := x
 	x = a / 2
 	return a
@@ -27,7 +27,7 @@ fn test_array_call_by_value_2() bool
 	s79 := mod_val_array_2(ma)
 	return ma[2] == 2.5 && s79 == -8.25
 
-fn mod_val_array_3(qq4 &[7]f64) f64
+fn mod_val_array_3(&qq4 [7]f64) f64
 	qq4[2] = qq4[3] + qq4[1]
 	return 2 * qq4[2]
 
@@ -36,7 +36,7 @@ fn test_array_call_by_ref_2() bool
 	s78 := mod_val_array_3(ma)
 	return ma[2] == 17.25 && s78 == 34.5
 
-fn mod_val_array_4(qq5 &[7]f64) f64
+fn mod_val_array_4(&qq5 [7]f64) f64
 	ri := mod_val_array_3(qq5)
 	return ri + qq5[2]
 
