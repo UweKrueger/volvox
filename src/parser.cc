@@ -564,7 +564,13 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	bool key_is_signed = false;
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
-	volvoxc::FullType* ft = ParseType(0, eBinOp, terminator, nullptr, &Dims, nullptr, is_index);
+	volvoxc::FullType* ft;
+	if ((CurTok.kind == tok_map || CurTok.kind == tok_set) &&  lex.peek() == '{') {
+		ft = new_FullType(llvm::Type::getInt8PtrTy(Context), A_map);
+		getNextToken();
+	}
+	else
+		ft = ParseType(0, eBinOp, terminator, nullptr, &Dims, nullptr, is_index);
 	SourceLocation loc = CurLoc;
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
@@ -584,6 +590,12 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 			break;
 		case llvm::Type::StructTyID:
 			errs() << CurLoc << ": struct literals not implementd, yet\n";
+			return nullptr;
+		case llvm::Type::PointerTyID:
+			if (ft->type_attr & A_map) {
+				errs() << "map initializer\n";
+			}
+			return nullptr;
 		default:
 			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
 			return nullptr;
