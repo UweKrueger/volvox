@@ -92,6 +92,22 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 	}
 }
 
+llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
+	llvm::Value* ptr = target;
+	if (!ptr)
+		ptr = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+	for (unsigned i=0; i<keys.size(); i++) {
+		keys[i]->desired_type = ft->elem_type[0].type;
+		llvm::Value* Key = keys[i]->codegen();
+		values[i]->desired_type = ft->elem_type[1].type;
+		llvm::Value* Value = values[i]->codegen();
+	}
+	return nullptr;
+}
+
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		llvm::Value* V = llvm::UndefValue::get(ft->type);
