@@ -342,8 +342,7 @@ class AggregateExprAST : public ListExprAST {
 public:
 	llvm::Type* key_type = nullptr;
 	unsigned key_type_attr = 0;
-	std::vector<ExprAST*> valid_exprs;
-	std::vector<std::function<llvm::Value*(llvm::Value*)>> Elem_convs;
+	std::vector<ExprAST*> valid_exprs; // to find a common element type
 	std::vector<unsigned> LitDims; // maximum used index in literal for each level
 	AggregateExprAST(SourceLocation Loc, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
@@ -359,7 +358,6 @@ public:
 				errs() << "internal problem when creating AggregateExprAST\n";
 			}
 			ft->elem_type = convs.first;
-			Elem_convs = convs.second;
 		}
 	AggregateExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
@@ -373,8 +371,6 @@ public:
 				ft = nullptr;
 				errs() << "internal problem creating AggregateExprAST\n";
 			}
-			else
-				Elem_convs = convs.second;
 		}
 	std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
 		ListExprAST* List, llvm::Type* elem_type = nullptr, unsigned elem_attr = 0);
@@ -400,7 +396,6 @@ public:
 };
 
 class FixedArrayExprAST : public AggregateExprAST {
-	uint64_t iter_idx = 0;
 public:
 	std::vector<std::unique_ptr<ExprAST>> Dims; // known at run time
 	std::vector<SourceLocation> LenLocs;

@@ -21,13 +21,11 @@ llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type
 		else
 			if (auto sub_list = dynamic_cast<ListExprAST*>(List->Elements[idx].get()))
 				ini = Builder->CreateInsertValue(ini, getArrayLitVal(llvm::cast<llvm::ArrayType>(sub_type), sub_list), idx, "arrlitsub");
-			else
-				if (iter_idx < Elem_convs.size() && Elem_convs[iter_idx]) {
-					ini = Builder->CreateInsertValue(ini, Elem_convs[iter_idx++](List->Elements[idx]->codegen_raw()), idx, "arrlitval");
-				} else {
-					ini = Builder->CreateInsertValue(ini, List->Elements[idx]->codegen_raw(), idx, "arrlitval");
-					iter_idx++;
-				}
+			else {
+				List->Elements[idx]->desired_type = sub_type;
+				ini = Builder->CreateInsertValue(ini, List->Elements[idx]->codegen(), idx, "arrlitval");
+	//	iter_idx++;
+			}
 	return ini;
 }
 
@@ -68,7 +66,6 @@ llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Type* initializer_type = ft->elem_type->type;
 	for (int j = LitDims.size() - 1; j >= 0; j--)
 		initializer_type = llvm::ArrayType::get(initializer_type, LitDims[j]);
-	iter_idx = 0;
 	llvm::Value* ini = getArrayLitVal(llvm::cast<llvm::ArrayType>(initializer_type), this);
 	if (!Sizes.size()) {
 		return ini;
