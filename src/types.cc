@@ -506,33 +506,33 @@ volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs) {
 	SourceLocation MaxBWLoc;
 	volvoxc::FullType* res_ft = nullptr;
 	for (auto& elem: valid_exprs) {
-		if (elem) {
-			if (res_ft) {
-				if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
-					errs() << elem->Loc << ": array element types do not match\n";
-					return nullptr;
+		if (!elem || !elem->ft || ! elem->ft->type)
+			return nullptr;
+		if (res_ft) {
+			if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
+				errs() << elem->Loc << ": array element types do not match\n";
+				return nullptr;
+			}
+		} else {
+			if (elem->ft->type->isSingleValueType()) {
+				auto bw = getBitWidth(elem->ft->type);
+				if (bw.first > bitwidth) {
+					bitwidth = bw.first;
+					MaxBWLoc = elem->Loc;
+				}
+				is_float = is_float || bw.second;
+				if (!elem->is_unknown_type) {
+					if (elem->ft->type_attr & A_signed)
+						is_signed = true;
+					else
+						is_unsigned = true;
 				}
 			} else {
-				if (elem->ft->type->isSingleValueType()) {
-					auto bw = getBitWidth(elem->ft->type);
-					if (bw.first > bitwidth) {
-						bitwidth = bw.first;
-						MaxBWLoc = elem->Loc;
-					}
-					is_float = is_float || bw.second;
-					if (!elem->is_unknown_type) {
-						if (elem->ft->type_attr & A_signed)
-							is_signed = true;
-						else
-							is_unsigned = true;
-					}
-				} else {
-					if (bitwidth) {
-						errs() << elem->Loc << ": type of element does not match previous element types in same aggregate\n";
-						return nullptr;
-					}
-					res_ft = elem->ft;
+				if (bitwidth) {
+					errs() << elem->Loc << ": type of element does not match previous element types in same aggregate\n";
+					return nullptr;
 				}
+				res_ft = elem->ft;
 			}
 		}
 	}
