@@ -352,26 +352,17 @@ public:
 		ListExprAST(Loc, std::move(_Elements)), key_type(key_type),
 		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs)), LitDims(std::move(_LitDims))
 		{
-			auto convs = getArrayConv(this, el_type ? el_type->type : nullptr, el_type ? el_type->type_attr : 0);
-			if (!convs.first) {
-				ft = nullptr;
-				errs() << "internal problem when creating AggregateExprAST\n";
-			}
-			ft->elem_type = convs.first;
+			if (el_type)
+				ft->elem_type = el_type;
+			else
+				ft->elem_type = getCommonType(valid_exprs);
 		}
 	AggregateExprAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* key_type,
 	                 unsigned key_type_attr = 0,
 	                 std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                 std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {}) :
 		ListExprAST(Loc, std::move(_Elements), _ft), key_type(key_type), LitDims(std::move(_LitDims)),
-		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs))
-		{
-			auto convs = getArrayConv(this, ft->elem_type->type, ft->elem_type->type_attr);
-			if (!convs.first) {
-				ft = nullptr;
-				errs() << "internal problem creating AggregateExprAST\n";
-			}
-		}
+		key_type_attr(key_type_attr), valid_exprs(std::move(_valid_exprs)) {}
 	std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> getArrayConv(
 		ListExprAST* List, llvm::Type* elem_type = nullptr, unsigned elem_attr = 0);
 };

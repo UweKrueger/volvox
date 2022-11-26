@@ -498,65 +498,60 @@ volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
 }
 
 // get element type of an array
-std::pair<volvoxc::FullType*,std::vector<std::function<llvm::Value*(llvm::Value*)>>> AggregateExprAST::getArrayConv(
-	ListExprAST* List, llvm::Type* elem_type, unsigned elem_attr) {
-	std::vector<std::function<llvm::Value*(llvm::Value*)>> conv;
-	bool is_signed = elem_attr & A_signed;
+volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs) {
+	bool is_unsigned = false;
+	bool is_signed = false;
 	bool is_float = false;
 	unsigned bitwidth = 0;
-	if (elem_type && elem_type->isSingleValueType()) {
-		auto bw = getBitWidth(elem_type);
-		bitwidth = bw.first;
-		is_float = bw.second;
-	}
 	SourceLocation MaxBWLoc;
 	volvoxc::FullType* res_ft = nullptr;
-	conv.reserve(valid_exprs.size());
-	if (!bitwidth) {
-		for (auto& elem: valid_exprs) {
-			if (elem) {
-				if (res_ft) {
-					if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
-						errs() << elem->Loc << ": array element types do not match\n";
-						return { nullptr, conv };
+	for (auto& elem: valid_exprs) {
+		if (elem) {
+			if (res_ft) {
+				if (elem->ft->type != res_ft->type) { // TODO: implement FullType comparison
+					errs() << elem->Loc << ": array element types do not match\n";
+					return nullptr;
+				}
+			} else {
+				if (elem->ft->type->isSingleValueType()) {
+					auto bw = getBitWidth(elem->ft->type);
+					if (bw.first > bitwidth) {
+						bitwidth = bw.first;
+						MaxBWLoc = elem->Loc;
+					}
+					is_float = is_float || bw.second;
+					if (!elem->is_unknown_type) {
+						if (elem->ft->type_attr & A_signed)
+							is_signed = true;
+						else
+							is_unsigned = true;
 					}
 				} else {
-					if (elem->ft->type->isSingleValueType()) {
-						auto bw = getBitWidth(elem->ft->type);
-						if (bw.first > bitwidth) {
-							bitwidth = bw.first;
-							MaxBWLoc = elem->Loc;
-						}
-						is_float = is_float || bw.second;
-						is_signed = is_signed || (elem->ft->type_attr & A_signed);
-					} else {
-						res_ft = elem->ft;
+					if (bitwidth) {
+						errs() << elem->Loc << ": type of element does not match previous element types in same aggregate\n";
+						return nullptr;
 					}
+					res_ft = elem->ft;
 				}
 			}
 		}
 	}
-	if (res_ft) {
-		return { res_ft, conv };
-	} else {
-		if (!bitwidth) {
-			errs() << "no valid element in array initialization\n";
-			return { nullptr, conv };
-		} else {
-			if (is_float && bitwidth > 53) {
-				errs() << MaxBWLoc << ": 64 bit integer in array initialization not compatible with float type(s)\n";
-				return { nullptr, conv };
-			}
-			llvm::Type* res_type = getFittingType(bitwidth, is_float);
-			auto type_name = lex.get_type_name(res_type, is_signed && !is_float);
-			// TODO: implement full type lookup that doesn't need getting name string
-			res_ft = lex.get_full_type(type_name);
-			// errs() << List->Loc << " got fitting type for array elements: " << *res_ft << '\n';
-			for (auto& elem: valid_exprs)
-				conv.push_back(getConv(elem->ft->type, res_type, elem->Loc, elem->ft->type_attr & A_signed, is_signed && !is_float, false, elem->is_unknown_type));
-			return { res_ft, conv };
+	if (res_ft)
+		return res_ft;
+	if (!bitwidth) {
+		errs() << "no valid element in array initialization\n";
+		return nullptr;
 		}
+	if (is_float && bitwidth > 53) {
+		errs() << MaxBWLoc << ": 64 bit integer in array initialization not compatible with float type(s)\n";
+		return nullptr;
 	}
+	llvm::Type* res_type = getFittingType(bitwidth, is_float);
+	auto type_name = lex.get_type_name(res_type, (!is_unsigned || is_signed) && !is_float);
+	// TODO: implement full type lookup that doesn't need getting name string
+	res_ft = lex.get_full_type(type_name);
+	// errs() << List->Loc << " got fitting type for array elements: " << *res_ft << '\n';
+	return res_ft;
 }
 
 llvm::Constant* getRtType(volvoxc::FullType* ft) {
