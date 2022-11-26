@@ -376,14 +376,11 @@ union AggregateKey {
 	llvm::Constant* String = nullptr;
 };
 
-class MapExprAST : public AggregateExprAST {
+class MapExprAST : public ListExprAST {
 public:
-	std::vector<AggregateKey> Keys;
-	MapExprAST(SourceLocation Loc, llvm::Type* key_type, std::vector<AggregateKey> _Keys = {},
-	           volvoxc::FullType* elem_type = nullptr, std::vector<std::unique_ptr<ExprAST>> _Elements = {},
-	           std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {}, unsigned key_type_attr = 0) :
-		AggregateExprAST(Loc, key_type, key_type_attr,
-		                 std::move(_Elements), std::move(_valid_exprs), std::move(_LitDims), elem_type), Keys(_Keys) {}
+	std::vector<ExprAST*> keys;
+	std::vector<ExprAST*> values;
+	MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vector<std::unique_ptr<ExprAST>> _Elements = {});
 };
 
 class FixedArrayExprAST : public AggregateExprAST {

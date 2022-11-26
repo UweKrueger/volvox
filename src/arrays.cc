@@ -507,3 +507,35 @@ llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* i
 	return expanded_ini;
 }
 
+MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vector<std::unique_ptr<ExprAST>> _Elements) :
+	ListExprAST(Loc, std::move(_Elements), map_ft)
+{
+	keys.reserve(Elements.size());
+	values.reserve(Elements.size());
+	for (auto& elem: Elements) {
+		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
+			if (bin_expr->Op[0] == ':' && !bin_expr->Op[1]) {
+				keys.push_back(bin_expr->LHS.get());
+				values.push_back(bin_expr->RHS.get());
+				continue;
+			}
+			errs() << bin_expr->Loc << ": ':' expected\n";
+			ft = nullptr;
+			return;
+		}
+		errs() << elem->Loc << ": binary expression 'key: value' expected\n";
+		ft = nullptr;
+		return;
+	}
+	if (!ft->elem_type) {
+		auto key_ft = getCommonType(keys);
+		auto val_ft = getCommonType(values);
+		if (!key_ft || !val_ft) {
+			ft = nullptr;
+			return;
+		}			
+		auto ftpair = new_FullType(*key_ft, 1); // reserve space for 1 additional FullType
+		ftpair[1] = *val_ft;
+		ft->elem_type = ftpair;
+	}
+}

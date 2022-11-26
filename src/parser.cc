@@ -565,13 +565,13 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	std::vector<std::unique_ptr<ExprAST>> Dims = {};
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
 	volvoxc::FullType* ft;
+	SourceLocation loc = CurLoc;
 	if ((CurTok.kind == tok_map || CurTok.kind == tok_set) &&  lex.peek() == '{') {
 		ft = new_FullType(llvm::Type::getInt8PtrTy(Context), A_map);
 		getNextToken();
 	}
 	else
 		ft = ParseType(0, eBinOp, terminator, nullptr, &Dims, nullptr, is_index);
-	SourceLocation loc = CurLoc;
 	std::unique_ptr<ExprAST> Init = nullptr;
 	std::unique_ptr<ExprAST> Cap = nullptr;
 	std::vector<SourceLocation> LenLocs;
@@ -593,7 +593,11 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 			return nullptr;
 		case llvm::Type::PointerTyID:
 			if (ft->type_attr & A_map) {
-				errs() << "map initializer\n";
+				auto map_ast = std::make_unique<MapExprAST>(loc, ft, std::move(init_list->Elements));
+				if (!map_ast->ft || !map_ast->ft->type)
+					return nullptr;
+				errs() << "map initializer " << map_ast->ft->elem_type[0] << ' ' << map_ast->ft->elem_type[1] << "\n";
+				return map_ast;
 			}
 			return nullptr;
 		default:
