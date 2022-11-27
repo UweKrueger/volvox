@@ -19,6 +19,40 @@ type ArrayNode {
 	dim u64
 	cap u64
 }
+type __size_offset {
+	offset u32
+	size u32
+}
+type __map_value union {
+	u64
+	i64
+	u32
+	i32
+	f32
+	f64
+	__size_offset
+	string
+}
+type __map_key union {
+	u64
+	i64
+	u32
+	f32
+	f64
+	str [8]u8
+}
+type __map_node {
+	&parent __map_node
+	&leftChild __map_node
+	&rightChild __map_node
+	value __map_value
+	key __map_key
+}
+type __map_node_ref {
+	&node __map_node
+}
+cdecl fn _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_(&root_ptr __map_node_ref, key string, value __map_value, value_size i32, &replace __map_node_ref) __map_node_ref
+cdecl fn _ZN6volvox3map10string_getEPNS0_4NodeEPKc(&root __map_node, key string) __map_node_ref
 cdecl fn _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
 cdecl fn _ZN9ArrayNodeD1Ev(&a ArrayNode)
 cdecl fn _ZN9ArrayNode8pushbackEPcy(&a ArrayNode, s string, obj_size u64)
