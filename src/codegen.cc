@@ -96,14 +96,33 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	const char* inserter;
+	if (ft->elem_type[0].type == llvm::Type::getInt8PtrTy(Context)) // string key type
+		inserter = "_ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_";
+	else {
+		errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
+		return nullptr;
+	}
+	PrototypeAST* inserter_proto = (*lex.findProtos(std::string(inserter)))[0].get();
+	if (!inserter_proto) {
+		errs() << Loc << ": prototype " << inserter << "() not found\n";
+		return nullptr;
+	}
+	auto inserter_fn = getFunction(inserter_proto);
 	llvm::Value* ptr = target;
 	if (!ptr)
 		ptr = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+	Builder->CreateStore(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), ptr);
+	llvm::Value* do_replace = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
 	for (unsigned i=0; i<keys.size(); i++) {
 		keys[i]->desired_type = ft->elem_type[0].type;
 		llvm::Value* Key = keys[i]->codegen();
 		values[i]->desired_type = ft->elem_type[1].type;
 		llvm::Value* Value = values[i]->codegen();
+		Value = Builder->CreateZExtOrBitCast(Value, llvm::Type::getInt64Ty(Context));
+		Builder->CreateStore(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), do_replace);
+		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
+				ptr, Key, Value, Builder->getInt32(0), do_replace });
 	}
 	return nullptr;
 }
