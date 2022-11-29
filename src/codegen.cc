@@ -124,7 +124,9 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
 				ptr, Key, Value, Builder->getInt32(0), do_replace });
 	}
-	return nullptr;
+	if (target)
+		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+	return ptr;
 }
 
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
