@@ -478,13 +478,38 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 			res = Builder->CreateInsertValue(res, Builder->CreateExtractValue(LV, j + num_dims_to_strip_from_val), j);
 		res = Builder->CreateInsertValue(res, Ptr, n_var_dims);
 		return { ml_elem_type, res };
-	} else {
-		errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";
-		return { nullptr, nullptr };
+	} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
+		// if (Field->ft->type_attr & A_map) {
+			llvm::Value* Map = Field->codegen();
+			llvm::Value* Key = Index->codegen();
+			if (!Map || !Key)
+				return { nullptr, nullptr };
+			// Key = Builder->CreateGlobalStringPtr("aer", "", 0, TheModule.get());
+			const char* getter;
+			if (Field->ft->elem_type[0].type == llvm::Type::getInt8PtrTy(Context)) // string key type
+				getter = "_ZN6volvox3map10string_getEPNS0_4NodeEPKc";
+			else {
+				errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
+				return { nullptr, nullptr };
+			}
+			PrototypeAST* getter_proto = (*lex.findProtos(std::string(getter)))[0].get();
+			if (!getter_proto) {
+				errs() << Loc << ": prototype " << getter << "() not found\n";
+				return { nullptr, nullptr };
+			}
+			auto getter_fn = getFunction(getter_proto);
+			auto node_wrapped = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
+			auto node = Builder->CreateExtractValue(node_wrapped, 0);
+			auto map_node_t = lex.get_full_type("__map_node")->type;
+			auto tt = Field->ft->elem_type[1].type;
+			errs() << "type: " << *tt << " key " << *Key->getType() << " map " << *Map << '\n';
+			auto ll = Builder->CreateStructGEP(map_node_t, node, 3);
+			errs() << "adr: " << *ll << '\n';
+			return { Field->ft->elem_type[1].type, Builder->CreateStructGEP(map_node_t, node, 3) };
+		// }
 	}
-	errs() << Loc << ": error generating index expr\n";
-	// return { nullptr, nullptr };
-	// return { elem_type, Builder->CreateGEP(elem_type, field_ptr, idx) };
+	errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";
+	return { nullptr, nullptr };
 }
 
 llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* ini_array_type, llvm::ArrayType* array_type) {

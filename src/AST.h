@@ -270,10 +270,15 @@ public:
 					*ft = *Field->ft;
 					ft->type = array_type->getElementType();
 				}
-			} else {
-				errs() << Index->Loc << ": index for non array expression\n";
-				ft->type = nullptr;
+				return;
+			} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
+				// if (Field->ft->type_attr & A_map) {
+					ft = &Field->ft->elem_type[1];
+					return;
+				// }
 			}
+			errs() << Index->Loc << ": index for non array expression " << *Field->ft << ' ' << Field->ft->type_attr << "\n";
+			ft->type = nullptr;
 		}
 	std::tuple<uint64_t,llvm::Value*,llvm::Value*> getMLIdxOffset(
 		llvm::Type* elem_type, std::vector<llvm::Value*>& Idxs,

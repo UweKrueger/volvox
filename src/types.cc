@@ -514,7 +514,7 @@ volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs) {
 				return nullptr;
 			}
 		} else {
-			if (elem->ft->type->isSingleValueType()) {
+			if (elem->ft->type->isFloatingPointTy() || elem->ft->type->isIntegerTy()) {
 				auto bw = getBitWidth(elem->ft->type);
 				if (bw.first > bitwidth) {
 					bitwidth = bw.first;
