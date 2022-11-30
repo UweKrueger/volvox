@@ -498,14 +498,11 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 				return { nullptr, nullptr };
 			}
 			auto getter_fn = getFunction(getter_proto);
-			auto node_wrapped = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
-			auto node = Builder->CreateExtractValue(node_wrapped, 0);
-			auto map_node_t = lex.get_full_type("__map_node")->type;
-			auto tt = Field->ft->elem_type[1].type;
-			errs() << "type: " << *tt << " key " << *Key->getType() << " map " << *Map << '\n';
-			auto ll = Builder->CreateStructGEP(map_node_t, node, 3);
-			errs() << "adr: " << *ll << '\n';
-			return { Field->ft->elem_type[1].type, Builder->CreateStructGEP(map_node_t, node, 3) };
+			auto value_wrapped = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
+			auto value = Builder->CreateExtractValue(value_wrapped, 0);
+			auto pointee_type = Field->ft->elem_type[1].type;
+			auto ref = Builder->CreatePointerCast(value, pointee_type->getPointerTo());
+			return { pointee_type, ref };
 		// }
 	}
 	errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";

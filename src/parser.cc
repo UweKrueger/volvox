@@ -596,7 +596,6 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 				auto map_ast = std::make_unique<MapExprAST>(loc, ft, std::move(init_list->Elements));
 				if (!map_ast->ft || !map_ast->ft->type)
 					return nullptr;
-				errs() << "map initializer " << map_ast->ft->elem_type[0] << ' ' << map_ast->ft->elem_type[1] << "\n";
 				return map_ast;
 			}
 			return nullptr;

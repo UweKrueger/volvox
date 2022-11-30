@@ -126,7 +126,7 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (target)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	return ptr;
+	return Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), ptr);
 }
 
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
