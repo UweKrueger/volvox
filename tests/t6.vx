@@ -286,4 +286,12 @@ fn test_untyped_struct_initializers() bool
 	eeg := JFzu{ u: 642, v: 12.500000154 }
 	return eeg.u == -126 && eeg.v == 12.5
 
+fn test_map_var_1() bool
+	vv := map[string]f64{ "gfgs": 12.625, "kdDe": -7.5, "QQgre": 13.25, "CCdf": 0.0625 }
+	r := vv["QQgre"]
+	return r == 13.25
+
+fn test_map_lit_1() bool
+	return map[string]i32{ "gfgs": 12, "kdDe": -7, "ABffd": 13 }["kdDe"] == -7
+
 #exit 0
