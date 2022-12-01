@@ -20,6 +20,7 @@
 #define A_fn     (1U<<9) // function (or function pointer)
 #define A_packed (1U<<10) // only set for RtType, otherwise part of llvm::Type
 #define A_union  (1U<<11)
+#define A_string (1U<<12)
 // symbol visibility attributes
 #define A_pub    (1U<<16)
 #define A_mainvar (1U<<17) // global for LLVM

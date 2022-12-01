@@ -421,8 +421,10 @@ normal_return:
 // result_type, result is signed, result is unknown type, Operator Class, errormessage
 std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
-	bool left_is_signed, bool right_is_signed, bool left_is_unknown_type, bool right_is_unknown_type)
+	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type)
 {
+	bool left_is_signed = left_attr & A_signed;
+	bool right_is_signed = right_attr & A_signed;
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
 	unsigned res_bitwidth;

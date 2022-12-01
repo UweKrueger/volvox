@@ -69,8 +69,10 @@ public:
 	LiteralExprAST(Token&& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
 		  (((tok.int_type.ID == llvm::Type::IntegerTyID &&
 		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {
-		if (tok.kind == tok_str_lit)
+		if (tok.kind == tok_str_lit) {
+			ft->type_attr |= A_string;
 			tok.Val.Ptr = nullptr;
+		}
 	}
 	~LiteralExprAST() {
 		if (ft->type->getTypeID() == llvm::Type::PointerTyID && !(ft->type_attr & A_signed))
