@@ -52,7 +52,9 @@ typedef struct volvox_glob_t {
 #define PATHDIRSEP '/'
 #endif
 
+#ifndef volvox2cstr
 #define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))
+#endif
 
 #ifdef __cplusplus
 

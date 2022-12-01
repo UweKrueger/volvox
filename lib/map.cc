@@ -392,6 +392,10 @@ namespace volvox {
 			return string_tag_insert((Node**)((uintptr_t)root_ptr | 0x01), key, 0, value, value_size, target);
 		}
 
+		_DECL Node* volvoxstring_insert(Node** root_ptr, const char* key, Value value, int value_size, Node*& target) {
+			return string_tag_insert((Node**)((uintptr_t)root_ptr | 0x01), volvox2cstr(key), 0, value, value_size, target);
+		}
+
 #define DEFINE_INSERT_FOR(typ) _DECL Node* typ ## _insert(Node** root_ptr, typ key, Value value, int value_size, Node*& target) { \
 			NodePosition insert_pos = typ ## _find(root_ptr, key); \
 			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~0x01ULL); \
@@ -649,6 +653,11 @@ namespace volvox {
 			return pos.is_parent ? false : delete_priv(root_ptr, pos.node, destruct);
 		}
 
+		_DECL bool volvoxstring_delete(Node** root_ptr, const char* key, void (*destruct)(Value* ptr)) {
+			NodePosition pos = string_find(root_ptr, volvox2cstr(key));
+			return pos.is_parent ? false : delete_priv(root_ptr, pos.node, destruct);
+		}
+
 #define DEFINE_DELETE_FOR(typ) _DECL bool typ ## _delete(Node** root_ptr, typ key, void (*destruct)(Value* ptr)) { \
 			NodePosition pos = typ ## _find(root_ptr, key); \
 			return pos.is_parent ? false : delete_priv(root_ptr, pos.node, destruct); \
@@ -765,6 +774,10 @@ namespace volvox {
 			return pos.is_parent ? NULL : &pos.node->value; 
 		}
 
+		_DECL Value* volvoxstring_get(Node* root, const char* key) {
+			NodePosition pos =  string_find(&root, volvox2cstr(key));
+			return pos.is_parent ? NULL : &pos.node->value; 
+		}
 	}
 
 }

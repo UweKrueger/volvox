@@ -16,6 +16,10 @@
 #define _CDECL extern "C"
 #endif
 
+#ifndef volvox2cstr
+#define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))
+#endif
+
 typedef uint64_t u64;
 typedef int64_t i64;
 typedef uint32_t u32;

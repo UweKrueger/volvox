@@ -487,7 +487,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 			// Key = Builder->CreateGlobalStringPtr("aer", "", 0, TheModule.get());
 			const char* getter;
 			if (Field->ft->elem_type[0].type == llvm::Type::getInt8PtrTy(Context)) // string key type
-				getter = "_ZN6volvox3map10string_getEPNS0_4NodeEPKc";
+				getter = "_ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc";
 			else {
 				errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
 				return { nullptr, nullptr };
