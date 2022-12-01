@@ -52,6 +52,8 @@ typedef struct volvox_glob_t {
 #define PATHDIRSEP '/'
 #endif
 
+#define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))
+
 #ifdef __cplusplus
 
 namespace volvox {

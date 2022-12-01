@@ -640,7 +640,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 		*s = (char*)realloc(*s, *cap);
 	}
 	if (pre)
-		prtstring(s, cap, pos, pre - ((*(unsigned*)pre+3) & ~((1U << 31) | 3U)));
+		prtstring(s, cap, pos, volvox2cstr(pre));
 	int space = *cap - *pos;
 	while (ft) {
 		switch (ft->ID) {
@@ -709,7 +709,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
-			prtstring(s, cap, pos, str - ((*(unsigned*)str+3) & ~((1U << 31) | 3U)));
+			prtstring(s, cap, pos, volvox2cstr(str));
 		}
 			break;
 		case VOLVOX_FunctionTyID: {
@@ -745,7 +745,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			abort();
 		const char* post = va_arg(ap, char*);
 		if (post) {
-			prtstring(s, cap, pos, post - ((*(unsigned*)post+3) & ~((1U << 31) | 3U)));
+			prtstring(s, cap, pos, volvox2cstr(post));
 			space = *cap - *pos;
 		}
 		ft = va_arg(ap, const VOLVOX_RtType*);
@@ -816,7 +816,7 @@ _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	bool have_color = enableColorANSI(fd);
 
 	char* buf = (char*)alloca(width + (have_color ? 11 : 2));
-	snprintf(buf, width-4, "%*s", -width+5, testcase - ((*(unsigned*)testcase+3) & ~((1U << 31) | 3U)));
+	snprintf(buf, width-4, "%*s", -width+5, volvox2cstr(testcase));
 	strcpy(buf+width-5, have_color ? (result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n") : (result ? " PASS\n" : " FAIL\n"));
 	write(fd, buf, width + (have_color ? 10 : 1));
 }
