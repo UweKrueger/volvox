@@ -492,7 +492,10 @@ void CallTestFunction(bool immediately = false) {
 		CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F));
 	if (immediately) {
 		auto b = HandleTopLevelExpression(std::move(call_expr), true);
-		showtestres(1, 79, TestFunction, b);
+		char* buf;
+		char* volvoxstrTestFunction;
+		cstr2volvoxstr(volvoxstrTestFunction, buf, TestFunction);
+		showtestres(1, 79, volvoxstrTestFunction, b);
 		return;
 	}
 	GlobalExprList.push_back(

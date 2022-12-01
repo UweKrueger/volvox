@@ -310,6 +310,16 @@ enum OpClass : uint8_t {
 	OpExponentiation
 };
 
+#define cstr2volvoxstr(result, target, cstr)	  \
+	unsigned _l = strlen(cstr); \
+	unsigned _l_alloc = (_l+8) & ~0x3U; /* add space for \0 and two aligend u32s */ \
+	target = (char*)(((uintptr_t)alloca(_l_alloc+3) + 3U) & ~0x3ULL); /* create 4-byte aligned space */ \
+	strcpy(target, cstr); \
+	for (unsigned n = _l+1; n < _l_alloc-4; n++) \
+		target[n]=0; /* make sure padding is zerored */ \
+	result = target + _l_alloc - 4; \
+	*(unsigned*)result = _l + 1; /* store size including terminating 0 - make calculation of start easier */
+
 extern void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                        bool expr_is_signed, bool desired_is_signed, const char* reason, bool is_explicit);
 static inline std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,

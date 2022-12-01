@@ -816,7 +816,7 @@ _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	bool have_color = enableColorANSI(fd);
 
 	char* buf = (char*)alloca(width + (have_color ? 11 : 2));
-	snprintf(buf, width-4, "%*s", -width+5, testcase);
+	snprintf(buf, width-4, "%*s", -width+5, testcase - ((*(unsigned*)testcase+3) & ~((1U << 31) | 3U)));
 	strcpy(buf+width-5, have_color ? (result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n") : (result ? " PASS\n" : " FAIL\n"));
 	write(fd, buf, width + (have_color ? 10 : 1));
 }
