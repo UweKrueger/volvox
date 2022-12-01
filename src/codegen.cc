@@ -1176,6 +1176,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::DoubleTyID:
 		typeclass = is_float;
 		break;
+	case llvm::Type::PointerTyID:
+		if (LHS->ft->type_attr & A_string) {
+			typeclass = is_string;
+			break;
+		}
 	default:
 		typeclass = is_unknown;
 	}
@@ -1189,6 +1194,13 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		case is_float:
 			result = Builder->CreateFAdd(L, R, "addtmp");
 			break;
+		case is_string: {
+			std::string stradd = "__string_add";
+			auto stradd_proto = (*lex.findProtos(stradd))[0].get();
+			auto stradd_fn = getFunction(stradd_proto);
+			result = Builder->CreateCall(stradd_proto->FT, stradd_fn, std::vector<llvm::Value*>{ L, R });
+			break;
+		}
 		default:
 			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
