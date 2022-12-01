@@ -494,7 +494,8 @@ void CallTestFunction(bool immediately = false) {
 		auto b = HandleTopLevelExpression(std::move(call_expr), true);
 		char* buf;
 		char* volvoxstrTestFunction;
-		cstr2volvoxstr(volvoxstrTestFunction, buf, TestFunction);
+		unsigned lalloc;
+		cstr2volvoxstr(volvoxstrTestFunction, lalloc, buf, TestFunction);
 		showtestres(1, 79, volvoxstrTestFunction, b);
 		return;
 	}

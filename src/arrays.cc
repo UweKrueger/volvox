@@ -563,13 +563,10 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 }
 
 llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
-	unsigned l = strlen(str);
-	unsigned l_alloc = (l+8) & ~0x3U; // add space for \0 and two aligend u32s
-	auto stra = (char*)(((uintptr_t)alloca(l_alloc+3) + 3U) & ~0x3ULL); // create 4-byte aligned space
-	strcpy(stra, str);
-	for (unsigned n = l+1; n < l_alloc-4; n++)
-		stra[n]=0; // make sure padding is zerored
-	*(unsigned*)(stra + l_alloc - 4) = l + 1; // store size including terminating 0 - make calculation of start easier
+	char* stra;
+	char* tmpres;
+	unsigned l_alloc;
+	cstr2volvoxstr(tmpres, l_alloc, stra, str);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
 	auto GV = new llvm::GlobalVariable(*TheModule, llvmstr->getType(), true, llvm::GlobalValue::PrivateLinkage,
 	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
