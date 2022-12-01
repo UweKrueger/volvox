@@ -921,7 +921,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
 		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
 		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
-		: std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), false, false, OpNormal, nullptr };
+		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), 0, false, OpNormal, nullptr };
 	if (std::get<4>(res_t)) {
 		errs() << IfLoc << ": " << llvm::format(std::get<4>(res_t), kind == tok_if ? "if" : "while");
 		return nullptr;

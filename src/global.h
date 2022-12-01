@@ -307,7 +307,8 @@ enum OpClass : uint8_t {
 	OpShift,
 	OpLogical,
 	OpBitwise,
-	OpExponentiation
+	OpExponentiation,
+	OpColon
 };
 
 #define cstr2volvoxstr(result, lalloc, target, cstr)	  \
@@ -342,7 +343,7 @@ extern std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(
 	llvm::Type* res_type, llvm::Type* desired_res,
 	llvm::Type* left_type, llvm::Type* right_type, OpClass opclass, bool res_min_is_signed,
 	bool left_is_signed, bool right_is_signed, bool left_is_unknown_type, bool right_is_unknown_type);
-extern std::tuple<llvm::Type*, bool, bool, OpClass, const char*> getResType(
+extern std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type);
 extern volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs);

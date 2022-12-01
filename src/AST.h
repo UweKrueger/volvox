@@ -512,7 +512,7 @@ public:
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, bool, bool, OpClass,
 	              const char*> res_t = { llvm::Type::getVoidTy(Context), false, false, OpDeclAssign, nullptr })
-		: ExprAST(std::get<0>(res_t), std::get<1>(res_t) ? A_signed : 0, Loc,
+		: ExprAST(std::get<0>(res_t), std::get<1>(res_t), Loc,
 		          std::get<2>(res_t)),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
 		{
@@ -620,8 +620,8 @@ public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
-	          std::tuple<llvm::Type*, bool, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if)
-		: ExprAST(_Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context), std::get<1>(res_t) ? A_signed : 0, Loc, std::get<2>(res_t)),
+	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if)
+		: ExprAST(_Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context), std::get<1>(res_t), Loc, std::get<2>(res_t)),
 		  errmsg(std::get<4>(res_t)), Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
 		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)), if_kind(if_kind)
 		{
