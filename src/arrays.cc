@@ -565,7 +565,7 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
 	unsigned l = strlen(str);
 	unsigned l_alloc = (l+8) & ~0x3U; // add space for \0 and two aligend u32s
-	auto stra = (char*)((uintptr_t)alloca(l_alloc+3) & ~0x3U); // create 4-byte aligned space
+	auto stra = (char*)(((uintptr_t)alloca(l_alloc+3) + 3U) & ~0x3ULL); // create 4-byte aligned space
 	strcpy(stra, str);
 	for (unsigned n = l+1; n < l_alloc-4; n++)
 		stra[n]=0; // make sure padding is zerored
