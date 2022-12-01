@@ -66,7 +66,7 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		if (ft->type_attr & A_signed)
 			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
 		else
-			return handle(target, Builder->CreateGlobalStringPtr(Val.Str, "", 0, TheModule.get()));
+			return handle(target, createStringConst(Val.Str));
 	default:
 		errs() << "internal compiler error: unhandled literal type " << *ft->type << "\n";
 		return nullptr;
