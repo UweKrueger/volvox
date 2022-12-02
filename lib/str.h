@@ -53,6 +53,7 @@ typedef struct volvox_glob_t {
 #endif
 
 #ifndef volvox2cstr
+// an LLVM implementation of this function is available as Volvox2CStr()
 #define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))
 #endif
 

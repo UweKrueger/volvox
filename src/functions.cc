@@ -331,13 +331,13 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	}
 }
 
-// insert destructors for given var table - retp is a poniter to the function return value
+// insert destructors for given var table - retp is a pointer to the function return value
 // in case of struct-return - so this one will not be destructed but moved to the caller, instead
 void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	for (auto var_node = t.first(); var_node; ++var_node) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
-		if ((fv->ft.type_attr & A_destructor) && fv->val && fv->val != retp)
+		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && fv->val && fv->val != retp)
 			InsertDestructor(fv);
 	}
 }
@@ -366,6 +366,34 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 		}
 	}
 	return needs_destructors;
+}
+
+llvm::Value* Volvox2CStr(llvm::Value* v) {
+	// LLVM implementation of macro '#define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))'
+	auto vp = Builder->CreatePointerCast(v, llvm::Type::getInt32PtrTy(Context));
+	llvm::Value* subtrahend = Builder->CreateLoad(llvm::Type::getInt32Ty(Context), vp);
+	subtrahend = Builder->CreateAdd(subtrahend, Builder->getInt32(3));
+	subtrahend = Builder->CreateAnd(subtrahend, ~((1U << 31) | 3U));
+	auto cstr = Builder->CreateIntToPtr(
+		Builder->CreateSub(
+			Builder->CreatePtrToInt(vp, llvm::Type::getInt64Ty(Context)),
+			Builder->CreateIntCast(subtrahend, llvm::Type::getInt64Ty(Context), false)),
+		llvm::Type::getInt8PtrTy(Context));
+	return cstr;
+}
+
+void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
+	auto v = Builder->CreateLoad(fv->ft.type, fv->val);
+	auto cstr = Volvox2CStr(v);
+	if (before) {
+		llvm::CallInst::CreateFree(cstr, before);
+	} else {
+		auto currentBB = Builder->GetInsertBlock();
+		llvm::CallInst::CreateFree(cstr, currentBB);
+	}
+}
+
+void InsertMapDestructor(FullVar* fv, llvm::Instruction* before) {
 }
 
 static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool is_constructor) {

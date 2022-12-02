@@ -701,23 +701,38 @@ extern void InsertArrayConDestructor(
 	llvm::Instruction* before = nullptr, bool is_constructor = false);
 extern void InsertDestructors(VarTable& t, llvm::Value* retp);
 extern void InsertDestructors(llvm::Value* retp);
+extern void InsertStringDestructor(FullVar* fv, llvm::Instruction* before = nullptr);
+extern void InsertMapDestructor(FullVar* fv, llvm::Instruction* before = nullptr);
 
 inline static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
 	InsertArrayConDestructor(var->ft.type, var->ft.elem_type, var->val, before);
 }
 
-inline static void InsertSingleDestructor(FullVar* fv) {
-	if (!fv->destructor)
-		return;
-	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
-	Builder->CreateCall(FT, fv->destructor, fv->val);
+inline static void InsertSingleDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
+	if (fv->destructor) {
+		llvm::BasicBlock* oldBB;
+		if (before) {
+			oldBB = Builder->GetInsertBlock();
+			Builder->SetInsertPoint(before);
+		}
+		auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
+		Builder->CreateCall(FT, fv->destructor, fv->val);
+		if (before)
+			Builder->SetInsertPoint(oldBB);
+	} else if (fv->ft.type->isPointerTy()) {
+		if (fv->ft.type_attr & A_string) {
+			InsertStringDestructor(fv, before);
+		} else if (fv->ft.type_attr & A_map) {
+			InsertMapDestructor(fv, before);
+		}
+	}
 }
 
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
 	if (llvm::isa<llvm::ArrayType>(fv->ft.type))
 		InsertArrayDestructor(fv, before);
 	else
-		InsertSingleDestructor(fv);
+		InsertSingleDestructor(fv, before);
 }
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
