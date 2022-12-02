@@ -525,7 +525,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	FullVar* is_referencing = nullptr;
 	std::string* rname;
 	std::function<llvm::Value*(llvm::Value*)> conversion;
-	bool is_signed = false;
+	unsigned is_signed = 0;
 	unsigned is_union = expr->RHS->ft->type_attr & A_union;
 	bool is_constructor_call = false;
 	bool use_target = false;
@@ -547,7 +547,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				is_referencing = BaseVar->full_var;
 				rname = &BaseVar->Name;
 			}
-			is_signed = expr->RHS->ft->type_attr & A_signed;
+			is_signed = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
 		} else {
 			Val = nullptr;
 		}
@@ -571,11 +571,18 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	}
 	if (!LREF && !use_target) {
 		val_type = Val->getType();
-		auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
-		type = std::get<0>(type_descr);
-		conversion = std::get<1>(type_descr);
-		is_signed = std::get<2>(type_descr);
-		convertedVal = conversion(Val);
+		if (expr->RHS->ft->type->isFloatingPointTy() || expr->RHS->ft->type->isIntegerTy()) {
+			auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
+			type = std::get<0>(type_descr);
+			conversion = std::get<1>(type_descr);
+			is_signed = std::get<2>(type_descr) ? A_signed : 0;
+			convertedVal = conversion(Val);
+		} else {
+			is_signed = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
+			type = expr->RHS->ft->type;
+			conversion = NoConversion;
+			convertedVal = Val;
+		}
 	}
 	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
 		llvm::GlobalValue::ExternalLinkage :
@@ -617,7 +624,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			DBuilder->createGlobalVariableExpression(
-				SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed), false);
+				SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, is_signed & A_signed), false);
 		}
 		if (initializer) { // i.e. constant size type
 			// If 'needs_store' this here is part of a module which is going to be
@@ -640,7 +647,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		fv->mangled_name = strdup(varname.c_str());
 		fv->ft = *expr->RHS->ft;
 		fv->ft.type = use_target ? expr->RHS->ft->type : type;
-		fv->ft.type_attr = sym_kind | (is_signed ? A_signed : 0U) | is_union | (LREF ? A_ptrref : 0U) | A_mainvar;
+		fv->ft.type_attr = sym_kind | is_signed | is_union | (LREF ? A_ptrref : 0U) | A_mainvar;
 		if (is_referencing)
 			fv->mark_as_referencing(is_referencing);
 		if (!needs_call) {
@@ -1036,11 +1043,20 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// variable declaration - we know it's no global variable since this has already been handled
 		// in parser.cc
+		unsigned is_signed;
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		auto type_descr = MakeType(RHS->ft->type, RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
-		llvm::Type* type = std::get<0>(type_descr);
-		auto conversion = std::get<1>(type_descr);
-		bool is_signed = std::get<2>(type_descr);
+		llvm::Type* type;
+		std::function<llvm::Value*(llvm::Value*)> conversion;
+		if (RHS->ft->type->isFloatingPointTy() || RHS->ft->type->isIntegerTy()) {
+			auto type_descr = MakeType(RHS->ft->type, RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
+			type = std::get<0>(type_descr);
+			conversion = std::get<1>(type_descr);
+			is_signed = std::get<2>(type_descr) ? A_signed : 0;
+		} else {
+			type = RHS->ft->type;
+			is_signed = RHS->ft->type_attr & (A_signed | A_string | A_map);
+			conversion = NoConversion;
+		}
 		FullVar* entry;
 		if (locals_table.empty()) {
 			entry = lex.module->globals_table[varname];
@@ -1054,10 +1070,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		entry->ft.type = type;
-		if (is_signed)
-			entry->ft.type_attr |= A_signed;
-		else
-			entry->ft.type_attr &= ~A_signed;
+		entry->ft.type_attr = (entry->ft.type_attr & ~(A_signed | A_string | A_map)) | is_signed;
 		if (Val) {
 			auto convertedVal = conversion(Val);
 			auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
@@ -1065,7 +1078,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-					SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, is_signed),
+					SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, is_signed & A_signed),
 					true);
 				
 				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),

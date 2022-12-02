@@ -337,6 +337,7 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	for (auto var_node = t.first(); var_node; ++var_node) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
+		errs() << "checking destructor for '" << var_node.getKey() << "' " << llvm::format("%x\n", fv->ft.type_attr);
 		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && fv->val && fv->val != retp)
 			InsertDestructor(fv);
 	}
@@ -385,6 +386,7 @@ llvm::Value* Volvox2CStr(llvm::Value* v) {
 void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
 	auto v = Builder->CreateLoad(fv->ft.type, fv->val);
 	auto cstr = Volvox2CStr(v);
+	errs() << "inserting destructor for string\n";
 	if (before) {
 		llvm::CallInst::CreateFree(cstr, before);
 	} else {
@@ -813,7 +815,10 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			InsertDestructors(ret_ptr);
 			Builder->CreateRetVoid();
 		} else {
-			InsertDestructors(nullptr);
+			if (RetVal->getType()->isPointerTy())
+				InsertDestructors(RetVal);
+			else
+				InsertDestructors(nullptr);
 			Builder->CreateRet(CheckTailCall(RetVal));
 		}
 	}		

@@ -423,7 +423,9 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 		if (left_attr & right_attr & A_string)
 			return { llvm::Type::getInt8PtrTy(Context), A_string, false, OpNormal, nullptr };
 	auto opclass = getOpClass(Op);
-	return { nullptr, 0, false, opclass, opclass == OpColon ? nullptr : "illegal use of operator '%s' with string(s)\n" };
+	if (opclass == OpColon || opclass == OpDeclAssign)
+		return { nullptr, 0, false, opclass, nullptr };
+	return { nullptr, 0, false, opclass, "illegal use of operator '%s' with string(s)\n" };
 }
 
 // get "natural" result type for binary operators, i.e if desired type is not known (yet)
