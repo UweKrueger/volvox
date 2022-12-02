@@ -385,12 +385,11 @@ llvm::Value* Volvox2CStr(llvm::Value* v) {
 void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
 	auto v = Builder->CreateLoad(fv->ft.type, fv->val);
 	auto cstr = Volvox2CStr(v);
-	errs() << "inserting destructor for string\n";
 	if (before) {
-		llvm::CallInst::CreateFree(cstr, before);
+		Builder->Insert(llvm::CallInst::CreateFree(cstr, before));
 	} else {
 		auto currentBB = Builder->GetInsertBlock();
-		llvm::CallInst::CreateFree(cstr, currentBB);
+		Builder->Insert(llvm::CallInst::CreateFree(cstr, currentBB));
 	}
 }
 
