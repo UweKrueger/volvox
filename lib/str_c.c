@@ -810,6 +810,23 @@ _DECL bool enableColorANSI(int fd) {
 #endif
 }
 
+_DECL char* __string_add(const char* a, const char* b) {
+	unsigned la = (*(unsigned*)a - 1) & ~(1U << 31);
+	unsigned lb = (*(unsigned*)b - 1) & ~(1U << 31);
+	a = volvox2cstr(a);
+	b = volvox2cstr(b);
+	unsigned new_l = la + lb;
+	unsigned new_alloc = (new_l + 12) & ~0x3U;
+	char* n = malloc(new_alloc);
+	memcpy(n, a, la);
+	memcpy(n+la, b, lb);
+	memset(n+new_l, 0, new_alloc-new_l-8);
+	char* res = &n[new_alloc-8];
+	*(unsigned*)res = ((new_l + 1) | (1U << 31));
+	*((unsigned*)res + 1) = 1; // reference count;
+	return res;
+}
+
 _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 6)
 		width = 6;
