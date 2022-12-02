@@ -412,6 +412,12 @@ void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
 }
 
 void InsertMapDestructor(FullVar* fv, llvm::Instruction* before) {
+	auto v = Builder->CreateLoad(fv->ft.type, fv->val);
+	std::string destr = "_ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE";
+	PrototypeAST* destr_proto = (*lex.findProtos(destr))[0].get();
+	auto destr_fn = getFunction(destr_proto);
+	auto elem_destructor = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
+	Builder->CreateCall(destr_proto->FT, destr_fn, std::vector<llvm::Value*>{ v, elem_destructor });
 }
 
 static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool is_constructor) {
