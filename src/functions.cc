@@ -368,29 +368,47 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 	return needs_destructors;
 }
 
-llvm::Value* Volvox2CStr(llvm::Value* v) {
+llvm::Value* Volvox2CStr1(llvm::Value* v) {
 	// LLVM implementation of macro '#define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))'
 	auto vp = Builder->CreatePointerCast(v, llvm::Type::getInt32PtrTy(Context));
 	llvm::Value* subtrahend = Builder->CreateLoad(llvm::Type::getInt32Ty(Context), vp);
+	return subtrahend;
+}
+
+llvm::Value* Volvox2CStr2(llvm::Value* v, llvm::Value* subtrahend) {
 	subtrahend = Builder->CreateAdd(subtrahend, Builder->getInt32(3));
 	subtrahend = Builder->CreateAnd(subtrahend, ~((1U << 31) | 3U));
 	auto cstr = Builder->CreateIntToPtr(
 		Builder->CreateSub(
-			Builder->CreatePtrToInt(vp, llvm::Type::getInt64Ty(Context)),
+			Builder->CreatePtrToInt(v, llvm::Type::getInt64Ty(Context)),
 			Builder->CreateIntCast(subtrahend, llvm::Type::getInt64Ty(Context), false)),
 		llvm::Type::getInt8PtrTy(Context));
 	return cstr;
 }
 
+llvm::Value* Volvox2CStr(llvm::Value* v) {
+	auto subtrahend = Volvox2CStr1(v);
+	return Volvox2CStr2(v, subtrahend);
+}
+
 void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
+	// TODO: handle 'before' (is this even needed?)
+	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
+	llvm::Function* TheFunction = enterBB->getParent();
 	auto v = Builder->CreateLoad(fv->ft.type, fv->val);
-	auto cstr = Volvox2CStr(v);
-	if (before) {
-		Builder->Insert(llvm::CallInst::CreateFree(cstr, before));
-	} else {
-		auto currentBB = Builder->GetInsertBlock();
-		Builder->Insert(llvm::CallInst::CreateFree(cstr, currentBB));
-	}
+	auto subtrahend = Volvox2CStr1(v);
+	llvm::Value* destructflag = Builder->CreateAnd(subtrahend, 1U << 31);
+	destructflag = Builder->CreateIsNotNull(destructflag);
+	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "stringdestr");
+	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "contdestr");
+	Builder->CreateCondBr(destructflag, DestructorBB, ContBB);
+	TheFunction->getBasicBlockList().push_back(DestructorBB);
+	Builder->SetInsertPoint(DestructorBB);
+	auto cstr = Volvox2CStr2(v, subtrahend);
+	Builder->Insert(llvm::CallInst::CreateFree(cstr, DestructorBB));
+	Builder->CreateBr(ContBB);
+	TheFunction->getBasicBlockList().push_back(ContBB);
+	Builder->SetInsertPoint(ContBB);
 }
 
 void InsertMapDestructor(FullVar* fv, llvm::Instruction* before) {
