@@ -337,7 +337,6 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	for (auto var_node = t.first(); var_node; ++var_node) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
-		errs() << "checking destructor for '" << var_node.getKey() << "' " << llvm::format("%x\n", fv->ft.type_attr);
 		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && fv->val && fv->val != retp)
 			InsertDestructor(fv);
 	}

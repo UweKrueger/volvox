@@ -71,7 +71,6 @@ public:
 		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {
 		if (tok.kind == tok_str_lit) {
 			ft->type_attr |= A_string;
-			errs() << "str lit constructor\n";
 			tok.Val.Ptr = nullptr;
 		}
 	}
@@ -511,17 +510,15 @@ public:
 	char Op[4] = { 0, 0, 0, 0 };
 	OpClass opclass = OpNormal;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
-	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, bool, bool, OpClass,
+	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, unsigned, bool, OpClass,
 	              const char*> res_t = { llvm::Type::getVoidTy(Context), false, false, OpDeclAssign, nullptr })
 		: ExprAST(std::get<0>(res_t), std::get<1>(res_t), Loc,
 		          std::get<2>(res_t)),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
 		{
 			strcpy(Op, _Op);
-			if (opclass == OpDeclAssign) {
+			if (opclass == OpDeclAssign)
 				LHS->ft = RHS->ft;
-				errs() << "type " << *RHS->ft->type << llvm::format(" decl attr: %x\n", RHS->ft->type_attr);
-			}
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
