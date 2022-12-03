@@ -14,6 +14,7 @@ MainVars jit_main_variables;
 llvm::DISubprogram *SP;
 llvm::DIFile *Unit;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
+std::vector<FullVar> expr_temps; // to call destructors immediatelly after expr
 
 // global function to find method protos
 std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName) {
@@ -345,6 +346,16 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 void InsertDestructors(llvm::Value* retp) {
 	for (auto t = locals_table.rbegin(); t != locals_table.rend(); ++t )
 		InsertDestructors(*t, retp);
+}
+
+void InsertDestructors(std::vector<FullVar>& t) {
+	if (t.empty())
+		return;
+	for (auto& fv: t) {
+		if (fv.ft.type_attr & (A_destructor | A_string | A_map))
+			InsertDestructor(&fv);
+	}
+	t.clear();
 }
 
 static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* thisarg, bool is_constructor = false) {
@@ -816,6 +827,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			if (comp_mode == comp_dbg) {
 				KSDbgInfo.emitLocation(Expr.get());
 			}
+			InsertDestructors(expr_temps);
 		} else {
 			goto cleanup;
 		}
@@ -863,5 +875,6 @@ cleanup:
 	}
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
+	expr_temps.clear();
 	return nullptr;
 }

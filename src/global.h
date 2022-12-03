@@ -488,6 +488,7 @@ struct FVListElem {
 
 extern FVListElem* anon_fullvars;
 extern FVListElem** anon_fullvars_end;
+extern std::vector<FullVar> expr_temps;
 // small hack to access protected method
 class genType : protected llvm::Type {
 public:
@@ -701,6 +702,7 @@ extern void InsertArrayConDestructor(
 	llvm::Instruction* before = nullptr, bool is_constructor = false);
 extern void InsertDestructors(VarTable& t, llvm::Value* retp);
 extern void InsertDestructors(llvm::Value* retp);
+extern void InsertDestructors(std::vector<FullVar>& t);
 extern void InsertStringDestructor(FullVar* fv, llvm::Instruction* before = nullptr);
 extern void InsertMapDestructor(FullVar* fv, llvm::Instruction* before = nullptr);
 

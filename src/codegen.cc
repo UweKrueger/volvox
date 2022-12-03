@@ -110,8 +110,17 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	}
 	auto inserter_fn = getFunction(inserter_proto);
 	llvm::Value* ptr = target;
-	if (!ptr)
+	if (!ptr) {
 		ptr = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+		FullVar tmp = {
+			.val = ptr,
+			.ft = {
+				.type = llvm::Type::getInt8PtrTy(Context),
+				.type_attr = A_map
+			}
+		};
+		expr_temps.push_back(tmp);
+	}
 	Builder->CreateStore(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), ptr);
 	llvm::Value* do_replace = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
 	for (unsigned i=0; i<keys.size(); i++) {
@@ -895,6 +904,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
 	if (opclass == OpDeclAssign || opclass == OpAssign || opclass == OpModAssign) {
+		bool postpone_valgen = false;
 		std::pair<llvm::Type*,llvm::Value*> Variable = { nullptr, nullptr };
 		const char* varname = nullptr;
 		// Assignment requires the LHS to be an identifier.
@@ -999,9 +1009,13 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	use_val:
 		if (allocsz <= 16 && !is_constructor_call) {
-			Val = RHS->codegen();
-			if (!Val)
-				return nullptr;
+			if (RHS->ft->type_attr & A_map) {
+				postpone_valgen = true;
+			} else {
+				Val = RHS->codegen();
+				if (!Val)
+					return nullptr;
+			}
 		}
 	have_val_or_valptr:
 		// Look up the name.
@@ -1032,7 +1046,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 			} else {
 				auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
-				Builder->CreateStore(Val, Variable.second);
+				if (postpone_valgen)
+					RHS->codegen_raw(Variable.second);
+				else
+					Builder->CreateStore(Val, Variable.second);
 				return handle(target, OldVal);
 			}
 		}
@@ -1085,6 +1102,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
 				                        Builder->GetInsertBlock());
 			}
+		} else if (postpone_valgen) {
+			entry->val = CreateEntryBlockAlloca(type);
+			RHS->codegen_raw(entry->val);
 		} else if (ValPtr) {
 			if (allocsz) {
 				llvm::AllocaInst* Alloca;
@@ -1481,8 +1501,10 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
 	if (EndKind == tok_return)
 		Branch.back()->desired_type = theFunction_ret_ft->type;
-	for (auto& expr : Branch)
+	for (auto& expr : Branch) {
 		BranchV = expr->codegen();
+		InsertDestructors(expr_temps);
+	}
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
 	if (!BranchV && !isElse)
