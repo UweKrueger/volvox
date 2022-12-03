@@ -294,4 +294,12 @@ fn test_map_var_1() bool
 fn test_map_lit_1() bool
 	return map[string]i32{ "gfgs": 12, "kdDe": -7, "ABffd": 13 }["kdDe"] == -7
 
+fn test_map_lit_2() bool
+	v := map[string]f64{ "ggs": 12.125, "doDe": -7.0625, "ABfd": 13.0625 }["ABfd"]
+	return v == 13.0625
+
+map[string]f64{ "ggs": 12, "doDe": 2.25, "ABd": -1.0625 }
+
+map[string]i32{ "g0st": 12, "dpoDe": -79, "ABfdx": 113, "Qwedf": 99, "PO": -6  }["ABfdx"]
+
 #exit 0
