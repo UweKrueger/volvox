@@ -537,7 +537,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	unsigned is_signed = 0;
 	unsigned is_union = expr->RHS->ft->type_attr & A_union;
 	bool is_constructor_call = false;
-	bool use_target = false;
+	bool use_target= false;
 	llvm::Value* target = nullptr;
 	size_t allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 	if (LREF) {
@@ -569,6 +569,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			if (is_constructor_call || allocsz > 16 && !(sym_kind & A_global))
 				use_target = true;
 		}
+		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target);
 		if (!use_target)
 			Val = expr->RHS->codegen();
 	}
@@ -718,6 +719,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 					Builder->CreateStore(Vval, V);
 				}
 			}
+			InsertDestructors(expr_temps);
 			if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
 				auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 				auto last_saver = getFunction(last_saver_proto);
@@ -1009,7 +1011,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	use_val:
 		if (allocsz <= 16 && !is_constructor_call) {
-			if (RHS->ft->type_attr & A_map) {
+			if (RHS->ft->type_attr & A_use_target) {
 				postpone_valgen = true;
 			} else {
 				Val = RHS->codegen();
