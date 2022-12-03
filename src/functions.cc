@@ -343,11 +343,13 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	}
 }
 
+// call function above for all local variable tables of the current function
 void InsertDestructors(llvm::Value* retp) {
 	for (auto t = locals_table.rbegin(); t != locals_table.rend(); ++t )
 		InsertDestructors(*t, retp);
 }
 
+// insert destructors for intermediate results - this is done afer each complete expression
 void InsertDestructors(std::vector<FullVar>& t) {
 	if (t.empty())
 		return;
