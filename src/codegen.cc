@@ -65,11 +65,9 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::PointerTyID:
 		if (ft->type_attr & A_signed)
 			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
-		else
-			if ((intptr_t)target == -1)
-				return createStringConst(Val.Str);
-			else
-				return handle(target, createStringConst(Val.Str));
+		else if (ft->type_attr & A_string)
+			return handle(target, createStringConst(Val.Str));
+		// else fallthrough
 	default:
 		errs() << "internal compiler error: unhandled literal type " << *ft->type << "\n";
 		return nullptr;
@@ -576,7 +574,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		if (!use_target)
 			Val = expr->RHS->codegen();
 		else if ((expr->RHS->ft->type_attr & A_string) && (sym_kind & A_global)) {
-			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
+			Val = expr->RHS->codegen_raw();
 			use_target = false;
 		}
 	}
