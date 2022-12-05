@@ -811,10 +811,11 @@ _DECL bool enableColorANSI(int fd) {
 }
 
 _DECL char* __string_add(const char* a, const char* b) {
-	unsigned la = (*(unsigned*)a - 1) & ~(1U << 31);
-	unsigned lb = (*(unsigned*)b - 1) & ~(1U << 31);
+	unsigned la = (*(unsigned*)a & ~(1U << 31)) - 1;
+	unsigned lb = (*(unsigned*)b & ~(1U << 31)) - 1;
 	a = volvox2cstr(a);
 	b = volvox2cstr(b);
+	fprintf(stderr, "^^^ string add %u %u %p %p >%s< >%s<\n", la, lb, a, b, a, b);
 	unsigned new_l = la + lb;
 	unsigned new_alloc = (new_l + 12) & ~0x3U;
 	char* n = malloc(new_alloc);

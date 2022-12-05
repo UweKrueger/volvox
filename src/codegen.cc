@@ -536,10 +536,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	llvm::Value* Val;
 	llvm::Type* val_type;
 	llvm::Type* type;
-	llvm::Value* convertedVal;
 	FullVar* is_referencing = nullptr;
 	std::string* rname;
-	std::function<llvm::Value*(llvm::Value*)> conversion;
 	unsigned attribs = 0;
 	unsigned is_union = expr->RHS->ft->type_attr & A_union;
 	bool is_constructor_call = false;
@@ -557,7 +555,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			}
 			auto t_v = refexpr->codegen_ref();
 			val_type = type = t_v.first;
-			convertedVal = Val = t_v.second;
+			Val = t_v.second;
 			if (Val) {
 				is_referencing = BaseVar->full_var;
 				rname = &BaseVar->Name;
@@ -586,28 +584,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		lex.module->globals_table.erase(unmangled_name.c_str());
 		return nullptr;
 	}
-	if (!LREF && !use_target) {
-		val_type = Val->getType();
-		if (expr->RHS->ft->type->isFloatingPointTy() || expr->RHS->ft->type->isIntegerTy()) {
-			auto type_descr = MakeType(expr->RHS->ft->type, expr->RHS->ft->type_attr & A_signed, expr->RHS->is_unknown_type);
-			type = std::get<0>(type_descr);
-			conversion = std::get<1>(type_descr);
-			attribs = std::get<2>(type_descr) ? A_signed : 0;
-			convertedVal = conversion(Val);
-		} else {
-			attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
-			type = expr->RHS->ft->type;
-			conversion = NoConversion;
-			convertedVal = Val;
-		}
-	} else {
-		attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
-		type = expr->RHS->ft->type;
-	}
+	val_type = Val->getType();
+	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
+	type = expr->RHS->ft->type;
 	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
 		llvm::GlobalValue::ExternalLinkage :
 		llvm::GlobalValue::InternalLinkage;
-	llvm::Constant* initializer = use_target ? nullptr : llvm::dyn_cast<llvm::Constant>(convertedVal);
+	llvm::Constant* initializer = use_target ? nullptr : llvm::dyn_cast<llvm::Constant>(Val);
 	bool needs_store;
 	bool needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
 	if (initializer) {
@@ -695,9 +678,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 						errs() << "target *** for " << *GV << '\n';
 						expr->RHS->codegen_raw(GV);
 					} else
-						Builder->CreateStore(convertedVal, GV);
+						Builder->CreateStore(Val, GV);
 				} else { // variable size array - no global
-					auto retVal = StoreValue(convertedVal, expr->RHS->ft, nullptr, varname);
+					auto retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
 					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
 						ndim = struct_type->getNumElements() - 1;
 						for (unsigned dim = 0; ; ) {
