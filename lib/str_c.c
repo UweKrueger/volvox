@@ -823,7 +823,7 @@ _DECL char* __string_add(const char* a, const char* b) {
 	memset(n+new_l, 0, new_alloc-new_l-8);
 	char* res = &n[new_alloc-8];
 	*(unsigned*)res = ((new_l + 1) | (1U << 31));
-	*((unsigned*)res + 1) = 1; // reference count;
+	*((unsigned*)res + 1) = 0; // reference count;
 	return res;
 }
 

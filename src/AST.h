@@ -14,7 +14,9 @@
 inline static llvm::Value* handle(llvm::Value* target, llvm::Value* val) {
 	if (!target)
 		return val;
-	return Builder->CreateStore(val, target);
+	errs() << "storing " << *val << '\n';
+	Builder->CreateStore(val, target);
+	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
 
 /// ExprAST - Base class for all expression nodes.

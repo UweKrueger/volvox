@@ -419,12 +419,13 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	llvm::Type* left_type, llvm::Type* right_type, 
 	const char* Op, unsigned left_attr, unsigned right_attr)
 {
-	if (!strcmp(Op, "+"))
-		if (left_attr & right_attr & A_string)
-			return { llvm::Type::getInt8PtrTy(Context), A_string, false, OpNormal, nullptr };
 	auto opclass = getOpClass(Op);
+	if (!strcmp(Op, "+") || !strcmp(Op, "="))
+		if (left_attr & right_attr & A_string)
+			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
 	if (opclass == OpColon || opclass == OpDeclAssign)
 		return { nullptr, 0, false, opclass, nullptr };
+	errs() << llvm::format("attrs: %x %x\n", left_attr, right_attr);
 	return { nullptr, 0, false, opclass, "illegal use of operator '%s' with string(s)\n" };
 }
 
