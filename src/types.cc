@@ -495,13 +495,13 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	return { getFittingType(res_bitwidth, res_is_float), res_is_signed ? A_signed : 0, res_is_unknown_type, opclass, nullptr };
 }
 
-std::tuple<llvm::Type*, std::function<llvm::Value*(llvm::Value*)>, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
+std::tuple<llvm::Type*, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
 	if(!is_unknown_type)
-		return { type, NoConversion, is_signed };
+		return { type, is_signed };
 	if (type->isIntegerTy())
-		return { llvm::Type::getInt32Ty(Context), [=](llvm::Value* v) { return Builder->CreateSExtOrTrunc(v, llvm::Type::getInt32Ty(Context), "convintinit"); } , true };
+		return { llvm::Type::getInt32Ty(Context) , true };
 	else
-		return { type, NoConversion, false };
+		return { type, false };
 }
 
 volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {

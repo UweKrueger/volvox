@@ -1142,9 +1142,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
 				return nullptr;
 			} else {
-				auto type_descr = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
-				llvm::Type* type = std::get<0>(type_descr);
-				bool is_signed = std::get<2>(type_descr);
+				auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 				FullVar fv = {
 					.val = nullptr,
 					.ft = *RHS->ft

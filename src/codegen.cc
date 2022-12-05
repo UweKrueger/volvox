@@ -1067,20 +1067,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// variable declaration - we know it's no global variable since this has already been handled
 		// in parser.cc
-		unsigned attribs;
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		llvm::Type* type;
-		std::function<llvm::Value*(llvm::Value*)> conversion;
-		if (RHS->ft->type->isFloatingPointTy() || RHS->ft->type->isIntegerTy()) {
-			auto type_descr = MakeType(RHS->ft->type, RHS->ft->type_attr & A_signed, RHS->is_unknown_type);
-			type = std::get<0>(type_descr);
-			conversion = std::get<1>(type_descr);
-			attribs = std::get<2>(type_descr) ? A_signed : 0;
-		} else {
-			type = RHS->ft->type;
-			attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);
-			conversion = NoConversion;
-		}
+		llvm::Type* type = RHS->ft->type;
+		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);
 		FullVar* entry;
 		if (locals_table.empty()) {
 			entry = lex.module->globals_table[varname];
@@ -1096,8 +1085,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		entry->ft.type = type;
 		entry->ft.type_attr = (entry->ft.type_attr & ~(A_signed | A_string | A_map)) | attribs;
 		if (Val) {
-			auto convertedVal = conversion(Val);
-			auto Alloca = StoreValue(convertedVal, &entry->ft, nullptr, varname);
+			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
