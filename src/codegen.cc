@@ -584,7 +584,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		lex.module->globals_table.erase(unmangled_name.c_str());
 		return nullptr;
 	}
-	val_type = Val->getType();
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
 	type = expr->RHS->ft->type;
 	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
@@ -602,7 +601,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			errs() << expr->RHS->Loc << ": internal error - unsized type but constructor required\n";
 			abort();
 		}
-		needs_store = true;
+		needs_store = !use_target;
 		if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		}
@@ -667,7 +666,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			llvm::Type* array_ptr_ty = nullptr;
 			llvm::Value* ptrRet = nullptr;
 			unsigned ndim = 0;
-			if (needs_store) { // no global
+			if (needs_store || use_target) { // no global
 				if (comp_mode != comp_jit) {
 					errs() << expr->Loc <<"internal error: non-global main variable '" << varname
 					       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
