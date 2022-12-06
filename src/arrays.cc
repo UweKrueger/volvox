@@ -568,7 +568,6 @@ llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
 	unsigned l_alloc;
 	cstr2volvoxstr(tmpres, l_alloc, stra, str);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
-	errs() << "String const " << *llvmstr << '\n';
 	auto GV = new llvm::GlobalVariable(*TheModule, llvmstr->getType(), true, llvm::GlobalValue::PrivateLinkage,
 	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
 	GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
@@ -583,7 +582,6 @@ llvm::Value* createStringVal(const char* str, const llvm::Twine &Name) {
 	unsigned l_alloc;
 	cstr2volvoxstr(tmpres, l_alloc, stra, str);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
-	errs() << "String const " << *llvmstr << '\n';
 	llvm::Value* GV = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
 	                                               llvm::Type::getInt64Ty(Context), llvm::Type::getInt8PtrTy(Context),
 	                                               Builder->getInt64(l_alloc), nullptr, nullptr);

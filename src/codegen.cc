@@ -573,7 +573,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				use_target = true;
 		}
 		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & A_global);
-		errs() << "Global codegen for " << varname << " " << use_target << '\n';
 		if (!use_target)
 			Val = expr->RHS->codegen();
 	}
@@ -644,10 +643,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
 			return nullptr;
 		}
-		errs() << "have initializer ";
-		if (initializer)
-			errs() << *initializer;
-		errs() << '\n';
 		fv->storage_type = initializer ? initializer->getType() : nullptr;
 		fv->mangled_name = strdup(varname.c_str());
 		fv->ft = *expr->RHS->ft;
@@ -673,7 +668,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				}
 				if (initializer) { // constant size initializer
 					if (use_target) {
-						errs() << "target *** for " << *GV << '\n';
 						expr->RHS->codegen_raw(GV);
 					} else
 						Builder->CreateStore(Val, GV);
@@ -713,7 +707,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                                  llvm::GlobalVariable::NotThreadLocal, 0, true);
 				V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 				auto Vval = Builder->CreateLoad(initializer->getType(), GV);
-				errs() << "##### shadow for " << varname << "\n";
 				Builder->CreateStore(Vval, V);
 			}
 			InsertDestructors(expr_temps);
@@ -726,7 +719,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 			else
 				Builder->CreateRet(Builder->CreateBitCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
-			finishFunctionOrModule(tmpf, 0, true, false);
+			finishFunctionOrModule(tmpf, 2, true, false);
 			auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 			auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
 			ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
@@ -735,7 +728,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			// must stay, so put the latter in a new module that is not freed
 			// by the resource tracker
 			if (initializer && needs_call) {
-				errs() << "making space for global " << varname << "\n";
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, link_type,
 				                              initializer, varname, nullptr,
@@ -758,7 +750,6 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			// C syntax at its best...
 			char* (*PTR)(size_t*) = (char* (*)(size_t*))(intptr_t)ExprSymbol.getAddress();
 			size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
-			errs() << "calling setter\n";
 			char* varptr = PTR(Dims);
 			if (varptr) {
 				jit_main_variables.emplace_back(varptr);
@@ -1049,7 +1040,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				// TODO: call destructor for OldVal if discarded
 				auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 				if (postpone_valgen) {
-					errs() << "*** postponed valgen " << *Variable.second << "\n";
 					// RHS->codegen_raw(Variable.second);
 					auto v = RHS->codegen();
 					Builder->CreateStore(v, Variable.second);
