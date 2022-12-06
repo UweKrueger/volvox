@@ -569,10 +569,10 @@ llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
 	cstr2volvoxstr(tmpres, l_alloc, stra, str);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
 	errs() << "String const " << *llvmstr << '\n';
-	auto GV = new llvm::GlobalVariable(*TheModule, llvmstr->getType(), true, llvm::GlobalValue::PrivateLinkage,
-	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
-	GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
-	GV->setAlignment(llvm::Align(4));
-	llvm::Constant* Indices[] = {Builder->getInt32(0), Builder->getInt32(l_alloc - 4)};
-    return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
+	llvm::Value* GV = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
+	                                               llvm::Type::getInt64Ty(Context), llvm::Type::getInt8PtrTy(Context),
+	                                               Builder->getInt64(l_alloc), nullptr, nullptr);
+	GV = Builder->Insert(GV);
+	Builder->CreateStore(llvmstr, GV);
+	return Builder->CreateConstGEP2_32(llvmstr->getType(), GV, 0, l_alloc - 4);
 }
