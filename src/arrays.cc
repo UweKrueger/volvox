@@ -573,6 +573,6 @@ llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
 	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
 	GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 	GV->setAlignment(llvm::Align(4));
-	return Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(GV, llvm::Type::getInt64Ty(Context)),
-	                                                  Builder->getInt64(l_alloc - 4)), llvm::Type::getInt8PtrTy(Context));
+	llvm::Constant* Indices[] = {Builder->getInt32(0), Builder->getInt32(l_alloc - 4)};
+    return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
 }

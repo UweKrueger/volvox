@@ -629,7 +629,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, attribs & A_signed), false);
 		}
 		if (initializer) { // i.e. constant size type
-			// If 'needs_store' this here is part of a module which is going to be
+			// If 'needs_call' is true, this here is part of a module which is going to be
 			// removed later. So in this case it's only a declaration and the 'real'
 			// variable is defined below in a separate module that will stay.
 			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
