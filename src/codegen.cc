@@ -318,9 +318,9 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		if (struct_val) {
 			llvm::Value* val;
 			if (Struct->ft->type_attr & A_union) {
-				auto Store = CreateEntryBlockAlloca(ft->type);
+				auto Store = CreateEntryBlockAlloca(struct_val->getType());
 				Builder->CreateStore(struct_val, Store);
-				val = Builder->CreateLoad(ft->type, Store);
+				val = Builder->CreateLoad(ft->type, Builder->CreatePointerCast(Store, ft->type->getPointerTo()));
 			} else
 				val = Builder->CreateExtractValue(struct_val, FieldIndex);
 			return handle(target, val);
