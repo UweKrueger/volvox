@@ -1104,3 +1104,11 @@ error:
    return false;
 }
 #endif
+
+_DECL void printstr(int fd, char* s) {
+	char* sc = volvox2cstr(s);
+	size_t l = strlen(sc);
+	write(fd, sc, l);
+	char n = '\n';
+	write(fd, &n, 1);
+}

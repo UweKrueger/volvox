@@ -73,6 +73,7 @@ cdecl fn enableColorANSI(fd i32) bool
 cdecl fn __signal_out_of_range()
 cdecl fn printadr(&x f64)
 cdecl fn printd(x f64)
+cdecl fn printstr(fd int, s string)
 
 inline fn __check_array_index(index u64, length u64)
 	if index >= length

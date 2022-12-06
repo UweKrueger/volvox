@@ -309,6 +309,8 @@ OpClass getOpClass(const char* Op) {
 			return OpExponentiation;
 		case ':':
 			return OpColon;
+		case ',':
+			return OpComma;
 		default:
 			return OpNormal; // +, -, *, /, %
 		}
@@ -423,7 +425,7 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	if (!strcmp(Op, "+") || !strcmp(Op, "="))
 		if (left_attr & right_attr & A_string)
 			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
-	if (opclass == OpColon || opclass == OpDeclAssign)
+	if (opclass == OpColon || opclass == OpDeclAssign || opclass == OpComma)
 		return { nullptr, 0, false, opclass, nullptr };
 	errs() << llvm::format("attrs: %x %x\n", left_attr, right_attr);
 	return { nullptr, 0, false, opclass, "illegal use of operator '%s' with string(s)\n" };

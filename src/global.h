@@ -308,7 +308,8 @@ enum OpClass : uint8_t {
 	OpLogical,
 	OpBitwise,
 	OpExponentiation,
-	OpColon
+	OpColon,
+	OpComma
 };
 
 #define cstr2volvoxstr(result, lalloc, target, cstr) \
