@@ -574,5 +574,6 @@ llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
 	                                               Builder->getInt64(l_alloc), nullptr, nullptr);
 	GV = Builder->Insert(GV);
 	Builder->CreateStore(llvmstr, GV);
-	return Builder->CreateConstGEP2_32(llvmstr->getType(), GV, 0, l_alloc - 4);
+	return Builder->CreateConstGEP2_32(llvmstr->getType(), Builder->CreatePointerCast(GV, llvmstr->getType()->getPointerTo()),
+	                                   0, l_alloc - 4);
 }
