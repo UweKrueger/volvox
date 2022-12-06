@@ -815,7 +815,6 @@ _DECL char* __string_add(const char* a, const char* b) {
 	unsigned lb = (*(unsigned*)b & ~(1U << 31)) - 1;
 	a = volvox2cstr(a);
 	b = volvox2cstr(b);
-	fprintf(stderr, "^^^ string add %u %u %p %p >%s< >%s<\n", la, lb, a, b, a, b);
 	unsigned new_l = la + lb;
 	unsigned new_alloc = (new_l + 12) & ~0x3U;
 	char* n = malloc(new_alloc);
@@ -1111,4 +1110,9 @@ _DECL void printstr(int fd, char* s) {
 	write(fd, sc, l);
 	char n = '\n';
 	write(fd, &n, 1);
+}
+
+_DECL void modstr(char* s, int idx, char c) {
+	char* sc = volvox2cstr(s);
+	sc[idx] = c;
 }
