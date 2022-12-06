@@ -66,11 +66,10 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		if (ft->type_attr & A_signed)
 			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
 		else if (ft->type_attr & A_string) {
-			if (target) {
-				errs() << "## codegen for string " << Val.Str << " with target " << *target << "\n";
-			} else
-				errs() << "## codegen for string " << Val.Str << '\n';
-			return handle(target, createStringConst(Val.Str));
+			if (target)
+				return handle(target, createStringVal(Val.Str));
+			else
+				return createStringConst(Val.Str);
 		}
 		// else fallthrough
 	default:
