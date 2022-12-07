@@ -20,74 +20,75 @@
 #include <memory>
 
 namespace llvm {
-namespace orc {
+	namespace orc {
 
-class VolvoxJIT {
-private:
-  std::unique_ptr<TargetProcessControl> TPC;
-  std::unique_ptr<ExecutionSession> ES;
+		class VolvoxJIT {
+		private:
+			std::unique_ptr<TargetProcessControl> TPC;
+			std::unique_ptr<ExecutionSession> ES;
+			DataLayout DL;
+			MangleAndInterner Mangle;
+			JITTargetMachineBuilder JTMB;
+			RTDyldObjectLinkingLayer ObjectLayer;
+			IRCompileLayer CompileLayer;
 
-  DataLayout DL;
-  MangleAndInterner Mangle;
+			JITDylib &MainJD;
 
-  RTDyldObjectLinkingLayer ObjectLayer;
-  IRCompileLayer CompileLayer;
+		public:
+			VolvoxJIT(std::unique_ptr<TargetProcessControl> TPC,
+			          std::unique_ptr<ExecutionSession> ES,
+			          JITTargetMachineBuilder _JTMB, DataLayout DL)
+				: TPC(std::move(TPC)), ES(std::move(ES)), DL(std::move(DL)), Mangle(*this->ES, this->DL),
+				  JTMB(_JTMB),
+				  ObjectLayer(*this->ES,
+				              []() { return std::make_unique<SectionMemoryManager>(); }),
+				  CompileLayer(*this->ES, ObjectLayer,
+				               std::make_unique<ConcurrentIRCompiler>(std::move(_JTMB))),
+				  MainJD(this->ES->createBareJITDylib("<main>")) {
+				MainJD.addGenerator(
+					cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(
+						         DL.getGlobalPrefix())));
+			}
 
-  JITDylib &MainJD;
+			~VolvoxJIT() {
+				if (auto Err = ES->endSession())
+					ES->reportError(std::move(Err));
+			}
 
-public:
-  VolvoxJIT(std::unique_ptr<TargetProcessControl> TPC,
-                  std::unique_ptr<ExecutionSession> ES,
-                  JITTargetMachineBuilder JTMB, DataLayout DL)
-      : TPC(std::move(TPC)), ES(std::move(ES)), DL(std::move(DL)),
-        Mangle(*this->ES, this->DL),
-        ObjectLayer(*this->ES,
-                    []() { return std::make_unique<SectionMemoryManager>(); }),
-        CompileLayer(*this->ES, ObjectLayer,
-                     std::make_unique<ConcurrentIRCompiler>(std::move(JTMB))),
-        MainJD(this->ES->createBareJITDylib("<main>")) {
-    MainJD.addGenerator(
-        cantFail(DynamicLibrarySearchGenerator::GetForCurrentProcess(
-            DL.getGlobalPrefix())));
-  }
+			static Expected<std::unique_ptr<VolvoxJIT>> Create() {
+				auto SSP = std::make_shared<SymbolStringPool>();
+				auto TPC = SelfTargetProcessControl::Create(SSP);
+				if (!TPC)
+					return TPC.takeError();
 
-  ~VolvoxJIT() {
-    if (auto Err = ES->endSession())
-      ES->reportError(std::move(Err));
-  }
+				auto ES = std::make_unique<ExecutionSession>(std::move(SSP));
 
-  static Expected<std::unique_ptr<VolvoxJIT>> Create() {
-    auto SSP = std::make_shared<SymbolStringPool>();
-    auto TPC = SelfTargetProcessControl::Create(SSP);
-    if (!TPC)
-      return TPC.takeError();
+				JITTargetMachineBuilder JTMB((*TPC)->getTargetTriple());
 
-    auto ES = std::make_unique<ExecutionSession>(std::move(SSP));
+				auto DL = JTMB.getDefaultDataLayoutForTarget();
+				if (!DL)
+					return DL.takeError();
+				return std::make_unique<VolvoxJIT>(std::move(*TPC), std::move(ES),
+				                                   std::move(JTMB), std::move(*DL));
+			}
 
-    JITTargetMachineBuilder JTMB((*TPC)->getTargetTriple());
+			const DataLayout &getDataLayout() const { return DL; }
 
-    auto DL = JTMB.getDefaultDataLayoutForTarget();
-    if (!DL)
-      return DL.takeError();
+			JITDylib &getMainJITDylib() { return MainJD; }
 
-    return std::make_unique<VolvoxJIT>(std::move(*TPC), std::move(ES),
-                                             std::move(JTMB), std::move(*DL));
-  }
+			Error addModule(ThreadSafeModule TSM, ResourceTrackerSP RT = nullptr) {
+				if (!RT)
+					RT = MainJD.getDefaultResourceTracker();
+				return CompileLayer.add(RT, std::move(TSM));
+			}
 
-  const DataLayout &getDataLayout() const { return DL; }
+			Expected<JITEvaluatedSymbol> lookup(StringRef Name) {
+				return ES->lookup({&MainJD}, Mangle(Name.str()));
+			}
+			Expected<std::unique_ptr<llvm::TargetMachine>> createTargetMachine() {
+				return JTMB.createTargetMachine();
+			}
+		};
 
-  JITDylib &getMainJITDylib() { return MainJD; }
-
-  Error addModule(ThreadSafeModule TSM, ResourceTrackerSP RT = nullptr) {
-    if (!RT)
-      RT = MainJD.getDefaultResourceTracker();
-    return CompileLayer.add(RT, std::move(TSM));
-  }
-
-  Expected<JITEvaluatedSymbol> lookup(StringRef Name) {
-    return ES->lookup({&MainJD}, Mangle(Name.str()));
-  }
-};
-
-} // end namespace orc
+	} // end namespace orc
 } // end namespace llvm

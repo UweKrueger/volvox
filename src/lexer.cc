@@ -17,6 +17,8 @@
 extern "C" char* readline(const char* p);
 extern "C" int add_history(const char *line);
 extern "C" int rl_initialize(void);
+#elif defined(USE_EDITLINE)
+#include <editline.h>
 #else // Linux, NetBSD, Dragonfly BSD, Windows
 // let CPP's '-I...' point to libedit's version of readline.h (see Makefile)
 // make sure linker flags '-L... -l...' match the the same version... 
