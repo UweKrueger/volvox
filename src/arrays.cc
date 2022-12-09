@@ -581,6 +581,7 @@ llvm::Value* createStringVal(const char* str, const llvm::Twine &Name) {
 	char* tmpres;
 	unsigned l_alloc;
 	cstr2volvoxstr(tmpres, l_alloc, stra, str);
+	*(unsigned*)tmpres |= (1U << 31);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
 	llvm::Value* GV = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
 	                                               llvm::Type::getInt64Ty(Context), llvm::Type::getInt8PtrTy(Context),

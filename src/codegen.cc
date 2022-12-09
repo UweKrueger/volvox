@@ -540,7 +540,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	unsigned attribs = 0;
 	unsigned is_union = expr->RHS->ft->type_attr & A_union;
 	bool is_constructor_call = false;
-	bool use_target= false;
+	bool use_target = false;
 	llvm::Value* target = nullptr;
 	size_t allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 	if (LREF) {
@@ -1001,7 +1001,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	use_val:
 		if (allocsz <= 16 && !is_constructor_call) {
-			if (RHS->ft->type_attr & A_use_target) {
+			if (RHS->ft->type_attr & (A_use_target | A_string)) {
 				postpone_valgen = true;
 			} else {
 				Val = RHS->codegen();
@@ -1039,11 +1039,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			} else {
 				// TODO: call destructor for OldVal if discarded
 				auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
-				if (postpone_valgen) {
-					// RHS->codegen_raw(Variable.second);
-					auto v = RHS->codegen();
-					Builder->CreateStore(v, Variable.second);
-				} else
+				if (postpone_valgen)
+					RHS->codegen_raw(Variable.second);
+				else
 					Builder->CreateStore(Val, Variable.second);
 				return handle(target, OldVal);
 			}
