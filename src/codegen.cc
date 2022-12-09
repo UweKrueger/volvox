@@ -1169,6 +1169,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// codegen is postponed - we do lazy evaluation
 	} else {
 		if (opclass == OpExponentiation && !RHS->desired_type && is_fractional(RHS.get())) {
+			// for most operators 'X' we would convert 'float X int' -> 'float X float'
+			// for '^' we would keep 'float ^ int' since this can be calculated faster (without log/exp)
+			// here we have the exception from that exception: 'float ^ (int/int)' or 'float ^ (int + int/int)'
+			// were we do an early float conversion, so '2.0 ^ (1/2)" evaluates to '1.41421356...'
 			if (desired_type)
 				RHS->desired_type = desired_type;
 			else

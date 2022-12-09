@@ -417,6 +417,7 @@ normal_return:
 	return { desired_left_type, desired_right_type, nullptr };
 }
 
+// result_type, result attributes, result is unknown type, Operator Class, errormessage
 static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRes(
 	llvm::Type* left_type, llvm::Type* right_type, 
 	const char* Op, unsigned left_attr, unsigned right_attr)
@@ -427,6 +428,8 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
 	if (opclass == OpColon || opclass == OpDeclAssign || opclass == OpComma)
 		return { nullptr, 0, false, opclass, nullptr };
+	if (opclass == OpComparison)
+		return { llvm::Type::getInt1Ty(Context), 0, false, opclass, nullptr };
 	errs() << llvm::format("attrs: %x %x\n", left_attr, right_attr);
 	return { nullptr, 0, false, opclass, "illegal use of operator '%s' with string(s)\n" };
 }
@@ -436,7 +439,7 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 // smaller one would mean precision loss. This error is not printed because once the
 // desire type is known the operation might still turn out to be valid
 //
-// result_type, result is signed, result is unknown type, Operator Class, errormessage
+// result_type, result attributes, result is unknown type, Operator Class, errormessage
 std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type)
