@@ -26,6 +26,8 @@ DebugInfo KSDbgInfo;
 const char* last_defined_type = nullptr;
 bool needs_libm = false;
 bool support_fp80;
+unsigned target_bytes; // size_t, pointer size in bytes
+unsigned target_bits; // in bits
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -100,30 +102,30 @@ void init() {
 	lex.add_type("i*", llvm::Type::getInt64Ty(Context), nullptr, A_signed);
 	lex.add_type("f*", llvm::Type::getDoubleTy(Context), nullptr);
 
-#if UINTPTR_MAX == UINT16_MAX // e.g. AVR platform
-	lex.add_type("int", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	lex.add_type("uint", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	llvm_int_type = llvm::Type::getInt16Ty(Context);
-	lex.add_type("ssize_t", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	lex.add_type("size_t", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	llvm_size_type = llvm::Type::getInt16Ty(Context);
-	lex.add_type("real", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("real", 32, llvm::dwarf::DW_ATE_float) : nullptr);
-#else
-	lex.add_type("int", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	lex.add_type("uint", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	llvm_int_type = llvm::Type::getInt32Ty(Context);
-#if UINTPTR_MAX == UINT32_MAX
-	lex.add_type("ssize_t", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	lex.add_type("size_t", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	llvm_size_type = llvm::Type::getInt32Ty(Context);
-#else
-	lex.add_type("ssize_t", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	lex.add_type("size_t", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
-	llvm_size_type = llvm::Type::getInt64Ty(Context);
-#endif
+	if (target_bits == 16) {
+		lex.add_type("int", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+		lex.add_type("uint", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+		llvm_int_type = llvm::Type::getInt16Ty(Context);
+		lex.add_type("ssize_t", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+		lex.add_type("size_t", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+		llvm_size_type = llvm::Type::getInt16Ty(Context);
+		lex.add_type("real", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("real", 32, llvm::dwarf::DW_ATE_float) : nullptr);
+	} else {
+		lex.add_type("int", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+		lex.add_type("uint", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+		llvm_int_type = llvm::Type::getInt32Ty(Context);
+		lex.add_type("real", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
+	}
+	if (target_bits == 32) {
+		lex.add_type("ssize_t", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+		lex.add_type("size_t", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+		llvm_size_type = llvm::Type::getInt32Ty(Context);
+	} else if (target_bits == 64) {
+		lex.add_type("ssize_t", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+		lex.add_type("size_t", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+		llvm_size_type = llvm::Type::getInt64Ty(Context);
+	}
 	size_type = lex.get_full_type("size_t");
-	lex.add_type("real", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
-#endif
 	void_type = new_FullType(llvm::Type::getVoidTy(Context), 0);
 	llvm_bool_type = llvm::Type::getInt1Ty(Context);
 	lex.add_type("bool", llvm::Type::getInt1Ty(Context), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
@@ -1228,6 +1230,18 @@ int main(int argc, char* argv[]) {
 			errs() << "using native TLS\n";
 	}
 	support_fp80 = TheTargetMachine->getTargetTriple().isX86();
+	if (TheTargetMachine->getTargetTriple().isArch64Bit())
+		target_bits = 64;
+	else if (TheTargetMachine->getTargetTriple().isArch32Bit())
+		target_bits = 32;
+	else if (TheTargetMachine->getTargetTriple().isArch16Bit())
+		target_bits = 16;
+	else {
+		errs() << "fatal: cannot get pointer size of target '"
+		       << TargetTriple << "'\n";
+		exit(1);
+	}
+	target_bytes = target_bits >> 3;
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.
 		TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version",
