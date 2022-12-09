@@ -64,7 +64,7 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		return handle(target, llvm::ConstantFP::get(Context, llvm::APFloat(Val.Float)));
 	case llvm::Type::PointerTyID:
 		if (ft->type_attr & A_signed)
-			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
+			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
 		else if (ft->type_attr & A_string) {
 			if (target)
 				return handle(target, createStringVal(Val.Str));
@@ -522,7 +522,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	// function is not needed and can be 'erased'
 	auto setter_name = "__global_" + varname + "_setter";
 	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(Context),
-	                                                       { llvm::Type::getInt64Ty(Context)->getPointerTo() }, false);
+	                                                       { llvm_size_type->getPointerTo() }, false);
 	llvm::Function* tmpf = llvm::Function::Create(ptr_fn_t, llvm::Function::ExternalLinkage, setter_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
 	Builder->SetInsertPoint(BB);
@@ -679,8 +679,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 							Builder->CreateStore(Builder->CreateExtractValue(retVal, dim), Arg);
 							if (++dim >= ndim)
 								break;
-							Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm::Type::getInt64Ty(Context)),
-							                                                 Builder->getInt64(sizeof(size_t))), Arg->getType());
+							Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm_size_type),
+							                                                 getSize(target_bytes)), Arg->getType());
 						}
 						ptrRet = Builder->CreateExtractValue(retVal, ndim);
 						array_ptr_ty = ptrRet->getType();
@@ -753,13 +753,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			char* varptr = PTR(Dims);
 			if (varptr) {
 				jit_main_variables.emplace_back(varptr);
-				std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm::Type::getInt64Ty(Context));
+				std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm_size_type);
 				struct_type_el[ndim] = array_ptr_ty;
 				llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
 				llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 				for (unsigned u = 0; u<ndim; u++)
-					the_struct = Builder->CreateInsertValue(the_struct, Builder->getInt64(Dims[u]), u);
-				the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(Builder->getInt64((uintptr_t)varptr), array_ptr_ty), ndim);
+					the_struct = Builder->CreateInsertValue(the_struct, getSize(Dims[u]), u);
+				the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(getSize((uintptr_t)varptr), array_ptr_ty), ndim);
 				fv->val = the_struct;
 				fv->ft.type_attr &= ~A_mainvar;
 			}
@@ -833,7 +833,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				                             0, true);
 				V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
 			}
-			auto sz_const = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), storage_sz);
+			auto sz_const = llvm::ConstantInt::get(llvm_size_type, storage_sz);
 			auto align = TheModule->getDataLayout().getPrefTypeAlign(V_type);
 			// auto align = getAlignment(sz_const);
 			auto saver = std::string("__") + varname + "_saver";
@@ -933,7 +933,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
 		uint64_t allocsz = LREF ?
-			sizeof(void*) :
+			target_bytes :
 			(RHS->desired_type && RHS->desired_type->isSized()) ?
 			TheModule->getDataLayout().getTypeAllocSize(RHS->desired_type) : 0; // if size is compile time const
 		llvm::Value* Val = nullptr;
@@ -980,7 +980,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 						errs() << "array element type must be sized\n";
 						return nullptr;
 					}
-					AllocSize = Builder->getInt64(1);
+					AllocSize = getSize(1);
 					for (auto dim: Dims)
 						AllocSize = Builder->CreateMul(AllocSize, dim);
 					if ((struct_type = llvm::dyn_cast<llvm::StructType>(ValR.second->getType())))
@@ -1111,7 +1111,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			} else {
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
-				llvm::Value* cp_size = Builder->CreateMul(Builder->getInt64(el_allocsz), AllocSize);
+				llvm::Value* cp_size = Builder->CreateMul(getSize(el_allocsz), AllocSize);
 				Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
 				if (Struct) {
 					auto strt = llvm::cast<llvm::StructType>(Struct->getType());
@@ -1597,7 +1597,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 					fixedDims.push_back(0);
 					llvm::Value* dimA;
 					if (nA)
-						dimA = Builder->getInt64(nA);
+						dimA = getSize(nA);
 					else
 						if (iA < n_vardims_A) {
 							dimA = Builder->CreateExtractValue(valA, iA++);
@@ -1609,7 +1609,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 					llvm::Value* dimB;
 					Builder->SetInsertPoint(lastB);
 					if (nB)
-						dimB = Builder->getInt64(nB);
+						dimB = getSize(nB);
 					else
 						if (iB < n_vardims_B) {
 							dimB = Builder->CreateExtractValue(valB, iB++);
@@ -1637,7 +1637,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		Builder->SetInsertPoint(lastB);
 		Bptr = Builder->CreateBitCast(Bptr, ptr_t);
 		llvm::Type* resultT = typA;
-		std::vector<llvm::Type*> struct_type_el(varDimsA.size() + 1, llvm::Type::getInt64Ty(Context));
+		std::vector<llvm::Type*> struct_type_el(varDimsA.size() + 1, llvm_size_type);
 		struct_type_el[varDimsA.size()] = ptr_t;
 		llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
 		Builder->SetInsertPoint(lastA);

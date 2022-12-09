@@ -401,7 +401,7 @@ public:
 	                  std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {},
 	                  volvoxc::FullType* el_type = nullptr,
 	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
-		AggregateExprAST(Loc, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs),
+		AggregateExprAST(Loc, llvm_size_type, 0, std::move(_Elements), std::move(_valid_exprs),
 		                 std::move(_LitDims), el_type), Dims(std::move(_Dims)), LenLocs(LenLocs)
 		{
 			// the AggregateExprAST constructor should have determined the element type if not
@@ -420,7 +420,7 @@ public:
 	                  std::vector<std::unique_ptr<ExprAST>> _Elements = {},
 	                  std::vector<ExprAST*> _valid_exprs = {}, std::vector<unsigned> _LitDims = {},
 	                  std::vector<std::unique_ptr<ExprAST>> _Dims = {}, std::vector<SourceLocation> LenLocs = {}) :
-		AggregateExprAST(Loc, _ft, llvm::Type::getInt64Ty(Context), 0, std::move(_Elements), std::move(_valid_exprs),
+		AggregateExprAST(Loc, _ft, llvm_size_type, 0, std::move(_Elements), std::move(_valid_exprs),
 		                 std::move(_LitDims)), Dims(std::move(_Dims)), LenLocs(LenLocs) {}
 	llvm::Value* getArrayLitVal(llvm::ArrayType* initializer_type, ListExprAST* List);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;

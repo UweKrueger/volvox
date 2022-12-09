@@ -617,8 +617,8 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		llvm::Constant *Indices[] = {Zero, Zero};
 		fields.push_back(llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices));
 	} else {
-		fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), (uint64_t)(
-			                                        ft->type->isFunctionTy() ? sizeof(char*) : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
+		fields.push_back(llvm::ConstantInt::get(llvm_size_type, (uint64_t)(
+			                                        ft->type->isFunctionTy() ? target_bytes : TheModule->getDataLayout().getTypeAllocSize(ft->type))));
 	}
 	llvm::Constant* TypeName;
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {

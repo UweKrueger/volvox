@@ -274,12 +274,12 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	if (!destructor)
 		return;
 	auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType());
-	llvm::Value* AllocSize = Builder->getInt64(1);
+	llvm::Value* AllocSize = getSize(1);
 	unsigned i = 0;
 	while (auto array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 		elem_type = array_type->getElementType();
 		if (auto n = array_type->getNumElements())
-			AllocSize = Builder->CreateMul(AllocSize, Builder->getInt64(n));
+			AllocSize = Builder->CreateMul(AllocSize, getSize(n));
 		else
 			AllocSize = Builder->CreateMul(AllocSize, Builder->CreateExtractValue(val, i++));
 	}
@@ -288,15 +288,15 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 		abort();
 	}
 	auto elem_sz = TheModule->getDataLayout().getTypeAllocSize(elem_type);
-	auto ElemAllocSize = Builder->getInt64(elem_sz);
+	auto ElemAllocSize = getSize(elem_sz);
 	AllocSize = Builder->CreateMul(AllocSize, ElemAllocSize);
 	llvm::Type* elem_ptr_ty = elem_type->getPointerTo();
 	auto elDestructorFT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { elem_ptr_ty }, false);
 	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB->getParent();
 	llvm::Value* Ptr = i ? Builder->CreateExtractValue(val, i) : val;
-	Ptr = Builder->CreatePtrToInt(Ptr, llvm::Type::getInt64Ty(Context));
-	llvm::Value* PtrStore = CreateEntryBlockAlloca(llvm::Type::getInt64Ty(Context), "", TheFunction);
+	Ptr = Builder->CreatePtrToInt(Ptr, llvm_size_type);
+	llvm::Value* PtrStore = CreateEntryBlockAlloca(llvm_size_type, "", TheFunction);
 	Builder->CreateStore(Ptr, PtrStore);
 	llvm::Value* UpperLimit = Builder->CreateAdd(Ptr, AllocSize);
 	llvm::BasicBlock* ContBB;
@@ -313,7 +313,7 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "loopwhile");
 	TheFunction->getBasicBlockList().push_back(DestructorBB);
 	Builder->SetInsertPoint(DestructorBB);
-	Ptr = Builder->CreateLoad(llvm::Type::getInt64Ty(Context), PtrStore);
+	Ptr = Builder->CreateLoad(llvm_size_type, PtrStore);
 	llvm::Value* ElPtr = Builder->CreateIntToPtr(Ptr, elem_ptr_ty);
 	Builder->CreateCall(elDestructorFT, destructor, ElPtr);
 	llvm::Value* NewPtr = Builder->CreateAdd(Ptr, ElemAllocSize);
@@ -321,7 +321,7 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	Builder->CreateBr(CondBB);
 	TheFunction->getBasicBlockList().push_back(CondBB);
 	Builder->SetInsertPoint(CondBB);
-	Ptr = Builder->CreateLoad(llvm::Type::getInt64Ty(Context), PtrStore);
+	Ptr = Builder->CreateLoad(llvm_size_type, PtrStore);
 	auto is_less = Builder->CreateICmpULT(Ptr, UpperLimit);
 	Builder->CreateCondBr(is_less, DestructorBB, ContBB);
 	if (before)
@@ -393,8 +393,8 @@ llvm::Value* Volvox2CStr2(llvm::Value* v, llvm::Value* subtrahend) {
 	subtrahend = Builder->CreateAnd(subtrahend, ~((1U << 31) | 3U));
 	auto cstr = Builder->CreateIntToPtr(
 		Builder->CreateSub(
-			Builder->CreatePtrToInt(v, llvm::Type::getInt64Ty(Context)),
-			Builder->CreateIntCast(subtrahend, llvm::Type::getInt64Ty(Context), false)),
+			Builder->CreatePtrToInt(v, llvm_size_type),
+			Builder->CreateIntCast(subtrahend, llvm_size_type, false)),
 		llvm::Type::getInt8PtrTy(Context));
 	return cstr;
 }

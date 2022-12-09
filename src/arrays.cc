@@ -33,7 +33,7 @@ llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	llvm::Value* LenVal = Builder->getInt64(1);
+	llvm::Value* LenVal = getSize(1);
 	std::vector<llvm::Value*> LenVals;
 	LenVals.reserve(Dims.size());
 	auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type);
@@ -44,9 +44,9 @@ llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	for (int j = 0; j < Dims.size(); j++) {
 		llvm::Value* curDim;
 		if (Dims[j])
-			curDim = Builder->CreateIntCast(Dims[j]->codegen(), llvm::Type::getInt64Ty(Context), false);
+			curDim = Builder->CreateIntCast(Dims[j]->codegen(), llvm_size_type, false);
 		else
-			curDim = Builder->getInt64(LitDims[j]);
+			curDim = getSize(LitDims[j]);
 		LenVal = Builder->CreateMul(LenVal, curDim);
 		LenVals.push_back(curDim);
 	}
@@ -70,7 +70,7 @@ llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	if (!Sizes.size()) {
 		return ini;
 	} else {
-		std::vector<llvm::Type*> struct_type_el(Sizes.size() + 1, llvm::Type::getInt64Ty(Context));
+		std::vector<llvm::Type*> struct_type_el(Sizes.size() + 1, llvm_size_type);
 		struct_type_el[Sizes.size()] = ini->getType();
 		llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
 		llvm::Value* varini = llvm::UndefValue::get(struct_type);
@@ -87,14 +87,14 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 		uint64_t nelem = array_type->getNumElements();
 		llvm::Type* elem_type = array_type->getElementType();
 		llvm::Value* Sz = Sizes[depth];
-		llvm::Value* Sz2 = Builder->CreateMul(Builder->getInt64(nelem), Sizes[depth+1]);
+		llvm::Value* Sz2 = Builder->CreateMul(getSize(nelem), Sizes[depth+1]);
 		if (auto subarray_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)) {
 			depth++;
 			for (uint64_t j = 0; j < nelem; j++) {
 				StoreArray(Adr, Builder->CreateExtractValue(ArrData, j), Sizes, depth);
 				Adr = Builder->CreateIntToPtr(
 					Builder->CreateAdd(
-						Builder->CreatePtrToInt(Adr, llvm::Type::getInt64Ty(Context)), Sizes[depth]),
+						Builder->CreatePtrToInt(Adr, llvm_size_type), Sizes[depth]),
 					Adr->getType());
 			}
 		} else {
@@ -107,7 +107,7 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 				Builder->CreateStore(ArrData, Builder->CreateBitCast(ArrayAlloc, ArrData->getType()->getPointerTo()));
 			Adr = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
-					Builder->CreatePtrToInt(Adr, llvm::Type::getInt64Ty(Context)),
+					Builder->CreatePtrToInt(Adr, llvm_size_type),
 					Sz2),
 				Adr->getType());
 		}
@@ -126,7 +126,7 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 
 static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, llvm::Type* elem_type,
                                                             std::vector<llvm::Value*>& Dims, const llvm::Twine& Name = "") {
-	auto ElemSize = Builder->getInt64(TheModule->getDataLayout().getTypeAllocSize(elem_type));
+	auto ElemSize = getSize(TheModule->getDataLayout().getTypeAllocSize(elem_type));
 	std::vector<llvm::Value*> Sizes(Dims.size() + 1, nullptr);
 	Sizes[Dims.size()] = ElemSize;
 	for (int j = Dims.size() - 1; j >= 0; j--)
@@ -153,7 +153,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 		else {
 			ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-			                                          llvm::Type::getInt64Ty(Context), llvm::Type::getInt8PtrTy(Context),
+			                                          llvm_size_type, llvm::Type::getInt8PtrTy(Context),
 			                                          ElemSize, Len,
 			                                          nullptr, Name);
 			ArrayAlloc = Builder->Insert(ArrayAlloc);
@@ -189,9 +189,9 @@ llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type, std::vec
 				}
 			} else {
 				// expect RT-dimension, got CT-dimension
-				returnDims.push_back(Builder->getInt64(nominal_dim));
+				returnDims.push_back(getSize(nominal_dim));
 			}
-			Dims.push_back(Builder->getInt64(nominal_dim));
+			Dims.push_back(getSize(nominal_dim));
 		} else {
 			// val has RT-dim for this level
 			llvm::Value* Dim = Builder->CreateExtractValue(val, idx++);
@@ -232,7 +232,7 @@ llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayType* ar
 	} else {
 		if (auto str_ty = llvm::dyn_cast<llvm::StructType>(val->getType()))
 			val = Builder->CreateExtractValue(val, str_ty->getNumElements() - 1);
-		std::vector<llvm::Type*> struct_types(returnDims.size() + 1, llvm::Type::getInt64Ty(Context));
+		std::vector<llvm::Type*> struct_types(returnDims.size() + 1, llvm_size_type);
 		struct_types[returnDims.size()] = val->getType();
 		llvm::Type* ret_struct_type = llvm::StructType::get(Context, struct_types);
 		llvm::Value* ret = llvm::UndefValue::get(ret_struct_type);
@@ -353,7 +353,7 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 		if (idx_idx < Idxs.size()) {
 			cur_Offset = Idxs[idx_idx];
 			if (const_elem_size != 1)
-				cur_Offset = Builder->CreateMul(Builder->getInt64(const_elem_size), cur_Offset);
+				cur_Offset = Builder->CreateMul(getSize(const_elem_size), cur_Offset);
 			if (var_elem_size)
 				cur_Offset = Builder->CreateMul(cur_Offset, var_elem_size);
 		} else if (idx_idx == Idxs.size()) {
@@ -420,8 +420,8 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 				}
 			}
 			if (auto int_type = llvm::dyn_cast<llvm::IntegerType>(idx->getType())) {
-				if (int_type->getBitWidth() != 64)
-					idx = Builder->CreateIntCast(idx, llvm::Type::getInt64Ty(Context), false);
+				if (int_type->getBitWidth() != target_bits)
+					idx = Builder->CreateIntCast(idx, llvm_size_type, false);
 			} else {
 				errs() << aggr->Elements[0]->Loc << ": array indices must be integers - not " << *idx->getType() << '\n';
 				return nullptr;
@@ -465,12 +465,12 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 			abort();
 		}
 		if (offset)
-			Ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Ptr, llvm::Type::getInt64Ty(Context)), offset), Field->ft->elem_type->type->getPointerTo());
+			Ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Ptr, llvm_size_type), offset), Field->ft->elem_type->type->getPointerTo());
 		else
 			Ptr = Builder->CreateBitCast(Ptr, Field->ft->elem_type->type->getPointerTo());
 		if (!n_var_dims)
 			return { ml_elem_type, Ptr };
-		std::vector<llvm::Type*> new_struct_el(n_var_dims + 1, llvm::Type::getInt64Ty(Context));
+		std::vector<llvm::Type*> new_struct_el(n_var_dims + 1, llvm_size_type);
 		new_struct_el[n_var_dims] = Ptr->getType();
 		llvm::Type* new_struct_type = llvm::StructType::get(Context, new_struct_el);
 		llvm::Value* res = llvm::UndefValue::get(new_struct_type);
@@ -584,8 +584,8 @@ llvm::Value* createStringVal(const char* str, const llvm::Twine &Name) {
 	*(unsigned*)tmpres |= (1U << 31);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
 	llvm::Value* GV = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-	                                               llvm::Type::getInt64Ty(Context), llvm::Type::getInt8PtrTy(Context),
-	                                               Builder->getInt64(l_alloc), nullptr, nullptr);
+	                                               llvm_size_type, llvm::Type::getInt8PtrTy(Context),
+	                                               getSize(l_alloc), nullptr, nullptr);
 	GV = Builder->Insert(GV);
 	Builder->CreateStore(llvmstr, GV);
 	return Builder->CreateConstGEP2_32(llvmstr->getType(), Builder->CreatePointerCast(GV, llvmstr->getType()->getPointerTo()),
