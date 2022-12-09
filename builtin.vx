@@ -3,6 +3,8 @@ cdecl fn cos(x f64) f64
 cdecl fn tan(x f64) f64
 cdecl fn sqrt(x f64) f64
 cdecl fn exit(n int)
+cdecl fn strcmp(s1 string, s2 string) i32
+cdecl fn strncmp(s1 string, s2 string, len u64) i32
 type _ZN6volvox6RtTypeE packed {
 	key u32
 	attr u32

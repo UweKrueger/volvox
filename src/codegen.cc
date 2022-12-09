@@ -889,6 +889,14 @@ inline bool is_fractional(ExprAST* expr) {
 	return false;
 }
 
+static llvm::Value* compare_strings(llvm::Value* L, llvm::Value* R) {
+	std::string C_strcpy = "strcmp";
+	auto strcmp_proto = (*lex.findProtos(C_strcpy))[0].get();
+	auto strcmp_fn = getFunction(strcmp_proto);
+	return Builder->CreateCall(strcmp_proto->FT, strcmp_fn, std::vector<llvm::Value*>{
+			Volvox2CStr(L), Volvox2CStr(R) });
+}
+
 llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -1358,6 +1366,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			case is_float:
 				result = Builder->CreateFCmpONE(L, R, "neftmp");
 				break;
+			case is_string:
+				result = Builder->CreateICmpNE(compare_strings(L, R), Builder->getInt32(0));
+				break;
 			default:
 				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
@@ -1378,6 +1389,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		case is_float:
 			result = Builder->CreateFCmpOEQ(L, R, "eqftmp");
+			break;
+		case is_string:
+			result = Builder->CreateICmpEQ(compare_strings(L, R), Builder->getInt32(0));
 			break;
 		default:
 			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
