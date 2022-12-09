@@ -354,12 +354,17 @@ extern const char* getThisExePath();
 extern const char* volvox_root();
 extern const char* volvox_lib();
 // often used types - for faster access
+extern unsigned target_bytes; // size_t, pointer size in bytes
+extern unsigned target_bits; // in bits
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* bool_type;
-extern volvoxc::FullType* uintptr_type;
+extern volvoxc::FullType* size_type;
+static inline llvm::ConstantInt* getSize(uint64_t n) {
+	return llvm::ConstantInt::get(llvm::IntegerType::get(Context, target_bits), n);
+}
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
 

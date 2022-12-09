@@ -67,7 +67,7 @@ llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
-volvoxc::FullType* uintptr_type;
+volvoxc::FullType* size_type;
 
 #ifdef LEGACY_PASS_MANAGER
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM = nullptr;
@@ -104,8 +104,8 @@ void init() {
 	lex.add_type("int", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	lex.add_type("uint", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_int_type = llvm::Type::getInt16Ty(Context);
-	lex.add_type("size", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("size", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	lex.add_type("usize", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.add_type("ssize_t", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.add_type("size_t", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt16Ty(Context);
 	lex.add_type("real", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("real", 32, llvm::dwarf::DW_ATE_float) : nullptr);
 #else
@@ -113,20 +113,18 @@ void init() {
 	lex.add_type("uint", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_int_type = llvm::Type::getInt32Ty(Context);
 #if UINTPTR_MAX == UINT32_MAX
-	lex.add_type("size", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("size", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	lex.add_type("usize", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.add_type("ssize_t", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.add_type("size_t", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt32Ty(Context);
 #else
-	lex.add_type("size", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("size", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-	lex.add_type("usize", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("usize", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	lex.add_type("ssize_t", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
+	lex.add_type("size_t", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	llvm_size_type = llvm::Type::getInt64Ty(Context);
 #endif
-	uintptr_type = lex.get_full_type("usize");
+	size_type = lex.get_full_type("size_t");
 	lex.add_type("real", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 #endif
-	lex.add_type("void", llvm::Type::getVoidTy(Context), nullptr);
-	// TODO: make .add() return FullType*
-	void_type = lex.get_full_type("void");
+	void_type = new_FullType(llvm::Type::getVoidTy(Context), 0);
 	llvm_bool_type = llvm::Type::getInt1Ty(Context);
 	lex.add_type("bool", llvm::Type::getInt1Ty(Context), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
 	bool_type = lex.get_full_type("bool");
