@@ -308,4 +308,19 @@ hjhg7["ggs"]
 
 hjhg7["ABd"]
 
+akd4 := "qwertz123"
+
+global akd5 := "789"
+
+akd5 = akd5 + akd4
+
+fn test_main_string() bool
+	return akd5 == "789qwertz123"
+
+fn test_local_string() bool
+	x := "hfqer"
+	y := "Ms239"
+	z := x + y
+	return z == "hfqerMs239"
+
 #exit 0
