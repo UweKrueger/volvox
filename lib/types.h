@@ -149,8 +149,8 @@ namespace volvox {
 		};
 		unsigned type_attr;
 		union {
-			uint64_t type_size;
-			uint64_t* dims; // for (multi dimensional) arrays
+			size_t type_size;
+			size_t* dims; // for (multi dimensional) arrays
 		};
 		const char* name;
 		union {
