@@ -1242,6 +1242,12 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 	target_bytes = target_bits >> 3;
+	if (comp_mode == comp_obj) {
+		TheModule->setTargetTriple(TargetTriple);
+		TheModule->setDataLayout(TheTargetMachine->createDataLayout());
+		// auto strrep = TheModule->getDataLayout().getStringRepresentation();
+		// errs() << "Data Layout: >" << strrep << "<\n";
+	}
 	if (comp_mode == comp_dbg) {
 		// Add the current debug info version into the module.
 		TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version",
@@ -1297,9 +1303,6 @@ int main(int argc, char* argv[]) {
 	}
 	int result = 0;
 	if (comp_mode == comp_obj) {
-		TheModule->setTargetTriple(TargetTriple);
-		TheModule->setDataLayout(TheTargetMachine->createDataLayout());
-	  
 		auto Filename = output_file;
 		std::error_code EC;
 		llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);

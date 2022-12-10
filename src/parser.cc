@@ -246,6 +246,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 				idx--;
 				size_t sz = TheModule->getDataLayout().getTypeAllocSize(LLVMFieldTypes[idx]);
 				while (idx) {
+					// backwards loop - move largest element to index 0 and pop upper elements
 					size_t sz2 = TheModule->getDataLayout().getTypeAllocSize(LLVMFieldTypes[idx-1]);
 					if (sz > sz2)
 						LLVMFieldTypes[idx-1] = LLVMFieldTypes[idx];

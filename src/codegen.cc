@@ -246,7 +246,7 @@ llvm::MaybeAlign getAlignment(size_t elem_size) {
 		if (align >= elem_size)
 			break;
 		align <<= 1;
-	} while (align < 8);
+	} while (align < target_bytes);
 	return llvm::MaybeAlign(align);
 }
 

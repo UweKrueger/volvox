@@ -268,8 +268,8 @@ static void EraseInstruction(llvm::Instruction* inst) {
 }
 
 void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
-                                     volvoxc::FullType* array_elem_type, llvm::Value* val, llvm::Instruction* before,
-                                     bool is_constructor) {
+                              volvoxc::FullType* array_elem_type, llvm::Value* val, llvm::Instruction* before,
+                              bool is_constructor) {
 	llvm::Function* destructor = getDestructor(array_elem_type, false, is_constructor);
 	if (!destructor)
 		return;
