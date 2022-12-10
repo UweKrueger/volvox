@@ -565,23 +565,28 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
 	char* stra;
 	char* tmpres;
-	unsigned l_alloc;
+	size_t l_alloc;
 	cstr2volvoxstr(tmpres, l_alloc, stra, str);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
 	auto GV = new llvm::GlobalVariable(*TheModule, llvmstr->getType(), true, llvm::GlobalValue::PrivateLinkage,
 	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
 	GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
-	GV->setAlignment(llvm::Align(4));
-	llvm::Constant* Indices[] = {Builder->getInt32(0), Builder->getInt32(l_alloc - 4)};
+	GV->setAlignment(llvm::Align(target_bytes));
+	llvm::Constant* Indices[] = {Builder->getInt32(0), Builder->getInt32(l_alloc - target_bytes)};
 	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
 }
 
 llvm::Value* createStringVal(const char* str, const llvm::Twine &Name) {
 	char* stra;
 	char* tmpres;
-	unsigned l_alloc;
+	size_t l_alloc;
 	cstr2volvoxstr(tmpres, l_alloc, stra, str);
-	*(unsigned*)tmpres |= (1U << 31);
+	if (target_bits == 64)
+		*(uint64_t*)tmpres |= (1ULL << 63);
+	else if (target_bits == 32)
+		*(uint32_t*)tmpres |= (1U << 31);
+	else
+		*(uint16_t*)tmpres |= (1U << 15);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
 	llvm::Value* GV = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
 	                                               llvm_size_type, llvm::Type::getInt8PtrTy(Context),
@@ -589,5 +594,5 @@ llvm::Value* createStringVal(const char* str, const llvm::Twine &Name) {
 	GV = Builder->Insert(GV);
 	Builder->CreateStore(llvmstr, GV);
 	return Builder->CreateConstGEP2_32(llvmstr->getType(), Builder->CreatePointerCast(GV, llvmstr->getType()->getPointerTo()),
-	                                   0, l_alloc - 4);
+	                                   0, l_alloc - target_bytes);
 }

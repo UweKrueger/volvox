@@ -811,18 +811,18 @@ _DECL bool enableColorANSI(int fd) {
 }
 
 _DECL char* __string_add(const char* a, const char* b) {
-	unsigned la = (*(unsigned*)a & ~(1U << 31)) - 1;
-	unsigned lb = (*(unsigned*)b & ~(1U << 31)) - 1;
+	size_t la = (*(size_t*)a & ~((size_t)1 << (SIZE_T_BITS-1))) - 1;
+	size_t lb = (*(size_t*)b & ~((size_t)1 << (SIZE_T_BITS-1))) - 1;
 	a = volvox2cstr(a);
 	b = volvox2cstr(b);
-	unsigned new_l = la + lb;
-	unsigned new_alloc = (new_l + 8) & ~0x3U;
+	size_t new_l = la + lb;
+	size_t new_alloc = (new_l + 2*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
 	char* n = malloc(new_alloc);
 	memcpy(n, a, la);
 	memcpy(n+la, b, lb);
-	memset(n+new_l, 0, new_alloc-new_l-4);
-	char* res = &n[new_alloc-4];
-	*(unsigned*)res = ((new_l + 1) | (1U << 31));
+	memset(n+new_l, 0, new_alloc-new_l-sizeof(size_t));
+	char* res = &n[new_alloc-sizeof(size_t)];
+	*(size_t*)res = ((new_l + 1) | ((size_t)1 << (SIZE_T_BITS-1)));
 	return res;
 }
 
@@ -1104,8 +1104,8 @@ error:
 #endif
 
 _DECL void printstr(int fd, char* s) {
+	size_t l = *(size_t*)s - 1;
 	char* sc = volvox2cstr(s);
-	size_t l = strlen(sc);
 	write(fd, sc, l);
 	char n = '\n';
 	write(fd, &n, 1);

@@ -53,8 +53,9 @@ typedef struct volvox_glob_t {
 #endif
 
 #ifndef volvox2cstr
+#define SIZE_T_BITS ((sizeof(size_t) == 8) ? 64 : (sizeof(size_t) == 4) ? 32 : 16)
 // an LLVM implementation of this function is available as Volvox2CStr()
-#define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))
+#define volvox2cstr(v) (v - ((*(size_t*)v + (sizeof(size_t)-1)) & ~(((size_t)1 << (SIZE_T_BITS-1)) | (sizeof(size_t)-1))))
 #endif
 
 #ifdef __cplusplus

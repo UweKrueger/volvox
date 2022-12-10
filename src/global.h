@@ -313,14 +313,19 @@ enum OpClass : uint8_t {
 };
 
 #define cstr2volvoxstr(result, lalloc, target, cstr) \
-	unsigned _l = strlen(cstr); \
-	lalloc = (_l+8) & ~0x3U; /* add space for \0 and one aligend u32 */ \
-	target = (char*)(((uintptr_t)alloca(lalloc+3) + 3U) & ~0x3ULL); /* create 4-byte aligned space */ \
+	size_t _l = strlen(cstr); \
+	lalloc = (_l+2*target_bytes) & ~(size_t)(target_bytes-1); /* add space for \0 and one aligend size_t */ \
+	target = (char*)(((size_t)alloca(lalloc + target_bytes - 1) + target_bytes - 1) & ~(size_t)(target_bytes - 1)); /* create target_bytes-byte aligned space */ \
 	strcpy(target, cstr); \
-	for (unsigned n = _l; n < lalloc-4; n++) \
+	for (size_t n = _l; n < lalloc-target_bytes; n++) \
 		target[n]=0; /* make sure padding is zerored */ \
-	result = target + lalloc - 4; \
-	*(unsigned*)result = _l + 1 /* store size including terminating 0 - make calculation of start easier */
+	result = target + lalloc - target_bytes; \
+	if (target_bits == 64) \
+		*(uint64_t*)result = _l + 1; /* store size including terminating 0 - make calculation of start easier */ \
+	else if (target_bits == 32) \
+		*(uint32_t*)result = _l + 1; \
+	else \
+		*(uint16_t*)result = _l + 1
 
 extern llvm::Value* Volvox2CStr(llvm::Value* v);
 extern void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,

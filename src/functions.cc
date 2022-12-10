@@ -382,15 +382,15 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 }
 
 llvm::Value* Volvox2CStr1(llvm::Value* v) {
-	// LLVM implementation of macro '#define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))'
-	auto vp = Builder->CreatePointerCast(v, llvm::Type::getInt32PtrTy(Context));
-	llvm::Value* subtrahend = Builder->CreateLoad(llvm::Type::getInt32Ty(Context), vp);
+	// LLVM implementation of macro '#define volvox2cstr(v)
+	auto vp = Builder->CreatePointerCast(v, llvm_size_type->getPointerTo());
+	llvm::Value* subtrahend = Builder->CreateLoad(llvm_size_type, vp);
 	return subtrahend;
 }
 
 llvm::Value* Volvox2CStr2(llvm::Value* v, llvm::Value* subtrahend) {
-	subtrahend = Builder->CreateAdd(subtrahend, Builder->getInt32(3));
-	subtrahend = Builder->CreateAnd(subtrahend, ~((1U << 31) | 3U));
+	subtrahend = Builder->CreateAdd(subtrahend, getSize(target_bytes - 1));
+	subtrahend = Builder->CreateAnd(subtrahend, ~((1ULL << (target_bits - 1)) | (target_bytes - 1)));
 	auto cstr = Builder->CreateIntToPtr(
 		Builder->CreateSub(
 			Builder->CreatePtrToInt(v, llvm_size_type),
@@ -410,7 +410,7 @@ void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
 	llvm::Function* TheFunction = enterBB->getParent();
 	auto v = Builder->CreateLoad(fv->ft.type, fv->val);
 	auto subtrahend = Volvox2CStr1(v);
-	llvm::Value* destructflag = Builder->CreateAnd(subtrahend, 1U << 31);
+	llvm::Value* destructflag = Builder->CreateAnd(subtrahend, 1ULL << (target_bits - 1));
 	destructflag = Builder->CreateIsNotNull(destructflag);
 	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "stringdestr");
 	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "contdestr");
