@@ -65,12 +65,8 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::PointerTyID:
 		if (ft->type_attr & A_signed)
 			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
-		else if (ft->type_attr & A_string) {
-			if (target)
-				return handle(target, createStringVal(Val.Str));
-			else
-				return createStringConst(Val.Str);
-		}
+		else if (ft->type_attr & A_string)
+			return handle(target, createStringConst(Val.Str));
 		// else fallthrough
 	default:
 		errs() << "internal compiler error: unhandled literal type " << *ft->type << "\n";
