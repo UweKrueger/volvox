@@ -1115,3 +1115,34 @@ _DECL void modstr(char* s, int idx, char c) {
 	char* sc = volvox2cstr(s);
 	sc[idx] = c;
 }
+
+_DECL char* __string_make_writable(char** SizeRef) {
+	size_t len = *(size_t*)(*SizeRef);
+	size_t alloc_l = (len + 2*sizeof(size_t) - 1) & ~(sizeof(size_t) - 1);
+	char* buf = malloc(alloc_l);
+	size_t offset = (alloc_l - sizeof(size_t));
+	memcpy(buf, *SizeRef - offset, offset + sizeof(size_t));
+	buf += offset;
+	*(size_t*)buf = len | ((size_t)1 << (SIZE_T_BITS-1));
+	return buf;
+}
+
+_DECL char* __string_resize(char** SizeRef, size_t new_len) {
+	char* ptr = *SizeRef;
+	size_t raw_len = *(size_t*)ptr;
+	size_t len = raw_len & ~((size_t)1 << (SIZE_T_BITS-1));
+	size_t old_offset = (raw_len + (sizeof(size_t)-1)) & ~(((size_t)1 << (SIZE_T_BITS-1)) | (sizeof(size_t)-1));
+	char* cstr = ptr - old_offset;
+	size_t new_offset = (new_len + sizeof(size_t) - 1) & ~(sizeof(size_t) - 1);
+	if (raw_len & ((size_t)1 << (SIZE_T_BITS-1))) { // already heap allocated
+		if (new_offset != old_offset)
+			cstr = realloc(cstr, new_offset + sizeof(size_t));
+	} else {
+		char* new_cstr = malloc(new_offset + sizeof(size_t));
+		memcpy(new_cstr, cstr, old_offset <= new_offset ? old_offset : new_offset);
+		cstr = new_cstr;
+	}
+	*SizeRef = cstr + new_offset;
+	*(size_t*)(*SizeRef) = new_len | ((size_t)1 << (SIZE_T_BITS-1));
+	return cstr;
+}
