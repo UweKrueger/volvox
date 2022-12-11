@@ -810,6 +810,36 @@ _DECL bool enableColorANSI(int fd) {
 #endif
 }
 
+_DECL char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
+	size_t new_l = 0;
+	for (size_t i = 0; i<m; i++)
+		new_l += ((*(size_t*)(a[i]) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
+	size_t new_alloc = (new_l + 2*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
+	char* n;
+	size_t offset;
+	size_t idx;
+	if (is_add_assign && (*(size_t*)(a[0]) & ((size_t)1 << (SIZE_T_BITS-1)))) {
+		char* cstr0 = volvox2cstr(a[0]);
+		n = realloc(cstr0, new_alloc);
+		idx = 1;
+		offset = ((*(size_t*)(a[0]) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
+	} else {
+		n = malloc(new_alloc);
+		idx = 0;
+		offset = 0;
+	}
+	for ( ; idx < m; idx++) {
+		char* cstr = volvox2cstr(a[idx]);
+		size_t len = ((*(size_t*)(a[idx]) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
+		memcpy(n + offset, cstr, len);
+		offset += len;
+	}
+	n[new_l] = 0;
+	char* res = &n[new_alloc-sizeof(size_t)];
+	*(size_t*)res = ((new_l + 1) | ((size_t)1 << (SIZE_T_BITS-1)));
+	return res;
+}
+
 _DECL char* __string_add(const char* a, const char* b) {
 	size_t la = (*(size_t*)a & ~((size_t)1 << (SIZE_T_BITS-1))) - 1;
 	size_t lb = (*(size_t*)b & ~((size_t)1 << (SIZE_T_BITS-1))) - 1;
@@ -1097,7 +1127,7 @@ _DECL bool volvox_spawn_c(int* pid, int* child_stdin, int* child_stdout,
 		return true;
 	}
 error:
-   // this is not correct - TODO: map/merge Windows errors / POSIX errows
+   // this is not correct - TODO: map/merge Windows errors / POSIX errors
    errno = GetLastError();
    return false;
 }
