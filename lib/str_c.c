@@ -1128,6 +1128,10 @@ _DECL char* __string_make_writable(char** SizeRef) {
 }
 
 _DECL char* __string_resize(char** SizeRef, size_t new_len) {
+	if ((ssize_t)new_len < 0) {
+		write(2, STR_WRITE("Error: attempt to create string with negative size\n"));
+		abort();
+	}
 	char* ptr = *SizeRef;
 	size_t raw_len = *(size_t*)ptr;
 	size_t len = raw_len & ~((size_t)1 << (SIZE_T_BITS-1));
@@ -1145,4 +1149,19 @@ _DECL char* __string_resize(char** SizeRef, size_t new_len) {
 	*SizeRef = cstr + new_offset;
 	*(size_t*)(*SizeRef) = new_len | ((size_t)1 << (SIZE_T_BITS-1));
 	return cstr;
+}
+
+struct __cstr_len {
+	char* cstr;
+	size_t len;
+};
+
+_DECL struct __cstr_len __string_resize_rel(char** SizeRef, ssize_t delta) {
+	ssize_t old_len = *(ssize_t*)(*SizeRef);
+	ssize_t new_len = old_len + delta;
+	char* cstr = __string_resize(SizeRef, new_len);
+	return (struct __cstr_len){
+		.cstr = __string_resize(SizeRef, new_len),
+		.len = new_len
+	};
 }
