@@ -423,15 +423,26 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	const char* Op, unsigned left_attr, unsigned right_attr)
 {
 	auto opclass = getOpClass(Op);
-	if (!strcmp(Op, "+") || !strcmp(Op, "="))
+	const char* err_msg;
+	if (!strcmp(Op, "+") || !strcmp(Op, "=")) {
 		if (left_attr & right_attr & A_string)
 			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
-	if (opclass == OpColon || opclass == OpDeclAssign || opclass == OpComma)
+		if (!(left_attr & A_string))
+			err_msg = "LHS of operator '%s' is no string (but RHS is)\n";
+		else
+			err_msg = "RHS of operator '%s' is no string (but LHS is)\n";
+	} else if (!strcmp(Op, "*")) {
+		if (left_type->isIntegerTy() || right_type->isIntegerTy())
+			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
+		if (left_attr & A_string)
+			err_msg = "RHS of operator '%s' must be an integer as LHS is a string\n";
+		else
+			err_msg = "LHS of operator '%s' must be an integer as RHS is a string\n";
+	} else if (opclass == OpColon || opclass == OpDeclAssign || opclass == OpComma)
 		return { nullptr, 0, false, opclass, nullptr };
-	if (opclass == OpComparison)
+	else if (opclass == OpComparison)
 		return { llvm::Type::getInt1Ty(Context), 0, false, opclass, nullptr };
-	errs() << llvm::format("attrs: %x %x\n", left_attr, right_attr);
-	return { nullptr, 0, false, opclass, "illegal use of operator '%s' with string(s)\n" };
+	return { nullptr, 0, false, opclass, err_msg };
 }
 
 // get "natural" result type for binary operators, i.e if desired type is not known (yet)
