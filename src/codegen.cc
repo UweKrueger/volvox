@@ -1270,13 +1270,29 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	case '%':
 		switch(typeclass) {
 		case is_int:
-			if (ResSigned)
-				result = Builder->CreateSRem(L, R, "remtmp");
+			if (ResSigned) {
+				// CreateSRem() conforms to C99 which means the sign of the reminder is that of the divisor
+				// however in number theory (e.g. congruence classes) the reminder is supposed to have
+				// the sign of the divisor. With the some bit fiddling this can be adjusted...
+				unsigned bw = llvm::cast<llvm::IntegerType>(L->getType())->getBitWidth();
+				llvm::Value* c = Builder->CreateSRem(L, R, "remtmp");
+				llvm::Value* x = Builder->CreateXor(R, c);
+				llvm::Value* xx = Builder->CreateAShr(x, bw-1);
+				llvm::Value* R0 = Builder->CreateAnd(R, xx);
+				result = Builder->CreateAdd(c, R0);
+			}
 			else
 				result = Builder->CreateURem(L, R, "remtmp");
 			break;
-		case is_float:
-			result = Builder->CreateFRem(L, R, "remtmp");
+		case is_float: {
+			unsigned bw = L->getType()->isDoubleTy() ? 64 : 32;
+			auto inttype = llvm::IntegerType::get(Context, bw);
+			llvm::Value* c = Builder->CreateFRem(L, R, "remtmp");
+			llvm::Value* x = Builder->CreateXor(Builder->CreateBitCast(R, inttype), Builder->CreateBitCast(c, inttype));
+			llvm::Value* xx = Builder->CreateAShr(x, bw-1);
+			llvm::Value* R0 = Builder->CreateAnd(Builder->CreateBitCast(R, inttype), xx);
+			result = Builder->CreateFAdd(c, Builder->CreateBitCast(R0, L->getType()));
+		}
 			break;
 		default:
 			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
