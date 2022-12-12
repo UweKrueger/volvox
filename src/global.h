@@ -209,6 +209,12 @@ extern std::unique_ptr<llvm::DIBuilder> DBuilder;
 #ifdef LEGACY_PASS_MANAGER
 extern std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 #endif
+enum idiv_modes {
+	idiv_mode_undef = 0,
+	idiv_mode_floored,
+	idiv_mode_c99
+};
+extern idiv_modes idiv_mode;
 extern bool support_fp80;
 extern bool needs_libm;
 extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;

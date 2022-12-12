@@ -1232,3 +1232,9 @@ _DECL struct __cstr_len __string_resize_rel(char** SizeRef, ssize_t delta) {
 		.len = new_len
 	};
 }
+
+/// printd - printf that takes a double prints it as "%f\n", returning 0.
+_DECL void printd(double X) {
+	fprintf(stderr, "%g\n", X);
+}
+

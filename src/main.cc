@@ -683,11 +683,6 @@ extern "C" DLLEXPORT void printadr(double* X) {
 	fprintf(stderr, "Adr: %p %g\n", X, *X);
 }
 
-/// printd - printf that takes a double prints it as "%f\n", returning 0.
-extern "C" DLLEXPORT void printd(double X) {
-	fprintf(stderr, "%g\n", X);
-}
-
 //===----------------------------------------------------------------------===//
 // Main driver code.
 //===----------------------------------------------------------------------===//
@@ -704,26 +699,28 @@ uint64_t stacksize = 10485760; // 10MB as safe fallback
 
 static void usage(const char* prog) {
 	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
-	errs() << " -h ........ print this help screen\n";
-	errs() << " -v ........ verbose output (may be repeated for even more verbosity)\n";
-	errs() << " -d ........ dump generated LLVM IR-code (repeat to dump more code)\n";
-	errs() << " -D ........ dump raw IR in addition to optimized IR (repeat to dump only raw)\n";
-	errs() << " -c ........ compile to optimized object file\n";
-	errs() << " -fPIC ..... generate position independent code\n";
-	errs() << " -g ........ compile with debug information\n";
-	errs() << " -On[m] .... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
-	errs() << "             m: optional separate level machine specific codegen (default: n)\n";
-	errs() << " -r ........ run compiled program\n";
-	errs() << " -j ........ use JIT to run file(s)\n";
-	errs() << " -J ........ use JIT to run file(s) and start interactive session\n";
-	errs() << " -i file ... include \"file\" in advance\n";
-	errs() << " -o file ... output compiled result to \"file\"\n";
-	errs() << " -s size ... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
-	errs() << "             default: `ulimit -s` if finite or 10MB otherwise\n";
-	errs() << " -m<target>  platform target option, e.g. '-mingw' or '-msvc' on Windows\n";
-	errs() << " -t ........ compile/run all \"fn test_*() bool\" functions from given file(s)\n";
-	errs() << " -C n,g,b .. prompt colors (#, >, background; ANSI-256, default: 30,100,236)\n";
-	errs() << " file ...... file(s) to compile (default: interactive session is started)\n";
+	errs() << " -h ........... print this help screen\n";
+	errs() << " -v ........... verbose output (may be repeated for even more verbosity)\n";
+	errs() << " -d ........... dump generated LLVM IR-code (repeat to dump more code)\n";
+	errs() << " -D ........... dump raw IR in addition to optimized IR (repeat to dump only raw)\n";
+	errs() << " -c ........... compile to optimized object file\n";
+	errs() << " -fPIC ........ generate position independent code\n";
+	errs() << " -fdiv-floored  signed division is floored, remainder gets sign of divisor\n"; 
+	errs() << " -fdiv-c99 .... signed division rounds towards 0, remainder gets sign of divident\n"; 
+	errs() << " -g ........... compile with debug information\n";
+	errs() << " -On[m] ....... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
+	errs() << "                m: optional separate level machine specific codegen (default: n)\n";
+	errs() << " -r ........... run compiled program\n";
+	errs() << " -j ........... use JIT to run file(s)\n";
+	errs() << " -J ........... use JIT to run file(s) and start interactive session\n";
+	errs() << " -i file ...... include \"file\" in advance\n";
+	errs() << " -o file ...... output compiled result to \"file\"\n";
+	errs() << " -s size ...... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
+	errs() << "                default: `ulimit -s` if finite or 10MB otherwise\n";
+	errs() << " -m<target> ... platform target option, e.g. '-mingw' or '-msvc' on Windows\n";
+	errs() << " -t ........... compile/run all \"fn test_*() bool\" functions from given file(s)\n";
+	errs() << " -C n,g,b ..... prompt colors (#, >, background; ANSI-256, default: 30,100,236)\n";
+	errs() << " file ......... file(s) to compile (default: interactive session is started)\n";
 	exit(1);
 }
 
@@ -913,7 +910,19 @@ int main(int argc, char* argv[]) {
 		case 'f':
 			if (!strcmp(optarg, "PIC"))
 				gen_pic = true;
-			else {
+			else if (!strcmp(optarg, "div-floored")) {
+				if (idiv_mode == idiv_mode_c99) {
+					errs() << "-f" << optarg << " and -f" << "div-c99" << " are mutually exclusive\n";
+					usage(argv[0]);
+				}
+				idiv_mode = idiv_mode_floored;
+			} else if (!strcmp(optarg, "div-c99")) {
+				if (idiv_mode == idiv_mode_floored) {
+					errs() << "-f" << optarg << " and -f" << "floored-div" << " are mutually exclusive\n";
+					usage(argv[0]);
+				}
+				idiv_mode = idiv_mode_c99;
+			} else {
 				errs() << "Unknown option '-f" << optarg << "'\n";
 				usage(argv[0]);
 			}
@@ -1057,6 +1066,8 @@ int main(int argc, char* argv[]) {
 		else
 			link_mode = do_link;
 	}
+	if (idiv_mode == idiv_mode_undef)
+		idiv_mode = idiv_mode_floored; // default to Knuth's suggestion
 	if (run_program && link_mode == dont_link) {
 		errs() << "Options '-c' and '-r' are mutually exclusive\n";
 		usage(argv[0]);

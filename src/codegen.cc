@@ -24,6 +24,7 @@ llvm::Value* ret_ptr = nullptr; // for sret
 // since the array size might be run time determined in one or the other block. To ensure this we track
 // the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
 unsigned condnesting = 0;
+idiv_modes idiv_mode = idiv_mode_undef;
 
 //===----------------------------------------------------------------------===//
 // Code Generation
@@ -1271,27 +1272,32 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		switch(typeclass) {
 		case is_int:
 			if (ResSigned) {
-				// CreateSRem() conforms to C99 which means the sign of the reminder is that of the divisor
-				// however in number theory (e.g. congruence classes) the reminder is supposed to have
-				// the sign of the divisor. With the some bit fiddling this can be adjusted...
-				unsigned bw = llvm::cast<llvm::IntegerType>(L->getType())->getBitWidth();
-				llvm::Value* c = Builder->CreateSRem(L, R, "remtmp");
-				llvm::Value* x = Builder->CreateXor(R, c);
-				llvm::Value* xx = Builder->CreateAShr(x, bw-1);
-				llvm::Value* R0 = Builder->CreateAnd(R, xx);
-				result = Builder->CreateAdd(c, R0);
-			}
-			else
+				if (idiv_mode == idiv_mode_floored) {
+					// CreateSRem() conforms to C99 which means the sign of the reminder is that of the divisor
+					// however in number theory (e.g. congruence classes) the reminder is supposed to have
+					// the sign of the divisor. With the some bit fiddling this can be adjusted...
+					unsigned bw = llvm::cast<llvm::IntegerType>(L->getType())->getBitWidth();
+					llvm::Value* c = Builder->CreateSRem(L, R, "remtmp");
+					llvm::Value* x = Builder->CreateXor(R, c);
+					llvm::Value* xx = Builder->CreateAShr(x, bw-1);
+					llvm::Value* R0 = Builder->CreateAnd(R, xx);
+					result = Builder->CreateAdd(c, R0);
+				} else
+					result = Builder->CreateSRem(L, R, "remtmp");
+			} else
 				result = Builder->CreateURem(L, R, "remtmp");
 			break;
 		case is_float: {
-			unsigned bw = L->getType()->isDoubleTy() ? 64 : 32;
-			auto inttype = llvm::IntegerType::get(Context, bw);
-			llvm::Value* c = Builder->CreateFRem(L, R, "remtmp");
-			llvm::Value* x = Builder->CreateXor(Builder->CreateBitCast(R, inttype), Builder->CreateBitCast(c, inttype));
-			llvm::Value* xx = Builder->CreateAShr(x, bw-1);
-			llvm::Value* R0 = Builder->CreateAnd(Builder->CreateBitCast(R, inttype), xx);
-			result = Builder->CreateFAdd(c, Builder->CreateBitCast(R0, L->getType()));
+			if (idiv_mode == idiv_mode_floored) {
+				unsigned bw = L->getType()->isDoubleTy() ? 64 : 32;
+				auto inttype = llvm::IntegerType::get(Context, bw);
+				llvm::Value* c = Builder->CreateFRem(L, R, "remtmp");
+				llvm::Value* x = Builder->CreateXor(Builder->CreateBitCast(R, inttype), Builder->CreateBitCast(c, inttype));
+				llvm::Value* xx = Builder->CreateAShr(x, bw-1);
+				llvm::Value* R0 = Builder->CreateAnd(Builder->CreateBitCast(R, inttype), xx);
+				result = Builder->CreateFAdd(c, Builder->CreateBitCast(R0, L->getType()));
+			} else
+				result = Builder->CreateFRem(L, R, "remtmp");
 		}
 			break;
 		default:
