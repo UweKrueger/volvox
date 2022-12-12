@@ -810,74 +810,6 @@ _DECL bool enableColorANSI(int fd) {
 #endif
 }
 
-_DECL char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
-	size_t new_l = 0;
-	for (size_t i = 0; i<m; i++)
-		new_l += ((*(size_t*)(a[i]) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
-	size_t new_alloc = (new_l + 2*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
-	char* n;
-	size_t offset;
-	size_t idx;
-	if (is_add_assign && (*(size_t*)(a[0]) & ((size_t)1 << (SIZE_T_BITS-1)))) {
-		char* cstr0 = volvox2cstr(a[0]);
-		n = realloc(cstr0, new_alloc);
-		idx = 1;
-		offset = ((*(size_t*)(a[0]) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
-	} else {
-		n = malloc(new_alloc);
-		idx = 0;
-		offset = 0;
-	}
-	for ( ; idx < m; idx++) {
-		char* cstr = volvox2cstr(a[idx]);
-		size_t len = ((*(size_t*)(a[idx]) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
-		memcpy(n + offset, cstr, len);
-		offset += len;
-	}
-	n[new_l] = 0;
-	char* res = &n[new_alloc-sizeof(size_t)];
-	*(size_t*)res = ((new_l + 1) | ((size_t)1 << (SIZE_T_BITS-1)));
-	return res;
-}
-
-_DECL char* __string_add(char* a, char* b) {
-	char* x[2] = { a, b };
-	return __string_accumulate(2, x, false);
-}
-
-_DECL char* __string_add_assign(char* a, char* b) {
-	char* x[2] = { a, b };
-	return __string_accumulate(2, x, true);
-}
-
-_DECL char* __string_mult(size_t m, char* a, bool is_mult_assign) {
-	char* cstr = volvox2cstr(a);
-	size_t len = ((*(size_t*)(a) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
-	size_t new_l = m * len;
-	size_t new_alloc = (new_l + 2*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
-	char* n;
-	size_t offset;
-	size_t idx;
-	if (is_mult_assign && (*(size_t*)(a) & ((size_t)1 << (SIZE_T_BITS-1)))) {
-		char* cstr0 = volvox2cstr(a);
-		n = realloc(cstr0, new_alloc);
-		idx = 1;
-		offset = ((*(size_t*)(a) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
-	} else {
-		n = malloc(new_alloc);
-		idx = 0;
-		offset = 0;
-	}
-	for ( ; idx < m; idx++) {
-		memcpy(n + offset, cstr, len);
-		offset += len;
-	}
-	n[new_l] = 0;
-	char* res = &n[new_alloc-sizeof(size_t)];
-	*(size_t*)res = ((new_l + 1) | ((size_t)1 << (SIZE_T_BITS-1)));
-	return res;
-}
-
 _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 6)
 		width = 6;
@@ -1168,15 +1100,91 @@ _DECL void modstr(char* s, int idx, char c) {
 	sc[idx] = c;
 }
 
+#define __string_heap_flag ((size_t)1 << (SIZE_T_BITS-1))
+#define __string_heap_mask (~__string_heap_flag)
+#define __string_raw_size(s) *(size_t*)(s)
+#define __string_is_heap(s) (bool)(__string_raw_size(s) & __string_heap_flag)
+#define __string_allocsize(len) ((len + 2*sizeof(size_t)) & ~(sizeof(size_t)-1))
+#define __raw_offset(alloc) (alloc - sizeof(size_t))
+#define __x_min(a, b) (((a) <= (b)) ? (a) : (b))
+
+_DECL char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
+	size_t new_l = 0;
+	for (size_t i = 0; i<m; i++)
+		new_l += volvox_string_len(a[i]);
+	size_t new_alloc = __string_allocsize(new_l);
+	char* n;
+	size_t offset;
+	size_t idx;
+	if (is_add_assign && __string_is_heap(a[0])) {
+		char* cstr0 = volvox2cstr(a[0]);
+		n = realloc(cstr0, new_alloc);
+		idx = 1;
+		offset = volvox_string_len(a[0]);
+	} else {
+		n = malloc(new_alloc);
+		idx = 0;
+		offset = 0;
+	}
+	for ( ; idx < m; idx++) {
+		char* cstr = volvox2cstr(a[idx]);
+		size_t len = volvox_string_len(a[idx]);
+		memcpy(n + offset, cstr, len);
+		offset += len;
+	}
+	n[new_l] = 0;
+	char* res = n + __raw_offset(new_alloc);
+	*(size_t*)res = ((new_l + 1) | __string_heap_flag);
+	return res;
+}
+
+_DECL char* __string_add(char* a, char* b) {
+	char* x[2] = { a, b };
+	return __string_accumulate(2, x, false);
+}
+
+_DECL char* __string_add_assign(char* a, char* b) {
+	char* x[2] = { a, b };
+	return __string_accumulate(2, x, true);
+}
+
+_DECL char* __string_mult(size_t m, char* a, bool is_mult_assign) {
+	char* cstr = volvox2cstr(a);
+	size_t len = volvox_string_len(a);
+	size_t new_l = m * len;
+	size_t new_alloc = __string_allocsize(new_l);
+	char* n;
+	size_t offset;
+	size_t idx;
+	if (is_mult_assign && __string_is_heap(a)) {
+		char* cstr0 = volvox2cstr(a);
+		n = realloc(cstr0, new_alloc);
+		idx = 1;
+		offset = len;
+	} else {
+		n = malloc(new_alloc);
+		idx = 0;
+		offset = 0;
+	}
+	for ( ; idx < m; idx++) {
+		memcpy(n + offset, cstr, len);
+		offset += len;
+	}
+	n[new_l] = 0;
+	char* volvox_str = n + __raw_offset(new_alloc);
+	__string_raw_size(volvox_str) = ((new_l + 1) | __string_heap_flag);
+	return volvox_str;
+}
+
 _DECL char* __string_make_writable(char** SizeRef) {
-	size_t len = *(size_t*)(*SizeRef);
-	size_t alloc_l = (len + 2*sizeof(size_t) - 1) & ~(sizeof(size_t) - 1);
-	char* buf = malloc(alloc_l);
-	size_t offset = (alloc_l - sizeof(size_t));
-	memcpy(buf, *SizeRef - offset, offset + sizeof(size_t));
-	buf += offset;
-	*(size_t*)buf = len | ((size_t)1 << (SIZE_T_BITS-1));
-	return buf;
+	size_t len = __string_raw_size(*SizeRef);
+	size_t alloc_l = __string_allocsize(len - 1);
+	char* cstr = malloc(alloc_l);
+	size_t offset = __raw_offset(alloc_l);
+	memcpy(cstr, *SizeRef - offset, offset);
+	char* volvox_str = cstr + offset;
+	__string_raw_size(volvox_str) = len | __string_heap_flag;
+	return volvox_str;
 }
 
 _DECL char* __string_resize(char** SizeRef, size_t new_len) {
@@ -1184,22 +1192,21 @@ _DECL char* __string_resize(char** SizeRef, size_t new_len) {
 		write(2, STR_WRITE("Error: attempt to create string with negative size\n"));
 		abort();
 	}
-	char* ptr = *SizeRef;
-	size_t raw_len = *(size_t*)ptr;
-	size_t len = raw_len & ~((size_t)1 << (SIZE_T_BITS-1));
-	size_t old_offset = (raw_len + (sizeof(size_t)-1)) & ~(((size_t)1 << (SIZE_T_BITS-1)) | (sizeof(size_t)-1));
-	char* cstr = ptr - old_offset;
-	size_t new_offset = (new_len + sizeof(size_t) - 1) & ~(sizeof(size_t) - 1);
-	if (raw_len & ((size_t)1 << (SIZE_T_BITS-1))) { // already heap allocated
-		if (new_offset != old_offset)
-			cstr = realloc(cstr, new_offset + sizeof(size_t));
+	size_t old_len = volvox_string_len(*SizeRef);
+	size_t old_alloc = __string_allocsize(old_len);
+	char* cstr = *SizeRef - __raw_offset(old_alloc);
+	size_t new_alloc = __string_allocsize(new_len);
+	if (__string_is_heap(*SizeRef)) { // already heap allocated
+		if (new_alloc != old_alloc)
+			cstr = realloc(cstr, new_alloc);
 	} else {
-		char* new_cstr = malloc(new_offset + sizeof(size_t));
-		memcpy(new_cstr, cstr, old_offset <= new_offset ? old_offset : new_offset);
+		char* new_cstr = malloc(new_alloc);
+		size_t bytes_to_copy = __raw_offset(__x_min(old_alloc, new_alloc));
+		memcpy(new_cstr, cstr, bytes_to_copy);
 		cstr = new_cstr;
 	}
-	*SizeRef = cstr + new_offset;
-	*(size_t*)(*SizeRef) = new_len | ((size_t)1 << (SIZE_T_BITS-1));
+	*SizeRef = cstr + __raw_offset(new_alloc);
+	__string_raw_size(*SizeRef) = new_len | __string_heap_flag;
 	return cstr;
 }
 
@@ -1209,9 +1216,9 @@ struct __cstr_len {
 };
 
 _DECL struct __cstr_len __string_resize_rel(char** SizeRef, ssize_t delta) {
-	ssize_t old_len = *(ssize_t*)(*SizeRef);
+	ssize_t old_len = (ssize_t)volvox_string_len(*SizeRef);
 	ssize_t new_len = old_len + delta;
-	char* cstr = __string_resize(SizeRef, new_len);
+	char* cstr = __string_resize(SizeRef, (size_t)new_len);
 	return (struct __cstr_len){
 		.cstr = __string_resize(SizeRef, new_len),
 		.len = new_len
