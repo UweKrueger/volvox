@@ -1108,7 +1108,7 @@ _DECL void modstr(char* s, int idx, char c) {
 #define __raw_offset(alloc) (alloc - sizeof(size_t))
 #define __x_min(a, b) (((a) <= (b)) ? (a) : (b))
 
-_DECL char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
+static char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
 	size_t new_l = 0;
 	for (size_t i = 0; i<m; i++)
 		new_l += volvox_string_len(a[i]);
@@ -1148,7 +1148,7 @@ _DECL char* __string_add_assign(char* a, char* b) {
 	return __string_accumulate(2, x, true);
 }
 
-_DECL char* __string_mult(size_t m, char* a, bool is_mult_assign) {
+static char* __string_mult_general(size_t m, char* a, bool is_mult_assign) {
 	char* cstr = volvox2cstr(a);
 	size_t len = volvox_string_len(a);
 	size_t new_l = m * len;
@@ -1174,6 +1174,14 @@ _DECL char* __string_mult(size_t m, char* a, bool is_mult_assign) {
 	char* volvox_str = n + __raw_offset(new_alloc);
 	__string_raw_size(volvox_str) = ((new_l + 1) | __string_heap_flag);
 	return volvox_str;
+}
+
+_DECL char* __string_mult(size_t m, char* a) {
+	return __string_mult_general(m, a, false);
+}
+
+_DECL char* __string_mult_assign(size_t m, char* a) {
+	return __string_mult_general(m, a, true);
 }
 
 _DECL char* __string_make_writable(char** SizeRef) {

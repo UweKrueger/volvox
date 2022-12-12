@@ -60,6 +60,8 @@ cdecl fn _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_(&ro
 cdecl fn _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(&root __map_node, key string) __map_value_ref
 cdecl fn _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(&root __map_node, d string)
 cdecl fn __string_add(l string, r string) string
+cdecl fn __string_mult(n size_t, r string) string
+cdecl fn __string_mult_assign(n size_t, r string) string
 cdecl fn _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
 cdecl fn _ZN9ArrayNodeD1Ev(&a ArrayNode)
 cdecl fn _ZN9ArrayNode8pushbackEPcy(&a ArrayNode, s string, obj_size u64)
