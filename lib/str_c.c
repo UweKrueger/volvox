@@ -850,6 +850,34 @@ _DECL char* __string_add_assign(char* a, char* b) {
 	return __string_accumulate(2, x, true);
 }
 
+_DECL char* __string_mult(size_t m, char* a, bool is_mult_assign) {
+	char* cstr = volvox2cstr(a);
+	size_t len = ((*(size_t*)(a) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
+	size_t new_l = m * len;
+	size_t new_alloc = (new_l + 2*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
+	char* n;
+	size_t offset;
+	size_t idx;
+	if (is_mult_assign && (*(size_t*)(a) & ((size_t)1 << (SIZE_T_BITS-1)))) {
+		char* cstr0 = volvox2cstr(a);
+		n = realloc(cstr0, new_alloc);
+		idx = 1;
+		offset = ((*(size_t*)(a) & ~((size_t)1 << (SIZE_T_BITS-1))) - 1);
+	} else {
+		n = malloc(new_alloc);
+		idx = 0;
+		offset = 0;
+	}
+	for ( ; idx < m; idx++) {
+		memcpy(n + offset, cstr, len);
+		offset += len;
+	}
+	n[new_l] = 0;
+	char* res = &n[new_alloc-sizeof(size_t)];
+	*(size_t*)res = ((new_l + 1) | ((size_t)1 << (SIZE_T_BITS-1)));
+	return res;
+}
+
 _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 6)
 		width = 6;
