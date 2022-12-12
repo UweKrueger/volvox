@@ -1257,7 +1257,14 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		switch(typeclass) {
 		case is_int:
 			if (ResSigned)
-				result = Builder->CreateSDiv(L, R, "divtmp");
+				if (idiv_mode == idiv_mode_floored) {
+					unsigned bw = llvm::cast<llvm::IntegerType>(L->getType())->getBitWidth();
+					llvm::Value* c = Builder->CreateSDiv(L, R, "divtmp");
+					llvm::Value* x = Builder->CreateXor(R, L);
+					llvm::Value* xx = Builder->CreateAShr(x, bw-1);
+					result = Builder->CreateAdd(c, xx);
+				} else
+					result = Builder->CreateSDiv(L, R, "divtmp");
 			else
 				result = Builder->CreateUDiv(L, R, "divtmp");
 			break;
