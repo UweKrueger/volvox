@@ -408,7 +408,7 @@ void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
 	// TODO: handle 'before' (is this even needed?)
 	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB->getParent();
-	auto v = Builder->CreateLoad(fv->ft.type, fv->val);
+	auto v = fv->val;
 	auto subtrahend = Volvox2CStr1(v);
 	llvm::Value* destructflag = Builder->CreateAnd(subtrahend, 1ULL << (target_bits - 1));
 	destructflag = Builder->CreateIsNotNull(destructflag);

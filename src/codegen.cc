@@ -69,16 +69,6 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		else if (ft->type_attr & A_string)
 		{
 			llvm::Value* theString = createStringConst(Val.Str);
-			if (!target) {
-				FullVar tmp = {
-					.val = theString,
-					.ft = {
-						.type = llvm::Type::getInt8PtrTy(Context),
-						.type_attr = A_string
-					}
-				};
-				//expr_temps.push_back(tmp);
-			}
 			return handle(target, theString);
 		}
 		// else fallthrough
