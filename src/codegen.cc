@@ -67,7 +67,20 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		if (ft->type_attr & A_signed)
 			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
 		else if (ft->type_attr & A_string)
-			return handle(target, createStringConst(Val.Str));
+		{
+			llvm::Value* theString = createStringConst(Val.Str);
+			if (!target) {
+				FullVar tmp = {
+					.val = theString,
+					.ft = {
+						.type = llvm::Type::getInt8PtrTy(Context),
+						.type_attr = A_string
+					}
+				};
+				//expr_temps.push_back(tmp);
+			}
+			return handle(target, theString);
+		}
 		// else fallthrough
 	default:
 		errs() << "internal compiler error: unhandled literal type " << *ft->type << "\n";
@@ -111,7 +124,7 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	}
 	auto inserter_fn = getFunction(inserter_proto);
-	llvm::Value* ptr = target;
+	llvm::Value* ptr = ((intptr_t)target == -1) ? nullptr : target;
 	if (!ptr) {
 		ptr = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
 		FullVar tmp = {
@@ -135,7 +148,7 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
 				ptr, Key, Value, Builder->getInt32(0), do_replace });
 	}
-	if (target)
+	if (target && (intptr_t)target != -1)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	return Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), ptr);
 }
@@ -353,7 +366,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			if (array->getType()->isVoidTy())
 				return handle(target, array);
 			// if it's an rvalue we have to store it on stack to get a reference
-			if (!target)
+			if (!target || (intptr_t)target == -1)
 				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
 		}
 	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
@@ -365,7 +378,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* stuct_val = expr->codegen_raw(target);
 			if (stuct_val->getType()->isVoidTy())
 				return handle(target, stuct_val);
-			if (!target)
+			if (!target || (intptr_t)target == -1)
 				val = StoreValue(stuct_val, expr->ft);
 		}
 	} else {
@@ -1029,7 +1042,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		} else {
 			if (allocsz > 16 || is_constructor_call) {
 				auto align = getAlignment(allocsz);
-				if (target)
+				if (target && (intptr_t)target != -1)
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
 				else if (ValPtr)
 					Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);

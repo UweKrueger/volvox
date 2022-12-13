@@ -12,7 +12,7 @@
 //===----------------------------------------------------------------------===//
 
 inline static llvm::Value* handle(llvm::Value* target, llvm::Value* val) {
-	if (!target)
+	if (!target || (intptr_t)target == -1)
 		return val;
 	Builder->CreateStore(val, target);
 	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
