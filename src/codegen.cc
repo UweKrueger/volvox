@@ -1191,7 +1191,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	TypeClass typeclass = is_unknown;
 	switch(L->getType()->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		typeclass = is_int;
+		if (R && R->getType()->getTypeID() == llvm::Type::PointerTyID && RHS->ft && (RHS->ft->type_attr & A_string))
+			typeclass = is_string;
+		else
+			typeclass = is_int;
 		break;
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
@@ -1248,6 +1251,28 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		case is_float:
 			result = Builder->CreateFMul(L, R, "multmp");
+			break;
+		case is_string: {
+			llvm::Value* theFactor = nullptr;
+			llvm::Value* theString = nullptr;
+			if (L->getType()->getTypeID() == llvm::Type::IntegerTyID) {
+				theFactor = L;
+				// being here indicates that at least one operand is a string
+				theString = R;
+			} else if (R->getType()->getTypeID() == llvm::Type::IntegerTyID) {
+				theFactor = R;
+				theString = L;
+			} else {
+				errs() << Loc << "If one side of '" << Op << "' is a string the other has be an integer\n";
+				break;
+			}
+			if (theFactor->getType() != llvm_size_type)
+				theFactor = Builder->CreateIntCast(theFactor, llvm_size_type, false);
+			std::string strmult = "__string_mult";
+			auto strmult_proto = (*lex.findProtos(strmult))[0].get();
+			auto strmult_fn = getFunction(strmult_proto);
+			result = Builder->CreateCall(strmult_proto->FT, strmult_fn, std::vector<llvm::Value*>{ theFactor, theString });
+		}
 			break;
 		default:
 			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
