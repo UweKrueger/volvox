@@ -338,15 +338,21 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	for (auto var_node = t.first(); var_node; ++var_node) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
-		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && fv->val && fv->val != retp)
+		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && !(fv->ft.type_attr & A_global) && fv->val && fv->val != retp)
 			InsertDestructor(fv);
 	}
 }
 
 // call function above for all local variable tables of the current function
 void InsertDestructors(llvm::Value* retp) {
-	for (auto t = locals_table.rbegin(); t != locals_table.rend(); ++t )
-		InsertDestructors(*t, retp);
+	if (locals_table.empty())
+		for (auto& [modname, module] : Modules) {
+			if (module.globals_table.table)
+				InsertDestructors(module.globals_table, retp);
+		}
+	else
+		for (auto t = locals_table.rbegin(); t != locals_table.rend(); ++t )
+			InsertDestructors(*t, retp);
 }
 
 // insert destructors for intermediate results - this is done afer each complete expression
