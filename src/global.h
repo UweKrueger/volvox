@@ -721,8 +721,8 @@ extern void InsertArrayConDestructor(
 extern void InsertDestructors(VarTable& t, llvm::Value* retp);
 extern void InsertDestructors(llvm::Value* retp);
 extern void InsertDestructors(std::vector<FullVar>& t);
-extern void InsertStringDestructor(FullVar* fv, llvm::Instruction* before = nullptr);
-extern void InsertMapDestructor(FullVar* fv, llvm::Instruction* before = nullptr);
+extern void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
+extern void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 
 inline static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
 	InsertArrayConDestructor(var->ft.type, var->ft.elem_type, var->val, before);
@@ -740,10 +740,11 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Instruction* before
 		if (before)
 			Builder->SetInsertPoint(oldBB);
 	} else if (fv->ft.type->isPointerTy()) {
+		llvm::Value* v = Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), fv->val);
 		if (fv->ft.type_attr & A_string) {
-			InsertStringDestructor(fv, before);
+			InsertStringDestructor(v, before);
 		} else if (fv->ft.type_attr & A_map) {
-			InsertMapDestructor(fv, before);
+			InsertMapDestructor(v, before);
 		}
 	}
 }

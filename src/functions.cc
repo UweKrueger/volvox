@@ -404,11 +404,10 @@ llvm::Value* Volvox2CStr(llvm::Value* v) {
 	return Volvox2CStr2(v, subtrahend);
 }
 
-void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
+void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 	// TODO: handle 'before' (is this even needed?)
 	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB->getParent();
-	auto v = fv->val;
 	auto subtrahend = Volvox2CStr1(v);
 	llvm::Value* destructflag = Builder->CreateAnd(subtrahend, 1ULL << (target_bits - 1));
 	destructflag = Builder->CreateIsNotNull(destructflag);
@@ -424,8 +423,7 @@ void InsertStringDestructor(FullVar* fv, llvm::Instruction* before) {
 	Builder->SetInsertPoint(ContBB);
 }
 
-void InsertMapDestructor(FullVar* fv, llvm::Instruction* before) {
-	auto v = Builder->CreateLoad(fv->ft.type, fv->val);
+void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before) {
 	std::string destr = "_ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE";
 	PrototypeAST* destr_proto = (*lex.findProtos(destr))[0].get();
 	auto destr_fn = getFunction(destr_proto);
