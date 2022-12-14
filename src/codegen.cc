@@ -574,7 +574,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		}
 		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & A_global);
 		if (!use_target)
-			Val = expr->RHS->codegen();
+			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
 	}
 	if (!use_target && !Val) {
 		errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
