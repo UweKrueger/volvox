@@ -740,7 +740,7 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Instruction* before
 		if (before)
 			Builder->SetInsertPoint(oldBB);
 	} else if (fv->ft.type->isPointerTy()) {
-		llvm::Value* v = Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), fv->val);
+		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? fv->val : Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), fv->val);
 		if (fv->ft.type_attr & A_string) {
 			InsertStringDestructor(v, before);
 		} else if (fv->ft.type_attr & A_map) {

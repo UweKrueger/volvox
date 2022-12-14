@@ -323,4 +323,8 @@ fn test_local_string() bool
 	z := x + y
 	return z == "hfqerMs239"
 
+"Ahrw4Mk" + "zisdh"
+
+2 * "tzere" + 5 * "Poert"
+
 #exit 0

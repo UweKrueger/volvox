@@ -33,6 +33,7 @@
 #define A_method (1U<<24)
 #define A_extern (1U<<25)
 #define A_merged (1U<<26) // helper flag for processing merge of then/else branches
+#define A_rvalue (1U<<27) // pseudo FullVar that has not storage location
 
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)

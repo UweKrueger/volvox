@@ -1233,7 +1233,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					.val = result,
 					.ft = {
 						.type = llvm::Type::getInt8PtrTy(Context),
-						.type_attr = A_string
+						.type_attr = A_string | A_rvalue
 					}
 				};
 				expr_temps.push_back(tmp);
@@ -1290,7 +1290,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					.val = result,
 					.ft = {
 						.type = llvm::Type::getInt8PtrTy(Context),
-						.type_attr = A_string
+						.type_attr = A_string | A_rvalue
 					}
 				};
 				expr_temps.push_back(tmp);
