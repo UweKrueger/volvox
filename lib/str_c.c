@@ -1088,7 +1088,7 @@ error:
 #endif
 
 _DECL void printstr(int fd, char* s) {
-	size_t l = *(size_t*)s - 1;
+	size_t l = volvox_string_len(s);
 	char* sc = volvox2cstr(s);
 	write(fd, sc, l);
 	char n = '\n';
