@@ -1285,6 +1285,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			auto strmult_proto = (*lex.findProtos(strmult))[0].get();
 			auto strmult_fn = getFunction(strmult_proto);
 			result = Builder->CreateCall(strmult_proto->FT, strmult_fn, std::vector<llvm::Value*>{ theFactor, theString });
+			if (!target) {
+				FullVar tmp = {
+					.val = result,
+					.ft = {
+						.type = llvm::Type::getInt8PtrTy(Context),
+						.type_attr = A_string
+					}
+				};
+				expr_temps.push_back(tmp);
+			}
 		}
 			break;
 		default:
