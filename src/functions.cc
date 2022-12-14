@@ -345,7 +345,7 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 
 // call function above for all local variable tables of the current function
 void InsertDestructors(llvm::Value* retp) {
-	if (locals_table.empty())
+	if (locals_table.empty() && !(comp_mode == comp_jit && !do_test))
 		for (auto& [modname, module] : Modules) {
 			if (module.globals_table.table)
 				InsertDestructors(module.globals_table, retp);
