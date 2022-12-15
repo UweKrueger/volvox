@@ -85,9 +85,10 @@ class LiteralExprAST : public ExprAST {
 
 public:
 	union LitValue Val;
-	LiteralExprAST(Token&& tok, SourceLocation Loc = CurLoc) : ExprAST(tok.key, A_const |
-		  (((tok.int_type.ID == llvm::Type::IntegerTyID &&
-		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0), Loc, tok.is_unknown_type), Val(tok.Val) {
+	LiteralExprAST(Token&& tok, SourceLocation Loc = CurLoc)
+		: ExprAST(tok.key, (((tok.int_type.ID == llvm::Type::IntegerTyID &&
+		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0),
+		          Loc, tok.is_unknown_type), Val(tok.Val) {
 		if (tok.kind == tok_str_lit) {
 			ft->type_attr |= A_string;
 			tok.Val.Ptr = nullptr;
@@ -177,6 +178,7 @@ public:
 	VariableExprAST* getBase() override { return this; }
 	// create reference to this variable - second result is the storage_type
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);

@@ -200,6 +200,16 @@ llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
+llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
+	if (full_var->ft.type_attr & A_rvalue)
+		return full_var->val;
+	auto V = codegen_ref();
+	if (V.first && V.second)
+		// Load the value.
+		return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()));
+	return nullptr;
+}
+
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
 	if (!full_var) {
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
@@ -626,28 +636,38 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			DBuilder->createGlobalVariableExpression(
 				SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, attribs & A_signed), false);
 		}
-		if (initializer) { // i.e. constant size type
-			// If 'needs_call' is true, this here is part of a module which is going to be
-			// removed later. So in this case it's only a declaration and the 'real'
-			// variable is defined below in a separate module that will stay.
-			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-			                              false, link_type,
-			                              needs_call ? nullptr : initializer, varname, nullptr,
-			                              (sym_kind & A_global) ?
-			                              llvm::GlobalVariable::GeneralDynamicTLSModel :
-			                              llvm::GlobalVariable::NotThreadLocal, 0, needs_call);
-			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
-		}
 		FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
 		if (!fv) {
 			errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
 			return nullptr;
 		}
-		fv->storage_type = initializer ? initializer->getType() : nullptr;
+		if (initializer) { // i.e. constant size type
+			// If 'needs_call' is true, this here is part of a module which is going to be
+			// removed later. So in this case it's only a declaration and the 'real'
+			// variable is defined below in a separate module that will stay.
+			if ((sym_kind & A_const) && allocsz && allocsz <= 16 && !needs_call) {
+				fv->val = initializer;
+				sym_kind |= A_rvalue;
+				GV = nullptr;
+			} else {
+				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+				                              false, link_type,
+				                              needs_call ? nullptr : initializer, varname, nullptr,
+				                              (sym_kind & A_global) ?
+				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
+				                              llvm::GlobalVariable::NotThreadLocal, 0, needs_call);
+				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
+				fv->storage_type = initializer->getType();
+			}
+		} else {
+			fv->storage_type = nullptr;
+		}
 		fv->mangled_name = strdup(varname.c_str());
 		fv->ft = *expr->RHS->ft;
 		fv->ft.type = use_target ? expr->RHS->ft->type : type;
 		fv->ft.type_attr = sym_kind | attribs | is_union | (LREF ? A_ptrref : 0U) | A_mainvar;
+		if (sym_kind & A_rvalue)
+			return nullptr;
 		if (is_referencing)
 			fv->mark_as_referencing(is_referencing);
 		if (!needs_call) {
