@@ -1051,7 +1051,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					RHS->codegen_raw(Variable.second);
 				else
 					Builder->CreateStore(Val, Variable.second);
-				return handle(target, OldVal);
+				return handle_d(target, OldVal, LHS->ft->type_attr);
 			}
 		}
 	not_found:

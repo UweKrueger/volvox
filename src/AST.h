@@ -18,6 +18,24 @@ inline static llvm::Value* handle(llvm::Value* target, llvm::Value* val) {
 	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
 
+inline static llvm::Value* handle_d(llvm::Value* target, llvm::Value* val, unsigned attribs) {
+	if (!target || (intptr_t)target == -1) {
+		if (!target && (attribs & (A_destructor | A_map | A_string))) {
+			FullVar tmp = {
+				.val = val,
+				.ft = {
+					.type = llvm::Type::getInt8PtrTy(Context),
+					.type_attr = attribs | A_rvalue
+				}
+			};
+			expr_temps.push_back(tmp);
+		}
+		return val;
+	}
+	Builder->CreateStore(val, target);
+	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+}
+
 /// ExprAST - Base class for all expression nodes.
 
 class InterfaceExprAST : public ExprAST {
