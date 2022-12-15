@@ -766,7 +766,7 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
 	llvm::Value* V;
-	if (fv->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (fv->ft.type_attr & A_global))) { // global variable
+	if ((fv->ft.type_attr & A_mainvar) && comp_mode == comp_jit && !do_test || (fv->ft.type_attr & A_global)) { // global variable
 		if (!fv->mangled_name) {
 			errs() << "Global Destructors: no mangled name\n";
 			return;

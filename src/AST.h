@@ -25,7 +25,7 @@ inline static llvm::Value* handle_d(llvm::Value* target, llvm::Value* val, unsig
 				.val = val,
 				.ft = {
 					.type = llvm::Type::getInt8PtrTy(Context),
-					.type_attr = attribs | A_rvalue
+					.type_attr = (attribs & (A_destructor | A_map | A_string)) | A_rvalue
 				}
 			};
 			expr_temps.push_back(tmp);
