@@ -709,6 +709,21 @@ public:
 	}
 };
 
+enum CompModes {
+	comp_undefined = 0,
+	comp_jit,
+	comp_obj,
+	comp_dbg,
+};
+
+enum LinkModes {
+	link_undefined = 0,
+	do_link,
+	dont_link,
+};
+
+extern CompModes comp_mode;
+extern LinkModes link_mode;
 extern std::vector<VarTable> locals_table; // including function arguments
 extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
@@ -724,11 +739,11 @@ extern void InsertDestructors(std::vector<FullVar>& t);
 extern void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 extern void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 
-inline static void InsertArrayDestructor(FullVar* var, llvm::Instruction* before) {
-	InsertArrayConDestructor(var->ft.type, var->ft.elem_type, var->val, before);
+inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before) {
+	InsertArrayConDestructor(fv->ft.type, fv->ft.elem_type, val, before);
 }
 
-inline static void InsertSingleDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
+inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before = nullptr) {
 	if (fv->destructor) {
 		llvm::BasicBlock* oldBB;
 		if (before) {
@@ -736,11 +751,11 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Instruction* before
 			Builder->SetInsertPoint(before);
 		}
 		auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
-		Builder->CreateCall(FT, fv->destructor, fv->val);
+		Builder->CreateCall(FT, fv->destructor, val);
 		if (before)
 			Builder->SetInsertPoint(oldBB);
 	} else if (fv->ft.type->isPointerTy()) {
-		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? fv->val : Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), fv->val);
+		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? val : Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), val);
 		if (fv->ft.type_attr & A_string) {
 			InsertStringDestructor(v, before);
 		} else if (fv->ft.type_attr & A_map) {
@@ -750,10 +765,28 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Instruction* before
 }
 
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
+	llvm::Value* V;
+	if (fv->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (fv->ft.type_attr & A_global))) { // global variable
+		if (!fv->mangled_name) {
+			errs() << "Global Destructors: no mangled name\n";
+			return;
+		}
+		V = TheModule->getGlobalVariable(fv->mangled_name, true);
+		if (!V)
+			V = new llvm::GlobalVariable(*TheModule, fv->storage_type,
+			                             false, llvm::GlobalValue::ExternalLinkage,
+			                             nullptr, fv->mangled_name, nullptr,
+			                             (fv->ft.type_attr & A_global) ?
+			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
+			                             llvm::GlobalVariable::NotThreadLocal,
+			                             0, true);
+	} else {
+		V = fv->val;
+	}
 	if (llvm::isa<llvm::ArrayType>(fv->ft.type))
-		InsertArrayDestructor(fv, before);
+		InsertArrayDestructor(fv, V, before);
 	else
-		InsertSingleDestructor(fv, before);
+		InsertSingleDestructor(fv, V, before);
 }
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
@@ -864,21 +897,6 @@ public:
 extern std::map<std::string, Module> Modules;
 extern std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
 
-enum CompModes {
-	comp_undefined = 0,
-	comp_jit,
-	comp_obj,
-	comp_dbg,
-};
-
-enum LinkModes {
-	link_undefined = 0,
-	do_link,
-	dont_link,
-};
-
-extern CompModes comp_mode;
-extern LinkModes link_mode;
 extern unsigned dump_IR;
 extern bool dump_opt;
 extern bool dump_raw;
