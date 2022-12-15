@@ -12,6 +12,10 @@
 #include <io.h>
 #include <malloc.h>
 #include <mbstring.h>
+#if defined(_MSC_VER)
+#include <BaseTsd.h>
+typedef SSIZE_T ssize_t;
+#endif
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
