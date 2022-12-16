@@ -579,14 +579,15 @@ static void MainLoop() {
 				sym_kind |= A_mainvar;
 				sym_kind |= A_global;
 				break;
+			case tok_const:
+				sym_kind |= (A_mainvar | A_global | A_const);
+				break;
 			case tok_atomic:
 				sharebits = sharebits ? sharebits : A_atomic;
 			case tok_shared:
 				sharebits = sharebits ? sharebits : A_shared;
 			case tok_unique:
 				sharebits = sharebits ? sharebits : A_unique;
-			case tok_const:
-				sharebits = sharebits ? sharebits : A_const;
 				if (sym_kind & SHARE_KIND_MASK) {
 					errs() << CurLoc << ": at most one of qualifiers " << tok_global << ", "
 					       << tok_atomic << ", " << tok_shared << ", " << tok_unique << " or "

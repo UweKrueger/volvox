@@ -298,7 +298,7 @@ fn test_map_lit_2() bool
 	v := map[string]f64{ "ggs": 12.125, "doDe": -7.0625, "ABfd": 13.0625 }["ABfd"]
 	return v == 13.0625
 
-# map[string]f64{ "ggs": 12, "doDe": 2.25, "ABd": -1.0625 }
+# the following test cases are meant to test memory management with valgrind
 
 map[string]i32{ "g0st": 12, "dpoDe": -79, "ABfdx": 113, "Qwedf": 99, "PO": -6  }["ABfdx"]
 
@@ -326,5 +326,24 @@ fn test_local_string() bool
 "Ahrw4Mk" + "zisdh"
 
 2 * "tzere" + 5 * "Poert"
+
+fn str_drop()
+	a := "Qkjs67bgfds"
+	b := "ouhesftzgh"
+	c := a + b
+	printstr(1, c)
+	c = b + a
+	b = b + b
+	b = a = c + c
+	printstr(1, a)
+	printstr(1, b)
+	return
+
+str_drop()
+
+const urZ := 373491
+
+fn test_const_int() bool
+	return urZ == 373491
 
 #exit 0
