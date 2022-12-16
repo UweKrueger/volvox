@@ -1244,6 +1244,7 @@ struct DebugInfo {
 extern DebugInfo KSDbgInfo;
 extern int builtin_input_fd;
 extern std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind = 0);
+extern bool DeclareGlobalConst(std::unique_ptr<ExprAST> expr, unsigned sym_kind);
 extern void InitializeModuleAndPassManager();
 extern void finishFunctionOrModule(llvm::Function* F = nullptr, unsigned dumpLevel = 1,
                                    bool finishModule = true, bool newModule = true);

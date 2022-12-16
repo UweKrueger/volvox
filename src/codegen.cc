@@ -500,6 +500,38 @@ llvm::Value* DefaultConstructorCall::codegen_raw(llvm::Value* target) {
 	return Builder->CreateCall(C, { GV.second });
 }
 
+bool DeclareGlobalConst(std::unique_ptr<ExprAST> expr, unsigned sym_kind) {
+	auto binexpr = dynamic_cast<BinaryExprAST*>(expr.get());
+	if (!binexpr) {
+		errs() << expr->Loc << ": binary expression expected\n";
+		return false;
+	}
+	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(binexpr->LHS.get());
+	if (!LHSE) {
+		errs() << LHSE->Loc << ": LHS of const declaration must be a name\n";
+		return false;
+	}
+	const std::string& unmangled_name = LHSE->getName();
+	std::string varname;
+	if (lex.module->import_path.empty()) {
+		varname = unmangled_name;
+	} else {
+		llvm::SmallString<128> buf = llvm::StringRef("_Z");
+		varname = std::string(MangleBase(buf, lex.module->import_path, unmangled_name));
+	}
+	FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
+	if (!fv) {
+		errs() << binexpr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
+		return false;
+	}
+	fv->val = nullptr;
+	fv->mangled_name = strdup(varname.c_str());
+	fv->ft = *binexpr->RHS->ft;
+	fv->ft.type_attr |= sym_kind | A_mainvar | A_global | A_const;
+	GlobalExprList.push_back(std::move(expr));
+	return true;
+}
+
 std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	if (comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test) {
 		// This might be a non-const initialized main var that needs a temporary
