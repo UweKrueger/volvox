@@ -228,7 +228,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, full_var->mangled_name, nullptr,
-			                             (full_var->ft.type_attr & A_global) ?
+			                             ((full_var->ft.type_attr & A_global) && !(full_var->ft.type_attr & A_const)) ?
 			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
 			                             llvm::GlobalVariable::NotThreadLocal,
 			                             0, true);
@@ -556,8 +556,8 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	if (LREF) {
 		if (auto refexpr = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 			auto BaseVar = refexpr->getBase();
-			if (BaseVar->ft->type_attr & A_global) {
-				errs() << BaseVar->Loc << ": cannot create reference to global variable\n";
+			if (BaseVar->ft->type_attr & (A_global | A_const)) {
+				errs() << BaseVar->Loc << ": cannot create reference to " << ((BaseVar->ft->type_attr & A_global) ? "global variable\n" : "constant\n");
 				tmpf->eraseFromParent();
 				lex.module->globals_table.erase(unmangled_name.c_str());
 				return nullptr;
@@ -582,7 +582,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			if (is_constructor_call || allocsz > 16 && !(sym_kind & A_global))
 				use_target = true;
 		}
-		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & A_global);
+		errs() << "Use target0: " << use_target << '\n';
+		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & (A_global | A_const));
+		errs() << "Use target1: " << use_target << '\n';
 		if (!use_target)
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
 	}
@@ -591,7 +593,9 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		tmpf->eraseFromParent();
 		lex.module->globals_table.erase(unmangled_name.c_str());
 		return nullptr;
-	}
+	} else
+		errs() << "Use target2: " << use_target << '\n';
+
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
 	type = expr->RHS->ft->type;
 	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
@@ -617,7 +621,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 	bool needs_call = (needs_store || needs_constructor || use_target) && (comp_mode == comp_jit) && !do_test;
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF)
-			errs() << expr->LHS->Loc << ": references are not allowed to be global\n";
+			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";
 		else
 			errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
 		tmpf->eraseFromParent();
@@ -665,7 +669,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 		fv->mangled_name = strdup(varname.c_str());
 		fv->ft = *expr->RHS->ft;
 		fv->ft.type = use_target ? expr->RHS->ft->type : type;
-		fv->ft.type_attr = sym_kind | attribs | is_union | (LREF ? A_ptrref : 0U) | A_mainvar;
+		fv->ft.type_attr = sym_kind | attribs | is_union | (LREF ? A_ptrref : 0U) | A_mainvar | ((sym_kind & A_const) ? A_global : 0);
 		if (sym_kind & A_rvalue)
 			return nullptr;
 		if (is_referencing)

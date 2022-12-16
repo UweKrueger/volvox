@@ -580,7 +580,7 @@ static void MainLoop() {
 				sym_kind |= A_global;
 				break;
 			case tok_const:
-				sym_kind |= (A_mainvar | A_global | A_const);
+				sym_kind |= (A_mainvar | A_const);
 				break;
 			case tok_atomic:
 				sharebits = sharebits ? sharebits : A_atomic;
@@ -605,6 +605,11 @@ static void MainLoop() {
 			getNextToken();
 		}
 	endqualifiers:
+		if ((sym_kind & A_global) && (sym_kind & A_const)) {
+			errs() << CurLoc << ": 'const' and 'global' are mutually exclusive\n";
+			purgeLine();
+			goto startmainloop;
+		}
 		switch ((int)CurTok.kind) {
 		case tok_eof:
 			return;

@@ -346,4 +346,13 @@ const urZ := 373491
 fn test_const_int() bool
 	return urZ == 373491
 
+xe43 := 182.25
+
+const uDfg := sqrt(xe43)
+
+uDfg
+
+fn test_const_from_non_const() bool
+	return uDfg == 13.5
+
 #exit 0
