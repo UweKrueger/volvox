@@ -713,7 +713,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				GlobalExprList.push_back(std::move(constructor_call));
 			}
 			if ((sym_kind & A_const) && (comp_mode != comp_jit || do_test)) {
-				errs() << "Handle const for " << varname << '\n';
 				expr->Op[0] = '=';
 				expr->Op[1] = expr->Op[2] ='\0';
 				GlobalExprList.push_back(std::move(expr));
@@ -1141,36 +1140,61 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		entry->ft.type = type;
 		entry->ft.type_attr = (entry->ft.type_attr & ~(A_signed | A_string | A_map)) | attribs;
+		llvm::GlobalVariable* GV = nullptr;
+		if (comp_mode != comp_jit || do_test && (entry->ft.type_attr & A_global)) {
+			if (entry->mangled_name) {
+				GV = TheModule->getGlobalVariable(entry->mangled_name, true);
+				if (!GV)
+					GV = new llvm::GlobalVariable(*TheModule, entry->storage_type,
+					                              false, llvm::GlobalValue::ExternalLinkage,
+					                              nullptr, entry->mangled_name, nullptr,
+					                              llvm::GlobalVariable::NotThreadLocal,
+					                              0, true);
+				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(entry->storage_type));
+			}
+		}
 		if (Val) {
-			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
-			entry->val = Alloca;
-			if (comp_mode == comp_dbg) {
-				// Create a debug descriptor for the variable.
-				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-					SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, attribs & A_signed),
-					true);
-				
-				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-				                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
-				                        Builder->GetInsertBlock());
+			if (GV)
+				Builder->CreateStore(Val, GV);
+			else {
+				auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
+				entry->val = Alloca;
+				if (comp_mode == comp_dbg) {
+					// Create a debug descriptor for the variable.
+					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
+						SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, attribs & A_signed),
+						true);
+					
+					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+					                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
+					                        Builder->GetInsertBlock());
+				}
 			}
 		} else if (postpone_valgen) {
-			entry->val = CreateEntryBlockAlloca(type);
-			RHS->codegen_raw(entry->val);
+			if (GV)
+				RHS->codegen_raw(GV);
+			else {
+				entry->val = CreateEntryBlockAlloca(type);
+				RHS->codegen_raw(entry->val);
+			}
 		} else if (ValPtr) {
 			if (allocsz) {
-				llvm::AllocaInst* Alloca;
 				auto align = getAlignment(allocsz);
-				if (LREF) {
-					entry->ft.type_attr |= A_ptrref;
-					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
-					Builder->CreateAlignedStore(ValPtr, Alloca, align);
-					entry->mark_as_referencing(is_referencing);
+				if (GV) {
+					Builder->CreateMemCpy(GV, align, ValPtr, align, allocsz);
 				} else {
-					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
-					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
+					llvm::AllocaInst* Alloca;
+					if (LREF) {
+						entry->ft.type_attr |= A_ptrref;
+						Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
+						Builder->CreateAlignedStore(ValPtr, Alloca, align);
+						entry->mark_as_referencing(is_referencing);
+					} else {
+						Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+						Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
+					}
+					entry->val = Alloca;
 				}
-				entry->val = Alloca;
 			} else {
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
@@ -1190,15 +1214,19 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		} else if (allocsz > 16 || is_constructor_call) {
 			auto align = getAlignment(allocsz);
-			auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
-			auto voidval = RHS->codegen_raw(Alloca);
-			if (!voidval)
-				return nullptr;
-			if (!voidval->getType()->isVoidTy()) {
-				errs() << Loc << ": internal error: sret call-- does not return void\n";
-				return nullptr;
+			if (GV)
+				RHS->codegen_raw(GV);
+			else {
+				auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+				auto voidval = RHS->codegen_raw(Alloca);
+				if (!voidval)
+					return nullptr;
+				if (!voidval->getType()->isVoidTy()) {
+					errs() << Loc << ": internal error: sret call-- does not return void\n";
+					return nullptr;
+				}
+				entry->val = Alloca;
 			}
-			entry->val = Alloca;
 		} else {
 			errs() << "unhandled case\n";
 			return nullptr;

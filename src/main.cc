@@ -530,7 +530,6 @@ void CallTestFunction(bool immediately = false) {
 }
 
 std::unique_ptr<FunctionAST> CreateTestRuns() {
-	errs() << "##### creating main\n";
 	if (comp_mode == comp_jit) {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
 		return CreateMain("test_main", true, "bool");
