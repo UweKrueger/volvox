@@ -289,6 +289,8 @@ OpClass getOpClass(const char* Op) {
 		default:
 			return OpModAssign; // +=, -=, ...
 		}
+	case ':':
+		return OpDeclAssign;
 	case '&':
 	case '|':
 		if (!Op[2])

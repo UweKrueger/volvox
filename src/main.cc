@@ -461,7 +461,7 @@ void PrepareTestFramework() {
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, single_test_result_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(false))));
-	HandleGlobalVariable(single_res_def.get(), A_pub | A_global);
+	HandleGlobalVariable(std::move(single_res_def), A_pub | A_global);
 	if (!lex.module->globals_table.insert(collector_name.c_str(), fv)) {
 		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"main\" scope\n";
 		abort();
@@ -470,7 +470,7 @@ void PrepareTestFramework() {
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(true))));
-	HandleGlobalVariable(collector_def.get(), A_pub | A_global);
+	HandleGlobalVariable(std::move(collector_def), A_pub | A_global);
 }
 
 void CallTestFunction(bool immediately = false) {
@@ -530,6 +530,7 @@ void CallTestFunction(bool immediately = false) {
 }
 
 std::unique_ptr<FunctionAST> CreateTestRuns() {
+	errs() << "##### creating main\n";
 	if (comp_mode == comp_jit) {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
 		return CreateMain("test_main", true, "bool");

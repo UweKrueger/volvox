@@ -1108,7 +1108,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_type = RHS->ft ? RHS->ft->type : nullptr;
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
-		if (BinOp == ":=") {
+		if (BinOp == ":=" || BinOp == "::=") {
 			if (!RHS_type) {
 				errs() << RHS->Loc << ": RHS of declaration is indeterminate\n";
 				return nullptr;
@@ -1585,13 +1585,13 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 				if (B->err_msg)
 					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->err_msg);
 				if (B->opclass == OpDeclAssign) {
-					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_mainvar))
-						if ((sym_kind & A_const) && !(comp_mode == comp_jit && !do_test)) {
-							bool res = DeclareGlobalConst(std::move(E), sym_kind);
-							return nullptr;
-						} else {
-							return HandleGlobalVariable(B, sym_kind);
-						}
+					if (!strcmp(B->Op, "::="))
+						sym_kind |= A_rvalue;
+					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_mainvar)) {
+						auto uB = std::unique_ptr<BinaryExprAST>(B);
+						E.release();
+						return HandleGlobalVariable(std::move(uB), sym_kind);
+					}
 					else
 						return E;
 				}

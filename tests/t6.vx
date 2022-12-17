@@ -341,7 +341,7 @@ fn str_drop()
 
 str_drop()
 
-const urZ := 373491
+const urZ ::= 373491
 
 fn test_const_int() bool
 	return urZ == 373491

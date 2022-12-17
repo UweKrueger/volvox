@@ -532,7 +532,7 @@ bool DeclareGlobalConst(std::unique_ptr<ExprAST> expr, unsigned sym_kind) {
 	return true;
 }
 
-std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
+std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	if (comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test) {
 		// This might be a non-const initialized main var that needs a temporary
 		// 'setter' function. So finish the current module to be able to remove
@@ -611,29 +611,29 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
 					is_constructor_call = true;
 			}
-			if (is_constructor_call || allocsz > 16 && !(sym_kind & A_global))
+			if (is_constructor_call || allocsz > 16 && !(sym_kind & (A_global | A_rvalue)))
 				use_target = true;
 		}
-		errs() << "Use target0: " << use_target << '\n';
-		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & (A_global | A_const));
-		errs() << "Use target1: " << use_target << '\n';
+		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & (A_global | A_rvalue));
 		if (!use_target)
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
 	}
 	if (!use_target && !Val) {
-		errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
-		tmpf->eraseFromParent();
-		lex.module->globals_table.erase(unmangled_name.c_str());
-		return nullptr;
-	} else
-		errs() << "Use target2: " << use_target << '\n';
-
+		if (!(sym_kind & A_const)) {
+			errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
+			lex.module->globals_table.erase(unmangled_name.c_str());
+			tmpf->eraseFromParent();
+			return nullptr;
+		} else {
+			tmpf->eraseFromParent();
+		}
+	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
 	type = expr->RHS->ft->type;
 	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
 		llvm::GlobalValue::ExternalLinkage :
 		llvm::GlobalValue::InternalLinkage;
-	llvm::Constant* initializer = use_target ? nullptr : llvm::dyn_cast<llvm::Constant>(Val);
+	llvm::Constant* initializer = (use_target || !Val) ? nullptr : llvm::dyn_cast<llvm::Constant>(Val);
 	bool needs_store;
 	bool needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
 	if (initializer) {
@@ -681,7 +681,7 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 			// If 'needs_call' is true, this here is part of a module which is going to be
 			// removed later. So in this case it's only a declaration and the 'real'
 			// variable is defined below in a separate module that will stay.
-			if ((sym_kind & A_const) && allocsz && allocsz <= 16 && !needs_call) {
+			if ((sym_kind & A_rvalue) && allocsz && allocsz <= 16 && !needs_call) {
 				fv->val = initializer;
 				sym_kind |= A_rvalue;
 				GV = nullptr;
@@ -711,6 +711,13 @@ std::nullptr_t HandleGlobalVariable(BinaryExprAST* expr, unsigned sym_kind) {
 				auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
 				auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
 				GlobalExprList.push_back(std::move(constructor_call));
+			}
+			if ((sym_kind & A_const) && (comp_mode != comp_jit || do_test)) {
+				errs() << "Handle const for " << varname << '\n';
+				expr->Op[0] = '=';
+				expr->Op[1] = expr->Op[2] ='\0';
+				GlobalExprList.push_back(std::move(expr));
+				return nullptr;
 			}
 		} else {
 			llvm::Type* array_ptr_ty = nullptr;
@@ -1123,7 +1130,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		FullVar* entry;
 		if (locals_table.empty()) {
 			entry = lex.module->globals_table[varname];
-			if (!entry || (entry->ft.type_attr & A_global)) {
+			if (!entry || (entry->ft.type_attr & A_global) && !(entry->ft.type_attr & A_const)) {
 				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 				return nullptr;
 			}

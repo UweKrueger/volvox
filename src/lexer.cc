@@ -501,6 +501,16 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 				IdentifierStr = ":=";
 				CurChar = advance();
 				return tok_assign;
+			} else if (CurChar == ':') {
+				CurChar = advance();
+				if (CurChar == '=') {
+					IdentifierStr = "::=";
+					CurChar = advance();
+					return tok_assign;
+				} else {
+					IdentifierStr = "::";
+					return tok_error;
+				}
 			} else {
 				IdentifierStr = ":";
 				return tok_colon;
