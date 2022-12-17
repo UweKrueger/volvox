@@ -532,13 +532,50 @@ bool DeclareGlobalConst(std::unique_ptr<ExprAST> expr, unsigned sym_kind) {
 	return true;
 }
 
-std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
-	if (comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test) {
-		// This might be a non-const initialized main var that needs a temporary
-		// 'setter' function. So finish the current module to be able to remove
-		// the setter after usage
-		finishFunctionOrModule();
+static std::string create_mangled_global(const std::string& unmangled_name) {
+	std::string varname;
+	if (lex.module->import_path.empty()) {
+		varname = unmangled_name;
+	} else {
+		llvm::SmallString<128> buf = llvm::StringRef("_Z");
+		varname = std::string(MangleBase(buf, lex.module->import_path, unmangled_name));
 	}
+	return varname;
+}
+
+llvm::Function* init_setter_fn(std::string& setter_name, std::string& varname, llvm::Value*& Arg) {
+	// This might be a non-const initialized main var that needs a temporary
+	// 'setter' function. So finish the current module to be able to remove
+	// the setter after usage
+	finishFunctionOrModule();
+	setter_name = "__global_" + varname + "_setter";
+	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(Context),
+	                                                       { llvm_size_type->getPointerTo() }, false);
+	llvm::Function* tmpf = llvm::Function::Create(ptr_fn_t, llvm::Function::ExternalLinkage, setter_name, TheModule.get());
+	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
+	Builder->SetInsertPoint(BB);
+	Arg = tmpf->getArg(0);
+	if (last_shadow_restorer && comp_mode == comp_jit && !do_test) {
+		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
+		auto last_restorer = getFunction(last_restorer_proto);
+		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callrestorer");
+	}
+	return tmpf;
+}
+
+// helper function to to clean up global states used by HandleGlobalVariable()
+static inline std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unmangled_name) {
+	if (tmpf)
+		tmpf->eraseFromParent();
+	if (unmangled_name)
+		lex.module->globals_table.erase(unmangled_name);
+	return nullptr;
+}
+
+std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
+	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
+	// bool prepare_setter_fn = comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test;
+	bool prepare_setter_fn = comp_mode == comp_jit && !do_test;
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
@@ -551,29 +588,17 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		return nullptr;
 	}
 	const std::string& unmangled_name = LHSE->getName();
-	std::string varname;
-	if (lex.module->import_path.empty()) {
-		varname = unmangled_name;
-	} else {
-		llvm::SmallString<128> buf = llvm::StringRef("_Z");
-		varname = std::string(MangleBase(buf, lex.module->import_path, unmangled_name));
-	}
+	auto varname = create_mangled_global(unmangled_name);
+
 	// We do not know in advance if the RHS of the 'main' var  initialization is a compile
 	// time const. In order to be able to run 'RHS->codegen()' in any case, a function
 	// context is needed. If the initializer turns out to be a compile time const this
 	// function is not needed and can be 'erased'
-	auto setter_name = "__global_" + varname + "_setter";
-	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(Context),
-	                                                       { llvm_size_type->getPointerTo() }, false);
-	llvm::Function* tmpf = llvm::Function::Create(ptr_fn_t, llvm::Function::ExternalLinkage, setter_name, TheModule.get());
-	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
-	Builder->SetInsertPoint(BB);
-	llvm::Value* Arg = tmpf->getArg(0);
-	if (last_shadow_restorer && comp_mode == comp_jit && !do_test) {
-		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
-		auto last_restorer = getFunction(last_restorer_proto);
-		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callrestorer");
-	}
+	std::string setter_name;
+	llvm::Function* tmpf = nullptr;
+	llvm::Value* Arg = nullptr;
+	if (prepare_setter_fn)
+		tmpf = init_setter_fn(setter_name, varname, Arg);
 	llvm::Value* Val;
 	llvm::Type* val_type;
 	llvm::Type* type;
@@ -590,9 +615,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			auto BaseVar = refexpr->getBase();
 			if (BaseVar->ft->type_attr & (A_global | A_const)) {
 				errs() << BaseVar->Loc << ": cannot create reference to " << ((BaseVar->ft->type_attr & A_global) ? "global variable\n" : "constant\n");
-				tmpf->eraseFromParent();
-				lex.module->globals_table.erase(unmangled_name.c_str());
-				return nullptr;
+				return cleanupGlobal(tmpf, unmangled_name.c_str());
 			}
 			auto t_v = refexpr->codegen_ref();
 			val_type = type = t_v.first;
@@ -621,11 +644,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (!use_target && !Val) {
 		if (!(sym_kind & A_const)) {
 			errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
-			lex.module->globals_table.erase(unmangled_name.c_str());
-			tmpf->eraseFromParent();
-			return nullptr;
+			return cleanupGlobal(tmpf, unmangled_name.c_str());
 		} else {
-			tmpf->eraseFromParent();
+			cleanupGlobal(tmpf, nullptr);
 		}
 	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
@@ -639,7 +660,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (initializer) {
 		needs_store = false;
 		if (!(needs_constructor && (comp_mode == comp_jit) && !do_test))
-			tmpf->eraseFromParent();
+			cleanupGlobal(tmpf, nullptr);
 	} else {
 		if (needs_constructor) {
 			errs() << expr->RHS->Loc << ": internal error - unsized type but constructor required\n";
@@ -656,10 +677,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";
 		else
 			errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
-		tmpf->eraseFromParent();
-		// the parser should have added this global variable to lex.module - revert this
-		lex.module->globals_table.erase(unmangled_name.c_str());
-		return nullptr;
+		return cleanupGlobal(tmpf, unmangled_name.c_str());
 	} else {
 		llvm::GlobalVariable* GV;
 		if (initializer && !LREF)
@@ -1142,6 +1160,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		entry->ft.type_attr = (entry->ft.type_attr & ~(A_signed | A_string | A_map)) | attribs;
 		llvm::GlobalVariable* GV = nullptr;
 		if (comp_mode != comp_jit || do_test && (entry->ft.type_attr & A_global)) {
+			// errs() << "Getting GV " << entry->mangled_name << " " << Val << '\n';
 			if (entry->mangled_name) {
 				GV = TheModule->getGlobalVariable(entry->mangled_name, true);
 				if (!GV)
