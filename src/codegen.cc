@@ -572,6 +572,8 @@ static inline std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unm
 	return nullptr;
 }
 
+static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor);
+
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
 	// bool prepare_setter_fn = comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test;
@@ -877,78 +879,81 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
 			module->FunctionProtos[constructor_caller].push_back(std::move(constructor_caller_Proto));
 		}
-		if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
-			llvm::Type* V_type = initializer->getType();
-			size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
-			std::string shadow_var_name = std::string("__") + varname + "_shadow_";
-			llvm::GlobalVariable* V;
-			if (!needs_constructor) {
-				auto V = new llvm::GlobalVariable(*TheModule, V_type,
-				                                  false, link_type,
-				                                  initializer, shadow_var_name, nullptr,
-				                                  llvm::GlobalVariable::NotThreadLocal);
-				V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
-				finishFunctionOrModule();
-			}
-			GV = TheModule->getGlobalVariable(varname, true);
-			if (!GV) {
-				GV = new llvm::GlobalVariable(*TheModule, V_type,
-				                              false, link_type,
-				                              nullptr, varname, nullptr,
-				                              llvm::GlobalVariable::GeneralDynamicTLSModel,
-				                              0, true);
-				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
-			}
-			V = TheModule->getGlobalVariable(shadow_var_name, true);
-			if (!V) {
-				V = new llvm::GlobalVariable(*TheModule, V_type,
-				                             false, link_type,
-				                             nullptr, shadow_var_name, nullptr,
-				                             llvm::GlobalVariable::NotThreadLocal,
-				                             0, true);
-				V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
-			}
-			auto sz_const = llvm::ConstantInt::get(llvm_size_type, storage_sz);
-			auto align = TheModule->getDataLayout().getPrefTypeAlign(V_type);
-			// auto align = getAlignment(sz_const);
-			auto saver = std::string("__") + varname + "_saver";
-			auto restorer = std::string("__") + varname + "_restorer";
-			llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
-			llvm::Function* Fsaver = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, saver, TheModule.get());
-			auto BB = llvm::BasicBlock::Create(Context, "entry", Fsaver);
-			Builder->SetInsertPoint(BB);
-			Builder->CreateMemCpy(V, align, GV, align, storage_sz);
-			if (last_shadow_saver) {
-				auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
-				auto last_saver = getFunction(last_saver_proto);
-				Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callold")));
-			} else {
-				Builder->CreateRetVoid();
-			}
-			finishFunctionOrModule(Fsaver, 3, false);
-			auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
-			last_shadow_saver = saverProto->Name.c_str();
-			// savers/restorers must be always accessible so force them into builtin namespace
-			Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
-			module->FunctionProtos[saver].push_back(std::move(saverProto));
-			llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
-			BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
-			Builder->SetInsertPoint(BB);
-			Builder->CreateMemCpy(GV, align, V, align, storage_sz);
-			if (last_shadow_restorer) {
-				auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
-				auto last_restorer = getFunction(last_restorer_proto);
-				Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callold")));
-			} else {
-				Builder->CreateRetVoid();
-			}
-			finishFunctionOrModule(Frestorer, 3, false);
-			auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
-			last_shadow_restorer = restorerProto->Name.c_str();
-			module->FunctionProtos[restorer].push_back(std::move(restorerProto));
-		}
+		if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test)
+			RegisterShadowHandlers(initializer, varname, needs_constructor);
 	}
 	return nullptr;
+}
+
+static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor) {
+	llvm::Type* V_type = initializer->getType();
+	size_t storage_sz = TheJIT->getDataLayout().getTypeStoreSize(V_type);
+	std::string shadow_var_name = std::string("__") + varname + "_shadow_";
+	auto link_type = llvm::GlobalValue::ExternalLinkage;
+	if (!needs_constructor) {
+		auto V = new llvm::GlobalVariable(*TheModule, V_type,
+		                                  false, link_type,
+		                                  initializer, shadow_var_name, nullptr,
+		                                  llvm::GlobalVariable::NotThreadLocal);
+		V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
+		finishFunctionOrModule();
+	}
+	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(varname, true);
+	if (!GV) {
+		GV = new llvm::GlobalVariable(*TheModule, V_type,
+		                              false, link_type,
+		                              nullptr, varname, nullptr,
+		                              llvm::GlobalVariable::GeneralDynamicTLSModel,
+		                              0, true);
+		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
+	}
+	auto V = TheModule->getGlobalVariable(shadow_var_name, true);
+	if (!V) {
+		V = new llvm::GlobalVariable(*TheModule, V_type,
+		                             false, link_type,
+		                             nullptr, shadow_var_name, nullptr,
+		                             llvm::GlobalVariable::NotThreadLocal,
+		                             0, true);
+		V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(V_type));
+	}
+	auto sz_const = llvm::ConstantInt::get(llvm_size_type, storage_sz);
+	auto align = TheModule->getDataLayout().getPrefTypeAlign(V_type);
+	// auto align = getAlignment(sz_const);
+	auto saver = std::string("__") + varname + "_saver";
+	auto restorer = std::string("__") + varname + "_restorer";
+	llvm::FunctionType* void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
+	llvm::Function* Fsaver = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, saver, TheModule.get());
+	auto BB = llvm::BasicBlock::Create(Context, "entry", Fsaver);
+	Builder->SetInsertPoint(BB);
+	Builder->CreateMemCpy(V, align, GV, align, storage_sz);
+	if (last_shadow_saver) {
+		auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
+		auto last_saver = getFunction(last_saver_proto);
+		Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callold")));
+	} else {
+		Builder->CreateRetVoid();
+	}
+	finishFunctionOrModule(Fsaver, 3, false);
+	auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
+	last_shadow_saver = saverProto->Name.c_str();
+	// savers/restorers must be always accessible so force them into builtin namespace
+	Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
+	module->FunctionProtos[saver].push_back(std::move(saverProto));
+	llvm::Function* Frestorer = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage, restorer, TheModule.get());
+	BB = llvm::BasicBlock::Create(Context, "entry", Frestorer);
+	Builder->SetInsertPoint(BB);
+	Builder->CreateMemCpy(GV, align, V, align, storage_sz);
+	if (last_shadow_restorer) {
+		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
+		auto last_restorer = getFunction(last_restorer_proto);
+		Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callold")));
+	} else {
+		Builder->CreateRetVoid();
+	}
+	finishFunctionOrModule(Frestorer, 3, false);
+	auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
+	last_shadow_restorer = restorerProto->Name.c_str();
+	module->FunctionProtos[restorer].push_back(std::move(restorerProto));
 }
 
 // helper function to find out if an expression is fractional
