@@ -625,6 +625,27 @@ static llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::str
 	return GV;
 }
 
+static std::pair<llvm::Type*,llvm::Value*> GetReference(ExprAST* RHS, FullVar*& is_referencing) {
+	llvm::Value* Val = nullptr;
+	llvm::Type* type = nullptr;
+	if (auto refexpr = dynamic_cast<LvalueExprAST*>(RHS)) {
+		auto BaseVar = refexpr->getBase();
+		if (BaseVar->ft->type_attr & (A_global | A_const)) {
+			errs() << BaseVar->Loc << ": cannot create reference to " << ((BaseVar->ft->type_attr & A_global) ? "global variable\n" : "constant\n");
+			return { nullptr, nullptr };
+		}
+		auto t_v = refexpr->codegen_ref();
+		Val = t_v.second;
+		if (Val) {
+			type = t_v.first;
+			is_referencing = BaseVar->full_var;
+		}
+	}
+	if (!Val)
+		errs() << RHS->Loc << ": cannot get reference from expression\n";
+	return { type, Val };
+}
+
 static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor);
 static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind);
 
@@ -632,7 +653,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
 	// bool prepare_setter_fn = comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test;
 	bool prepare_setter_fn = comp_mode == comp_jit && !do_test;
-	auto TLSmodel = (sym_kind & A_global) ? llvm::GlobalVariable::GeneralDynamicTLSModel : llvm::GlobalVariable::NotThreadLocal;
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
@@ -660,7 +680,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	llvm::Type* val_type;
 	llvm::Type* type;
 	FullVar* is_referencing = nullptr;
-	std::string* rname;
 	unsigned attribs = 0;
 	unsigned is_union = expr->RHS->ft->type_attr & A_union;
 	bool is_constructor_call = false;
@@ -668,23 +687,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	llvm::Value* target = nullptr;
 	size_t allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 	if (LREF) {
-		if (auto refexpr = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
-			auto BaseVar = refexpr->getBase();
-			if (BaseVar->ft->type_attr & (A_global | A_const)) {
-				errs() << BaseVar->Loc << ": cannot create reference to " << ((BaseVar->ft->type_attr & A_global) ? "global variable\n" : "constant\n");
-				return cleanupGlobal(tmpf, unmangled_name.c_str());
-			}
-			auto t_v = refexpr->codegen_ref();
-			val_type = type = t_v.first;
-			Val = t_v.second;
-			if (Val) {
-				is_referencing = BaseVar->full_var;
-				rname = &BaseVar->Name;
-			}
-			attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
-		} else {
-			Val = nullptr;
-		}
+		std::tie(type, Val) = GetReference(expr->RHS.get(), is_referencing);
+		if (!Val)
+			return cleanupGlobal(tmpf, unmangled_name.c_str());
 	} else {
 		if (llvm::isa<llvm::StructType>(expr->RHS->ft->type)) {
 			if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
@@ -708,9 +713,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
 	type = expr->RHS->ft->type;
-	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
-		llvm::GlobalValue::ExternalLinkage :
-		llvm::GlobalValue::InternalLinkage;
 	llvm::Constant* initializer = (use_target || !Val) ? nullptr : llvm::dyn_cast<llvm::Constant>(Val);
 	bool needs_store;
 	bool needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
