@@ -564,7 +564,7 @@ llvm::Function* init_setter_fn(std::string& setter_name, std::string& varname, l
 }
 
 // helper function to to clean up global states used by HandleGlobalVariable()
-static inline std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unmangled_name) {
+static std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unmangled_name) {
 	if (tmpf)
 		tmpf->eraseFromParent();
 	if (unmangled_name)
@@ -574,7 +574,7 @@ static inline std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unm
 
 static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor);
 
-static inline llvm::GlobalVariable* GetShadowHandle(llvm::Constant* initializer, std::string& varname) {
+static llvm::GlobalVariable* GetShadowHandle(llvm::Constant* initializer, std::string& varname) {
 	std::string shadow_var_name = std::string("__") + varname + "_shadow_";
 	auto V = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 	                                  false, llvm::GlobalValue::ExternalLinkage,
@@ -584,7 +584,7 @@ static inline llvm::GlobalVariable* GetShadowHandle(llvm::Constant* initializer,
 	return V;
 }
 
-static inline bool CreateShadow(llvm::Constant* initializer, std::string& varname) {
+static bool CreateShadow(llvm::Constant* initializer, std::string& varname) {
 	std::string shadow_var_name = std::string("__") + varname + "_shadow_";
 	auto V = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 	                                  false, llvm::GlobalValue::ExternalLinkage,
@@ -593,6 +593,38 @@ static inline bool CreateShadow(llvm::Constant* initializer, std::string& varnam
 	V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 	finishFunctionOrModule();
 	return true;
+}
+
+static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varname, unsigned sym_kind) {
+	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(varname, true);
+	if (!GV) {
+		auto TLSmodel = (sym_kind & A_global) ?
+			llvm::GlobalVariable::GeneralDynamicTLSModel :
+			llvm::GlobalVariable::NotThreadLocal;
+		llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
+			llvm::GlobalValue::ExternalLinkage :
+			llvm::GlobalValue::InternalLinkage;
+		GV = new llvm::GlobalVariable(*TheModule, type,
+		                              false, link_type,
+		                              nullptr, varname, nullptr,
+		                              TLSmodel, 0, true);
+		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(type));
+	}
+	return GV;
+}
+
+static llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
+	auto TLSmodel = (sym_kind & A_global) ?
+		llvm::GlobalVariable::GeneralDynamicTLSModel :
+		llvm::GlobalVariable::NotThreadLocal;
+	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
+		llvm::GlobalValue::ExternalLinkage :
+		llvm::GlobalValue::InternalLinkage;
+	llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+	                                                    false, link_type,
+	                                                    initializer, varname, nullptr, TLSmodel, 0, false);
+	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
+	return GV;
 }
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
@@ -728,10 +760,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			sym_kind |= A_rvalue;
 			GV = nullptr;
 		} else {
-			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-			                              false, link_type,
-			                              needs_call ? nullptr : initializer, varname, nullptr, TLSmodel, 0, needs_call);
-			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
+			if (needs_call)
+				GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
+			else
+				GV = CreateGlobal(initializer, varname, sym_kind);
 			fv->storage_type = initializer->getType();
 		}
 	} else {
@@ -824,12 +856,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// We want to remove the 'setter' module below but the global variable
 		// must stay, so put the latter in a new module that is not freed
 		// by the resource tracker
-		if (initializer && needs_call) {
-			GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-			                              false, link_type,
-			                              initializer, varname, nullptr, TLSmodel, 0, false);
-			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
-		}
+		if (initializer && needs_call)
+			GV = CreateGlobal(initializer, varname, sym_kind);
 		if (comp_mode == comp_jit && (sym_kind & A_global) && needs_constructor && !do_test)
 			shadow_already_created = CreateShadow(initializer, varname);
 		else
@@ -873,15 +901,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			                    std::vector<llvm::Value*>(), "callold");
 		}
 		auto C = getConstructorOrDestructor(&fv->ft);
-		GV = TheModule->getGlobalVariable(varname, true);
-		if (!GV) {
-			GV = new llvm::GlobalVariable(*TheModule, fv->ft.type,
-			                              false, link_type,
-			                              nullptr, varname, nullptr,
-			                              llvm::GlobalVariable::GeneralDynamicTLSModel,
-			                              0, true);
-			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(fv->ft.type));
-		}
+		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
 		Builder->CreateCall(C, { GV });
 		Builder->CreateRetVoid();
 		finishFunctionOrModule(newConstructorCaller, 1, jit_repl);
