@@ -572,8 +572,6 @@ static std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unmangled_
 	return nullptr;
 }
 
-static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor);
-
 static llvm::GlobalVariable* GetShadowHandle(llvm::Constant* initializer, std::string& varname) {
 	std::string shadow_var_name = std::string("__") + varname + "_shadow_";
 	auto V = new llvm::GlobalVariable(*TheModule, initializer->getType(),
@@ -626,6 +624,9 @@ static llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::str
 	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 	return GV;
 }
+
+static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor);
+static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind);
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
@@ -882,35 +883,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		}
 		ExitOnErr(RT->remove());
 	}
-	if (needs_constructor && (sym_kind & A_global)) {
-		// Since global variables are TLS the constructor has to be called for each newly
-		// started thread. For that we create a function that first calls 'last_thread_constructor_caller'
-		// and then the constructor of this GV. 'last_thread_constructor_caller' is then replaced by
-		// our new function
-		auto void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
-		auto constructor_caller = std::string("__") + varname + "_constructor_caller";
-		auto newConstructorCaller = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage,
-		                                                   constructor_caller, TheModule.get());
-		newConstructorCaller->addFnAttr(llvm::Attribute::AlwaysInline);
-		auto BB = llvm::BasicBlock::Create(Context, "entry", newConstructorCaller);
-		Builder->SetInsertPoint(BB);
-		if (last_thread_constructor_caller) {
-			auto last_thrconstr_proto = (*lex.findProtos(last_thread_constructor_caller))[0].get();
-			auto last_caller = getFunction(last_thrconstr_proto);
-			Builder->CreateCall(last_thrconstr_proto->FT, last_caller,
-			                    std::vector<llvm::Value*>(), "callold");
-		}
-		auto C = getConstructorOrDestructor(&fv->ft);
-		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
-		Builder->CreateCall(C, { GV });
-		Builder->CreateRetVoid();
-		finishFunctionOrModule(newConstructorCaller, 1, jit_repl);
-		auto constructor_caller_Proto = std::make_unique<PrototypeAST>(CurLoc, constructor_caller, std::vector<std::string>());
-		last_thread_constructor_caller = constructor_caller_Proto->Name.c_str();
-		// constructor callers must be always accessible so force them into builtin namespace
-		Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
-		module->FunctionProtos[constructor_caller].push_back(std::move(constructor_caller_Proto));
-	}
+	if (needs_constructor && (sym_kind & A_global))
+		RegisterThreadConstructor(varname, &fv->ft, sym_kind);
 	if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test)
 		RegisterShadowHandlers(initializer, varname, shadow_already_created);
 	return nullptr;
@@ -979,6 +953,36 @@ static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& var
 	auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 	last_shadow_restorer = restorerProto->Name.c_str();
 	module->FunctionProtos[restorer].push_back(std::move(restorerProto));
+}
+
+// Since global variables are TLS the constructor has to be called for each newly
+// started thread. For that we create a function that first calls 'last_thread_constructor_caller'
+// and then the constructor of this GV. 'last_thread_constructor_caller' is then replaced by
+// our new function
+static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind) {
+	auto void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
+	auto constructor_caller = std::string("__") + varname + "_constructor_caller";
+	auto newConstructorCaller = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage,
+	                                                   constructor_caller, TheModule.get());
+	newConstructorCaller->addFnAttr(llvm::Attribute::AlwaysInline);
+	auto BB = llvm::BasicBlock::Create(Context, "entry", newConstructorCaller);
+	Builder->SetInsertPoint(BB);
+	if (last_thread_constructor_caller) {
+		auto last_thrconstr_proto = (*lex.findProtos(last_thread_constructor_caller))[0].get();
+		auto last_caller = getFunction(last_thrconstr_proto);
+		Builder->CreateCall(last_thrconstr_proto->FT, last_caller,
+		                    std::vector<llvm::Value*>(), "callold");
+	}
+	auto C = getConstructorOrDestructor(ft);
+	auto GV = GetGlobalHandle(ft->type, varname, sym_kind);
+	Builder->CreateCall(C, { GV });
+	Builder->CreateRetVoid();
+	finishFunctionOrModule(newConstructorCaller, 1, jit_repl);
+	auto constructor_caller_Proto = std::make_unique<PrototypeAST>(CurLoc, constructor_caller, std::vector<std::string>());
+	last_thread_constructor_caller = constructor_caller_Proto->Name.c_str();
+	// constructor callers must be always accessible so force them into builtin namespace
+	Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
+	module->FunctionProtos[constructor_caller].push_back(std::move(constructor_caller_Proto));
 }
 
 // helper function to find out if an expression is fractional
