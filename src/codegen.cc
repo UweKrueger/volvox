@@ -576,6 +576,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
 	// bool prepare_setter_fn = comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test;
 	bool prepare_setter_fn = comp_mode == comp_jit && !do_test;
+	auto TLSmodel = (sym_kind & A_global) ? llvm::GlobalVariable::GeneralDynamicTLSModel : llvm::GlobalVariable::NotThreadLocal;
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
@@ -706,10 +707,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			} else {
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, link_type,
-				                              needs_call ? nullptr : initializer, varname, nullptr,
-				                              (sym_kind & A_global) ?
-				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
-				                              llvm::GlobalVariable::NotThreadLocal, 0, needs_call);
+				                              needs_call ? nullptr : initializer, varname, nullptr, TLSmodel, 0, needs_call);
 				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 				fv->storage_type = initializer->getType();
 			}
@@ -810,10 +808,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			if (initializer && needs_call) {
 				GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 				                              false, link_type,
-				                              initializer, varname, nullptr,
-				                              (sym_kind & A_global) ?
-				                              llvm::GlobalVariable::GeneralDynamicTLSModel :
-				                              llvm::GlobalVariable::NotThreadLocal, 0, false);
+				                              initializer, varname, nullptr, TLSmodel, 0, false);
 				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 			}
 			if (comp_mode == comp_jit && (sym_kind & A_global) && needs_constructor && !do_test) {
@@ -1163,12 +1158,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			// errs() << "Getting GV " << entry->mangled_name << " " << Val << '\n';
 			if (entry->mangled_name) {
 				GV = TheModule->getGlobalVariable(entry->mangled_name, true);
-				if (!GV)
+				if (!GV) {
+					auto TLSmodel = (entry->ft.type_attr & A_const) ?
+						llvm::GlobalVariable::NotThreadLocal :
+						llvm::GlobalVariable::GeneralDynamicTLSModel;
 					GV = new llvm::GlobalVariable(*TheModule, entry->storage_type,
 					                              false, llvm::GlobalValue::ExternalLinkage,
-					                              nullptr, entry->mangled_name, nullptr,
-					                              llvm::GlobalVariable::NotThreadLocal,
+					                              nullptr, entry->mangled_name, nullptr, TLSmodel,
 					                              0, true);
+				}
 				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(entry->storage_type));
 			}
 		}
