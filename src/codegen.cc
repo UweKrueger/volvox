@@ -2075,11 +2075,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		ElseBB = Builder->GetInsertBlock();
 	}
 	// Emit merge block.
-	if (always_return) {
-		errs() << "premature retrun from IfExpr codegen due to 'aleays_return'\n";
+	if (always_return)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	} else
-		errs() << "continue IfExpr\n";
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
 	if (if_kind == tok_repeat && then_locals_table.table) {
@@ -2101,7 +2098,6 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (else_var) {
-				errs() << "merging...\n";
 				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
 				                          else_var->ft.type, else_var->val, ElseBB, elseLast);
 				if (!merge.second)
@@ -2154,7 +2150,6 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
 	else {
-		errs() << "merging res...\n";
 		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
 		                          Else.back()->ft->type, ElseV, ElseBB, elseLast);
 		if (ft->type != merge.first) {

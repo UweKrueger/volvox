@@ -890,7 +890,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		}
 		locals_table.emplace_back();
 		Else = ParseExprList();
-		errs() << "parsed else with end_kind " << (int)Else.second << '\n';
 	} else {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
@@ -932,7 +931,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 				return nullptr;
 	}
 	bool always_return = Then.second == tok_return && have_else && Else.second == tok_return;
-	errs() << "always_return: " << always_return << " " << (int)Then.second << " " << (int)Else.second <<'\n';
 	auto res_t = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
 	              && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy() && !(Then.second == tok_return || have_else && Else.second == tok_return)) ?
 		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
@@ -1303,7 +1301,6 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 	while (!end_kind) {
 		auto expr = ParseExprOrReturn();
 		end_kind = expr.second;
-		errs() << "parsed expr end kind " << (int)end_kind << '\n';
 		if (expr.first) {
 			if (!end_kind)
 				if (auto I = dynamic_cast<IfExprAST*>(expr.first.get()))
@@ -1312,7 +1309,6 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 			expr_list.push_back(std::move(expr.first));
 		}
 	}
-	errs() << "parsed expr list with end kind " << (int)end_kind << '\n';
 	return { std::move(expr_list), end_kind };
 }
 
