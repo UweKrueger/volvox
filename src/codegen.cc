@@ -1891,6 +1891,12 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 	}
 }
 
+enum CTcond_t {
+	CTcond_false = 0,
+	CTcond_true,
+	CTcond_undef
+};
+
 llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -1938,6 +1944,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, contName);
 	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
 	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
+	CTcond_t CTcond = CTcond_undef;
 	if (if_kind == tok_repeat) {
 		// 1st iteration: save stack
 		Builder->CreateBr(StackSaveBB);
@@ -1957,8 +1964,19 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
 			return nullptr;
 		}
+		if (auto const_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
+			CTcond = (CTcond_t)(const_cond->getZExtValue());
 		if (if_kind == tok_if) {
-			Builder->CreateCondBr(CondV, ThenBB, ElseBB);
+			switch (CTcond) {
+			case CTcond_false:
+				Builder->CreateBr(ElseBB);
+				break;
+			case CTcond_true:
+				Builder->CreateBr(ThenBB);
+				break;
+			default:
+				Builder->CreateCondBr(CondV, ThenBB, ElseBB);
+			}
 		} else {
 			// save stack at 1st run and restore at followind runs
 			llvm::Value* CondVV = Builder->CreateIntCast(CondV, llvm::Type::getInt8Ty(Context), false, "expandcond");
@@ -1981,25 +1999,29 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(ThenBB);
 	}
-	TheFunction->getBasicBlockList().push_back(ThenBB);
-	Builder->SetInsertPoint(ThenBB);
-	// Emit then value.
-	locals_table.push_back(std::move(then_locals_table));
-	condnesting++;
-	auto ThenVL = createCondBranch(CondBB ? CondBB : MergeBB, false);
-	llvm::Value* ThenV = ThenVL.first;
-	auto thenLast = ThenVL.second;
-	condnesting--;
-	then_locals_table = std::move(locals_table.back());
-	locals_table.pop_back();
-	if (!ThenV)
-		return nullptr;
-	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
-	ThenBB = Builder->GetInsertBlock();
-	if (if_kind == tok_while)
-		condPN->addIncoming(Builder->getInt8(0), ThenBB);
+	llvm::Value* ThenV = nullptr;
+	llvm::Instruction* thenLast = nullptr;
+	if (!(if_kind == tok_if && CTcond == CTcond_false)) {
+		TheFunction->getBasicBlockList().push_back(ThenBB);
+		Builder->SetInsertPoint(ThenBB);
+		// Emit then value.
+		locals_table.push_back(std::move(then_locals_table));
+		condnesting++;
+		auto ThenVL = createCondBranch(CondBB ? CondBB : MergeBB, false);
+		ThenV = ThenVL.first;
+		thenLast = ThenVL.second;
+		condnesting--;
+		then_locals_table = std::move(locals_table.back());
+		locals_table.pop_back();
+		if (!ThenV)
+			return nullptr;
+		// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
+		ThenBB = Builder->GetInsertBlock();
+		if (if_kind == tok_while)
+			condPN->addIncoming(Builder->getInt8(0), ThenBB);
+	}
 	llvm::Value* ElseV = nullptr;
-	llvm::Instruction* elseLast;
+	llvm::Instruction* elseLast = nullptr;
 	if (if_kind == tok_repeat) {
 		TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
@@ -2013,24 +2035,26 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		}
 		Builder->CreateCondBr(CondV, MergeBB, StackRestoreBB);
 	} else {		
-		// Emit else block.
-		TheFunction->getBasicBlockList().push_back(ElseBB);
-		Builder->SetInsertPoint(ElseBB);
-		locals_table.push_back(std::move(else_locals_table));
-		condnesting++;
-		VarTable* old_IfWhileVarTable = IfWhileVarTable;
-		IfWhileVarTable = &then_locals_table;
-		auto ElseVL = createCondBranch(MergeBB, true);
-		ElseV = ElseVL.first;
-		elseLast = ElseVL.second;
-		IfWhileVarTable = old_IfWhileVarTable;
-		condnesting--;
-		else_locals_table = std::move(locals_table.back());
-		locals_table.pop_back();
-		if (!ElseV)
-			return nullptr;
-		// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
-		ElseBB = Builder->GetInsertBlock();
+		if (!(if_kind == tok_if && CTcond == CTcond_true)) {
+			// Emit else block.
+			TheFunction->getBasicBlockList().push_back(ElseBB);
+			Builder->SetInsertPoint(ElseBB);
+			locals_table.push_back(std::move(else_locals_table));
+			condnesting++;
+			VarTable* old_IfWhileVarTable = IfWhileVarTable;
+			IfWhileVarTable = &then_locals_table;
+			auto ElseVL = createCondBranch(MergeBB, true);
+			ElseV = ElseVL.first;
+			elseLast = ElseVL.second;
+			IfWhileVarTable = old_IfWhileVarTable;
+			condnesting--;
+			else_locals_table = std::move(locals_table.back());
+			locals_table.pop_back();
+			if (!ElseV)
+				return nullptr;
+			// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
+			ElseBB = Builder->GetInsertBlock();
+		}
 	}
 	// Emit merge block.
 	TheFunction->getBasicBlockList().push_back(MergeBB);
@@ -2071,6 +2095,29 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				then_var->ft.type_attr |= A_merged;
 			}
 		}
+	} else if (then_locals_table.table && else_locals_table.table && CTcond != CTcond_undef) {
+		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
+			FullVar* else_var = else_locals_table[then_node.getKey()];
+			MapValue* node = then_node.getValue();
+			auto then_var = (FullVar*)((char*)node + node->offset);
+			if (else_var) {
+				FullVar* entry = locals_table.back()[then_node.getKey()];
+				if (!entry) {
+					errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
+					abort();
+				}
+				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
+				else_var->ft.type_attr |= A_merged; // mark as merged to avoid destructor call below
+				then_var->ft.type_attr |= A_merged;
+				if (!CTcond) {
+					entry->ft.type = else_var->ft.type;
+					entry->val = else_var->val;
+				} else {
+					entry->ft.type = then_var->ft.type;
+					entry->val = then_var->val;
+				}
+			}
+		}
 	}
 	MergeBB = Builder->GetInsertBlock();
 	// iterate over then/else-declared objects and insert destructors for those that are not merged
@@ -2106,6 +2153,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
 	else {
+		if (CTcond == CTcond_true)
+			return handle(target, thenLast);
+		if (CTcond == CTcond_false)
+			return handle(target, elseLast);
 		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
 		                          Else.back()->ft->type, ElseV, ElseBB, elseLast);
 		if (ft->type != merge.first) {
