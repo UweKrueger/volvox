@@ -69,6 +69,7 @@ llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
+volvoxc::FullType* char_type;
 volvoxc::FullType* size_type;
 
 #ifdef LEGACY_PASS_MANAGER
@@ -135,6 +136,7 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("i32", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("i32", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	lex.add_type("i64", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("i64", 64, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 	lex.add_type("u8", llvm::Type::getInt8Ty(Context), DBuilder ? DBuilder->createBasicType("u8", 8, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+	char_type = lex.get_full_type("u8");
 	lex.add_type("u16", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("u16", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	lex.add_type("u32", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("u32", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	lex.add_type("u64", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("u64", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
@@ -190,6 +192,28 @@ void init(const llvm::Triple& triple) {
 		break;
 	default:
 		cpu_idx = CPU_Unknown;
+	}
+	FullVar os_fv = {
+		.val = llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), os_idx),
+		.ft = {
+			.type = llvm::Type::getInt8Ty(Context),
+			.type_attr = A_rvalue | A_const | A_global,
+		}
+	};
+	if (!lex.module->globals_table.insert("__OS_Idx", os_fv)) {
+		errs() << "cannot create const " << "__OS_Idx" << '\n';
+		abort();
+	}
+	FullVar cpu_fv = {
+		.val = llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), cpu_idx),
+		.ft = {
+			.type = llvm::Type::getInt8Ty(Context),
+			.type_attr = A_rvalue | A_const | A_global,
+		}
+	};
+	if (!lex.module->globals_table.insert("__CPU_Idx", cpu_fv)) {
+		errs() << "cannot create const " << "__CPU_Idx" << '\n';
+		abort();
 	}
 }
 

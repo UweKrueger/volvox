@@ -372,6 +372,7 @@ extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* bool_type;
+extern volvoxc::FullType* char_type;
 extern volvoxc::FullType* size_type;
 static inline llvm::ConstantInt* getSize(uint64_t n) {
 	return llvm::ConstantInt::get(llvm::IntegerType::get(Context, target_bits), n);

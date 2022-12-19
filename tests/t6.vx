@@ -437,3 +437,7 @@ fn test_nested_if_7() bool
 
 fn test_nested_if_8() bool
 	return nested_if_return_2(7, 9) == 0.75
+
+fn test_built_in_consts() bool
+	x := __OS_Idx
+	return x > 0 && __CPU_Idx > 0
