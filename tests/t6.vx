@@ -380,3 +380,15 @@ inline fn gfR() f64
 
 fn test_if_else_n1() bool
 	return gfR() == 34.25
+
+176.3
+
+global f33h7 := 3
+
+inline fn gfR2() f64
+	if 4 > 3
+		return 34.25
+	else
+		return 2.5
+
+543254

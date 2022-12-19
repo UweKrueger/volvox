@@ -876,7 +876,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	if (Then.second == tok_else) {
 		have_else = true;
 		getNextToken();
-	} else if (Then.second == tok_leave || Then.second == tok_return) {
+	} else if (Then.second == tok_return) {
 		getNextToken();
 		if (CurTok.kind == tok_else) {
 			getNextToken();
@@ -890,6 +890,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		}
 		locals_table.emplace_back();
 		Else = ParseExprList();
+		errs() << "parsed else with end_kind " << (int)Else.second << '\n';
 	} else {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
@@ -930,8 +931,10 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			if (!Expect(tok_end, eBinOp))
 				return nullptr;
 	}
+	bool always_return = Then.second == tok_return && have_else && Else.second == tok_return;
+	errs() << "always_return: " << always_return << " " << (int)Then.second << " " << (int)Else.second <<'\n';
 	auto res_t = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
-	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
+	              && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy() && !(Then.second == tok_return || have_else && Else.second == tok_return)) ?
 		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
 		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
 		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
@@ -941,7 +944,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		return nullptr;
 	}
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind);
+	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind, always_return);
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
@@ -1300,14 +1303,16 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 	while (!end_kind) {
 		auto expr = ParseExprOrReturn();
 		end_kind = expr.second;
+		errs() << "parsed expr end kind " << (int)end_kind << '\n';
 		if (expr.first) {
 			if (!end_kind)
 				if (auto I = dynamic_cast<IfExprAST*>(expr.first.get()))
 					if (I->ThenEndKind == tok_return && I->ElseEndKind == tok_return)
-						end_kind = tok_leave;
+						end_kind = tok_return;
 			expr_list.push_back(std::move(expr.first));
 		}
 	}
+	errs() << "parsed expr list with end kind " << (int)end_kind << '\n';
 	return { std::move(expr_list), end_kind };
 }
 

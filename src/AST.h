@@ -643,14 +643,16 @@ class IfExprAST : public ExprAST {
 
 public:
 	int ThenEndKind, ElseEndKind; // maybe tok_else, tok_end, tok_return, ...
+	bool always_return = false;
 
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
-	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if)
+	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if, bool always_return = false)
 		: ExprAST(_Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context), std::get<1>(res_t), Loc, std::get<2>(res_t)),
 		  errmsg(std::get<4>(res_t)), Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
-		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)), if_kind(if_kind)
+		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)), if_kind(if_kind),
+		  always_return(always_return)
 		{
 			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
 			if (Then.size() && Then.back()->ft && Then.back()->ft->type && !Then.back()->ft->type->isSingleValueType() && !Then.back()->ft->type->isVoidTy()

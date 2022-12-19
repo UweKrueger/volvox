@@ -745,9 +745,11 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
+	errs() << "################ 1\n";
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
 	auto &P = *Proto;
+	bool already_returned = false;
 	volvoxc::FullType* receiver_ft;
 	if (Proto->visibility & (A_method | A_constructor))
 		if (Proto->IsStructRet)
@@ -766,6 +768,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	// llvm::DISubprogram *SP; - make static
 	// llvm::DIFile *Unit;
 	unsigned LineNo;
+	errs() << "################ 2\n";
 	if (comp_mode == comp_dbg) {
 		// Create a subprogram DIE for this function.
 		Unit = DBuilder->createFile(KSDbgInfo.TheCU->getFilename(),
@@ -792,6 +795,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	theFunction_ret_ft = (P.visibility & A_constructor) ? void_type : P.RetType;
 	if (P.IsStructRet && !(P.visibility & A_constructor))
 		ret_ptr = TheFunction->getArg(ArgIdx++);
+	errs() << "################ 3\n";
 	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
 		auto Arg = TheFunction->getArg(ArgIdx);
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
@@ -828,6 +832,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			goto cleanup;
 		Body.back()->desired_type = P.RetType->type;
 	}
+	errs() << "################ 4\n";
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {
 			if (!return_val_idx--)
@@ -837,37 +842,47 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			}
 			InsertDestructors(expr_temps);
 		} else {
+			errs() << Expr->Loc << ": error compiling expr\n";
 			goto cleanup;
 		}
 	}
 	if (InterRetVal)
 		RetVal = InterRetVal;
+	errs() << "################ 5\n";
 	// Finish off the function.
-	if (P.RetType->type->isVoidTy() || (P.visibility & A_constructor)) {
-		if (P.visibility & A_destructor) {
-			insert_field_destructors(receiver_ft, TheFunction->getArg(0));
-		}
-		InsertDestructors(nullptr);
-		Builder->CreateRetVoid();
-	} else {
-		// auto ret_type = RetVal->getType();
-		//type = ret_type; // TODO: hande conversion if != proto->type;
-		if (P.IsStructRet) {
-			Builder->CreateStore(RetVal, ret_ptr);
-			InsertDestructors(ret_ptr);
+	if (!Body.empty())
+		if (auto ifexpr = dynamic_cast<IfExprAST*>(Body.back().get()))
+			already_returned = ifexpr->always_return;
+	if (!already_returned) {
+		errs() << "function " << P.Name << " returns normally\n";
+		if (P.RetType->type->isVoidTy() || (P.visibility & A_constructor)) {
+			if (P.visibility & A_destructor) {
+				insert_field_destructors(receiver_ft, TheFunction->getArg(0));
+			}
+			InsertDestructors(nullptr);
 			Builder->CreateRetVoid();
 		} else {
-			if (RetVal->getType()->isPointerTy())
-				InsertDestructors(RetVal);
-			else
-				InsertDestructors(nullptr);
-			Builder->CreateRet(CheckTailCall(RetVal));
-			if (!ArgIdx && Body.size() == 1 && !InterRetVal && TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
-				if (auto const_ret = llvm::dyn_cast<llvm::Constant>(RetVal))
-					// hack to allow trivial static functions to be used as constexpr
-					P.const_result = const_ret;
+			// auto ret_type = RetVal->getType();
+			//type = ret_type; // TODO: hande conversion if != proto->type;
+			if (P.IsStructRet) {
+				Builder->CreateStore(RetVal, ret_ptr);
+				InsertDestructors(ret_ptr);
+				Builder->CreateRetVoid();
+			} else {
+				if (RetVal->getType()->isPointerTy())
+					InsertDestructors(RetVal);
+				else
+					InsertDestructors(nullptr);
+				Builder->CreateRet(CheckTailCall(RetVal));
+				if (!ArgIdx && Body.size() == 1 && !InterRetVal && TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
+					if (auto const_ret = llvm::dyn_cast<llvm::Constant>(RetVal))
+						// hack to allow trivial static functions to be used as constexpr
+						P.const_result = const_ret;
+			}
 		}
-	}		
+	} else {
+		errs() << "function " << P.Name << " returns in if\n";
+	}
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function.
 		KSDbgInfo.LexicalBlocks.pop_back();
