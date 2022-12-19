@@ -877,10 +877,15 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		have_else = true;
 		getNextToken();
 	} else if (Then.second == tok_return) {
-		getNextToken();
-		if (CurTok.kind == tok_else) {
+		if (CurTok.kind == tok_end) {
 			getNextToken();
-			have_else = true;
+			have_else = false;
+		} else {
+			getNextToken();
+			if (CurTok.kind == tok_else) {
+				getNextToken();
+				have_else = true;
+			}
 		}
 	}
 	if (have_else) {

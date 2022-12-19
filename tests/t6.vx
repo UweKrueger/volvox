@@ -414,3 +414,26 @@ fn test_nested_if_3() bool
 
 fn test_nested_if_4() bool
 	return nested_if_return_1(1, 2) == -2.75
+
+fn nested_if_return_2(a int, b int) f64
+	if a >= b
+		if a < -2
+			return 1.5625 .
+	else
+		if b <=2
+			return -89.375
+		else
+			return 0.75
+	return 55.375
+
+fn test_nested_if_5() bool
+	return nested_if_return_2(-4, -5) == 1.5625
+
+fn test_nested_if_6() bool
+	return nested_if_return_2(8, 5) == 55.375
+
+fn test_nested_if_7() bool
+	return nested_if_return_2(-6, -3) == -89.375
+
+fn test_nested_if_8() bool
+	return nested_if_return_2(7, 9) == 0.75
