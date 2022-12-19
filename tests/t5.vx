@@ -75,7 +75,7 @@ fn test_destructor_1() bool
 fn hhwe2(n i32) i32
 	if n<=0
 		llk3e := YY{ r: n-8 }
-		return llk3e.r .
+		return llk3e.r
 	return 5
 
 fn test_destructor_2() bool

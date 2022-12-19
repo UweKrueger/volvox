@@ -914,8 +914,9 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (!Cond)
 			return nullptr;
 	} else {
-		if (!Expect(tok_end, eBinOp))
-			return nullptr;
+		if (have_else && Else.second == tok_end || !have_else && Then.second == tok_end)
+			if (!Expect(tok_end, eBinOp))
+				return nullptr;
 	}
 	auto res_t = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
 	             && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy()) ?
