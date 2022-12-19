@@ -211,3 +211,28 @@ namespace volvox {
 #undef VOLVOX_RtType
 #define VOLVOX_RtType volvox::RtType
 #endif
+
+// architecture index numbers for runtime system - they differ
+// from those in LLVM - to be independent from LLVM versions
+// also we do not support every architecture
+// however the must match the numbers defined in builtin.vx
+
+typedef enum OS_Type_t : uint8_t {
+	OS_UnknownOS = 0,
+	OS_DragonFlyBSD = 1,
+	OS_FreeBSD = 2,
+	OS_Linux = 3,
+	OS_MacOSX = 4,
+	OS_NetBSD = 5,
+	OS_OpenBSD = 6,
+	OS_Windows = 7
+} OS_Type_t;
+	
+typedef enum CPU_Type_t : uint8_t {
+	CPU_Unknown = 0,
+	CPU_arm,
+	CPU_aarch64,
+	CPU_avr,
+	CPU_x86,
+	CPU_x86_64
+} CPU_Type_t;

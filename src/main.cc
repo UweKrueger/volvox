@@ -96,7 +96,7 @@ std::vector<VarTable> locals_table; // including function arguments
 
 unsigned stringkey;
 
-void init() {
+void init(const llvm::Triple& triple) {
 	init_token_map();
 	// only for internal use:
 	lex.add_type("i*", llvm::Type::getInt64Ty(Context), nullptr, A_signed);
@@ -144,6 +144,53 @@ void init() {
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "string") : nullptr, A_string);
 	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
+	// create build in constexprs to describe target
+	OS_Type_t os_idx;
+	switch (triple.getOS()) {
+	case llvm::Triple::DragonFly:
+		os_idx = OS_DragonFlyBSD;
+		break;
+	case llvm::Triple::FreeBSD:
+		os_idx = OS_FreeBSD;
+		break;
+	case llvm::Triple::Linux:
+		os_idx = OS_Linux;
+		break;
+	case llvm::Triple::MacOSX:
+		os_idx = OS_MacOSX;
+		break;
+	case llvm::Triple::NetBSD:
+		os_idx = OS_NetBSD;
+		break;
+	case llvm::Triple::OpenBSD:
+		os_idx = OS_OpenBSD;
+		break;
+	case llvm::Triple::Win32:
+		os_idx = OS_Windows;
+		break;
+	default:
+		os_idx = OS_UnknownOS;
+	}
+	CPU_Type_t cpu_idx;
+	switch (triple.getArch()) {
+	case llvm::Triple::arm:
+		cpu_idx = CPU_arm;
+		break;
+	case llvm::Triple::aarch64:
+		cpu_idx = CPU_aarch64;
+		break;
+	case llvm::Triple::avr:
+		cpu_idx = CPU_avr;
+		break;
+	case llvm::Triple::x86:
+		cpu_idx = CPU_x86;
+		break;
+	case llvm::Triple::x86_64:
+		cpu_idx = CPU_x86_64;
+		break;
+	default:
+		cpu_idx = CPU_Unknown;
+	}
 }
 
 //===----------------------------------------------------------------------===//
@@ -1222,8 +1269,10 @@ int main(int argc, char* argv[]) {
 		errs() << Error;
 		return 1;
 	}
-	if (verbosity >= 1)
+	if (verbosity >= 1) {
 		errs() << "Target: " << TargetTriple << '\n';
+		// errs() << Target->getName() << " # " << Target->getShortDescription() << " # " << Target->getBackendName() << '\n';
+	}
 	auto CPU = "generic";
 	auto Features = "";
 	llvm::TargetOptions target_opts;
@@ -1282,7 +1331,7 @@ int main(int argc, char* argv[]) {
 			llvm::dwarf::DW_LANG_C, DBuilder->createFile(lex.Loc.File, "."),
 			"Volvox Compiler", 0, "", 0);
 	}
-	init();
+	init(TheTargetMachine->getTargetTriple());
 	// Prime the first token.
 	getNextToken();
 	// Run the main "interpreter loop" now.
