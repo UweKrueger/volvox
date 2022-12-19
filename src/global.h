@@ -829,6 +829,7 @@ public:
 	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc;
 	llvm::FunctionType* FT = nullptr;
+	llvm::Constant* const_result = nullptr;
 	bool IsVarArgs = false;
 	bool IsOperator = false;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference

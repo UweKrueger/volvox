@@ -873,9 +873,21 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.pop_back();
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
 	bool have_else = false;
-	if (kind != tok_repeat && CurTok.kind == tok_else) {
+	if (Then.second == tok_else) {
 		have_else = true;
 		getNextToken();
+	} else if (Then.second == tok_leave || Then.second == tok_return) {
+		getNextToken();
+		if (CurTok.kind == tok_else) {
+			getNextToken();
+			have_else = true;
+		}
+	}
+	if (have_else) {
+		if (kind == tok_repeat) {
+			errs() << CurLoc << ": 'else' not allowed with 'repeat'\n";
+			return nullptr;
+		}
 		locals_table.emplace_back();
 		Else = ParseExprList();
 	} else {

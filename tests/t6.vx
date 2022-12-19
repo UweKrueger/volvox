@@ -361,3 +361,22 @@ fn test_global_from_non_const() bool
 	return PerteR == 195.75
 
 #exit 0
+
+inline fn PoerAS() f64
+	return urZ + 2.5
+
+const Jd45tz ::= PoerAS() + 0.25
+
+fn test_trivial_const_function() bool
+	return Jd45tz == 373493.75
+
+inline fn gfR() f64
+	x := 0.5
+	if 4>3
+		return 34.25
+	else
+		x = 2.5 .
+	return x
+
+fn test_if_else_n1() bool
+	return gfR() == 34.25

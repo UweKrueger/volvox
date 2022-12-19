@@ -735,6 +735,8 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
 		// Callee was a function symbol like `sin`
+		if (Proto->const_result)
+			return Proto->const_result;
 		return Builder->CreateCall(F, ArgsV, "calltmp");
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
@@ -829,7 +831,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {
 			if (!return_val_idx--)
-				InterRetVal = RetVal;
+				InterRetVal = RetVal; // hack for interactive JIT to return value of Expr instead of println()
 			if (comp_mode == comp_dbg) {
 				KSDbgInfo.emitLocation(Expr.get());
 			}
@@ -860,6 +862,10 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			else
 				InsertDestructors(nullptr);
 			Builder->CreateRet(CheckTailCall(RetVal));
+			if (!ArgIdx && Body.size() == 1 && !InterRetVal && TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
+				if (auto const_ret = llvm::dyn_cast<llvm::Constant>(RetVal))
+					// hack to allow trivial static functions to be used as constexpr
+					P.const_result = const_ret;
 		}
 	}		
 	if (comp_mode == comp_dbg) {
