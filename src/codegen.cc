@@ -1921,7 +1921,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		loopBBName = "loop";
 		contName = "whilecont";
 	}
-	llvm::BasicBlock* ThenBB = llvm::BasicBlock::Create(Context, loopBBName);
+	llvm::BasicBlock* ThenBB = nullptr;
 	if (if_kind == tok_while) {
 		llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 		CondBB = llvm::BasicBlock::Create(Context, "while");
@@ -1940,12 +1940,13 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	Cond->desired_type = llvm::Type::getInt1Ty(Context);
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat) ? nullptr : llvm::BasicBlock::Create(Context, "else");
+	llvm::BasicBlock* ElseBB = nullptr;
 	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, contName);
 	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
 	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
 	CTcond_t CTcond = CTcond_undef;
 	if (if_kind == tok_repeat) {
+		ThenBB = llvm::BasicBlock::Create(Context, loopBBName);
 		// 1st iteration: save stack
 		Builder->CreateBr(StackSaveBB);
 	} else {
@@ -1969,15 +1970,21 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		if (if_kind == tok_if) {
 			switch (CTcond) {
 			case CTcond_false:
+				ElseBB = llvm::BasicBlock::Create(Context, "else");
 				Builder->CreateBr(ElseBB);
 				break;
 			case CTcond_true:
+				ThenBB = llvm::BasicBlock::Create(Context, loopBBName);
 				Builder->CreateBr(ThenBB);
 				break;
 			default:
+				ThenBB = llvm::BasicBlock::Create(Context, loopBBName);
+				ElseBB = llvm::BasicBlock::Create(Context, "else");
 				Builder->CreateCondBr(CondV, ThenBB, ElseBB);
 			}
 		} else {
+			ThenBB = llvm::BasicBlock::Create(Context, loopBBName);
+			ElseBB = llvm::BasicBlock::Create(Context, "else");
 			// save stack at 1st run and restore at followind runs
 			llvm::Value* CondVV = Builder->CreateIntCast(CondV, llvm::Type::getInt8Ty(Context), false, "expandcond");
 			llvm::Value* switchVal = Builder->CreateOr(condPN, CondVV, "switchval");
@@ -2042,7 +2049,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			locals_table.push_back(std::move(else_locals_table));
 			condnesting++;
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
-			IfWhileVarTable = &then_locals_table;
+			// IfWhileVarTable = &then_locals_table;
+			IfWhileVarTable = (if_kind == tok_if && CTcond == CTcond_false) ? nullptr : &then_locals_table;
 			auto ElseVL = createCondBranch(MergeBB, true);
 			ElseV = ElseVL.first;
 			elseLast = ElseVL.second;
@@ -2096,6 +2104,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 	} else if (then_locals_table.table && else_locals_table.table && CTcond != CTcond_undef) {
+		errs() << "########### got there\n";
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			FullVar* else_var = else_locals_table[then_node.getKey()];
 			MapValue* node = then_node.getValue();
@@ -2153,10 +2162,14 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
 	else {
-		if (CTcond == CTcond_true)
+		if (CTcond == CTcond_true) {
+			errs() << "#++++++++ true case\n";
 			return handle(target, thenLast);
-		if (CTcond == CTcond_false)
+		}
+		if (CTcond == CTcond_false) {
+			errs() << "#++++++++ false case\n";
 			return handle(target, elseLast);
+		}
 		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
 		                          Else.back()->ft->type, ElseV, ElseBB, elseLast);
 		if (ft->type != merge.first) {
