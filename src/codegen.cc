@@ -714,7 +714,22 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
 	type = expr->RHS->ft->type;
-	llvm::Constant* initializer = (use_target || !Val) ? nullptr : llvm::dyn_cast<llvm::Constant>(Val);
+	llvm::Constant* initializer = nullptr;
+	/* this is how it should be...
+	if (Val && (sym_kind && A_rvalue)) {
+		initializer = llvm::dyn_cast<llvm::Constant>(Val);
+		if (!initializer) {
+			errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
+			return cleanupGlobal(tmpf, unmangled_name.c_str());
+		}
+	} */
+	if (!(use_target || !Val)) { // that's what we have to use for now...
+		initializer = llvm::dyn_cast<llvm::Constant>(Val);
+		if (!initializer && !strcmp(expr->Op, "::=")) {
+			errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
+			return cleanupGlobal(tmpf, unmangled_name.c_str());
+		}
+	}
 	bool needs_store;
 	bool needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
 	if (initializer) {
