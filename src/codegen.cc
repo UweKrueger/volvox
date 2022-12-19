@@ -1750,6 +1750,9 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	if (!BranchV && !isElse && !suppress_codegen)
 		return { nullptr, nullptr };
 	if (EndKind == tok_return) {
+		if (auto lastif = dynamic_cast<IfExprAST*>(Branch.back().get()))
+			if (lastif->always_return)
+				return { llvm::UndefValue::get(llvm::Type::getVoidTy(Context)), firstBreak };
 		if (theFunction_ret_ft->type->isVoidTy()) {
 			if (!suppress_codegen)
 				InsertDestructors(nullptr);
