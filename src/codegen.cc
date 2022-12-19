@@ -1711,38 +1711,49 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	return handle(target, result);
 }
 
-std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
+std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse, CTcond_t static_cond) {
 	int EndKind = isElse ? ElseEndKind : ThenEndKind;
 	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
+	bool suppress_codegen = isElse && static_cond == CTcond_true || !isElse && static_cond == CTcond_false;
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
 	if (EndKind == tok_return)
 		Branch.back()->desired_type = theFunction_ret_ft->type;
-	for (auto& expr : Branch) {
-		BranchV = expr->codegen();
-		InsertDestructors(expr_temps);
-	}
+	if (!suppress_codegen)
+		for (auto& expr : Branch) {
+			BranchV = expr->codegen();
+			InsertDestructors(expr_temps);
+		}
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
-	if (!BranchV && !isElse)
+	if (!BranchV && !isElse && !suppress_codegen)
 		return { nullptr, nullptr };
 	if (EndKind == tok_return) {
 		if (theFunction_ret_ft->type->isVoidTy()) {
-			InsertDestructors(nullptr);
+			if (!suppress_codegen)
+				InsertDestructors(nullptr);
 			Builder->CreateRetVoid();
 		} else {
 			if (ret_ptr) {
-				Builder->CreateStore(BranchV, ret_ptr);
-				InsertDestructors(ret_ptr);
+				if (!suppress_codegen) {
+					Builder->CreateStore(BranchV, ret_ptr);
+					InsertDestructors(ret_ptr);
+				}
 				Builder->CreateRetVoid();
 			} else {
-				InsertDestructors(nullptr);
-				Builder->CreateRet(CheckTailCall(BranchV));
+				if (!suppress_codegen) {
+					InsertDestructors(nullptr);
+					Builder->CreateRet(CheckTailCall(BranchV));
+				} else {
+					Builder->CreateRet(CheckTailCall(llvm::Constant::getNullValue(theFunction_ret_ft->type)));
+				}
 			}
 		}
 	} else {
 		if (ft->type->isVoidTy() && (!BranchV || !BranchV->getType()->isVoidTy()))
-			BranchV = llvm::UndefValue::get(ft->type);
+			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+		else if (!BranchV)
+			BranchV = llvm::Constant::getNullValue(ft->type);
 		firstBreak = Builder->CreateBr(MergeBB);
 	}
 	return { BranchV, firstBreak };
@@ -1938,6 +1949,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, contName);
 	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
 	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
+	CTcond_t CTcond = CTcond_undef;
 	if (if_kind == tok_repeat) {
 		// 1st iteration: save stack
 		Builder->CreateBr(StackSaveBB);
@@ -1947,6 +1959,9 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		if (if_kind == tok_while)
 			CondBB = Builder->GetInsertBlock();
+		else
+			if (auto static_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
+				CTcond = (CTcond_t)(static_cond->getZExtValue());
 		const char* new_err_msg;
 		if (!Else.empty() && !Then.empty())
 			std::tie(Then.back()->desired_type, Else.back()->desired_type, new_err_msg) = getDesiredTypes(
@@ -1986,7 +2001,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	// Emit then value.
 	locals_table.push_back(std::move(then_locals_table));
 	condnesting++;
-	auto ThenVL = createCondBranch(CondBB ? CondBB : MergeBB, false);
+	auto ThenVL = createCondBranch(CondBB ? CondBB : MergeBB, false, CTcond);
 	llvm::Value* ThenV = ThenVL.first;
 	auto thenLast = ThenVL.second;
 	condnesting--;
@@ -2020,7 +2035,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		condnesting++;
 		VarTable* old_IfWhileVarTable = IfWhileVarTable;
 		IfWhileVarTable = &then_locals_table;
-		auto ElseVL = createCondBranch(MergeBB, true);
+		auto ElseVL = createCondBranch(MergeBB, true, CTcond);
 		ElseV = ElseVL.first;
 		elseLast = ElseVL.second;
 		IfWhileVarTable = old_IfWhileVarTable;

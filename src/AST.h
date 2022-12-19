@@ -626,6 +626,12 @@ public:
 #endif
 };
 
+enum CTcond_t : uint8_t {
+	CTcond_false = 0,
+	CTcond_true,
+	CTcond_undef
+};
+
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> Cond;
@@ -652,7 +658,7 @@ public:
 				ft = new_FullType(*Then.back()->ft);
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false);
+	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false, CTcond_t static_cond = CTcond_undef);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
