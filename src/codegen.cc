@@ -704,11 +704,12 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
 	}
 	if (!use_target && !Val) {
-		if (!(sym_kind & A_const)) {
+		if (!(sym_kind & (A_const | A_global))) {
 			errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
 			return cleanupGlobal(tmpf, unmangled_name.c_str());
 		} else {
-			cleanupGlobal(tmpf, nullptr);
+			if (!(sym_kind & A_global))
+				cleanupGlobal(tmpf, nullptr);
 		}
 	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
@@ -732,11 +733,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	bool needs_call = (needs_store || needs_constructor || use_target) && (comp_mode == comp_jit) && !do_test;
 	if (needs_store && (sym_kind & A_global)) {
-		if (LREF)
+		if (LREF) {
 			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";
-		else
-			errs() << expr->RHS->Loc << ": initializer for global variable must be a compile time const\n";
-		return cleanupGlobal(tmpf, unmangled_name.c_str());
+			return cleanupGlobal(tmpf, unmangled_name.c_str());
+		}
 	}
 	llvm::GlobalVariable* GV;
 	if (initializer && !LREF)
@@ -787,9 +787,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
 			GlobalExprList.push_back(std::move(constructor_call));
 		}
-		if ((sym_kind & A_const) && (comp_mode != comp_jit || do_test)) {
-			expr->Op[0] = '=';
-			expr->Op[1] = expr->Op[2] ='\0';
+		if (((sym_kind & A_const) || ((sym_kind & A_global)) && needs_store) && (comp_mode != comp_jit || do_test)) {
+			//expr->Op[0] = '=';
+			//expr->Op[1] = expr->Op[2] ='\0';
+			//expr->opclass = OpAssign;
 			GlobalExprList.push_back(std::move(expr));
 			return nullptr;
 		}
@@ -861,7 +862,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// by the resource tracker
 		if (initializer && needs_call)
 			GV = CreateGlobal(initializer, varname, sym_kind);
-		if (comp_mode == comp_jit && (sym_kind & A_global) && needs_constructor && !do_test)
+		if (comp_mode == comp_jit && (sym_kind & A_global) && needs_call && !do_test)
 			shadow_already_created = CreateShadow(initializer, varname);
 		else
 			finishFunctionOrModule();
@@ -1178,7 +1179,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		FullVar* entry;
 		if (locals_table.empty()) {
 			entry = lex.module->globals_table[varname];
-			if (!entry || (entry->ft.type_attr & A_global) && !(entry->ft.type_attr & A_const)) {
+			if (!entry) {
 				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 				return nullptr;
 			}

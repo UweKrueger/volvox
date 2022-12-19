@@ -355,4 +355,9 @@ uDfg
 fn test_const_from_non_const() bool
 	return uDfg == 13.5
 
+global PerteR := xe43 + sqrt(xe43)
+
+fn test_global_from_non_const() bool
+	return PerteR == 195.75
+
 #exit 0
