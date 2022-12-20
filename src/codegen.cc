@@ -1968,20 +1968,25 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value *CondV = Cond->codegen();
 		if (!CondV)
 			return nullptr;
+		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
+			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
+			return nullptr;
+		}
 		if (if_kind == tok_while)
 			CondBB = Builder->GetInsertBlock();
 		else
 			if (auto static_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
 				CTcond = (CTcond_t)(static_cond->getZExtValue());
-		const char* new_err_msg;
-		if (!Else.empty() && !Then.empty())
+		if (!Else.empty() && !Then.empty() && ft->type && !ft->type->isVoidTy()) {
+			const char* new_err_msg = nullptr;
 			std::tie(Then.back()->desired_type, Else.back()->desired_type, new_err_msg) = getDesiredTypes(
 				ft->type, desired_type, Then.back()->ft->type, Else.back()->ft->type, OpNormal, ft->type_attr & A_signed,
 				Then.back()->ft->type_attr & A_signed, Else.back()->ft->type_attr & A_signed,
 				Then.back()->is_unknown_type, Else.back()->is_unknown_type);
-		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
-			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
-			return nullptr;
+			if (new_err_msg) {
+				errs() << Loc << new_err_msg << '\n';
+				return nullptr;
+			}
 		}
 		if (if_kind == tok_if) {
 			Builder->CreateCondBr(CondV, ThenBB, ElseBB);
