@@ -217,6 +217,8 @@ namespace volvox {
 // also we do not support every architecture
 // however the must match the numbers defined in builtin.vx
 
+#ifdef __cplusplus
+
 typedef enum OS_Type_t : uint8_t {
 	OS_UnknownOS = 0,
 	OS_DragonFlyBSD = 1,
@@ -236,3 +238,5 @@ typedef enum CPU_Type_t : uint8_t {
 	CPU_x86,
 	CPU_x86_64
 } CPU_Type_t;
+
+#endif
