@@ -2017,9 +2017,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	// Emit then value.
 	locals_table.push_back(std::move(then_locals_table));
 	condnesting++;
-	auto ThenVL = createCondBranch(CondBB ? CondBB : MergeBB, false);
-	llvm::Value* ThenV = ThenVL.first;
-	auto thenLast = ThenVL.second;
+	auto [ThenV, thenLast] = createCondBranch(CondBB ? CondBB : MergeBB, false);
+	llvm::Constant* thenConstV = (Then.size() == 1) ?
+		llvm::dyn_cast<llvm::Constant>(ThenV) :
+		nullptr;
 	condnesting--;
 	then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
@@ -2032,7 +2033,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (if_kind == tok_while)
 		condPN->addIncoming(Builder->getInt8(0), ThenBB);
 	llvm::Value* ElseV = nullptr;
-	llvm::Instruction* elseLast;
+	llvm::Instruction* elseLast = nullptr;;
+	llvm::Constant* elseConstV = nullptr;
 	if (if_kind == tok_repeat) {
 		TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
@@ -2053,9 +2055,9 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		condnesting++;
 		VarTable* old_IfWhileVarTable = IfWhileVarTable;
 		IfWhileVarTable = &then_locals_table;
-		auto ElseVL = createCondBranch(MergeBB, true);
-		ElseV = ElseVL.first;
-		elseLast = ElseVL.second;
+		std::tie(ElseV, elseLast) = createCondBranch(MergeBB, true);
+		if (Else.size() == 1)
+			elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
 		IfWhileVarTable = old_IfWhileVarTable;
 		condnesting--;
 		else_locals_table = std::move(locals_table.back());
