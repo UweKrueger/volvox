@@ -1726,51 +1726,36 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	return handle(target, result);
 }
 
-std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse, CTcond_t static_cond) {
+std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
 	int EndKind = isElse ? ElseEndKind : ThenEndKind;
 	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
-	bool suppress_codegen = isElse && static_cond == CTcond_true || !isElse && static_cond == CTcond_false;
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
 	if (EndKind == tok_return)
 		Branch.back()->desired_type = theFunction_ret_ft->type;
-	if (suppress_codegen) {
-		if (ft->type && !ft->type->isVoidTy())
-			BranchV = llvm::Constant::getNullValue(ft->type);
-		else
-			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+	for (auto& expr : Branch) {
+		BranchV = expr->codegen();
+		InsertDestructors(expr_temps);
 	}
-	else
-		for (auto& expr : Branch) {
-			BranchV = expr->codegen();
-			InsertDestructors(expr_temps);
-		}
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
-	if (!BranchV && !isElse && !suppress_codegen)
+	if (!BranchV && !isElse)
 		return { nullptr, nullptr };
 	if (EndKind == tok_return) {
 		if (auto lastif = dynamic_cast<IfExprAST*>(Branch.back().get()))
 			if (lastif->always_return)
 				return { llvm::UndefValue::get(llvm::Type::getVoidTy(Context)), firstBreak };
 		if (theFunction_ret_ft->type->isVoidTy()) {
-			if (!suppress_codegen)
-				InsertDestructors(nullptr);
+			InsertDestructors(nullptr);
 			Builder->CreateRetVoid();
 		} else {
 			if (ret_ptr) {
-				if (!suppress_codegen) {
-					Builder->CreateStore(BranchV, ret_ptr);
-					InsertDestructors(ret_ptr);
-				}
+				Builder->CreateStore(BranchV, ret_ptr);
+				InsertDestructors(ret_ptr);
 				Builder->CreateRetVoid();
 			} else {
-				if (!suppress_codegen) {
-					InsertDestructors(nullptr);
-					Builder->CreateRet(CheckTailCall(BranchV));
-				} else {
-					Builder->CreateRet(CheckTailCall(llvm::Constant::getNullValue(theFunction_ret_ft->type)));
-				}
+				InsertDestructors(nullptr);
+				Builder->CreateRet(CheckTailCall(BranchV));
 			}
 		}
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
@@ -2027,7 +2012,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	// Emit then value.
 	locals_table.push_back(std::move(then_locals_table));
 	condnesting++;
-	auto ThenVL = createCondBranch(CondBB ? CondBB : MergeBB, false, CTcond);
+	auto ThenVL = createCondBranch(CondBB ? CondBB : MergeBB, false);
 	llvm::Value* ThenV = ThenVL.first;
 	auto thenLast = ThenVL.second;
 	condnesting--;
@@ -2063,7 +2048,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		condnesting++;
 		VarTable* old_IfWhileVarTable = IfWhileVarTable;
 		IfWhileVarTable = &then_locals_table;
-		auto ElseVL = createCondBranch(MergeBB, true, CTcond);
+		auto ElseVL = createCondBranch(MergeBB, true);
 		ElseV = ElseVL.first;
 		elseLast = ElseVL.second;
 		IfWhileVarTable = old_IfWhileVarTable;

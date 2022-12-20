@@ -660,7 +660,7 @@ public:
 				ft = new_FullType(*Then.back()->ft);
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false, CTcond_t static_cond = CTcond_undef);
+	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
