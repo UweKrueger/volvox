@@ -1960,12 +1960,16 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	llvm::BasicBlock* MergeBB = always_return ? nullptr : llvm::BasicBlock::Create(Context, contName);
 	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
 	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
+	llvm::BasicBlock* EntryBBend;
+	llvm::BasicBlock* ThenBBstart;
+	llvm::BasicBlock* ElseBBstart;
+	llvm::Value* CondV = nullptr;
 	CTcond_t CTcond = CTcond_undef;
 	if (if_kind == tok_repeat) {
 		// 1st iteration: save stack
 		Builder->CreateBr(StackSaveBB);
 	} else {
-		llvm::Value *CondV = Cond->codegen();
+		CondV = Cond->codegen();
 		if (!CondV)
 			return nullptr;
 		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
@@ -1989,7 +1993,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 		if (if_kind == tok_if) {
-			Builder->CreateCondBr(CondV, ThenBB, ElseBB);
+			EntryBBend = Builder->GetInsertBlock();
+			ThenBBstart = ThenBB;
+			ElseBBstart = ElseBB;
+			//Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);
 		} else {
 			// save stack at 1st run and restore at followind runs
 			llvm::Value* CondVV = Builder->CreateIntCast(CondV, llvm::Type::getInt8Ty(Context), false, "expandcond");
@@ -2069,11 +2076,24 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
 		ElseBB = Builder->GetInsertBlock();
 	}
-	// Emit merge block.
+	if (if_kind == tok_if) {
+		if (CTcond != CTcond_undef && thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) { // at least one branch can be removed
+			// if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
+				ThenBB->eraseFromParent();
+				ElseBB->eraseFromParent();
+				Builder->SetInsertPoint(EntryBBend);
+				return (CTcond == CTcond_false) ? elseConstV : thenConstV;
+				//}
+		} else {
+			Builder->SetInsertPoint(EntryBBend);
+			Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);
+		}
+	}
 	if (always_return)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	TheFunction->getBasicBlockList().push_back(MergeBB);
 	Builder->SetInsertPoint(MergeBB);
+	// Emit merge block.
 	if (if_kind == tok_repeat && then_locals_table.table) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			MapValue* node = then_node.getValue();
