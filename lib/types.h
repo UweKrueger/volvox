@@ -219,7 +219,7 @@ namespace volvox {
 
 #ifdef __cplusplus
 
-typedef enum OS_Type_t : uint8_t {
+enum OS_Type_t : uint8_t {
 	OS_UnknownOS = 0,
 	OS_DragonFlyBSD = 1,
 	OS_FreeBSD = 2,
@@ -228,15 +228,15 @@ typedef enum OS_Type_t : uint8_t {
 	OS_NetBSD = 5,
 	OS_OpenBSD = 6,
 	OS_Windows = 7
-} OS_Type_t;
+};
 	
-typedef enum CPU_Type_t : uint8_t {
+enum CPU_Type_t : uint8_t {
 	CPU_Unknown = 0,
 	CPU_arm,
 	CPU_aarch64,
 	CPU_avr,
 	CPU_x86,
 	CPU_x86_64
-} CPU_Type_t;
+};
 
 #endif
