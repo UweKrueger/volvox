@@ -1,0 +1,116 @@
+# C functions for "double"
+cdecl(__sin) fn sin(x f64) f64
+cdecl(__cos) fn cos(x f64) f64
+cdecl(__tan) fn tan(x f64) f64
+cdecl(__asin) fn asin(x f64) f64
+cdecl(__acos) fn acos(x f64) f64
+cdecl(__atan) fn atan(x f64) f64
+cdecl(__atan2) fn atan2(y f64, x f64) f64
+cdecl(__sinh) fn sinh(x f64) f64
+cdecl(__cosh) fn cosh(x f64) f64
+cdecl(__tanh) fn tanh(x f64) f64
+cdecl(__asinh) fn asinh(x f64) f64
+cdecl(__acosh) fn acosh(x f64) f64
+cdecl(__atanh) fn atanh(x f64) f64
+# C functions for "float"
+cdecl(__sinf) fn sinf(x f32) f32
+cdecl(__cosf) fn cosf(x f32) f32
+cdecl(__tanf) fn tanf(x f32) f32
+cdecl(__asinf) fn asinf(x f32) f32
+cdecl(__acosf) fn acosf(x f32) f32
+cdecl(__atanf) fn atanf(x f32) f32
+cdecl(__atan2f) fn atan2f(y f32, x f32) f32
+cdecl(__sinhf) fn sinhf(x f32) f32
+cdecl(__coshf) fn coshf(x f32) f32
+cdecl(__tanhf) fn tanhf(x f32) f32
+cdecl(__asinhf) fn asinhf(x f32) f32
+cdecl(__acoshf) fn acoshf(x f32) f32
+cdecl(__atanhf) fn atanhf(x f32) f32
+
+# fuctions for angles (in rad)
+#
+pub inline fn sin(x f64) f64
+	return __sin(x)
+
+pub inline fn cos(x f64) f64
+	return __cos(x)
+
+pub inline fn tan(x f64) f64
+	return __tan(x)
+
+# inverse functions creating angles (in rad)
+#
+pub inline fn asin(x f64) f64
+	return __asin(x)
+
+pub inline fn acos(x f64) f64
+	return __acos(x)
+
+pub inline fn atan(x f64) f64
+	return __atan(x)
+
+pub inline fn atan2(y f64, x f64) f64
+	return __atan2(y, x)
+
+# hyperbolic functions
+#
+pub inline fn sinh(x f64) f64
+	return __sinh(x)
+
+pub inline fn cosh(x f64) f64
+	return __cosh(x)
+
+pub inline fn tanh(x f64) f64
+	return __tanh(x)
+
+# inverse hyperbolic functions
+#
+pub inline fn asinh(x f64) f64
+	return __asinh(x)
+
+pub inline fn acosh(x f64) f64
+	return __acosh(x)
+
+pub inline fn atanh(x f64) f64
+	return __atanh(x)
+
+# all functions from above but for 'float'
+#
+pub inline fn sin(x f32) f32
+	return __sinf(x)
+
+pub inline fn cos(x f32) f32
+	return __cosf(x)
+
+pub inline fn tan(x f32) f32
+	return __tanf(x)
+
+pub inline fn asin(x f32) f32
+	return __asinf(x)
+
+pub inline fn acos(x f32) f32
+	return __acosf(x)
+
+pub inline fn atan(x f32) f32
+	return __atanf(x)
+
+pub inline fn atan2(y f32, x f32) f32
+	return __atan2f(y, x)
+
+pub inline fn sinh(x f32) f32
+	return __sinhf(x)
+
+pub inline fn cosh(x f32) f32
+	return __coshf(x)
+
+pub inline fn tanh(x f32) f32
+	return __tanhf(x)
+
+pub inline fn asinh(x f32) f32
+	return __asinhf(x)
+
+pub inline fn acosh(x f32) f32
+	return __acoshf(x)
+
+pub inline fn atanh(x f32) f32
+	return __atanhf(x)
