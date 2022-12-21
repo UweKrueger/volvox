@@ -34,6 +34,14 @@ fn test_branch_elimination_1() bool
 		a := -4 .
 	return a < 0
 
+fn test_branch_elimination_2() bool
+	if 4 < 5
+		b := 89.0625
+	else
+		b := function_that_does_not_exist(1.2)
+		b += 4 .
+	return b == 89.0625
+
 fn loo(x f64) f64
 	sum := 0.
 	xx := x
