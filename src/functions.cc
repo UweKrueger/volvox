@@ -122,7 +122,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 			} else {
 				auto conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
 				                    fnargs[i].arg_signed, (bool)(proto->ArgTypes[i]->type_attr & A_signed),
-				                    false, fnargs[i].arg_unknown_type, &arg_matches_exactly);
+				                    false, false, &arg_matches_exactly);
 				if (arg_matches_exactly) {
 					if (candidate < 0)
 						fnargs[i].Conv = conv;
