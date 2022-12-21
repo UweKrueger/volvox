@@ -28,6 +28,7 @@ bool needs_libm = false;
 bool support_fp80;
 unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
+std::string cdecl_rename;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -283,7 +284,9 @@ static void HandleExtern(unsigned visibility) {
 	switch (CurTok.kind) {
 	case tok_fn:
 		if (auto ProtoAST = ParseExtern(visibility)) {
-			std::string unmangledName = ProtoAST->getName();
+			std::string unmangledName = ((visibility & A_c_api) && !cdecl_rename.empty()) ?
+				std::move(cdecl_rename) :
+				ProtoAST->getName();
 			if (auto *FnIR = ProtoAST->codegen()) {
 				if (dump_IR) {
 					errs() << "Read extern: ";
@@ -706,9 +709,27 @@ static void MainLoop() {
 			goto startmainloop;
 		case tok_cdecl:
 			sym_kind |= A_c_api;
+			if (lex.peek() == '(') {
+				getNextToken();
+				getNextToken();
+				if (CurTok.kind != tok_identifier) {
+					errs() << CurLoc << ": identifier (internal name for external C function) expected\n";
+					purgeLine();
+					goto startmainloop;
+				}
+				cdecl_rename = std::move(IdentifierStr);
+				getNextToken();
+				if (CurTok.kind != ')') {
+					errs() << CurLoc << ": ')' expected\n";
+					purgeLine();
+					goto startmainloop;
+				}
+			} else {
+				cdecl_rename.clear();
+			}
 		case tok_decl:
 			if (sym_kind & A_inline) {
-				errs() << CurLoc << ": " << CurTok.kind << " cannot be used in combination with " << tok_inline << '\n';
+				errs() << CurLoc << ": '" << (CurTok.kind == tok_decl ? "decl" : "cdecl") << " cannot be used in combination with " << tok_inline << '\n';
 				purgeLine();
 			} else
 				HandleExtern(sym_kind);

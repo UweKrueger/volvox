@@ -201,6 +201,10 @@ llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
+	if (!full_var) {
+		errs() << Loc << ": there is no known variable/constant/function/module named '" << Name << "'\n";
+		return nullptr;
+	}
 	if (full_var->ft.type_attr & A_rvalue)
 		return full_var->val;
 	auto V = codegen_ref();
