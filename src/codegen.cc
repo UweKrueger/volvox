@@ -2092,15 +2092,15 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		Builder->SetInsertPoint(EntryBBend);
 		if (CTcond != CTcond_undef) { // at least one branch can be removed
 			if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
-				ThenBBstart->eraseFromParent();
-				ElseBBstart->eraseFromParent();
+				//ThenBBstart->eraseFromParent();
+				//ElseBBstart->eraseFromParent();
 				return (CTcond == CTcond_false) ? elseConstV : thenConstV;
 			} else if (CTcond == CTcond_true) {
 				Builder->CreateBr(ThenBBstart);
-				ElseBBstart->eraseFromParent();
+				//ElseBBstart->eraseFromParent();
 			} else {
 				Builder->CreateBr(ElseBBstart);
-				ThenBBstart->eraseFromParent();
+				//ThenBBstart->eraseFromParent();
 			}
 		} else {
 			Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);
