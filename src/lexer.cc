@@ -216,24 +216,27 @@ void Lexer::import_from_module(Module* import_module) {
 		module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix
 	}
 	for (auto& unmangled_protos: import_module->FunctionProtos) {
-		for (auto& proto: unmangled_protos.second) {
-			if (proto->visibility & A_pub) {
-				bool success = true;
-				if (is_from_import) {
-					if (fromlist.contains(unmangled_protos.first)) {
-						auto _success = module->ImportedSymbols.try_emplace({ "", unmangled_protos.first }, &unmangled_protos.second);
-						success = _success.second;
-						if (success)
-							processed_symbols_from_from_list.insert(unmangled_protos.first);
-					}
-				} else {
-					auto _success = module->ImportedSymbols.try_emplace({ as, unmangled_protos.first }, &unmangled_protos.second);
+		for (auto proto = unmangled_protos.second.begin(); proto != unmangled_protos.second.end();)
+			if (!((*proto)->visibility & A_pub))
+				unmangled_protos.second.erase(proto);
+			else
+				proto++;
+		if (!unmangled_protos.second.empty()) {
+			bool success = true;
+			if (is_from_import) {
+				if (fromlist.contains(unmangled_protos.first)) {
+					auto _success = module->ImportedSymbols.try_emplace({ "", unmangled_protos.first }, &unmangled_protos.second);
 					success = _success.second;
+					if (success)
+						processed_symbols_from_from_list.insert(unmangled_protos.first);
 				}
-				if (!success) {
-					errs() << CurLoc << "cannot import '" << ((is_from_import || as == "") ? "" : (as + "."))
-					       << unmangled_protos.first << "()' - symbol aleady in use\n";
-				}
+			} else {
+				auto _success = module->ImportedSymbols.try_emplace({ as, unmangled_protos.first }, &unmangled_protos.second);
+				success = _success.second;
+			}
+			if (!success) {
+				errs() << CurLoc << "cannot import '" << ((is_from_import || as == "") ? "" : (as + "."))
+				       << unmangled_protos.first << "()' - symbol aleady in use\n";
 			}
 		}
 	}
