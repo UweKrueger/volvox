@@ -1,0 +1,36 @@
+import arch.os
+import arch.cpu
+
+fn test_built_in_consts() bool
+	x := __OS_Idx
+	return x > 0 && __CPU_Idx > 0
+
+fn test_exactly_one_os_is_defined() bool
+	n := 0
+	if os.isFreeBSD
+		n++ .
+	if os.isNetBSD
+		n++ .
+	if os.isOpenBSD
+		n++ .
+	if os.isWindows
+		n++ .
+	if os.isLinux
+		n++ .
+	if os.isMacOSX
+		n++ .
+	return n == 1
+
+fn test_exactly_one_cpu_is_defined() bool
+	m := 0
+	if cpu.isARM
+		m++ .
+	if cpu.isAArch64
+		m++ .
+	if cpu.isAVR
+		m++ .
+	if cpu.isX86
+		m++ .
+	if cpu.isX86_64
+		m++ .
+	return m == 1
