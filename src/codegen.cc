@@ -215,6 +215,14 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
 		return { nullptr, nullptr };
 	}
+	if (full_var->ft.type_attr & A_rvalue) {
+		if (silent_fail)
+			return { full_var->ft.type, nullptr };
+		else {
+			errs() << Loc << ": const \"variable\" can only be used as rvalue\n";
+			return { nullptr, nullptr };
+		}
+	}
 	llvm::GlobalVariable* V;
 	llvm::Type* storage_type;
 	if (full_var->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & A_global))) { // global variable

@@ -195,9 +195,10 @@ void init(const llvm::Triple& triple) {
 	}
 	FullVar os_fv = {
 		.val = llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), os_idx),
+		.mangled_name = strdup("__OS_Idx"),
 		.ft = {
 			.type = llvm::Type::getInt8Ty(Context),
-			.type_attr = A_rvalue | A_const | A_global,
+			.type_attr = A_rvalue | A_global | A_const | A_mainvar,
 		}
 	};
 	if (!lex.module->globals_table.insert("__OS_Idx", os_fv)) {
@@ -206,9 +207,10 @@ void init(const llvm::Triple& triple) {
 	}
 	FullVar cpu_fv = {
 		.val = llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), cpu_idx),
+		.mangled_name = strdup("__CPU_Idx"),
 		.ft = {
 			.type = llvm::Type::getInt8Ty(Context),
-			.type_attr = A_rvalue | A_const | A_global,
+			.type_attr = A_rvalue | A_global | A_const | A_mainvar,
 		}
 	};
 	if (!lex.module->globals_table.insert("__CPU_Idx", cpu_fv)) {

@@ -1168,6 +1168,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					.ft = *RHS->ft
 				};
 				fv.ft.type = type;
+				fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
 				if (is_signed)
 					fv.ft.type_attr |= A_signed;
 				else

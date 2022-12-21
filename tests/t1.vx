@@ -18,9 +18,21 @@ fn test_factorial() bool
 	return factorial(15) == 1307674368000i64
 
 const r6zer ::= if true; 4 else 5 .
+const r7zrr ::= if false; 7.5 else -3.75 .
 
 fn test_const_condition() bool
-	return r6zer == 4
+	return r6zer == 4 && r7zrr == -3.75
+
+cdecl fn function_that_does_not_exist(x f64) f64
+
+fn test_branch_elimination_1() bool
+	if 4 > 5
+		a := 13
+		if function_that_does_not_exist(1.2) > 7.5
+			a += 4 .
+	else
+		a := -4 .
+	return a < 0
 
 fn loo(x f64) f64
 	sum := 0.
