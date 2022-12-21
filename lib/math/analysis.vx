@@ -5,7 +5,7 @@ cdecl(__exp) fn exp(x f64) f64
 cdecl(__exp2) fn exp2(x f64) f64
 cdecl(__expm1) fn expm1(x f64) f64
 cdecl(__hypot) fn hypot(x f64, y f64) f64
-cdecl(__ilogb) fn ilogb(x f64) f64
+cdecl(__ilogb) fn ilogb(x f64) i32
 cdecl(__j0) fn j0(x f64) f64
 cdecl(__j1) fn j1(x f64) f64
 cdecl(__jn) fn jn(n i32, x f64) f64
@@ -28,7 +28,7 @@ cdecl(__expf) fn expf(x f32) f32
 cdecl(__exp2f) fn exp2f(x f32) f32
 cdecl(__expm1f) fn expm1f(x f32) f32
 cdecl(__hypotf) fn hypotf(x f32, y f32) f32
-cdecl(__ilogbf) fn ilogbf(x f32) f32
+cdecl(__ilogbf) fn ilogbf(x f32) i32
 cdecl(__j0f) fn j0f(x f32) f32
 cdecl(__j1f) fn j1f(x f32) f32
 cdecl(__jnf) fn jnf(n i32, x f32) f32
@@ -65,7 +65,7 @@ pub inline fn expm1(x f64) f64
 pub inline fn hypot(x f64, y f64) f64
 	return __hypot(x, y)
 
-pub inline fn ilogb(x f64) f64
+pub inline fn ilogb(x f64) i32
 	return __ilogb(x)
 
 pub inline fn j0(x f64) f64
@@ -131,7 +131,7 @@ pub inline fn expm1(x f32) f32
 pub inline fn hypot(x f32, y f32) f32
 	return __hypotf(x, y)
 
-pub inline fn ilogb(x f32) f32
+pub inline fn ilogb(x f32) i32
 	return __ilogbf(x)
 
 pub inline fn j0(x f32) f32
