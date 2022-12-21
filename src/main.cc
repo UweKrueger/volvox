@@ -150,7 +150,7 @@ void init(const llvm::Triple& triple) {
 	OS_Type_t os_idx;
 	switch (triple.getOS()) {
 	case llvm::Triple::DragonFly:
-		os_idx = OS_DragonFlyBSD;
+		os_idx = OS_DragonFly;
 		break;
 	case llvm::Triple::FreeBSD:
 		os_idx = OS_FreeBSD;

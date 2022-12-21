@@ -1,0 +1,19 @@
+# CPU this code is running on
+
+# internal index numbers
+const unknown ::= 0
+const arm     ::= 1
+const aarch64 ::= 2
+const avr     ::= 3
+const x86     ::= 4
+const x86_64  ::= 5
+
+# public bool expressions to test for a particular CPU
+# e.g. 'if cpu.isAArch64; ... else ... .
+#
+pub const isUnknown ::= __CPU_Idx == unknown
+pub const isARM     ::= __CPU_Idx == arm     # 32-bit ARM
+pub const isAArch64 ::= __CPU_Idx == aarch64 # 64-bit ARM little endian
+pub const isAVR     ::= __CPU_Idx == avr     # 8/16-bit Atmel MCU
+pub const isX86     ::= __CPU_Idx == x86     # 32-bit Intel/AMD
+pub const isX86_64  ::= __CPU_Idx == x86_64  # 64-bit AMD/Intel

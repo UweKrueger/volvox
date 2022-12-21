@@ -221,13 +221,13 @@ namespace volvox {
 
 enum OS_Type_t : uint8_t {
 	OS_UnknownOS = 0,
-	OS_DragonFlyBSD = 1,
-	OS_FreeBSD = 2,
-	OS_Linux = 3,
-	OS_MacOSX = 4,
-	OS_NetBSD = 5,
-	OS_OpenBSD = 6,
-	OS_Windows = 7
+	OS_DragonFly,
+	OS_FreeBSD,
+	OS_Linux,
+	OS_MacOSX,
+	OS_NetBSD,
+	OS_OpenBSD,
+	OS_Windows
 };
 	
 enum CPU_Type_t : uint8_t {

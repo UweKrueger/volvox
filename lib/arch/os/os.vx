@@ -1,0 +1,23 @@
+# operating system for which this code is compiled
+
+# internal index numbers
+const unknown   ::= 0
+const DragonFly ::= 1
+const FreeBSD   ::= 2
+const Linux     ::= 3
+const MacOSX    ::= 4
+const NetBSD    ::= 5
+const OpenBSD   ::= 6
+const Windows   ::= 7
+
+# public bool expressions to test for a particular OS
+# e.g. 'if os.isDragonfly; ... else ... .
+#
+pub const isUnknown   ::= __OS_Idx == unknown
+pub const isDragonFly ::= __OS_Idx == DragonFly
+pub const isFreeBSD   ::= __OS_Idx == FreeBSD
+pub const isLinux     ::= __OS_Idx == Linux
+pub const isMacOSX    ::= __OS_Idx == MacOSX
+pub const isNetBSD    ::= __OS_Idx == NetBSD
+pub const isOpenBSD   ::= __OS_Idx == OpenBSD
+pub const isWindows   ::= __OS_Idx == Windows
