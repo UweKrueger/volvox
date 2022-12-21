@@ -2085,15 +2085,20 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		ElseBB = Builder->GetInsertBlock();
 	}
 	if (if_kind == tok_if) {
-		if (CTcond != CTcond_undef && thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) { // at least one branch can be removed
-			// if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
-				ThenBB->eraseFromParent();
-				ElseBB->eraseFromParent();
-				Builder->SetInsertPoint(EntryBBend);
+		Builder->SetInsertPoint(EntryBBend);
+		if (CTcond != CTcond_undef) { // at least one branch can be removed
+			if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
+				ThenBBstart->eraseFromParent();
+				ElseBBstart->eraseFromParent();
 				return (CTcond == CTcond_false) ? elseConstV : thenConstV;
-				//}
+			} else if (CTcond == CTcond_true) {
+				Builder->CreateBr(ThenBBstart);
+				ElseBBstart->eraseFromParent();
+			} else {
+				Builder->CreateBr(ElseBBstart);
+				ThenBBstart->eraseFromParent();
+			}
 		} else {
-			Builder->SetInsertPoint(EntryBBend);
 			Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);
 		}
 	}
