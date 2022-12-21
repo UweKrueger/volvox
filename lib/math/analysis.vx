@@ -1,0 +1,177 @@
+cdecl(__cbrt) fn cbrt(x f64) f64
+cdecl(__erf) fn erf(x f64) f64
+cdecl(__erfc) fn erfc(x f64) f64
+cdecl(__exp) fn exp(x f64) f64
+cdecl(__exp2) fn exp2(x f64) f64
+cdecl(__expm1) fn expm1(x f64) f64
+cdecl(__hypot) fn hypot(x f64, y f64) f64
+cdecl(__ilogb) fn ilogb(x f64) f64
+cdecl(__j0) fn j0(x f64) f64
+cdecl(__j1) fn j1(x f64) f64
+cdecl(__jn) fn jn(n i32, x f64) f64
+cdecl(__ldexp) fn ldexp(x f64) f64
+cdecl(__lgamma) fn lgamma(x f64) f64
+cdecl(__tgamma) fn tgamma(x f64) f64
+cdecl(__log) fn log(x f64) f64
+cdecl(__log1p) fn log1p(x f64) f64
+cdecl(__log2) fn log2(x f64) f64
+cdecl(__logb) fn logb(x f64) f64
+cdecl(__sqrt) fn sqrt(x f64) f64
+cdecl(__y0) fn y0(x f64) f64
+cdecl(__y1) fn y1(x f64) f64
+cdecl(__yn) fn yn(n i32, x f64) f64
+
+cdecl(__cbrtf) fn cbrtf(x f32) f32
+cdecl(__erff) fn erff(x f32) f32
+cdecl(__erfcf) fn erfcf(x f32) f32
+cdecl(__expf) fn expf(x f32) f32
+cdecl(__exp2f) fn exp2f(x f32) f32
+cdecl(__expm1f) fn expm1f(x f32) f32
+cdecl(__hypotf) fn hypotf(x f32, y f32) f32
+cdecl(__ilogbf) fn ilogbf(x f32) f32
+cdecl(__j0f) fn j0f(x f32) f32
+cdecl(__j1f) fn j1f(x f32) f32
+cdecl(__jnf) fn jnf(n i32, x f32) f32
+cdecl(__ldexpf) fn ldexpf(x f32) f32
+cdecl(__lgammaf) fn lgammaf(x f32) f32
+cdecl(__tgammaf) fn tgammaf(x f32) f32
+cdecl(__logf) fn logf(x f32) f32
+cdecl(__log1pf) fn log1pf(x f32) f32
+cdecl(__log2f) fn log2f(x f32) f32
+cdecl(__logbf) fn logbf(x f32) f32
+cdecl(__sqrtf) fn sqrtf(x f32) f32
+cdecl(__y0f) fn y0f(x f32) f32
+cdecl(__y1f) fn y1f(x f32) f32
+cdecl(__ynf) fn ynf(n i32, x f32) f32
+
+pub inline fn cbrt(x f64) f64
+	return __cbrt(x)
+
+pub inline fn erf(x f64) f64
+	return __erf(x)
+
+pub inline fn erfc(x f64) f64
+	return __erfc(x)
+
+pub inline fn exp(x f64) f64
+	return __exp(x)
+
+pub inline fn exp2(x f64) f64
+	return __exp2(x)
+
+pub inline fn expm1(x f64) f64
+	return __expm1(x)
+
+pub inline fn hypot(x f64, y f64) f64
+	return __hypot(x, y)
+
+pub inline fn ilogb(x f64) f64
+	return __ilogb(x)
+
+pub inline fn j0(x f64) f64
+	return __j0(x)
+
+pub inline fn j1(x f64) f64
+	return __j1(x)
+
+pub inline fn jn(n i32, x f64) f64
+	return __jn(n, x)
+
+pub inline fn ldexp(x f64) f64
+	return __ldexp(x)
+
+pub inline fn lgamma(x f64) f64
+	return __lgamma(x)
+
+pub inline fn gamma(x f64) f64
+	return __tgamma(x)
+
+pub inline fn log(x f64) f64
+	return __log(x)
+
+pub inline fn log1p(x f64) f64
+	return __log1p(x)
+
+pub inline fn log2(x f64) f64
+	return __log2(x)
+
+pub inline fn logb(x f64) f64
+	return __logb(x)
+
+pub inline fn sqrt(x f64) f64
+	return __sqrt(x)
+
+pub inline fn y0(x f64) f64
+	return __y0(x)
+
+pub inline fn y1(x f64) f64
+	return __y1(x)
+
+pub inline fn yn(n i32, x f64) f64
+	return __yn(n, x)
+
+pub inline fn cbrt(x f32) f32
+	return __cbrtf(x)
+
+pub inline fn erf(x f32) f32
+	return __erff(x)
+
+pub inline fn erfc(x f32) f32
+	return __erfcf(x)
+
+pub inline fn exp(x f32) f32
+	return __expf(x)
+
+pub inline fn exp2(x f32) f32
+	return __exp2f(x)
+
+pub inline fn expm1(x f32) f32
+	return __expm1f(x)
+
+pub inline fn hypot(x f32, y f32) f32
+	return __hypotf(x, y)
+
+pub inline fn ilogb(x f32) f32
+	return __ilogbf(x)
+
+pub inline fn j0(x f32) f32
+	return __j0f(x)
+
+pub inline fn j1(x f32) f32
+	return __j1f(x)
+
+pub inline fn jn(n i32, x f32) f32
+	return __jnf(n, x)
+
+pub inline fn ldexp(x f32) f32
+	return __ldexpf(x)
+
+pub inline fn lgamma(x f32) f32
+	return __lgammaf(x)
+
+pub inline fn gamma(x f32) f32
+	return __tgammaf(x)
+
+pub inline fn log(x f32) f32
+	return __logf(x)
+
+pub inline fn log1p(x f32) f32
+	return __log1pf(x)
+
+pub inline fn log2(x f32) f32
+	return __log2f(x)
+
+pub inline fn logb(x f32) f32
+	return __logbf(x)
+
+pub inline fn sqrt(x f32) f32
+	return __sqrtf(x)
+
+pub inline fn y0(x f32) f32
+	return __y0f(x)
+
+pub inline fn y1(x f32) f32
+	return __y1f(x)
+
+pub inline fn yn(n i32, x f32) f32
+	return __ynf(n, x)
