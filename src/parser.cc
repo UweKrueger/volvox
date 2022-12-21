@@ -1520,6 +1520,7 @@ static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& prot
 			return false;
 		}
 	}
+	Proto->retLoc.File = strdup(Proto->retLoc.File); // TODO: do refcount of similar
 	protos.push_back(std::move(Proto));
 	return true;
 }
