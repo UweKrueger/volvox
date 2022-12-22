@@ -86,9 +86,11 @@ static void printCandidate(PrototypeAST* proto, const char* name) {
 	errs() << ")\n";
 }
 
-inline static void printCandidates(std::vector<int>& candidates, std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
-	for(auto c: candidates)
+inline static void printCandidates(unsigned candidates[], unsigned num_candidates, std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
+	for(int i=0; i<num_candidates; i++) {
+		unsigned c = candidates[i];
 		printCandidate((*protos)[c].get(), name);
+	}
 }
 
 inline static void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
@@ -99,14 +101,30 @@ inline static void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* pr
 int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
                 std::vector<FnArg>& fnargs, SourceLocation Loc = {0}) {
 	bool exact_match = false;
+	int noundefcandidate = -1;
 	int candidate = -1;
-	// in regular cases there is only one candidate
-	// only when there are more we create a vector
-	std::vector<int> candidates;
+	// there are 3 classes of match for a function signature:
+	// 1. exact match - all arguments match without conversion (with the default type for untyped parameters)
+	// 2. all arguments match with automatic conversions when the default type for untyped is used
+	// 3. all arguments match with automatic conversions that include those that are only allowed due to
+	//    relaxed constraints for untyped arguments
+	// a prototype is selected if either there is a canditate of class 1 (should never be more) or there is
+	// exactly one candidate of class 2 or there is exactly one candidate of class 3
+	//
+	unsigned candidates_1[1];
+	unsigned candidates_2[(*protos).size()];
+	unsigned candidates_3[(*protos).size()];
+	// class 1 can directly save in Arguments
+	std::function<llvm::Value*(llvm::Value*)> convs2[fnargs.size()];
+	std::function<llvm::Value*(llvm::Value*)> convs3[fnargs.size()];
+	unsigned cands1 = 0;
+	unsigned cands2 = 0;
+	unsigned cands3 = 0;
+	unsigned selected_idx;
 	int i_proto = 0;
 	for (auto& proto: *protos) {
 		if (proto->IsVarArgs)
-			return i_proto;
+			return i_proto; // var args need more work... - for now we assume this is just one C functtion
 		if (!proto->IsVarArgs && proto->ArgTypes.size() != fnargs.size()
 		    || proto->IsVarArgs && proto->ArgTypes.size() > fnargs.size()) {
 			i_proto++;
@@ -114,68 +132,103 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		}
 		bool exact = true;
 		bool with_conv = true;
+		bool with_undefconv = true;
 		for (int i=0; i<fnargs.size(); i++) {
 			bool arg_matches_exactly;
 			if (i >= proto->ArgTypes.size()) {
 				if (candidate < 0)
-					fnargs[i].Conv = nullptr;
+					fnargs[i].Conv = nullptr; // for var args - but see comment above
 			} else {
 				auto conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
 				                    fnargs[i].arg_signed, (bool)(proto->ArgTypes[i]->type_attr & A_signed),
 				                    false, false, &arg_matches_exactly);
 				if (arg_matches_exactly) {
-					if (candidate < 0)
-						fnargs[i].Conv = conv;
+					if (!cands1)
+						fnargs[i].Conv = nullptr;
+					if (!cands2)
+						convs2[i] = nullptr;
+					if (!cands3)
+						convs3[i] = nullptr;
 				} else if (conv) {
 					exact = false;
-					if (candidate < 0)
-						fnargs[i].Conv = conv;
+					if (!cands2)
+						convs2[i] = conv;
+					if (!cands3)
+						convs3[i] = conv;
 				} else {
 					exact = with_conv = false;
-					break;
+					if (fnargs[i].arg_unknown_type) {
+						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
+						               fnargs[i].arg_signed, (bool)(proto->ArgTypes[i]->type_attr & A_signed),
+						               false, true, nullptr);
+						if (conv) {
+							if (!cands3)
+								convs3[i] = conv;
+							continue; // with i, i.e. next argument
+						}
+					}
+					with_undefconv = false;
+					break; // no match - continue with next prototype
 				}
 			}
 		}
 		if (exact) {
-			for (int i=0; i<fnargs.size(); i++)
-				fnargs[i].Conv = NoConversion;
-			return i_proto;
+			selected_idx = i_proto; // we are done - this is the best (the only exact) match
+			goto check_selected_proto;
 		} else if (with_conv) {
-			if (candidate >= 0)
-				if (candidates.empty()) {
-					candidates.reserve(2);
-					candidates.push_back(candidate);
-					candidates.push_back(i_proto);
-				}
-				else
-					candidates.push_back(i_proto);
-			else
-				candidate = i_proto;
+			candidates_2[cands2++] = i_proto;
+		} else if (with_undefconv) {
+			candidates_3[cands3++] = i_proto;
 		}
 		i_proto++;
 	}
-	if (!candidates.empty()) {
-		errs() << Loc << ": call of '" << name << '(';
-		printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
-		errs() << ")' is ambiguous - candidates are:\n";
-		printCandidates(candidates, protos, name);
-		return -1;
+	// exact match has already returned - check class 2 and 3 for candidates
+	if (cands2) {
+		if (cands2 > 1) {
+			errs() << Loc << ": call of '" << name << '(';
+			printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
+			errs() << ")' is ambiguous - candidates are:\n";
+			printCandidates(candidates_2, cands2, protos, name);
+			if (cands3 > 0) {
+				errs() << "secondary (but still matching) candidates are:\n";
+				printCandidates(candidates_3, cands3, protos, name);
+			}
+			return -1;
+		}
+		// there is exactly one candidate of class 2 - return this
+		for (int i=0; i<fnargs.size(); i++)
+			fnargs[i].Conv = convs2[i];
+		 selected_idx = candidates_2[0];
+		 goto check_selected_proto;
 	}
-	if (candidate < 0) {
-		errs() << Loc << ": signature of call to '" << name << '(';
-		printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
-		errs() << ")' does not match any known candidate - candidates are:\n";
-		printAllProtos(protos, name);
-		return -1;
+	if (cands3) {
+		if (cands3 > 1) {
+			errs() << Loc << ": call of '" << name << '(';
+			printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
+			errs() << ")' is ambiguous - candidates (all secondary) are:\n";
+			printCandidates(candidates_3, cands3, protos, name);
+			return -1;
+		}
+		// there is exactly one candidate of class 3 - return this
+		for (int i=0; i<fnargs.size(); i++)
+			fnargs[i].Conv = convs3[i];
+		 selected_idx = candidates_3[0];
+		 goto check_selected_proto;
 	}
-	auto selected_proto = (*protos)[candidate].get();
+	errs() << Loc << ": signature of call to '" << name << '(';
+	printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
+	errs() << ")' does not match any known candidate - candidates are:\n";
+	printAllProtos(protos, name);
+	return -1;
+check_selected_proto:
+	auto selected_proto = (*protos)[selected_idx].get();
 	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
 		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv && getFnAddress(fnargs[i].Conv) != (uintptr_t)NoConversion) {
 			errs() << Loc << ": cannot call '" << name << "()' candidate with matching signature would require conversion of "
 			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
 			return -1;
 		}
-	return candidate;
+	return selected_idx;
 }
 
 CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
@@ -640,7 +693,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 					arg = conversion(Args[i]->codegen());
 				}
 			} else {
-				arg = conversion(Args[i]->codegen());
+				arg = Args[i]->codegen();
 			}
 			ArgsV.push_back(arg);
 		} else {
