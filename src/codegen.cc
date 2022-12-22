@@ -2094,6 +2094,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
 				//ThenBBstart->eraseFromParent();
 				//ElseBBstart->eraseFromParent();
+				TheFunction->getBasicBlockList().push_back(MergeBB); // so it can be deleted with TheFunction
 				return (CTcond == CTcond_false) ? elseConstV : thenConstV;
 			} else if (CTcond == CTcond_true) {
 				Builder->CreateBr(ThenBBstart);
