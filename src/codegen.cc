@@ -1759,15 +1759,15 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 				return { llvm::UndefValue::get(llvm::Type::getVoidTy(Context)), firstBreak };
 		if (theFunction_ret_ft->type->isVoidTy()) {
 			InsertDestructors(nullptr);
-			Builder->CreateRetVoid();
+			firstBreak = Builder->CreateRetVoid();
 		} else {
 			if (ret_ptr) {
 				Builder->CreateStore(BranchV, ret_ptr);
 				InsertDestructors(ret_ptr);
-				Builder->CreateRetVoid();
+				firstBreak = Builder->CreateRetVoid();
 			} else {
 				InsertDestructors(nullptr);
-				Builder->CreateRet(CheckTailCall(BranchV));
+				firstBreak = Builder->CreateRet(CheckTailCall(BranchV));
 			}
 		}
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
