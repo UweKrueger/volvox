@@ -571,6 +571,7 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 			InitializeModuleAndPassManager();
 		}
 	}
+	Builder->ClearInsertionPoint();
 }
 
 llvm::Function *PrototypeAST::codegen() {
@@ -934,7 +935,6 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	}
 	// Validate the generated code, checking for consistency.
 	finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
-	Builder->ClearInsertionPoint();
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
 	return TheFunction;
