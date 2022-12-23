@@ -1929,7 +1929,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
+	auto enterBB = Builder->GetInsertBlock();
+	llvm::Function* TheFunction = enterBB ? Builder->GetInsertBlock()->getParent() : nullptr;
 	llvm::PHINode* condPN;
 	llvm::BasicBlock* CondBB;
 	// find a suitable name for the loop block
@@ -1949,12 +1950,12 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		loopBBName = "loop";
 		contName = "whilecont";
 	}
-	llvm::BasicBlock* ThenBB = llvm::BasicBlock::Create(Context, loopBBName);
+	llvm::BasicBlock* ThenBB = (TheFunction) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
 	if (if_kind == tok_while) {
-		llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 		CondBB = llvm::BasicBlock::Create(Context, "while");
 		Builder->CreateBr(CondBB);
-		TheFunction->getBasicBlockList().push_back(CondBB);
+		if (TheFunction)
+			TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
 		condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
 		condPN->addIncoming(Builder->getInt8(2), enterBB);
@@ -1968,10 +1969,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	Cond->desired_type = llvm::Type::getInt1Ty(Context);
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat) ? nullptr : llvm::BasicBlock::Create(Context, "else");
-	llvm::BasicBlock* MergeBB = always_return ? nullptr : llvm::BasicBlock::Create(Context, contName);
-	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
-	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
+	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "else");
+	llvm::BasicBlock* MergeBB = (always_return || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, contName);
+	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
+	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
 	llvm::BasicBlock* EntryBBend;
 	llvm::BasicBlock* ThenBBstart;
 	llvm::BasicBlock* ElseBBstart;
@@ -2022,17 +2023,23 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	}
 	llvm::Instruction* StackRestoreInst = nullptr; // to insert destructors before that
 	if (if_kind != tok_if) {
-		TheFunction->getBasicBlockList().push_back(StackSaveBB);
-		Builder->SetInsertPoint(StackSaveBB);
+		if (TheFunction) {
+			TheFunction->getBasicBlockList().push_back(StackSaveBB);
+			Builder->SetInsertPoint(StackSaveBB);
+		}
 		llvm::Value* savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {}, nullptr, "savedstack");
 		Builder->CreateBr(ThenBB);
-		TheFunction->getBasicBlockList().push_back(StackRestoreBB);
-		Builder->SetInsertPoint(StackRestoreBB);
+		if (TheFunction) {
+			TheFunction->getBasicBlockList().push_back(StackRestoreBB);
+			Builder->SetInsertPoint(StackRestoreBB);
+		}
 		StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(ThenBB);
 	}
-	TheFunction->getBasicBlockList().push_back(ThenBB);
-	Builder->SetInsertPoint(ThenBB);
+	if (TheFunction) {
+		TheFunction->getBasicBlockList().push_back(ThenBB);
+		Builder->SetInsertPoint(ThenBB);
+	}
 	// Emit then value.
 	locals_table.push_back(std::move(then_locals_table));
 	condnesting++;
@@ -2055,7 +2062,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Instruction* elseLast = nullptr;;
 	llvm::Constant* elseConstV = nullptr;
 	if (if_kind == tok_repeat) {
-		TheFunction->getBasicBlockList().push_back(CondBB);
+		if (TheFunction)
+			TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
 		llvm::Value *CondV = Cond->codegen();
 		if (!CondV)
@@ -2068,7 +2076,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		Builder->CreateCondBr(CondV, MergeBB, StackRestoreBB);
 	} else {		
 		// Emit else block.
-		TheFunction->getBasicBlockList().push_back(ElseBB);
+		if (TheFunction)
+			TheFunction->getBasicBlockList().push_back(ElseBB);
 		Builder->SetInsertPoint(ElseBB);
 		locals_table.push_back(std::move(else_locals_table));
 		condnesting++;
@@ -2108,8 +2117,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (always_return)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	TheFunction->getBasicBlockList().push_back(MergeBB);
-	Builder->SetInsertPoint(MergeBB);
+	if (TheFunction) {
+		TheFunction->getBasicBlockList().push_back(MergeBB);
+		Builder->SetInsertPoint(MergeBB);
+	}
 	// Emit merge block.
 	if (if_kind == tok_repeat && then_locals_table.table) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
