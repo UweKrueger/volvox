@@ -664,7 +664,7 @@ static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* f
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
 	// bool prepare_setter_fn = comp_mode == comp_jit && (!(sym_kind & A_global) || (expr->RHS->ft->type_attr & A_constructor)) && !do_test;
-	bool prepare_setter_fn = comp_mode == comp_jit && !do_test;
+	bool prepare_setter_fn = comp_mode == comp_jit && (!do_test || (sym_kind & (A_const | A_global)) && rhs_is_constexpr);
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
