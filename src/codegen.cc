@@ -229,7 +229,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	}
 	llvm::GlobalVariable* V;
 	llvm::Type* storage_type;
-	if (full_var->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & A_global))) { // global variable
+	if (full_var->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & (A_global | A_const)))) { // global variable
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
