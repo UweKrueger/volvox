@@ -2103,6 +2103,11 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
 				//ThenBBstart->eraseFromParent();
 				//ElseBBstart->eraseFromParent();
+				if (TheFunction) {
+					TheFunction->getBasicBlockList().push_back(MergeBB);
+					Builder->SetInsertPoint(MergeBB);
+				} else
+					errs() << "#### No Insert Point\n";
 				return (CTcond == CTcond_false) ? elseConstV : thenConstV;
 			} else if (CTcond == CTcond_true) {
 				Builder->CreateBr(ThenBBstart);
@@ -2120,7 +2125,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (TheFunction) {
 		TheFunction->getBasicBlockList().push_back(MergeBB);
 		Builder->SetInsertPoint(MergeBB);
-	}
+	} else
+		errs() << "###### No Insert Point\n";
 	// Emit merge block.
 	if (if_kind == tok_repeat && then_locals_table.table) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
