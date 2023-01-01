@@ -1620,6 +1620,8 @@ int main(int argc, char* argv[]) {
 	} else if (comp_mode == comp_jit) {
 		ExitOnErr(TheJIT->getMainJITDylib().clear());
 	}
+	for (auto str: SourceFileNames)
+		free((void*)str);
 #ifdef _WIN32
 	SetConsoleOutputCP(old_cp);
 	SetConsoleCP(old_input_cp);
