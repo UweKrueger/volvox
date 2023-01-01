@@ -168,7 +168,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 			break;
 		}
 	}
-	if (gen_type.ID == VOLVOX_IntegerTyID && int_type.is_signed && !sign && Val.Int < 0)
+	if (gen_type.ID == VOLVOX_IntegerTyID && int_type.is_signed && !is_unknown_type && !sign && Val.Int < 0)
 		// TODO: further checks for bit sizes
 		errs() << Val.Uint << " exceeds maximum maximum possible signed value\n";
 }
