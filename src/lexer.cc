@@ -49,7 +49,7 @@ extern "C" void volvox_free_glob(volvox_glob_t* rets);
 //===----------------------------------------------------------------------===//
 
 static char prompt[1024];
-static std::vector<std::string> SourceFileNames; // for SourceLocations to remain valid after files have been processed
+std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid after files have been processed
 
 #ifdef MONOCHROME_PROMPT
 // OpendBSD's version of editline does not support colors
@@ -179,7 +179,7 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 			source_index.push_back(0);
 			volvox_glob_t module_source_files = volvox_glob2(volvox_lib(), patterntail.c_str());
 			for (int n = 0; n < module_source_files.size; n++)
-				source_files.back().emplace_back(module_source_files.dirs[n]);
+				source_files.back().push_back(SourceFileNames.emplace_back(strdup(module_source_files.dirs[n])));
 			volvox_free_glob(&module_source_files);
 			if (source_files.back().empty()) {
 				errs() << CurLoc << ": module '";
@@ -321,8 +321,6 @@ void Lexer::pop_state() {
 	Module* processed_module = module;
 	free(linebuf);
 	Loc = source_stack.back().Loc;
-	SourceFileNames.push_back(Loc.File);
-	Loc.File = SourceFileNames.back().c_str();
 	module = std::move(source_stack.back().module);
 	linelen = source_stack.back().linelen;
 	bufsize = source_stack.back().bufsize;
@@ -354,11 +352,11 @@ bool Lexer::next_input_file() {
 		}
 	}
 	if (source_index.back() < source_files.back().size()) {
-		SourceFileNames.push_back(source_files.back()[source_index.back()++]);
-		Loc.File = SourceFileNames.back().c_str();
+		Loc.File = source_files.back()[source_index.back()++];
 		input_fd = open(Loc.File, O_CLOEXEC);
 		if (input_fd < 0) {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
+			errs() << SourceFileNames[0] << ' ' << SourceFileNames[2] << source_files.size() << ' ' << source_files.back()[2] << ' ' << source_files.back().size() << '\n';
 			exit(1);
 		}
 	} else if (source_stack.size() > 1) {

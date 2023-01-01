@@ -2109,8 +2109,9 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				if (TheFunction) {
 					TheFunction->getBasicBlockList().push_back(MergeBB);
 					Builder->SetInsertPoint(MergeBB);
-				} else
-					errs() << "#### No Insert Point\n";
+				}
+				//else
+				//	errs() << "#### No Insert Point\n";
 				return (CTcond == CTcond_false) ? elseConstV : thenConstV;
 			} else if (CTcond == CTcond_true) {
 				Builder->CreateBr(ThenBBstart);

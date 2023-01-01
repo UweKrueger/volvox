@@ -14,7 +14,7 @@
 CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 std::vector<std::string> include_files = {};
-std::vector<std::vector<std::string>> source_files = {{}};
+std::vector<std::vector<const char*>> source_files = {{}};
 std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
 const std::string single_test_result_name = "__test_result";
 const std::string collector_name = "__test_results_collect";
@@ -226,8 +226,7 @@ void init(const llvm::Triple& triple) {
 
 void InitializeModuleAndPassManager() {
 	// Open a new module.
-	TheModule = std::make_unique<llvm::Module>((comp_mode == comp_jit && !do_test) ? "" : lex.Loc.File, Context);
-	errs() << "#### File: >" << lex.Loc.File << "<\n";
+	TheModule = std::make_unique<llvm::Module>(lex.Loc.File, Context);
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
@@ -1154,7 +1153,7 @@ int main(int argc, char* argv[]) {
 		errs() << "Volvox Root: >" << volvox_root() << "<\n";
 	}
 	for (;optind < argc; optind++)
-		source_files.front().push_back(argv[optind]);
+		source_files.front().push_back(SourceFileNames.emplace_back(strdup(argv[optind])));
 	if (!comp_mode) {
 		if (source_files.front().size())
 			comp_mode = comp_obj;
@@ -1231,9 +1230,9 @@ int main(int argc, char* argv[]) {
 				       << " input file provided\n";
 				usage(argv[0]);
 			}
-			int len = source_files.front().front().size();
+			int len = strlen(source_files.front().front());
 			output_file = (char*)malloc(len + 5);
-			strcpy(output_file, source_files.front().front().c_str());
+			strcpy(output_file, source_files.front().front());
 			if(output_file[len-3]=='.' && output_file[len-2]=='v' && output_file[len-1]=='x') {
 				output_file[len-3] = '\0';
 				if (link_mode != dont_link) {
