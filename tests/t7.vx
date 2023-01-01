@@ -34,3 +34,5 @@ fn test_exactly_one_cpu_is_defined() bool
 	if cpu.isX86_64
 		m++ .
 	return m == 1
+
+exit(0)

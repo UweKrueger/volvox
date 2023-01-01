@@ -229,7 +229,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	}
 	llvm::GlobalVariable* V;
 	llvm::Type* storage_type;
-	if (full_var->ft.type_attr & A_mainvar && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & (A_global | A_const)))) { // global variable
+	if ((full_var->ft.type_attr & (A_mainvar | A_global | A_const)) && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & (A_global | A_const)))) { // global variable
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
@@ -813,12 +813,15 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
 			auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
 			GlobalExprList.push_back(std::move(constructor_call));
+			cleanupGlobal(tmpf, nullptr);
+			return nullptr;
 		}
 		if (((sym_kind & A_const) || ((sym_kind & A_global)) && needs_store) && (comp_mode != comp_jit || do_test)) {
 			//expr->Op[0] = '=';
 			//expr->Op[1] = expr->Op[2] ='\0';
 			//expr->opclass = OpAssign;
 			GlobalExprList.push_back(std::move(expr));
+			cleanupGlobal(tmpf, nullptr);
 			return nullptr;
 		}
 	} else {
