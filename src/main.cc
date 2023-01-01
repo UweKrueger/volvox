@@ -227,6 +227,7 @@ void init(const llvm::Triple& triple) {
 void InitializeModuleAndPassManager() {
 	// Open a new module.
 	TheModule = std::make_unique<llvm::Module>((comp_mode == comp_jit && !do_test) ? "" : lex.Loc.File, Context);
+	errs() << "#### File: >" << lex.Loc.File << "<\n";
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}

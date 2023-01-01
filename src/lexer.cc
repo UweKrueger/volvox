@@ -321,6 +321,8 @@ void Lexer::pop_state() {
 	Module* processed_module = module;
 	free(linebuf);
 	Loc = source_stack.back().Loc;
+	SourceFileNames.push_back(Loc.File);
+	Loc.File = SourceFileNames.back().c_str();
 	module = std::move(source_stack.back().module);
 	linelen = source_stack.back().linelen;
 	bufsize = source_stack.back().bufsize;
