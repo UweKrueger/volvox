@@ -2213,6 +2213,31 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	}
 }
 
+void CallGlobalDestructorsJIT() {
+	finishFunctionOrModule();
+	std::string destr_name = "__global_destructor_caller";
+	llvm::FunctionType* destr_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context),
+	                                                         {}, false);
+	llvm::Function* destr_fn = llvm::Function::Create(destr_fn_t, llvm::Function::ExternalLinkage, destr_name, TheModule.get());
+	auto BB = llvm::BasicBlock::Create(Context, "entry", destr_fn);
+	Builder->SetInsertPoint(BB);
+	if (last_shadow_restorer && comp_mode == comp_jit && !do_test) {
+		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
+		auto last_restorer = getFunction(last_restorer_proto);
+		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callrestorer");
+	}
+	for (auto& [modname, module] : Modules) {
+		if (module.globals_table.table)
+			InsertDestructors(module.globals_table, nullptr);
+	}
+	Builder->CreateRetVoid();
+	finishFunctionOrModule(destr_fn, 2);
+	auto ExprSymbol = ExitOnErr(TheJIT->lookup(destr_name));
+		// C syntax at its best...
+	void (*VOID)(void) = (void (*)(void))(intptr_t)ExprSymbol.getAddress();
+	VOID();
+}
+
 // Output for-loop as:
 //   var = alloca double
 //   ...

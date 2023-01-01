@@ -1261,3 +1261,4 @@ extern std::vector<int> source_index;
 extern std::vector<const char*> SourceFileNames;
 extern bool jit_repl;
 extern int builtin_input_fd;
+extern void CallGlobalDestructorsJIT();

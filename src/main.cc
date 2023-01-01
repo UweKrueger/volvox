@@ -1618,6 +1618,8 @@ int main(int argc, char* argv[]) {
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
 	} else if (comp_mode == comp_jit) {
+		if (!do_test)
+			CallGlobalDestructorsJIT();
 		ExitOnErr(TheJIT->getMainJITDylib().clear());
 	}
 	for (auto str: SourceFileNames)
