@@ -25,7 +25,7 @@ pub const max_f64 ::= 0x1.fffffffffffffp+1023
 
 # difference between smallest number >1 and 1 or the steps betwenn consecutive
 # numbers in the interval [1.0; 2.0)
-# it is NOT the difference between ANY consecutive numbers not the smallest number
+# it is NOT the difference between ANY consecutive numbers nor the smallest representable float number
 #
 pub const epsilon64 ::= 0x1.0000000000001 - 1
 
