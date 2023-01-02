@@ -24,6 +24,8 @@ type State4 {
 	s [4]u64
 }
 
+# defaut constructor that is called for every new thread
+#
 fn State4()
 	this.s[0] = splitmix64()
 	this.s[1] = splitmix64()
@@ -31,19 +33,61 @@ fn State4()
 	this.s[3] = splitmix64()
 	return
 
+# thread local state
+#
 global s := State4{}
 
-pub fn U64() u64
+# function names for random functions are the same as the type they produce but with uppercase
+# letter because type names are not allowed for (non-constructor) function names
+
+# main RNG producing 64 bits
+#
+pub inline fn U64() u64
 	result := rotl(s.s[1] + (s.s[1] << 2), 7)
 	result += (result << 3)
 	t := s.s[1] << 17
-
 	s.s[2] ><= s.s[0]
 	s.s[3] ><= s.s[1]
 	s.s[1] ><= s.s[2]
 	s.s[0] ><= s.s[3]
-
 	s.s[2] ><= t
 	s.s[3] = rotl(s.s[3], 45)
-
 	return result
+
+pub inline fn I64() i64
+	return i64(U64())
+
+pub inline fn U32() u32
+	return u32(U64())
+
+pub inline fn I32() i32
+	return i32(U64())
+
+pub inline fn U16() u16
+	return u16(U64())
+
+pub inline fn I16() i16
+	return i16(U64())
+
+pub inline fn U8() u8
+	return u8(U64())
+
+pub inline fn I8() i8
+	return i8(U64())
+
+type Fu64 union {
+	f f64
+	u u64
+}
+
+# create an equally distributed random real in the range [0; 1)
+#
+pub inline fn F64() f64
+	r0 := U64()
+	x := Fu64{}
+	x.u = r0
+	# this code assumes IEEE-754 representation
+	x.u &= (1 << 52) - 1 # mask the mantissa
+	x.u |= 0x3ff << 52
+	x.f -= 1
+	return x.f
