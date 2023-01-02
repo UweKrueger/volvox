@@ -67,11 +67,11 @@
 (defvar volvox-font-lock-keywords
   (eval-when-compile
     (let ((COMMANDS
-           '("i16" "i32" "i64" "i8" "int" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8"))
+           '("f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union"))
           (CONTROLFLOW
-           '("else" "fn" "if" "repeat" "return" "until" "while"))
+           '("else" "fn" "from" "if" "import" "repeat" "return" "type" "until" "while"))
           (UNIX
-           '("const" "cdecl" "decl" "inline")))
+           '("atomic" "const" "cdecl" "decl" "global" "inline" "shared")))
       `(("\\_<\\(call\\|goto\\)\\_>[ \t]+%?\\([A-Za-z0-9_\\:.-]+\\)%?"
          (2 font-lock-constant-face t))
         ("^:[^:].*"
