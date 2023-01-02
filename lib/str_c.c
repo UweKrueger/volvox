@@ -1242,3 +1242,7 @@ _DECL void printd(double X) {
 	fprintf(stderr, "%g\n", X);
 }
 
+/// printu64 - printf that takes a u64 prints it as "%f\n", returning 0.
+_DECL void printu64(uint64_t X) {
+	fprintf(stderr, "%" PRIu64 "\n", X);
+}

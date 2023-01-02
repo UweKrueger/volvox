@@ -268,8 +268,12 @@ inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 OpClass getOpClass(const char* Op) {
 	switch (Op[1]) {
 	case '<':
-		if (Op[0] == '>')
-			return OpBitwise;
+		if (Op[0] == '>') {
+			if (!Op[2])
+				return OpBitwise;
+			else
+				return OpModAssign; // ><=
+		}
 	case '>':
 		if (Op[1] == Op[0]) {
 			if (!Op[2])

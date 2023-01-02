@@ -18,22 +18,32 @@
 # output to fill s.
 
 inline fn rotl(x u64, k int) u64
-	return (x << k) | (x >> (64 - k))
+	return (x << u64(k)) | (x >> (64u64 - u64(k)))
 
-global s := [4]u64{}
+type State4 {
+	s [4]u64
+}
+
+fn State4()
+	this.s[0] = splitmix64()
+	this.s[1] = splitmix64()
+	this.s[2] = splitmix64()
+	this.s[3] = splitmix64()
+	return
+
+global s := State4{}
 
 pub fn U64() u64
-	result := rotl(s[1] * 5, 7) * 9
+	result := rotl(s.s[1] * 5, 7) * 9
 
-	t := s[1] << 17
+	t := s.s[1] << 17u64
 
-	s[2] ><= s[0]
-	s[3] ><= s[1]
-	s[1] ><= s[2]
-	s[0] ><= s[3]
+	s.s[2] ><= s.s[0]
+	s.s[3] ><= s.s[1]
+	s.s[1] ><= s.s[2]
+	s.s[0] ><= s.s[3]
 
-	s[2] ><= t
-
-	s[3] = rotl(s[3], 45)
+	s.s[2] ><= t
+	s.s[3] = rotl(s.s[3], 45)
 
 	return result
