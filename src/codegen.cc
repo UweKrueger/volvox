@@ -1703,7 +1703,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		} else if (Op[1] == '>') {
 			switch(typeclass) {
 			case is_int:
-				if (OperandSigned)
+				if (LHS->ft->type_attr & A_signed)
 					result = Builder->CreateAShr(L, R, "remtmp");
 				else
 					result = Builder->CreateLShr(L, R, "remtmp");

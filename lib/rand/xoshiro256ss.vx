@@ -18,7 +18,7 @@
 # output to fill s.
 
 inline fn rotl(x u64, k int) u64
-	return (x << u64(k)) | (x >> (64u64 - u64(k)))
+	return (x << k) | (x >> (64 - k))
 
 type State4 {
 	s [4]u64
@@ -34,9 +34,9 @@ fn State4()
 global s := State4{}
 
 pub fn U64() u64
-	result := rotl(s.s[1] * 5, 7) * 9
-
-	t := s.s[1] << 17u64
+	result := rotl(s.s[1] + (s.s[1] << 2), 7)
+	result += (result << 3)
+	t := s.s[1] << 17
 
 	s.s[2] ><= s.s[0]
 	s.s[3] ><= s.s[1]
