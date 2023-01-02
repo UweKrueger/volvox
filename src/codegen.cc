@@ -148,6 +148,10 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* V = llvm::UndefValue::get(ft->type);
 		unsigned num_fields = struct_type->getNumElements();
 		std::vector<std::unique_ptr<ExprAST>> initializers(num_fields);
+		if ((ft->type_attr & A_union) && Fields.size() > 1) {
+			errs() << Loc << ": union literals can have at most one element\n";
+			return nullptr;
+		}
 		for (auto& [fname, ini]: Fields) {
 			MapValue* mv = map_string_get(ft->fields, fname.c_str());
 			auto node = StructFieldType((MapNode*)((uintptr_t)mv - ((uintptr_t)&ft->fields->value - (uintptr_t)ft->fields)));
@@ -179,7 +183,10 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 						for (unsigned i = szdiff; i; i--)
 							V = Builder->CreateInsertValue(V, char0, i, "unionpadding");
 					} else {
-						V = ini;
+						std::vector<llvm::Type*> types{ ini->getType() };
+						auto struct_type = llvm::StructType::get(Context, types);
+						V = llvm::UndefValue::get(struct_type);
+						V = Builder->CreateInsertValue(V, ini, 0, "unioninit");
 					}
 				} else {
 					V = Builder->CreateInsertValue(V, ini, i, "structinit");
