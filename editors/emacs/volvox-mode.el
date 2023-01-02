@@ -67,17 +67,13 @@
 (defvar volvox-font-lock-keywords
   (eval-when-compile
     (let ((COMMANDS
-           '("f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union"))
+           '("f16" "f32" "f64" "i16" "i32" "i64" "i8" "inline" "int" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union"))
           (CONTROLFLOW
-           '("else" "fn" "from" "if" "import" "repeat" "return" "type" "until" "while"))
+           '("atomic" "const" "global" "else" "fn" "if" "repeat" "return" "shared" "type" "until" "while"))
           (UNIX
-           '("atomic" "const" "cdecl" "decl" "global" "inline" "shared")))
-      `(("\\_<\\(call\\|goto\\)\\_>[ \t]+%?\\([A-Za-z0-9_\\:.-]+\\)%?"
-         (2 font-lock-constant-face t))
-        ("^:[^:].*"
+           '("cdecl" "decl" "from" "import" "pub" "type")))
+      `(("^:[^:].*"
          . 'volvox-label-face)
-        ("\\_<\\(defined\\|set\\)\\_>[ \t]*\\(\\(\\sw\\|\\s_\\)+\\)"
-         (2 font-lock-variable-name-face))
 		("\\b0x[[:xdigit:]]+\\(\\.[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\([iu][0-9]*\\)?\\b" . font-lock-constant-face)
 		("\\b[0-9]+\\(\\.[0-9]*\\)?\\([Ee][\\+\\-]?[0-9]+\\)?\\b" . font-lock-constant-face)
         ("%~\\([0-9]\\)"
@@ -191,8 +187,8 @@ Start a new script from `volvox-template'.  Read help pages for DOS commands
 with `volvox-cmd-help'.  Navigate between sections using `imenu'.
 Run script using `volvox-run' and `volvox-run-args'.\n
 \\{volvox-mode-map}"
-  (setq-local comment-start "rem ")
-  (setq-local comment-start-skip "rem[ \t]+")
+  (setq-local comment-start "# ")
+  (setq-local comment-start-skip "#[ \t]+")
   (setq-local syntax-propertize-function volvox--syntax-propertize)
   (setq-local font-lock-defaults
        '(volvox-font-lock-keywords nil t)) ; case-insensitive keywords
