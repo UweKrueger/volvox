@@ -83,7 +83,7 @@ type Fu64 union {
 	u u64
 }
 
-const avoid_multiplication ::= !(cpu.isX86_64)
+const avoid_multiplication ::= !cpu.isX86_64
 const compensate_for_53rd_bit ::= cpu.isX86
 
 # create an equally distributed random real in the range [0; 1)

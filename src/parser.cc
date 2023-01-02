@@ -1048,6 +1048,8 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	}
 }
 
+static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator = 0);
+
 /// unary
 ///   ::= primary
 ///   ::= '!' unary
@@ -1058,10 +1060,12 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 		return ParsePrimary(terminator);
 	
 	// If this is a unary operator, read it.
+	int TokPrec = GetTokPrecedence();
 	std::string Op = IdentifierStr;
 	auto Loc = CurLoc;
 	getNextToken();
 	if (auto Operand = ParseUnary(terminator)) {
+		Operand = ParseBinOpRHS(TokPrec, std::move(Operand), terminator);
 		if (kind == tok_ref) {
 			if (auto lval = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 				auto Lval = std::unique_ptr<LvalueExprAST>(lval);
@@ -1078,7 +1082,7 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 
 /// binoprhs
 ///   ::= ('+' unary)*
-static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator = 0) {
+static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator) {
 	// If this is a binop, find its precedence.
 	while (true) {
 		int TokPrec = GetTokPrecedence();
