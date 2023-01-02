@@ -78,6 +78,8 @@
          . 'volvox-label-face)
         ("\\_<\\(defined\\|set\\)\\_>[ \t]*\\(\\(\\sw\\|\\s_\\)+\\)"
          (2 font-lock-variable-name-face))
+		("\\b0x[[:xdigit:]]+\\(\\.[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\([iu][0-9]*\\)?\\b" . font-lock-constant-face)
+		("\\b[0-9]+\\(\\.[0-9]*\\)?\\([Ee][\\+\\-]?[0-9]+\\)?\\b" . font-lock-constant-face)
         ("%~\\([0-9]\\)"
          (1 font-lock-variable-name-face))
         ("%\\([^%~ \n]+\\)%?"
