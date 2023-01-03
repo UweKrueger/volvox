@@ -60,7 +60,7 @@
 ;; 2  User variables
 
 (defface volvox-label-face '((t :weight bold))
-  "Font Lock mode face used to highlight labels in volvoxch files.")
+  "Font Lock mode face used to highlight labels in Volvox files.")
 
 ;; 3  Internal variables
 
@@ -74,13 +74,18 @@
            '("cdecl" "decl" "from" "import" "pub" "type")))
       `(("^:[^:].*"
          . 'volvox-label-face)
-		("\\_<0x[[:xdigit:]]+\\_>\\(\\.[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\([iu][0-9]*\\)?" . font-lock-constant-face)
-		("\\_<[0-9]+\\_>\\(\\.[0-9]*\\)?\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
+		("\\_<-?0x[[:xdigit:]]+\\_>\\(\\.[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\([iu][0-9]*\\)?" . font-lock-constant-face)
+		("\\_<-?[0-9]+\\_>\\.[0-9]*\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
+		("-?\\.\\_<[0-9]+\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
+		("\\_<-?[0-9]+\\_>\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
         (,(concat "\\_<" (regexp-opt COMMANDS) "\\_>") . font-lock-builtin-face)
         (,(concat "\\_<" (regexp-opt CONTROLFLOW) "\\_>")
          . font-lock-keyword-face)
         (,(concat "\\_<" (regexp-opt UNIX) "\\_>")
-         . font-lock-warning-face)))))
+         . font-lock-warning-face)
+		("\\_<[_A-Za-z][_0-9A-Za-z]*\\_>\\(\\.[_A-Za-z][_0-9A-Za-z]*\\)?" . font-lock-variable-name-face)
+		("\\." . font-lock-keyword-face)
+		))))
 
 (defvar volvox-menu
   '("Volvox"
