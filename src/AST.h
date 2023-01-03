@@ -530,6 +530,7 @@ public:
 	const char* err_msg = nullptr;
 	char Op[4] = { 0, 0, 0, 0 };
 	OpClass opclass = OpNormal;
+	std::string mod_key = ""; // for postponed codegen of non-pub main-var declarations in imported modules
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, unsigned, bool, OpClass,
 	              const char*> res_t = { llvm::Type::getVoidTy(Context), false, false, OpDeclAssign, nullptr })
@@ -538,8 +539,10 @@ public:
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
 		{
 			strcpy(Op, _Op);
-			if (opclass == OpDeclAssign)
+			if (opclass == OpDeclAssign) {
 				LHS->ft = RHS->ft;
+				mod_key = lex.mod_key;
+			}
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG

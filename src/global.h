@@ -1011,6 +1011,7 @@ struct SourceLocState {
 class Lexer : public SourceLocState {
 public:
 	std::vector<SourceLocState> source_stack = {};
+	std::string mod_key = "";
 	eXpect Expected; // only used for error messages
 	Lexer() = default;
 	Lexer(int* _inputfd, const char* _input_file_name, size_t _bufsize = 100)

@@ -48,6 +48,7 @@ extern "C" void volvox_free_glob(volvox_glob_t* rets);
 // Lexer
 //===----------------------------------------------------------------------===//
 
+std::vector<std::string> mod_keys;
 static char prompt[1024];
 std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid after files have been processed
 
@@ -193,6 +194,8 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 				}
 				errs() << "' does not refer to any valid source (*.vx) files\n";
 			}
+			mod_keys.push_back(std::move(mod_key));
+			mod_key = std::move(patterntail);
 		}
 		return next_input_file();
 	} else {
@@ -334,6 +337,8 @@ void Lexer::pop_state() {
 	source_files.pop_back();
 	source_index.pop_back();
 	import_from_module(processed_module);
+	mod_key = std::move(mod_keys.back());
+	mod_keys.pop_back();
 }
 
 bool Lexer::next_input_file() {
