@@ -112,10 +112,14 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	// exactly one candidate of class 2 or there is exactly one candidate of class 3
 	//
 	unsigned* candidates_2 = (unsigned*)alloca((*protos).size() * sizeof(unsigned));
+	memset(candidates_2, 0, (*protos).size() * sizeof(unsigned));
 	unsigned* candidates_3 = (unsigned*)alloca((*protos).size() * sizeof(unsigned));
+	memset(candidates_3, 0, (*protos).size() * sizeof(unsigned));
 	// class 1 can directly save in Arguments
-	std::function<llvm::Value*(llvm::Value*)>* convs2 = (std::function<llvm::Value*(llvm::Value*)>*)alloca(fnargs.size() * sizeof(void*));
-	std::function<llvm::Value*(llvm::Value*)>* convs3 = (std::function<llvm::Value*(llvm::Value*)>*)alloca(fnargs.size() * sizeof(void*));
+	std::function<llvm::Value*(llvm::Value*)>* convs2 = (std::function<llvm::Value*(llvm::Value*)>*)alloca(fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
+	memset(convs2, 0, fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
+	std::function<llvm::Value*(llvm::Value*)>* convs3 = (std::function<llvm::Value*(llvm::Value*)>*)alloca(fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
+	memset(convs3, 0, fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
 	unsigned cands1 = 0;
 	unsigned cands2 = 0;
 	unsigned cands3 = 0;
