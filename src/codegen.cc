@@ -1214,20 +1214,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);
 		FullVar* entry;
 		if (locals_table.empty()) {
-			if (mod_key.empty()) {
-				entry = lex.module->globals_table[varname];
-			} else {
-				errs() << "searching >" << mod_key << "< for var >" << varname << "<\n";
-				auto mod = Modules.find(mod_key);
-				if (mod != Modules.end()) {
-					entry = mod->second.globals_table[varname];
-				}
-			}
+			entry = lex.module->globals_table[varname];
 			if (!entry) {
 				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 				return nullptr;
 			}
-			errs() << "found >" << (entry->mangled_name ? entry->mangled_name : "nil") << "<\n";
+			errs() << "found " << varname << " >" << (entry->mangled_name ? entry->mangled_name : "nil") << "<\n";
 		} else {
 			entry = locals_table.back()[varname];
 		}

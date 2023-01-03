@@ -5,6 +5,7 @@
  */
 #include "../include/volvox.hh"
 #include "global.h"
+#include "AST.h"
 
 /* we want to use NetBSD's libedit and not GNU readline because the latter is GPL licensed
    (not LGPL!). On some platforms there are <readline/readline.h> for GNU readline and
@@ -195,6 +196,8 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 				errs() << "' does not refer to any valid source (*.vx) files\n";
 			}
 			mod_keys.push_back(std::move(mod_key));
+			if (comp_mode != comp_jit || do_test)
+				GlobalExprList.push_back(std::make_unique<ModuleContextSwitchAST>(CurLoc, patterntail));
 			mod_key = std::move(patterntail);
 		}
 		return next_input_file();
@@ -338,6 +341,8 @@ void Lexer::pop_state() {
 	source_index.pop_back();
 	import_from_module(processed_module);
 	mod_key = std::move(mod_keys.back());
+	if (comp_mode != comp_jit || do_test)
+		GlobalExprList.push_back(std::make_unique<ModuleContextSwitchAST>(CurLoc, mod_key));
 	mod_keys.pop_back();
 }
 
