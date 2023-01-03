@@ -67,26 +67,15 @@
 (defvar volvox-font-lock-keywords
   (eval-when-compile
     (let ((COMMANDS
-           '("f16" "f32" "f64" "i16" "i32" "i64" "i8" "inline" "int" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union"))
+           '("f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union"))
           (CONTROLFLOW
-           '("atomic" "const" "global" "else" "fn" "if" "repeat" "return" "shared" "type" "until" "while"))
+           '("atomic" "const" "global" "else" "fn" "if" "inline" "repeat" "return" "shared" "until" "while"))
           (UNIX
            '("cdecl" "decl" "from" "import" "pub" "type")))
       `(("^:[^:].*"
          . 'volvox-label-face)
-		("\\b0x[[:xdigit:]]+\\(\\.[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\([iu][0-9]*\\)?\\b" . font-lock-constant-face)
-		("\\b[0-9]+\\(\\.[0-9]*\\)?\\([Ee][\\+\\-]?[0-9]+\\)?\\b" . font-lock-constant-face)
-        ("%~\\([0-9]\\)"
-         (1 font-lock-variable-name-face))
-        ("%\\([^%~ \n]+\\)%?"
-         (1 font-lock-variable-name-face))
-        ("!\\([^!%~ \n]+\\)!?"  ; delayed-expansion !variable!
-         (1 font-lock-variable-name-face))
-        ("%%\\(?:~[adfnpstxz]*\\(?:\\$\\(\\(?:\\sw\\|\\s_\\|_\\)+\\):\\)?\\)?\\([]!#$&-:?-[_-{}~]\\)"
-         (1 font-lock-variable-name-face nil t) ; PATH expansion
-         (2 font-lock-variable-name-face)) ; iteration variable or positional parameter
-        ("[ =][-/]+\\(\\w+\\)"
-         (1 font-lock-type-face append))
+		("\\_<0x[[:xdigit:]]+\\_>\\(\\.[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\([iu][0-9]*\\)?" . font-lock-constant-face)
+		("\\_<[0-9]+\\_>\\(\\.[0-9]*\\)?\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
         (,(concat "\\_<" (regexp-opt COMMANDS) "\\_>") . font-lock-builtin-face)
         (,(concat "\\_<" (regexp-opt CONTROLFLOW) "\\_>")
          . font-lock-keyword-face)
@@ -191,7 +180,7 @@ Run script using `volvox-run' and `volvox-run-args'.\n
   (setq-local comment-start-skip "#[ \t]+")
   (setq-local syntax-propertize-function volvox--syntax-propertize)
   (setq-local font-lock-defaults
-       '(volvox-font-lock-keywords nil t)) ; case-insensitive keywords
+       '(volvox-font-lock-keywords nil nil)) ; case-sensitive keywords
   (setq-local imenu-generic-expression '((nil "^:[^:].*" 0)))
   (setq-local outline-regexp ":[^:]"))
 
