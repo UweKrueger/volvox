@@ -74,10 +74,10 @@
            '("cdecl" "decl" "from" "import" "pub" "type")))
       `(("^:[^:].*"
          . 'volvox-label-face)
-		("\\_<-?0x[[:xdigit:]]+\\_>\\(\\.[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\([iu][0-9]*\\)?" . font-lock-constant-face)
-		("\\_<-?[0-9]+\\_>\\.[0-9]*\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
-		("-?\\.\\_<[0-9]+\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
-		("\\_<-?[0-9]+\\_>\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
+		("\\_<0x[[:xdigit:]]+\\_>\\(\\.[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\([iu][0-9]*\\)?" . font-lock-constant-face)
+		("\\_<[0-9]+\\_>\\.[0-9]*\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
+		("\\.\\_<[0-9]+\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
+		("\\_<[0-9]+\\_>\\([Ee][\\+\\-]?[0-9]+\\)?" . font-lock-constant-face)
         (,(concat "\\_<" (regexp-opt COMMANDS) "\\_>") . font-lock-builtin-face)
         (,(concat "\\_<" (regexp-opt CONTROLFLOW) "\\_>")
          . font-lock-keyword-face)
@@ -113,8 +113,11 @@
     (modify-syntax-entry ?\# "<" table)
     (modify-syntax-entry ?\n ">#" table)
     (modify-syntax-entry ?\" "\"\"" table)
-    ;; Beware: `w' should not be used for non-alphabetic chars.
-    (modify-syntax-entry ?_ "_" table)
+	(modify-syntax-entry ?' "\"'" table)
+    ;; Some people say `w' should not be used for non-alphabetic chars.
+	;; However, in Volvox '_' behaves just like any other character and
+	;; defining it as `w' allows selecting identifiers by double clicking.
+    (modify-syntax-entry ?_ "w" table)
     (modify-syntax-entry ?: "." table)
     (modify-syntax-entry ?< "." table)
     (modify-syntax-entry ?> "." table)
@@ -126,6 +129,9 @@
     (modify-syntax-entry ?+ "." table)
     (modify-syntax-entry ?* "." table)
     (modify-syntax-entry ?- "." table)
+    (modify-syntax-entry ?^ "." table)
+    (modify-syntax-entry ?! "." table)
+    (modify-syntax-entry ?~ "." table)
     (modify-syntax-entry ?\; "." table)
     (modify-syntax-entry ?\( "()" table)
     (modify-syntax-entry ?\) ")(" table)
@@ -133,10 +139,6 @@
     (modify-syntax-entry ?\} "){" table)
     (modify-syntax-entry ?\[ "(]" table)
     (modify-syntax-entry ?\] ")[" table)
-    (modify-syntax-entry ?~ "_" table)
-    (modify-syntax-entry ?% "." table)
-    (modify-syntax-entry ?- "_" table)
-    (modify-syntax-entry ?_ "_" table)
     table))
 
 (defconst volvox--syntax-propertize
