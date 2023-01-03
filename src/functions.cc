@@ -87,7 +87,7 @@ static void printCandidate(PrototypeAST* proto, const char* name) {
 }
 
 inline static void printCandidates(unsigned candidates[], unsigned num_candidates, std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
-	for(int i=0; i<num_candidates; i++) {
+	for(unsigned i=0; i<num_candidates; i++) {
 		unsigned c = candidates[i];
 		printCandidate((*protos)[c].get(), name);
 	}
@@ -111,12 +111,11 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	// a prototype is selected if either there is a canditate of class 1 (should never be more) or there is
 	// exactly one candidate of class 2 or there is exactly one candidate of class 3
 	//
-	unsigned candidates_1[1];
-	unsigned candidates_2[(*protos).size()];
-	unsigned candidates_3[(*protos).size()];
+	unsigned* candidates_2 = (unsigned*)alloca((*protos).size() * sizeof(unsigned));
+	unsigned* candidates_3 = (unsigned*)alloca((*protos).size() * sizeof(unsigned));
 	// class 1 can directly save in Arguments
-	std::function<llvm::Value*(llvm::Value*)> convs2[fnargs.size()];
-	std::function<llvm::Value*(llvm::Value*)> convs3[fnargs.size()];
+	std::function<llvm::Value*(llvm::Value*)>* convs2 = (std::function<llvm::Value*(llvm::Value*)>*)alloca(fnargs.size() * sizeof(void*));
+	std::function<llvm::Value*(llvm::Value*)>* convs3 = (std::function<llvm::Value*(llvm::Value*)>*)alloca(fnargs.size() * sizeof(void*));
 	unsigned cands1 = 0;
 	unsigned cands2 = 0;
 	unsigned cands3 = 0;

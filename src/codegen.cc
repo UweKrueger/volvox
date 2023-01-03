@@ -696,7 +696,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (prepare_setter_fn)
 		tmpf = init_setter_fn(setter_name, varname, Arg);
 	llvm::Value* Val;
-	llvm::Type* val_type;
 	llvm::Type* type;
 	FullVar* is_referencing = nullptr;
 	unsigned attribs = 0;
@@ -2241,8 +2240,8 @@ void CallGlobalDestructorsJIT() {
 	finishFunctionOrModule(destr_fn, 2);
 	auto ExprSymbol = ExitOnErr(TheJIT->lookup(destr_name));
 		// C syntax at its best...
-	void (*VOID)(void) = (void (*)(void))(intptr_t)ExprSymbol.getAddress();
-	VOID();
+	void (*VOIDFN)(void) = (void (*)(void))(intptr_t)ExprSymbol.getAddress();
+	VOIDFN();
 }
 
 // Output for-loop as:
