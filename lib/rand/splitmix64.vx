@@ -13,11 +13,24 @@
 # It is a very fast generator passing BigCrush, and it can be useful if
 # for some reason you absolutely want 64 bits of state.
 
-global x := 0x9e3779b97f4a7c15u64 # The state can be seeded with any value.
+import arch.os
+
+cdecl fn getrandom(&buf u64, n size_t, flags u32) ssize_t
+cdecl fn arc4random_buf(&buf u64, n size_t)
+cdecl fn QueryPerformanceCounter(&time u64) bool
+
+x0 := 0u64
+if os.isLinux || os.isFreeBSD || os.isDragonFly || os.isNetBSD
+	getrandom(x0, 8, 0)
+else if os.isOpenBSD
+	arc4random_buf(x0, 8)
+else if os.isWindows
+	QueryPerformanceCounter(x0) . . .
+
+global x := x0 + 0x9e3779b97f4a7c15u64 # The state can be seeded with any value.
 
 pub fn splitmix64() u64
 	z := (x += 0x9e3779b97f4a7c15)
 	z = (z >< (z >> 30)) * 0xbf58476d1ce4e5b9
 	z = (z >< (z >> 27)) * 0x94d049bb133111eb
 	return z >< (z >> 31)
-
