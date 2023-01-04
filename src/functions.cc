@@ -804,7 +804,6 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
-	auto &P = *Proto;
 	bool already_returned = false;
 	volvoxc::FullType* receiver_ft;
 	if (Proto->visibility & (A_method | A_constructor))
@@ -829,11 +828,11 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		Unit = DBuilder->createFile(KSDbgInfo.TheCU->getFilename(),
 		                            KSDbgInfo.TheCU->getDirectory());
 		llvm::DIScope *FContext = Unit;
-		LineNo = P.getLine();
+		LineNo = Proto->getLine();
 		unsigned ScopeLine = LineNo;
 		SP = DBuilder->createFunction(
-			FContext, P.getName(), llvm::StringRef(), Unit, LineNo,
-			CreateFunctionType(P.RetType, P.ArgTypes, Unit), ScopeLine,
+			FContext, Proto->getName(), llvm::StringRef(), Unit, LineNo,
+			CreateFunctionType(Proto->RetType, Proto->ArgTypes, Unit), ScopeLine,
 			llvm::DINode::FlagPrototyped, llvm::DISubprogram::SPFlagDefinition);
 		TheFunction->setSubprogram(SP);
 	  
@@ -847,8 +846,8 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	}
 	// Record the function arguments in the NamedValues map.
 	unsigned ArgIdx = 0;
-	theFunction_ret_ft = (P.visibility & A_constructor) ? void_type : P.RetType;
-	if (P.IsStructRet && !(P.visibility & A_constructor))
+	theFunction_ret_ft = (Proto->visibility & A_constructor) ? void_type : Proto->RetType;
+	if (Proto->IsStructRet && !(Proto->visibility & A_constructor))
 		ret_ptr = TheFunction->getArg(ArgIdx++);
 	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
 		auto Arg = TheFunction->getArg(ArgIdx);
@@ -861,7 +860,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			mapitem->val = Arg;
 		} else {
 			// Create an alloca for this variable.
-			llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(P.LLVMArgTypes[ArgIdx], Arg->getName(), TheFunction);
+			llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(Proto->LLVMArgTypes[ArgIdx], Arg->getName(), TheFunction);
 			// get reference to argument in symbol table
 			// Store the initial value into the alloca.
 			Builder->CreateStore(Arg, Alloca);
@@ -881,10 +880,10 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	}
 	llvm::Value* RetVal = nullptr;
 	llvm::Value* InterRetVal = nullptr;
-	if (!P.RetType->type->isVoidTy()) {
+	if (!Proto->RetType->type->isVoidTy()) {
 		if (Body.empty() || !Body.back())
 			goto cleanup;
-		Body.back()->desired_type = P.RetType->type;
+		Body.back()->desired_type = Proto->RetType->type;
 	}
 	for (auto& Expr : Body) {
 		if ((RetVal = Expr->codegen())) {
@@ -906,8 +905,8 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		if (auto ifexpr = dynamic_cast<IfExprAST*>(Body.back().get()))
 			already_returned = ifexpr->always_return;
 	if (!already_returned) {
-		if (P.RetType->type->isVoidTy() || (P.visibility & A_constructor)) {
-			if (P.visibility & A_destructor) {
+		if (Proto->RetType->type->isVoidTy() || (Proto->visibility & A_constructor)) {
+			if (Proto->visibility & A_destructor) {
 				insert_field_destructors(receiver_ft, TheFunction->getArg(0));
 			}
 			InsertDestructors(nullptr);
@@ -915,7 +914,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		} else {
 			// auto ret_type = RetVal->getType();
 			//type = ret_type; // TODO: hande conversion if != proto->type;
-			if (P.IsStructRet) {
+			if (Proto->IsStructRet) {
 				Builder->CreateStore(RetVal, ret_ptr);
 				InsertDestructors(ret_ptr);
 				Builder->CreateRetVoid();
@@ -928,7 +927,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 				if (!ArgIdx && Body.size() == 1 && !InterRetVal && TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
 					if (auto const_ret = llvm::dyn_cast<llvm::Constant>(RetVal))
 						// hack to allow trivial static functions to be used as constexpr
-						P.const_result = const_ret;
+						Proto->const_result = const_ret;
 			}
 		}
 	}
