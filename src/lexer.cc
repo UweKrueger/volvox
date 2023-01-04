@@ -5,7 +5,6 @@
  */
 #include "../include/volvox.hh"
 #include "global.h"
-#include "AST.h"
 
 /* we want to use NetBSD's libedit and not GNU readline because the latter is GPL licensed
    (not LGPL!). On some platforms there are <readline/readline.h> for GNU readline and
@@ -49,7 +48,6 @@ extern "C" void volvox_free_glob(volvox_glob_t* rets);
 // Lexer
 //===----------------------------------------------------------------------===//
 
-std::vector<std::string> mod_keys;
 static char prompt[1024];
 std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid after files have been processed
 
@@ -195,12 +193,6 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 				}
 				errs() << "' does not refer to any valid source (*.vx) files\n";
 			}
-			mod_keys.push_back(std::move(mod_key));
-			if (comp_mode != comp_jit || do_test) {
-				errs() << "### pushing " << patterntail << "\n";
-				GlobalExprList.push_back(std::make_unique<ModuleContextSwitchAST>(CurLoc, patterntail));
-			}
-			mod_key = std::move(patterntail);
 		}
 		return next_input_file();
 	} else {
@@ -224,11 +216,11 @@ void Lexer::import_from_module(Module* import_module) {
 		module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix
 	}
 	for (auto& unmangled_protos: import_module->FunctionProtos) {
-		// for (auto proto = unmangled_protos.second.begin(); proto != unmangled_protos.second.end();)
-		// 	if (!((*proto)->visibility & A_pub))
-		// 		unmangled_protos.second.erase(proto);
-		// 	else
-		// 		proto++;
+		for (auto proto = unmangled_protos.second.begin(); proto != unmangled_protos.second.end();)
+			if (!((*proto)->visibility & A_pub))
+				unmangled_protos.second.erase(proto);
+			else
+				proto++;
 		if (!unmangled_protos.second.empty()) {
 			bool success = true;
 			if (is_from_import) {
@@ -342,12 +334,6 @@ void Lexer::pop_state() {
 	source_files.pop_back();
 	source_index.pop_back();
 	import_from_module(processed_module);
-	mod_key = std::move(mod_keys.back());
-	if (comp_mode != comp_jit || do_test) {
-		errs() << "popping >" << mod_key << "<\n";
-		GlobalExprList.push_back(std::make_unique<ModuleContextSwitchAST>(CurLoc, mod_key));
-	}
-	mod_keys.pop_back();
 }
 
 bool Lexer::next_input_file() {

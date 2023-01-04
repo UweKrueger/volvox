@@ -522,23 +522,6 @@ public:
 #endif
 };
 
-class ModuleContextSwitchAST : public ExprAST {
-public:
-	std::string mod_key; // for postponed codegen of non-pub main-var declarations in imported modules
-	ModuleContextSwitchAST(SourceLocation Loc, std::string _mod_key)
-		: ExprAST(Loc), mod_key(std::move(_mod_key)) {}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
-		auto mod = Modules.find(mod_key);
-		if (mod != Modules.end()) {
-			lex.module = &mod->second;
-			errs() << Loc << ": returning void\n";
-			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-		}
-		errs() << "internal error: cannot find module data for \"" << mod_key << "\"\n";
-		abort();
-	}
-};
-
 /// BinaryExprAST - Expression class for a binary operator.
 class BinaryExprAST : public ExprAST {
 	

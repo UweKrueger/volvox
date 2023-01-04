@@ -1219,7 +1219,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 				return nullptr;
 			}
-			errs() << "found " << varname << " >" << (entry->mangled_name ? entry->mangled_name : "nil") << "<\n";
 		} else {
 			entry = locals_table.back()[varname];
 		}
