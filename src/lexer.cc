@@ -670,13 +670,12 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 
 	switch (CurChar) {
 	case '\n':
+		IdentifierStr = CurChar;
 		switch (expect) {
 		case eComma:
-			IdentifierStr = CurChar;
 			return ',';
 		case eSemi:
 		case ePath:
-			IdentifierStr = CurChar;
 			return ';';
 		default:
 			errs() << "Internal lexer error\n";
@@ -789,7 +788,12 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 #endif
 			) {
 			IdentifierStr = CurChar;
-			return ';';
+			switch (expect) {
+			case eComma:
+				return ',';
+			default:
+				return ';';
+			}
 		}
 	// passthough
 	}
