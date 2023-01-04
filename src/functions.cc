@@ -887,10 +887,15 @@ bool FunctionAST::prepare_codegen() {
 			return false;
 		Body.back()->desired_type = Proto->RetType->type;
 	}
+	ret_ptr = nullptr;
+	theFunction_ret_ft = nullptr;
+	expr_temps.clear();
 	return true;
 }
 
 bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) {
+	ret_ptr = this_ret_ptr;
+	theFunction_ret_ft = ret_ft;
 	for (auto& Expr : thisBody) {
 		if ((RetVal = Expr->codegen())) {
 			if (!return_val_idx--)
@@ -904,10 +909,15 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 			return false;
 		}
 	}
+	ret_ptr = nullptr;
+	theFunction_ret_ft = nullptr;
+	expr_temps.clear();
 	return true;
 }
 
 llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule) {
+	ret_ptr = this_ret_ptr;
+	theFunction_ret_ft = ret_ft;
 	if (InterRetVal)
 		RetVal = InterRetVal;
 	// Finish off the function.
@@ -949,6 +959,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
+	expr_temps.clear();
 	return TheFunction;
 }
 
