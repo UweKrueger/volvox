@@ -1,0 +1,54 @@
+import arch.os
+
+cdecl fn time(nn size_t) i64
+cdecl fn _time64(nn size_t) i64
+
+type time_t {
+	i64
+}
+
+pub inline fn now() time_t
+	t := time_t{}
+	if os.isWindows
+		t.i64 = _time64(0)
+	else
+		t.i64 = time(0) .
+	return t
+
+# structure to store real time with 1s precision used on all OSs
+# in C the fields are called 'tm_sec'_t, 'tm_min', ... but that's too verbose
+#
+type tm {
+	sec int   # normally 0..59, may be 60 for leap seconds
+	min int   # 0..59
+	hour int  # 0..23
+	mday int  # 1..31
+	mon int   # 0..11
+	year int  # year - 1900, e.g. 123 for 2023
+	wday int  # 0..6, 0 = Sunday
+	yday int  # normally 0..364, 365 in leap years
+	isdst int # 0/1 to indicate daylight saving time
+}
+
+cdecl fn gmtime_r(&t i64, &res tm) size_t
+cdecl fn _gmtime64_s(&res tm, &t i64) int
+cdecl fn localtime_r(&t i64, &res tm) size_t
+cdecl fn _localtime64_s(&res tm, &t i64) int
+
+pub inline fn time_t.gm() tm
+	res := tm{}
+	t := this.i64
+	if os.isWindows
+		_gmtime64_s(res, t)
+	else
+		gmtime_r(t, res) .
+	return res
+
+pub inline fn time_t.local() tm
+	res := tm{}
+	t := this.i64
+	if os.isWindows
+		_localtime64_s(res, t)
+	else
+		localtime_r(t, res) .
+	return res
