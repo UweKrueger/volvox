@@ -29,6 +29,7 @@ bool support_fp80;
 unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
 std::string cdecl_rename;
+std::unique_ptr<FunctionAST> MainFunction = nullptr;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -505,6 +506,46 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 		purgeLine();
 	}
 	return b;
+}
+
+std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_type = "int") {
+	volvoxc::FullType* TheType = lex.get_full_type(ret_type);
+	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
+	                                            std::vector<std::string>(),
+	                                            A_c_api, CurLoc, false, TheType);
+	auto ProtoRef = Proto.get();
+	std::string unmangledName = Proto->getName();
+	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
+	return std::make_unique<FunctionAST>(ProtoRef, std::vector<std::unique_ptr<ExprAST>>{}, 0, std::move(unmangledName));
+}
+
+bool FinishMain() {
+	if (MainFunction->EndKind != tok_return) {
+		// if main() does not 'return' explicitly add 'return 0'
+		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		MainFunction->EndKind = tok_return;
+	}
+	return true;
+}
+
+bool FinishTestRuns() {
+	if (comp_mode == comp_jit) {
+		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
+		return true;
+	} else {
+		std::vector<std::unique_ptr<ExprAST>> _then;
+		_then.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		std::vector<std::unique_ptr<ExprAST>> _else;
+		_else.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
+		auto if_e = std::make_unique<IfExprAST>(
+			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
+			std::move(_then), std::move(_else), tok_end, tok_end, std::move(VarTable()), std::move(VarTable()),
+			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm_int_type, true, false, OpNormal, nullptr });
+		if_e->desired_type = llvm_int_type;
+		GlobalExprList.push_back(
+			std::move(if_e));
+		return true;
+	}
 }
 
 std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return = false, const char* ret_type = "i32") {
@@ -1379,38 +1420,52 @@ int main(int argc, char* argv[]) {
 			"Volvox Compiler", 0, "", 0);
 	}
 	init(TheTargetMachine->getTargetTriple());
+	if (do_test || comp_mode != comp_jit) {
+		MainFunction = (do_test && comp_mode == comp_jit) ?
+			PrepareMain("test_main", "bool") :
+			PrepareMain("main", "int");
+		if (!MainFunction) {
+			errs() << "error preparing main function\n";
+			abort();
+		}
+		MainFunction->prepare_codegen();
+	}
 	// Prime the first token.
 	getNextToken();
 	// Run the main "interpreter loop" now.
 	MainLoop();
 	if (do_test || comp_mode != comp_jit) {
-		if (auto FnAST = do_test ? CreateTestRuns() : CreateMain("main")) {
-			if (auto *FnIR = FnAST->codegen(true)) {
-				if (comp_mode == comp_jit) {
-					// call test_main()
-
-					// Create a ResourceTracker to track JIT'd memory allocated to our
-					// anonymous expression -- that way we can free it after executing.
-					auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-					auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
-					ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-					InitializeModuleAndPassManager();
-					auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
-					// Get the symbol's address and cast it to the right type (takes no
-					// arguments, returns a bool) so we can call it as a native function.
-					bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
-					bool ret = spawn_bool_expr(BOOL);
-					if (ret)
-						errs() << "All test cases passed\n";
-					else
-						errs() << "Some test cases failed\n";
-					// Delete the anonymous expression module from the JIT.
-					ExitOnErr(RT->remove());
-				}
-			} else {
-				exit(1);
+		if (do_test)
+			FinishTestRuns();
+		else
+			FinishMain();
+		if (!MainFunction->process_body(GlobalExprList)) {
+			errs() << "error processing body of main function\n";
+			exit(1);
+		}
+		if (auto *FnIR = MainFunction->finish_codegen(true)) {
+			if (comp_mode == comp_jit) {
+				// call test_main()
+				// Create a ResourceTracker to track JIT'd memory allocated to our
+				// anonymous expression -- that way we can free it after executing.
+				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
+				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+				InitializeModuleAndPassManager();
+				auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
+				// Get the symbol's address and cast it to the right type (takes no
+				// arguments, returns a bool) so we can call it as a native function.
+				bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+				bool ret = spawn_bool_expr(BOOL);
+				if (ret)
+					errs() << "All test cases passed\n";
+				else
+					errs() << "Some test cases failed\n";
+				// Delete the anonymous expression module from the JIT.
+				ExitOnErr(RT->remove());
 			}
 		} else {
+			errs() << "error generating code for main function\n";
 			exit(1);
 		}
 	}

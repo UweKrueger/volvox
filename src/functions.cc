@@ -880,6 +880,7 @@ bool FunctionAST::prepare_codegen() {
 			                        Builder->GetInsertBlock());
 		}
 	}
+	BB = Builder->GetInsertBlock();
 	RetVal = nullptr;
 	InterRetVal = nullptr;
 	ret_ptr = nullptr;
@@ -889,12 +890,14 @@ bool FunctionAST::prepare_codegen() {
 }
 
 bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) {
+	errs() << Proto->Name << ": processing body with " << thisBody.size() << " expressions\n";
 	ret_ptr = this_ret_ptr;
 	theFunction_ret_ft = ret_ft;
+	Builder->SetInsertPoint(BB);
 	if (EndKind == tok_return && !Proto->RetType->type->isVoidTy()) {
-		if (Body.empty() || !Body.back())
+		if (thisBody.empty() || !thisBody.back())
 			return false;
-		Body.back()->desired_type = Proto->RetType->type;
+		thisBody.back()->desired_type = Proto->RetType->type;
 	}
 	for (auto& Expr : thisBody) {
 		if ((RetVal = Expr->codegen())) {
@@ -909,6 +912,7 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 			return false;
 		}
 	}
+	BB = Builder->GetInsertBlock();
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
 	expr_temps.clear();
@@ -918,6 +922,7 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule) {
 	ret_ptr = this_ret_ptr;
 	theFunction_ret_ft = ret_ft;
+	Builder->SetInsertPoint(BB);
 	if (InterRetVal)
 		RetVal = InterRetVal;
 	// Finish off the function.
