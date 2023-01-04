@@ -1008,6 +1008,8 @@ struct SourceLocState {
 		}
 };
 
+extern std::vector<std::string> mod_keys;
+
 class Lexer : public SourceLocState {
 public:
 	std::vector<SourceLocState> source_stack = {};
@@ -1020,6 +1022,8 @@ public:
 		{
 			std::string patterntail = "builtin.vx";
 			mod_key = patterntail;
+			mod_keys.push_back(patterntail);
+			errs() << "### pushing " << patterntail << "\n";
 			std::vector<std::string> _import_path = {};
 			auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 			if (new_module.second) {

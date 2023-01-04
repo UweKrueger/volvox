@@ -343,8 +343,10 @@ void Lexer::pop_state() {
 	source_index.pop_back();
 	import_from_module(processed_module);
 	mod_key = std::move(mod_keys.back());
-	if (comp_mode != comp_jit || do_test)
+	if (comp_mode != comp_jit || do_test) {
+		errs() << "popping >" << mod_key << "<\n";
 		GlobalExprList.push_back(std::make_unique<ModuleContextSwitchAST>(CurLoc, mod_key));
+	}
 	mod_keys.pop_back();
 }
 
