@@ -1011,7 +1011,7 @@ struct SourceLocState {
 class Lexer : public SourceLocState {
 public:
 	std::vector<SourceLocState> source_stack = {};
-	std::string mod_key = "";
+	std::string mod_key;
 	eXpect Expected; // only used for error messages
 	Lexer() = default;
 	Lexer(int* _inputfd, const char* _input_file_name, size_t _bufsize = 100)
@@ -1019,6 +1019,7 @@ public:
 		                 _bufsize ? nullptr : (char*)malloc(_bufsize), _inputfd), CurChar(' ')
 		{
 			std::string patterntail = "builtin.vx";
+			mod_key = patterntail;
 			std::vector<std::string> _import_path = {};
 			auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 			if (new_module.second) {

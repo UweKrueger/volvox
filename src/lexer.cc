@@ -196,8 +196,10 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 				errs() << "' does not refer to any valid source (*.vx) files\n";
 			}
 			mod_keys.push_back(std::move(mod_key));
-			if (comp_mode != comp_jit || do_test)
+			if (comp_mode != comp_jit || do_test) {
+				errs() << "### pushing " << patterntail << "\n";
 				GlobalExprList.push_back(std::make_unique<ModuleContextSwitchAST>(CurLoc, patterntail));
+			}
 			mod_key = std::move(patterntail);
 		}
 		return next_input_file();
@@ -222,11 +224,11 @@ void Lexer::import_from_module(Module* import_module) {
 		module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix
 	}
 	for (auto& unmangled_protos: import_module->FunctionProtos) {
-		for (auto proto = unmangled_protos.second.begin(); proto != unmangled_protos.second.end();)
-			if (!((*proto)->visibility & A_pub))
-				unmangled_protos.second.erase(proto);
-			else
-				proto++;
+		// for (auto proto = unmangled_protos.second.begin(); proto != unmangled_protos.second.end();)
+		// 	if (!((*proto)->visibility & A_pub))
+		// 		unmangled_protos.second.erase(proto);
+		// 	else
+		// 		proto++;
 		if (!unmangled_protos.second.empty()) {
 			bool success = true;
 			if (is_from_import) {

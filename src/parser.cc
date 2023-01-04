@@ -452,6 +452,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 	// maybe it's a function with this name
 	auto F = lex.findProtos(IdName);
 	if (F) {
+		if (IdName == "getrandom")
+			errs() << "getrandom has " << (*F).size() << " protos\n";
 		return std::make_unique<FunctionExprAST>(LitLoc, IdName, F);
 	}
 	// or a module prefix
