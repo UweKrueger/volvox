@@ -1027,6 +1027,11 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	case '(':
 		return ParseParenExpr(terminator);
 	case ')':
+		if ((int)CurTok.kind != terminator) {
+			errs() << CurLoc << ": superfluous ')'\n";
+			purgeLine();
+			return nullptr;
+		}
 		return std::make_unique<EmptyExprAST>();
 	case '{':
 		return ParseListExpr(terminator);
