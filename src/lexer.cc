@@ -5,6 +5,7 @@
  */
 #include "../include/volvox.hh"
 #include "global.h"
+#include "AST.h"
 
 /* we want to use NetBSD's libedit and not GNU readline because the latter is GPL licensed
    (not LGPL!). On some platforms there are <readline/readline.h> for GNU readline and
@@ -155,6 +156,13 @@ static std::string KeepIdentifierStr = "";
 /* pause the current lexer context and create a new one based on the given
    import path */
 bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, std::map<std::string, SourceLocation> _fromlist) {
+	if (MainFunction) {
+		if (!MainFunction->process_body(GlobalExprList)) {
+			errs() << CurLoc << ": unable to process accumulated expressions for main function\n";
+			exit(1);
+		}
+		GlobalExprList.clear();
+	}
 	std::string patterntail = "";
 	for (int j=0; j < _import_path.size(); j++) {
 		patterntail += _import_path[j];
@@ -317,6 +325,13 @@ void Lexer::pop_state() {
 	if (source_stack.empty() || source_files.empty()) {
 		errs() << "internal error: source stack is empty\n";
 		abort();
+	}
+	if (MainFunction) {
+		if (!MainFunction->process_body(GlobalExprList)) {
+			errs() << CurLoc << ": unable to process accumulated expressions for main function\n";
+			exit(1);
+		}
+		GlobalExprList.clear();
 	}
 	Module* processed_module = module;
 	free(linebuf);
