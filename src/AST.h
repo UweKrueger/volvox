@@ -708,6 +708,15 @@ public:
 
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
+	bool already_returned = false; // both branches of 'if ... else ...' end with 'return'
+	volvoxc::FullType* receiver_ft;
+	llvm::Function* TheFunction;
+	llvm::BasicBlock* BB;
+	unsigned ArgIdx;
+	volvoxc::FullType* ret_ft;
+	llvm::Value* this_ret_ptr;
+	llvm::Value* RetVal = nullptr;
+	llvm::Value* InterRetVal = nullptr;
 public:
 	PrototypeAST* Proto = nullptr;
 	std::string unmangledName;

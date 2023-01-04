@@ -804,8 +804,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
-	bool already_returned = false;
-	volvoxc::FullType* receiver_ft;
+	already_returned = false;
 	if (Proto->visibility & (A_method | A_constructor))
 		if (Proto->IsStructRet)
 			receiver_ft = Proto->ArgTypes[1];
@@ -813,12 +812,12 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			receiver_ft = Proto->ArgTypes[0];
 	else
 		receiver_ft = nullptr;
-	llvm::Function* TheFunction = getFunction(Proto);
+	TheFunction = getFunction(Proto);
 	if (!TheFunction) {
 		return nullptr;
 	}
 	// Create a new basic block to start insertion into.
-	llvm::BasicBlock *BB = llvm::BasicBlock::Create(Context, "entry", TheFunction);
+	BB = llvm::BasicBlock::Create(Context, "entry", TheFunction);
 	Builder->SetInsertPoint(BB);
 	// llvm::DISubprogram *SP; - make static
 	// llvm::DIFile *Unit;
@@ -845,10 +844,13 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		KSDbgInfo.emitLocation(nullptr);
 	}
 	// Record the function arguments in the NamedValues map.
-	unsigned ArgIdx = 0;
-	theFunction_ret_ft = (Proto->visibility & A_constructor) ? void_type : Proto->RetType;
+	ArgIdx = 0;
+	ret_ft = (Proto->visibility & A_constructor) ? void_type : Proto->RetType;
+	theFunction_ret_ft = ret_ft; // global variable used by IfExprAST to return from branches
 	if (Proto->IsStructRet && !(Proto->visibility & A_constructor))
-		ret_ptr = TheFunction->getArg(ArgIdx++);
+		ret_ptr = this_ret_ptr = TheFunction->getArg(ArgIdx++);
+	else
+		ret_ptr = this_ret_ptr = nullptr;
 	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
 		auto Arg = TheFunction->getArg(ArgIdx);
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
@@ -878,8 +880,8 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			                        Builder->GetInsertBlock());
 		}
 	}
-	llvm::Value* RetVal = nullptr;
-	llvm::Value* InterRetVal = nullptr;
+	RetVal = nullptr;
+	InterRetVal = nullptr;
 	if (!Proto->RetType->type->isVoidTy()) {
 		if (Body.empty() || !Body.back())
 			goto cleanup;
