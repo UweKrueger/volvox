@@ -718,6 +718,10 @@ class FunctionAST {
 	llvm::Value* RetVal = nullptr;
 	llvm::Value* InterRetVal = nullptr;
 public:
+	bool prepare_codegen();
+	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody);
+	llvm::Function* finish_codegen(bool finishModule = false, bool getNewModule = false);
+	llvm::Function* cleanup_codegen();
 	PrototypeAST* Proto = nullptr;
 	std::string unmangledName;
 	std::vector<std::unique_ptr<ExprAST>> Body;
@@ -727,7 +731,12 @@ public:
 	FunctionAST(PrototypeAST* Proto,
 	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName, int return_val_idx = -1)
 		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind), unmangledName(std::move(unmName)), return_val_idx(return_val_idx) {}
-	llvm::Function *codegen(bool finishModule = false, bool getNewModule = false);
+	llvm::Function* codegen(bool finishModule = false, bool getNewModule = false) {
+		if (prepare_codegen() && process_body(Body))
+			return finish_codegen(finishModule, getNewModule);
+		else
+			return cleanup_codegen();
+	}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
 		indent(out, ind) << "FunctionAST\n";

@@ -801,7 +801,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 }
 
-llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
+bool FunctionAST::prepare_codegen() {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
 	already_returned = false;
@@ -814,7 +814,7 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 		receiver_ft = nullptr;
 	TheFunction = getFunction(Proto);
 	if (!TheFunction) {
-		return nullptr;
+		return false;
 	}
 	// Create a new basic block to start insertion into.
 	BB = llvm::BasicBlock::Create(Context, "entry", TheFunction);
@@ -884,10 +884,14 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	InterRetVal = nullptr;
 	if (!Proto->RetType->type->isVoidTy()) {
 		if (Body.empty() || !Body.back())
-			goto cleanup;
+			return false;
 		Body.back()->desired_type = Proto->RetType->type;
 	}
-	for (auto& Expr : Body) {
+	return true;
+}
+
+bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) {
+	for (auto& Expr : thisBody) {
 		if ((RetVal = Expr->codegen())) {
 			if (!return_val_idx--)
 				InterRetVal = RetVal; // hack for interactive JIT to return value of Expr instead of println()
@@ -897,9 +901,13 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 			InsertDestructors(expr_temps);
 		} else {
 			errs() << Expr->Loc << ": error compiling expr\n";
-			goto cleanup;
+			return false;
 		}
 	}
+	return true;
+}
+
+llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule) {
 	if (InterRetVal)
 		RetVal = InterRetVal;
 	// Finish off the function.
@@ -942,7 +950,9 @@ llvm::Function *FunctionAST::codegen(bool finishModule, bool getNewModule) {
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
 	return TheFunction;
-cleanup:
+}
+
+llvm::Function* FunctionAST::cleanup_codegen() {
 	// Error reading body, remove function.
 	TheFunction->eraseFromParent();
 	if (comp_mode == comp_dbg) {
