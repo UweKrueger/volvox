@@ -890,7 +890,6 @@ bool FunctionAST::prepare_codegen() {
 }
 
 bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) {
-	errs() << Proto->Name << ": processing body with " << thisBody.size() << " expressions\n";
 	ret_ptr = this_ret_ptr;
 	theFunction_ret_ft = ret_ft;
 	Builder->SetInsertPoint(BB);
