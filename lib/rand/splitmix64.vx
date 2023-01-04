@@ -15,17 +15,31 @@
 
 import arch.os
 
+# OS specific functions to get 8 "really" random bytes to seed this RND
+#
 cdecl fn getrandom(&buf u64, n size_t, flags u32) ssize_t
 cdecl fn arc4random_buf(&buf u64, n size_t)
-cdecl fn QueryPerformanceCounter(&time u64) bool
+type FILETIME {
+	dwLowDateTime u32
+	dwHighDateTime u32
+}
+cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
 
 x0 := 0u64
+t := FILETIME{}
 if os.isLinux || os.isFreeBSD || os.isDragonFly || os.isNetBSD
 	getrandom(x0, 8, 0)
 else if os.isOpenBSD
 	arc4random_buf(x0, 8)
 else if os.isWindows
-	QueryPerformanceCounter(x0) . . .
+	# in principle RtlGenRandom() or CryptGenRandom() would be the
+	# Windows functions that correspond to getrandon(), however those
+	# would require linking against advapi32.dll which would be an
+	# overshoot just to get 8 random bytes. Let's use a sub-microsecond
+	# clock instead...
+	GetSystemTimePreciseAsFileTime(t)
+	# switch low/high parts for x0 to get more randomness in high bits
+	x0 = t.dwHighDateTime | (t.dwLowDateTime << 32) . . .
 
 global x := x0 + 0x9e3779b97f4a7c15u64 # The state can be seeded with any value.
 
