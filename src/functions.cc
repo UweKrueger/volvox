@@ -668,16 +668,23 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (Proto->visibility & A_method && !(Proto->visibility & A_constructor)) {
 		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
+			llvm::Value* receiver_ref = nullptr;
 			if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
-				auto receiver_ref = receiver_lval->codegen_ref();
-				if (!receiver_ref.second) {
-					errs() << method->Receiver->Loc << ": could not get receiver reference\n";
+				llvm::Type* receiver_type;
+				std::tie(receiver_type, receiver_ref) = receiver_lval->codegen_ref(true);
+				if (!receiver_type) {
+					errs() << method->Receiver->Loc << ": could not get receiver\n";
 					return nullptr;
 				}
-				ArgsV.push_back(receiver_ref.second);
-			} else {
-				errs() << method->Receiver->Loc << ": receiver is not an lvalue\n";
 			}
+			if (!receiver_ref) {
+				receiver_ref = StoreValue(method->Receiver->codegen(), method->Receiver->ft);
+				if (!receiver_ref) {
+					errs() << method->Receiver->Loc << ": internal error - could not store receiver\n";
+					return nullptr;
+				}
+			}
+			ArgsV.push_back(receiver_ref);
 		} else {
 			errs() << Callee->Loc << ": method prototype but not a method call\n";
 			return nullptr;
