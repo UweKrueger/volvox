@@ -531,7 +531,6 @@ bool FinishMain() {
 bool FinishTestRuns() {
 	if (comp_mode == comp_jit) {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
-		return true;
 	} else {
 		std::vector<std::unique_ptr<ExprAST>> _then;
 		_then.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
@@ -544,8 +543,9 @@ bool FinishTestRuns() {
 		if_e->desired_type = llvm_int_type;
 		GlobalExprList.push_back(
 			std::move(if_e));
-		return true;
 	}
+	MainFunction->EndKind = tok_return;
+	return true;
 }
 
 std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return = false, const char* ret_type = "i32") {
@@ -1443,6 +1443,7 @@ int main(int argc, char* argv[]) {
 			errs() << "error processing body of main function\n";
 			exit(1);
 		}
+		GlobalExprList.clear();
 		if (auto *FnIR = MainFunction->finish_codegen(true)) {
 			if (comp_mode == comp_jit) {
 				// call test_main()
