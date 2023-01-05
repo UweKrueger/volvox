@@ -655,10 +655,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		abort();
 	auto FT = Proto->FT;
 	// If argument mismatch error.
-	unsigned proto_arg_offs = (Proto->visibility & A_method) ? 1 : 0;
-	unsigned arg_offs = proto_arg_offs + (Proto->IsStructRet ? 1 : 0);
-	unsigned proto_args_size = Proto->Args.size() - proto_arg_offs;
-	unsigned ft_num_params = FT->getNumParams() - arg_offs;
+	unsigned arg_offs = (Proto->visibility & A_method) ? 1 : 0;
 	std::vector<llvm::Value *> ArgsV;
 	llvm::Value* ret_struct = nullptr;
 	if (needs_target()) {
@@ -680,6 +677,8 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				}
 			}
 			if (!receiver_ref) {
+				if (method->Receiver->needs_target())
+					errs() << method->Receiver->Loc << ": ### receiver needs target...\n";
 				receiver_ref = StoreValue(method->Receiver->codegen(), method->Receiver->ft);
 				if (!receiver_ref) {
 					errs() << method->Receiver->Loc << ": internal error - could not store receiver\n";
@@ -692,8 +691,8 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 	}
-	for (unsigned i = 0, e = Args.size(), v = proto_args_size; i != e; ++i) {
-		if (i < v && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
+	for (unsigned i = 0; i < Args.size(); ++i) {
+		if ((i+arg_offs) < Proto->Args.size() && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
 		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()
 		        || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
 			auto conversion = fn_args[i+arg_offs].Conv;
@@ -711,7 +710,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			ArgsV.push_back(arg);
 		} else {
 			llvm::Value* arg = nullptr;
-			bool is_address = i < v && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
+			bool is_address = (i+arg_offs) < Proto->Args.size() && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
 			if (Args[i]->needs_target()) {
 				arg = Builder->CreateAlloca(Args[i]->ft->type);
@@ -806,10 +805,7 @@ bool FunctionAST::prepare_codegen() {
 	// reference to it for use below.
 	already_returned = false;
 	if (Proto->visibility & (A_method | A_constructor))
-		if (Proto->IsStructRet)
-			receiver_ft = Proto->ArgTypes[1];
-		else
-			receiver_ft = Proto->ArgTypes[0];
+		receiver_ft = Proto->ArgTypes[0];
 	else
 		receiver_ft = nullptr;
 	TheFunction = getFunction(Proto);
