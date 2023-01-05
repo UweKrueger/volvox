@@ -366,13 +366,12 @@ llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
-	llvm::Value* val;
-	llvm::Type* type;
+	llvm::Value* val = nullptr;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
 		// pass by reference
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
 			auto V = LV->codegen_ref();
-			type = V.first;
+			//type = V.first;
 			val = V.second;
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(LV->ft->type))
 				val = getInterfaceArrayValue(val, array_type);
@@ -391,13 +390,15 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
 			auto V = LV->codegen_ref();
-			type = V.first;
 			val = V.second;
 		} else {
-			llvm::Value* stuct_val = expr->codegen_raw(target);
-			if (stuct_val->getType()->isVoidTy())
-				return handle(target, stuct_val);
-			if (!target || (intptr_t)target == -1)
+			llvm::Value* gentarget = nullptr;
+			if (expr->needs_target())
+				val = gentarget = CreateEntryBlockAlloca(expr->ft->type, "tmpstruct");
+			llvm::Value* stuct_val = expr->codegen_raw(gentarget);
+			if (!val && stuct_val->getType()->isVoidTy())
+				return stuct_val;
+			if (!val)
 				val = StoreValue(stuct_val, expr->ft);
 		}
 	} else {

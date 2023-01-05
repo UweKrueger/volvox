@@ -617,9 +617,17 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	bool is_constructor_call;
 	//std::vector<std::unique_ptr<PrototypeAST>>* protos = nullptr;
-	if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
+	if (!Proto) {
+		errs() << Loc << ": no known function prototype for call\n";
+		return nullptr;
+	}
+	if (Proto->visibility & A_constructor) {
+		auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get()); // explicit constructor call
+		if (!type_expr) {
+			errs() << Loc << ": internal inconsistency - constructor call, but callee is no type\n";
+			abort();
+		}
 		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
 		llvm::Value* ret_val = nullptr;
 		if ((!target || (intptr_t)target == -1) && (allocsz > 16 || (type_expr->ft->type_attr & A_constructor)))
@@ -638,13 +646,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				errs() << "conversions with #arg!=1 not supported\n";
 				return nullptr;
 			}
-		} else {
-			is_constructor_call = true;
 		}
-	} else
-		is_constructor_call = false;
-	if (!Proto) {
-		return nullptr;
 	}
 	llvm::Value* theFunction = Callee->codegen();
 	if (!theFunction)
@@ -659,7 +661,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	unsigned ft_num_params = FT->getNumParams() - arg_offs;
 	std::vector<llvm::Value *> ArgsV;
 	llvm::Value* ret_struct = nullptr;
-	if (Proto->IsStructRet || (Proto->visibility & A_constructor)) {
+	if (needs_target()) {
 		if (!target || (intptr_t)target == -1) {
 			errs() << Loc << ": " << Proto->Name << " - internal error: no target for struct return\n";
 			return nullptr;
@@ -711,25 +713,15 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* arg = nullptr;
 			bool is_address = i < v && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
-			if (auto call = dynamic_cast<CallExprAST*>(Args[i].get())) {
-				auto functionexpr = dynamic_cast<FunctionExprAST*>(call->Callee.get());
-				unsigned sub_sel_proto = functionexpr ? functionexpr->selected_proto : 0;
-				PrototypeAST* CallProto = (*call->Callee->ft->Protos)[sub_sel_proto].get(); // 'g' in 'f(g())'
-				if (CallProto->IsStructRet || (CallProto->visibility & A_constructor)) {
-					if (is_address) {
-						// 'g' returns by reference and 'f' exprects a reference (i.e. an address)
-						// so we have to allocate memory for the indermediate result
-						arg = Builder->CreateAlloca(call->ft->type);
-						auto voidval = call->codegen_raw(arg);
-						if (!voidval || !voidval->getType()->isVoidTy()) {
-							errs() << Loc << ": cannot create function call\n";
-							return nullptr;
-						}
-					} else {
-						errs() << Loc << ": " << Proto->Name << " arg: " << i << " missing ByVal attribute\n";
-						return nullptr;
-					}
+			if (Args[i]->needs_target()) {
+				arg = Builder->CreateAlloca(Args[i]->ft->type);
+				auto voidval = Args[i]->codegen_raw(arg);
+				if (!voidval || !voidval->getType()->isVoidTy()) {
+					errs() << Loc << ": cannot create function call\n";
+					return nullptr;
 				}
+				if (!is_address && !dynamic_cast<InterfaceExprAST*>(Args[i].get()))
+					arg = Builder->CreateLoad(Args[i]->ft->type, arg);
 			}
 			if (!arg) {
 				if (is_address) {
@@ -774,7 +766,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 					arg = Builder->CreateIntCast(arg, llvm::Type::getInt32Ty(Context), !(!(Args[i]->ft->type_attr & A_signed)));
 			}
 			if (auto interf_t = dynamic_cast<InterfaceExprAST*>(Args[i].get()))
-				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType()))
+				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType())) {
 					for (unsigned i = 0; i < struct_type->getNumElements(); i++) {
 						llvm::Value* argi = Builder->CreateExtractValue(arg, i);
 						if (argi->getType()->isFloatingPointTy() && !argi->getType()->isDoubleTy()) {
@@ -789,6 +781,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 						}
 						ArgsV.push_back(argi);
 					}
+				}
 				else
 					ArgsV.push_back(arg);
 			else

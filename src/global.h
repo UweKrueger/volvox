@@ -1194,7 +1194,15 @@ public:
 	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
 		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
+	// generate an llvm::Value* for this expression. 'target' may be:
+	// - a pointer value: in this case the generated value is directly stored and "void" is returned
+	// - (void*)0: the generated value is returned. Since it is not stored (e.g. to a variable) it is assumed that it's
+	//      an intermediate value (e.g. '(b + c)' in 'x = a * (b + c)' and a potential destructor call for the
+	//      value is registred
+	// - (void*)(-1): like '(void*)0' but no destructor call is registred. This is needed to create compile time const
+	//      initializers for use with '::='
 	virtual llvm::Value *codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
+	virtual bool needs_target() { return false; } // e.g. struct return in CallExpr
 	llvm::Value* codegen() {
 		auto rawV = codegen_raw();
 		if (!rawV)
