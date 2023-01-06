@@ -405,7 +405,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 					expr->ft->type, alloc_sz, nullptr, nullptr, "");
 				val = gentarget = Builder->Insert(gentarget);
 				// val = gentarget = CreateEntryBlockAlloca(expr->ft->type, "tmpstruct");
-				errs() << expr->Loc << ": needs target type" << *gentarget << " of size " << *alloc_sz << "\n";
+				errs() << expr->Loc << ": " << *ft->type << "needs target type" << *gentarget << " of size " << *alloc_sz << "\n";
 			}
 			llvm::Value* stuct_val = expr->codegen_raw(gentarget);
 			errs() << expr->Loc << ": got struct val " << *stuct_val << '\n';

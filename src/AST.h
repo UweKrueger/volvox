@@ -43,9 +43,8 @@ class InterfaceExprAST : public ExprAST {
 	llvm::Value* rttype = nullptr;
 public:
 	InterfaceExprAST(std::unique_ptr<ExprAST> _expr) :
-		ExprAST(_expr->ft, _expr->Loc, _expr->is_unknown_type), expr(std::move(_expr)) {}
+		ExprAST(interface_type, _expr->Loc, false), expr(std::move(_expr)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr);
-	// bool needs_target() { return expr->needs_target(); }
 };
 
 class ConstExprAST : public ExprAST {

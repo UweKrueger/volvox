@@ -67,7 +67,7 @@
 (defvar volvox-font-lock-keywords
   (eval-when-compile
     (let ((COMMANDS
-           '("f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union"))
+           '("f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union"))
           (CONTROLFLOW
            '("atomic" "const" "global" "else" "fn" "if" "inline" "repeat" "return" "shared" "until" "while"))
           (UNIX

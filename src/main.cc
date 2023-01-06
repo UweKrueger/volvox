@@ -69,10 +69,12 @@ llvm::ExitOnError ExitOnErr;
 llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
+llvm::Type* llvm_interface_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
 volvoxc::FullType* char_type;
 volvoxc::FullType* size_type;
+volvoxc::FullType* interface_type;
 
 #ifdef LEGACY_PASS_MANAGER
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM = nullptr;
@@ -148,6 +150,11 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "string") : nullptr, A_string);
 	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
+	std::vector<llvm::Type*> interface_type_elements = { llvm::Type::getInt8PtrTy(Context), llvm::Type::getInt8PtrTy(Context) };
+	llvm_interface_type = llvm::StructType::create(Context, interface_type_elements, "interface");
+	lex.add_type("interface", llvm_interface_type, nullptr);
+	interface_type = lex.get_full_type("interface");
+	interface_type->type_attr = A_interface;
 	// create build in constexprs to describe target
 	OS_Type_t os_idx;
 	switch (triple.getOS()) {

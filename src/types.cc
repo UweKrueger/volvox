@@ -627,7 +627,7 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
 		auto dim_array = llvm::ConstantDataArray::get(Context, Dims);
 		auto GV = new llvm::GlobalVariable(*TheModule, dim_array->getType(), true, llvm::GlobalValue::PrivateLinkage,
-		                                        dim_array, "", nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
+		                                   dim_array, "", nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
 		GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(dim_array->getType()));
 		llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);
