@@ -366,8 +366,10 @@ llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
+	if (target)
+		errs() << Loc << ": target set\n";
 	llvm::Value* val = nullptr;
-	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->ft->type)) {
 		// pass by reference
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
 			auto V = LV->codegen_ref();
@@ -387,15 +389,26 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			if (!target || (intptr_t)target == -1)
 				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
 		}
-	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr->ft->type)) {
+		errs() << expr->Loc << ": struct type\n";
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
+			errs() << expr->Loc << ": lval type\n";
 			auto V = LV->codegen_ref();
 			val = V.second;
 		} else {
 			llvm::Value* gentarget = nullptr;
-			if (expr->needs_target())
-				val = gentarget = CreateEntryBlockAlloca(expr->ft->type, "tmpstruct");
+			if (expr->needs_target()) {
+				uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(expr->ft->type);
+				auto alloc_sz = Builder->getInt64(allocsz);
+				gentarget = llvm::CallInst::CreateMalloc(
+					Builder->GetInsertBlock(), llvm::Type::getInt64Ty(Context),
+					expr->ft->type, alloc_sz, nullptr, nullptr, "");
+				val = gentarget = Builder->Insert(gentarget);
+				// val = gentarget = CreateEntryBlockAlloca(expr->ft->type, "tmpstruct");
+				errs() << expr->Loc << ": needs target type" << *gentarget << " of size " << *alloc_sz << "\n";
+			}
 			llvm::Value* stuct_val = expr->codegen_raw(gentarget);
+			errs() << expr->Loc << ": got struct val " << *stuct_val << '\n';
 			if (!val && stuct_val->getType()->isVoidTy())
 				return stuct_val;
 			if (!val)
@@ -414,6 +427,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, 0);
 	the_struct = Builder->CreateInsertValue(the_struct, val, 1);
+	errs() << expr->Loc << ": final " << *the_struct << '\n';
 	return handle(target, the_struct);
 }
 
