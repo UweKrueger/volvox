@@ -390,25 +390,25 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
 		}
 	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr->ft->type)) {
-		errs() << expr->Loc << ": struct type\n";
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
-			errs() << expr->Loc << ": lval type\n";
 			auto V = LV->codegen_ref();
 			val = V.second;
 		} else {
-			llvm::Value* gentarget = nullptr;
+			uint64_t allocsz = 0;
+			llvm::Constant* alloc_sz;
 			if (expr->needs_target()) {
-				uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(expr->ft->type);
-				auto alloc_sz = Builder->getInt64(allocsz);
-				gentarget = llvm::CallInst::CreateMalloc(
-					Builder->GetInsertBlock(), llvm::Type::getInt64Ty(Context),
-					expr->ft->type, alloc_sz, nullptr, nullptr, "");
-				val = gentarget = Builder->Insert(gentarget);
-				// val = gentarget = CreateEntryBlockAlloca(expr->ft->type, "tmpstruct");
-				errs() << expr->Loc << ": " << *ft->type << "needs target type" << *gentarget << " of size " << *alloc_sz << "\n";
+				allocsz = TheModule->getDataLayout().getTypeAllocSize(expr->ft->type);
+				alloc_sz = Builder->getInt64(allocsz);
+				val = Builder->CreateAlloca(expr->ft->type, nullptr);
 			}
-			llvm::Value* stuct_val = expr->codegen_raw(gentarget);
-			errs() << expr->Loc << ": got struct val " << *stuct_val << '\n';
+			llvm::Value* stuct_val = expr->codegen_raw(val);
+			if (val) {
+				// The following code should not be needed - but results are wrong without it... LLVM-Bug?
+				auto val2 = Builder->CreateAlloca(expr->ft->type, nullptr);
+				auto align = getAlignment(allocsz);
+				Builder->CreateMemCpy(val2, align, val, align, allocsz);
+				val = val2;
+			}
 			if (!val && stuct_val->getType()->isVoidTy())
 				return stuct_val;
 			if (!val)
@@ -427,7 +427,6 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, 0);
 	the_struct = Builder->CreateInsertValue(the_struct, val, 1);
-	errs() << expr->Loc << ": final " << *the_struct << '\n';
 	return handle(target, the_struct);
 }
 
@@ -1242,7 +1241,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		entry->ft.type_attr = (entry->ft.type_attr & ~(A_signed | A_string | A_map)) | attribs;
 		llvm::GlobalVariable* GV = nullptr;
 		if (comp_mode != comp_jit || do_test && (entry->ft.type_attr & A_global)) {
-			// errs() << "Getting GV " << entry->mangled_name << " " << Val << '\n';
+			// the opposite GlobalVar case (comp_mode == comp_jit && !do_test) is handled in HandleGlobalVariable()
 			if (entry->mangled_name) {
 				GV = TheModule->getGlobalVariable(entry->mangled_name, true);
 				if (!GV) {

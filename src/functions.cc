@@ -764,27 +764,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				if (intT->getBitWidth() < 32)
 					arg = Builder->CreateIntCast(arg, llvm::Type::getInt32Ty(Context), !(!(Args[i]->ft->type_attr & A_signed)));
 			}
-			if (auto interf_t = dynamic_cast<InterfaceExprAST*>(Args[i].get()))
-				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(arg->getType())) {
-					for (unsigned i = 0; i < struct_type->getNumElements(); i++) {
-						llvm::Value* argi = Builder->CreateExtractValue(arg, i);
-						if (argi->getType()->isFloatingPointTy() && !argi->getType()->isDoubleTy()) {
-							// C convention: variadic float args must be promoted to double
-							if (!argi->getType()->isFloatTy())
-								argi = Builder->CreateFPCast(argi, llvm::Type::getFloatTy(Context), "convfptmp");
-							argi = Builder->CreateBitCast(argi, llvm::Type::getInt32Ty(Context));
-						} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(argi->getType())) {
-							// same with short integers 
-							if (intT->getBitWidth() < 32)
-								argi = Builder->CreateIntCast(argi, llvm::Type::getInt32Ty(Context), Args[i]->ft->type_attr & A_signed);
-						}
-						ArgsV.push_back(argi);
-					}
-				}
-				else
-					ArgsV.push_back(arg);
-			else
-				ArgsV.push_back(arg);
+			ArgsV.push_back(arg);
 		}
 		if (!ArgsV.back())
 			return nullptr;
