@@ -986,7 +986,8 @@ int main(int argc, char* argv[]) {
 	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
 #endif
-	setlocale(LC_ALL, "en_US.UTF-8");
+	setlocale(LC_CTYPE, "en_US.UTF-8");
+	setlocale(LC_NUMERIC, "en_US.UTF-8");
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
 	llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;

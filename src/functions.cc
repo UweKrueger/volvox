@@ -619,6 +619,13 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	//std::vector<std::unique_ptr<PrototypeAST>>* protos = nullptr;
 	if (!Proto) {
+		if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
+			Args[0]->desired_type = ft->type;
+			llvm::Value* expr = Args[0]->codegen_raw();
+			auto conv = getConv(expr->getType(), ft->type, Loc, (bool)(Args[0]->ft->type_attr & A_signed),
+			                    (bool)(ft->type_attr & A_signed), true, false, nullptr);
+			return conv(expr);
+		}
 		errs() << Loc << ": no known function prototype for call\n";
 		return nullptr;
 	}

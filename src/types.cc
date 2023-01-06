@@ -341,7 +341,8 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	auto [desired_res_bitwidth, desired_res_is_float] = desired_res ? getBitWidth(desired_res)
 		: std::pair<unsigned,bool>{ 0, false };
 	unsigned desired_bitwidth;
-	if (desired_res_bitwidth && (desired_res_bitwidth != 1 || opclass == OpLogical))
+	if (desired_res_bitwidth && (desired_res_bitwidth != 1 && (!left_is_unknown_type || left_bitwidth < desired_res_bitwidth)
+	                             && (!right_is_unknown_type || right_bitwidth < desired_res_bitwidth) || opclass == OpLogical))
 		desired_bitwidth = desired_res_bitwidth;
 	else if (left_is_unknown_type)
 		if (right_is_unknown_type)
