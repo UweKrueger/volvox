@@ -422,11 +422,11 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	llvm::Constant* rttype_ptr = getRtType(expr->ft);
 	llvm::Type* real_type = expr->ft->type;
-	std::vector<llvm::Type*> types = { rttype_ptr->getType(), llvm::Type::getInt8PtrTy(Context) };
+	std::vector<llvm::Type*> types = { rttype_ptr->getType(), val->getType() };
 	llvm::Type* struct_type = llvm::StructType::get(Context, types);
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, 0);
-	the_struct = Builder->CreateInsertValue(the_struct, Builder->CreatePointerCast(val, llvm::Type::getInt8PtrTy(Context)), 1);
+	the_struct = Builder->CreateInsertValue(the_struct, val, 1);
 	return handle(target, the_struct);
 }
 
