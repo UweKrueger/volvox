@@ -356,11 +356,6 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	else
 		desired_bitwidth = Max(right_bitwidth, left_bitwidth);
 	bool res_is_float = desired_res_is_float || left_is_float || right_is_float;
-	if (res_is_float && opclass != OpComparison) {
-		unsigned oldbw = desired_bitwidth;
-		desired_bitwidth = Min(desired_bitwidth, 53);
-		errs() << "setting deired bitw from " << desired_res_bitwidth << " " << oldbw << " to " <<desired_bitwidth<<"\n";
-	}
 	llvm::Type* desired_left_type = nullptr;
 	llvm::Type* desired_right_type = nullptr;
 	switch (opclass) {
