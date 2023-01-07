@@ -107,4 +107,4 @@ pub inline fn F64() f64
 			x.f += c.f .
 		return x.f
 	else
-		return u64(U64() & ((1 << 53) - 1)) * 0x1.0p-53
+		return f64(u64(U64() & ((1 << 53) - 1))) * 0x1.0p-53

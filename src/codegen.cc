@@ -1435,7 +1435,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		}
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '-':
@@ -1447,7 +1447,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			result = Builder->CreateFSub(L, R, "subtmp");
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '*':
@@ -1492,7 +1492,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '/':
@@ -1514,7 +1514,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			result = Builder->CreateFDiv(L, R, "divtmp");
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '%':
@@ -1550,7 +1550,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '&':
@@ -1590,7 +1590,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			return nullptr;
 		}
 		break;
@@ -1637,7 +1637,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateICmpNE(compare_strings(L, R), Builder->getInt32(0));
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		} else {
 			switch(typeclass) {
@@ -1645,7 +1645,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateNot(Builder->CreateXor(L, R, "xortmp"), "nxortmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		}
 		break;
@@ -1661,7 +1661,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			result = Builder->CreateICmpEQ(compare_strings(L, R), Builder->getInt32(0));
 			break;
 		default:
-			errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
 		break;
 	case '<':
@@ -1677,7 +1677,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateFCmpOLE(L, R, "leftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		} else if (Op[1] == '<') {
 			switch(typeclass) {
@@ -1685,7 +1685,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateShl(L, R, "remtmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 			break;
 		} else {
@@ -1700,7 +1700,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateFCmpOLT(L, R, "ltftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		}
 		break;
@@ -1717,7 +1717,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateFCmpOGE(L, R, "geftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		} else if (Op[1] == '>') {
 			switch(typeclass) {
@@ -1728,7 +1728,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					result = Builder->CreateLShr(L, R, "remtmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 			break;
 		} else if (Op[1] == '<') {
@@ -1737,7 +1737,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateXor(L, R, "remtmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 			break;
 		} else {
@@ -1752,7 +1752,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateFCmpOGT(L, R, "gtftmp");
 				break;
 			default:
-				errs() << "Operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 			}
 		}
 		break;
