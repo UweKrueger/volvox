@@ -8,8 +8,10 @@ zz
 
 global a0 := [3.4, 6.7, -12.3, 3.1, -13.1]
 
+global r542p := 0.0
+
 fn u() [5]f64
-	p := [3.3, 1.2, -4.5, 6.75, 8.08e12]
+	p := [3.3, 1.2, -4.5 + r542p, 6.75, 8.08e12]
 	return p
 
 a0 = u()
@@ -34,12 +36,14 @@ fn test_local_array_get_and_set() bool
 
 fn h() [5]f64
 	v := u
-	q := v()
+	r542p = 3.5
+	# q := v()
+	q := u
 	return q
 
 fn test_function_literal() bool
 	la := h()
-	return la[2] == -4.5 && la[3] == 6.75
+	return la[2] == -1 && la[3] == 6.75
 
 fn v() [5]i32
 	p := [3, 8, -17, 123, -1074]

@@ -1142,6 +1142,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			if (!RHS)
 				return nullptr;
 		}
+		if (RHS->ft->type && RHS->ft->type->isFunctionTy())
+			RHS = std::make_unique<CallExprAST>(RHS->Loc, std::move(RHS), std::vector<std::unique_ptr<ExprAST>>{});
 		// Merge LHS/RHS.
 		// save types befor objects are moved
 		auto LHS_type = LHS->ft ? LHS->ft->type : nullptr;
