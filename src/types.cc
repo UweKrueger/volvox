@@ -341,8 +341,10 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	auto [desired_res_bitwidth, desired_res_is_float] = desired_res ? getBitWidth(desired_res)
 		: std::pair<unsigned,bool>{ 0, false };
 	unsigned desired_bitwidth;
-	if (desired_res_bitwidth && (desired_res_bitwidth != 1 && (!left_is_unknown_type || left_bitwidth < desired_res_bitwidth)
-	                             && (!right_is_unknown_type || right_bitwidth < desired_res_bitwidth) || opclass == OpLogical))
+	if (desired_res_bitwidth && (desired_res_bitwidth != 1 &&
+	                             (left_is_unknown_type || left_bitwidth < desired_res_bitwidth || desired_res_is_float && !left_is_float) &&
+	                             (right_is_unknown_type || right_bitwidth < desired_res_bitwidth || desired_res_is_float && !right_is_float)
+	                             || opclass == OpLogical))
 		desired_bitwidth = desired_res_bitwidth;
 	else if (left_is_unknown_type)
 		if (right_is_unknown_type)
@@ -354,6 +356,11 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	else
 		desired_bitwidth = Max(right_bitwidth, left_bitwidth);
 	bool res_is_float = desired_res_is_float || left_is_float || right_is_float;
+	if (res_is_float && opclass != OpComparison) {
+		unsigned oldbw = desired_bitwidth;
+		desired_bitwidth = Min(desired_bitwidth, 53);
+		errs() << "setting deired bitw from " << desired_res_bitwidth << " " << oldbw << " to " <<desired_bitwidth<<"\n";
+	}
 	llvm::Type* desired_left_type = nullptr;
 	llvm::Type* desired_right_type = nullptr;
 	switch (opclass) {
@@ -515,6 +522,8 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 		 : left_bitwidth) :
 		left_is_unknown_type ? right_bitwidth : Max(right_bitwidth, left_bitwidth);;
 	}
+	if (res_is_float)
+		res_bitwidth = Min(res_bitwidth, 53); // limit to f64
 	return { getFittingType(res_bitwidth, res_is_float), res_is_signed ? A_signed : 0, res_is_unknown_type, opclass, nullptr };
 }
 
