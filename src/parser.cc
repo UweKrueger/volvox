@@ -1094,7 +1094,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		// If this is a binop that binds at least as tightly as the current binop,
 		// consume it, otherwise we are done.
 		if (NextTokPrecedence() <= ExprPrec) {
-			if (auto func_expr = dynamic_cast<FunctionExprAST*>(LHS.get()))
+			if (LHS->ft->type && LHS->ft->type->isFunctionTy())
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 			return LHS;
 		}
@@ -1102,7 +1102,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		std::string BinOp = IdentifierStr;
 		SourceLocation BinLoc = CurLoc;
 		auto BinKind = CurTok.kind;
-		if (auto func_expr = dynamic_cast<FunctionExprAST*>(LHS.get())) {
+		if (LHS->ft->type && LHS->ft->type->isFunctionTy()) {
 			if (BinKind == tok_selector && BinOp != "(") {
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 				continue;
