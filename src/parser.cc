@@ -1094,12 +1094,20 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		// If this is a binop that binds at least as tightly as the current binop,
 		// consume it, otherwise we are done.
 		if (NextTokPrecedence() <= ExprPrec) {
+			if (auto func_expr = dynamic_cast<FunctionExprAST*>(LHS.get()))
+				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 			return LHS;
 		}
 		// Okay, we know this is a binop.
 		std::string BinOp = IdentifierStr;
 		SourceLocation BinLoc = CurLoc;
 		auto BinKind = CurTok.kind;
+		if (auto func_expr = dynamic_cast<FunctionExprAST*>(LHS.get())) {
+			if (BinKind == tok_selector && BinOp != "(") {
+				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
+				continue;
+			}
+		}
 		if (BinKind == tok_postfix) {
 			auto lval = dynamic_cast<LvalueExprAST*>(LHS.get());
 			if (!lval) {
@@ -1113,11 +1121,17 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			continue;
 		} else
 			getNextToken(); // eat binop
+		// Parse the unary expression after the binary operator.
 		bool is_index = BinKind == tok_selector && CurTok.kind == '[';
 		bool is_dotselect = BinKind == tok_selector && BinOp == ".";
-		// Parse the unary expression after the binary operator.
-		auto RHS = is_index ? ParseAggregateExpr(true, terminator)
-			: is_dotselect ? ParseIdent(terminator) : ParseUnary(terminator);
+		std::unique_ptr<ExprAST> RHS;
+		if (is_index)
+			RHS =  ParseAggregateExpr(true, terminator);
+		else
+			if (is_dotselect)
+				RHS = ParseIdent(terminator);
+			else
+				RHS = ParseUnary(terminator);
 		if (!RHS)
 			return nullptr;
 
