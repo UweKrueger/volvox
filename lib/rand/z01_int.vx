@@ -1,0 +1,86 @@
+pub inline fn I64() i64
+	return i64(U64())
+
+pub inline fn U32() u32
+	return u32(U64())
+
+pub inline fn I32() i32
+	return i32(U64())
+
+pub inline fn U16() u16
+	return u16(U64())
+
+pub inline fn I16() i16
+	return i16(U64())
+
+pub inline fn U8() u8
+	return u8(U64())
+
+pub inline fn I8() i8
+	return i8(U64())
+
+# overloaded function that take a maximum value
+
+# pub inline fn n(max u64) u64
+# 	mask := max
+# 	mask |= (mask >> 1)
+# 	mask |= (mask >> 2)
+# 	mask |= (mask >> 4)
+# 	mask |= (mask >> 8)
+# 	mask |= (mask >> 16)
+# 	mask |= (mask >> 32)
+# 	repeat
+# 		res := U64() & mask
+# 	until res <= max
+# 	return res
+
+pub inline fn n(max u32) u32
+	mask := max
+	mask |= (mask >> 1)
+	mask |= (mask >> 2)
+	mask |= (mask >> 4)
+	mask |= (mask >> 8)
+	mask |= (mask >> 16)
+	repeat
+		res := u32(U64()) & mask
+	until res <= max
+	return res
+
+pub inline fn n(max u16) u16
+	mask := max
+	mask |= (mask >> 1)
+	mask |= (mask >> 2)
+	mask |= (mask >> 4)
+	mask |= (mask >> 8)
+	repeat
+		res := u16(U64()) & mask
+	until res <= max
+	return res
+
+pub inline fn n(max u8) u8
+	mask := max
+	mask |= (mask >> 1)
+	mask |= (mask >> 2)
+	mask |= (mask >> 4)
+	repeat
+		res := u8(U64()) & mask
+	until res <= max
+	return res
+
+# The functions above take an unsigned argument, i.e. none of
+# them would be selected in case of a signed argument.
+# The functions below are simple wrappers for these cases -
+# they take a (non-negative) signed argument 'max' value
+# a return a random signed value in the range 0..max (both including).
+
+pub inline fn n(max i64) i64
+	return i64(n(u64(max)))
+
+pub inline fn n(max i32) i32
+	return i32(n(u32(max)))
+
+pub inline fn n(max i16) i16
+	return i16(n(u16(max)))
+
+pub inline fn n(max i8) i8
+	return i8(n(u8(max)))

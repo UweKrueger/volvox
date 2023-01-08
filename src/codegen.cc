@@ -2099,6 +2099,20 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		if (TheFunction)
 			TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
+		if (then_locals_table.table) {
+			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
+				MapValue* node = then_node.getValue();
+				auto then_var = (FullVar*)((char*)node + node->offset);
+				FullVar* entry = locals_table.back()[then_node.getKey()];
+				if (!entry) {
+					errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
+					abort();
+				}
+				entry->ft.type = then_var->ft.type;
+				entry->ft.type_attr = then_var->ft.type_attr;
+				entry->val = then_var->val;
+			}
+		}
 		llvm::Value *CondV = Cond->codegen();
 		if (!CondV)
 			return nullptr;
@@ -2170,20 +2184,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	} else
 		errs() << "###### No Insert Point\n";
 	// Emit merge block.
-	if (if_kind == tok_repeat && then_locals_table.table) {
-		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
-			MapValue* node = then_node.getValue();
-			auto then_var = (FullVar*)((char*)node + node->offset);
-			FullVar* entry = locals_table.back()[then_node.getKey()];
-			if (!entry) {
-				errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
-				abort();
-			}
-			entry->ft.type = then_var->ft.type;
-			entry->ft.type_attr = then_var->ft.type_attr;
-			entry->val = then_var->val;
-		}
-	} else if (then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
+	if (if_kind != tok_repeat && then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			FullVar* else_var = else_locals_table[then_node.getKey()];
 			MapValue* node = then_node.getValue();
