@@ -56,3 +56,17 @@ fn test_incompatible_branches_2() bool
 	else
 		q7_1() .
 	return true
+
+fn test_incompatible_branches_3() bool
+	if 2 > 3
+		p7_1()
+	else
+		q7_1() .
+	return true
+
+fn test_incompatible_branches_4() bool
+	if 2 > 1
+		p7_1()
+	else
+		q7_1() .
+	return true

@@ -1972,7 +1972,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		loopBBName = "loop";
 		contName = "whilecont";
 	}
-	llvm::BasicBlock* ThenBB = (TheFunction) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
+	llvm::BasicBlock* ThenBB = (TheFunction && if_kind != tok_if) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
 	if (if_kind == tok_while) {
 		CondBB = llvm::BasicBlock::Create(Context, "while");
 		Builder->CreateBr(CondBB);
@@ -1991,7 +1991,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	Cond->desired_type = llvm::Type::getInt1Ty(Context);
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
-	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "else");
+	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat || if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "else");
 	llvm::BasicBlock* MergeBB = (always_return || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, contName);
 	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
 	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
@@ -2013,10 +2013,14 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (if_kind == tok_while)
 			CondBB = Builder->GetInsertBlock();
-		else
-			if (if_kind == tok_if)
-				if (auto static_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
-					CTcond = (CTcond_t)(static_cond->getZExtValue());
+		else if (if_kind == tok_if) {
+			if (auto static_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
+				CTcond = (CTcond_t)(static_cond->getZExtValue());
+			if (CTcond != CTcond_false && TheFunction)
+				ThenBB = llvm::BasicBlock::Create(Context, "then");
+			if (CTcond != CTcond_true && TheFunction)
+				ElseBB = llvm::BasicBlock::Create(Context, "else");
+		}
 		if (!Else.empty() && !Then.empty() && ft->type && !ft->type->isVoidTy()) {
 			const char* new_err_msg = nullptr;
 			std::tie(Then.back()->desired_type, Else.back()->desired_type, new_err_msg) = getDesiredTypes(
@@ -2032,7 +2036,6 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			EntryBBend = Builder->GetInsertBlock();
 			ThenBBstart = ThenBB;
 			ElseBBstart = ElseBB;
-			//Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);
 		} else {
 			// save stack at 1st run and restore at followind runs
 			llvm::Value* CondVV = Builder->CreateIntCast(CondV, llvm::Type::getInt8Ty(Context), false, "expandcond");
@@ -2138,26 +2141,22 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (if_kind == tok_if) {
 		Builder->SetInsertPoint(EntryBBend);
 		if (CTcond != CTcond_undef) { // at least one branch can be removed
-			if (thenConstV && ThenEndKind == tok_else && !ft->type->isVoidTy())
+			if (thenConstV && ThenEndKind == tok_else && !ft->type->isVoidTy()) {
+				if (TheFunction) {
+					TheFunction->getBasicBlockList().push_back(MergeBB);
+					Builder->SetInsertPoint(MergeBB);
+				}
 				return thenConstV;
-			else if (elseConstV && ElseEndKind == tok_end && !ft->type->isVoidTy())
+			} else if (elseConstV && ElseEndKind == tok_end && !ft->type->isVoidTy()) {
+				if (TheFunction) {
+					TheFunction->getBasicBlockList().push_back(MergeBB);
+					Builder->SetInsertPoint(MergeBB);
+				}
 				return elseConstV;
-			//if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
-				//ThenBBstart->eraseFromParent();
-				//ElseBBstart->eraseFromParent();
-				// if (TheFunction) {
-				// 	TheFunction->getBasicBlockList().push_back(MergeBB);
-				// 	Builder->SetInsertPoint(MergeBB);
-				// }
-				//else
-				//	errs() << "#### No Insert Point\n";
-			//	return (CTcond == CTcond_false) ? elseConstV : thenConstV;
-			else if (CTcond == CTcond_true) {
+			} else if (CTcond == CTcond_true) {
 				Builder->CreateBr(ThenBBstart);
-				//ElseBBstart->eraseFromParent();
 			} else {
 				Builder->CreateBr(ElseBBstart);
-				//ThenBBstart->eraseFromParent();
 			}
 		} else {
 			Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);

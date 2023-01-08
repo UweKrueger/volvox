@@ -30,9 +30,9 @@ type tm {
 	isdst int # 0/1 to indicate daylight saving time
 }
 
-cdecl fn gmtime_r(&t i64, &res tm) size_t
+cdecl fn gmtime_r(&t i64, &res tm) voidptr
 cdecl fn _gmtime64_s(&res tm, &t i64) int
-cdecl fn localtime_r(&t i64, &res tm) size_t
+cdecl fn localtime_r(&t i64, &res tm) voidptr
 cdecl fn _localtime64_s(&res tm, &t i64) int
 
 pub inline fn time_t.gm() tm

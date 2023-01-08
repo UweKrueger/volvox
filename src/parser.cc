@@ -956,10 +956,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
 		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
 		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), 0, false, OpNormal, nullptr };
-	if (std::get<4>(res_t)) {
-		errs() << IfLoc << ": " << llvm::format(std::get<4>(res_t), kind == tok_if ? "if" : kind == tok_elif ? "elif" : "while");
-		return nullptr;
-	}
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
