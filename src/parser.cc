@@ -1181,8 +1181,21 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			if (VarL)
 				RefL = nullptr;
 			else
-				if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get())))
+				if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get()))) {
 					VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
+					if (auto call_expr = dynamic_cast<CallExprAST*>(RHS.get())) {
+						RHS = std::move(call_expr->Callee);
+						RHS_type = RHS->ft ? RHS->ft->type : nullptr;
+						RHS_attr = 0;
+						RHS_is_unknown_type = false;
+						LHS = std::move(RefL->Operand);
+						RefL = nullptr;
+						LHS_type = LHS->ft ? LHS->ft->type : nullptr;
+						LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
+						LHS_is_unknown_type = LHS->is_unknown_type;
+						VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+					}
+				}
 			if (!VarL) {
 				errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
 				return nullptr;

@@ -35,10 +35,9 @@ fn test_local_array_get_and_set() bool
 
 
 fn h() [5]f64
-	v := u
+	&v := u
 	r542p = 3.5
-	# q := v()
-	q := u
+	q := v()
 	return q
 
 fn test_function_literal() bool
