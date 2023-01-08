@@ -84,3 +84,19 @@ pub inline fn n(max i16) i16
 
 pub inline fn n(max i8) i8
 	return i8(n(u8(max)))
+
+pub inline fn n(min i64, max i64) i64
+	delta := u64(max - min)
+	return min + n(delta)
+
+pub inline fn n(min i32, max i32) i32
+	delta := u32(max - min)
+	return min + n(delta)
+
+pub inline fn n(min i16, max i16) i16
+	delta := u16(max - min)
+	return min + n(delta)
+
+pub inline fn n(min i8, max i8) i8
+	delta := u8(max - min)
+	return min + n(delta)
