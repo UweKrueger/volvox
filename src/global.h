@@ -224,8 +224,9 @@ extern bool inside_function;
 extern int prompt_indent;
 extern uint64_t stacksize;
 extern const char* last_defined_type;
+extern llvm::CodeGenOpt::Level codegenopt; // backend optimization level
 #ifndef LEGACY_PASS_MANAGER
-extern llvm::OptimizationLevel optimization_level;
+extern llvm::OptimizationLevel optimization_level; // IR optimization level
 extern llvm::LoopAnalysisManager LAM;
 extern llvm::FunctionAnalysisManager FAM;
 extern llvm::CGSCCAnalysisManager CGAM;

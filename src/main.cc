@@ -901,6 +901,7 @@ promptcolor_t p_col = { 30, 100, 236 };
 const char* TestFunction = nullptr;
 char* output_file = nullptr;
 char* exe_file = nullptr;
+llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;
 #ifndef LEGACY_PASS_MANAGER
 llvm::OptimizationLevel optimization_level = llvm::OptimizationLevel::O2;
 llvm::PassBuilder PB;
@@ -998,7 +999,6 @@ int main(int argc, char* argv[]) {
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
-	llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;
 #ifndef _WIN32
 	struct rlimit rlimit_stacksize;
 	// try to get default stack size for new threads from rlimits

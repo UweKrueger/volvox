@@ -756,6 +756,16 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 #endif
 						Builder->CreateStore(tmparg, arg, store_volatile);
 					}
+#if LLVM_VERSION_MAJOR < 14
+					if (codegenopt != llvm::CodeGenOpt::None) {
+						// Old LLVM versions seem to do illegal optimizations for call by reference
+						// in object code generation mode. These can be suppressed by reloading the
+						// reference after having stored it 'volatile'
+						auto rec_ptr_loc = CreateEntryBlockAlloca(arg->getType());
+						Builder->CreateStore(arg, rec_ptr_loc, true);
+						arg = Builder->CreateLoad(arg->getType(), rec_ptr_loc);
+					}
+#endif
 				} else
 					arg = Args[i]->codegen();
 			}
