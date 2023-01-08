@@ -407,7 +407,10 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 					// float^(int/int) is detected in codegen and desired_right_type will be set to float
 					desired_right_type = nullptr; // float^int no pre-conversions necessary
 			} else
-				desired_left_type = desired_right_type = getFittingType(desired_bitwidth >= 32 ? desired_bitwidth : 32, false);
+				if (opclass == OpShift)
+					desired_right_type = left_type;
+				else
+					desired_left_type = desired_right_type = getFittingType(desired_bitwidth >= 32 ? desired_bitwidth : 32, false);
 		}
 		goto normal_return;
 	case OpLogical:
