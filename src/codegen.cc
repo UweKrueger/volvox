@@ -2014,8 +2014,9 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		if (if_kind == tok_while)
 			CondBB = Builder->GetInsertBlock();
 		else
-			if (auto static_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
-				CTcond = (CTcond_t)(static_cond->getZExtValue());
+			if (if_kind == tok_if)
+				if (auto static_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
+					CTcond = (CTcond_t)(static_cond->getZExtValue());
 		if (!Else.empty() && !Then.empty() && ft->type && !ft->type->isVoidTy()) {
 			const char* new_err_msg = nullptr;
 			std::tie(Then.back()->desired_type, Else.back()->desired_type, new_err_msg) = getDesiredTypes(
@@ -2058,28 +2059,36 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(ThenBB);
 	}
-	if (TheFunction) {
-		TheFunction->getBasicBlockList().push_back(ThenBB);
-		Builder->SetInsertPoint(ThenBB);
+	llvm::Constant* thenConstV = nullptr;
+	llvm::Value* ThenV = nullptr;
+	llvm::Instruction* thenLast = nullptr;
+	if (CTcond != CTcond_false) {
+		if (TheFunction) {
+			TheFunction->getBasicBlockList().push_back(ThenBB);
+			Builder->SetInsertPoint(ThenBB);
+		}
+		// Emit then value.
+		if (CTcond == CTcond_undef) {
+			locals_table.push_back(std::move(then_locals_table));
+			condnesting++;
+		}
+		std::tie(ThenV, thenLast) = createCondBranch(CondBB ? CondBB : MergeBB, false);
+		if (Then.size() == 1)
+			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
+		if (CTcond == CTcond_undef) {
+			condnesting--;
+			then_locals_table = std::move(locals_table.back());
+			locals_table.pop_back();
+		}
+		if (!ThenV) {
+			errs() << Loc << ": if expression - 'then' block did not compile\n";
+			return nullptr;
+		}
+		// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
+		ThenBB = Builder->GetInsertBlock();
+		if (if_kind == tok_while)
+			condPN->addIncoming(Builder->getInt8(0), ThenBB);
 	}
-	// Emit then value.
-	locals_table.push_back(std::move(then_locals_table));
-	condnesting++;
-	auto [ThenV, thenLast] = createCondBranch(CondBB ? CondBB : MergeBB, false);
-	llvm::Constant* thenConstV = (Then.size() == 1) ?
-		llvm::dyn_cast<llvm::Constant>(ThenV) :
-		nullptr;
-	condnesting--;
-	then_locals_table = std::move(locals_table.back());
-	locals_table.pop_back();
-	if (!ThenV) {
-		errs() << Loc << ": if expression - 'then' block did not compile\n";
-		return nullptr;
-	}
-	// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
-	ThenBB = Builder->GetInsertBlock();
-	if (if_kind == tok_while)
-		condPN->addIncoming(Builder->getInt8(0), ThenBB);
 	llvm::Value* ElseV = nullptr;
 	llvm::Instruction* elseLast = nullptr;;
 	llvm::Constant* elseConstV = nullptr;
@@ -2096,43 +2105,54 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 		Builder->CreateCondBr(CondV, MergeBB, StackRestoreBB);
-	} else {		
-		// Emit else block.
-		if (TheFunction)
-			TheFunction->getBasicBlockList().push_back(ElseBB);
-		Builder->SetInsertPoint(ElseBB);
-		locals_table.push_back(std::move(else_locals_table));
-		condnesting++;
-		VarTable* old_IfWhileVarTable = IfWhileVarTable;
-		IfWhileVarTable = &then_locals_table;
-		std::tie(ElseV, elseLast) = createCondBranch(MergeBB, true);
-		if (Else.size() == 1)
-			elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
-		IfWhileVarTable = old_IfWhileVarTable;
-		condnesting--;
-		else_locals_table = std::move(locals_table.back());
-		locals_table.pop_back();
-		if (!ElseV) {
-			errs() << Loc << ": if expression - 'else' block did not compile\n";
-			return nullptr;
+	} else {
+		if (CTcond != CTcond_true) {
+			// Emit else block.
+			if (TheFunction)
+				TheFunction->getBasicBlockList().push_back(ElseBB);
+			Builder->SetInsertPoint(ElseBB);
+			if (CTcond == CTcond_undef) {
+				locals_table.push_back(std::move(else_locals_table));
+				condnesting++;
+			}
+			VarTable* old_IfWhileVarTable = IfWhileVarTable;
+			if (CTcond == CTcond_undef)
+				IfWhileVarTable = &then_locals_table;
+			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, true);
+			if (Else.size() == 1)
+				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
+			if (CTcond == CTcond_undef) {
+				IfWhileVarTable = old_IfWhileVarTable;
+				condnesting--;
+				else_locals_table = std::move(locals_table.back());
+				locals_table.pop_back();
+			}
+			if (!ElseV) {
+				errs() << Loc << ": if expression - 'else' block did not compile\n";
+				return nullptr;
+			}
+			// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
+			ElseBB = Builder->GetInsertBlock();
 		}
-		// Codegen of 'Else' can change the current block, update ElseBB for the PHI.
-		ElseBB = Builder->GetInsertBlock();
 	}
 	if (if_kind == tok_if) {
 		Builder->SetInsertPoint(EntryBBend);
 		if (CTcond != CTcond_undef) { // at least one branch can be removed
-			if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
+			if (thenConstV && ThenEndKind == tok_else && !ft->type->isVoidTy())
+				return thenConstV;
+			else if (elseConstV && ElseEndKind == tok_end && !ft->type->isVoidTy())
+				return elseConstV;
+			//if (thenConstV && elseConstV && ThenEndKind == tok_else && ElseEndKind == tok_end) {
 				//ThenBBstart->eraseFromParent();
 				//ElseBBstart->eraseFromParent();
-				if (TheFunction) {
-					TheFunction->getBasicBlockList().push_back(MergeBB);
-					Builder->SetInsertPoint(MergeBB);
-				}
+				// if (TheFunction) {
+				// 	TheFunction->getBasicBlockList().push_back(MergeBB);
+				// 	Builder->SetInsertPoint(MergeBB);
+				// }
 				//else
 				//	errs() << "#### No Insert Point\n";
-				return (CTcond == CTcond_false) ? elseConstV : thenConstV;
-			} else if (CTcond == CTcond_true) {
+			//	return (CTcond == CTcond_false) ? elseConstV : thenConstV;
+			else if (CTcond == CTcond_true) {
 				Builder->CreateBr(ThenBBstart);
 				//ElseBBstart->eraseFromParent();
 			} else {
@@ -2222,6 +2242,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
 	else {
+		if (CTcond == CTcond_true)
+			return handle(target, ThenV);
+		else if (CTcond == CTcond_false)
+			return handle(target, ElseV);
 		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
 		                          Else.back()->ft->type, ElseV, ElseBB, elseLast);
 		if (ft->type != merge.first) {
