@@ -659,6 +659,8 @@ public:
 			if (Then.size() && Then.back()->ft && Then.back()->ft->type && !Then.back()->ft->type->isSingleValueType() && !Then.back()->ft->type->isVoidTy()
 			    && Else.size() && Else.back()->ft && Else.back()->ft->type && !Else.back()->ft->type->isSingleValueType() && !Else.back()->ft->type->isVoidTy())
 				ft = new_FullType(*Then.back()->ft);
+			if (!ft->type)
+				ft = new_FullType(llvm::Type::getVoidTy(Context), 0);
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false);

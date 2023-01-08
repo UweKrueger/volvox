@@ -150,9 +150,9 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "string") : nullptr, A_string);
 	lex.add_type("cstring", llvm::Type::getInt8PtrTy(Context),
-	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "cstring") : nullptr, A_string);
+	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "cstring") : nullptr, A_cstring);
 	lex.add_type("voidptr", llvm::Type::getInt8PtrTy(Context),
-	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "voidptr") : nullptr, A_string);
+	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "voidptr") : nullptr);
 	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
 	std::vector<llvm::Type*> interface_type_elements = { llvm::Type::getInt8PtrTy(Context), llvm::Type::getInt8PtrTy(Context) };
 	llvm_interface_type = llvm::StructType::create(Context, interface_type_elements, "interface");

@@ -1206,12 +1206,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				}
 				return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 			} else {
-				// TODO: call destructor for OldVal if discarded
 				auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 				if (postpone_valgen)
 					RHS->codegen_raw(Variable.second);
 				else
 					Builder->CreateStore(Val, Variable.second);
+				// call destructor for OldVal if discarded
 				return handle_d(target, OldVal, LHS->ft->type_attr);
 			}
 		}
@@ -1794,8 +1794,6 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 		}
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	} else {
-		if (!ft->type)
-			ft->type = llvm::Type::getVoidTy(Context);
 		if (ft->type->isVoidTy())
 			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		else if (!BranchV)
