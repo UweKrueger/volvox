@@ -34,3 +34,25 @@ fn test_exactly_one_cpu_is_defined() bool
 	if cpu.isX86_64
 		m++ .
 	return m == 1
+
+fn p7_1() string
+	return "Hallo"
+
+fn q7_1() int
+	return 7
+
+global x7_1 := 2
+
+fn test_incompatible_branches_1() bool
+	if x7_1 > 3
+		p7_1()
+	else
+		q7_1() .
+	return true
+
+fn test_incompatible_branches_2() bool
+	if x7_1 > 1
+		p7_1()
+	else
+		q7_1() .
+	return true
