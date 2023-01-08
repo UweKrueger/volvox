@@ -20,7 +20,7 @@ TOKEN(while) \
 TOKEN(in) \
 TOKEN(for) \
 TOKEN(else) \
-TOKEN(then) \
+TOKEN(elif) \
 TOKEN(if) \
 TOKEN(pub) \
 TOKEN(cpub) \

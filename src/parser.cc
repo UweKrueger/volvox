@@ -862,7 +862,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	getNextToken(); // eat the if/while.
 	// condition - expect bool.
 	std::unique_ptr<ExprAST> Cond;
-	if (kind == tok_if || kind == tok_while) {
+	if (kind == tok_if || kind == tok_elif || kind == tok_while) {
 		Cond = ParseCondition(kind);
 		if (!Cond)
 			return nullptr;
@@ -873,7 +873,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.pop_back();
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
 	bool have_else = false;
-	if (Then.second == tok_else) {
+	if (Then.second == tok_else || Then.second == tok_elif) {
 		have_else = true;
 		getNextToken();
 	} else if (Then.second == tok_return) {
@@ -894,7 +894,19 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			return nullptr;
 		}
 		locals_table.emplace_back();
-		Else = ParseExprList();
+		if (Then.second == tok_elif) {
+			auto elif_expr = ParseIfExpr();
+			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
+			if (!elifif_expr) {
+				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
+				return nullptr;
+			}
+			auto end_k = elifif_expr->always_return ? tok_return : tok_end;
+			std::vector<std::unique_ptr<ExprAST>> l;
+			l.push_back(std::move(elif_expr));
+			Else = { std::move(l), end_k };
+		} else
+			Else = ParseExprList();
 	} else {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
@@ -936,14 +948,14 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 				return nullptr;
 	}
 	bool always_return = Then.second == tok_return && have_else && Else.second == tok_return;
-	auto res_t = (kind == tok_if && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
+	auto res_t = ((kind == tok_if || kind == tok_elif) && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
 	              && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy() && !(Then.second == tok_return || have_else && Else.second == tok_return)) ?
 		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
 		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
 		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
 		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), 0, false, OpNormal, nullptr };
 	if (std::get<4>(res_t)) {
-		errs() << IfLoc << ": " << llvm::format(std::get<4>(res_t), kind == tok_if ? "if" : "while");
+		errs() << IfLoc << ": " << llvm::format(std::get<4>(res_t), kind == tok_if ? "if" : kind == tok_elif ? "elif" : "while");
 		return nullptr;
 	}
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
@@ -1324,7 +1336,7 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	while (CurTok.kind == ';')
 		getNextToken();
 	auto kind = CurTok.kind;
-	if (kind == tok_return || kind == tok_else || kind == tok_end || kind == tok_until) {
+	if (kind == tok_return || kind == tok_else || kind == tok_elif || kind == tok_end || kind == tok_until) {
 		if (kind == tok_return) {
 			getNextToken(eSemi);
 			if (CurTok.kind == ';') 
