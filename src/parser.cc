@@ -875,15 +875,17 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	bool have_else = false;
 	if (Then.second == tok_else || Then.second == tok_elif) {
 		have_else = true;
-		getNextToken();
+		if (Then.second != tok_elif)
+			getNextToken();
 	} else if (Then.second == tok_return) {
 		if (CurTok.kind == tok_end) {
 			getNextToken();
 			have_else = false;
 		} else {
 			getNextToken();
-			if (CurTok.kind == tok_else) {
-				getNextToken();
+			if (CurTok.kind == tok_else || CurTok.kind == tok_elif) {
+				if (CurTok.kind != tok_elif)
+					getNextToken();
 				have_else = true;
 			}
 		}
@@ -943,7 +945,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (!Cond)
 			return nullptr;
 	} else {
-		if (have_else && Else.second == tok_end || !have_else && Then.second == tok_end)
+		if (have_else && Else.second == tok_end && Then.second != tok_elif || !have_else && Then.second == tok_end)
 			if (!Expect(tok_end, eBinOp))
 				return nullptr;
 	}
@@ -959,7 +961,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		return nullptr;
 	}
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind, always_return);
+	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
