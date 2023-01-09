@@ -1956,7 +1956,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		KSDbgInfo.emitLocation(this);
 	}
 	auto enterBB = Builder->GetInsertBlock();
-	llvm::Function* TheFunction = enterBB ? Builder->GetInsertBlock()->getParent() : nullptr;
+	llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
 	llvm::PHINode* condPN;
 	llvm::BasicBlock* CondBB;
 	// find a suitable name for the loop block
@@ -2172,11 +2172,17 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				}
 				return elseConstV;
 			} else if (CTcond == CTcond_true) {
-				Builder->CreateBr(ThenBBstart);
+				if (ThenBBstart)
+					Builder->CreateBr(ThenBBstart);
 			} else {
-				Builder->CreateBr(ElseBBstart);
+				if (ElseBBstart)
+					Builder->CreateBr(ElseBBstart);
 			}
 		} else {
+			if (!ThenBBstart || !ElseBBstart) {
+				errs() << Loc << ": inconsistency (constexpr expected but expr not const?)\n";
+				return nullptr;
+			}
 			Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);
 		}
 	}
@@ -2185,8 +2191,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (TheFunction) {
 		TheFunction->getBasicBlockList().push_back(MergeBB);
 		Builder->SetInsertPoint(MergeBB);
-	} else
-		errs() << "###### No Insert Point\n";
+	}
 	// Emit merge block.
 	if (if_kind != tok_repeat && then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {

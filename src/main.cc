@@ -687,6 +687,7 @@ static void MainLoop() {
 		if (last_defined_type)
 			finish_constructors_and_destructor();
 	startmainloop:
+		Builder->ClearInsertionPoint();
 		unsigned sym_kind = 0; // 'pub', 'extern', 'fn', 'cfn', ...
 		auto share_tok = TokenKind(0);
 		for (;;) {
