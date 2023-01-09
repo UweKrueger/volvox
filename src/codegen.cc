@@ -342,12 +342,14 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 	if (auto val = ref2val(V))
 		return handle(target, val);
 	if (V.first) {
-		llvm::Value* struct_val = Struct->codegen_raw(target);
+		llvm::Value* Store = nullptr;
+		if (Struct->needs_target() || Struct->ft->type_attr & A_union) {
+			Store = CreateEntryBlockAlloca(Struct->ft->type);
+		}
+		llvm::Value* struct_val = Struct->codegen_raw(Store);
 		if (struct_val) {
 			llvm::Value* val;
-			if (Struct->ft->type_attr & A_union) {
-				auto Store = CreateEntryBlockAlloca(struct_val->getType());
-				Builder->CreateStore(struct_val, Store);
+			if (Store) {
 				val = Builder->CreateLoad(ft->type, Builder->CreatePointerCast(Store, ft->type->getPointerTo()));
 			} else
 				val = Builder->CreateExtractValue(struct_val, FieldIndex);
