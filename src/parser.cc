@@ -1115,7 +1115,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		SourceLocation BinLoc = CurLoc;
 		auto BinKind = CurTok.kind;
 		if (LHS->ft->type && LHS->ft->type->isFunctionTy()) {
-			if (BinKind == tok_selector && BinOp != "(") {
+			if (BinKind == tok_selector && BinOp != "(" || BinKind >= tok_mult && BinKind < tok_error) {
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 				continue;
 			}

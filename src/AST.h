@@ -209,6 +209,7 @@ public:
 class FunctionExprAST : public ExprAST {
 
 public:
+	std::unique_ptr<ExprAST> Exponent = nullptr;
 	std::string Name;
 	int selected_proto = 0; // should be set by call expr
 	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos)
