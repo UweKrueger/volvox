@@ -12,3 +12,8 @@ type timespec {
     nsec size_t # nanoseconds
 }
 cdecl fn clock_gettime(clockid int, &tp timespec) int
+
+type precise union {
+	FILETIME
+	timespec
+}
