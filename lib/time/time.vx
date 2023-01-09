@@ -28,6 +28,8 @@ type tm {
 	wday int  # 0..6, 0 = Sunday
 	yday int  # normally 0..364, 365 in leap years
 	isdst int # 0/1 to indicate daylight saving time
+	gmtoff ssize_t # used on OpenBSD
+	zone cstring
 }
 
 cdecl fn gmtime_r(&t i64, &res tm) voidptr
