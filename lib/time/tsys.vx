@@ -40,8 +40,8 @@ cdecl fn QueryPerformanceCounter(&ticks i64) bool
 const ufrequency ::= 1000000000i64
 
 fn get_system_tick_frequency() i64
+	f := 0i64
 	if os.isWindows
-		f := 0i64
 		if !QueryPerformanceFrequency(f)
 			panic("fatal: cannot probe system tick frequency\n") .
 		return f
