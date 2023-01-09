@@ -1228,12 +1228,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		FullVar* entry;
 		if (locals_table.empty()) {
 			entry = lex.module->globals_table[varname];
-			if (!entry) {
-				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
-				return nullptr;
-			}
 		} else {
 			entry = locals_table.back()[varname];
+		}
+		if (!entry) {
+			errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
+			return nullptr;
 		}
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
@@ -1788,6 +1788,10 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 				InsertDestructors(ret_ptr);
 				Builder->CreateRetVoid();
 			} else {
+				if (!BranchV) {
+					errs() << (Branch.empty() ? Loc : Branch.back()->Loc) << ": return value cold not be generated\n";
+					return { nullptr, nullptr };
+				}
 				InsertDestructors(nullptr);
 				Builder->CreateRet(CheckTailCall(BranchV));
 			}
