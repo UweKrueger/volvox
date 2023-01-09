@@ -78,6 +78,12 @@ cdecl fn printu64(x u64)
 cdecl fn printstr(fd int, s string)
 # only for debugging
 cdecl fn modstr(s string, idx i32, c u8)
+cdecl fn abort()
+
+inline fn panic(s string)
+	printstr(2, s)
+	abort
+	return
 
 inline fn __check_array_index(index u64, length u64)
 	if index >= length

@@ -9,9 +9,28 @@
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 	if (ft->type_attr & A_ref) // reference
 		out << 'R';
-	if (ft->type->isPointerTy())
-		out << 'P' << ft->elem_type;
-	else
+	if (ft->type->isPointerTy()) {
+		if (ft->type_attr & A_map) {
+			out << 'M' << ft->elem_type;
+		} else {
+			out << 'P';
+			if (ft->type_attr & A_shared)
+				out << 'S';
+			if (ft->type_attr & (A_const | A_cstring))
+				out << 'K'; // C++ 'const char*' is what C functions typically expect - use 'PKc' for that
+			if (ft->type_attr & (A_string | A_cstring))
+				out << 'c'; // C++ 'char*' - this is not really the same as Volvox 'string', but close
+			else if (!ft->elem_type || ft->elem_type->type->isVoidTy())
+				out << 'v'; // C++ 'void*' - Volvox 'voidptr' - used for any C-specific pointer
+			else {
+				if (!(ft->type_attr & (A_unique | A_shared | A_const))) {
+					errs() << "mangler: inconsistend type - pointers must be 'unique', 'shared' or 'const'" << ft << '\n';
+					abort();
+				}
+				out << ft->elem_type; // A "native Volvox pointer" - used for unique objects... ;-)
+			}
+		}
+	} else
 		if (ft->type->isDoubleTy())
 			out << 'd';
 		else if (ft->type->isFloatTy())
@@ -32,7 +51,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 		} else if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
 			// this is not defined in the Itanium mangle standard - we have to make up something on our own
 			do {
-				out << 'M' << array_type->getNumElements();
+				out << 'A' << array_type->getNumElements();
 				array_type = llvm::dyn_cast<llvm::ArrayType>(array_type->getElementType());
 			} while (array_type);
 			out << ft->elem_type;
