@@ -10,7 +10,7 @@ cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
 #
 type timespec {
 	sec time_t  # seconds
-    nsec size_t # nanoseconds
+    nsec ssize_t # nanoseconds, 'long' in C, but on non-Windows this is equal to 'ssize_t'
 }
 cdecl fn clock_gettime(clockid int, &tp timespec) int
 
@@ -29,7 +29,8 @@ const ufrequency ::= 1000000000i64
 pub const frequency :=
 	if os.isWindows
 		f := 0i64
-		success := QueryPerformanceFrequency(f)
+		if !QueryPerformanceFrequency(f)
+			panic("fatal: cannot probe system tick frequency\n") .
 		f
 	else
 		ufrequency .
@@ -42,8 +43,29 @@ pub const frequency :=
 type common_timestamp union {
 	i64
 	timespec
+	dummy i64
 }
+
+_tmp_ts := common_timestamp{}
 
 const program_start_timestamp :=
 	if os.isWindows
-		
+		if !QueryPerformanceCounter(_tmp_ts.i64)
+			panic("fatal: cannot query system performance counter\n") .
+		_tmp_ts
+	else
+		if clock_gettime(CLOCK_MONOTONIC, _tmp_ts.timespec) != 0
+			panic("fatal: cannot query CLOCK_MONOTONIC\n") .
+		_tmp_ts .
+
+inline fn nanoseconds_since_start(ts timespec) i64
+	sec := ts.sec.i64 - program_start_timestamp.timespec.sec.i64
+	nsec := ts.nsec - program_start_timestamp.timespec.nsec
+	if nsec < 0
+		nsec += 1000000000
+		sec--
+	elif nsec >= 1000000000
+		nsec -= 1000000000
+		sec++ .
+	return sec * 1000000000 + nsec
+
