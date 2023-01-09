@@ -746,6 +746,13 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 							errs() << Args[i]->Loc << ": cannot generate code for expression\n";
 							return nullptr;
 						}
+						// The following sections are ugly hacks to circumvent bugs in
+						// over aggressive optimizers. In particular a storage space might be
+						// optimized away even if a pointer (or a pointer to a pointer) to this
+						// space is passed to a called function - however, 'volatile' storage can help.
+						// Not all LLVM versions and backends have these bugs and they depend
+						// on optimization levels. This should be taken into account to avoid
+						// unnecessary performance impacts
 						bool store_volatile = false;
 #ifndef LEGACY_PASS_MANAGER
 						if (jit_repl && optimization_level != llvm::OptimizationLevel::O0
@@ -756,8 +763,18 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 #endif
 						Builder->CreateStore(tmparg, arg, store_volatile);
 					}
+#if LLVM_VERSION_MAJOR < 14 || LLVM_VERSION_MAJOR < 15 && defined(__aarch64__)
+					if (
 #if LLVM_VERSION_MAJOR < 14
-					if (codegenopt != llvm::CodeGenOpt::None) {
+						codegenopt != llvm::CodeGenOpt::None
+#if defined(__aarch64__)
+						||
+#endif
+#endif
+#if defined(__aarch64__)
+						comp_mode == comp_jit
+#endif
+						) {
 						// Old LLVM versions seem to do illegal optimizations for call by reference
 						// in object code generation mode. These can be suppressed by reloading the
 						// reference after having stored it 'volatile'

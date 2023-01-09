@@ -1,19 +1,49 @@
 # Windows timestamp in 0.1µs resolution
+#
 type FILETIME {
 	dwLowDateTime u32
 	dwHighDateTime u32
 }
 cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
 
-const CLOCK_REALTIME ::= 0
-const CLOCK_MONOTONIC ::= 1
+# Unix timestamp in 1ns resolution
+#
 type timespec {
 	sec time_t  # seconds
     nsec size_t # nanoseconds
 }
 cdecl fn clock_gettime(clockid int, &tp timespec) int
 
-type precise union {
-	FILETIME
+const CLOCK_REALTIME ::= 0
+const CLOCK_MONOTONIC ::= 1
+
+# In Volvox time intervals are be measured in ticks which are 1n intervals on Unix
+# and whatever QueryPerformanceFrequency() reports on Windows.
+
+cdecl fn QueryPerformanceFrequency(&f i64) bool
+cdecl fn QueryPerformanceCounter(&ticks i64) bool
+
+# for calculations a constexpr might be handy on Unix systems
+const ufrequency ::= 1000000000i64
+
+pub const frequency :=
+	if os.isWindows
+		f := 0i64
+		success := QueryPerformanceFrequency(f)
+		f
+	else
+		ufrequency .
+
+# monotonic timestamps are of type timespec on Unix and LARGE_INTEGER on Windows
+# to avoid the clumsy structures Volvox timestamps are i64 on all systems and represent
+# the number of ticks since program start. To calculate them we need the (system dependent)
+# timestamp when the program has started
+
+type common_timestamp union {
+	i64
 	timespec
 }
+
+const program_start_timestamp :=
+	if os.isWindows
+		
