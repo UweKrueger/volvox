@@ -1,11 +1,3 @@
-# Windows timestamp in 0.1µs resolution
-#
-type FILETIME {
-	dwLowDateTime u32
-	dwHighDateTime u32
-}
-cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
-
 # Unix timestamp in 1ns resolution
 #
 type timespec {
@@ -111,3 +103,34 @@ pub inline fn elapsed(start i64) f64
 #
 pub inline fn elapsed() f64
 	return f64(get() / tick_frequency)
+
+# Windows timestamp in 0.1µs resolution
+#
+type FILETIME {
+	dwLowDateTime u32
+	dwHighDateTime u32
+}
+
+# time since January 1, 1601 00:00:00 UTC
+#
+type PreciseTime union {
+	FILETIME
+	u64
+}
+
+# seconds of January 1, 1970 since January 1, 1601
+#
+pub const epoch_offset := 11644473600u64
+
+cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
+
+pub inline fn precise() PreciseTime
+	ft := PreciseTime{}
+	ts := timespec{}
+	if os.isWindows
+		GetSystemTimePreciseAsFileTime(ft.FILETIME)
+	else
+		clock_gettime(CLOCK_REALTIME, ts)
+		ft.u64 = 10000000 * (u64(ts.sec.i64) + epoch_offset) + u64(ts.nsec) / 100 .
+	return ft
+
