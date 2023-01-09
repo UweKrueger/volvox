@@ -26,14 +26,16 @@ cdecl fn QueryPerformanceCounter(&ticks i64) bool
 # for calculations a constexpr might be handy on Unix systems
 const ufrequency ::= 1000000000i64
 
-pub const frequency :=
+fn get_system_tick_frequency() i64
 	if os.isWindows
 		f := 0i64
 		if !QueryPerformanceFrequency(f)
 			panic("fatal: cannot probe system tick frequency\n") .
-		f
+		return f
 	else
-		ufrequency .
+		return ufrequency
+
+pub const tick_frequency := get_system_tick_frequency()
 
 # monotonic timestamps are of type timespec on Unix and LARGE_INTEGER on Windows
 # to avoid the clumsy structures Volvox timestamps are i64 on all systems and represent
@@ -43,29 +45,28 @@ pub const frequency :=
 type common_timestamp union {
 	i64
 	timespec
-	dummy i64
 }
 
-_tmp_ts := common_timestamp{}
-
-const program_start_timestamp :=
+fn get_common_timestamp() common_timestamp
+	_tmp_ts := common_timestamp{}
 	if os.isWindows
 		if !QueryPerformanceCounter(_tmp_ts.i64)
 			panic("fatal: cannot query system performance counter\n") .
-		_tmp_ts
 	else
 		if clock_gettime(CLOCK_MONOTONIC, _tmp_ts.timespec) != 0
-			panic("fatal: cannot query CLOCK_MONOTONIC\n") .
-		_tmp_ts .
+			panic("fatal: cannot query CLOCK_MONOTONIC\n") . .
+	return _tmp_ts
+
+const program_start_common_timestamp := get_common_timestamp()
 
 inline fn nanoseconds_since_start(ts timespec) i64
-	sec := ts.sec.i64 - program_start_timestamp.timespec.sec.i64
-	nsec := ts.nsec - program_start_timestamp.timespec.nsec
+	sec := ts.sec.i64 - program_start_common_timestamp.timespec.sec.i64
+	nsec := ts.nsec - program_start_common_timestamp.timespec.nsec
 	if nsec < 0
-		nsec += 1000000000
+		nsec += ufrequency
 		sec--
-	elif nsec >= 1000000000
-		nsec -= 1000000000
+	elif nsec >= ufrequency
+		nsec -= ufrequency
 		sec++ .
-	return sec * 1000000000 + nsec
+	return sec * ufrequency + nsec
 
