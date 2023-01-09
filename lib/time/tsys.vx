@@ -14,6 +14,10 @@ type timespec {
 }
 cdecl fn clock_gettime(clockid int, &tp timespec) int
 
+# "REALTIME" and "MONOTONIC" clocks on Unix systems
+# for MONOTONIC try to get a source that is never adjusted and
+# does not continue while the system is suspended
+
 const CLOCK_REALTIME ::= 0
 const CLOCK_MONOTONIC ::= if os.isLinux
 		4 # CLOCK_MONOTONIC_RAW
