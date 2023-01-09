@@ -1,0 +1,14 @@
+# Windows timestamp in 0.1µs resolution
+type FILETIME {
+	dwLowDateTime u32
+	dwHighDateTime u32
+}
+cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
+
+const CLOCK_REALTIME ::= 0
+const CLOCK_MONOTONIC ::= 1
+type timespec {
+	sec time_t  # seconds
+    nsec size_t # nanoseconds
+}
+cdecl fn clock_gettime(clockid int, &tp timespec) int
