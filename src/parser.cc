@@ -1081,6 +1081,8 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	getNextToken();
 	if (auto Operand = ParseUnary(terminator)) {
 		Operand = ParseBinOpRHS(TokPrec, std::move(Operand), terminator);
+		if (!Operand)
+			return nullptr;
 		if (kind == tok_ref) {
 			if (auto lval = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 				auto Lval = std::unique_ptr<LvalueExprAST>(lval);
