@@ -570,7 +570,8 @@ std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_
 bool FinishMain() {
 	if (MainFunction->EndKind != tok_return) {
 		// if main() does not 'return' explicitly add 'return 0'
-		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+		if (!have_return)
+			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 		MainFunction->EndKind = tok_return;
 	}
 	return true;
