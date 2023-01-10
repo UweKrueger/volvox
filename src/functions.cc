@@ -690,9 +690,16 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				}
 			}
 			if (!receiver_ref) {
-				if (method->Receiver->needs_target())
-					errs() << method->Receiver->Loc << ": ### receiver needs target...\n";
-				receiver_ref = StoreValue(method->Receiver->codegen(), method->Receiver->ft);
+				if (method->Receiver->needs_target()) {
+					receiver_ref = Builder->CreateAlloca(method->Receiver->ft->type);
+					auto voidval = method->Receiver->codegen_raw(receiver_ref);
+					if (!voidval || !voidval->getType()->isVoidTy()) {
+						errs() << Loc << ": cannot create function call\n";
+						return nullptr;
+					}
+				} else {
+					receiver_ref = StoreValue(method->Receiver->codegen(), method->Receiver->ft);
+				}
 				if (!receiver_ref) {
 					errs() << method->Receiver->Loc << ": internal error - could not store receiver\n";
 					return nullptr;
