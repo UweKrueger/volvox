@@ -35,8 +35,8 @@ cdecl fn QueryPerformanceCounter(&ticks i64) bool
 const ufrequency ::= 1000000000i64
 
 fn get_system_tick_frequency() i64
-	f := 0i64
 	if os.isWindows
+		f := 0i64
 		if !QueryPerformanceFrequency(f)
 			panic("fatal: cannot probe system tick frequency\n") .
 		return f
@@ -67,7 +67,7 @@ fn get_common_timestamp() common_timestamp
 
 const program_start_common_timestamp := get_common_timestamp()
 
-inline fn timpespec_diff_in_ns(finish timespec, start timespec) f64
+inline fn timespec_diff_in_ns(&finish timespec, &start timespec) i64
 	sec := finish.sec.i64 - start.sec.i64
 	nsec := finish.nsec - start.nsec
 	if nsec < 0
@@ -79,18 +79,18 @@ inline fn timpespec_diff_in_ns(finish timespec, start timespec) f64
 	return sec * ufrequency + nsec
 
 inline fn nanoseconds_since_start(ts timespec) i64
-	return timpespec_diff_in_ns(ts, program_start_common_timestamp.timespec)
+	return timespec_diff_in_ns(ts, program_start_common_timestamp.timespec)
 
 # read a timestamp as ticks since program start
 #
 pub inline fn get() i64
-	t := 0i64
-	tsx := timespec{}
 	if os.isWindows
+		t := 0i64
 		if !QueryPerformanceCounter(t)
 			panic("fatal: cannot query system performance counter\n") .
 		return t - program_start_common_timestamp.i64
 	else
+		tsx := timespec{}
 		if clock_gettime(CLOCK_MONOTONIC, tsx) != 0
 			panic("fatal: cannot query CLOCK_MONOTONIC\n") .
 		return nanoseconds_since_start(tsx)

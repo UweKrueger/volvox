@@ -2109,18 +2109,14 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			Builder->SetInsertPoint(ThenBB);
 		}
 		// Emit then value.
-		//if (CTcond == CTcond_undef) {
-			locals_table.push_back(std::move(then_locals_table));
-			condnesting++;
-		//}
+		locals_table.push_back(std::move(then_locals_table));
+		condnesting++;
 		std::tie(ThenV, thenLast) = createCondBranch(CondBB ? CondBB : MergeBB, false);
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
-		//if (CTcond == CTcond_undef) {
-			condnesting--;
-			then_locals_table = std::move(locals_table.back());
-			locals_table.pop_back();
-		//}
+		condnesting--;
+		then_locals_table = std::move(locals_table.back());
+		locals_table.pop_back();
 		if (!ThenV) {
 			errs() << Loc << ": if expression - 'then' block did not compile\n";
 			return nullptr;
