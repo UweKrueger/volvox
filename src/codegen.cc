@@ -1569,20 +1569,37 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				// lazy logical &&, ||
 				auto enterBB = Builder->GetInsertBlock();
 				auto TheFunction = enterBB->getParent();
+				if (!enterBB)
+					errs() << Loc << ": no enter BB\n";
 				auto RHSBB = llvm::BasicBlock::Create(Context, "lazy_rhs");
+				auto RHSBBstart = RHSBB;
+				TheFunction->getBasicBlockList().push_back(RHSBB);
+				Builder->SetInsertPoint(RHSBB);
+				R = RHS->codegen();
+				if (!R)
+					return nullptr;
+				// if both sides are constexprs no lazy evaluation is needed and the result
+				// can be a constexpr, too
+				if (auto constL = llvm::dyn_cast<llvm::Constant>(L))
+					if (auto constR = llvm::dyn_cast<llvm::Constant>(R)) {
+						if (Op[0] == '&')
+							result = Builder->CreateAnd(L, R, "andtmp");
+						else
+							result = Builder->CreateOr(L, R, "ortmp");
+						RHSBB = Builder->GetInsertBlock();
+						Builder->SetInsertPoint(enterBB);
+						Builder->CreateBr(RHSBBstart);
+						Builder->SetInsertPoint(RHSBB);
+						break;
+					}
 				auto ContBB = llvm::BasicBlock::Create(Context, "logic_op");
+				Builder->CreateBr(ContBB);
+				RHSBB = Builder->GetInsertBlock();
+				Builder->SetInsertPoint(enterBB);
 				if (Op[0] == '&')
 					Builder->CreateCondBr(L, RHSBB, ContBB);
 				else
 					Builder->CreateCondBr(L, ContBB, RHSBB);
-				TheFunction->getBasicBlockList().push_back(RHSBB);
-				Builder->SetInsertPoint(RHSBB);
-				R = RHS->codegen();
-				// if (R && convRHS)
-				//	R = convRHS(R);
-				if (!R)
-					return nullptr;
-				Builder->CreateBr(ContBB);
 				TheFunction->getBasicBlockList().push_back(ContBB);
 				Builder->SetInsertPoint(ContBB);
 				auto PN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "merged_lazy");

@@ -17,7 +17,7 @@ const CLOCK_MONOTONIC ::= if os.isLinux
 		5 # CLOCK_UPTIME
 	elif os.isNetBSD
 		3 # CLOCK_MONOTONIC
-	elif os.isFreeBSD | os.isDragonFly
+	elif os.isFreeBSD || os.isDragonFly
 		7 # CLOCK_UPTIME_PRECISE
 	else
 		0 . # fallback if ID is unknown
