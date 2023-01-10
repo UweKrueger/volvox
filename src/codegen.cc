@@ -1836,6 +1836,15 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 std::pair<llvm::Type*, llvm::Value*> merge_values(
 	llvm::Type* typA, llvm::Value* valA, llvm::BasicBlock* caseA, llvm::Instruction* lastA, 
 	llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB, llvm::Instruction* lastB) {
+	if (!valA || !typA) {
+		if (!valB || !typB) {
+			errs() << "error merging variables from if/while/else branches\n";
+			return { nullptr, nullptr };
+		}
+		return { typB, valB };
+	} else if (!valB || !typB) {
+		return { typA, valA };
+	}
 	auto MergeBB = Builder->GetInsertBlock();
 	if (typA == typB) {
 		if (valA->getType() != valB->getType()) {
@@ -2100,18 +2109,18 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			Builder->SetInsertPoint(ThenBB);
 		}
 		// Emit then value.
-		if (CTcond == CTcond_undef) {
+		//if (CTcond == CTcond_undef) {
 			locals_table.push_back(std::move(then_locals_table));
 			condnesting++;
-		}
+		//}
 		std::tie(ThenV, thenLast) = createCondBranch(CondBB ? CondBB : MergeBB, false);
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
-		if (CTcond == CTcond_undef) {
+		//if (CTcond == CTcond_undef) {
 			condnesting--;
 			then_locals_table = std::move(locals_table.back());
 			locals_table.pop_back();
-		}
+		//}
 		if (!ThenV) {
 			errs() << Loc << ": if expression - 'then' block did not compile\n";
 			return nullptr;
@@ -2157,22 +2166,19 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			if (TheFunction)
 				TheFunction->getBasicBlockList().push_back(ElseBB);
 			Builder->SetInsertPoint(ElseBB);
-			if (CTcond == CTcond_undef) {
-				locals_table.push_back(std::move(else_locals_table));
-				condnesting++;
-			}
+			locals_table.push_back(std::move(else_locals_table));
+			condnesting++;
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
 			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, true);
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
-			if (CTcond == CTcond_undef) {
+			if (CTcond == CTcond_undef)
 				IfWhileVarTable = old_IfWhileVarTable;
-				condnesting--;
-				else_locals_table = std::move(locals_table.back());
-				locals_table.pop_back();
-			}
+			condnesting--;
+			else_locals_table = std::move(locals_table.back());
+			locals_table.pop_back();
 			if (!ElseV) {
 				errs() << Loc << ": if expression - 'else' block did not compile\n";
 				return nullptr;
@@ -2218,7 +2224,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		Builder->SetInsertPoint(MergeBB);
 	}
 	// Emit merge block.
-	if (if_kind != tok_repeat && then_locals_table.table && else_locals_table.table && thenLast && elseLast) {
+	if (if_kind != tok_repeat && then_locals_table.table && else_locals_table.table && (thenLast || CTcond == CTcond_false) && (elseLast || CTcond == CTcond_true)) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			FullVar* else_var = else_locals_table[then_node.getKey()];
 			MapValue* node = then_node.getValue();
