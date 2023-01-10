@@ -26,8 +26,11 @@ DebugInfo KSDbgInfo;
 const char* last_defined_type = nullptr;
 bool needs_libm = false;
 bool support_fp80;
+bool have_return = false;
+int return_value = 0;
 unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
+unsigned target_int_bits;
 std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
 
@@ -108,6 +111,7 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("f*", llvm::Type::getDoubleTy(Context), nullptr);
 
 	if (target_bits == 16) {
+		target_int_bits = 16;
 		lex.add_type("int", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 		lex.add_type("uint", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 		llvm_int_type = llvm::Type::getInt16Ty(Context);
@@ -116,6 +120,7 @@ void init(const llvm::Triple& triple) {
 		llvm_size_type = llvm::Type::getInt16Ty(Context);
 		lex.add_type("real", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("real", 32, llvm::dwarf::DW_ATE_float) : nullptr);
 	} else {
+		target_int_bits = 32;
 		lex.add_type("int", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 		lex.add_type("uint", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 		llvm_int_type = llvm::Type::getInt32Ty(Context);
@@ -468,6 +473,13 @@ bool spawn_bool_expr(bool (*expr)()) {
 	GetExitCodeThread(thread, &retval);
 	return !(!retval);
 }
+int spawn_int_expr(int (*expr)()) {
+	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
+	WaitForSingleObject(thread, INFINITE);
+	DWORD retval;
+	GetExitCodeThread(thread, &retval);
+	return (int)retval;
+}
 #else
 bool spawn_bool_expr(bool (*expr)()) {
 	pthread_attr_t attr;
@@ -484,6 +496,21 @@ bool spawn_bool_expr(bool (*expr)()) {
 	res = pthread_join(thread, &retval);
 	return !(!retval);
 }
+int spawn_int_expr(int (*expr)()) {
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr, stacksize);
+	pthread_t thread;
+	int res = pthread_create(&thread, &attr, anon_expr_wrapper, (void*)expr);
+	if (res) {
+		errs() << "Error creating execution thread: " << strerror(res) << '\n';
+		abort();
+	}
+	pthread_attr_destroy(&attr);
+	void* retval;
+	res = pthread_join(thread, &retval);
+	return (int)(intptr_t)retval;
+}
 #endif
 
 static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_output = false) {
@@ -492,7 +519,8 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 	if (auto FnAST = ParseTopLevelExpr(std::move(E), suppress_output)) {
 		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();
-			if (!anon_expr->getReturnType()->isIntegerTy() || !(anon_expr->getReturnType()->getIntegerBitWidth() == 1)) {
+			unsigned res_bitwidth = have_return ? target_int_bits : 1;
+			if (!anon_expr->getReturnType()->isIntegerTy() || anon_expr->getReturnType()->getIntegerBitWidth() != res_bitwidth) {
 				errs() << "internal error: anonymous function does not return `bool`\n";
 				return false;
 			}
@@ -508,8 +536,13 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
-				bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
-				b = spawn_bool_expr(BOOL);
+				if (have_return) {
+					int (*INT)() = (int (*)())(intptr_t)ExprSymbol.getAddress();
+					return_value = spawn_int_expr(INT);
+				} else {
+					bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+					b = spawn_bool_expr(BOOL);
+				}
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
 			}
@@ -806,6 +839,9 @@ static void MainLoop() {
 				finish_constructors_and_destructor();
 			HandleTypeDef(sym_kind);
 			goto startmainloop;
+		case tok_return:
+			getNextToken();
+			have_return = true;
 		default:
 			if (last_defined_type)
 				finish_constructors_and_destructor();
@@ -815,6 +851,8 @@ static void MainLoop() {
 				else
 					GlobalExprList.push_back(std::move(expr));
 			}
+			if (have_return)
+				return;
 		}
 	}
 }
@@ -1694,6 +1732,7 @@ int main(int argc, char* argv[]) {
 		if (!do_test)
 			CallGlobalDestructorsJIT();
 		ExitOnErr(TheJIT->getMainJITDylib().clear());
+		result = return_value;
 	}
 	for (auto str: SourceFileNames)
 		free((void*)str);

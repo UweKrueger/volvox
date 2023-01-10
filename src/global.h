@@ -217,6 +217,8 @@ enum idiv_modes {
 extern idiv_modes idiv_mode;
 extern bool support_fp80;
 extern bool needs_libm;
+extern bool have_return;
+extern int return_value;
 extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;
 #define Context *TS_Context->getContext()
 extern SourceLocation CurLoc;
