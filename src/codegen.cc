@@ -1568,13 +1568,13 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			else {
 				// lazy logical &&, ||
 				auto enterBB = Builder->GetInsertBlock();
-				auto TheFunction = enterBB->getParent();
-				if (!enterBB)
-					errs() << Loc << ": no enter BB\n";
-				auto RHSBB = llvm::BasicBlock::Create(Context, "lazy_rhs");
+				auto TheFunction = enterBB ? enterBB->getParent() : nullptr;
+				auto RHSBB = enterBB ? llvm::BasicBlock::Create(Context, "lazy_rhs") : nullptr;
 				auto RHSBBstart = RHSBB;
-				TheFunction->getBasicBlockList().push_back(RHSBB);
-				Builder->SetInsertPoint(RHSBB);
+				if (TheFunction) {
+					TheFunction->getBasicBlockList().push_back(RHSBB);
+					Builder->SetInsertPoint(RHSBB);
+				}
 				R = RHS->codegen();
 				if (!R)
 					return nullptr;
@@ -1586,12 +1586,18 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 							result = Builder->CreateAnd(L, R, "andtmp");
 						else
 							result = Builder->CreateOr(L, R, "ortmp");
-						RHSBB = Builder->GetInsertBlock();
-						Builder->SetInsertPoint(enterBB);
-						Builder->CreateBr(RHSBBstart);
-						Builder->SetInsertPoint(RHSBB);
+						if (TheFunction) {
+							RHSBB = Builder->GetInsertBlock();
+							Builder->SetInsertPoint(enterBB);
+							Builder->CreateBr(RHSBBstart);
+							Builder->SetInsertPoint(RHSBB);
+						}
 						break;
 					}
+				if (!TheFunction) {
+					errs() << Loc << ": logic constexpr does not evaluate at compile time\n";
+					return nullptr;
+				}
 				auto ContBB = llvm::BasicBlock::Create(Context, "logic_op");
 				Builder->CreateBr(ContBB);
 				RHSBB = Builder->GetInsertBlock();

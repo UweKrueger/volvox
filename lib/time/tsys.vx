@@ -7,8 +7,11 @@ type timespec {
 cdecl fn clock_gettime(clockid int, &tp timespec) int
 
 # "REALTIME" and "MONOTONIC" clocks on Unix systems
-# for MONOTONIC try to get a source that is never adjusted and
-# does not continue while the system is suspended
+# For MONOTONIC try to get a source that is
+# - never adjusted
+# - has no (deliberate) variations in frequency
+# - starts when the system is booted
+# - does not continue while the system is suspended
 
 const CLOCK_REALTIME ::= 0
 const CLOCK_MONOTONIC ::= if os.isLinux
@@ -20,9 +23,9 @@ const CLOCK_MONOTONIC ::= if os.isLinux
 	elif os.isFreeBSD || os.isDragonFly
 		7 # CLOCK_UPTIME_PRECISE
 	else
-		0 . # fallback if ID is unknown
+		0 . # fall back to CLOCK_REALTIME if no MONOTONIC clock is known
 
-# In Volvox time intervals are be measured in ticks which are 1n intervals on Unix
+# In Volvox time intervals are be measured in "ticks" which are 1n intervals on Unix
 # and whatever QueryPerformanceFrequency() reports on Windows.
 
 cdecl fn QueryPerformanceFrequency(&f i64) bool
@@ -42,10 +45,10 @@ fn get_system_tick_frequency() i64
 
 pub const tick_frequency := get_system_tick_frequency()
 
-# monotonic timestamps are of type timespec on Unix and LARGE_INTEGER on Windows
-# to avoid the clumsy structures Volvox timestamps are i64 on all systems and represent
+# monotonic timestamps are of type 'timespec' on Unix and 'LARGE_INTEGER' on Windows
+# to avoid the clumsy timespec structure, Volvox timestamps are i64 on all systems and represent
 # the number of ticks since program start. To calculate them we need the (system dependent)
-# timestamp when the program has started
+# timestamp when the program has started as a base
 
 type common_timestamp union {
 	i64
@@ -64,9 +67,9 @@ fn get_common_timestamp() common_timestamp
 
 const program_start_common_timestamp := get_common_timestamp()
 
-inline fn nanoseconds_since_start(ts timespec) i64
-	sec := ts.sec.i64 - program_start_common_timestamp.timespec.sec.i64
-	nsec := ts.nsec - program_start_common_timestamp.timespec.nsec
+inline fn timpespec_diff_in_ns(finish timespec, start timespec) f64
+	sec := finish.sec.i64 - start.sec.i64
+	nsec := finish.nsec - start.nsec
 	if nsec < 0
 		nsec += ufrequency
 		sec--
@@ -74,6 +77,9 @@ inline fn nanoseconds_since_start(ts timespec) i64
 		nsec -= ufrequency
 		sec++ .
 	return sec * ufrequency + nsec
+
+inline fn nanoseconds_since_start(ts timespec) i64
+	return timpespec_diff_in_ns(ts, program_start_common_timestamp.timespec)
 
 # read a timestamp as ticks since program start
 #

@@ -17,8 +17,8 @@ fn factorial(n i64) i64
 fn test_factorial() bool
 	return factorial(15) == 1307674368000i64
 
-const r6zer ::= if true; 4 else 5 .
-const r7zrr ::= if false; 7.5 else -3.75 .
+const r6zer ::= if false || true; 4 else 5 .
+const r7zrr ::= if true && false; 7.5 else -3.75 .
 
 fn test_const_condition() bool
 	return r6zer == 4 && r7zrr == -3.75
