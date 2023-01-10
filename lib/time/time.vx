@@ -16,21 +16,38 @@ pub inline fn now() time_t
 	return t
 
 # structure to store real time with 1s precision used on all OSs
-# in C the fields are called 'tm_sec'_t, 'tm_min', ... but that's too verbose
+# in C all fields are called 'tm_sec'_t, 'tm_min', ...
+# we use these names only for elements that are not directly used
 #
 type tm {
 	sec int   # normally 0..59, may be 60 for leap seconds
 	min int   # 0..59
 	hour int  # 0..23
-	mday int  # 1..31
-	mon int   # 0..11
-	year int  # year - 1900, e.g. 123 for 2023
+	day int   # 1..31
+	tm_mon int   # 0..11
+	tm_year int  # year - 1900, e.g. 123 for 2023
 	wday int  # 0..6, 0 = Sunday
 	yday int  # normally 0..364, 365 in leap years
 	isdst int # 0/1 to indicate daylight saving time
-	gmtoff ssize_t # used on OpenBSD
+	gmtoff ssize_t # extensions on some systems
 	zone cstring
 }
+
+# access methods that adjust field elements to human expected values
+
+pub fn tm.month() int
+	return this.tm_mon + 1
+
+pub fn tm.month(m int) int
+	old := this.tm_mon = m - 1
+	return old + 1
+
+pub fn tm.year() int
+	return this.tm_year + 1900
+
+pub fn tm.year(m int) int
+	old := this.tm_year = m - 1900
+	return old + 1900
 
 cdecl fn gmtime_r(&t i64, &res tm) voidptr
 cdecl fn _gmtime64_s(&res tm, &t i64) int
