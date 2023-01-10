@@ -89,6 +89,8 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc, bool expr_is_signed,
 	bool desired_is_signed, bool is_explicit, bool is_unknown_type, bool* exact_match)
 {
+	if (!expr_type)
+		return nullptr;
 	if (expr_type == desired_type && (expr_is_signed == desired_is_signed || !expr_type->isIntegerTy())) {
 		if (exact_match)
 			*exact_match = true;
