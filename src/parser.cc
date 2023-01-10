@@ -1115,7 +1115,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		SourceLocation BinLoc = CurLoc;
 		auto BinKind = CurTok.kind;
 		if (LHS->ft->type && LHS->ft->type->isFunctionTy()) {
-			if (BinKind == tok_selector && BinOp != "(" || BinKind >= tok_mult && BinKind < tok_error) {
+			// make this a call expression even without '()' if the following if followed by a usual operand
+			// (';' and '\n' are handled above or below. The ',' case will need special handling if used inside LHS
+			// of decl-assign but this can only be done later when the ':=' operator has been seen
+			if (BinKind == tok_selector && BinOp != "(" || BinKind >= tok_mult && BinKind < tok_colon || BinKind == tok_comma) {
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 				continue;
 			}
