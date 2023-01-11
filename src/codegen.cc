@@ -1116,7 +1116,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		bool is_constructor_call = false;
 		if (auto callexpr = dynamic_cast<CallExprAST*>(RHS.get())) {
 			if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
-				// check that this is not just an explicis basic type conversion like 'f64(i)'
+				// check that this is not just an explicit basic type conversion like 'f64(i)'
 				if (llvm::isa<llvm::StructType>(type_expr->ft->type))
 					is_constructor_call = true;
 		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
@@ -1227,8 +1227,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << LHS->Loc << ": unknown variable name '" << varname << "'\n";
 			return nullptr;
 		}
-		// variable declaration - we know it's no global variable since this has already been handled
-		// in parser.cc
+		// variable declaration
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
 		llvm::Type* type = RHS->ft->type;
 		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);

@@ -1199,6 +1199,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get()))) {
 					VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
 					if (auto call_expr = dynamic_cast<CallExprAST*>(RHS.get())) {
+						if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
+							errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
+							return nullptr;
+						} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
+							errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
+							return nullptr;
+						}
 						RHS = std::move(call_expr->Callee);
 						RHS_type = RHS->ft ? RHS->ft->type : nullptr;
 						RHS_attr = 0;
