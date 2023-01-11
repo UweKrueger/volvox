@@ -350,8 +350,12 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		if (struct_val) {
 			llvm::Value* val;
 			if (Store) {
-				auto valptr = Builder->CreateStructGEP(Struct->ft->type, Store, FieldIndex);
-				val = Builder->CreateLoad(ft->type, valptr);
+				if (Struct->ft->type_attr & A_union)
+					val = Builder->CreateLoad(ft->type, Builder->CreatePointerCast(Store, ft->type->getPointerTo()));
+				else {
+					auto valptr = Builder->CreateStructGEP(Struct->ft->type, Store, FieldIndex);
+					val = Builder->CreateLoad(ft->type, valptr);
+				}
 			} else
 				val = Builder->CreateExtractValue(struct_val, FieldIndex);
 			return handle(target, val);
