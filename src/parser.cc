@@ -25,6 +25,9 @@ std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<Prototy
 
 FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
+ProtoListElem* anon_protos = nullptr;
+ProtoListElem** anon_protos_end = &anon_protos;
+
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
 

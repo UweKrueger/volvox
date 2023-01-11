@@ -295,7 +295,6 @@ namespace volvoxc {
 
 }
 
-
 extern llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type);
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
@@ -861,6 +860,26 @@ public:
 	}
 
 	int getLine() const { return Line; }
+};
+
+/* Prototypes of "normal" functions are stored as vectors in maps with mangled names as keys.
+ * Anonymous functions and function references cannot use these so we maintain a separate list
+ */
+struct ProtoListElem {
+	ProtoListElem* next = nullptr;
+	std::unique_ptr<PrototypeAST> proto = nullptr;
+};
+
+extern ProtoListElem* anon_protos;
+extern ProtoListElem** anon_protos_end;
+
+inline PrototypeAST* new_AnonProto(std::unique_ptr<PrototypeAST> proto) {
+	ProtoListElem* new_node = (ProtoListElem*)malloc(sizeof(ProtoListElem));
+	new_node->next = nullptr;
+	new_node->proto = std::move(proto);
+	*anon_protos_end = new_node;
+	anon_protos_end = &new_node->next;
+	return new_node->proto.get();
 };
 
 enum SymbolKind : uint8_t {
