@@ -1252,10 +1252,18 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					// errs() << VarL->Loc << ": inserted " << VarL->Name << ", " << fv.ft.type_attr << " in mainvars\n";
 				}
 			}
-		} else if (LHS_type && LHS_type->isFunctionTy() && (BinOp[0] == '(' || BinOp[0] == '\0')) {
-			auto Args = SplitExprList(std::move(RHS));
-			LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
-			continue;
+		} else if (LHS_type && LHS_type->isFunctionTy()) {
+			if (BinOp[0] == '(' || BinOp[0] == '\0') {
+				auto Args = SplitExprList(std::move(RHS));
+				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
+				continue;
+			} else if (BinOp[0] == '=' && BinOp[1] == '\0') {
+				// LHS virtual attribute method call like 'tm.month = 5'
+				std::vector<std::unique_ptr<ExprAST>> arglist;
+				arglist.push_back(std::move(RHS));
+				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(arglist));
+				continue;
+			}
 		} else if (is_index) {
 			if (!LHS->ft || !LHS->ft->type) {
 				errs() << LHS->Loc << ": undefined expression - array expected\n";
