@@ -867,20 +867,22 @@ public:
  */
 struct ProtoListElem {
 	ProtoListElem* next = nullptr;
-	std::unique_ptr<PrototypeAST> proto = nullptr;
+	std::vector<std::unique_ptr<PrototypeAST>> proto;
 };
 
 extern ProtoListElem* anon_protos;
 extern ProtoListElem** anon_protos_end;
 
 inline PrototypeAST* new_AnonProto(std::unique_ptr<PrototypeAST> proto) {
-	ProtoListElem* new_node = (ProtoListElem*)malloc(sizeof(ProtoListElem));
+	ProtoListElem* new_node = new ProtoListElem();
 	new_node->next = nullptr;
-	new_node->proto = std::move(proto);
+	new_node->proto.push_back(std::move(proto));
 	*anon_protos_end = new_node;
 	anon_protos_end = &new_node->next;
-	return new_node->proto.get();
+	return new_node->proto[0].get();
 };
+
+extern llvm::SmallString<16> createAnonFnName();
 
 enum SymbolKind : uint8_t {
 	SymbolType,

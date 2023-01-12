@@ -76,7 +76,7 @@ static void printArgTypes(std::vector<FnArg>& fnargs, unsigned offset = 0) {
 }
 
 static void printCandidate(PrototypeAST* proto, const char* name) {
-	errs() << proto->retLoc << ": " << name << '(';
+	errs() << proto->retLoc << ": " << (name ? name : "fn") << '(';
 	for (int i=0; i<proto->Args.size(); i++)
 		if (i>0 || proto->Args[i] != "this") {
 			errs() << proto->Args[i] << ' ' << *proto->ArgTypes[i];
@@ -188,7 +188,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	// exact match has already returned - check class 2 and 3 for candidates
 	if (cands2) {
 		if (cands2 > 1) {
-			errs() << Loc << ": call of '" << name << '(';
+			errs() << Loc << ": call of '" << (name ? name : "fn") << '(';
 			printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
 			errs() << ")' is ambiguous - candidates are:\n";
 			printCandidates(candidates_2, cands2, protos, name);
@@ -206,7 +206,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	}
 	if (cands3) {
 		if (cands3 > 1) {
-			errs() << Loc << ": call of '" << name << '(';
+			errs() << Loc << ": call of '" << (name ? name : "fn") << '(';
 			printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
 			errs() << ")' is ambiguous - candidates (all secondary) are:\n";
 			printCandidates(candidates_3, cands3, protos, name);
@@ -218,7 +218,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		 selected_idx = candidates_3[0];
 		 goto check_selected_proto;
 	}
-	errs() << Loc << ": signature of call to '" << name << '(';
+	errs() << Loc << ": signature of call to '" << (name ? name : "fn") << '(';
 	printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
 	errs() << ")' does not match any known candidate - candidates are:\n";
 	printAllProtos(protos, name);
@@ -227,7 +227,7 @@ check_selected_proto:
 	auto selected_proto = (*protos)[selected_idx].get();
 	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
 		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv && getFnAddress(fnargs[i].Conv) != (uintptr_t)NoConversion) {
-			errs() << Loc << ": cannot call '" << name << "()' candidate with matching signature would require conversion of "
+			errs() << Loc << ": cannot call '" << (name ? name : "fn") << "()' candidate with matching signature would require conversion of "
 			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
 			return -1;
 		}

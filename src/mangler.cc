@@ -111,3 +111,15 @@ llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::s
 		mangled << "Ev";
 	return buf;
 }
+
+// Even anonymous functions and closures should have names that can be used
+// as identification keys. Theses names will be "__anon_fn.0", "__anon_fn.1", ...
+// so we maintain an index here
+
+llvm::SmallString<16> createAnonFnName() {
+	static unsigned anon_fn_idx = 0;
+	llvm::SmallString<16> buf = llvm::StringRef("__anon_fn.");
+	llvm::raw_svector_ostream key(buf);
+	key << anon_fn_idx++;
+	return buf;
+}
