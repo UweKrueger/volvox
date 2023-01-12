@@ -1017,6 +1017,10 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	                                    std::move(Step), std::move(Body));
 }
 
+static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {
+	return nullptr;
+}
+
 /// primary
 ///   ::= identifierexpr
 ///   ::= numberexpr
@@ -1059,6 +1063,8 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 		return ParseIfExpr(terminator);
 	case tok_for:
 		return ParseForExpr(terminator);
+	case tok_fn:
+		return ParseFunctionExpr(terminator);
 	default:
 		errs() << CurLoc << ": unexpected token '" << CurTok.str() << "' when expecting a " << lex.Expected << " or an expression\n";
 		purgeLine();
