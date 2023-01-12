@@ -843,6 +843,7 @@ public:
 	llvm::GlobalValue::LinkageTypes link_type;
 	int Line;
 	std::string Name;
+	PrototypeAST(const PrototypeAST& proto) = default;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
 	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
@@ -867,19 +868,22 @@ public:
  */
 struct ProtoListElem {
 	ProtoListElem* next = nullptr;
-	std::vector<std::unique_ptr<PrototypeAST>> proto;
+	std::vector<std::unique_ptr<PrototypeAST>> protos;
+	ProtoListElem(std::unique_ptr<PrototypeAST> proto) {
+		protos.emplace_back(std::move(proto));
+	}
+	~ProtoListElem() = default;
 };
 
 extern ProtoListElem* anon_protos;
 extern ProtoListElem** anon_protos_end;
 
-inline PrototypeAST* new_AnonProto(std::unique_ptr<PrototypeAST> proto) {
-	ProtoListElem* new_node = new ProtoListElem();
+inline std::vector<std::unique_ptr<PrototypeAST>>* new_AnonProto(PrototypeAST* proto) {
+	ProtoListElem* new_node = new ProtoListElem(std::make_unique<PrototypeAST>(*proto));
 	new_node->next = nullptr;
-	new_node->proto.push_back(std::move(proto));
 	*anon_protos_end = new_node;
 	anon_protos_end = &new_node->next;
-	return new_node->proto[0].get();
+	return &new_node->protos;
 };
 
 extern llvm::SmallString<16> createAnonFnName();
@@ -1202,6 +1206,7 @@ public:
 	bool is_unknown_type = false;
 
 	// construct from type and attributes
+	ExprAST(const ExprAST& s) = default;
 	ExprAST(SourceLocation Loc) : ft(new_FullType(nullptr, 0)), Loc(Loc) {}
 	ExprAST(llvm::Type* type = llvm::Type::getVoidTy(Context), unsigned type_attr = 0,
 	        SourceLocation Loc = CurLoc, bool is_unknown_type = false)

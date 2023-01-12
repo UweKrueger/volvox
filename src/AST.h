@@ -205,6 +205,29 @@ public:
 	VariableExprAST* getBase() override { return var; }
 };
 
+/// CallExprAST - Expression class for function calls.
+class CallExprAST : public ExprAST {
+public:
+	std::vector<FnArg> fn_args;
+	const char* name = "*";
+	std::unique_ptr<ExprAST> Callee;
+	std::vector<std::unique_ptr<ExprAST>> Args;
+	PrototypeAST* Proto = nullptr;
+	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
+	            std::vector<std::unique_ptr<ExprAST>> Args = {});
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	bool needs_target() override { return Proto->IsStructRet || (Proto->visibility & A_constructor); }
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		ExprAST::dump(out << "call", ind);
+		Callee->dump(out, ind);
+		for (const auto &Arg : Args)
+			Arg->dump(indent(out, ind + 1), ind + 1);
+		return out;
+	}
+#endif
+};
+
 /// FunctionExprAST - classic named functions (not function pointers)
 class FunctionExprAST : public ExprAST {
 
@@ -216,6 +239,12 @@ public:
 		: ExprAST(Loc), Name(Name) {
 		ft = new_FullType((*Protos)[0]->FT, 0);
 		ft->Protos = Protos;
+	}
+	// function references are created by a pseudo call expression (to be able to match the signature)
+	FunctionExprAST(std::unique_ptr<CallExprAST> call)
+		: ExprAST(*call->Callee.get()), Name(call->name) {
+		ft = new_FullType(call->Proto->FT, 0);
+		ft->Protos = new_AnonProto(call->Proto);
 	}
 	const std::string &getName() const { return Name; }
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
@@ -603,29 +632,6 @@ public:
 	DefaultConstructorCall(SourceLocation Loc, std::unique_ptr<VariableExprAST> _Var)
 		: ExprAST(void_type, Loc), Var(std::move(_Var)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-};
-
-/// CallExprAST - Expression class for function calls.
-class CallExprAST : public ExprAST {
-public:
-	std::vector<FnArg> fn_args;
-	const char* name = "*";
-	std::unique_ptr<ExprAST> Callee;
-	std::vector<std::unique_ptr<ExprAST>> Args;
-	PrototypeAST* Proto = nullptr;
-	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
-	            std::vector<std::unique_ptr<ExprAST>> Args = {});
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	bool needs_target() override { return Proto->IsStructRet || (Proto->visibility & A_constructor); }
-#ifndef NDEBUG
-	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "call", ind);
-		Callee->dump(out, ind);
-		for (const auto &Arg : Args)
-			Arg->dump(indent(out, ind + 1), ind + 1);
-		return out;
-	}
-#endif
 };
 
 enum CTcond_t : uint8_t {
