@@ -1209,7 +1209,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 							errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
 							return nullptr;
 						}
-						RHS = std::move(call_expr->Callee);
+						RHS = std::make_unique<FunctionExprAST>(call_expr);
 						RHS_type = RHS->ft ? RHS->ft->type : nullptr;
 						RHS_attr = 0;
 						RHS_is_unknown_type = false;

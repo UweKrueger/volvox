@@ -241,8 +241,8 @@ public:
 		ft->Protos = Protos;
 	}
 	// function references are created by a pseudo call expression (to be able to match the signature)
-	FunctionExprAST(std::unique_ptr<CallExprAST> call)
-		: ExprAST(*call->Callee.get()), Name(call->name) {
+	FunctionExprAST(CallExprAST* call)
+		: ExprAST(*call->Callee), Name(call->name) {
 		ft = new_FullType(call->Proto->FT, 0);
 		ft->Protos = new_AnonProto(call->Proto);
 	}
