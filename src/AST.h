@@ -242,9 +242,9 @@ public:
 	}
 	// function references are created by a pseudo call expression (to be able to match the signature)
 	FunctionExprAST(CallExprAST* call)
-		: ExprAST(*call->Callee), Name(call->name) {
+		: ExprAST(*call->Callee), Name("fn") {
 		ft = new_FullType(call->Proto->FT, 0);
-		ft->Protos = new_AnonProto(call->Proto);
+		ft->Protos = new_AnonProto(call->Proto, call->Loc);
 	}
 	const std::string &getName() const { return Name; }
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
