@@ -175,8 +175,6 @@ no_explicit_constructor:
 			return nullptr;
 		}
 	}
-	if (!expr_bitwidth || !desired_bitwidth)
-		return nullptr;
 	if (desired_bitwidth == 1) {
 		if (expr_bitwidth == 1)
 			return NoConversion;
