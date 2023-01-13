@@ -228,11 +228,58 @@ public:
 #endif
 };
 
+/// FunctionAST - This class represents a function definition itself.
+class FunctionAST {
+	bool already_returned = false; // both branches of 'if ... else ...' end with 'return'
+	volvoxc::FullType* receiver_ft;
+	llvm::Function* TheFunction;
+	llvm::BasicBlock* BB;
+	unsigned ArgIdx;
+	volvoxc::FullType* ret_ft;
+	llvm::Value* this_ret_ptr;
+	llvm::Value* RetVal = nullptr;
+	llvm::Value* InterRetVal = nullptr;
+public:
+	bool prepare_codegen();
+	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody);
+	llvm::Function* finish_codegen(bool finishModule = false, bool getNewModule = false);
+	llvm::Function* cleanup_codegen();
+	PrototypeAST* Proto = nullptr;
+	std::string unmangledName;
+	std::vector<std::unique_ptr<ExprAST>> Body;
+	int EndKind = 0;
+	int return_val_idx = -1;
+	FunctionAST(PrototypeAST* Proto,
+	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName, int return_val_idx = -1)
+		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind), unmangledName(std::move(unmName)), return_val_idx(return_val_idx) {}
+	llvm::Function* codegen(bool finishModule = false, bool getNewModule = false) {
+		if (prepare_codegen() && process_body(Body))
+			return finish_codegen(finishModule, getNewModule);
+		else
+			return cleanup_codegen();
+	}
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
+		indent(out, ind) << "FunctionAST\n";
+		++ind;
+		indent(out, ind) << "Body:";
+		if (Body.size())
+			for (const auto& expr : Body)
+				expr->dump(out, ind);
+		else
+			out << "null\n";
+		return out;
+	}
+#endif
+	~FunctionAST() = default;
+};
+
 /// FunctionExprAST - classic named functions (not function pointers)
 class FunctionExprAST : public ExprAST {
 
 public:
 	std::unique_ptr<ExprAST> Exponent = nullptr;
+	std::unique_ptr<FunctionAST> Func = nullptr;
 	std::string Name;
 	int selected_proto = 0; // should be set by call expr
 	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos)
@@ -245,6 +292,11 @@ public:
 		: ExprAST(*call->Callee), Name("fn") {
 		ft = new_FullType(call->Proto->FT, 0);
 		ft->Protos = new_AnonProto(call->Proto, call->Loc);
+	}
+	FunctionExprAST(SourceLocation Loc, std::unique_ptr<FunctionAST> _Func)
+		: ExprAST(Loc), Func(std::move(_Func)), Name(Func->Proto->Name) {
+		ft = new_FullType(Func->Proto->FT, 0);
+		ft->Protos = new_AnonProto(Func->Proto, Loc);
 	}
 	const std::string &getName() const { return Name; }
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
@@ -714,51 +766,4 @@ public:
 		return out;
 	}
 #endif
-};
-
-/// FunctionAST - This class represents a function definition itself.
-class FunctionAST {
-	bool already_returned = false; // both branches of 'if ... else ...' end with 'return'
-	volvoxc::FullType* receiver_ft;
-	llvm::Function* TheFunction;
-	llvm::BasicBlock* BB;
-	unsigned ArgIdx;
-	volvoxc::FullType* ret_ft;
-	llvm::Value* this_ret_ptr;
-	llvm::Value* RetVal = nullptr;
-	llvm::Value* InterRetVal = nullptr;
-public:
-	bool prepare_codegen();
-	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody);
-	llvm::Function* finish_codegen(bool finishModule = false, bool getNewModule = false);
-	llvm::Function* cleanup_codegen();
-	PrototypeAST* Proto = nullptr;
-	std::string unmangledName;
-	std::vector<std::unique_ptr<ExprAST>> Body;
-	int EndKind = 0;
-	int return_val_idx = -1;
-	
-	FunctionAST(PrototypeAST* Proto,
-	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName, int return_val_idx = -1)
-		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind), unmangledName(std::move(unmName)), return_val_idx(return_val_idx) {}
-	llvm::Function* codegen(bool finishModule = false, bool getNewModule = false) {
-		if (prepare_codegen() && process_body(Body))
-			return finish_codegen(finishModule, getNewModule);
-		else
-			return cleanup_codegen();
-	}
-#ifndef NDEBUG
-	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
-		indent(out, ind) << "FunctionAST\n";
-		++ind;
-		indent(out, ind) << "Body:";
-		if (Body.size())
-			for (const auto& expr : Body)
-				expr->dump(out, ind);
-		else
-			out << "null\n";
-		return out;
-	}
-#endif
-	~FunctionAST() = default;
 };

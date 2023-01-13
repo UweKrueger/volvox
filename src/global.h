@@ -1174,8 +1174,13 @@ inline FullVar* lookup_var(const char* Name) {
 	FullVar* full_var;
 	for (int i = locals_table.size() - 1; i >= 0; i--) {
 		full_var = locals_table[i][Name];
-		if (full_var)
+		if (full_var) {
+			if (i < locals_table.size()-1 && !captured_variables.empty()) {
+				locals_table.back().insert(Name, *full_var);
+				captured_variables.back().emplace_back(Name);
+			}
 			return full_var;
+		}
 	}
 	// it's no function local var - maybe a global one from this module
 	full_var = lex.module->globals_table[Name];
