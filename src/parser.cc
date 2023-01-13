@@ -1017,6 +1017,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	                                    std::move(Step), std::move(Body));
 }
 
+std::vector<std::vector<std::string>> captured_variables;
+
 static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {
 	return nullptr;
 }

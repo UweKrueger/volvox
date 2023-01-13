@@ -731,6 +731,7 @@ enum LinkModes {
 extern CompModes comp_mode;
 extern LinkModes link_mode;
 extern std::vector<VarTable> locals_table; // including function arguments
+extern std::vector<std::vector<std::string>> captured_variables;
 extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
