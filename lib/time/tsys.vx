@@ -69,7 +69,7 @@ const program_start_common_timestamp := get_common_timestamp()
 
 inline fn timespec_diff_in_ns(&finish timespec, &start timespec) i64
 	sec := finish.sec.i64 - start.sec.i64
-	nsec := finish.nsec - start.nsec
+	nsec := i64(finish.nsec - start.nsec)
 	if nsec < 0
 		nsec += ufrequency
 		sec--
