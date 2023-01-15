@@ -107,8 +107,8 @@ pub inline fn y0(x f64) f64
 pub inline fn y1(x f64) f64
 	return __y1(x)
 
-pub inline fn yn(n i32, x f64) f64
-	return __yn(n, x)
+# pub inline fn yn(n i32, x f64) f64
+# 	return __yn(n, x)
 
 pub inline fn cbrt(x f32) f32
 	return __cbrtf(x)
