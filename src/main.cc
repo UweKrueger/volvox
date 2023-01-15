@@ -189,7 +189,12 @@ void init(const llvm::Triple& triple) {
 		os_idx = OS_Windows;
 		break;
 	default:
-		os_idx = OS_UnknownOS;
+		// on Raspbian 'getOS()' returns 0 for unknown reason,
+		// but 'getOsName()' allows guessing 'Linux'
+		if (triple.getOSName() == "gnueabihf")
+			os_idx = OS_Linux;
+		else
+			os_idx = OS_UnknownOS;
 	}
 	CPU_Type_t cpu_idx;
 	switch (triple.getArch()) {
@@ -1421,6 +1426,10 @@ int main(int argc, char* argv[]) {
 	auto CPU = "generic";
 	auto Features = "";
 	llvm::TargetOptions target_opts;
+	// On 32-bit Raspbian the float abi is set to 'float' by default even though the platform
+	// is 'gnueabihf'. We set the 'hard' float abi here as a quick hack
+	if (!strcmp(Target->getName(), "arm"))
+		target_opts.FloatABIType = llvm::FloatABI::Hard;
 	auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
 	std::unique_ptr<llvm::TargetMachine> u_tartgetm = nullptr;
 	if (comp_mode == comp_jit) {
