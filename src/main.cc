@@ -728,6 +728,7 @@ static void MainLoop() {
 			finish_constructors_and_destructor();
 	startmainloop:
 		Builder->ClearInsertionPoint();
+		cdecl_rename.clear();
 		unsigned sym_kind = 0; // 'pub', 'extern', 'fn', 'cfn', ...
 		auto share_tok = TokenKind(0);
 		for (;;) {
