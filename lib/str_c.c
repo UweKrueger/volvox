@@ -654,14 +654,8 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			double val;
 			if (ft->ID != VOLVOX_DoubleTyID) {
 				// C does not support variadic floats - so use some workaround
-				// that takes alignment into account
-				if (sizeof(size_t) == 8) {
-					double u = va_arg(ap, double);
-					val = (double)*(float*)&u;
-				} else {
-					unsigned u = va_arg(ap, unsigned);
-					val = (double)*(float*)&u;
-				}
+				unsigned u = va_arg(ap, unsigned);
+				val = (double)*(float*)&u;
 			} else {
 				val = va_arg(ap, double);
 			}
