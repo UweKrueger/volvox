@@ -585,7 +585,7 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 
 llvm::Function *PrototypeAST::codegen() {
 	llvm::Function *F =
-		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, Name, TheModule.get());
+		llvm::Function::Create(FT, llvm::Function::ExternalLinkage, 0, Name, TheModule.get());
 	// Set names for all arguments.
 	unsigned Idx = 0;
 	if (IsStructRet) {

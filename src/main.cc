@@ -314,7 +314,7 @@ static void HandleExtern(unsigned visibility) {
 			std::string unmangledName = ((visibility & A_c_api) && !cdecl_rename.empty()) ?
 				std::move(cdecl_rename) :
 				ProtoAST->getName();
-			if (auto *FnIR = ProtoAST->codegen()) {
+			if (auto *FnIR = getFunction(ProtoAST.get())) {
 				if (dump_IR) {
 					errs() << "Read extern: ";
 					FnIR->print(errs());

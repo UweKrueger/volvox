@@ -19,7 +19,7 @@ cdecl(__logb) fn logb(x f64) f64
 cdecl(__sqrt) fn sqrt(x f64) f64
 cdecl(__y0) fn y0(x f64) f64
 cdecl(__y1) fn y1(x f64) f64
-cdecl(__yn) fn yn(n i32, x f64) f64
+pub cdecl fn yn(n i32, x f64) f64
 
 cdecl(__cbrtf) fn cbrtf(x f32) f32
 cdecl(__erff) fn erff(x f32) f32
@@ -42,7 +42,7 @@ cdecl(__logbf) fn logbf(x f32) f32
 cdecl(__sqrtf) fn sqrtf(x f32) f32
 cdecl(__y0f) fn y0f(x f32) f32
 cdecl(__y1f) fn y1f(x f32) f32
-cdecl(__ynf) fn ynf(n i32, x f32) f32
+pub cdecl(yn) fn ynf(n i32, x f32) f32
 
 pub inline fn cbrt(x f64) f64
 	return __cbrt(x)
@@ -173,5 +173,5 @@ pub inline fn y0(x f32) f32
 pub inline fn y1(x f32) f32
 	return __y1f(x)
 
-pub inline fn yn(n i32, x f32) f32
-	return __ynf(n, x)
+# pub inline fn yn(n i32, x f32) f32
+# 	return __ynf(n, x)
