@@ -1197,6 +1197,8 @@ inline FullVar* lookup_var(const char* Name) {
 	return full_var;
 }
 
+extern std::set<std::string> all_global_vars;
+
 enum ConversionKind : uint8_t {
 	ConvImplicit = 0,
 	ConvSigned,

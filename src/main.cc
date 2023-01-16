@@ -311,6 +311,10 @@ static void HandleExtern(unsigned visibility) {
 	switch (CurTok.kind) {
 	case tok_fn:
 		if (auto ProtoAST = ParseExtern(visibility)) {
+			if (all_global_vars.contains(ProtoAST->Name)) {
+				errs() << ProtoAST->retLoc << ": symbol '" << ProtoAST->getName() << "' already in use by global variable\n";
+				return;
+			}
 			std::string unmangledName = ((visibility & A_c_api) && !cdecl_rename.empty()) ?
 				std::move(cdecl_rename) :
 				ProtoAST->getName();

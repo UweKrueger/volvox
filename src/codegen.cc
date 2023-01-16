@@ -606,11 +606,13 @@ llvm::Function* init_setter_fn(std::string& setter_name, std::string& varname, l
 }
 
 // helper function to to clean up global states used by HandleGlobalVariable()
-static std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unmangled_name) {
+static std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unmangled_name, std::string* varname) {
 	if (tmpf)
 		tmpf->eraseFromParent();
 	if (unmangled_name)
 		lex.module->globals_table.erase(unmangled_name);
+	if (varname)
+		all_global_vars.erase(*varname);
 	return nullptr;
 }
 
@@ -691,6 +693,8 @@ static std::pair<llvm::Type*,llvm::Value*> GetReference(ExprAST* RHS, FullVar*& 
 static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor);
 static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind);
 
+std::set<std::string> all_global_vars;
+
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
 	bool prepare_setter_fn = comp_mode == comp_jit && !do_test;
@@ -707,7 +711,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	const std::string& unmangled_name = LHSE->getName();
 	auto varname = create_mangled_global(unmangled_name);
-
+	if (sym_kind & A_global) {
+		auto ins_success = all_global_vars.insert(varname);
+		if (!ins_success.second) {
+			errs() << expr->LHS->Loc << ": global '" << unmangled_name << "' already exists\n";
+			return nullptr;
+		}
+	}
 	// We do not know in advance if the RHS of the 'main' var  initialization is a compile
 	// time const. In order to be able to run 'RHS->codegen()' in any case, a function
 	// context is needed. If the initializer turns out to be a compile time const this
@@ -729,7 +739,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (LREF) {
 		std::tie(type, Val) = GetReference(expr->RHS.get(), is_referencing);
 		if (!Val)
-			return cleanupGlobal(tmpf, unmangled_name.c_str());
+			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 	} else {
 		if (llvm::isa<llvm::StructType>(expr->RHS->ft->type)) {
 			if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
@@ -746,10 +756,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (!use_target && !Val) {
 		if (!(sym_kind & (A_const | A_global))) {
 			errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str());
+			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 		} else {
 			if (!(sym_kind & A_global))
-				cleanupGlobal(tmpf, nullptr);
+				cleanupGlobal(tmpf, nullptr, nullptr);
 		}
 	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
@@ -767,7 +777,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		initializer = llvm::dyn_cast<llvm::Constant>(Val);
 		if (!initializer && !strcmp(expr->Op, "::=")) {
 			errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str());
+			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 		}
 	}
 	bool needs_store;
@@ -775,7 +785,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (initializer) {
 		needs_store = false;
 		if (!(needs_constructor && (comp_mode == comp_jit) && !do_test))
-			cleanupGlobal(tmpf, nullptr);
+			cleanupGlobal(tmpf, nullptr, nullptr);
 	} else {
 		if (needs_constructor) {
 			errs() << expr->RHS->Loc << ": internal error - unsized type but constructor required\n";
@@ -790,7 +800,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF) {
 			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str());
+			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 		}
 	}
 	llvm::GlobalVariable* GV;
@@ -841,7 +851,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
 			auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
 			GlobalExprList.push_back(std::move(constructor_call));
-			cleanupGlobal(tmpf, nullptr);
+			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
 		}
 		if (((sym_kind & A_const) || ((sym_kind & A_global)) && needs_store) && (comp_mode != comp_jit || do_test)) {
@@ -849,7 +859,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			//expr->Op[1] = expr->Op[2] ='\0';
 			//expr->opclass = OpAssign;
 			GlobalExprList.push_back(std::move(expr));
-			cleanupGlobal(tmpf, nullptr);
+			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
 		}
 	} else {
