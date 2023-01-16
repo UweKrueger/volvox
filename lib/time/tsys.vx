@@ -4,24 +4,17 @@ type timespec {
 	sec time_t  # seconds
     nsec ssize_t # nanoseconds, 'long' in C, but on non-Windows this is equal to 'ssize_t'
 }
-cdecl fn clock_gettime(clockid int, &tp timespec) int
+pub cdecl fn clock_gettime(clockid int, &tp timespec) int
 
 # "REALTIME" and "MONOTONIC" clocks on Unix systems
-# For MONOTONIC try to get a source that is
-# - never adjusted
-# - has no (deliberate) variations in frequency
-# - starts when the system is booted
-# - does not continue while the system is suspended
 
-const CLOCK_REALTIME ::= 0
-const CLOCK_MONOTONIC ::= if os.isLinux
-		4 # CLOCK_MONOTONIC_RAW
-	elif os.isOpenBSD
-		5 # CLOCK_UPTIME
-	elif os.isNetBSD
-		3 # CLOCK_MONOTONIC
+pub const CLOCK_REALTIME ::= 0
+pub const CLOCK_MONOTONIC ::= if os.isLinux
+		1
+	elif os.isOpenBSD || os.isNetBSD
+		3
 	elif os.isFreeBSD || os.isDragonFly
-		7 # CLOCK_UPTIME_PRECISE
+		4
 	else
 		0 . # fall back to CLOCK_REALTIME if no MONOTONIC clock is known
 
