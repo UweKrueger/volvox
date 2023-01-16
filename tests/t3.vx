@@ -58,12 +58,12 @@ fn test_array_lit_fixed_len_fixed_idx() bool
 fn test_array_lit_fixed_len_var_idx() bool
 	return [9]f64{1.2, 3.5, 5: -27.0625, 3.1}[je] == -27.0625
 
-global yn := 4
+global yn209 := 4
 global zn := 5
 global wn := 3
 
 fn test_var_array_multi_level_index_direct() bool
-	vv := [yn][zn][wn]f64{2: {1: {2: -17.125}}}
+	vv := [yn209][zn][wn]f64{2: {1: {2: -17.125}}}
 	x := vv[2][1][2]
 	return x == -17.125
 
@@ -78,12 +78,12 @@ fn test_var_array_multi_level_cp() bool
 	return x[1][2] == -17.125
 
 fn test_var_array_multi_level_index_indirect() bool
-	vv := [yn][zn][wn]f64{3: {4: {2: -17.125}}}
+	vv := [yn209][zn][wn]f64{3: {4: {2: -17.125}}}
 	x := vv[3][4]
 	return x[2] == -17.125
 
 fn test_mixed_array_multi_level_index_indirect() bool
-	vv := [yn][7][wn]f64{2: {5: {1: 763.0625}}}
+	vv := [yn209][7][wn]f64{2: {5: {1: 763.0625}}}
 	x := vv[2][5]
 	return x[1] == 763.0625
 
