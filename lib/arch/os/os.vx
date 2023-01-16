@@ -21,3 +21,7 @@ pub const isMacOSX    ::= __OS_Idx == MacOSX
 pub const isNetBSD    ::= __OS_Idx == NetBSD
 pub const isOpenBSD   ::= __OS_Idx == OpenBSD
 pub const isWindows   ::= __OS_Idx == Windows
+
+# size in bits for pointers and size_t
+#
+pub const bitwidth ::= __OS_Bitwidth

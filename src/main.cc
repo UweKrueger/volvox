@@ -240,6 +240,18 @@ void init(const llvm::Triple& triple) {
 		errs() << "cannot create const " << "__CPU_Idx" << '\n';
 		abort();
 	}
+	FullVar bitwidth_fv = {
+		.val = llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), target_bits),
+		.mangled_name = strdup("__OS_Bitwidth"),
+		.ft = {
+			.type = llvm::Type::getInt8Ty(Context),
+			.type_attr = A_rvalue | A_global | A_const | A_mainvar,
+		}
+	};
+	if (!lex.module->globals_table.insert("__OS_Bitwidth", bitwidth_fv)) {
+		errs() << "cannot create const " << "__OS_Bitwidth" << '\n';
+		abort();
+	}
 }
 
 //===----------------------------------------------------------------------===//
