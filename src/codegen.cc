@@ -612,7 +612,7 @@ static std::nullptr_t cleanupGlobal(llvm::Function* tmpf, const char* unmangled_
 	if (unmangled_name)
 		lex.module->globals_table.erase(unmangled_name);
 	if (varname)
-		all_global_vars.erase(*varname);
+		all_global_symbols.erase(*varname);
 	return nullptr;
 }
 
@@ -693,7 +693,7 @@ static std::pair<llvm::Type*,llvm::Value*> GetReference(ExprAST* RHS, FullVar*& 
 static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor);
 static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind);
 
-std::set<std::string> all_global_vars;
+std::map<std::string,bool> all_global_symbols;
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
@@ -712,9 +712,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	const std::string& unmangled_name = LHSE->getName();
 	auto varname = create_mangled_global(unmangled_name);
 	if (sym_kind & A_global) {
-		auto ins_success = all_global_vars.insert(varname);
+		auto ins_success = all_global_symbols.insert({varname,false});
 		if (!ins_success.second) {
-			errs() << expr->LHS->Loc << ": global '" << unmangled_name << "' already exists\n";
+			errs() << expr->LHS->Loc << ": '" << varname << "' already in use as global/external " << (ins_success.first->second ? "function\n" : "variable\n");
 			return nullptr;
 		}
 	}
