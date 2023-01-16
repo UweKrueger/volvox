@@ -311,14 +311,15 @@ static void HandleExtern(unsigned visibility) {
 	switch (CurTok.kind) {
 	case tok_fn:
 		if (auto ProtoAST = ParseExtern(visibility)) {
+			// "cdecl(rename) fn unmangled(...)"
+			std::string unmangledName = ProtoAST->getName();
+			if ((visibility & A_c_api) && !cdecl_rename.empty())
+				ProtoAST->Name = cdecl_rename;
 			auto already_in_use = all_global_symbols.insert({ProtoAST->Name, true});
 			if (!already_in_use.second) {
 				errs() << ProtoAST->retLoc << ": '" << ProtoAST->getName() << "' already in use as global/external " << (already_in_use.first->second ? "function\n" : "variable\n");
 				return;
 			}
-			std::string unmangledName = ((visibility & A_c_api) && !cdecl_rename.empty()) ?
-				std::move(cdecl_rename) :
-				ProtoAST->getName();
 			if (auto *FnIR = getFunction(ProtoAST.get())) {
 				if (dump_IR) {
 					errs() << "Read extern: ";

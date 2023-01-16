@@ -13,16 +13,16 @@ pub cdecl fn asinh(x f64) f64
 pub cdecl fn acosh(x f64) f64
 pub cdecl fn atanh(x f64) f64
 # C functions for "float"
-pub cdecl(sin) fn sinf(x f32) f32
-pub cdecl(cos) fn cosf(x f32) f32
-pub cdecl(tan) fn tanf(x f32) f32
-pub cdecl(asin) fn asinf(x f32) f32
-pub cdecl(acos) fn acosf(x f32) f32
-pub cdecl(atan) fn atanf(x f32) f32
-pub cdecl(atan2) fn atan2f(y f32, x f32) f32
-pub cdecl(sinh) fn sinhf(x f32) f32
-pub cdecl(cosh) fn coshf(x f32) f32
-pub cdecl(tanh) fn tanhf(x f32) f32
-pub cdecl(asinh) fn asinhf(x f32) f32
-pub cdecl(acosh) fn acoshf(x f32) f32
-pub cdecl(atanh) fn atanhf(x f32) f32
+pub cdecl(sinf) fn sin(x f32) f32
+pub cdecl(cosf) fn cos(x f32) f32
+pub cdecl(tanf) fn tan(x f32) f32
+pub cdecl(asinf) fn asin(x f32) f32
+pub cdecl(acosf) fn acos(x f32) f32
+pub cdecl(atanf) fn atan(x f32) f32
+pub cdecl(atan2f) fn atan2(y f32, x f32) f32
+pub cdecl(sinhf) fn sinh(x f32) f32
+pub cdecl(coshf) fn cosh(x f32) f32
+pub cdecl(tanhf) fn tanh(x f32) f32
+pub cdecl(asinhf) fn asinh(x f32) f32
+pub cdecl(acoshf) fn acosh(x f32) f32
+pub cdecl(atanhf) fn atanh(x f32) f32
