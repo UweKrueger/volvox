@@ -216,7 +216,7 @@ public:
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {});
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	bool needs_target() override { return Proto->IsStructRet || (Proto->visibility & A_constructor); }
+	bool needs_target() override { return Proto && (Proto->IsStructRet || (Proto->visibility & A_constructor)); }
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call", ind);
@@ -236,7 +236,7 @@ class FunctionAST {
 	llvm::BasicBlock* BB;
 	unsigned ArgIdx;
 	volvoxc::FullType* ret_ft;
-	llvm::Value* this_ret_ptr;
+	llvm::Value* this_ret_ptr = nullptr;
 	llvm::Value* RetVal = nullptr;
 	llvm::Value* InterRetVal = nullptr;
 public:

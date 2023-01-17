@@ -78,9 +78,7 @@ pub inline fn timespec.local() tm
 	return res
 
 pub inline fn TimeStamp.gm() tm
-	res := this.unix.gm
-	return res
+	return this.unix.gm
 
 pub inline fn TimeStamp.local() tm
-	res := this.unix.local
-	return res
+	return this.unix.local

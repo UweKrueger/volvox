@@ -921,8 +921,20 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 			return false;
 		thisBody.back()->desired_type = Proto->RetType->type;
 	}
+	if (return_val_idx < 0)
+		return_val_idx = thisBody.size() - 1;
 	for (auto& Expr : thisBody) {
-		if ((RetVal = Expr->codegen())) {
+		if (Expr->needs_target()) {
+			if (!return_val_idx && this_ret_ptr) {
+				RetVal = Expr->codegen_raw(this_ret_ptr);
+			} else {
+				llvm::Value* tmp = CreateEntryBlockAlloca(Expr->ft->type);
+				RetVal = Expr->codegen_raw(tmp);
+			}
+		} else {
+			RetVal = Expr->codegen();
+		}
+		if (RetVal) {
 			if (!return_val_idx--)
 				InterRetVal = RetVal; // hack for interactive JIT to return value of Expr instead of println()
 			if (comp_mode == comp_dbg) {
@@ -962,7 +974,8 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 			// auto ret_type = RetVal->getType();
 			//type = ret_type; // TODO: hande conversion if != proto->type;
 			if (Proto->IsStructRet) {
-				Builder->CreateStore(RetVal, ret_ptr);
+				if (!RetVal->getType()->isVoidTy())
+					Builder->CreateStore(RetVal, ret_ptr);
 				InsertDestructors(ret_ptr);
 				Builder->CreateRetVoid();
 			} else {
@@ -971,7 +984,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 				else
 					InsertDestructors(nullptr);
 				Builder->CreateRet(CheckTailCall(RetVal));
-				if (!ArgIdx && Body.size() == 1 && !InterRetVal && TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
+				if (!ArgIdx && Body.size() == 1 && TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
 					if (auto const_ret = llvm::dyn_cast<llvm::Constant>(RetVal))
 						// hack to allow trivial static functions to be used as constexpr
 						Proto->const_result = const_ret;
