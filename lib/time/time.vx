@@ -7,38 +7,39 @@ pub fn TimeStamp.unix() timespec
 	return ts
 
 
-# structure to store real time with 1s precision used on all OSs
-# in C all fields are called 'tm_sec'_t, 'tm_min', ...
-# we use these names only for elements that are not directly used
+# Structure to store real time with 1s precision used on all OSs
+# In POSIX the fields as named 'tm_sec', 'tm_min', ...
+# We cut the 'tm_' from field elements that have a "human expected" meaning
+# Others are prefixed with '_' and virtual attributes are provided
 #
 type tm {
-	sec int   # normally 0..59, may be 60 for leap seconds
-	min int   # 0..59
-	hour int  # 0..23
-	day int   # 1..31
-	tm_mon int   # 0..11
-	tm_year int  # year - 1900, e.g. 123 for 2023
-	wday int  # 0..6, 0 = Sunday
-	yday int  # normally 0..364, 365 in leap years
-	isdst int # 0/1 to indicate daylight saving time
-	gmtoff ssize_t # extensions on some systems
-	zone cstring
+	sec int      # normally 0..59, may be 60 for leap seconds
+	min int      # 0..59
+	hour int     # 0..23
+	day int      # 1..31
+	_mon int     # 0..11
+	_year int    # year - 1900, e.g. 123 for 2023
+	wday int     # 0..6, 0 = Sunday
+	yday int     # normally 0..364, 365 in leap years
+	isdst int    # 0/1 to indicate daylight saving time # the following are extensions that are not available on all systems
+	_gmtoff ssize_t # offset to GMT in seconds
+	_zone cstring # time zone name
 }
 
 # access methods that adjust field elements to human expected values
+#
+pub fn tm.mon() int
+	return this._mon + 1
 
-pub fn tm.month() int
-	return this.tm_mon + 1
-
-pub fn tm.month(m int) int
-	old := this.tm_mon = m - 1
+pub fn tm.mon(m int) int
+	old := this._mon = m - 1
 	return old + 1
 
 pub fn tm.year() int
-	return this.tm_year + 1900
+	return this._year + 1900
 
 pub fn tm.year(m int) int
-	old := this.tm_year = m - 1900
+	old := this._year = m - 1900
 	return old + 1900
 
 cdecl fn gmtime_r(&t ssize_t, &res tm) voidptr
@@ -74,4 +75,12 @@ pub inline fn timespec.local() tm
 	else
 		t := this.sec
 		localtime_r(t, res) .
+	return res
+
+pub inline fn TimeStamp.gm() tm
+	res := this.unix.gm
+	return res
+
+pub inline fn TimeStamp.local() tm
+	res := this.unix.local
 	return res
