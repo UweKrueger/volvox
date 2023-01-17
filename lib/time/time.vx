@@ -1,19 +1,11 @@
-import arch.os
 
-cdecl fn time(nn size_t) i64
-cdecl fn _time64(nn size_t) i64
+pub fn TimeStamp.unix() timespec
+	ts := timespec {
+		sec: ssize_t(this.u64 / 10000000 - epoch_offset)
+		nsec: ssize_t((this.u64 % 10000000) * 100)
+	}
+	return ts
 
-type time_t {
-	i64
-}
-
-pub inline fn now() time_t
-	t := time_t{}
-	if os.isWindows
-		t.i64 = _time64(0)
-	else
-		t.i64 = time(0) .
-	return t
 
 # structure to store real time with 1s precision used on all OSs
 # in C all fields are called 'tm_sec'_t, 'tm_min', ...
@@ -49,25 +41,37 @@ pub fn tm.year(m int) int
 	old := this.tm_year = m - 1900
 	return old + 1900
 
-cdecl fn gmtime_r(&t i64, &res tm) voidptr
+cdecl fn gmtime_r(&t ssize_t, &res tm) voidptr
 cdecl fn _gmtime64_s(&res tm, &t i64) int
-cdecl fn localtime_r(&t i64, &res tm) voidptr
+cdecl fn _gmtime32_s(&res tm, &t i32) int
+cdecl fn localtime_r(&t ssize_t, &res tm) voidptr
 cdecl fn _localtime64_s(&res tm, &t i64) int
+cdecl fn _localtime32_s(&res tm, &t i32) int
 
-pub inline fn time_t.gm() tm
+pub inline fn timespec.gm() tm
 	res := tm{}
-	t := this.i64
 	if os.isWindows
-		_gmtime64_s(res, t)
+		if os.bitwidth == 32
+			t := i32(this.sec)
+			_gmtime32_s(res, t)
+		else
+			t := i64(this.sec)
+			_gmtime64_s(res, t) .
 	else
+		t := this.sec
 		gmtime_r(t, res) .
 	return res
 
-pub inline fn time_t.local() tm
+pub inline fn timespec.local() tm
 	res := tm{}
-	t := this.i64
 	if os.isWindows
-		_localtime64_s(res, t)
+		if os.bitwidth == 32
+			t := i32(this.sec)
+			_localtime32_s(res, t)
+		else
+			t := i64(this.sec)
+			_localtime64_s(res, t) .
 	else
+		t := this.sec
 		localtime_r(t, res) .
 	return res

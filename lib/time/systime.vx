@@ -1,7 +1,9 @@
+import arch.os
+
 # Unix timestamp in 1ns resolution
 #
 type timespec {
-	sec time_t  # seconds
+	sec ssize_t  # seconds
     nsec ssize_t # nanoseconds, 'long' in C, but on non-Windows this is equal to 'ssize_t'
 }
 pub cdecl fn clock_gettime(clockid int, &tp timespec) int
@@ -25,14 +27,14 @@ cdecl fn QueryPerformanceFrequency(&f i64) bool
 cdecl fn QueryPerformanceCounter(&ticks i64) bool
 
 # for calculations a constexpr might be handy on Unix systems
-const ufrequency ::= 1000000000i64
+const ufrequency ::= 1000000000
 
-fn get_system_tick_frequency() i64
+fn get_system_tick_frequency() int
 	if os.isWindows
 		f := 0i64
 		if !QueryPerformanceFrequency(f)
 			panic("fatal: cannot probe system tick frequency\n") .
-		return f
+		return imt(f)
 	else
 		return ufrequency
 
@@ -61,8 +63,8 @@ fn get_common_timestamp() common_timestamp
 const program_start_common_timestamp := get_common_timestamp()
 
 inline fn timespec_diff_in_ns(&finish timespec, &start timespec) i64
-	sec := finish.sec.i64 - start.sec.i64
-	nsec := i64(finish.nsec - start.nsec)
+	sec := finish.sec - start.sec
+	nsec := finish.nsec - start.nsec
 	if nsec < 0
 		nsec += ufrequency
 		sec--
@@ -112,24 +114,26 @@ type FILETIME {
 
 # time since January 1, 1601 00:00:00 UTC
 #
-type PreciseTime union {
+type TimeStamp union {
 	FILETIME
 	u64
 }
 
 # seconds of January 1, 1970 since January 1, 1601
 #
-pub const epoch_offset := 11644473600u64
+pub const epoch_offset := 11644473600u32
 
 cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
 
-pub inline fn precise() PreciseTime
-	ft := PreciseTime{}
-	ts := timespec{}
+# get 0.1µs ticks since January 1, 1601 (in field u64)
+#
+pub inline fn now() TimeStamp
+	ft := TimeStamp{}
 	if os.isWindows
 		GetSystemTimePreciseAsFileTime(ft.FILETIME)
 	else
+		ts := timespec{}
 		clock_gettime(CLOCK_REALTIME, ts)
-		ft.u64 = 10000000 * (u64(ts.sec.i64) + epoch_offset) + u64(ts.nsec) / 100 .
+		ft.u64 = 10000000u64 * (u64(ts.sec) + epoch_offset) + u64(ts.nsec) / 100 .
 	return ft
 
