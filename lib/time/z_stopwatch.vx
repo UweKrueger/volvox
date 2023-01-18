@@ -1,0 +1,49 @@
+# stop watch to measure and accumulate time intervals
+#
+type StopWatch {
+	begin i64
+	finish i64
+}
+
+# default constructor, e.g. "z := StopWatch{}" creates stop watch
+# started at current time
+#
+pub fn StopWatch()
+	this.begin = get()
+	this.finish = 0
+	return
+
+# set time to 0 and (re)start stop watch
+#
+pub fn StopWatch.start()
+	this.begin = get()
+	this.finish = 0
+	return
+
+# pause stop watch
+#
+pub fn StopWatch.stop()
+	this.finish = get()
+	return
+
+# get time when stop watch was paused or current time in seconds
+#
+pub fn StopWatch.elapsed() f64
+	if this.finish == 0
+		return f64(i64(get - this.begin)) * tick_period
+	else
+		return f64(i64(this.finish - this.begin)) * tick_period
+
+# continue accumulating time
+#
+pub fn StopWatch.cont()
+	if this.finish != 0
+		this.begin += get - this.finish
+		this.finish = 0 .
+	return
+
+# calculate elapsed time in seconds since program start
+# or import of 'time' module
+#
+pub inline fn elapsed() f64
+	return f64(get) * tick_period

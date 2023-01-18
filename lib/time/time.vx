@@ -1,4 +1,4 @@
-pub fn TimeStamp.unix() timespec
+pub fn TimeStamp.timespec() timespec
 	ts := timespec {
 		sec: ssize_t(this.u64 / 10000000 - epoch_offset)
 		nsec: ssize_t((this.u64 % 10000000) * 100)
@@ -7,6 +7,9 @@ pub fn TimeStamp.unix() timespec
 
 pub fn timespec.time_t() time_t
 	return time_t{ sec: this.sec }
+
+pub fn TimeStamp.time_t() time_t
+	return time_t{ sec: ssize_t(this.u64 / 10000000 - epoch_offset) }
 
 # Structure to store real time with 1s precision used on all OSs
 # In POSIX the fields as named 'tm_sec', 'tm_min', ...
@@ -86,7 +89,13 @@ pub inline fn timespec.local() tm
 	return this.time_t.local
 
 pub inline fn TimeStamp.gm() tm
-	return this.unix.gm
+	return this.time_t.gm
 
 pub inline fn TimeStamp.local() tm
-	return this.unix.local
+	return this.time_t.local
+
+pub inline fn gm() tm
+	return time.gm
+
+pub inline fn local() tm
+	return time.local
