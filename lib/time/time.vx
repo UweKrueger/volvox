@@ -1,11 +1,9 @@
-
 pub fn TimeStamp.unix() timespec
 	ts := timespec {
 		sec: ssize_t(this.u64 / 10000000 - epoch_offset)
 		nsec: ssize_t((this.u64 % 10000000) * 100)
 	}
 	return ts
-
 
 # Structure to store real time with 1s precision used on all OSs
 # In POSIX the fields as named 'tm_sec', 'tm_min', ...
@@ -53,11 +51,11 @@ pub inline fn timespec.gm() tm
 	res := tm{}
 	if os.isWindows
 		if os.bitwidth == 32
-			t := i32(this.sec)
-			_gmtime32_s(res, t)
+			t32 := i32(this.sec)
+			_gmtime32_s(res, t32)
 		else
-			t := i64(this.sec)
-			_gmtime64_s(res, t) .
+			t64 := i64(this.sec)
+			_gmtime64_s(res, t64) .
 	else
 		t := this.sec
 		gmtime_r(t, res) .

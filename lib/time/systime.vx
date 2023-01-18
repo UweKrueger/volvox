@@ -160,3 +160,22 @@ pub inline fn now() TimeStamp
 		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + u32(ts.nsec) / 100 .
 	return ft.TimeStamp
 
+
+cdecl(time) fn _time(nn size_t) ssize_t
+cdecl fn _time64(nn size_t) i64
+cdecl fn _time32(nn size_t) i32
+
+type time_t {
+	sec ssize_t
+}
+
+pub inline fn time() time_t
+	t := time_t{}
+	if os.isWindows
+		if os.bitwidth == 32
+			t.sec = ssize_t(_time32(0))
+		else
+			t.sec = ssize_t(_time64(0))
+	else
+		t.sec = _time(0) .
+	return t
