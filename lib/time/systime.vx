@@ -56,6 +56,7 @@ fn get_system_tick_frequency() int
 		return ufrequency
 
 pub const tick_frequency := get_system_tick_frequency()
+pub const tick_period := 1.0f64 / tick_frequency
 
 # monotonic timestamps are of type 'timespec' on Unix and 'LARGE_INTEGER' on Windows
 # to avoid the clumsy timespec structure, Volvox timestamps are i64 on all systems and represent
@@ -100,7 +101,7 @@ inline fn nanoseconds_since_start(ts timespec) i64
 pub inline fn get() i64
 	if os.isWindows
 		t := 0i64
-		if !QueryPerformanceCounter(t)
+		if !_QueryPerformanceCounter(t)
 			panic("fatal: cannot query system performance counter\n") .
 		return t - program_start_common_timestamp.i64
 	else
@@ -112,17 +113,17 @@ pub inline fn get() i64
 # calculate difference of two timestamps as float in seconds
 #
 pub inline fn diff(finish i64, start i64) f64
-	return f64(i64(finish - start) / tick_frequency)
+	return i64(finish - start) * tick_period
 
 # calculate elapsed time since start
 #
-pub inline fn elapsed(start i64) f64
+pub inline fn since(start i64) f64
 	return diff(get(), start)
 
 # calculate elapsed time in seconds since program start
 #
 pub inline fn elapsed() f64
-	return f64(get / tick_frequency)
+	return get * tick_perion
 
 # Windows timestamp in 0.1µs resolution
 #
@@ -163,7 +164,8 @@ pub inline fn now() TimeStamp
 	else
 		ts := timespec{}
 		_clock_gettime(_CLOCK_REALTIME, ts)
-		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + u32(u32(ts.nsec) / 100) .
+		# calculate "(1e7 * ts.sec + epoch_offset) + ts.nsec / 100" avoiding division
+		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + ((u64(ts.nsec) * 42949673) >> 32) .
 	return ft.TimeStamp
 
 

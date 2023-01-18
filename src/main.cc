@@ -328,8 +328,8 @@ static void HandleExtern(unsigned visibility) {
 			if ((visibility & A_c_api) && !cdecl_rename.empty())
 				ProtoAST->Name = cdecl_rename;
 			auto already_in_use = all_global_symbols.insert({ProtoAST->Name, true});
-			if (!already_in_use.second) {
-				errs() << ProtoAST->retLoc << ": '" << ProtoAST->getName() << "' already in use as global/external " << (already_in_use.first->second ? "function\n" : "variable\n");
+			if (!already_in_use.second && !already_in_use.first->second) {
+				errs() << ProtoAST->retLoc << ": '" << ProtoAST->getName() << "' already in use as global variable\n";
 				return;
 			}
 			if (auto *FnIR = getFunction(ProtoAST.get())) {
