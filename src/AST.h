@@ -162,6 +162,8 @@ public:
 		: LvalueExprAST(Loc, Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var) {
 			ft = &full_var->ft;
+			if (ft->type_attr & A_untyped)
+				is_unknown_type = true;
 		}
 		// if the variable name has not found in the database we don't generate
 		// an error message here because this VariableExprAST could be the LHS of
@@ -169,8 +171,11 @@ public:
 	}
 	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv)
 		: LvalueExprAST(Loc, Name), full_var(fv) {
-		if (fv)
+		if (fv) {
 			ft = &fv->ft;
+			if (ft->type_attr & A_untyped)
+				is_unknown_type = true;
+		}
 		else
 			ft = nullptr;
 	}

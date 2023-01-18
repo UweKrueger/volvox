@@ -842,8 +842,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	fv->ft.type = use_target ? expr->RHS->ft->type : type;
 	fv->ft.type_attr = sym_kind | attribs | is_union | (LREF ? A_ptrref : 0U) | A_mainvar | ((sym_kind & A_const) ? A_global : 0);
 	if (sym_kind & A_rvalue) {
-		if (sym_kind & A_const)
+		if (sym_kind & A_const) {
+			if (expr->RHS->is_unknown_type && (fv->ft.type->isFloatTy() || fv->ft.type->isDoubleTy()
+			                                   || fv->ft.type->isIntegerTy() && fv->ft.type->getIntegerBitWidth() > 1)) {
+				fv->ft.type_attr |= A_untyped;
+			}
 			return nullptr;
+		}
 		else
 			fv->ft.type_attr &= ~A_rvalue;
 	}

@@ -137,6 +137,12 @@ type TimeStamp {
 	u64
 }
 
+# Microsoft discourages from treating FILETIME as u64 because of different alignment constraints,
+# i.e. if you get a FILETIME value from the system it might have 32 bit alignment.
+# However in this code here it's us who provides the allocation space and we always pass this
+# allocation by reference to get a value from the system. So we can make sure
+# it's always aligned like a 64 bit type.
+
 type _TimeStamp union {
 	FILETIME
 	TimeStamp
@@ -144,7 +150,7 @@ type _TimeStamp union {
 
 # seconds of January 1, 1970 since January 1, 1601
 #
-pub const epoch_offset := 11644473600u64
+pub const epoch_offset ::= 11644473600
 
 cdecl(GetSystemTimePreciseAsFileTime) fn _GetSystemTimePreciseAsFileTime(&time FILETIME)
 
@@ -157,7 +163,7 @@ pub inline fn now() TimeStamp
 	else
 		ts := timespec{}
 		_clock_gettime(_CLOCK_REALTIME, ts)
-		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + u32(ts.nsec) / 100 .
+		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + u32(u32(ts.nsec) / 100) .
 	return ft.TimeStamp
 
 
