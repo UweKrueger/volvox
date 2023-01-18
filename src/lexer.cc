@@ -465,7 +465,8 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 		KeepIdentifierStr = "";
 		return Token(tok_identifier);
 	}
-	bool have_preceding_space;
+	bool have_preceding_space = false;
+startanalysis:
 	// Skip any whitespace but recorgnize newline if it could be a separator
 	if (expect == eNone ? isspace(CurChar) : isblank(CurChar)) {
 		have_preceding_space = true;
@@ -780,20 +781,14 @@ Token Lexer::gettok(eXpect expect, int terminator) {
 #if defined (_MSC_VER)
 		       && CurChar != 26
 #endif
-		       && CurChar != '\n' && CurChar != '\r');
+		       && CurChar != '\n');
 
 		if (CurChar != EOF
 #if defined (_MSC_VER)
 		       && CurChar != 26
 #endif
 			) {
-			IdentifierStr = CurChar;
-			switch (expect) {
-			case eComma:
-				return ',';
-			default:
-				return ';';
-			}
+			goto startanalysis;
 		}
 	// passthough
 	}
