@@ -823,7 +823,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// If 'needs_call' is true, this here is part of a module which is going to be
 		// removed later. So in this case it's only a declaration and the 'real'
 		// variable is defined below in a separate module that will stay.
-		if ((sym_kind & A_rvalue) && allocsz && allocsz <= 16 && !needs_call) {
+		if ((sym_kind & A_rvalue) && (sym_kind & A_const) && allocsz && allocsz <= 16 && !needs_call) {
 			fv->val = initializer;
 			sym_kind |= A_rvalue;
 			GV = nullptr;
@@ -841,8 +841,12 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	fv->ft = *expr->RHS->ft;
 	fv->ft.type = use_target ? expr->RHS->ft->type : type;
 	fv->ft.type_attr = sym_kind | attribs | is_union | (LREF ? A_ptrref : 0U) | A_mainvar | ((sym_kind & A_const) ? A_global : 0);
-	if (sym_kind & A_rvalue)
-		return nullptr;
+	if (sym_kind & A_rvalue) {
+		if (sym_kind & A_const)
+			return nullptr;
+		else
+			fv->ft.type_attr &= ~A_rvalue;
+	}
 	if (is_referencing)
 		fv->mark_as_referencing(is_referencing);
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
