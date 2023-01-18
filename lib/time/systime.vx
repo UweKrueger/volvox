@@ -82,19 +82,22 @@ const program_start_common_timestamp := get_common_timestamp()
 
 # difference of two timespec values in ns
 #
-pub inline fn _timespec_diff(&finish timespec, &start timespec) i64
-	sec := finish.sec - start.sec
-	nsec := finish.nsec - start.nsec
-	if nsec < 0
-		nsec += ufrequency
-		sec--
-	elif nsec >= ufrequency
-		nsec -= ufrequency
-		sec++ .
-	return sec * ufrequency + nsec
+pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
+	res := timespec {
+		sec: finish.sec - start.sec
+		nsec : finish.nsec - start.nsec
+	}
+	if res.nsec < 0
+		res.nsec += ufrequency
+		res.sec--
+	elif res.nsec >= ufrequency
+		res.nsec -= ufrequency
+		res.sec++ .
+	return res
 
 inline fn nanoseconds_since_start(ts timespec) i64
-	return _timespec_diff(ts, program_start_common_timestamp.timespec)
+	d := timespec_diff(ts, program_start_common_timestamp.timespec)
+	return 1000000000i64 * d.sec + d.nsec
 
 # read a timestamp as ticks since program start
 #
@@ -113,7 +116,7 @@ pub inline fn get() i64
 # calculate difference of two timestamps as float in seconds
 #
 pub inline fn diff(finish i64, start i64) f64
-	return i64(finish - start) * tick_period
+	return f64(i64(finish - start)) * tick_period
 
 # calculate elapsed time since start
 #
@@ -123,7 +126,7 @@ pub inline fn since(start i64) f64
 # calculate elapsed time in seconds since program start
 #
 pub inline fn elapsed() f64
-	return get * tick_perion
+	return f64(get) * tick_period
 
 # Windows timestamp in 0.1µs resolution
 #

@@ -5,6 +5,9 @@ pub fn TimeStamp.unix() timespec
 	}
 	return ts
 
+pub fn timespec.time_t() time_t
+	return time_t{ sec: this.sec }
+
 # Structure to store real time with 1s precision used on all OSs
 # In POSIX the fields as named 'tm_sec', 'tm_min', ...
 # We cut the 'tm_' from field elements that have a "human expected" meaning
@@ -47,7 +50,7 @@ cdecl fn localtime_r(&t ssize_t, &res tm) voidptr
 cdecl fn _localtime64_s(&res tm, &t i64) int
 cdecl fn _localtime32_s(&res tm, &t i32) int
 
-pub inline fn timespec.gm() tm
+pub inline fn time_t.gm() tm
 	res := tm{}
 	if os.isWindows
 		if os.bitwidth == 32
@@ -61,7 +64,7 @@ pub inline fn timespec.gm() tm
 		gmtime_r(t, res) .
 	return res
 
-pub inline fn timespec.local() tm
+pub inline fn time_t.local() tm
 	res := tm{}
 	if os.isWindows
 		if os.bitwidth == 32
@@ -74,6 +77,12 @@ pub inline fn timespec.local() tm
 		t := this.sec
 		localtime_r(t, res) .
 	return res
+
+pub inline fn timespec.gm() tm
+	return this.time_t.gm
+
+pub inline fn timespec.local() tm
+	return this.time_t.local
 
 pub inline fn TimeStamp.gm() tm
 	return this.unix.gm
