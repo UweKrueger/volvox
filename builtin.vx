@@ -1,6 +1,7 @@
 cdecl fn exit(n int)
-cdecl fn strcmp(s1 string, s2 string) i32
-cdecl fn strncmp(s1 string, s2 string, len u64) i32
+cdecl fn strcmp(s1 cstring, s2 cstring) i32
+cdecl fn strncmp(s1 cstring, s2 cstring, len size_t) i32
+cdecl fn printf(s cstring, ...) int
 type _ZN6volvox6RtTypeE packed {
 	key u32
 	attr u32
@@ -65,7 +66,7 @@ cdecl fn _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...
 cdecl fn _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
 cdecl fn _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
 cdecl fn _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
-cdecl fn memcpy(dest string, src string, n u64) string
+cdecl fn memcpy(dest voidptr, src voidptr, n size_t) voidptr
 cdecl fn new_global_var_shadow(adr string, sz u64) u64
 cdecl fn getTermSize(fd i32) i32
 cdecl fn showtestres(fd i32, width i32, testcase string, result bool)
