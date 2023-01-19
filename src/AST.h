@@ -639,6 +639,14 @@ public:
 #endif
 };
 
+class TypeExprAST : public ExprAST {
+public:
+	std::string Name;
+	TypeExprAST(SourceLocation Loc, std::string TypeName, volvoxc::FullType* ft)
+		: ExprAST(ft, Loc), Name(std::move(TypeName)) {}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override { return nullptr; }
+};
+
 class StructExprAST : public ExprAST {
 public:
 	std::map<std::string, std::unique_ptr<ExprAST>> Fields;
@@ -652,12 +660,23 @@ public:
 					// the parser might have found the ident in tables so we have to handle these cases
 					// it does not seems effective to declare a common base class "NamedExprAST" to derive
 					// these cases because 'VariableExprAST' is derived from 'LvalueExprAST', the others are not
+					CallExprAST* callExpr;
 					if (auto nameAST = dynamic_cast<VariableExprAST*>(field_val->LHS.get()))
 						field_key = &nameAST->Name;
 					else if (auto nameAST = dynamic_cast<FunctionExprAST*>(field_val->LHS.get()))
 						field_key = &nameAST->Name;
 					else if (auto nameAST = dynamic_cast<IdentExprAST*>(field_val->LHS.get()))
 						field_key = &nameAST->Name;
+					else if (auto nameAST = dynamic_cast<TypeExprAST*>(field_val->LHS.get()))
+						field_key = &nameAST->Name;
+					else if ((callExpr = dynamic_cast<CallExprAST*>(field_val->LHS.get())) && callExpr->Args.empty()) {
+						if (auto nameAST = dynamic_cast<VariableExprAST*>(callExpr->Callee.get()))
+							field_key = &nameAST->Name;
+						else if (auto nameAST = dynamic_cast<FunctionExprAST*>(callExpr->Callee.get()))
+							field_key = &nameAST->Name;
+						else if (auto nameAST = dynamic_cast<TypeExprAST*>(callExpr->Callee.get()))
+							field_key = &nameAST->Name;
+					}
 					else
 						errs() << field_val->LHS->Loc << " field name expected\n";
 					if (field_key) {
@@ -673,14 +692,6 @@ public:
 		}
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-};
-
-class TypeExprAST : public ExprAST {
-public:
-	std::string Name;
-	TypeExprAST(SourceLocation Loc, std::string TypeName, volvoxc::FullType* ft)
-		: ExprAST(ft, Loc), Name(std::move(TypeName)) {}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override { return nullptr; }
 };
 
 class DefaultConstructorCall : public ExprAST {
