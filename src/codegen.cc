@@ -82,6 +82,16 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	if (desired_type)
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(desired_type)) {
+			// cannot move "this" so create a new unique expr...
+			auto str_ft = struct_mangled_ft[std::string(struct_type->getName())];
+			if (str_ft) {
+				auto list = std::make_unique<ListExprAST>(Loc, std::move(Elements), str_ft);
+				auto struct_expr = std::make_unique<StructExprAST>(Loc, str_ft, std::move(list));
+				return struct_expr->codegen_raw(target);
+			}
+		}
 	if (Elements.size()) {
 		std::vector<llvm::Type*> types;
 		types.reserve(Elements.size());

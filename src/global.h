@@ -931,7 +931,7 @@ public:
 
 extern std::map<std::string, Module> Modules;
 extern std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
-
+extern std::map<std::string,volvoxc::FullType*> struct_mangled_ft;
 extern unsigned dump_IR;
 extern bool dump_opt;
 extern bool dump_raw;

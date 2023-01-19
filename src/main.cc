@@ -353,6 +353,8 @@ static void HandleExtern(unsigned visibility) {
 	}
 }
 
+std::map<std::string,volvoxc::FullType*> struct_mangled_ft;
+
 static void HandleTypeDef(unsigned share_kind) {
 	getNextToken(); // eat type
 	if (CurTok.kind != tok_identifier) {
@@ -402,7 +404,8 @@ static void HandleTypeDef(unsigned share_kind) {
 	const char* mangled_name = ft->mangled_name;
 	*ft = *newft;
 	ft->mangled_name = mangled_name;
-	new_FullType(*ft); // to keep a handle to mangled_name after lex.module has gone out of scope
+	auto keep = new_FullType(*ft); // to keep a handle to mangled_name after lex.module has gone out of scope
+	struct_mangled_ft[mangled_name] = ft;
 	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "defined type " << *ft << " as " << *ft->type << '\n';
