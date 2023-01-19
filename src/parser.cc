@@ -423,12 +423,17 @@ static std::unique_ptr<ExprAST> ParseParenExpr(int terminator = 0) {
 	return V;
 }
 
-static std::unique_ptr<ExprAST> ParseConstructorCall(std::string TypeName, SourceLocation TypeLoc, volvoxc::FullType* ft, int terminator = 0) {
+static std::unique_ptr<ExprAST> ParseConstructorCall(std::string TypeName, SourceLocation TypeLoc,
+                                                     volvoxc::FullType* ft, int terminator = 0) {
+	auto type_expr = std::make_unique<TypeExprAST>(TypeLoc, std::move(TypeName), ft);
+	// see corresponding code in ParseBinOpRHS()
+	if (CurTok.kind == tok_selector && IdentifierStr != "(" || CurTok.kind >= tok_mult && CurTok.kind < tok_colon
+	    || CurTok.kind == tok_comma || CurTok.kind == ';')
+		return std::make_unique<CallExprAST>(TypeLoc, std::move(type_expr), std::vector<std::unique_ptr<ExprAST>>{});
 	getNextToken();
-	auto args = ParseParenExpr(terminator);
+	auto args = ParseExpression(terminator);
 	if (!args)
 		return nullptr;
-	auto type_expr = std::make_unique<TypeExprAST>(TypeLoc, std::move(TypeName), ft);
 	auto Args = SplitExprList(std::move(args));
 	return std::make_unique<CallExprAST>(TypeLoc, std::move(type_expr), std::move(Args));
 }
