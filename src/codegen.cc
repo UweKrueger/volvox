@@ -195,8 +195,10 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 				V = Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
 		}
 		return handle(target, V);
-	} else
-		abort();
+	} else {
+		errs() << Loc << ": '" << *ft << "' is not an aggregate type so it cannot be initialized using '{}'\n";
+		return nullptr;
+	}
 }
 
 llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
