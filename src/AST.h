@@ -669,14 +669,6 @@ public:
 						field_key = &nameAST->Name;
 					else if (auto nameAST = dynamic_cast<TypeExprAST*>(field_val->LHS.get()))
 						field_key = &nameAST->Name;
-					else if ((callExpr = dynamic_cast<CallExprAST*>(field_val->LHS.get())) && callExpr->Args.empty()) {
-						if (auto nameAST = dynamic_cast<VariableExprAST*>(callExpr->Callee.get()))
-							field_key = &nameAST->Name;
-						else if (auto nameAST = dynamic_cast<FunctionExprAST*>(callExpr->Callee.get()))
-							field_key = &nameAST->Name;
-						else if (auto nameAST = dynamic_cast<TypeExprAST*>(callExpr->Callee.get()))
-							field_key = &nameAST->Name;
-					}
 					else
 						errs() << field_val->LHS->Loc << " field name expected\n";
 					if (field_key) {
