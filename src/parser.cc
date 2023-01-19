@@ -453,9 +453,9 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 	if (auto fv = lookup_var(IdName.c_str()))
 		return std::make_unique<VariableExprAST>(LitLoc, IdName, fv);
 	// maybe it's a function with this name
-	auto F = lex.findProtos(IdName);
-	if (F) {
-		return std::make_unique<FunctionExprAST>(LitLoc, IdName, F);
+	auto protos = lex.findProtos(IdName);
+	if (protos) {
+		return std::make_unique<FunctionExprAST>(LitLoc, IdName, protos);
 	}
 	// or a module prefix
 	auto im = lex.module->ImportedSymbols.find({ IdName, "" });
@@ -464,18 +464,10 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 			return std::make_unique<ModuleExprAST>(LitLoc, std::move(IdName));
 	// or a type name
 	if (auto type = lex.get_full_type(IdName.c_str())) {
-		if (lex.peek() == '(')
-			return ParseConstructorCall(std::move(IdName), LitLoc, type, terminator);
-		if (auto s = ParseStructExpr(type, terminator))
-			return s;
-		else {
-			errs() << LitLoc << ": an expression is expected here - '" << IdName << "' is known as type name so a valid expression would be an aggregate literal \"" << IdName << "{...}\"";
-			if (CurTok.kind == tok_assign)
-				errs() << " - however this would not be allowed as LHS of a" << ((IdentifierStr == ":=") ? " declaration\n" : "n assignment\n");
-			else
-				errs() << '\n';
-			return nullptr;
-		}
+		if (CurTok.kind == '{')
+			if (auto s = ParseStructExpr(type, terminator))
+				return s;
+		return ParseConstructorCall(std::move(IdName), LitLoc, type, terminator);
 	}
 	// last resort: yet undeclared variable name - used in declaration "x := ..."
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
