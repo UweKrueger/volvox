@@ -1313,10 +1313,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						LHS = std::make_unique<FunctionExprAST>(mod->Loc, fqname, protos);
 						continue;
 					} else if (auto type = im->second.getFullType()) {
-						if (lex.peek() == '(')
-							LHS = ParseConstructorCall(fqname, mod->Loc, type, terminator);
-						else
+						if (CurTok.kind == '{')
 							LHS = ParseStructExpr(type, terminator);
+						else if (lex.peek() == '(')
+							LHS = ParseConstructorCall(fqname, mod->Loc, type, terminator);
+						else {
+							LHS = std::make_unique<TypeExprAST>(mod->Loc, ident->Name, type);
+						}
 						continue;
 					} else {
 						errs() << LHS->Loc << ": cannot evaluate '" << fqname << "'\n";
