@@ -99,8 +99,10 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 			types.push_back(elem->ft->type);
 		llvm::Type* list_type = llvm::StructType::get(Context, types);
 		llvm::Value *V = llvm::UndefValue::get(list_type);
-		for (unsigned i = 0; i < Elements.size(); ++i)
-			V = Builder->CreateInsertValue(V, Elements[i]->codegen(), i, "listpush");
+		for (unsigned i = 0; i < Elements.size(); ++i) {
+			llvm::Value* vv = Elements[i]->codegen();
+			V = Builder->CreateInsertValue(V, vv, i, "listpush");
+		}
 		return handle(target, V);
 	} else {
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));

@@ -405,7 +405,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	*ft = *newft;
 	ft->mangled_name = mangled_name;
 	auto keep = new_FullType(*ft); // to keep a handle to mangled_name after lex.module has gone out of scope
-	struct_mangled_ft[mangled_name] = ft;
+	struct_mangled_ft[type_name] = ft;
 	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "defined type " << *ft << " as " << *ft->type << '\n';
