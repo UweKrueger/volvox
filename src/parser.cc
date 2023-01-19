@@ -423,21 +423,6 @@ static std::unique_ptr<ExprAST> ParseParenExpr(int terminator = 0) {
 	return V;
 }
 
-static std::unique_ptr<ExprAST> ParseConstructorCall(std::string TypeName, SourceLocation TypeLoc,
-                                                     volvoxc::FullType* ft, int terminator = 0) {
-	auto type_expr = std::make_unique<TypeExprAST>(TypeLoc, std::move(TypeName), ft);
-	// see corresponding code in ParseBinOpRHS()
-	if (CurTok.kind == tok_selector && IdentifierStr != "(" || CurTok.kind >= tok_mult && CurTok.kind < tok_colon
-	    || CurTok.kind == tok_comma || CurTok.kind == ';')
-		return std::make_unique<CallExprAST>(TypeLoc, std::move(type_expr), std::vector<std::unique_ptr<ExprAST>>{});
-	getNextToken();
-	auto args = ParseExpression(terminator);
-	if (!args)
-		return nullptr;
-	auto Args = SplitExprList(std::move(args));
-	return std::make_unique<CallExprAST>(TypeLoc, std::move(type_expr), std::move(Args));
-}
-
 static std::unique_ptr<ExprAST> ParseIdent(int terminator = 0) {
 	std::string Id = IdentifierStr;
 	getNextToken(eBinOp, terminator); // eat identifier.
@@ -472,7 +457,7 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 		if (CurTok.kind == '{')
 			if (auto s = ParseStructExpr(type, terminator))
 				return s;
-		return ParseConstructorCall(std::move(IdName), LitLoc, type, terminator);
+		return std::make_unique<TypeExprAST>(LitLoc, std::move(IdName), type);
 	}
 	// last resort: yet undeclared variable name - used in declaration "x := ..."
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
@@ -1118,7 +1103,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		// If this is a binop that binds at least as tightly as the current binop,
 		// consume it, otherwise we are done.
 		if (NextTokPrecedence() <= ExprPrec) {
-			if (LHS->ft->type && LHS->ft->type->isFunctionTy())
+			if (LHS->ft->type && (LHS->ft->type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get())))
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 			return LHS;
 		}
@@ -1126,7 +1111,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		std::string BinOp = IdentifierStr;
 		SourceLocation BinLoc = CurLoc;
 		auto BinKind = CurTok.kind;
-		if (LHS->ft->type && LHS->ft->type->isFunctionTy()) {
+		if (LHS->ft->type && (LHS->ft->type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			// make this a call expression even without '()' if the following if followed by a usual operand
 			// (';' and '\n' are handled above or below. The ',' case will need special handling if used inside LHS
 			// of decl-assign but this can only be done later when the ':=' operator has been seen
@@ -1271,12 +1256,12 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					// errs() << VarL->Loc << ": inserted " << VarL->Name << ", " << fv.ft.type_attr << " in mainvars\n";
 				}
 			}
-		} else if (LHS_type && LHS_type->isFunctionTy()) {
+		} else if (LHS_type && (LHS_type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			if (BinOp[0] == '(' || BinOp[0] == '\0') {
 				auto Args = SplitExprList(std::move(RHS));
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));
 				continue;
-			} else if (BinOp[0] == '=' && BinOp[1] == '\0') {
+			} else if (LHS_type->isFunctionTy() && BinOp[0] == '=' && BinOp[1] == '\0') {
 				// LHS virtual attribute method call like 'tm.month = 5'
 				std::vector<std::unique_ptr<ExprAST>> arglist;
 				arglist.push_back(std::move(RHS));
@@ -1315,8 +1300,6 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					} else if (auto type = im->second.getFullType()) {
 						if (CurTok.kind == '{')
 							LHS = ParseStructExpr(type, terminator);
-						else if (lex.peek() == '(')
-							LHS = ParseConstructorCall(fqname, mod->Loc, type, terminator);
 						else {
 							LHS = std::make_unique<TypeExprAST>(mod->Loc, ident->Name, type);
 						}
