@@ -1,0 +1,34 @@
+import arch.os
+
+# There are two kinds of "file" on all systems:
+# 1. file descriptors
+#   o represented by an integer number called "file descriptor"
+#   o implemented in the OS kernel - this is how the OS sees files
+#   o sometimes called "unbuffered", however the OS kernel does buffer i/o
+#   + suitable for low level operations (select/poll/...)
+#   + writes are atomic, i.e. writes from different threads do not interleave
+#   + written data is immediately passed to the OS
+#   - every single write implies a system call which means so writing
+#     a large number of small packets is slow
+# 2. represented by a pointer to a FILE struct
+#   o implemented in the C runtime library (libc, glibc, ucrt, ...)
+#     but uses a file descriptor internally
+#   o uses user space buffers to collect small packets before they
+#     are passed as a single write to the OS
+#   + high performance even with many writes of small packets
+#   - passing data to the OS is delayed due to buffering,
+#     however there is a special "flush" to write all collected data
+#   - writes from different threads may interleave
+#
+# Remark: Even when using file descriptors or doing "flush", written data
+#         is not immediately *physically* written to a device (hard drive,
+#         USB-Stick, SD-Card, etc). To ensure this, an additional "sync"
+#         is required.
+
+type Fd {
+	fd int
+}
+
+pub fn Fd()
+	this.fd = -1
+	return
