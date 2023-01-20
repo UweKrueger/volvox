@@ -1320,7 +1320,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				LHS = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
 				continue;
 			} else {
-				errs() << LHS->Loc << ": cannot evaluate select expression\n";
+				errs() << LHS->Loc << ": LHS of '.' is neither a module nor a known variable nor a struct literal\n";
 				return nullptr;
 			}
 		}
@@ -1405,6 +1405,16 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			errs() << CurLoc << ": identifier expected (function name or receiver type)\n";
 			return nullptr;
 		}
+		// make sure the function name is not in use as (global/main) variable
+		// if "inside_function" we would not see conflicting non-global main vars, so clear this flag temporarily
+		auto old_inside_function = inside_function;
+		inside_function = false;
+		if (auto var = lookup_var(IdentifierStr.c_str())) {
+			errs() << CurLoc << ": symbol '" << IdentifierStr << "' is already in use as variable of type '" << var->ft << "'\n";
+			return nullptr;
+		}
+		inside_function = old_inside_function;
+		// identify constructors and destructors:
 		// all kinds of methods start with a type name - even destructors as we
 		// have eaten the '~' already in ParseDefinition()
 		tmp_rec_type = lex.get_full_type(IdentifierStr.c_str());
