@@ -1429,12 +1429,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 					return nullptr;
 				}
 				tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
-			} else if (lex.peek() == '(') {
-				// tmp_rec_type->type_attr |= A_constructor;
-				visibility |= A_constructor;
 			} else if (lex.peek() != '.') {
-				errs() << CurLoc << ": '.' or '(' expected\n";
-				return nullptr;
+				visibility |= A_constructor;
 			}
 			if (visibility & A_c_api) {
 				errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
@@ -1454,7 +1450,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			ArgTypes.push_back(ReceiverType);
 			ArgPos.push_back(CurLoc);
 			if (!(visibility & (A_destructor | A_constructor))) {
-				getNextToken(eBinOp, '(');
+				getNextToken(eBinOp, eSemi);
 				if (!Expect(tok_selector))
 					return nullptr;
 			}
@@ -1475,12 +1471,12 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		FnName = (visibility & A_destructor) ? ("~" + UnmagledReceiverTypeName) :
 			(visibility & A_constructor) ? std::move(UnmagledReceiverTypeName) : std::move(IdentifierStr);
 		Kind = 0;
-		getNextToken();
+		getNextToken(eSemi);
 		break;
 	case tok_fn: // closure
 		FnName = std::string(createAnonFnName());
 		Kind = 0;
-		getNextToken();
+		getNextToken(eSemi);
 		break;
 	case tok_unary:
 		getNextToken();
@@ -1517,7 +1513,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		errs() << CurLoc << ": expected function name in prototype - got " << CurTok << "\n";
 		return nullptr;
 	}
-	if (!Expect('(')) return nullptr;
+	if (CurTok.kind != '(')
+		goto nobrace;
+	else
+		getNextToken();
 	if (CurTok.kind == ')')
 		goto noargs;
 	for (;;) {
@@ -1545,6 +1544,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	}
 noargs:
 	Eat(')', eSemi); //getNextToken(); // eat ')'.
+nobrace:
 	// parse return type(s)
 	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc = CurLoc;
@@ -1612,10 +1612,10 @@ static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& prot
 /// definition ::= 'fn' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
-		getNextToken(); // eat fn.
+		getNextToken(eSemi); // eat fn.
 		if (CurTok.kind == tok_unary && IdentifierStr == "~") {
 			visibility |= A_destructor;
-			getNextToken();
+			getNextToken(eSemi);
 		}
 	}
 	auto Proto = ParsePrototype(visibility);
@@ -1792,7 +1792,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 
 /// external ::= 'extern' prototype
 std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
-	getNextToken(); // eat extern.
+	getNextToken(eSemi); // eat fn.
 	visibility |= A_extern;
 	return ParsePrototype(visibility);
 }
