@@ -920,6 +920,9 @@ bool FunctionAST::prepare_codegen() {
 			// Add storage to variable in symbol table.
 			mapitem->val = Alloca;
 		}
+		// destructors for function arguments should always be called
+		// by the caller
+		mapitem->destructor = nullptr;
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
