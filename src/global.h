@@ -390,6 +390,7 @@ struct FnArg {
 	llvm::Type* argtype;
 	bool arg_signed;
 	bool arg_unknown_type;
+	bool is_anonymous_list;
 };
 
 extern llvm::raw_ostream& operator<<(llvm::raw_ostream& out, FnArg& ft);

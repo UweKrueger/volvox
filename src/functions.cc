@@ -71,7 +71,10 @@ static void printArgTypes(std::vector<FnArg>& fnargs, unsigned offset = 0) {
 	for (unsigned i = offset; i<fnargs.size(); i++) {
 		if (i>offset)
 			errs() << ", ";
-		errs() << fnargs[i];
+		if (fnargs[i].is_anonymous_list)
+			errs() << "{...}";
+		else
+			errs() << fnargs[i];
 	}
 }
 
@@ -140,7 +143,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 			bool arg_matches_exactly;
 			if (i >= proto->ArgTypes.size()) {
 				if (candidate < 0)
-					fnargs[i].Conv = nullptr; // for var args - but see comment above
+					fnargs[i].Conv = nullptr; // for variadic args - but see comment above
 			} else {
 				auto conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
 				                    fnargs[i].arg_signed, (bool)(proto->ArgTypes[i]->type_attr & A_signed),
@@ -152,7 +155,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 						convs2[i] = nullptr;
 					if (!cands3)
 						convs3[i] = nullptr;
-				} else if (conv) {
+				} else if (conv || proto->ArgTypes[i]->type->isStructTy() && fnargs[i].is_anonymous_list) {
 					exact = false;
 					if (!cands2)
 						convs2[i] = conv;
@@ -261,7 +264,7 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, static_cast<bool>(type_expr->ft->type_attr & A_signed), false});
 	if (!type_expr || type_expr->ft->type->isStructTy()) {
 		for (auto& arg: Args)
-			fn_args.push_back(FnArg{nullptr, arg->ft->type, static_cast<bool>(arg->ft->type_attr & A_signed), arg->is_unknown_type});
+			fn_args.push_back(FnArg{nullptr, arg->ft->type, static_cast<bool>(arg->ft->type_attr & A_signed), arg->is_unknown_type, (bool)dynamic_cast<ListExprAST*>(arg.get())});
 		std::vector<std::unique_ptr<PrototypeAST>>* protos;
 		if (type_expr) {
 			protos = findProtos(std::string(type_expr->ft->mangled_name), type_expr->Name);
