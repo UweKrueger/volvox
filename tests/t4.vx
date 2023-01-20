@@ -89,7 +89,7 @@ fn get_field f64
 	return p
 
 fn test_struct_2 bool
-	cc := get_field()
+	cc := get_field
 	return cc == 127.75
 
 fn test_struct_3 bool
@@ -105,7 +105,7 @@ fn get_big_struct YYt
 	return qe
 
 fn test_struct_return_1 bool
-	hsm := get_big_struct()
+	hsm := get_big_struct
 	return hsm.rz == 14 && hsm.w.a == -63 && hsm.w.b == -11.125
 
 type PPl {
@@ -118,7 +118,7 @@ fn get_small_struct PPl
 	return qf
 
 fn test_struct_return_2 bool
-	hlw := get_small_struct()
+	hlw := get_small_struct
 	return hlw.b == -34 && hlw.t == 27
 
 fn small_struct_arg(vx PPl) i32

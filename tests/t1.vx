@@ -118,7 +118,7 @@ fn dorep f64
 	return bpp
 
 fn test_repeat_1 bool
-	return dorep() == 67.25
+	return dorep == 67.25
 
 fn vecrep(a7 int) f64
 	bpp := -7.25

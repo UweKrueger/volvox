@@ -46,7 +46,7 @@ type YY {
 	w XX
 }
 
-fn ~YY()
+fn ~YY
 	cntd = cntd - this.r
 	this.r = 79
 	return
@@ -69,7 +69,7 @@ fn test_local_shadow_of_global bool
 	return z == 38.875
 
 fn test_destructor_1 bool
-	z := hhwe()
+	z := hhwe
 	return z == 17 && cntd == -7
 
 fn hhwe2(n i32) i32
@@ -135,7 +135,7 @@ fn call_array_destructor f64
 	return iorrt + prtz[1][4][0].p.r
 
 fn test_array_destructor_2 bool
-	call_array_destructor()
+	call_array_destructor
 	return cntd == 63
 
 type QQ {
@@ -155,7 +155,7 @@ type RR {
 	a [5]YY
 }
 
-fn ~RR()
+fn ~RR
 	this.z = 45.8
 	return
 
@@ -166,7 +166,7 @@ fn call_array_destr2 i32
 	return rr.a[2].r
 
 fn test_array_destructor_4 bool
-	x := call_array_destr2()
+	x := call_array_destr2
 	return x == -7 && cntd == 121
 
 global tzv := 3
@@ -209,4 +209,4 @@ fn ggeewf f64
 	return u2 + a[3][3][1]
 
 fn test_mainvar_reference_3 bool
-   return ggeewf() == 48.5
+   return ggeewf == 48.5
