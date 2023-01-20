@@ -748,14 +748,15 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* arg = nullptr;
 			bool is_address = (i+arg_offs) < Proto->Args.size() && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
-			if (Args[i]->needs_target()) {
+			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get());
+			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor))) {
 				arg = Builder->CreateAlloca(Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type);
 				auto voidval = Args[i]->codegen_raw(arg);
 				if (!voidval || !voidval->getType()->isVoidTy()) {
 					errs() << Args[i]->Loc << ": cannot create function call argument\n";
 					return nullptr;
 				}
-				if ((i+arg_offs) < Proto->Args.size() && arg && arg->getType()->isPointerTy() && dynamic_cast<StructExprAST*>(Args[i].get())) {
+				if ((i+arg_offs) < Proto->Args.size() && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
 					if (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor) {
 						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
 						if (!F) {
