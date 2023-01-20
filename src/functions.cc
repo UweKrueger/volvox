@@ -741,6 +741,8 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				arg = Volvox2CStr(arg);
 			ArgsV.push_back(arg);
 		} else {
+			if ((i+arg_offs) < Proto->Args.size())
+				Args[i]->desired_type = Proto->ArgTypes[i+arg_offs]->type;
 			llvm::Value* arg = nullptr;
 			bool is_address = (i+arg_offs) < Proto->Args.size() && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
