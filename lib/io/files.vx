@@ -29,6 +29,6 @@ type Fd {
 	fd int
 }
 
-pub fn Fd()
+pub fn Fd
 	this.fd = -1
 	return

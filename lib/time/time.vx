@@ -1,14 +1,14 @@
-pub fn TimeStamp.timespec() timespec
+pub fn TimeStamp.timespec timespec
 	ts := timespec {
 		sec: ssize_t(this.u64 / 10000000 - epoch_offset)
 		nsec: ssize_t((this.u64 % 10000000) * 100)
 	}
 	return ts
 
-pub fn timespec.time_t() time_t
+pub fn timespec.time_t time_t
 	return time_t{ sec: this.sec }
 
-pub fn TimeStamp.time_t() time_t
+pub fn TimeStamp.time_t time_t
 	return time_t{ sec: ssize_t(this.u64 / 10000000 - epoch_offset) }
 
 # Structure to store real time with 1s precision used on all OSs
@@ -33,14 +33,14 @@ type tm {
 
 # access methods that adjust field elements to human expected values
 #
-pub fn tm.mon() int
+pub fn tm.mon int
 	return this._mon + 1
 
 pub fn tm.mon(m int) int
 	old := this._mon = m - 1
 	return old + 1
 
-pub fn tm.year() int
+pub fn tm.year int
 	return this._year + 1900
 
 pub fn tm.year(m int) int
@@ -54,7 +54,7 @@ cdecl fn localtime_r(&t ssize_t, &res tm) voidptr
 cdecl fn _localtime64_s(&res tm, &t i64) int
 cdecl fn _localtime32_s(&res tm, &t i32) int
 
-pub inline fn time_t.gm() tm
+pub inline fn time_t.gm tm
 	res := tm{}
 	if os.isWindows
 		if os.bitwidth == 32
@@ -68,7 +68,7 @@ pub inline fn time_t.gm() tm
 		gmtime_r(t, res) .
 	return res
 
-pub inline fn time_t.local() tm
+pub inline fn time_t.local tm
 	res := tm{}
 	if os.isWindows
 		if os.bitwidth == 32
@@ -82,20 +82,20 @@ pub inline fn time_t.local() tm
 		localtime_r(t, res) .
 	return res
 
-pub inline fn timespec.gm() tm
+pub inline fn timespec.gm tm
 	return this.time_t.gm
 
-pub inline fn timespec.local() tm
+pub inline fn timespec.local tm
 	return this.time_t.local
 
-pub inline fn TimeStamp.gm() tm
+pub inline fn TimeStamp.gm tm
 	return this.time_t.gm
 
-pub inline fn TimeStamp.local() tm
+pub inline fn TimeStamp.local tm
 	return this.time_t.local
 
-pub inline fn gm() tm
+pub inline fn gm tm
 	return time.gm
 
-pub inline fn local() tm
+pub inline fn local tm
 	return time.local
