@@ -1,11 +1,11 @@
 import arch.os
 import arch.cpu
 
-fn test_built_in_consts() bool
+fn test_built_in_consts bool
 	x := __OS_Idx
 	return x > 0 && __CPU_Idx > 0
 
-fn test_exactly_one_os_is_defined() bool
+fn test_exactly_one_os_is_defined bool
 	n := 0
 	if os.isFreeBSD
 		n++ .
@@ -21,7 +21,7 @@ fn test_exactly_one_os_is_defined() bool
 		n++ .
 	return n == 1
 
-fn test_exactly_one_cpu_is_defined() bool
+fn test_exactly_one_cpu_is_defined bool
 	m := 0
 	if cpu.isARM
 		m++ .
@@ -35,38 +35,38 @@ fn test_exactly_one_cpu_is_defined() bool
 		m++ .
 	return m == 1
 
-fn p7_1() string
+fn p7_1 string
 	return "Hallo"
 
-fn q7_1() int
+fn q7_1 int
 	return 7
 
 global x7_1 := 2
 
-fn test_incompatible_branches_1() bool
+fn test_incompatible_branches_1 bool
 	if x7_1 > 3
-		p7_1()
+		p7_1
 	else
-		q7_1() .
+		q7_1 .
 	return true
 
-fn test_incompatible_branches_2() bool
+fn test_incompatible_branches_2 bool
 	if x7_1 > 1
-		p7_1()
+		p7_1
 	else
-		q7_1() .
+		q7_1 .
 	return true
 
-fn test_incompatible_branches_3() bool
+fn test_incompatible_branches_3 bool
 	if 2 > 3
-		p7_1()
+		p7_1
 	else
-		q7_1() .
+		q7_1 .
 	return true
 
-fn test_incompatible_branches_4() bool
+fn test_incompatible_branches_4 bool
 	if 2 > 1
-		p7_1()
+		p7_1
 	else
-		q7_1() .
+		q7_1 .
 	return true

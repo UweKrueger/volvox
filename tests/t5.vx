@@ -8,7 +8,7 @@ global hjggd := subb.CCv{
 	}
 }
 
-fn test_multi_level_type_import() bool
+fn test_multi_level_type_import bool
 	return hjggd.w.q[1] == -6.75 && hjggd.w.pp == 67.0625 && hjggd.z.q.e == 0.
 
 global oolt := 12.125
@@ -19,7 +19,7 @@ rrwe := 78.5 + oolt
 
 oolt = oolt + rrwe
 
-fn test_non_global_main_var_1() bool
+fn test_non_global_main_var_1 bool
 	return oolt == 108.75
 
 kkq93 := 6
@@ -31,7 +31,7 @@ global jjf04 := 0.
 
 jjf04 = xpps29[0][0][0] + xpps29[2][1][3] + xpps29[5][2][4]
 
-fn test_non_const_size_main_array() bool
+fn test_non_const_size_main_array bool
 	return jjf04 == 4.75
 
 type XX {
@@ -51,24 +51,24 @@ fn ~YY()
 	this.r = 79
 	return
 
-# fn YY()
+# fn YY
 # 	return
 
-fn YY() bool
+fn YY bool
 	return this.r == -13
 
-fn hhwe() i32
+fn hhwe i32
    llk3e := YY{ r: 17 }
    return llk3e.r
 
-fn test_local_shadow_of_global() bool
+fn test_local_shadow_of_global bool
 	hjggd := 34.125
 	subb := 1.25
 	hhwe := -3.5
 	z := hjggd + subb - hhwe
 	return z == 38.875
 
-fn test_destructor_1() bool
+fn test_destructor_1 bool
 	z := hhwe()
 	return z == 17 && cntd == -7
 
@@ -78,7 +78,7 @@ fn hhwe2(n i32) i32
 		return llk3e.r
 	return 5
 
-fn test_destructor_2() bool
+fn test_destructor_2 bool
 	z := hhwe2(-5)
 	return cntd == 6 && z == -13
 
@@ -90,7 +90,7 @@ fn hhwe3(n i32) i32
 		n = n - 1 .
 	return n
 
-fn test_destructor_then_branch_1() bool
+fn test_destructor_then_branch_1 bool
 	k := hhwe3(8)
 	return cntd == -2 && k == -63
 
@@ -104,7 +104,7 @@ fn hhwe4(n i32) i32
 	x.r = -25
 	return w
 
-fn test_destructor_repeat_stack_restore_1() bool
+fn test_destructor_repeat_stack_restore_1 bool
 	p := hhwe4(7)
 	return cntd == 1 && p == 27
 
@@ -113,7 +113,7 @@ type LL {
 	p YY
 }
 
-fn test_auto_destructor_1() bool
+fn test_auto_destructor_1 bool
 	if cntd > 0
 		p := LL{ a: 3, p: YY{ r: 5 }}
 		p.p.r = p.p.r - 1 .
@@ -121,20 +121,20 @@ fn test_auto_destructor_1() bool
 
 cntd = 100
 
-fn test_array_destructor_1() bool
+fn test_array_destructor_1 bool
 	if cntd > 99
 		iorrt := 34.5
 		prtz := [2][cntd-95][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 2 }}}}, 1: { 4: { 1: LL{ p: YY{ r: 3 }}}}}
 		prtz[1][4][0].p.r = 7 .
 	return cntd == 88
 
-fn call_array_destructor() f64
+fn call_array_destructor f64
 	iorrt := 34.5
 	prtz := [2][5][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 7 }}}}, 1: { 3: { 1: LL{ p: YY{ r: 31 }}}}}
 	prtz[1][1][1].p.r = -13
 	return iorrt + prtz[1][4][0].p.r
 
-fn test_array_destructor_2() bool
+fn test_array_destructor_2 bool
 	call_array_destructor()
 	return cntd == 63
 
@@ -144,7 +144,7 @@ type QQ {
 
 cntd = 200
 
-fn test_array_destructor_3() bool
+fn test_array_destructor_3 bool
 	if cntd > 100
 		rr := QQ{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
 	.
@@ -161,11 +161,11 @@ fn ~RR()
 
 cntd = 150
 
-fn call_array_destr2() i32
+fn call_array_destr2 i32
 	rr := RR{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
 	return rr.a[2].r
 
-fn test_array_destructor_4() bool
+fn test_array_destructor_4 bool
 	x := call_array_destr2()
 	return x == -7 && cntd == 121
 
@@ -181,7 +181,7 @@ mkc3 = -78
 
 tzv = rklr
 
-fn test_mainvar_reference_1() bool
+fn test_mainvar_reference_1 bool
 	return tzv == -78
 
 global w3e := 3
@@ -199,14 +199,14 @@ fr1 = qjf1
 qjf2 = -27.5625
 fr2 = ssa[1][0][1]
 
-fn test_mainvar_reference_2() bool
+fn test_mainvar_reference_2 bool
 	return fr1 == 56.0625 && fr2 == -27.5625
 
-fn ggeewf() f64
+fn ggeewf f64
 	a := [4][5][2]f64{ 3: { 3: { 1: 56.0625 }}}
 	&u2 := a[3][w3e][1]
 	u2 = 24.25
 	return u2 + a[3][3][1]
 
-fn test_mainvar_reference_3() bool
+fn test_mainvar_reference_3 bool
    return ggeewf() == 48.5

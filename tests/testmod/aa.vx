@@ -8,7 +8,7 @@ type Olgj {
 	s f64
 }
 
-fn Olgj()
+fn Olgj
 	this.s -= 2.25
 	return
 
