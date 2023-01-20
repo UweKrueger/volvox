@@ -748,7 +748,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* arg = nullptr;
 			bool is_address = (i+arg_offs) < Proto->Args.size() && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
-			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get());
+			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get()) || dynamic_cast<TypeExprAST*>(Args[i].get());
 			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor))) {
 				arg = Builder->CreateAlloca(Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type);
 				auto voidval = Args[i]->codegen_raw(arg);
