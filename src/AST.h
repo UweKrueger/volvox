@@ -18,6 +18,18 @@ inline static llvm::Value* handle(llvm::Value* target, llvm::Value* val) {
 	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
 
+inline static void handle_d_0(volvoxc::FullType* ft, llvm::Value* target) {
+	if (ft->type_attr & A_destructor) {
+		auto destructor = getConstructorOrDestructor(ft, true);
+		FullVar tmp = {
+			.val = target,
+			.destructor = destructor,
+			.ft = *ft
+		};
+		expr_temps.push_back(tmp);		
+	}
+}
+
 inline static llvm::Value* handle_d(llvm::Value* target, llvm::Value* val, unsigned attribs) {
 	if (!target || (intptr_t)target == -1) {
 		if (!target && (attribs & (A_destructor | A_map | A_string))) {

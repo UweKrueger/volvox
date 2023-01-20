@@ -755,8 +755,8 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 					errs() << Args[i]->Loc << ": cannot create function call argument\n";
 					return nullptr;
 				}
-				if ((i+arg_offs) < Proto->Args.size() && arg && arg->getType()->isPointerTy() && (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor)) {
-					if (dynamic_cast<StructExprAST*>(Args[i].get())) {
+				if ((i+arg_offs) < Proto->Args.size() && arg && arg->getType()->isPointerTy() && dynamic_cast<StructExprAST*>(Args[i].get())) {
+					if (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor) {
 						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
 						if (!F) {
 							errs() << Args[i]->Loc << ": internal error - default constructor not found for " << Proto->ArgTypes[i+arg_offs] << "\n";
@@ -764,6 +764,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 						} else
 							Builder->CreateCall(F, { arg });
 					}
+					handle_d_0(Proto->ArgTypes[i+arg_offs], arg);
 				}
 				if (!is_address && !dynamic_cast<InterfaceExprAST*>(Args[i].get()))
 					arg = Builder->CreateLoad(real_arg_type, arg);
