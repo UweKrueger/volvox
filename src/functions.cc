@@ -626,7 +626,6 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	//std::vector<std::unique_ptr<PrototypeAST>>* protos = nullptr;
 	if (!Proto) {
 		if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
 			if (Args.empty())
@@ -741,27 +740,40 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				arg = Volvox2CStr(arg);
 			ArgsV.push_back(arg);
 		} else {
+			llvm::Type* real_arg_type;
 			if ((i+arg_offs) < Proto->Args.size())
-				Args[i]->desired_type = Proto->ArgTypes[i+arg_offs]->type;
+				real_arg_type = Args[i]->desired_type = Proto->ArgTypes[i+arg_offs]->type;
+			else
+				real_arg_type = Args[i]->ft->type;
 			llvm::Value* arg = nullptr;
 			bool is_address = (i+arg_offs) < Proto->Args.size() && (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			                            || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
 			if (Args[i]->needs_target()) {
-				arg = Builder->CreateAlloca(Args[i]->ft->type);
+				arg = Builder->CreateAlloca(Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type);
 				auto voidval = Args[i]->codegen_raw(arg);
 				if (!voidval || !voidval->getType()->isVoidTy()) {
-					errs() << Loc << ": cannot create function call\n";
+					errs() << Args[i]->Loc << ": cannot create function call argument\n";
 					return nullptr;
 				}
+				if ((i+arg_offs) < Proto->Args.size() && arg && arg->getType()->isPointerTy() && (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor)) {
+					if (dynamic_cast<StructExprAST*>(Args[i].get())) {
+						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
+						if (!F) {
+							errs() << Args[i]->Loc << ": internal error - default constructor not found for " << Proto->ArgTypes[i+arg_offs] << "\n";
+							return nullptr;
+						} else
+							Builder->CreateCall(F, { arg });
+					}
+				}
 				if (!is_address && !dynamic_cast<InterfaceExprAST*>(Args[i].get()))
-					arg = Builder->CreateLoad(Args[i]->ft->type, arg);
+					arg = Builder->CreateLoad(real_arg_type, arg);
 			}
 			if (!arg) {
 				if (is_address) {
 					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
 						auto argref = lval->codegen_ref(true);
 						if (!argref.first) {
-							errs() << Args[i]->Loc << ": cannot generate code for expression\n";
+							errs() << Args[i]->Loc << ": cannot generate reference function argument\n";
 							return nullptr;
 						}
 						arg = argref.second;

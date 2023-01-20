@@ -684,6 +684,7 @@ public:
 		}
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	bool needs_target() override { return ft->type_attr & A_constructor; }
 };
 
 class DefaultConstructorCall : public ExprAST {
