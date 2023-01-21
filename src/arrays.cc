@@ -566,7 +566,7 @@ llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
 	char* stra;
 	char* tmpres;
 	size_t l_alloc;
-	cstr2volvoxstr(tmpres, l_alloc, stra, str);
+	cstr2volvoxstr(tmpres, l_alloc, stra, str, alloca);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
 	auto GV = new llvm::GlobalVariable(*TheModule, llvmstr->getType(), true, llvm::GlobalValue::PrivateLinkage,
 	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
@@ -580,7 +580,7 @@ llvm::Value* createStringVal(const char* str, const llvm::Twine &Name) {
 	char* stra;
 	char* tmpres;
 	size_t l_alloc;
-	cstr2volvoxstr(tmpres, l_alloc, stra, str);
+	cstr2volvoxstr(tmpres, l_alloc, stra, str, alloca);
 	if (target_bits == 64)
 		*(uint64_t*)tmpres |= (1ULL << 63);
 	else if (target_bits == 32)

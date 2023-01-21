@@ -1246,3 +1246,15 @@ _DECL void printd(double X) {
 _DECL void printu64(uint64_t X) {
 	fprintf(stderr, "%" PRIu64 "\n", X);
 }
+
+#define target_bytes sizeof(size_t)
+
+_DECL char* __cstr2volvoxstr(char* c_str) {
+	char* res;
+	size_t l;
+	char* targ;
+	cstr2volvoxstr(res, l, targ, c_str, malloc);
+	return res;
+}
+
+#undef target_bytes
