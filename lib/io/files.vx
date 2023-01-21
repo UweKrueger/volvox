@@ -1,4 +1,5 @@
 import arch.os
+import limits
 
 # There are two kinds of "file" on all systems:
 # 1. file descriptors
@@ -29,17 +30,45 @@ type Fd {
 	fd int
 }
 
-pub fn Fd
-	this.fd = -1
-	return
-
 # flags for file descriptor open
 #
-const APPEND ::= if os.isLinux; 0x0400 else 0x0008 .
-const RDONLY ::= 0x0000
-const WRONLY ::= 0x0001
-const RDWR   ::= 0x0002
-const CREAT  ::= if os.isWindows; 0x0100 elif os.isLinux; 0x0040 else 0x0200 .
-const TRUNC  ::= if os.isWindows; 0x0200 elif os.isLinux; 0x0080 else 0x0400 .
-const EXCL   ::= if os.isWindows; 0x0400 elif os.isLinux; 0x0200 else 0x0800 .
-const BINARY ::= if os.isWindows; 0x8000 else 0x0000 .
+pub const APPEND ::= if os.isLinux; 0x0400 else 0x0008 .
+pub const RDONLY ::= 0x0000
+pub const WRONLY ::= 0x0001
+pub const RDWR   ::= 0x0002
+pub const CREAT  ::= if os.isWindows; 0x0100 elif os.isLinux; 0x0040 else 0x0200 .
+pub const TRUNC  ::= if os.isWindows; 0x0200 elif os.isLinux; 0x0080 else 0x0400 .
+pub const EXCL   ::= if os.isWindows; 0x0400 elif os.isLinux; 0x0200 else 0x0800 .
+pub const BINARY ::= if os.isWindows; 0x8000 else 0x0000 .
+
+cdecl fn _open(filename cstring, flags int, mode int) int
+cdecl(open) fn __open(filename cstring, flags int, mode int) int
+
+pub inline fn open(filename string, flags int, mode int) Fd
+	if os.isWindows
+		fd := _open(filename, flags, mode)
+	else
+		fd := __open(filename, flags, mode) .
+	return Fd { fd: fd }
+
+cdecl fn _write(fd int, buf cstring, count u32) int
+cdecl fn write(fd int, buf cstring, count size_t) ssize_t
+
+pub inline fn Fd.write(buf cstring, count size_t) ssize_t
+	bytes_written := size_t(0)
+	if os.isWindows
+		written := limits.max_i32
+		while count > limits.max_i32 && written == limits.max_i32
+			written = _write(this.fd, buf, u32(limits.max_i32))
+			if written >= 0
+				bytes_written += u32(written)
+				count -= u32(written) . .
+		if written == limits.max_i32
+			written = _write(this.fd, buf, u32(count)) .
+		if written < 0
+			return -1
+		else
+			return bytes_written + written
+	else
+		return write(this.fd, buf, count)
+
