@@ -1257,4 +1257,23 @@ _DECL char* __cstr2volvoxstr(char* c_str) {
 	return res;
 }
 
+_DECL char* __transformcstr2volvox(char* c_str) {
+	char* res;
+	size_t l;
+	char* targ;
+	size_t _l = strlen(c_str);
+	l = (_l+2*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
+	targ = (char*)(((size_t)realloc(c_str, l + sizeof(size_t) - 1) + sizeof(size_t) - 1) & ~(size_t)(sizeof(size_t) - 1));
+	for (size_t n = _l; n < l-sizeof(size_t); n++)
+		targ[n]=0;
+	res = targ + l - sizeof(size_t);
+	if (sizeof(size_t) == 8)
+		*(uint64_t*)res = _l + 1;
+	else if (sizeof(size_t) == 4)
+		*(uint32_t*)res = _l + 1;
+	else
+		*(uint16_t*)res = _l + 1;
+	return res;
+}
+
 #undef target_bytes

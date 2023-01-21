@@ -141,13 +141,29 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		bool with_undefconv = true;
 		for (int i=0; i<fnargs.size(); i++) {
 			bool arg_matches_exactly;
+			std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
 			if (i >= proto->ArgTypes.size()) {
 				if (candidate < 0)
 					fnargs[i].Conv = nullptr; // for variadic args - but see comment above
 			} else {
-				auto conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
-				                    fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
-				                    false, false, &arg_matches_exactly);
+				if (fnargs[i].argtype->isPointerTy() && proto->ArgTypes[i]->type->isPointerTy()) {
+					if ((fnargs[i].argtype_attr & A_string) && (proto->ArgTypes[i]->type_attr & A_string)
+					    || (fnargs[i].argtype_attr & A_cstring) && (proto->ArgTypes[i]->type_attr & A_cstring)
+					    || !(fnargs[i].argtype_attr & (A_string | A_cstring)) && !(proto->ArgTypes[i]->type_attr & (A_string | A_cstring))) {
+						conv = nullptr;
+						arg_matches_exactly = true;
+					} else if ((fnargs[i].argtype_attr & A_string) && (proto->ArgTypes[i]->type_attr & A_cstring)) {
+						conv = Volvox2CStr;
+						arg_matches_exactly = false;
+					} else {
+						conv = nullptr;
+						arg_matches_exactly = false;
+					}
+				} else {
+					conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
+					               fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
+					               false, false, &arg_matches_exactly);
+				}
 				if (arg_matches_exactly) {
 					if (!cands1)
 						fnargs[i].Conv = nullptr;
