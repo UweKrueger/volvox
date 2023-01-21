@@ -146,7 +146,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 					fnargs[i].Conv = nullptr; // for variadic args - but see comment above
 			} else {
 				auto conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
-				                    fnargs[i].arg_signed, (bool)(proto->ArgTypes[i]->type_attr & A_signed),
+				                    fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
 				                    false, false, &arg_matches_exactly);
 				if (arg_matches_exactly) {
 					if (!cands1)
@@ -165,7 +165,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 					exact = with_conv = false;
 					if (fnargs[i].arg_unknown_type) {
 						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
-						               fnargs[i].arg_signed, (bool)(proto->ArgTypes[i]->type_attr & A_signed),
+						               fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
 						               false, true, nullptr);
 						if (conv) {
 							if (!cands3)
@@ -261,10 +261,10 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		                        static_cast<bool>(method->Receiver->ft->type_attr & A_signed),
 		                        method->Receiver->is_unknown_type});
 	else if (type_expr && type_expr->ft->type->isStructTy())
-		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, static_cast<bool>(type_expr->ft->type_attr & A_signed), false});
+		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, type_expr->ft->type_attr, false, false});
 	if (!type_expr || type_expr->ft->type->isStructTy()) {
 		for (auto& arg: Args)
-			fn_args.push_back(FnArg{nullptr, arg->ft->type, static_cast<bool>(arg->ft->type_attr & A_signed), arg->is_unknown_type, (bool)dynamic_cast<ListExprAST*>(arg.get())});
+			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, (bool)dynamic_cast<ListExprAST*>(arg.get())});
 		std::vector<std::unique_ptr<PrototypeAST>>* protos;
 		if (type_expr) {
 			protos = findProtos(std::string(type_expr->ft->mangled_name), type_expr->Name);

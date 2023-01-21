@@ -44,12 +44,18 @@ pub const BINARY ::= if os.isWindows; 0x8000 else 0x0000 .
 cdecl fn _open(filename cstring, flags int, mode int) int
 cdecl(open) fn __open(filename cstring, flags int, mode int) int
 
+# general function to open an unbuffered file - essentially the POSIX version
+
 pub inline fn open(filename string, flags int, mode int) Fd
 	if os.isWindows
 		fd := _open(filename, flags, mode)
 	else
 		fd := __open(filename, flags, mode) .
 	return Fd { fd: fd }
+
+
+
+
 
 cdecl fn _write(fd int, buf cstring, count u32) int
 cdecl fn write(fd int, buf cstring, count size_t) ssize_t

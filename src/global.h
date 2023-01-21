@@ -388,9 +388,10 @@ extern const char* last_shadow_restorer;
 struct FnArg {
 	std::function<llvm::Value*(llvm::Value*)> Conv = nullptr;
 	llvm::Type* argtype;
-	bool arg_signed;
+	unsigned argtype_attr;
 	bool arg_unknown_type;
 	bool is_anonymous_list;
+	bool arg_signed() { return argtype_attr & A_signed; }
 };
 
 extern llvm::raw_ostream& operator<<(llvm::raw_ostream& out, FnArg& ft);

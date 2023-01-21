@@ -889,7 +889,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, FnArg& ft) {
 		if (bw == 1)
 			return out << "bool";
 		else
-			return out << (ft.arg_signed ? 'i' : 'u') << bw;
+			return out << (ft.arg_signed() ? 'i' : 'u') << bw;
 	}
 	if (auto arraytype = llvm::dyn_cast<llvm::ArrayType>(ft.argtype)) {
 		llvm::Type* elem_type;
@@ -904,7 +904,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, FnArg& ft) {
 		} while (arraytype);
 		FnArg elem = {
 			.argtype = elem_type,
-			.arg_signed = ft.arg_signed,
+			.argtype_attr = ft.argtype_attr,
 		};
 		return out << elem;
 	}
