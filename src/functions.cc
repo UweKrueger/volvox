@@ -718,23 +718,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	for (unsigned i = 0; i < Args.size(); ++i) {
-		if ((i+arg_offs) < Proto->Args.size() && !Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
-		    && (Proto->ArgTypes[i+arg_offs]->type->isIntegerTy()
-		        || Proto->ArgTypes[i+arg_offs]->type->isFloatingPointTy())) {
-			auto conversion = fn_args[i+arg_offs].Conv;
-			llvm::Value* arg;
-			if (conversion) {
-				if (auto binexpr = dynamic_cast<BinaryExprAST*>(Args[i].get())) {
-					binexpr->desired_type = Proto->ArgTypes[i+arg_offs]->type;
-					arg = Args[i]->codegen();
-				} else {
-					arg = conversion(Args[i]->codegen());
-				}
-			} else {
-				arg = Args[i]->codegen();
-			}
-			ArgsV.push_back(arg);
-		} else if (Args[i]->ft->type_attr & (A_string | A_cstring)) {
+		if (Args[i]->ft->type_attr & (A_string | A_cstring)) {
 			llvm::Value* arg = Args[i]->codegen();
 			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= Proto->Args.size() || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
 				arg = Volvox2CStr(arg);
