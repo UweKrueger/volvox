@@ -301,8 +301,25 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc
 	return out << Loc.File << ":" << Loc.Line << ":" << Loc.Col;
 }
 
+struct FnArg {
+	std::function<llvm::Value*(llvm::Value*)> Conv = nullptr;
+	llvm::Type* argtype;
+	unsigned argtype_attr;
+	bool arg_unknown_type;
+	bool is_anonymous_list;
+	bool arg_signed() { return argtype_attr & A_signed; }
+};
+
+extern llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned type_attr,
+                                   volvoxc::FullType* ft_elem_type = nullptr);
 // there is another "FullType" printing routine in mangler.cc - use reference here to distinguish
-extern llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType& ft);
+static inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType& ft) {
+	return print_ft(out, ft.type, ft.type_attr, ft.elem_type);
+}
+
+static inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, FnArg& ft) {
+	return print_ft(out, ft.argtype, ft.argtype_attr);
+}
 
 // classification of binary operator with result type calculation in mind
 enum OpClass : uint8_t {
@@ -384,17 +401,6 @@ static inline llvm::ConstantInt* getSize(uint64_t n) {
 }
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
-
-struct FnArg {
-	std::function<llvm::Value*(llvm::Value*)> Conv = nullptr;
-	llvm::Type* argtype;
-	unsigned argtype_attr;
-	bool arg_unknown_type;
-	bool is_anonymous_list;
-	bool arg_signed() { return argtype_attr & A_signed; }
-};
-
-extern llvm::raw_ostream& operator<<(llvm::raw_ostream& out, FnArg& ft);
 
 extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
