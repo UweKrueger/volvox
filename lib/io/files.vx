@@ -40,22 +40,70 @@ pub const CREAT  ::= if os.isWindows; 0x0100 elif os.isLinux; 0x0040 else 0x0200
 pub const TRUNC  ::= if os.isWindows; 0x0200 elif os.isLinux; 0x0080 else 0x0400 .
 pub const EXCL   ::= if os.isWindows; 0x0400 elif os.isLinux; 0x0200 else 0x0800 .
 pub const BINARY ::= if os.isWindows; 0x8000 else 0x0000 .
+pub const CLOEXEC ::= if os.isLinux
+		0x080000
+	elif os.isOpenBSD
+		0x010000
+	elif os.isNetBSD
+		0x400000
+	elif os.isFreeBSD
+		0x100000
+	elif os.isDragonFly
+		0x020000
+	elif os.isWindows
+		0x000080 # called _O_NOINHERIT there
+	else
+		0 .
+pub const NOINHERIT ::= CLOEXEC # flag's Windows name as alias
 
 cdecl fn _open(filename cstring, flags int, mode int) int
 cdecl(open) fn __open(filename cstring, flags int, mode int) int
 
 # general function to open an unbuffered file - essentially the POSIX version
-
-pub inline fn open(filename string, flags int, mode int) Fd
+#
+pub inline fn openfile(filename string, flags int, mode int) Fd
 	if os.isWindows
 		fd := _open(filename, flags, mode)
 	else
 		fd := __open(filename, flags, mode) .
 	return Fd { fd: fd }
 
+# open file for read/write (like '>' in shell scripts)
+# - if file name exists truncate it to size 0
+# - create new file otherwise
+#
+pub inline fn create(filename string) Fd
+	return openfile(filename, CREAT | RDWR | TRUNC | BINARY | CLOEXEC, 0666)
 
+# open existing file for read
+# return error otherwise
+#
+pub inline fn open(filename string) Fd
+	return openfile(filename, RDONLY | BINARY | CLOEXEC, 0)
 
+# create new file for read/write
+# - if file name already exists do nothing and return error
+#
+pub inline fn newfile(filename string) Fd
+	return openfile(filename, CREAT | RDWR | EXCL | BINARY | CLOEXEC, 0666)
 
+# open file to append data (like '>>' in shell scripts)
+# - if file name exists set file pointer to end
+# - create new file otherwise
+#
+pub inline fn append(filename string) Fd
+	return openfile(filename, CREAT | WRONLY | APPEND | BINARY | CLOEXEC, 0666)
+
+cdecl fn close(fd int) int
+cdecl fn _close(fd int) int
+
+pub inline fn Fd.close int
+	fd := this.fd
+	this.fd = -1
+	if os.isWindows
+		return _close(fd)
+	else
+		return close(fd)
 
 cdecl fn _write(fd int, buf cstring, count u32) int
 cdecl fn write(fd int, buf cstring, count size_t) ssize_t
