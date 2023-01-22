@@ -882,6 +882,16 @@ inline std::vector<std::unique_ptr<PrototypeAST>>* new_AnonProto(PrototypeAST* p
 	return &new_node->protos;
 };
 
+inline std::vector<std::unique_ptr<PrototypeAST>>* new_AnonProto(std::unique_ptr<PrototypeAST> proto, SourceLocation Loc) {
+	ProtoListElem* new_node = new ProtoListElem(std::move(proto));
+	new_node->protos[0]->retLoc = Loc;
+	new_node->next = nullptr;
+	*anon_protos_end = new_node;
+	anon_protos_end = &new_node->next;
+	return &new_node->protos;
+};
+
+extern std::vector<std::unique_ptr<PrototypeAST>>* int_int_proto;
 extern llvm::SmallString<16> createAnonFnName();
 
 enum SymbolKind : uint8_t {

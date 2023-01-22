@@ -377,8 +377,9 @@ public:
 						FieldIndex = 1;
 						ft = integer_type;
 					} else if (!strcmp(FieldName, "dim")) {
-						FieldIndex = 2;
-						ft = integer_type;
+						auto fntype = llvm::FunctionType::get(llvm_int_type, { llvm_int_type }, false);
+						ft = new_FullType(fntype, 0);
+						ft->Protos = int_int_proto;
 					} else {
 						errs() << Struct->Loc << ": arrays do not have a property '" << FieldName << "'\n";
 						ft = nullptr;

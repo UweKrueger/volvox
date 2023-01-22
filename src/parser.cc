@@ -22,7 +22,7 @@ std::map<std::string,std::pair<std::string,std::string>> AutoMethods;
 
 // methods table - keys: { mangled_type_name, method_name }
 std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
-
+std::vector<std::unique_ptr<PrototypeAST>>* int_int_proto = nullptr;
 FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
 ProtoListElem* anon_protos = nullptr;
