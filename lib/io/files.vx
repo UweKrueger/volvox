@@ -143,3 +143,9 @@ pub inline fn Fd._write(buf cstring, count size_t) ssize_t
 	else
 		return write(this.fd, buf, count)
 
+
+cdecl fn strlen(s cstring) size_t
+
+pub inline fn Fd.write(buf cstring) ssize_t
+	len := strlen(buf)
+	return this._write(buf, len)
