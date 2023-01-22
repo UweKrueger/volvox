@@ -356,12 +356,40 @@ public:
 							"<anonymous>";
 						errs() << Struct->Loc << ": struct type '" << struct_name << "' has no field named '"
 						       << FieldName << "'\n";
+						ft = nullptr;
+					}
+				} else if (Struct->ft->type_attr & A_string) {
+					if (!strcmp(FieldName, "size")) {
+						FieldIndex = 0;
+						ft = size_type;
+					} else if (!strcmp(FieldName, "len")) {
+						FieldIndex = 1;
+						ft = size_type;
+					} else {
+						errs() << Struct->Loc << ": strings do not have a property '" << FieldName << "'\n";
+						ft = nullptr;
+					}
+				} else if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type)) {
+					if (!strcmp(FieldName, "size")) {
+						FieldIndex = 0;
+						ft = size_type;
+					} else if (!strcmp(FieldName, "dims")) {
+						FieldIndex = 1;
+						ft = integer_type;
+					} else if (!strcmp(FieldName, "dim")) {
+						FieldIndex = 2;
+						ft = integer_type;
+					} else {
+						errs() << Struct->Loc << ": arrays do not have a property '" << FieldName << "'\n";
+						ft = nullptr;
 					}
 				} else {
 					errs() << Struct->Loc << ": LHS of '.' must be a struct (not " << *Struct->ft->type << ")\n";
+					ft = nullptr;
 				}
 			} else {
 				errs() << Struct->Loc << ": LHS of '.' has no defined type\n";
+				ft = nullptr;
 			}
 		}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;

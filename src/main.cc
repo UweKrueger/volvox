@@ -77,6 +77,7 @@ volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
 volvoxc::FullType* char_type;
 volvoxc::FullType* size_type;
+volvoxc::FullType* integer_type;
 volvoxc::FullType* interface_type;
 
 #ifdef LEGACY_PASS_MANAGER
@@ -113,7 +114,7 @@ void init(const llvm::Triple& triple) {
 	if (target_bits == 16) {
 		target_int_bits = 16;
 		lex.add_type("int", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-		lex.add_type("uint", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+		lex.add_type("unsigned", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("unsigned", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 		llvm_int_type = llvm::Type::getInt16Ty(Context);
 		lex.add_type("ssize_t", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
 		lex.add_type("size_t", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("size_t", 16, llvm::dwarf::DW_ATE_unsigned) : nullptr);
@@ -122,7 +123,7 @@ void init(const llvm::Triple& triple) {
 	} else {
 		target_int_bits = 32;
 		lex.add_type("int", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
-		lex.add_type("uint", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("uint", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
+		lex.add_type("unsigned", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("unsigned", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 		llvm_int_type = llvm::Type::getInt32Ty(Context);
 		lex.add_type("real", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 	}
@@ -136,6 +137,7 @@ void init(const llvm::Triple& triple) {
 		llvm_size_type = llvm::Type::getInt64Ty(Context);
 	}
 	size_type = lex.get_full_type("size_t");
+	integer_type = lex.get_full_type("int");
 	void_type = new_FullType(llvm::Type::getVoidTy(Context), 0);
 	llvm_bool_type = llvm::Type::getInt1Ty(Context);
 	lex.add_type("bool", llvm::Type::getInt1Ty(Context), DBuilder ? DBuilder->createBasicType("bool", 1, llvm::dwarf::DW_ATE_boolean) : nullptr);
