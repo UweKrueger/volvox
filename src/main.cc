@@ -170,8 +170,10 @@ void init(const llvm::Triple& triple) {
 	int_int_proto = new_AnonProto(
 		std::make_unique<PrototypeAST>(
 			SourceLocation{}, "dim", std::vector<std::string>{ "order" }, 0,
-			SourceLocation{}, false, integer_type, std::vector<volvoxc::FullType*>{ integer_type },
-			std::vector<SourceLocation>{ SourceLocation{} }), SourceLocation{});
+			SourceLocation{}, false, integer_type,
+			std::vector<volvoxc::FullType*>{ integer_type },
+			std::vector<SourceLocation>{ SourceLocation{} }),
+		SourceLocation{.File = "<builtin array method>"});
 	// create build in constexprs to describe target
 	OS_Type_t os_idx;
 	switch (triple.getOS()) {

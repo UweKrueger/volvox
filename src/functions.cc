@@ -265,6 +265,7 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		name = varexpr->Name.c_str();
 	auto method = dynamic_cast<MethodExprAST*>(Callee.get());
 	auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get());
+	auto select_expr = dynamic_cast<SelectExprAST*>(Callee.get());
 	if (type_expr) {
 		name = type_expr->Name.c_str();
 		ft = type_expr->ft;
@@ -278,6 +279,8 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		                        method->Receiver->is_unknown_type});
 	else if (type_expr && type_expr->ft->type->isStructTy())
 		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, type_expr->ft->type_attr, false, false});
+	else if (select_expr)
+		name = select_expr->FieldName;
 	if (!type_expr || type_expr->ft->type->isStructTy()) {
 		for (auto& arg: Args)
 			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, (bool)dynamic_cast<ListExprAST*>(arg.get())});
@@ -655,6 +658,49 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 		errs() << Loc << ": no known function prototype for call\n";
 		return nullptr;
+	}
+	if (auto selec = dynamic_cast<SelectExprAST*>(Callee.get())) {
+		llvm::ArrayType* arr_type;
+		if (selec->Struct->ft && selec->Struct->ft->type && (arr_type = llvm::dyn_cast<llvm::ArrayType>(selec->Struct->ft->type))) {
+			auto arg = Args[0]->codegen();
+			auto order = llvm::dyn_cast<llvm::ConstantInt>(arg);
+			if (!order) {
+				errs() << Args[0]->Loc << ": argument of 'dim()' must be a constexpr\n";
+				return nullptr;
+			}
+			auto idxmax = order->getSExtValue();
+			if (idxmax < 0) {
+				errs() << Args[0]->Loc << ": argument of 'dim()' must be >= 0\n";
+				return nullptr;
+			}
+			llvm::Value* arrayref = nullptr;
+			llvm::Type* array_ty = nullptr;
+			if (auto array_ast = dynamic_cast<LvalueExprAST*>(selec->Struct.get()))
+				std::tie(array_ty, arrayref) = array_ast->codegen_ref();
+			if (!arrayref)
+				return nullptr;
+			int max_ref_idx = -1;
+			if (auto arrayref_struct = llvm::dyn_cast<llvm::StructType>(arrayref->getType()))
+				max_ref_idx = arrayref_struct->getNumElements() - 1;
+			int idx = -1;
+			uint64_t dim = 0;
+			while (idxmax >= 0) {
+				if (!arr_type) {
+					errs() << Loc << ": argument of 'dim' (" << order->getSExtValue() << ") must be less than order of tensor ("
+					       << order->getSExtValue()+idxmax << ")\n";
+					return nullptr;
+				}
+				dim = arr_type->getNumElements();
+				if (!dim) {
+					idx++;
+				}
+				arr_type = llvm::dyn_cast<llvm::ArrayType>(arr_type->getElementType());
+				idxmax--;
+			}
+			if (!dim)
+				return Builder->CreateExtractValue(arrayref, idx);
+			return getSize(dim);
+		}
 	}
 	if (Proto->visibility & A_constructor) {
 		auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get()); // explicit constructor call
