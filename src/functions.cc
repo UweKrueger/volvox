@@ -288,11 +288,10 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 			protos = Callee->ft->Protos;
 		}
 		if (!protos) {
-			if (type_expr)
-				errs() << type_expr->Loc << ": no constructor " << type_expr->Name << "() found\n";
-			else
+			if (!type_expr) {
 				errs() << Loc << ": no prototype for call expression found\n";
-			ft = nullptr;
+				ft = nullptr;
+			}
 			return;
 		}
 		int selected_proto = selectProto(protos, name, fn_args, Callee->Loc);
