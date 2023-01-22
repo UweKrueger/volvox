@@ -56,8 +56,10 @@ pub const CLOEXEC ::= if os.isLinux
 		0 .
 pub const NOINHERIT ::= CLOEXEC # flag's Windows name as alias
 
+# POSIX systems' open function 
+cdecl fn open(filename cstring, flags int, mode int) int
+# Windows naming convention
 cdecl fn _open(filename cstring, flags int, mode int) int
-cdecl(open) fn __open(filename cstring, flags int, mode int) int
 
 # general function to open an unbuffered file - essentially the POSIX version
 #
@@ -65,7 +67,7 @@ pub inline fn openfile(filename string, flags int, mode int) Fd
 	if os.isWindows
 		fd := _open(filename, flags, mode)
 	else
-		fd := __open(filename, flags, mode) .
+		fd := open(filename, flags, mode) .
 	return Fd { fd: fd }
 
 # open file for read/write (like '>' in shell scripts)

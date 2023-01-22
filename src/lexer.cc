@@ -514,6 +514,9 @@ startanalysis:
 					goto binopswitch;
 				}
 			}
+		case '"':
+			IdentifierStr = "";
+			return Token(tok_invisible);
 		case ':':
 			CurChar = advance();
 			if (CurChar == '=') {
