@@ -438,6 +438,8 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	} else {
 		// pass by value
 		val = expr->codegen();
+		if (!val)
+			return nullptr;
 		if (val->getType()->isFloatTy())
 			val = Builder->CreateBitCast(val, llvm::Type::getInt32Ty(Context));
 	}

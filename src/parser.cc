@@ -1151,7 +1151,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		// the pending operator take RHS as its LHS.
 		if (TokPrec <= NextTokPrecedence()) {
 			RHS = ParseBinOpRHS(TokPrec, std::move(RHS), terminator);
-			if (!RHS)
+			if (!RHS || !RHS->ft)
 				return nullptr;
 		}
 		if (RHS->ft->type && RHS->ft->type->isFunctionTy())
