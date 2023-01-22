@@ -63,7 +63,7 @@ cdecl fn _open(filename cstring, flags int, mode int) int
 
 # general function to open an unbuffered file - essentially the POSIX version
 #
-pub inline fn openfile(filename string, flags int, mode int) Fd
+pub inline fn openfile(filename cstring, flags int, mode int) Fd
 	if os.isWindows
 		fd := _open(filename, flags, mode)
 	else
@@ -74,26 +74,26 @@ pub inline fn openfile(filename string, flags int, mode int) Fd
 # - if file name exists truncate it to size 0
 # - create new file otherwise
 #
-pub inline fn create(filename string) Fd
+pub inline fn create(filename cstring) Fd
 	return openfile(filename, CREAT | RDWR | TRUNC | BINARY | CLOEXEC, 0666)
 
 # open existing file for read
 # return error otherwise
 #
-pub inline fn open(filename string) Fd
+pub inline fn open(filename cstring) Fd
 	return openfile(filename, RDONLY | BINARY | CLOEXEC, 0)
 
 # create new file for read/write
 # - if file name already exists do nothing and return error
 #
-pub inline fn newfile(filename string) Fd
+pub inline fn newfile(filename cstring) Fd
 	return openfile(filename, CREAT | RDWR | EXCL | BINARY | CLOEXEC, 0666)
 
 # open file to append data (like '>>' in shell scripts)
 # - if file name exists set file pointer to end
 # - create new file otherwise
 #
-pub inline fn append(filename string) Fd
+pub inline fn append(filename cstring) Fd
 	return openfile(filename, CREAT | WRONLY | APPEND | BINARY | CLOEXEC, 0666)
 
 cdecl fn close(fd int) int
@@ -110,21 +110,36 @@ pub inline fn Fd.close int
 cdecl fn _write(fd int, buf cstring, count u32) int
 cdecl fn write(fd int, buf cstring, count size_t) ssize_t
 
-pub inline fn Fd.write(buf cstring, count size_t) ssize_t
-	bytes_written := size_t(0)
-	if os.isWindows
+fn win64_write(fd int, buf cstring, count size_t) ssize_t
+	# The Windows _write() can only handle max_int bytes but size_t might exceed this value
+	# on 64 bit platforms. So we split the operation into several parts in that case
+	if os.isWindows && os.bitwidth > 32
+		bytes_written := size_t(0)
 		written := limits.max_i32
 		while count > limits.max_i32 && written == limits.max_i32
-			written = _write(this.fd, buf, u32(limits.max_i32))
+			written = _write(fd, buf, u32(limits.max_i32))
 			if written >= 0
 				bytes_written += u32(written)
 				count -= u32(written) . .
 		if written == limits.max_i32
-			written = _write(this.fd, buf, u32(count)) .
+			written = _write(fd, buf, u32(count)) .
 		if written < 0
 			return -1
 		else
 			return bytes_written + written
+	else
+		# this function will not be called in other cases - so keep it small
+		return 0
+
+# basically the POSIX 'write()' function - do not use this function directly
+# unless you know what you are doing...
+#
+pub inline fn Fd._write(buf cstring, count size_t) ssize_t
+	if os.isWindows
+		if os.bitwidth > 32
+			return win64_write(this.fd, buf, count)
+		else
+			return _write(this.fd, buf, u32(count))
 	else
 		return write(this.fd, buf, count)
 
