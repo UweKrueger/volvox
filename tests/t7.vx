@@ -70,3 +70,30 @@ fn test_incompatible_branches_4 bool
 	else
 		q7_1 .
 	return true
+
+fn test_array_value_attrib_1 bool
+	a := [[4,5,6],[2,3,6]].order
+	return a == 2
+
+fn test_array_value_attrib_2 bool
+	a := [[4,5,6],[2,3,6]].size
+	return a == 6
+
+fn test_array_value_attrib_3 bool
+	a := [3][4]f64{}.size
+	return a == 12
+
+fn test_array_value_attrib_4 bool
+	a := [3][4]f64{}.order
+	return a == 2
+
+fn test_array_value_attrib_5 bool
+	f := 7
+	a := [3][f][4]f64{}.order
+	return a == 3
+
+fn test_array_value_attrib_6 bool
+	f := 13
+	g := 5
+	a := [f][7][g]f64{}.size
+	return a == 455

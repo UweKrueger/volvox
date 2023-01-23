@@ -361,14 +361,18 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 	if (V.first) {
 		llvm::ArrayType* arr_type;
 		if (auto arr_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type)) {
-			llvm::Type* arr_ty;
-			llvm::Value* arr;
+			llvm::Type* arr_ty = (llvm::Type*)(intptr_t)-1;
+			llvm::Value* arr = nullptr;
 			if (auto array_ast = dynamic_cast<LvalueExprAST*>(Struct.get()))
-				std::tie(arr_ty, arr) = array_ast->codegen_ref();
+				std::tie(arr_ty, arr) = array_ast->codegen_ref(true);
+			if (!arr && arr_ty)
+				arr = Struct->codegen_raw();
 			if (!arr) {
-				errs() << Loc << ": array methods only allowed for lvalue arrays\n";
+				errs() << Loc << ": invalid array\n";
 				return nullptr;
 			}
+			// update type after codegen
+			arr_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type);
 			// FieldIdx: 0->size, 1->order
 			uint64_t size = 1;
 			llvm::Value* Size = getSize(1);
@@ -391,7 +395,6 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (Struct->ft->type->isPointerTy()) {
 		}
-		errs() << Loc << ": Type: " << *V.first << '\n';
 		llvm::Value* Store = nullptr;
 		if (Struct->needs_target() || Struct->ft->type_attr & A_union) {
 			Store = CreateEntryBlockAlloca(Struct->ft->type);

@@ -85,7 +85,7 @@ fn test_var_array_multi_level_index_indirect bool
 fn test_mixed_array_multi_level_index_indirect bool
 	vv := [yn209][7][wn]f64{2: {5: {1: 763.0625}}}
 	x := vv[2][5]
-	return x[1] == 763.0625
+	return x[1] == 763.0625 && vv.dim(1) == 7 && vv.order == 3
 
 fn test_mixed2_array_multi_level_index_indirect bool
 	vv := [5][7][wn]f64{3: {1: {-13.5, 763.0625}}}
