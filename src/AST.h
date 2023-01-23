@@ -701,7 +701,6 @@ public:
 					// the parser might have found the ident in tables so we have to handle these cases
 					// it does not seems effective to declare a common base class "NamedExprAST" to derive
 					// these cases because 'VariableExprAST' is derived from 'LvalueExprAST', the others are not
-					CallExprAST* callExpr;
 					if (auto nameAST = dynamic_cast<VariableExprAST*>(field_val->LHS.get()))
 						field_key = &nameAST->Name;
 					else if (auto nameAST = dynamic_cast<FunctionExprAST*>(field_val->LHS.get()))
