@@ -685,12 +685,10 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Type* arr_ty = (llvm::Type*)(intptr_t)-1;
 			if (auto array_ast = dynamic_cast<LvalueExprAST*>(selec->Struct.get()))
 				std::tie(arr_ty, arr) = array_ast->codegen_ref(true);
-			if (arr)
-				errs() << Loc << ": got array reference " << *arr << "\n";
 			if (!arr && arr_ty)
 				arr = selec->Struct->codegen_raw();
 			if (!arr) {
-				errs() << Loc << ": invalid array 2\n";
+				errs() << Loc << ": invalid array\n";
 				return nullptr;
 			}
 			// update type after codegen

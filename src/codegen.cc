@@ -789,6 +789,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	unsigned is_union = expr->RHS->ft->type_attr & A_union;
 	bool is_constructor_call = false;
 	bool use_target = false;
+	bool have_array = false;
 	llvm::Value* target = nullptr;
 	size_t allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 	if (LREF) {
@@ -804,14 +805,14 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			if (is_constructor_call || allocsz > 16 && !(sym_kind & (A_global | A_rvalue)))
 				use_target = true;
 		} else if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
-			errs() << callexpr->Loc << ": have callexpr " << *callexpr->Callee->ft->type << "\n";
-			if (callexpr->Callee->ft->type->isArrayTy()) {
-				errs() << callexpr->Loc << ": have array\n";
-				use_target = true;
+			if (auto selectexpr = dynamic_cast<SelectExprAST*>(callexpr->Callee.get())) {
+				if (selectexpr->Struct->ft->type->isArrayTy()) {
+					have_array = true;
+				}
 			}
 		}
 		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & (A_global | A_rvalue));
-		if (!use_target)
+		if (!use_target && (!have_array || (comp_mode == comp_jit && !do_test)))
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
 	}
 	if (!use_target && !Val) {

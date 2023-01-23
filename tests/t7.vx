@@ -120,8 +120,6 @@ asd99 := 17
 
 ffkld3 := [3][asd99][5]f64{}
 
-eqwef2 := ffkld3.dim(1)
-
 global eqwef3 := ffkld3.dim(1)
 
 fn test_array_dim_5 bool
