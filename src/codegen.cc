@@ -782,7 +782,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	llvm::Value* Arg = nullptr;
 	if (prepare_setter_fn)
 		tmpf = init_setter_fn(setter_name, varname, Arg);
-	llvm::Value* Val;
+	llvm::Value* Val = nullptr;
 	llvm::Type* type;
 	FullVar* is_referencing = nullptr;
 	unsigned attribs = 0;
@@ -803,6 +803,12 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			}
 			if (is_constructor_call || allocsz > 16 && !(sym_kind & (A_global | A_rvalue)))
 				use_target = true;
+		} else if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
+			errs() << callexpr->Loc << ": have callexpr " << *callexpr->Callee->ft->type << "\n";
+			if (callexpr->Callee->ft->type->isArrayTy()) {
+				errs() << callexpr->Loc << ": have array\n";
+				use_target = true;
+			}
 		}
 		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & (A_global | A_rvalue));
 		if (!use_target)

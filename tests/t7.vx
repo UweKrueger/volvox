@@ -115,3 +115,14 @@ global ffddff := [3][13][5]f64{}
 fn test_array_dim_4 bool
 	n := 1
 	return ffddff.dim(n) == 13
+
+asd99 := 17
+
+ffkld3 := [3][asd99][5]f64{}
+
+eqwef2 := ffkld3.dim(1)
+
+global eqwef3 := ffkld3.dim(1)
+
+fn test_array_dim_5 bool
+	return eqwef3 == 17

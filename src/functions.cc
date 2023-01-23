@@ -684,11 +684,13 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* arr = nullptr;
 			llvm::Type* arr_ty = (llvm::Type*)(intptr_t)-1;
 			if (auto array_ast = dynamic_cast<LvalueExprAST*>(selec->Struct.get()))
-				std::tie(arr_ty, arr) = array_ast->codegen_ref();
+				std::tie(arr_ty, arr) = array_ast->codegen_ref(true);
+			if (arr)
+				errs() << Loc << ": got array reference " << *arr << "\n";
 			if (!arr && arr_ty)
 				arr = selec->Struct->codegen_raw();
 			if (!arr) {
-				errs() << Loc << ": invalid array\n";
+				errs() << Loc << ": invalid array 2\n";
 				return nullptr;
 			}
 			// update type after codegen
@@ -718,9 +720,9 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				order++;
 			}
 			if (size)
-				return getSize(size);
+				return handle(target, getSize(size));
 			if (Size)
-				return Size;
+				return handle(target, Size);
 			if (Dim) {
 				errs() << Loc << ": argument of 'dim' (" << theidx << ") must be less than order of tensor ("
 				       << order << ")\n";
@@ -731,7 +733,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* DimsArray = llvm::UndefValue::get(dim_arr_type);
 			for (int i=0; i<dims_array.size(); i++)
 				DimsArray = Builder->CreateInsertElement(DimsArray, dims_array[i], i);
-			return Builder->CreateExtractElement(DimsArray, arg);
+			return handle(target, Builder->CreateExtractElement(DimsArray, arg));
 		}
 	}
 	if (Proto->visibility & A_constructor) {
