@@ -377,7 +377,7 @@ public:
 						FieldIndex = 1;
 						ft = integer_type;
 					} else if (!strcmp(FieldName, "dim")) {
-						auto fntype = llvm::FunctionType::get(llvm_int_type, { llvm_int_type }, false);
+						auto fntype = llvm::FunctionType::get(llvm_size_type, { llvm_int_type }, false);
 						ft = new_FullType(fntype, 0);
 						ft->Protos = int_int_proto;
 					} else {
