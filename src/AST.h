@@ -373,7 +373,7 @@ public:
 					if (!strcmp(FieldName, "size")) {
 						FieldIndex = 0;
 						ft = size_type;
-					} else if (!strcmp(FieldName, "dims")) {
+					} else if (!strcmp(FieldName, "order")) {
 						FieldIndex = 1;
 						ft = integer_type;
 					} else if (!strcmp(FieldName, "dim")) {

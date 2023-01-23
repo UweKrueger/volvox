@@ -337,6 +337,8 @@ llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, llvm::Type* exp
 std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref(bool silent_fail) {
 	if (!ft || !ft->type)
 		return { nullptr, nullptr }; // error message was already generated in AST
+	if (Struct->ft->type->isArrayTy() || Struct->ft->type->isPointerTy())
+		goto failure;
 	if (auto LV = dynamic_cast<LvalueExprAST*>(Struct.get())) {
 		auto struct_ref = LV->codegen_ref(silent_fail);
 		if (struct_ref.second) {
@@ -346,6 +348,7 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref(bool silent_fail)
 				return { ft->type, Builder->CreateStructGEP(struct_ref.first, struct_ref.second, FieldIndex) };
 		}
 	}
+failure:
 	if (!silent_fail)
 		errs() << Struct->Loc << ": LHS of '.' expression must be an lvalue\n";
 	return { ft->type, nullptr };
@@ -356,6 +359,39 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 	if (auto val = ref2val(V))
 		return handle(target, val);
 	if (V.first) {
+		llvm::ArrayType* arr_type;
+		if (auto arr_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type)) {
+			llvm::Type* arr_ty;
+			llvm::Value* arr;
+			if (auto array_ast = dynamic_cast<LvalueExprAST*>(Struct.get()))
+				std::tie(arr_ty, arr) = array_ast->codegen_ref();
+			if (!arr) {
+				errs() << Loc << ": array methods only allowed for lvalue arrays\n";
+				return nullptr;
+			}
+			// FieldIdx: 0->size, 1->order
+			uint64_t size = 1;
+			llvm::Value* Size = getSize(1);
+			int order = 0;
+			int idx = 0;
+			while (arr_type) {
+				order++;
+				if (!FieldIndex) {
+					uint64_t dim = arr_type->getNumElements();
+					if (!dim)
+						Size = Builder->CreateMul(Size, Builder->CreateExtractValue(arr, idx++));
+					else
+						size *= dim;
+				}
+				arr_type = llvm::dyn_cast<llvm::ArrayType>(arr_type->getElementType());
+			}
+			if (!FieldIndex)
+				return Builder->CreateMul(Size, getSize(size));
+			return Builder->getInt32(order);
+		}
+		if (Struct->ft->type->isPointerTy()) {
+		}
+		errs() << Loc << ": Type: " << *V.first << '\n';
 		llvm::Value* Store = nullptr;
 		if (Struct->needs_target() || Struct->ft->type_attr & A_union) {
 			Store = CreateEntryBlockAlloca(Struct->ft->type);
