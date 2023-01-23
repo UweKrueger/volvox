@@ -906,15 +906,17 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 			if (!arg)
 				return nullptr;
-			if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
-				// C convention: variadic float args must be promoted to double
-				if (!arg->getType()->isFloatTy())
-					arg = Builder->CreateFPCast(arg, llvm::Type::getFloatTy(Context), "convfptmp");
-				arg = Builder->CreateBitCast(arg, llvm::Type::getInt32Ty(Context));
-			} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(arg->getType())) {
-				// same with short integers 
-				if (intT->getBitWidth() < 32)
-					arg = Builder->CreateIntCast(arg, llvm::Type::getInt32Ty(Context), !(!(Args[i]->ft->type_attr & A_signed)));
+			if ((i+arg_offs) >= Proto->Args.size()) {
+				if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
+					// C convention: variadic float args must be promoted to double
+					if (!arg->getType()->isFloatTy())
+						arg = Builder->CreateFPCast(arg, llvm::Type::getFloatTy(Context), "convfptmp");
+					arg = Builder->CreateBitCast(arg, llvm::Type::getInt32Ty(Context));
+				} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(arg->getType())) {
+					// same with short integers
+					if (intT->getBitWidth() < 32)
+						arg = Builder->CreateIntCast(arg, llvm::Type::getInt32Ty(Context), !(!(Args[i]->ft->type_attr & A_signed)));
+				}
 			}
 			ArgsV.push_back(arg);
 		}
@@ -925,7 +927,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		// Callee was a function symbol like `sin`
 		if (Proto->const_result)
 			return Proto->const_result;
-		return Builder->CreateCall(F, ArgsV, "calltmp");
+		return Builder->CreateCall(FT, F, ArgsV, "calltmp");
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
 		return Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
