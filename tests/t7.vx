@@ -97,3 +97,21 @@ fn test_array_value_attrib_6 bool
 	g := 5
 	a := [f][7][g]f64{}.size
 	return a == 455
+
+fn test_array_dim_1 bool
+	return [3][7][5]f64{}.dim(1) == 7
+
+fn test_array_dim_2 bool
+	f := 13
+	return [3][f][5]f64{}.dim(1) == 13
+
+fn test_array_dim_3 bool
+	f := 13
+	n := 1
+	return [3][f][5]f64{}.dim(n) == 13
+
+global ffddff := [3][13][5]f64{}
+
+fn test_array_dim_4 bool
+	n := 1
+	return ffddff.dim(n) == 13

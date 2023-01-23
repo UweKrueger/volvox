@@ -667,14 +667,19 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		if (selec->Struct->ft && selec->Struct->ft->type && (arr_type = llvm::dyn_cast<llvm::ArrayType>(selec->Struct->ft->type))) {
 			auto arg = Args[0]->codegen();
 			auto Dim = llvm::dyn_cast<llvm::ConstantInt>(arg);
-			if (!Dim) {
-				errs() << Args[0]->Loc << ": argument of 'dim()' must be a constexpr\n";
-				return nullptr;
-			}
-			auto theidx = Dim->getSExtValue();
-			if (theidx < 0) {
-				errs() << Args[0]->Loc << ": argument of 'dim' (" << theidx << ") must not be negative\n";
-				return nullptr;
+			// if (!Dim) {
+			// 	errs() << Args[0]->Loc << ": argument of 'dim()' must be a constexpr\n";
+			// 	return nullptr;
+			// }
+			int theidx;
+			if (Dim) {
+				theidx = Dim->getSExtValue();
+				if (theidx < 0) {
+					errs() << Args[0]->Loc << ": argument of 'dim' (" << theidx << ") must not be negative\n";
+					return nullptr;
+				}
+			} else {
+				theidx = -1;
 			}
 			llvm::Value* arr = nullptr;
 			llvm::Type* arr_ty = (llvm::Type*)(intptr_t)-1;
@@ -692,15 +697,22 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* Size = nullptr;
 			int order = 0;
 			int idx = 0;
+			std::vector<llvm::Value*> dims_array; // only needed if Dim is no constexpr
 			while (arr_type) {
 				uint64_t dim = arr_type->getNumElements();
 				if (!dim) {
-					if (order == theidx)
-						Size = Builder->CreateExtractValue(arr, idx);
+					if (!Dim)
+						dims_array.push_back(Builder->CreateExtractValue(arr, idx));
+					else
+						if (order == theidx)
+							Size = Builder->CreateExtractValue(arr, idx);
 					idx++;
 				} else {
-					if (order == theidx)
-						size = dim;
+					if (!Dim)
+						dims_array.push_back(getSize(dim));
+					else
+						if (order == theidx)
+							size = dim;
 				}
 				arr_type = llvm::dyn_cast<llvm::ArrayType>(arr_type->getElementType());
 				order++;
@@ -709,9 +721,17 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				return getSize(size);
 			if (Size)
 				return Size;
-			errs() << Loc << ": argument of 'dim' (" << theidx << ") must be less than order of tensor ("
-			       << order << ")\n";
-			return nullptr;
+			if (Dim) {
+				errs() << Loc << ": argument of 'dim' (" << theidx << ") must be less than order of tensor ("
+				       << order << ")\n";
+				return nullptr;
+			}
+			// "Dim" aka "arg" was no compile time const - but we have all dimensions saved in dims_array
+			llvm::Type* dim_arr_type = llvm::ArrayType::get(llvm_size_type, dims_array.size());
+			llvm::Value* DimsArray = llvm::UndefValue::get(dim_arr_type);
+			for (int i=0; i<dims_array.size(); i++)
+				DimsArray = Builder->CreateInsertElement(DimsArray, dims_array[i], i);
+			return Builder->CreateExtractElement(DimsArray, arg);
 		}
 	}
 	if (Proto->visibility & A_constructor) {
