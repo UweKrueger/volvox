@@ -660,46 +660,58 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	}
 	if (auto selec = dynamic_cast<SelectExprAST*>(Callee.get())) {
+		// usual mehod calls like 's.m(...)' are identified as CallExpr and are handled there
+		// however this does not work if 's' is not a struct type. So the pseudo method
+		// call 'a.dim(n)' where a is an array has to be handled here
 		llvm::ArrayType* arr_type;
 		if (selec->Struct->ft && selec->Struct->ft->type && (arr_type = llvm::dyn_cast<llvm::ArrayType>(selec->Struct->ft->type))) {
 			auto arg = Args[0]->codegen();
-			auto order = llvm::dyn_cast<llvm::ConstantInt>(arg);
-			if (!order) {
+			auto Dim = llvm::dyn_cast<llvm::ConstantInt>(arg);
+			if (!Dim) {
 				errs() << Args[0]->Loc << ": argument of 'dim()' must be a constexpr\n";
 				return nullptr;
 			}
-			auto idxmax = order->getSExtValue();
-			if (idxmax < 0) {
-				errs() << Args[0]->Loc << ": argument of 'dim()' must be >= 0\n";
+			auto theidx = Dim->getSExtValue();
+			if (theidx < 0) {
+				errs() << Args[0]->Loc << ": argument of 'dim' (" << theidx << ") must not be negative\n";
 				return nullptr;
 			}
-			llvm::Value* arrayref = nullptr;
-			llvm::Type* array_ty = nullptr;
+			llvm::Value* arr = nullptr;
+			llvm::Type* arr_ty = (llvm::Type*)(intptr_t)-1;
 			if (auto array_ast = dynamic_cast<LvalueExprAST*>(selec->Struct.get()))
-				std::tie(array_ty, arrayref) = array_ast->codegen_ref();
-			if (!arrayref)
+				std::tie(arr_ty, arr) = array_ast->codegen_ref();
+			if (!arr && arr_ty)
+				arr = selec->Struct->codegen_raw();
+			if (!arr) {
+				errs() << Loc << ": invalid array\n";
 				return nullptr;
-			int max_ref_idx = -1;
-			if (auto arrayref_struct = llvm::dyn_cast<llvm::StructType>(arrayref->getType()))
-				max_ref_idx = arrayref_struct->getNumElements() - 1;
-			int idx = -1;
-			uint64_t dim = 0;
-			while (idxmax >= 0) {
-				if (!arr_type) {
-					errs() << Loc << ": argument of 'dim' (" << order->getSExtValue() << ") must be less than order of tensor ("
-					       << order->getSExtValue()+idxmax << ")\n";
-					return nullptr;
-				}
-				dim = arr_type->getNumElements();
+			}
+			// update type after codegen
+			arr_type = llvm::dyn_cast<llvm::ArrayType>(selec->Struct->ft->type);
+			uint64_t size = 0;
+			llvm::Value* Size = nullptr;
+			int order = 0;
+			int idx = 0;
+			while (arr_type) {
+				uint64_t dim = arr_type->getNumElements();
 				if (!dim) {
+					if (order == theidx)
+						Size = Builder->CreateExtractValue(arr, idx);
 					idx++;
+				} else {
+					if (order == theidx)
+						size = dim;
 				}
 				arr_type = llvm::dyn_cast<llvm::ArrayType>(arr_type->getElementType());
-				idxmax--;
+				order++;
 			}
-			if (!dim)
-				return Builder->CreateExtractValue(arrayref, idx);
-			return getSize(dim);
+			if (size)
+				return getSize(size);
+			if (Size)
+				return Size;
+			errs() << Loc << ": argument of 'dim' (" << theidx << ") must be less than order of tensor ("
+			       << order << ")\n";
+			return nullptr;
 		}
 	}
 	if (Proto->visibility & A_constructor) {
