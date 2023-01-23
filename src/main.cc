@@ -202,7 +202,7 @@ void init(const llvm::Triple& triple) {
 	default:
 		// on Raspbian 'getOS()' returns 0 for unknown reason,
 		// but 'getOsName()' allows guessing 'Linux'
-		if (triple.getOSName() == "gnueabihf")
+		if (!strncmp(triple.getOSName().str().c_str(), "gnu", 3))
 			os_idx = OS_Linux;
 		else
 			os_idx = OS_UnknownOS;
