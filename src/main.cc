@@ -30,6 +30,7 @@ bool have_return = false;
 int return_value = 0;
 unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
+uint64_t target_mask;
 unsigned target_int_bits;
 std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
@@ -1494,6 +1495,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 	target_bytes = target_bits >> 3;
+	target_mask = (uint64_t)-1 >> (64 - target_bits);
 	if (comp_mode == comp_obj) {
 		TheModule->setTargetTriple(TargetTriple);
 		TheModule->setDataLayout(TheTargetMachine->createDataLayout());

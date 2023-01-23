@@ -393,7 +393,13 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 				return Builder->CreateMul(Size, getSize(size));
 			return Builder->getInt32(order);
 		}
-		if (Struct->ft->type->isPointerTy()) {
+		if (Struct->ft->type->isPointerTy() && (Struct->ft->type_attr & A_string)) {
+			llvm::Value* s = Struct->codegen_raw();
+			auto Sz = Builder->CreateAnd(Builder->CreateLoad(llvm_size_type, s),
+			                             getSize(target_mask >> 1));
+			if (!FieldIndex)
+				return Sz;
+			return Builder->CreateSub(Sz, getSize(1));
 		}
 		llvm::Value* Store = nullptr;
 		if (Struct->needs_target() || Struct->ft->type_attr & A_union) {
