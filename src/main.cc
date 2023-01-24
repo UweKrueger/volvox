@@ -885,6 +885,7 @@ static void MainLoop() {
 		default:
 			if (last_defined_type)
 				finish_constructors_and_destructor();
+			Builder->ClearInsertionPoint();
 			if (auto expr = GetTopLevelExpression(sym_kind)) {
 				if (comp_mode == comp_jit && !do_test)
 					HandleTopLevelExpression(std::move(expr));
