@@ -758,7 +758,8 @@ std::map<std::string,bool> all_global_symbols;
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
-	bool prepare_setter_fn = comp_mode == comp_jit && !do_test;
+	bool prepare_setter_fn = comp_mode == comp_jit && !do_test && !rhs_is_constexpr;
+	bool initialization_from_main = (comp_mode != comp_jit || do_test) && !rhs_is_constexpr;
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
@@ -771,6 +772,11 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		return nullptr;
 	}
 	const std::string& unmangled_name = LHSE->getName();
+	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & (A_global | A_global))) {
+		errs() << expr->Loc << ": " << ((sym_kind & A_global) ? "global" : "const")
+		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using '::='\n";
+		return cleanupGlobal(nullptr, unmangled_name.c_str(), nullptr);
+	}
 	auto varname = create_mangled_global(unmangled_name);
 	if (sym_kind & A_global) {
 		auto ins_success = all_global_symbols.insert({varname,false});
@@ -797,74 +803,59 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	bool use_target = false;
 	bool have_array = false;
 	llvm::Value* target = nullptr;
+	bool needs_constructor;
 	size_t allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 	if (LREF) {
 		std::tie(type, Val) = GetReference(expr->RHS.get(), is_referencing);
-		if (!Val)
+		if (!Val) {
+			errs() << expr->Loc << ": cannot get reference (RHS no lvalue?)\n";
 			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
+		}
 	} else {
 		if (llvm::isa<llvm::StructType>(expr->RHS->ft->type)) {
 			if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
 				if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
 					is_constructor_call = true;
 			}
-			if (is_constructor_call || allocsz > 16 && !(sym_kind & (A_global | A_rvalue)))
+			if (is_constructor_call || allocsz > 16)
 				use_target = true;
-		} else if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
-			if (auto selectexpr = dynamic_cast<SelectExprAST*>(callexpr->Callee.get())) {
-				if (selectexpr->Struct->ft->type->isArrayTy()) {
-					have_array = true;
-				}
-			}
 		}
-		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & (A_global | A_rvalue));
-		if (!use_target && (!have_array || (comp_mode == comp_jit && !do_test)))
+		needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
+		use_target = use_target || needs_constructor;
+		if (!use_target && !initialization_from_main)
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
-	}
-	if (!use_target && !Val) {
-		if (!(sym_kind & (A_const | A_global))) {
-			errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
-		} else {
-			if (!(sym_kind & A_global))
-				cleanupGlobal(tmpf, nullptr, nullptr);
-		}
 	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
-	/* this is how it should be...
-	if (Val && (sym_kind && A_rvalue)) {
-		initializer = llvm::dyn_cast<llvm::Constant>(Val);
-		if (!initializer) {
-			errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str());
+	if (Val) {
+		if (rhs_is_constexpr) {
+			initializer = llvm::dyn_cast<llvm::Constant>(Val);
+			if (!initializer) {
+				errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
+				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
+			}
 		}
-	} */
-	if (!(use_target || !Val)) { // that's what we have to use for now...
-		initializer = llvm::dyn_cast<llvm::Constant>(Val);
-		if (!initializer && !strcmp(expr->Op, "::=")) {
-			errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
-		}
+	} else if (!use_target && !initialization_from_main) {
+		errs() << expr->Loc << ": cannot generate code for RHS\n";
+		return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 	}
 	bool needs_store;
-	bool needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
 	if (initializer) {
 		needs_store = false;
-		if (!(needs_constructor && (comp_mode == comp_jit) && !do_test))
-			cleanupGlobal(tmpf, nullptr, nullptr);
 	} else {
-		if (needs_constructor) {
-			errs() << expr->RHS->Loc << ": internal error - unsized type but constructor required\n";
-			abort();
-		}
-		needs_store = !use_target;
 		if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
+		} else {
+			errs() << expr->Loc << ": #### have 0 size initializer\n";
 		}
+		// if (needs_constructor) {
+		// 	errs() << expr->RHS->Loc << ": internal error - unsized type but constructor required\n";
+		// 	abort();
+		// }
+		needs_store = !use_target;
 	}
-	bool needs_call = (needs_store || needs_constructor || use_target) && (comp_mode == comp_jit) && !do_test;
+	bool needs_call = (needs_store || use_target) && !initialization_from_main;
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF) {
 			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";
@@ -903,6 +894,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			fv->storage_type = initializer->getType();
 		}
 	} else {
+		if (sym_kind & (A_const | A_global)) {
+			errs() << expr->Loc << ": internal error - no initializer\n";
+			abort();
+		}
 		fv->storage_type = nullptr;
 	}
 	fv->mangled_name = strdup(varname.c_str());
@@ -931,10 +926,11 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
 		}
-		if (((sym_kind & A_const) || ((sym_kind & A_global)) && needs_store) && (comp_mode != comp_jit || do_test)) {
-			//expr->Op[0] = '=';
-			//expr->Op[1] = expr->Op[2] ='\0';
-			//expr->opclass = OpAssign;
+		if (initialization_from_main) {
+			expr->Op[0] = '=';
+			expr->Op[1] = expr->Op[2] ='\0';
+			expr->opclass = OpAssign;
+			LHSE->full_var = fv;
 			GlobalExprList.push_back(std::move(expr));
 			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
@@ -943,9 +939,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		llvm::Type* array_ptr_ty = nullptr;
 		llvm::Value* ptrRet = nullptr;
 		unsigned ndim = 0;
-		if (needs_store || use_target) { // no global
+		if (needs_store || use_target) {
 			if (comp_mode != comp_jit) {
-				errs() << expr->Loc <<"internal error: non-global main variable '" << varname
+				errs() << expr->Loc << ": internal error - non-global main variable '" << varname
 				       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
 				abort();
 			}
