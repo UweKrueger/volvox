@@ -223,10 +223,15 @@ fn QwER
 fn ~QwER
 	return
 
-global eewc := QwER{ w: 2 }
+global eewc ::= QwER{ w: 2 }
 
 fn test_constructor_for_global bool
 	return eewc.h == 3 && eewc.w == 35
+
+global eewc2 := QwER{ w: 2 }
+
+fn test_constructor_for_global_2 bool
+	return eewc2.h == 3 && eewc2.w == 35
 
 global wef53 := YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }}
 

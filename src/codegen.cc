@@ -758,8 +758,6 @@ std::map<std::string,bool> all_global_symbols;
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
-	bool prepare_setter_fn = comp_mode == comp_jit && !do_test && !rhs_is_constexpr;
-	bool initialization_from_main = (comp_mode != comp_jit || do_test) && !rhs_is_constexpr;
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
@@ -771,6 +769,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		errs() << LHSE->Loc << ": LHS of declaration must be a variable name\n";
 		return nullptr;
 	}
+	bool initialization_from_main = (comp_mode != comp_jit || do_test) && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
+	bool prepare_setter_fn = comp_mode == comp_jit && !do_test && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
 	const std::string& unmangled_name = LHSE->getName();
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & (A_global | A_global))) {
 		errs() << expr->Loc << ": " << ((sym_kind & A_global) ? "global" : "const")
@@ -821,8 +821,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				use_target = true;
 		}
 		needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
-		use_target = use_target || needs_constructor;
-		if (!use_target && !initialization_from_main)
+		if (!use_target && (!initialization_from_main || rhs_is_constexpr))
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
 	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
@@ -844,7 +843,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (initializer) {
 		needs_store = false;
 	} else {
-		if (allocsz > 0) {
+		if (LREF)
+			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type->getPointerTo());
+		else if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		} else {
 			errs() << expr->Loc << ": #### have 0 size initializer\n";
@@ -855,7 +856,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// }
 		needs_store = !use_target;
 	}
-	bool needs_call = (needs_store || use_target) && !initialization_from_main;
+	bool needs_call = (needs_store || use_target || needs_constructor) && !initialization_from_main;
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF) {
 			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";
@@ -919,7 +920,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		fv->mark_as_referencing(is_referencing);
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
 	if (!needs_call) {
-		if (needs_constructor) { // we are not in interactive JIT mode -> call constructor by main()
+		if (needs_constructor && initialization_from_main) { // we are not in interactive JIT mode -> call constructor by main()
 			auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
 			auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
 			GlobalExprList.push_back(std::move(constructor_call));
@@ -927,11 +928,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			return nullptr;
 		}
 		if (initialization_from_main) {
-			expr->Op[0] = '=';
-			expr->Op[1] = expr->Op[2] ='\0';
-			expr->opclass = OpAssign;
-			LHSE->full_var = fv;
-			GlobalExprList.push_back(std::move(expr));
+			if (!rhs_is_constexpr) {
+				expr->Op[0] = '=';
+				expr->Op[1] = expr->Op[2] ='\0';
+				expr->opclass = OpAssign;
+				LHSE->full_var = fv;
+				GlobalExprList.push_back(std::move(expr));
+			}
 			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
 		}
