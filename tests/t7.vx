@@ -17,6 +17,8 @@ fn test_exactly_one_os_is_defined bool
 		n++ .
 	if os.isLinux
 		n++ .
+	if os.isHaiku
+		n++ .
 	if os.isMacOSX
 		n++ .
 	return n == 1

@@ -17,7 +17,7 @@
 #include <sys/sysctl.h>
 #elif defined(__linux__)
 #define THISEXELINK "/proc/self/exe"
-#elif defined(__OpenBSD__)
+#elif defined(__OpenBSD__) || defined(__HAIKU__)
 // needs probably fiddling with argv[0]/KERN_PROC_ARGS, PATH, realpath(), ...
 #else
 // what else - MacOS?
@@ -80,7 +80,7 @@ const char* getThisExePath() {
 	} while (res >= bufsize);
 	volvox_exe_path[res] = '\0';
 	return volvox_exe_path;
-#elif defined(__OpenBSD__)
+#elif defined(__OpenBSD__) || defined(__HAIKU__)
 	// we rely on environment variables and hard coded paths for now
 	return nullptr;
 #else

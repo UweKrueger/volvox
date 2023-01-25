@@ -196,6 +196,9 @@ void init(const llvm::Triple& triple) {
 	case llvm::Triple::OpenBSD:
 		os_idx = OS_OpenBSD;
 		break;
+	case llvm::Triple::Haiku:
+		os_idx = OS_Haiku;
+		break;
 	case llvm::Triple::Win32:
 		os_idx = OS_Windows;
 		break;

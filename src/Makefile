@@ -12,6 +12,10 @@ ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	SUFFIX :=
 	NIXTYPE := mingw64
 else
+ifeq ($(shell test -x /bin/llvm-config && echo -n true),true)
+	PREFIX := /
+	SUFFIX :=
+else
 ifeq ($(shell test -x /usr/local/bin/llvm-config15 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := 15
@@ -36,16 +40,16 @@ else
 ifeq ($(shell test -x /usr/pkg/bin/llvm-config && echo -n true),true)
 	PREFIX := /usr/pkg
 	SUFFIX :=
-else
 endif
 endif
 endif
 endif
 endif
 endif
+endif
+	LINKEXTRAFLAGS := $(LINKEXTRAFLAGS) -rdynamic
 endif
 	NIXTYPE := posix
-	LINKEXTRAFLAGS := $(LINKEXTRAFLAGS) -rdynamic
 endif
 
 LLVMCONFIG := $(PREFIX)/bin/llvm-config$(SUFFIX)
@@ -71,6 +75,12 @@ ifeq ($(shell uname),DragonFly)
 	EDITLINEOBJS := # we use system provided BSD editline
 	LINKEXTRAFLAGS := -L/usr/local/lib $(LINKEXTRAFLAGS)
 else
+ifeq ($(shell uname),Haiku)
+	CPPEXTRAFLAGS := -stdlib++-isystem /system/develop/tools/lib/gcc/x86_64-unknown-haiku/11.2.0/include/c++ -stdlib++-isystem /system/develop/tools/lib/gcc/x86_64-unknown-haiku/11.2.0/include/c++/x86_64-unknown-haiku -I/system/develop/headers/editline -fPIC
+	EXTRAOBJS :=
+	EDITLINEOBJS := # we use system provided BSD editline
+	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
+else
 ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' versions works ;-(
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS := emutls.o
@@ -84,6 +94,7 @@ else
 endif
 	EXTRAOBJS :=
 	EDITLINEOBJS :=
+endif
 endif
 endif
 endif

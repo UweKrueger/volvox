@@ -231,6 +231,7 @@ enum OS_Type_t : uint8_t {
 	OS_MacOSX,
 	OS_NetBSD,
 	OS_OpenBSD,
+	OS_Haiku,
 	OS_Windows
 };
 	
