@@ -920,20 +920,19 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		fv->mark_as_referencing(is_referencing);
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
 	if (!needs_call) {
-		if (needs_constructor && initialization_from_main) { // we are not in interactive JIT mode -> call constructor by main()
-			auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
-			auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
-			GlobalExprList.push_back(std::move(constructor_call));
-			cleanupGlobal(tmpf, nullptr, nullptr);
-			return nullptr;
-		}
 		if (initialization_from_main) {
+			auto theLoc = expr->LHS->Loc;
 			if (!rhs_is_constexpr) {
 				expr->Op[0] = '=';
 				expr->Op[1] = expr->Op[2] ='\0';
 				expr->opclass = OpAssign;
 				LHSE->full_var = fv;
 				GlobalExprList.push_back(std::move(expr));
+			}
+			if (needs_constructor) {
+				auto varExpr = std::make_unique<VariableExprAST>(theLoc, unmangled_name, fv);
+				auto constructor_call = std::make_unique<DefaultConstructorCall>(theLoc, std::move(varExpr));
+				GlobalExprList.push_back(std::move(constructor_call));
 			}
 			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
