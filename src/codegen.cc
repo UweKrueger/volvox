@@ -803,7 +803,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	bool use_target = false;
 	bool have_array = false;
 	llvm::Value* target = nullptr;
-	bool needs_constructor;
+	bool needs_constructor = false;
 	size_t allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 	if (LREF) {
 		std::tie(type, Val) = GetReference(expr->RHS.get(), is_referencing);
