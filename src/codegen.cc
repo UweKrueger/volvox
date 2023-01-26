@@ -772,13 +772,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	bool initialization_from_main = (comp_mode != comp_jit || do_test) && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
 	bool prepare_setter_fn = comp_mode == comp_jit && !do_test && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
 	const std::string& unmangled_name = LHSE->getName();
-	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & (A_global | A_global))) {
+	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & (A_global | A_const))) {
 		errs() << expr->Loc << ": " << ((sym_kind & A_global) ? "global" : "const")
 		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using '::='\n";
 		return cleanupGlobal(nullptr, unmangled_name.c_str(), nullptr);
 	}
 	auto varname = create_mangled_global(unmangled_name);
-	if (sym_kind & A_global) {
+	if (sym_kind & (A_global | A_const)) {
 		auto ins_success = all_global_symbols.insert({varname,false});
 		if (!ins_success.second) {
 			errs() << expr->LHS->Loc << ": '" << varname << "' already in use as global/external " << (ins_success.first->second ? "function\n" : "variable\n");
@@ -944,8 +944,23 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			if (initializer) { // constant size initializer
 				if (use_target) {
 					expr->RHS->codegen_raw(GV);
-				} else
+				} else {
 					Builder->CreateStore(Val, GV);
+					if (comp_mode == comp_jit && !do_test) {
+						if (expr->RHS->ft->type_attr & A_string) {
+							if (auto const_str = llvm::dyn_cast<llvm::Constant>(Val)) {
+								// constant addresses of GlobalVariables do not survive
+								// module switches in interactive JIT mode so we convert
+								// constant string initializers to heap allocated writable strings
+								std::string mkwr = "__string_make_writable";
+								auto mkwr_proto = (*lex.findProtos(mkwr))[0].get();
+								auto mkwr_fn = getFunction(mkwr_proto);
+								Val = Builder->CreateCall(mkwr_proto->FT, mkwr_fn, std::vector<llvm::Value*>{ GV }, "callmkwr");
+								Builder->CreateStore(Val, GV);
+							}
+						}
+					}
+				}
 			} else { // variable size array - no global
 				auto retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
@@ -1001,8 +1016,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			GV = CreateGlobal(initializer, varname, sym_kind);
 		if (comp_mode == comp_jit && (sym_kind & A_global) && needs_call && !do_test)
 			shadow_already_created = CreateShadow(initializer, varname);
-		else
-			finishFunctionOrModule();
+		finishFunctionOrModule();
 		// Search the JIT for the <setter_name> symbol.
 		auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
 		// C syntax at its best...
