@@ -847,13 +847,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type->getPointerTo());
 		else if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
-		} else {
-			errs() << expr->Loc << ": #### have 0 size initializer\n";
 		}
-		// if (needs_constructor) {
-		// 	errs() << expr->RHS->Loc << ": internal error - unsized type but constructor required\n";
-		// 	abort();
-		// }
 		needs_store = !use_target;
 	}
 	bool needs_call = (needs_store || use_target || needs_constructor) && !initialization_from_main;
