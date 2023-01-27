@@ -313,7 +313,7 @@ fn test_map_lit_2 bool
 
 # hjhg7["ABd"]
 
-akd4 := "qwertz123"
+global akd4 := "qwertz123"
 
 global akd5 := "789"
 
