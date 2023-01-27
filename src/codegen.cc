@@ -909,8 +909,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (initialization_from_main) {
 			auto theLoc = expr->LHS->Loc;
 			if (!rhs_is_constexpr) {
-				expr->Op[0] = '=';
-				expr->Op[1] = expr->Op[2] ='\0';
+				// transform this declaration to an assignment and insert it into "main()"'s expr list
+				// the operator remains '::=' to indicate that no destructor for the old LHS value
+				// must be inserted
 				expr->opclass = OpAssign;
 				LHSE->full_var = fv;
 				GlobalExprList.push_back(std::move(expr));
@@ -938,7 +939,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 					expr->RHS->codegen_raw(GV);
 				} else {
 					Builder->CreateStore(Val, GV);
-					if (comp_mode == comp_jit && !do_test) {
+					if (false && comp_mode == comp_jit && !do_test) {
 						if (expr->RHS->ft->type_attr & A_string) {
 							if (auto const_str = llvm::dyn_cast<llvm::Constant>(Val)) {
 								// constant addresses of GlobalVariables do not survive
@@ -1265,10 +1266,13 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	use_val:
 		if (allocsz <= 16 && !is_constructor_call) {
-			if (RHS->ft->type_attr & (A_use_target /* | A_string*/)) {
+			if (RHS->ft->type_attr & (A_use_target /* | A_string */)) {
 				postpone_valgen = true;
 			} else {
-				Val = RHS->codegen();
+				if (RHS->ft->type_attr & A_string)
+					Val = RHS->codegen_raw((llvm::Value*)(intptr_t)-1);
+				else
+					Val = RHS->codegen();
 				if (!Val)
 					return nullptr;
 			}
@@ -1307,6 +1311,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				else
 					Builder->CreateStore(Val, Variable.second);
 				// call destructor for OldVal if discarded
+				// it might be that opclass has been changed to OpAssign by HandleGlobalVariable()
+				// in this case Op will still be ':='
+				if (Op[0] == ':')
+					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				return handle_d(target, OldVal, LHS->ft->type_attr);
 			}
 		}
