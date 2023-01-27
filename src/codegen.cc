@@ -261,9 +261,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, full_var->mangled_name, nullptr,
-			                             ((full_var->ft.type_attr & A_global) && !(full_var->ft.type_attr & A_const)) ?
-			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
-			                             llvm::GlobalVariable::NotThreadLocal,
+			                             tls_model(full_var->ft.type_attr),
 			                             0, true);
 		V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(full_var->storage_type));
 	} else {
@@ -701,31 +699,25 @@ static bool CreateShadow(llvm::Constant* initializer, std::string& varname) {
 static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varname, unsigned sym_kind) {
 	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(varname, true);
 	if (!GV) {
-		auto TLSmodel = (sym_kind & A_global) ?
-			llvm::GlobalVariable::GeneralDynamicTLSModel :
-			llvm::GlobalVariable::NotThreadLocal;
 		llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
 			llvm::GlobalValue::ExternalLinkage :
 			llvm::GlobalValue::InternalLinkage;
 		GV = new llvm::GlobalVariable(*TheModule, type,
 		                              false, link_type,
 		                              nullptr, varname, nullptr,
-		                              TLSmodel, 0, true);
+		                              tls_model(sym_kind), 0, true);
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(type));
 	}
 	return GV;
 }
 
 static llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
-	auto TLSmodel = (sym_kind & A_global) ?
-		llvm::GlobalVariable::GeneralDynamicTLSModel :
-		llvm::GlobalVariable::NotThreadLocal;
 	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
 		llvm::GlobalValue::ExternalLinkage :
 		llvm::GlobalValue::InternalLinkage;
 	llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-	                                                    false, link_type,
-	                                                    initializer, varname, nullptr, TLSmodel, 0, false);
+	                                                    false, link_type, initializer, varname, nullptr,
+	                                                    tls_model(sym_kind), 0, false);
 	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 	return GV;
 }
@@ -1189,9 +1181,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			for ( ; Op[m] != '='; m++)
 				newOp[m] = Op[m];
 			newOp[m] = '\0';
-			RHS = std::make_unique<BinaryExprAST>(Loc, newOp, std::move(new_LHS), std::move(RHS),
-			                                      std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
-				                                      ft->type, ft->type_attr & A_signed, is_unknown_type, getOpClass(newOp), err_msg });
+			RHS = std::make_unique<BinaryExprAST>(
+				Loc, newOp, std::move(new_LHS), std::move(RHS),
+				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+					ft->type, ft->type_attr & (A_signed | A_string | A_map), is_unknown_type, getOpClass(newOp), err_msg });
 		}
 		RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
@@ -1272,7 +1265,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	use_val:
 		if (allocsz <= 16 && !is_constructor_call) {
-			if (RHS->ft->type_attr & (A_use_target | A_string)) {
+			if (RHS->ft->type_attr & (A_use_target /* | A_string*/)) {
 				postpone_valgen = true;
 			} else {
 				Val = RHS->codegen();
@@ -1324,8 +1317,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// variable declaration
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		llvm::Type* type = RHS->ft->type;
-		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);
 		FullVar* entry;
 		if (locals_table.empty()) {
 			entry = lex.module->globals_table[varname];
@@ -1338,8 +1329,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
+		llvm::Type* type = RHS->ft->type;
+		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);
 		entry->ft.type = type;
-		entry->ft.type_attr = (entry->ft.type_attr & ~(A_signed | A_string | A_map)) | attribs;
+		entry->ft.type_attr |= attribs;
 		if (Val) {
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;

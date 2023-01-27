@@ -769,6 +769,12 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 	}
 }
 
+inline static auto tls_model(unsigned attr) {
+	return ((attr & A_global) && !(attr & A_const)) ?
+		llvm::GlobalVariable::GeneralDynamicTLSModel :
+		llvm::GlobalVariable::NotThreadLocal;
+}
+
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
 	llvm::Value* V;
 	if ((fv->ft.type_attr & A_mainvar) && comp_mode == comp_jit && !do_test || (fv->ft.type_attr & A_global)) { // global variable
@@ -781,9 +787,7 @@ inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nul
 			V = new llvm::GlobalVariable(*TheModule, fv->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, fv->mangled_name, nullptr,
-			                             (fv->ft.type_attr & A_global) ?
-			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
-			                             llvm::GlobalVariable::NotThreadLocal,
+			                             tls_model(fv->ft.type_attr),
 			                             0, true);
 	} else {
 		V = fv->val;
