@@ -811,7 +811,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			}
 			if (is_constructor_call || allocsz > 16)
 				use_target = true;
-		}
+		} else if (expr->RHS->ft->type_attr & A_map)
+			use_target = true;
 		needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
 		if (!use_target && (!initialization_from_main || rhs_is_constexpr))
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));

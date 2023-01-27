@@ -305,13 +305,18 @@ fn test_map_lit_2 bool
 
 # the following test cases are meant to test memory management with valgrind
 
-# map[string]i32{ "g0st": 12, "dpoDe": -79, "ABfdx": 113, "Qwedf": 99, "PO": -6  }["ABfdx"]
+map[string]i32{ "g0st": 12, "dpoDe": -79, "ABfdx": 113, "Qwedf": 99, "PO": -6  }["ABfdx"]
 
-# hjhg7 := map[string]f64{ "ggs": 12, "doDe": 2.25, "ABd": -1.0625 }
+hjhg7 := map[string]f64{ "ggs": 12, "doDe": 2.25, "ABd": -1.0625 }
 
-# hjhg7["ggs"]
+hjhg7["ggs"]
 
-# hjhg7["ABd"]
+hjhg7["ABd"]
+
+global hjhg8 := map[string]f64{ "gkgs": 19, "douDe": 2.75, "8ABd": -11.0625 }
+
+fn test_global_map bool
+	return hjhg8["8ABd"] == -11.0625
 
 global akd4 := "qwertz123"
 
