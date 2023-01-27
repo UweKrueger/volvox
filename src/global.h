@@ -778,6 +778,8 @@ inline static auto tls_model(unsigned attr) {
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
 	llvm::Value* V;
 	if ((fv->ft.type_attr & A_mainvar) && comp_mode == comp_jit && !do_test || (fv->ft.type_attr & A_global)) { // global variable
+		if (fv->ft.type_attr & A_rvalue)
+			return; // constexpr -> nothing to do
 		if (!fv->mangled_name) {
 			errs() << "Global Destructors: no mangled name\n";
 			return;
