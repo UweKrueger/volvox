@@ -897,7 +897,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			                                   || fv->ft.type->isIntegerTy() && fv->ft.type->getIntegerBitWidth() > 1)) {
 				fv->ft.type_attr |= A_untyped;
 			}
-			fv->ft.type_attr &= ~A_global;
 			return nullptr;
 		}
 		else
