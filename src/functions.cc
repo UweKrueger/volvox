@@ -478,14 +478,9 @@ llvm::Value* Volvox2CStr1(llvm::Value* v) {
 }
 
 llvm::Value* Volvox2CStr2(llvm::Value* v, llvm::Value* subtrahend) {
-	subtrahend = Builder->CreateAdd(subtrahend, getSize(target_bytes - 1));
-	subtrahend = Builder->CreateAnd(subtrahend, ~((1ULL << (target_bits - 1)) | (target_bytes - 1)));
-	auto cstr = Builder->CreateIntToPtr(
-		Builder->CreateSub(
-			Builder->CreatePtrToInt(v, llvm_size_type),
-			Builder->CreateIntCast(subtrahend, llvm_size_type, false)),
-		llvm::Type::getInt8PtrTy(Context));
-	return cstr;
+	llvm::Value* cstr = Builder->CreateSub(Builder->CreatePtrToInt(v, llvm_size_type), subtrahend);
+	cstr = Builder->CreateAnd(cstr, ((uint64_t)(-1LL) >> (64 - target_bits)) & ~((1ULL << (target_bits - 1)) | (target_bytes - 1)));
+	return Builder->CreateIntToPtr(cstr, llvm::Type::getInt8PtrTy(Context));
 }
 
 llvm::Value* Volvox2CStr(llvm::Value* v) {
