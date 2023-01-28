@@ -1333,3 +1333,16 @@ extern std::vector<const char*> SourceFileNames;
 extern bool jit_repl;
 extern int builtin_input_fd;
 extern void CallGlobalDestructorsJIT();
+
+static inline llvm::LoadInst* CreateAtomicLoad(llvm::Type* ty, llvm::Value* adr, const llvm::Twine &Name = "") {
+	auto align = TheModule->getDataLayout().getABITypeAlign(ty);
+	return Builder->Insert(
+		new llvm::LoadInst(
+			ty, adr, Name, true, align, llvm::AtomicOrdering::SequentiallyConsistent));
+}
+
+static inline llvm::StoreInst *CreateAtomicStore(llvm::Value* val, llvm::Value* adr) {
+	auto align = TheModule->getDataLayout().getABITypeAlign(val->getType());
+	return Builder->Insert(
+		new llvm::StoreInst(val, adr, true, align, llvm::AtomicOrdering::SequentiallyConsistent));
+}
