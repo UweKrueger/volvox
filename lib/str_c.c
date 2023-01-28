@@ -749,7 +749,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			abort();
 		const char* post = va_arg(ap, char*);
 		if (post) {
-			prtstring(s, cap, pos, volvox2cstr(post));
+			prtstring(s, cap, pos, post);
 			space = *cap - *pos;
 		}
 		ft = va_arg(ap, const VOLVOX_RtType*);
