@@ -771,9 +771,15 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 }
 
 inline static auto tls_model(unsigned attr) {
-	return ((attr & A_global) && !(attr & A_const)) ?
+	return ((attr & A_global) && !(attr & (A_globally_visible & ~A_global))) ?
 		llvm::GlobalVariable::GeneralDynamicTLSModel :
 		llvm::GlobalVariable::NotThreadLocal;
+}
+
+inline static auto link_type(unsigned attr) {
+	return ((attr & A_pub) || comp_mode == comp_jit)?
+		llvm::GlobalValue::ExternalLinkage :
+		llvm::GlobalValue::InternalLinkage;
 }
 
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {

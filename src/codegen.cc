@@ -250,7 +250,8 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	}
 	llvm::GlobalVariable* V;
 	llvm::Type* storage_type;
-	if ((full_var->ft.type_attr & (A_mainvar | A_global | A_const)) && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & (A_global | A_const)))) { // global variable
+	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && (comp_mode == comp_jit && !do_test)) {
+		// global variable or main var in interactive JIT
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
@@ -259,7 +260,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 		V = TheModule->getGlobalVariable(full_var->mangled_name, true);
 		if (!V)
 			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
-			                             false, llvm::GlobalValue::ExternalLinkage,
+			                             false, link_type(full_var->ft.type_attr),
 			                             nullptr, full_var->mangled_name, nullptr,
 			                             tls_model(full_var->ft.type_attr),
 			                             0, true);
@@ -699,11 +700,8 @@ static bool CreateShadow(llvm::Constant* initializer, std::string& varname) {
 static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varname, unsigned sym_kind) {
 	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(varname, true);
 	if (!GV) {
-		llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
-			llvm::GlobalValue::ExternalLinkage :
-			llvm::GlobalValue::InternalLinkage;
 		GV = new llvm::GlobalVariable(*TheModule, type,
-		                              false, link_type,
+		                              false, link_type(sym_kind),
 		                              nullptr, varname, nullptr,
 		                              tls_model(sym_kind), 0, true);
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(type));
@@ -712,11 +710,8 @@ static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varn
 }
 
 static llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
-	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
-		llvm::GlobalValue::ExternalLinkage :
-		llvm::GlobalValue::InternalLinkage;
 	llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-	                                                    false, link_type, initializer, varname, nullptr,
+	                                                    false, link_type(sym_kind), initializer, varname, nullptr,
 	                                                    tls_model(sym_kind), 0, false);
 	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 	return GV;
@@ -748,6 +743,18 @@ static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* f
 
 std::map<std::string,bool> all_global_symbols;
 
+static inline const char* global_kind_str(unsigned flags) {
+	if (flags & A_const)
+		return "const";
+	if (flags & A_shared)
+		return "shared";
+	if (flags & A_atomic)
+		return "atomic";
+	if (flags & A_extern)
+		return "extern";
+	return "global";
+}
+
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
@@ -764,13 +771,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	bool initialization_from_main = (comp_mode != comp_jit || do_test) && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
 	bool prepare_setter_fn = comp_mode == comp_jit && !do_test && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
 	const std::string& unmangled_name = LHSE->getName();
-	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & (A_global | A_const))) {
-		errs() << expr->Loc << ": " << ((sym_kind & A_global) ? "global" : "const")
+	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
+		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
 		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using '::='\n";
 		return cleanupGlobal(nullptr, unmangled_name.c_str(), nullptr);
 	}
 	auto varname = create_mangled_global(unmangled_name);
-	if (sym_kind & (A_global | A_const)) {
+	if (sym_kind & A_globally_visible) {
 		auto ins_success = all_global_symbols.insert({varname,false});
 		if (!ins_success.second) {
 			errs() << expr->LHS->Loc << ": '" << varname << "' already in use as global/external " << (ins_success.first->second ? "function\n" : "variable\n");
@@ -882,7 +889,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			fv->storage_type = initializer->getType();
 		}
 	} else {
-		if (sym_kind & (A_const | A_global)) {
+		if (sym_kind & A_globally_visible) {
 			errs() << expr->Loc << ": internal error - no initializer\n";
 			abort();
 		}
