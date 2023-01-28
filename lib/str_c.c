@@ -1254,6 +1254,11 @@ _DECL char* __cstr2volvoxstr(const char* c_str) {
 	size_t l;
 	char* targ;
 	cstr2volvoxstr(res, l, targ, c_str, malloc);
+	char* realtarg = volvox2cstr(res);
+	if (targ != realtarg)
+		fprintf(stderr, "###################################################################### targets differ: %p vs. %p\n", targ, realtarg);
+	else
+		fprintf(stderr, "############ created str: >%s<\n", targ);
 	return res;
 }
 

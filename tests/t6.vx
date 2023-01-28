@@ -353,12 +353,12 @@ fn str_drop
 	a := "Qkjs67bgfds"
 	b := "ouhesftzgh"
 	c := a + b
-	# printstr(1, c)
+	printstr(1, c)
 	c = b + a
 	b = b + b
 	b = a = c + c
-	# printstr(1, a)
-	# printstr(1, b)
+	printstr(1, a)
+	printstr(1, b)
 	return
 
 str_drop

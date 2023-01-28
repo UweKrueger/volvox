@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "str.h"
 
 #if defined (_WIN32)
 #define _DECL __declspec(dllexport)
@@ -14,10 +15,6 @@
 #else
 #define _DECL
 #define _CDECL extern "C"
-#endif
-
-#ifndef volvox2cstr
-#define volvox2cstr(v) (v - ((*(unsigned*)v + 3) & ~((1U << 31) | 3U)))
 #endif
 
 typedef uint64_t u64;

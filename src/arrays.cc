@@ -8,6 +8,8 @@
 #include "AST.h"
 #include "../lib/str.h"
 
+std::vector<const char*> jit_string_consts;
+
 llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type, ListExprAST* List) {
 	uint64_t dim = initializer_type->getNumElements();
 	if (!Elements.size())
@@ -566,7 +568,12 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 // a "string constant" has to be stored at a fixed place on heap to emulate
 // the beahviour we have in other modes
 llvm::Value* createJITStringConst(const char* str, const llvm::Twine &Name) {
+	errs() << "####*********************************** creating string const >" << str << "<\n";
 	char* v_str = __cstr2volvoxstr(str);
+	size_t new_l = *(size_t*)v_str;
+	const char* new_cstr = volvox2cstr(v_str);
+	errs() << "####*********************************** created string (len: " << new_l << ") >" << new_cstr << "<\n";
+	jit_string_consts.push_back(new_cstr);
 	llvm::Constant* iadr = getSize((uintptr_t)v_str);
 	return Builder->CreateBitCast(iadr, llvm::Type::getInt8PtrTy(Context));
 }

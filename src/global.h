@@ -734,6 +734,7 @@ extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
 extern std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
+extern std::vector<const char*> jit_string_consts;
 
 extern void InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
