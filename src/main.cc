@@ -1785,10 +1785,8 @@ int main(int argc, char* argv[]) {
 	}
 	for (auto str: SourceFileNames)
 		free((void*)str);
-	for (auto str: jit_string_consts) {
-		errs() << "freeing >" << str << "<\n";
+	for (auto str: jit_string_consts)
 		free((void*)str);
-	}
 #ifdef _WIN32
 	SetConsoleOutputCP(old_cp);
 	SetConsoleCP(old_input_cp);
