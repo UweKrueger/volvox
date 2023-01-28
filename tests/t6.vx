@@ -361,7 +361,7 @@ fn str_drop
 	printstr(1, b)
 	return
 
-str_drop
+# str_drop
 
 from math import sqrt
 
