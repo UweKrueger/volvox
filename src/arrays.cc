@@ -562,7 +562,18 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 	}
 }
 
+// in interactive JIT mode addresses of global change for call to call so
+// a "string constant" has to be stored at a fixed place on heap to emulate
+// the beahviour we have in other modes
+llvm::Value* createJITStringConst(const char* str, const llvm::Twine &Name) {
+	char* v_str = __cstr2volvoxstr(str);
+	llvm::Constant* iadr = getSize((uintptr_t)v_str);
+	return Builder->CreateBitCast(iadr, llvm::Type::getInt8PtrTy(Context));
+}
+
 llvm::Value* createStringConst(const char* str, const llvm::Twine &Name) {
+	if (comp_mode == comp_jit && !do_test)
+		return createJITStringConst(str, Name);
 	char* stra;
 	char* tmpres;
 	size_t l_alloc;

@@ -936,25 +936,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				abort();
 			}
 			if (initializer) { // constant size initializer
-				if (use_target) {
+				if (use_target)
 					expr->RHS->codegen_raw(GV);
-				} else {
+				else
 					Builder->CreateStore(Val, GV);
-					if (comp_mode == comp_jit && !do_test) {
-						if (expr->RHS->ft->type_attr & A_string) {
-							if (auto const_str = llvm::dyn_cast<llvm::Constant>(Val)) {
-								// constant addresses of GlobalVariables do not survive
-								// module switches in interactive JIT mode so we convert
-								// constant string initializers to heap allocated writable strings
-								std::string mkwr = "__string_make_writable";
-								auto mkwr_proto = (*lex.findProtos(mkwr))[0].get();
-								auto mkwr_fn = getFunction(mkwr_proto);
-								Val = Builder->CreateCall(mkwr_proto->FT, mkwr_fn, std::vector<llvm::Value*>{ GV }, "callmkwr");
-								Builder->CreateStore(Val, GV);
-							}
-						}
-					}
-				}
 			} else { // variable size array - no global
 				auto retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {

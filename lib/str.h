@@ -82,6 +82,7 @@ namespace volvox {
 };
 
 _CDECL void showtestres(int fd, int width, const char* testcase, bool result);
+_CDECL char* __cstr2volvoxstr(const char* c_str);
 
 #endif
 
