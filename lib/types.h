@@ -42,6 +42,7 @@
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)
 #define A_use_target A_map
+#define A_globally_visible (A_const|A_shared|A_atomic|A_global|A_extern)
 
 #if defined (_MSC_VER)
 #define PACK(s) __pragma(pack(push,1)) s __pragma(pack(pop))
@@ -231,6 +232,7 @@ enum OS_Type_t : uint8_t {
 	OS_MacOSX,
 	OS_NetBSD,
 	OS_OpenBSD,
+	OS_Haiku,
 	OS_Windows
 };
 	

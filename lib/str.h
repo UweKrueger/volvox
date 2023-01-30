@@ -56,7 +56,7 @@ typedef struct volvox_glob_t {
 #define SIZE_T_BITS ((sizeof(size_t) == 8) ? 64 : (sizeof(size_t) == 4) ? 32 : 16)
 #define volvox_string_len(v) ((*(size_t*)v & ~((size_t)1 << (SIZE_T_BITS-1))) - 1)
 // an LLVM implementation of this function is available as Volvox2CStr()
-#define volvox2cstr(v) (v - ((*(size_t*)v + (sizeof(size_t)-1)) & ~(((size_t)1 << (SIZE_T_BITS-1)) | (sizeof(size_t)-1))))
+#define volvox2cstr(v) (char*)((uintptr_t)(v - *(size_t*)v) & ~(((size_t)1 << (SIZE_T_BITS-1)) | (sizeof(size_t)-1)))
 #endif
 #ifndef STR_WRITE
 #define STR_WRITE(s) s, sizeof(s)-1
@@ -82,14 +82,15 @@ namespace volvox {
 };
 
 _CDECL void showtestres(int fd, int width, const char* testcase, bool result);
+_CDECL char* __cstr2volvoxstr(const char* c_str);
 
 #endif
 
 #ifndef cstr2volvoxstr
 #define cstr2volvoxstr(result, lalloc, target, cstr, allocfn)	  \
 	size_t _l = strlen(cstr); \
-	lalloc = (_l+2*target_bytes) & ~(size_t)(target_bytes-1); /* add space for \0 and one aligend size_t */ \
-	target = (char*)(((size_t)allocfn(lalloc + target_bytes - 1) + target_bytes - 1) & ~(size_t)(target_bytes - 1)); /* create target_bytes-byte aligned space */ \
+	lalloc = (_l+1+target_bytes+(target_bytes-1)) & ~(size_t)(target_bytes-1); /* add space for \0 and one aligend size_t */ \
+	target = (char*)allocfn(lalloc); /* create target_bytes-byte aligned space */ \
 	strcpy(target, cstr); \
 	for (size_t n = _l; n < lalloc-target_bytes; n++) \
 		target[n]=0; /* make sure padding is zerored */ \

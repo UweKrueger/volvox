@@ -437,7 +437,7 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	const char* Op, unsigned left_attr, unsigned right_attr)
 {
 	auto opclass = getOpClass(Op);
-	const char* err_msg;
+	const char* err_msg = nullptr;
 	if (!strcmp(Op, "+") || !strcmp(Op, "=")) {
 		if (left_attr & right_attr & A_string)
 			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };

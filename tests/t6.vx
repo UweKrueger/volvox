@@ -223,10 +223,15 @@ fn QwER
 fn ~QwER
 	return
 
-global eewc := QwER{ w: 2 }
+global eewc ::= QwER{ w: 2 }
 
 fn test_constructor_for_global bool
 	return eewc.h == 3 && eewc.w == 35
+
+global eewc2 := QwER{ w: 2 }
+
+fn test_constructor_for_global_2 bool
+	return eewc2.h == 3 && eewc2.w == 35
 
 global wef53 := YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }}
 
@@ -308,14 +313,31 @@ hjhg7["ggs"]
 
 hjhg7["ABd"]
 
+global hjhg8 := map[string]f64{ "gkgs": 19, "douDe": 2.75, "8ABd": -11.0625 }
+
+fn test_global_map bool
+	return hjhg8["8ABd"] == -11.0625
+
 akd4 := "qwertz123"
 
-global akd5 := "789"
+global akd5 := "789" + "456"
 
-akd5 = akd5 + akd4
+akd5
+
+akd6 := akd4
+
+akd6 = akd6 + akd5
+
+akd6
+
+const akd7 ::= "hfd"
+
+akd7
+
+akd5 = akd6 + akd7
 
 fn test_main_string bool
-	return akd5 == "789qwertz123"
+	return akd5 == "qwertz123789456hfd"
 
 fn test_local_string bool
 	x := "hfqer"
@@ -331,15 +353,15 @@ fn str_drop
 	a := "Qkjs67bgfds"
 	b := "ouhesftzgh"
 	c := a + b
-	# printstr(1, c)
+	printstr(1, c)
 	c = b + a
 	b = b + b
 	b = a = c + c
-	# printstr(1, a)
-	# printstr(1, b)
+	printstr(1, a)
+	printstr(1, b)
 	return
 
-str_drop
+# str_drop
 
 from math import sqrt
 

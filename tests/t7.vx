@@ -17,6 +17,8 @@ fn test_exactly_one_os_is_defined bool
 		n++ .
 	if os.isLinux
 		n++ .
+	if os.isHaiku
+		n++ .
 	if os.isMacOSX
 		n++ .
 	return n == 1
@@ -110,7 +112,7 @@ fn test_array_dim_3 bool
 	n := 1
 	return [3][f][5]f64{}.dim(n) == 13
 
-global ffddff := [3][13][5]f64{}
+global ffddff ::= [3][13][5]f64{}
 
 fn test_array_dim_4 bool
 	n := 1
@@ -120,7 +122,24 @@ asd99 := 17
 
 ffkld3 := [3][asd99][5]f64{}
 
-global eqwef3 := ffkld3.dim(1)
+global eqwef3 := ffkld3.dim(1) + 4
 
 fn test_array_dim_5 bool
-	return eqwef3 == 17
+	return eqwef3 == 21
+
+fn test_string_size_1 bool
+	return "hjdrt56".size == 8
+
+fn test_string_len_1 bool
+	return "hjdrt56".len == 7
+
+fn test_string_len_2 bool
+	a := "vbhgf"
+	return a.len == 5
+
+fn test_string_len_3 bool
+	a := "vbhgf" + "c543"
+	return a.len == 9
+
+fn test_string_len_4 bool
+	return ("fgjhhgf" + "12").len == 9

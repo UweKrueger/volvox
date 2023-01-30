@@ -374,6 +374,7 @@ extern const char* volvox_lib();
 // often used types - for faster access
 extern unsigned target_bytes; // size_t, pointer size in bytes
 extern unsigned target_bits; // in bits
+extern uint64_t target_mask;
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
@@ -733,6 +734,7 @@ extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
 extern std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
+extern std::vector<const char*> jit_string_consts;
 
 extern void InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
@@ -768,9 +770,23 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 	}
 }
 
+inline static auto tls_model(unsigned attr) {
+	return ((attr & A_global) && !(attr & (A_globally_visible & ~A_global))) ?
+		llvm::GlobalVariable::GeneralDynamicTLSModel :
+		llvm::GlobalVariable::NotThreadLocal;
+}
+
+inline static auto link_type(unsigned attr) {
+	return ((attr & A_pub) || comp_mode == comp_jit)?
+		llvm::GlobalValue::ExternalLinkage :
+		llvm::GlobalValue::InternalLinkage;
+}
+
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
 	llvm::Value* V;
 	if ((fv->ft.type_attr & A_mainvar) && comp_mode == comp_jit && !do_test || (fv->ft.type_attr & A_global)) { // global variable
+		if (fv->ft.type_attr & A_rvalue)
+			return; // constexpr -> nothing to do
 		if (!fv->mangled_name) {
 			errs() << "Global Destructors: no mangled name\n";
 			return;
@@ -780,9 +796,7 @@ inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nul
 			V = new llvm::GlobalVariable(*TheModule, fv->storage_type,
 			                             false, llvm::GlobalValue::ExternalLinkage,
 			                             nullptr, fv->mangled_name, nullptr,
-			                             (fv->ft.type_attr & A_global) ?
-			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
-			                             llvm::GlobalVariable::NotThreadLocal,
+			                             tls_model(fv->ft.type_attr),
 			                             0, true);
 	} else {
 		V = fv->val;
@@ -1319,3 +1333,16 @@ extern std::vector<const char*> SourceFileNames;
 extern bool jit_repl;
 extern int builtin_input_fd;
 extern void CallGlobalDestructorsJIT();
+
+static inline llvm::LoadInst* CreateAtomicLoad(llvm::Type* ty, llvm::Value* adr, const llvm::Twine &Name = "") {
+	auto align = TheModule->getDataLayout().getABITypeAlign(ty);
+	return Builder->Insert(
+		new llvm::LoadInst(
+			ty, adr, Name, true, align, llvm::AtomicOrdering::SequentiallyConsistent));
+}
+
+static inline llvm::StoreInst *CreateAtomicStore(llvm::Value* val, llvm::Value* adr) {
+	auto align = TheModule->getDataLayout().getABITypeAlign(val->getType());
+	return Builder->Insert(
+		new llvm::StoreInst(val, adr, true, align, llvm::AtomicOrdering::SequentiallyConsistent));
+}

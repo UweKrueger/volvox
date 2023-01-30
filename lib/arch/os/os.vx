@@ -8,7 +8,8 @@ const Linux     ::= 3
 const MacOSX    ::= 4
 const NetBSD    ::= 5
 const OpenBSD   ::= 6
-const Windows   ::= 7
+const Haiku     ::= 7
+const Windows   ::= 8
 
 # public bool expressions to test for a particular OS
 # e.g. 'if os.isDragonfly; ... else ... .
@@ -20,6 +21,7 @@ pub const isLinux     ::= __OS_Idx == Linux
 pub const isMacOSX    ::= __OS_Idx == MacOSX
 pub const isNetBSD    ::= __OS_Idx == NetBSD
 pub const isOpenBSD   ::= __OS_Idx == OpenBSD
+pub const isHaiku     ::= __OS_Idx == Haiku
 pub const isWindows   ::= __OS_Idx == Windows
 
 pub const isBSD ::= isDragonFly || isFreeBSD || isNetBSD || isOpenBSD

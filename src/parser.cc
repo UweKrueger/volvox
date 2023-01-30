@@ -1694,7 +1694,7 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 				if (B->opclass == OpDeclAssign) {
 					if (!strcmp(B->Op, "::="))
 						sym_kind |= A_rvalue;
-					if ((comp_mode == comp_jit && !do_test) || (sym_kind & (A_global | A_const))) {
+					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_globally_visible)) {
 						auto uB = std::unique_ptr<BinaryExprAST>(B);
 						E.release();
 						return HandleGlobalVariable(std::move(uB), sym_kind);

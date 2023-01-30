@@ -30,6 +30,7 @@ bool have_return = false;
 int return_value = 0;
 unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
+uint64_t target_mask;
 unsigned target_int_bits;
 std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
@@ -195,13 +196,16 @@ void init(const llvm::Triple& triple) {
 	case llvm::Triple::OpenBSD:
 		os_idx = OS_OpenBSD;
 		break;
+	case llvm::Triple::Haiku:
+		os_idx = OS_Haiku;
+		break;
 	case llvm::Triple::Win32:
 		os_idx = OS_Windows;
 		break;
 	default:
 		// on Raspbian 'getOS()' returns 0 for unknown reason,
 		// but 'getOsName()' allows guessing 'Linux'
-		if (triple.getOSName() == "gnueabihf")
+		if (!strncmp(triple.getOSName().str().c_str(), "gnu", 3))
 			os_idx = OS_Linux;
 		else
 			os_idx = OS_UnknownOS;
@@ -884,6 +888,7 @@ static void MainLoop() {
 		default:
 			if (last_defined_type)
 				finish_constructors_and_destructor();
+			Builder->ClearInsertionPoint();
 			if (auto expr = GetTopLevelExpression(sym_kind)) {
 				if (comp_mode == comp_jit && !do_test)
 					HandleTopLevelExpression(std::move(expr));
@@ -1494,6 +1499,7 @@ int main(int argc, char* argv[]) {
 		exit(1);
 	}
 	target_bytes = target_bits >> 3;
+	target_mask = (uint64_t)-1 >> (64 - target_bits);
 	if (comp_mode == comp_obj) {
 		TheModule->setTargetTriple(TargetTriple);
 		TheModule->setDataLayout(TheTargetMachine->createDataLayout());
@@ -1778,6 +1784,8 @@ int main(int argc, char* argv[]) {
 		result = return_value;
 	}
 	for (auto str: SourceFileNames)
+		free((void*)str);
+	for (auto str: jit_string_consts)
 		free((void*)str);
 #ifdef _WIN32
 	SetConsoleOutputCP(old_cp);

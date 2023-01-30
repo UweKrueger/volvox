@@ -162,9 +162,9 @@ global qql := ZZu{
 	p: -517
 }
 
-global fgsde := [ ZZu{ p: -17 }, ZZu{ aq: [[13.5,3,2],[-34.5,0,7]]}]
+global fgsde ::= [ ZZu{ p: -17 }, ZZu{ aq: [[13.5,3,2],[-34.5,0,7]]}]
 
-global fgh211 := [ PPl{ b: -34 }, PPl{ t: 23 } ]
+global fgh211 ::= [ PPl{ b: -34 }, PPl{ t: 23 } ]
 
 fn ZZu.jjc(x f64) f64
 	return x*x

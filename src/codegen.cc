@@ -250,7 +250,8 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 	}
 	llvm::GlobalVariable* V;
 	llvm::Type* storage_type;
-	if ((full_var->ft.type_attr & (A_mainvar | A_global | A_const)) && ((comp_mode == comp_jit && !do_test) || (full_var->ft.type_attr & (A_global | A_const)))) { // global variable
+	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && (comp_mode == comp_jit && !do_test)) {
+		// global variable or main var in interactive JIT
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
 			return { nullptr, nullptr };
@@ -259,11 +260,9 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fai
 		V = TheModule->getGlobalVariable(full_var->mangled_name, true);
 		if (!V)
 			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
-			                             false, llvm::GlobalValue::ExternalLinkage,
+			                             false, link_type(full_var->ft.type_attr),
 			                             nullptr, full_var->mangled_name, nullptr,
-			                             ((full_var->ft.type_attr & A_global) && !(full_var->ft.type_attr & A_const)) ?
-			                             llvm::GlobalVariable::GeneralDynamicTLSModel :
-			                             llvm::GlobalVariable::NotThreadLocal,
+			                             tls_model(full_var->ft.type_attr),
 			                             0, true);
 		V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(full_var->storage_type));
 	} else {
@@ -392,7 +391,13 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 				return Builder->CreateMul(Size, getSize(size));
 			return Builder->getInt32(order);
 		}
-		if (Struct->ft->type->isPointerTy()) {
+		if (Struct->ft->type->isPointerTy() && (Struct->ft->type_attr & A_string)) {
+			llvm::Value* s = Struct->codegen_raw();
+			auto Sz = Builder->CreateAnd(Builder->CreateLoad(llvm_size_type, s),
+			                             getSize(target_mask >> 1));
+			if (!FieldIndex)
+				return Sz;
+			return Builder->CreateSub(Sz, getSize(1));
 		}
 		llvm::Value* Store = nullptr;
 		if (Struct->needs_target() || Struct->ft->type_attr & A_union) {
@@ -694,31 +699,19 @@ static bool CreateShadow(llvm::Constant* initializer, std::string& varname) {
 static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varname, unsigned sym_kind) {
 	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(varname, true);
 	if (!GV) {
-		auto TLSmodel = (sym_kind & A_global) ?
-			llvm::GlobalVariable::GeneralDynamicTLSModel :
-			llvm::GlobalVariable::NotThreadLocal;
-		llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
-			llvm::GlobalValue::ExternalLinkage :
-			llvm::GlobalValue::InternalLinkage;
 		GV = new llvm::GlobalVariable(*TheModule, type,
-		                              false, link_type,
+		                              false, link_type(sym_kind),
 		                              nullptr, varname, nullptr,
-		                              TLSmodel, 0, true);
+		                              tls_model(sym_kind), 0, true);
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(type));
 	}
 	return GV;
 }
 
 static llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
-	auto TLSmodel = (sym_kind & A_global) ?
-		llvm::GlobalVariable::GeneralDynamicTLSModel :
-		llvm::GlobalVariable::NotThreadLocal;
-	llvm::GlobalValue::LinkageTypes link_type = ((sym_kind & A_pub) || comp_mode == comp_jit) ?
-		llvm::GlobalValue::ExternalLinkage :
-		llvm::GlobalValue::InternalLinkage;
 	llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-	                                                    false, link_type,
-	                                                    initializer, varname, nullptr, TLSmodel, 0, false);
+	                                                    false, link_type(sym_kind), initializer, varname, nullptr,
+	                                                    tls_model(sym_kind), 0, false);
 	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
 	return GV;
 }
@@ -749,9 +742,20 @@ static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* f
 
 std::map<std::string,bool> all_global_symbols;
 
+static inline const char* global_kind_str(unsigned flags) {
+	if (flags & A_const)
+		return "const";
+	if (flags & A_shared)
+		return "shared";
+	if (flags & A_atomic)
+		return "atomic";
+	if (flags & A_extern)
+		return "extern";
+	return "global";
+}
+
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
-	bool prepare_setter_fn = comp_mode == comp_jit && !do_test;
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
@@ -763,9 +767,16 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		errs() << LHSE->Loc << ": LHS of declaration must be a variable name\n";
 		return nullptr;
 	}
+	bool initialization_from_main = (comp_mode != comp_jit || do_test) && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
+	bool prepare_setter_fn = comp_mode == comp_jit && !do_test && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
 	const std::string& unmangled_name = LHSE->getName();
+	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
+		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
+		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using '::='\n";
+		return cleanupGlobal(nullptr, unmangled_name.c_str(), nullptr);
+	}
 	auto varname = create_mangled_global(unmangled_name);
-	if (sym_kind & A_global) {
+	if (sym_kind & A_globally_visible) {
 		auto ins_success = all_global_symbols.insert({varname,false});
 		if (!ins_success.second) {
 			errs() << expr->LHS->Loc << ": '" << varname << "' already in use as global/external " << (ins_success.first->second ? "function\n" : "variable\n");
@@ -790,74 +801,55 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	bool use_target = false;
 	bool have_array = false;
 	llvm::Value* target = nullptr;
+	bool needs_constructor = false;
 	size_t allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 	if (LREF) {
 		std::tie(type, Val) = GetReference(expr->RHS.get(), is_referencing);
-		if (!Val)
+		if (!Val) {
+			errs() << expr->Loc << ": cannot get reference (RHS no lvalue?)\n";
 			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
+		}
 	} else {
 		if (llvm::isa<llvm::StructType>(expr->RHS->ft->type)) {
 			if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
 				if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
 					is_constructor_call = true;
 			}
-			if (is_constructor_call || allocsz > 16 && !(sym_kind & (A_global | A_rvalue)))
+			if (is_constructor_call || allocsz > 16)
 				use_target = true;
-		} else if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
-			if (auto selectexpr = dynamic_cast<SelectExprAST*>(callexpr->Callee.get())) {
-				if (selectexpr->Struct->ft->type->isArrayTy()) {
-					have_array = true;
-				}
-			}
-		}
-		use_target = use_target || (expr->RHS->ft->type_attr & A_use_target) && !(sym_kind & (A_global | A_rvalue));
-		if (!use_target && (!have_array || (comp_mode == comp_jit && !do_test)))
+		} else if (expr->RHS->ft->type_attr & A_map)
+			use_target = true;
+		needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
+		if (!use_target && (!initialization_from_main || rhs_is_constexpr))
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
-	}
-	if (!use_target && !Val) {
-		if (!(sym_kind & (A_const | A_global))) {
-			errs() << expr->RHS->Loc << ": could not generate code for variable initialization\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
-		} else {
-			if (!(sym_kind & A_global))
-				cleanupGlobal(tmpf, nullptr, nullptr);
-		}
 	}
 	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
-	/* this is how it should be...
-	if (Val && (sym_kind && A_rvalue)) {
-		initializer = llvm::dyn_cast<llvm::Constant>(Val);
-		if (!initializer) {
-			errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str());
+	if (Val) {
+		if (rhs_is_constexpr) {
+			initializer = llvm::dyn_cast<llvm::Constant>(Val);
+			if (!initializer) {
+				errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
+				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
+			}
 		}
-	} */
-	if (!(use_target || !Val)) { // that's what we have to use for now...
-		initializer = llvm::dyn_cast<llvm::Constant>(Val);
-		if (!initializer && !strcmp(expr->Op, "::=")) {
-			errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
-			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
-		}
+	} else if (!use_target && !initialization_from_main) {
+		errs() << expr->Loc << ": cannot generate code for RHS\n";
+		return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 	}
 	bool needs_store;
-	bool needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
 	if (initializer) {
 		needs_store = false;
-		if (!(needs_constructor && (comp_mode == comp_jit) && !do_test))
-			cleanupGlobal(tmpf, nullptr, nullptr);
 	} else {
-		if (needs_constructor) {
-			errs() << expr->RHS->Loc << ": internal error - unsized type but constructor required\n";
-			abort();
-		}
-		needs_store = !use_target;
-		if (allocsz > 0) {
+		if (LREF)
+			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type->getPointerTo());
+		else if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		}
+		needs_store = !use_target;
 	}
-	bool needs_call = (needs_store || needs_constructor || use_target) && (comp_mode == comp_jit) && !do_test;
+	bool needs_call = (needs_store || use_target || needs_constructor) && !initialization_from_main;
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF) {
 			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";
@@ -896,6 +888,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			fv->storage_type = initializer->getType();
 		}
 	} else {
+		if (sym_kind & A_globally_visible) {
+			errs() << expr->Loc << ": internal error - no initializer\n";
+			abort();
+		}
 		fv->storage_type = nullptr;
 	}
 	fv->mangled_name = strdup(varname.c_str());
@@ -917,18 +913,21 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		fv->mark_as_referencing(is_referencing);
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
 	if (!needs_call) {
-		if (needs_constructor) { // we are not in interactive JIT mode -> call constructor by main()
-			auto varExpr = std::make_unique<VariableExprAST>(expr->LHS->Loc, unmangled_name, fv);
-			auto constructor_call = std::make_unique<DefaultConstructorCall>(expr->Loc, std::move(varExpr));
-			GlobalExprList.push_back(std::move(constructor_call));
-			cleanupGlobal(tmpf, nullptr, nullptr);
-			return nullptr;
-		}
-		if (((sym_kind & A_const) || ((sym_kind & A_global)) && needs_store) && (comp_mode != comp_jit || do_test)) {
-			//expr->Op[0] = '=';
-			//expr->Op[1] = expr->Op[2] ='\0';
-			//expr->opclass = OpAssign;
-			GlobalExprList.push_back(std::move(expr));
+		if (initialization_from_main) {
+			auto theLoc = expr->LHS->Loc;
+			if (!rhs_is_constexpr) {
+				// transform this declaration to an assignment and insert it into "main()"'s expr list
+				// the operator remains '::=' to indicate that no destructor for the old LHS value
+				// must be inserted
+				expr->opclass = OpAssign;
+				LHSE->full_var = fv;
+				GlobalExprList.push_back(std::move(expr));
+			}
+			if (needs_constructor) {
+				auto varExpr = std::make_unique<VariableExprAST>(theLoc, unmangled_name, fv);
+				auto constructor_call = std::make_unique<DefaultConstructorCall>(theLoc, std::move(varExpr));
+				GlobalExprList.push_back(std::move(constructor_call));
+			}
 			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
 		}
@@ -936,16 +935,16 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		llvm::Type* array_ptr_ty = nullptr;
 		llvm::Value* ptrRet = nullptr;
 		unsigned ndim = 0;
-		if (needs_store || use_target) { // no global
+		if (needs_store || use_target) {
 			if (comp_mode != comp_jit) {
-				errs() << expr->Loc <<"internal error: non-global main variable '" << varname
+				errs() << expr->Loc << ": internal error - non-global main variable '" << varname
 				       << "' handled by HandleGlobalVariable() in non-JIT mode\n";
 				abort();
 			}
 			if (initializer) { // constant size initializer
-				if (use_target) {
+				if (use_target)
 					expr->RHS->codegen_raw(GV);
-				} else
+				else
 					Builder->CreateStore(Val, GV);
 			} else { // variable size array - no global
 				auto retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
@@ -1002,8 +1001,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			GV = CreateGlobal(initializer, varname, sym_kind);
 		if (comp_mode == comp_jit && (sym_kind & A_global) && needs_call && !do_test)
 			shadow_already_created = CreateShadow(initializer, varname);
-		else
-			finishFunctionOrModule();
+		finishFunctionOrModule();
 		// Search the JIT for the <setter_name> symbol.
 		auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
 		// C syntax at its best...
@@ -1176,9 +1174,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			for ( ; Op[m] != '='; m++)
 				newOp[m] = Op[m];
 			newOp[m] = '\0';
-			RHS = std::make_unique<BinaryExprAST>(Loc, newOp, std::move(new_LHS), std::move(RHS),
-			                                      std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
-				                                      ft->type, ft->type_attr & A_signed, is_unknown_type, getOpClass(newOp), err_msg });
+			RHS = std::make_unique<BinaryExprAST>(
+				Loc, newOp, std::move(new_LHS), std::move(RHS),
+				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
+					ft->type, ft->type_attr & (A_signed | A_string | A_map), is_unknown_type, getOpClass(newOp), err_msg });
 		}
 		RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
@@ -1259,10 +1258,13 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	use_val:
 		if (allocsz <= 16 && !is_constructor_call) {
-			if (RHS->ft->type_attr & (A_use_target | A_string)) {
+			if (RHS->ft->type_attr & (A_use_target /* | A_string */)) {
 				postpone_valgen = true;
 			} else {
-				Val = RHS->codegen();
+				if (RHS->ft->type_attr & A_string)
+					Val = RHS->codegen_raw((llvm::Value*)(intptr_t)-1);
+				else
+					Val = RHS->codegen();
 				if (!Val)
 					return nullptr;
 			}
@@ -1301,6 +1303,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				else
 					Builder->CreateStore(Val, Variable.second);
 				// call destructor for OldVal if discarded
+				// it might be that opclass has been changed to OpAssign by HandleGlobalVariable()
+				// in this case Op will still be ':='
+				if (Op[0] == ':')
+					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				return handle_d(target, OldVal, LHS->ft->type_attr);
 			}
 		}
@@ -1311,8 +1317,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// variable declaration
 		llvm::Function* TheFunction = Builder->GetInsertBlock()->getParent();
-		llvm::Type* type = RHS->ft->type;
-		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);
 		FullVar* entry;
 		if (locals_table.empty()) {
 			entry = lex.module->globals_table[varname];
@@ -1325,67 +1329,39 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
+		llvm::Type* type = RHS->ft->type;
+		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);
 		entry->ft.type = type;
-		entry->ft.type_attr = (entry->ft.type_attr & ~(A_signed | A_string | A_map)) | attribs;
-		llvm::GlobalVariable* GV = nullptr;
-		if (comp_mode != comp_jit || do_test && (entry->ft.type_attr & A_global)) {
-			// the opposite GlobalVar case (comp_mode == comp_jit && !do_test) is handled in HandleGlobalVariable()
-			if (entry->mangled_name) {
-				GV = TheModule->getGlobalVariable(entry->mangled_name, true);
-				if (!GV) {
-					auto TLSmodel = (entry->ft.type_attr & A_const) ?
-						llvm::GlobalVariable::NotThreadLocal :
-						llvm::GlobalVariable::GeneralDynamicTLSModel;
-					GV = new llvm::GlobalVariable(*TheModule, entry->storage_type,
-					                              false, llvm::GlobalValue::ExternalLinkage,
-					                              nullptr, entry->mangled_name, nullptr, TLSmodel,
-					                              0, true);
-				}
-				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(entry->storage_type));
-			}
-		}
+		entry->ft.type_attr |= attribs;
 		if (Val) {
-			if (GV)
-				Builder->CreateStore(Val, GV);
-			else {
-				auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
-				entry->val = Alloca;
-				if (comp_mode == comp_dbg) {
-					// Create a debug descriptor for the variable.
-					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-						SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, attribs & A_signed),
-						true);
-					
-					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-					                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
-					                        Builder->GetInsertBlock());
-				}
+			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
+			entry->val = Alloca;
+			if (comp_mode == comp_dbg) {
+				// Create a debug descriptor for the variable.
+				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
+					SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, attribs & A_signed),
+					true);
+				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+				                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
+				                        Builder->GetInsertBlock());
 			}
 		} else if (postpone_valgen) {
-			if (GV)
-				RHS->codegen_raw(GV);
-			else {
-				entry->val = CreateEntryBlockAlloca(type);
-				RHS->codegen_raw(entry->val);
-			}
+			entry->val = CreateEntryBlockAlloca(type);
+			RHS->codegen_raw(entry->val);
 		} else if (ValPtr) {
 			if (allocsz) {
 				auto align = getAlignment(allocsz);
-				if (GV) {
-					Builder->CreateMemCpy(GV, align, ValPtr, align, allocsz);
+				llvm::AllocaInst* Alloca;
+				if (LREF) {
+					entry->ft.type_attr |= A_ptrref;
+					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
+					Builder->CreateAlignedStore(ValPtr, Alloca, align);
+					entry->mark_as_referencing(is_referencing);
 				} else {
-					llvm::AllocaInst* Alloca;
-					if (LREF) {
-						entry->ft.type_attr |= A_ptrref;
-						Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
-						Builder->CreateAlignedStore(ValPtr, Alloca, align);
-						entry->mark_as_referencing(is_referencing);
-					} else {
-						Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
-						Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
-					}
-					entry->val = Alloca;
+					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
 				}
+				entry->val = Alloca;
 			} else {
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
@@ -1405,19 +1381,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		} else if (allocsz > 16 || is_constructor_call) {
 			auto align = getAlignment(allocsz);
-			if (GV)
-				RHS->codegen_raw(GV);
-			else {
-				auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
-				auto voidval = RHS->codegen_raw(Alloca);
-				if (!voidval)
-					return nullptr;
-				if (!voidval->getType()->isVoidTy()) {
-					errs() << Loc << ": internal error: sret call-- does not return void\n";
-					return nullptr;
-				}
-				entry->val = Alloca;
+			auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+			auto voidval = RHS->codegen_raw(Alloca);
+			if (!voidval)
+				return nullptr;
+			if (!voidval->getType()->isVoidTy()) {
+				errs() << Loc << ": internal error: sret call-- does not return void\n";
+				return nullptr;
 			}
+			entry->val = Alloca;
 		} else {
 			errs() << "unhandled case\n";
 			return nullptr;

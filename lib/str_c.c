@@ -749,7 +749,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 			abort();
 		const char* post = va_arg(ap, char*);
 		if (post) {
-			prtstring(s, cap, pos, volvox2cstr(post));
+			prtstring(s, cap, pos, post);
 			space = *cap - *pos;
 		}
 		ft = va_arg(ap, const VOLVOX_RtType*);
@@ -1249,7 +1249,7 @@ _DECL void printu64(uint64_t X) {
 
 #define target_bytes sizeof(size_t)
 
-_DECL char* __cstr2volvoxstr(char* c_str) {
+_DECL char* __cstr2volvoxstr(const char* c_str) {
 	char* res;
 	size_t l;
 	char* targ;
