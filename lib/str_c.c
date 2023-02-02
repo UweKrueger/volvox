@@ -40,7 +40,7 @@ typedef SSIZE_T ssize_t;
 // be directly called from the Volvox lib. So we create some C wrappers
 //
 _DECL int _volvox_WSAInit() {
-	fprintf(stderr, "Initializing winsock-2.2\n");
+	// fprintf(stderr, "Initializing winsock-2.2\n");
 	WSADATA wsaData;
 	BYTE vers_major = 2;
 	BYTE vers_minor = 2;
@@ -53,13 +53,13 @@ _DECL int _volvox_WSAInit() {
 	            HIBYTE(wsaData.wVersion), LOBYTE(wsaData.wVersion));
 	    abort();
     }
-    fprintf(stderr, "...done\n");
+    // fprintf(stderr, "...done\n");
     return res;
 }
 
 _DECL void _volvox_WSACleanup() {
 	WSACleanup();
-    fprintf(stderr, "cleaned up winsock\n");
+	// fprintf(stderr, "cleaned up winsock\n");
 }
 #endif
 

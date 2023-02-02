@@ -5,18 +5,18 @@ import arch.os
 cdecl fn _volvox_WSAInit() int
 cdecl fn _volvox_WSACleanup()
 
-type WsockProto union {
+type WsockProto {
 	status int
 }
 
-inline fn WsockProto
+fn WsockProto
 	if os.isWindows
 		this.status = _volvox_WSAInit .
 	return
 
-inline fn ~WsockProto
+pub fn ~WsockProto()
 	if os.isWindows
 		_volvox_WSACleanup .
 	return
 
-proto := WsockProto{}
+pub proto := WsockProto{}

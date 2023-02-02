@@ -751,6 +751,8 @@ inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::In
 
 inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before = nullptr) {
 	if (fv->destructor) {
+		if (comp_mode == comp_jit && !do_test)
+			fv->destructor = getDestructor(&fv->ft);
 		llvm::BasicBlock* oldBB;
 		if (before) {
 			oldBB = Builder->GetInsertBlock();
@@ -783,8 +785,12 @@ inline static auto link_type(unsigned attr) {
 }
 
 inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
+	if (!fv) {
+		errs() << "InsertDestructor(): internal error no variable\n";
+		return;
+	}
 	llvm::Value* V;
-	if ((fv->ft.type_attr & A_mainvar) && comp_mode == comp_jit && !do_test || (fv->ft.type_attr & A_global)) { // global variable
+	if ((fv->ft.type_attr & A_mainvar) && comp_mode == comp_jit && !do_test || (fv->ft.type_attr & A_globally_visible)) { // global variable
 		if (fv->ft.type_attr & A_rvalue)
 			return; // constexpr -> nothing to do
 		if (!fv->mangled_name) {
@@ -792,12 +798,15 @@ inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nul
 			return;
 		}
 		V = TheModule->getGlobalVariable(fv->mangled_name, true);
-		if (!V)
-			V = new llvm::GlobalVariable(*TheModule, fv->storage_type,
-			                             false, llvm::GlobalValue::ExternalLinkage,
-			                             nullptr, fv->mangled_name, nullptr,
-			                             tls_model(fv->ft.type_attr),
-			                             0, true);
+		if (!V) {
+			auto GV = new llvm::GlobalVariable(*TheModule, fv->storage_type,
+			                                   false, link_type(fv->ft.type_attr),
+			                                   nullptr, fv->mangled_name, nullptr,
+			                                   tls_model(fv->ft.type_attr),
+			                                   0, true);
+			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(fv->storage_type));
+			V = GV;
+		}
 	} else {
 		V = fv->val;
 	}

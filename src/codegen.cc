@@ -823,7 +823,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (!use_target && (!initialization_from_main || rhs_is_constexpr))
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
 	}
-	attribs = expr->RHS->ft->type_attr & (A_signed | A_string | A_map);
+	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_map) : (A_signed | A_string | A_map | A_destructor));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
 	if (Val) {
@@ -2353,7 +2353,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 void CallGlobalDestructorsJIT() {
 	finishFunctionOrModule();
 	std::string destr_name = "__global_destructor_caller";
-	llvm::FunctionType* destr_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context),
+	llvm::FunctionType* destr_fn_t = llvm::FunctionType::get(llvm::Type::getInt1Ty(Context),
 	                                                         {}, false);
 	llvm::Function* destr_fn = llvm::Function::Create(destr_fn_t, llvm::Function::ExternalLinkage, destr_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", destr_fn);
@@ -2367,12 +2367,16 @@ void CallGlobalDestructorsJIT() {
 		if (module.globals_table.table)
 			InsertDestructors(module.globals_table, nullptr);
 	}
-	Builder->CreateRetVoid();
-	finishFunctionOrModule(destr_fn, 2);
+	Builder->CreateRet(Builder->getInt1(true));
+	finishFunctionOrModule(destr_fn, 2, true, false);
+	auto RT = TheJIT->getMainJITDylib().createResourceTracker();
+	auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
+	ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
+	InitializeModuleAndPassManager();
 	auto ExprSymbol = ExitOnErr(TheJIT->lookup(destr_name));
-		// C syntax at its best...
-	void (*VOIDFN)(void) = (void (*)(void))(intptr_t)ExprSymbol.getAddress();
-	VOIDFN();
+	bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+	bool b = spawn_bool_expr(BOOL);
+	ExitOnErr(RT->remove());
 }
 
 // Output for-loop as:
