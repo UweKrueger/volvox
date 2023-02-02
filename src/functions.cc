@@ -856,7 +856,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 						arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
 						auto tmparg = Args[i]->codegen();
 						if (!tmparg) {
-							errs() << Args[i]->Loc << ": cannot generate code for expression\n";
+							errs() << Args[i]->Loc << ": cannot generate code for2 expression\n";
 							return nullptr;
 						}
 						// The following sections are ugly hacks to circumvent bugs in

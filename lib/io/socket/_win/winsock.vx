@@ -2,57 +2,21 @@
 
 import arch.os
 
-const WSADESCRIPTION_LEN ::= 256
-const WSASYS_STATUS_LEN ::= 128
-
-type WSAData32 {
-	wVersion       u16
-	wHighVersion   u16
-	szDescription  [WSADESCRIPTION_LEN+1]u8
-	szSystemStatus [WSASYS_STATUS_LEN+1]u8
-	iMaxSockets    u16
-	iMaxUdpDg      u16
-	lpVendorInfo   cstring
-}
-
-type WSAData64 {
-	wVersion       u16
-	wHighVersion   u16
-	iMaxSockets    u16
-	iMaxUdpDg      u16
-	lpVendorInfo   cstring
-	szDescription  [WSADESCRIPTION_LEN+1]u8
-	szSystemStatus [WSASYS_STATUS_LEN+1]u8
-}
-
-type WSAData union {
-	WSAData32
-	WSAData64
-}
-
-cdecl fn WSAStartup(wVersionRequested u16, &lpWSAData WSAData) int
-cdecl fn WSACleanup() int
+cdecl fn _volvox_WSAInit() int
+cdecl fn _volvox_WSACleanup()
 
 type WsockProto union {
-	version [2]u8
-	u16
 	status int
 }
 
 inline fn WsockProto
 	if os.isWindows
-		this.version = [2, 2]
-		data := WSAData
-		this.status = WSAStartup(this.u16, data)
-		if this.status != 0
-			printf("WSAStartup returned %d\n", this.status) .
-	else
-		this.status = 0 .
+		this.status = _volvox_WSAInit .
 	return
 
 inline fn ~WsockProto
 	if os.isWindows
-		WSACleanup .
+		_volvox_WSACleanup .
 	return
 
-proto := WsockProto{ status: 0 }
+proto := WsockProto{}

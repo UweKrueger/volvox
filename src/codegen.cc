@@ -444,7 +444,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 		} else {
 			llvm::Value* array = expr->codegen_raw(target);
 			if (!array) {
-				errs() << Loc << ": cannot generate code for expression\n";
+				errs() << Loc << ": cannot generate code for interface expression\n";
 				return nullptr;
 			}
 			if (array->getType()->isVoidTy())
