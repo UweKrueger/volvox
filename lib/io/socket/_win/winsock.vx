@@ -9,14 +9,14 @@ type WsockProto {
 	status int
 }
 
-fn WsockProto
+inline fn WsockProto
 	if os.isWindows
 		this.status = _volvox_WSAInit .
 	return
 
-pub fn ~WsockProto()
+inline fn ~WsockProto()
 	if os.isWindows
 		_volvox_WSACleanup .
 	return
 
-pub proto := WsockProto{}
+pub const proto := WsockProto{}
