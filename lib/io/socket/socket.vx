@@ -1,0 +1,43 @@
+import arch.os
+import ._win
+
+type Socket {
+	fd int
+}
+
+type sockaddr {
+	len    u8
+	family u8
+	data   [14]u8
+}
+
+type sockaddr_storage {
+	len    u8
+	family u8
+	pad1   [6]u8
+	align  i64
+	pad2   [112]u8
+}
+
+# address families
+#
+const AF_UNSPEC ::= 0
+const AF_UNIX   ::= if os.isHaiku; 9 else 1 .
+const AF_INET   ::= 2
+const AF_INET6  ::= if os.isWindows
+		23
+	elif os.isNetBSD || os.isOpenBSD
+		24
+	elif os.isHaiku
+		5
+	else
+		28 .
+
+# socket types
+#
+const SOCK_STREAM    ::= 1
+const SOCK_DGRAM     ::= 2
+const SOCK_RAW       ::= 3
+const SOCK_SEQPACKET ::= 5
+
+cdecl fn socket(domain int, typ int, protocol int) int
