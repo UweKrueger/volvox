@@ -73,5 +73,25 @@ inline fn ~WsockProto
 
 proto := WsockProto{ status: 0 }
 
+# address families
+#
+const AF_UNSPEC ::= 0
+const AF_UNIX   ::= if os.isHaiku; 9 else 1 .
+const AF_INET   ::= 2
+const AF_INET6  ::= if os.isWindows
+		23
+	elif os.isNetBSD || os.isOpenBSD
+		24
+	elif os.isHaiku
+		5
+	else
+		28 .
 
-		
+# socket types
+#
+const SOCK_STREAM    ::= 1
+const SOCK_DGRAM     ::= 2
+const SOCK_RAW       ::= 3
+const SOCK_SEQPACKET ::= 5
+
+cdecl fn socket(domain int, typ int, protocol int) int
