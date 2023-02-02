@@ -685,7 +685,9 @@ public:
 	std::string Name;
 	TypeExprAST(SourceLocation Loc, std::string TypeName, volvoxc::FullType* ft)
 		: ExprAST(ft, Loc), Name(std::move(TypeName)) {}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override { return nullptr; }
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
+		return llvm::Constant::getNullValue(ft->type);
+	}
 };
 
 class StructExprAST : public ExprAST {

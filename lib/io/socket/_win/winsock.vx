@@ -14,9 +14,9 @@ inline fn WsockProto
 		this.status = _volvox_WSAInit .
 	return
 
-inline fn ~WsockProto()
+inline fn ~WsockProto
 	if os.isWindows
 		_volvox_WSACleanup .
 	return
 
-pub const proto := WsockProto{}
+pub const proto := WsockProto
