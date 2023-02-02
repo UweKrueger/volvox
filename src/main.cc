@@ -431,7 +431,13 @@ static void HandleImport() {
 	do {
 		getNextToken(ePath);
 		if (CurTok.kind != tok_identifier) {
-			errs() << "unexpected token in import " << CurTok.kind << '\n';
+			if (new_import_path.empty() && CurTok.kind == tok_selector) {
+				// import path relative to current module
+				for (auto& s: lex.module->import_path)
+					new_import_path.push_back(s);
+				continue;
+			}
+			errs() << CurLoc << ": unexpected token in import '" << CurTok << "'\n";
 			purgeLine();
 			return;
 		}
