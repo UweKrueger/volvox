@@ -1332,10 +1332,15 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			errs() << BinLoc << ": " << llvm::format(std::get<4>(res_t), BinOp.c_str());
 			return nullptr;
 		}
-		if ((!RHS_type || RHS_type->isVoidTy()) && !dynamic_cast<ListExprAST*>(RHS.get()) && BinOp != ",") {
+		if ((!RHS_type || RHS_type->isVoidTy()) && !dynamic_cast<ListExprAST*>(RHS.get())) {
+			if (BinOp == ",")
+				if (auto bin_rhs = dynamic_cast<BinaryExprAST*>(RHS.get()))
+					if (!strcmp(bin_rhs->Op, ",") || !strcmp(bin_rhs->Op, ":"))
+						goto valid_void;
 			errs() << BinLoc << ": RHS of '" << BinOp << "' is " << (RHS_type ? "of void type\n" : "indeterminate\n");
 			return nullptr;
 		}
+	valid_void:
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS), res_t);
 	}
 }
