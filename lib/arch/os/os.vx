@@ -25,7 +25,3 @@ pub const isHaiku     ::= __OS_Idx == Haiku
 pub const isWindows   ::= __OS_Idx == Windows
 
 pub const isBSD ::= isDragonFly || isFreeBSD || isNetBSD || isOpenBSD
-
-# size in bits for pointers and size_t
-#
-pub const bitwidth ::= __OS_Bitwidth

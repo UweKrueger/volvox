@@ -1,3 +1,4 @@
+import arch
 import arch.os
 import limits
 
@@ -113,7 +114,7 @@ cdecl fn write(fd int, buf cstring, count size_t) ssize_t
 fn win64_write(fd int, buf cstring, count size_t) ssize_t
 	# The Windows _write() can only handle max_int bytes but size_t might exceed this value
 	# on 64 bit platforms. So we split the operation into several parts in that case
-	if os.isWindows && os.bitwidth > 32
+	if os.isWindows && arch.bitwidth > 32
 		bytes_written := size_t(0)
 		written := limits.max_i32
 		while count > limits.max_i32 && written == limits.max_i32
@@ -136,7 +137,7 @@ fn win64_write(fd int, buf cstring, count size_t) ssize_t
 #
 pub inline fn Fd._write(buf cstring, count size_t) ssize_t
 	if os.isWindows
-		if os.bitwidth > 32
+		if arch.bitwidth > 32
 			return win64_write(this.fd, buf, count)
 		else
 			return _write(this.fd, buf, u32(count))

@@ -57,7 +57,7 @@ cdecl fn _localtime32_s(&res tm, &t i32) int
 pub inline fn time_t.gm tm
 	res := tm{}
 	if os.isWindows
-		if os.bitwidth == 32
+		if arch.bitwidth == 32
 			t32 := i32(this.sec)
 			_gmtime32_s(res, t32)
 		else
@@ -71,7 +71,7 @@ pub inline fn time_t.gm tm
 pub inline fn time_t.local tm
 	res := tm{}
 	if os.isWindows
-		if os.bitwidth == 32
+		if arch.bitwidth == 32
 			t := i32(this.sec)
 			_localtime32_s(res, t)
 		else
