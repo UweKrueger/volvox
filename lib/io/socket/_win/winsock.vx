@@ -1,9 +1,37 @@
 # Windows specific part of socket library - do not import directly
 
+import arch
 import arch.os
 
 cdecl fn _volvox_WSAInit() int
 cdecl fn _volvox_WSACleanup()
+
+const WSADESCRIPTION_LEN ::= 256
+const WSASYS_STATUS_LEN ::= 128
+
+type WSAData32 {
+	wVersion       u16
+	wHighVersion   u16
+	szDescription  [WSADESCRIPTION_LEN+1]u8
+	szSystemStatus [WSASYS_STATUS_LEN+1]u8
+	iMaxSockets    u16
+	iMaxUdpDg      u16
+	lpVendorInfo   cstring
+}
+
+type WSAData64 {
+	wVersion       u16
+	wHighVersion   u16
+	iMaxSockets    u16
+	iMaxUdpDg      u16
+	lpVendorInfo   cstring
+	szDescription  [WSADESCRIPTION_LEN+1]u8
+	szSystemStatus [WSASYS_STATUS_LEN+1]u8
+}
+
+cdecl(WSAStartup) fn WSAStartup32(wVersionRequested u16, &lpWSAData WSAData32) int
+cdecl(WSAStartup) fn WSAStartup64(wVersionRequested u16, &lpWSAData WSAData64) int
+cdecl fn WSACleanup() int
 
 type WsockProto {
 	status int
@@ -11,12 +39,32 @@ type WsockProto {
 
 inline fn WsockProto
 	if os.isWindows
-		this.status = _volvox_WSAInit .
+		if arch.isJIT
+			this.status = _volvox_WSAInit
+		else
+			version := 0x0202u16
+			if (arch.bitwidth == 64)
+				data64 := WSAData64{}
+				this.status = WSAStartup64(version, data64)
+				version = data64.wVersion
+			else
+				data32 := WSAData32{}
+				this.status = WSAStartup32(version, data32)
+				version = data32.wVersion .
+			if this.status != 0
+				printf("WSAStartup returned %d\n", this.status)
+			elif version != 0x0202
+				printf("requested WINSock version 2.2 not available - got version %d.%d\n", version/16, version%16) . .
+	else
+		 this.status = 0 .
 	return
 
 inline fn ~WsockProto
 	if os.isWindows
-		_volvox_WSACleanup .
+		if arch.isJIT
+			_volvox_WSACleanup
+		else
+			WSACleanup . .
 	return
 
 pub const proto := WsockProto
