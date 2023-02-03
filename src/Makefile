@@ -4,13 +4,14 @@ OPT = -O2
 
 SHELL := bash
 RM = rm -f
-LINKEXTRAFLAGS := -ledit -lpthread
+LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
 TARGETDIR := ../
 PREFIX := /usr
 ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	PREFIX := /ucrt64
 	SUFFIX :=
 	NIXTYPE := mingw64
+	LINKEXTRAFLAGS := -ledit -lpthread
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config15 && echo -n true),true)
 	PREFIX := /usr/local
@@ -29,6 +30,7 @@ else
 ifeq ($(shell test -x /bin/llvm-config && echo -n true),true)
 	PREFIX := /
 	SUFFIX :=
+	LINKEXTRAFLAGS := -ledit -lpthread
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config && echo -n true),true)
 	PREFIX := /usr/local
@@ -47,7 +49,6 @@ endif
 endif
 endif
 endif
-	LINKEXTRAFLAGS := $(LINKEXTRAFLAGS) -rdynamic
 endif
 	NIXTYPE := posix
 endif
