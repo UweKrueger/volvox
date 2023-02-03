@@ -226,8 +226,15 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 		errs() << Loc << ": there is no known variable/constant/function/module named '" << Name << "'\n";
 		return nullptr;
 	}
-	if (full_var->ft.type_attr & A_rvalue)
+	if (full_var->ft.type_attr & A_rvalue) {
+		if (full_var->val->getType()->isIntegerTy() && (full_var->ft.type_attr & A_untyped)) {
+			if (desired_type)
+				conv_kind = ConvSigned;
+			else
+				return Builder->CreateIntCast(full_var->val, llvm::Type::getInt32Ty(Context), true);
+		}
 		return full_var->val;
+	}
 	auto V = codegen_ref();
 	if (V.first && V.second)
 		// Load the value.
@@ -820,8 +827,12 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		} else if (expr->RHS->ft->type_attr & A_map)
 			use_target = true;
 		needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
-		if (!use_target && (!initialization_from_main || rhs_is_constexpr))
+		if (!use_target && (!initialization_from_main || rhs_is_constexpr)) {
+			if (rhs_is_constexpr && (sym_kind & A_const) && expr->RHS->is_unknown_type)
+				if (expr->RHS->ft->type->isIntegerTy())
+					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
 			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
+		}
 	}
 	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_map) : (A_signed | A_string | A_map | A_destructor));
 	type = expr->RHS->ft->type;
