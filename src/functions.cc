@@ -755,7 +755,9 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 	}
-	llvm::Value* theFunction = Callee->codegen();
+	llvm::Value* theFunction = nullptr;
+	if (!dynamic_cast<TypeExprAST*>(Callee.get()))
+		theFunction = Callee->codegen();
 	if (!theFunction)
 		theFunction = getFunction(Proto);
 	if (!theFunction)
