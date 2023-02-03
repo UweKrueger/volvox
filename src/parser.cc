@@ -1167,8 +1167,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		if (BinOp == ":=" || BinOp == "::=") {
-			if (!RHS_type) {
-				errs() << RHS->Loc << ": RHS of declaration is indeterminate\n";
+			if (!RHS_type || RHS_type->isVoidTy()) {
+				errs() << BinLoc << ": RHS of declaration is " << (RHS_type ? "of void type\n" : "indeterminate\n");
 				return nullptr;
 			}
 			ReferenceExprAST* RefL;
@@ -1330,6 +1330,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		                        LHS_is_unknown_type, RHS_is_unknown_type);
 		if (std::get<4>(res_t)) {
 			errs() << BinLoc << ": " << llvm::format(std::get<4>(res_t), BinOp.c_str());
+			return nullptr;
+		}
+		if ((!RHS_type || RHS_type->isVoidTy()) && !dynamic_cast<ListExprAST*>(RHS.get()) && BinOp != ",") {
+			errs() << BinLoc << ": RHS of '" << BinOp << "' is " << (RHS_type ? "of void type\n" : "indeterminate\n");
 			return nullptr;
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS), res_t);
