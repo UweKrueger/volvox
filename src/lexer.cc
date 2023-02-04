@@ -152,6 +152,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 SourceLocation CurLoc;
 static int CurChar = ' ';
 static std::string KeepIdentifierStr = "";
+std::vector<std::string> modulestack;
 
 /* pause the current lexer context and create a new one based on the given
    import path */
@@ -168,11 +169,22 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 		patterntail += _import_path[j];
 		patterntail += PATHDIRSEP;
 	}
+	for (auto& mod: modulestack) {
+		if (patterntail == mod) {
+			errs() << '\n' << CurLoc << ": cyclic import (";
+			for (auto& m: modulestack)
+				errs() << m << " <- ";
+			errs() << patterntail << ") not allowed\n";
+			return false;
+		}
+	}
+	auto new_mod = patterntail;
 	patterntail += "*.vx";
 	as = std::move(_as);
 	fromlist = std::move(_fromlist);
 	auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 	if (new_module.second) {
+		modulestack.push_back(std::move(new_mod));
 		int old_input_fd = input_fd;
 		auto oldbs = bufsize;
 		source_stack.emplace_back(this);
@@ -322,7 +334,7 @@ void Lexer::import_from_module(Module* import_module) {
 }
 
 void Lexer::pop_state() {
-	if (source_stack.empty() || source_files.empty()) {
+	if (source_stack.empty() || source_files.empty() || modulestack.empty()) {
 		errs() << "internal error: source stack is empty\n";
 		abort();
 	}
@@ -348,6 +360,7 @@ void Lexer::pop_state() {
 	source_stack.pop_back();
 	source_files.pop_back();
 	source_index.pop_back();
+	modulestack.pop_back();
 	import_from_module(processed_module);
 }
 

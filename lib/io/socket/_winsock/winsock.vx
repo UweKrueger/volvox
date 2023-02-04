@@ -63,6 +63,8 @@ inline fn ~WsockProto
 		WSACleanup .
 	return
 
+import io.socket
+
 # symbol of type 'WsockProto' to trigger constructor/destructor calls that do initialization/clean-up
 # '_winsock.status.int' contains 0 or the error status returned by WSAStartup()
 #

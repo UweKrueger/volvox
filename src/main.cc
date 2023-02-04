@@ -447,7 +447,7 @@ static void HandleImport() {
 	do {
 		getNextToken(ePath);
 		if (CurTok.kind != tok_identifier) {
-			if (CurTok.kind == tok_selector) {
+			if (CurTok.kind == tok_selector || CurTok.kind == tok_end) {
 				if (new_import_path.empty()) {
 					if (follow_tok) {
 						errs() << CurLoc << ": relative import path invalid\n";
@@ -461,8 +461,11 @@ static void HandleImport() {
 					continue;
 				} else {
 					new_import_path.pop_back();
+					follow_tok = true;
 					continue;
 				}
+			} else if (!new_import_path.empty()) {
+				break;
 			}
 			errs() << CurLoc << ": unexpected token in import '" << CurTok << "'\n";
 			purgeLine();
@@ -471,7 +474,7 @@ static void HandleImport() {
 		follow_tok = true;
 		new_import_path.push_back(IdentifierStr);
 		getNextToken(ePath);
-	} while (CurTok.kind == tok_selector);
+	} while (CurTok.kind == tok_selector || CurTok.kind == tok_end);
 	std::string prefix = "";
 	std::map<std::string, SourceLocation> direct_import_list = {};
 	if (from) {
@@ -519,10 +522,12 @@ static void HandleImport() {
 		prefix = new_import_path.back();
 	}
 	if (CurTok.kind == ';') {
-		lex.push_state(std::move(new_import_path), std::move(prefix), std::move(direct_import_list));
-		getNextToken();
+		if (!lex.push_state(std::move(new_import_path), std::move(prefix), std::move(direct_import_list)))
+			purgeLine();
+		else
+			getNextToken();
 	} else {
-		errs() << "unexpected identifier " << CurTok << "\n";
+		errs() << CurLoc << ": unexpected identifier " << CurTok << "\n";
 		purgeLine();
 	}
 }
