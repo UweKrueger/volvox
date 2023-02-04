@@ -164,21 +164,24 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 		}
 		GlobalExprList.clear();
 	}
-	std::string patterntail = "";
+	std::string patterntail;
+	std::string new_mod;
 	for (int j=0; j < _import_path.size(); j++) {
 		patterntail += _import_path[j];
+		new_mod += _import_path[j];
 		patterntail += PATHDIRSEP;
+		if (j+1 < _import_path.size())
+			new_mod += '.';
 	}
 	for (auto& mod: modulestack) {
-		if (patterntail == mod) {
-			errs() << '\n' << CurLoc << ": cyclic import (";
+		if (new_mod == mod) {
+			errs() << CurLoc << ": cyclic import:";
 			for (auto& m: modulestack)
-				errs() << m << " <- ";
-			errs() << patterntail << ") not allowed\n";
+				errs() << m << " - ";
+			errs() << new_mod << "\n";
 			return false;
 		}
 	}
-	auto new_mod = patterntail;
 	patterntail += "*.vx";
 	as = std::move(_as);
 	fromlist = std::move(_fromlist);
