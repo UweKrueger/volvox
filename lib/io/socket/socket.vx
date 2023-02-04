@@ -41,3 +41,6 @@ const SOCK_RAW       ::= 3
 const SOCK_SEQPACKET ::= 5
 
 cdecl fn socket(domain int, typ int, protocol int) int
+cdecl fn bind(s int, addr sockaddr, addrlen u32) int
+cdecl fn accept(s int, &addr sockaddr, &addrlen u32) int
+cdecl fn accept4(s int, &addr sockaddr, &addrlen u32, flags int) int

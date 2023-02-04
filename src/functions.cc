@@ -7,6 +7,9 @@
 #include "global.h"
 #include "AST.h"
 #include "../lib/str.h"
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
 // variable size main vars are "malloc()ed" in jit mode. On exit these blocks would be
 // orphaned - so let's keep track of then to avoid memory leaks:
@@ -655,14 +658,25 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				if (is_error) {
 					errs() << ' ' << lit->Val.Str;
 				} else {
-					if (lit->Val.Str[0] == '-') {
+					if (lit->Val.Str[0] == '-' || lit->Val.Str[0] == '/') {
 						if (comp_mode != comp_jit)
 							extra_libs.push_back(lit->Val.Str);
 					} else {
 						if (comp_mode == comp_jit) {
+							std::string dll;
 #ifdef _WIN32
-							std::string dll = std::string(lit->Val.Str) + ".dll";
+							dll = std::string(lit->Val.Str) + ".dll";
 							LoadLibraryA(dll.c_str());
+#else
+							if (!strncmp(lit->Val.Str, "lib", 3))
+								dll = std::string(lit->Val.Str);
+							else
+								dll = std::string("lib") + lit->Val.Str + ".so";
+							auto handle = dlopen(dll.c_str(), RTLD_NOW | RTLD_GLOBAL);
+							if (!handle) {
+								errs() << arg->Loc << ": " << dlerror() << '\n';
+								return nullptr;
+							}
 #endif
 						} else {
 #ifdef _WIN32
