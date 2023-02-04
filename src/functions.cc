@@ -636,6 +636,22 @@ llvm::Function *PrototypeAST::codegen() {
 }
 
 llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
+	if (Proto && (Proto->Name == "__linker_extra_flag" || Proto->Name == "__error")) {
+		if (Args.size() != 1 || !(Args[0]->ft->type_attr & A_string)) {
+			errs() << Loc << ": " << Proto->Name << " requires 1 constant string argument\n";
+			return nullptr;
+		}
+		if (auto lit = dynamic_cast<LiteralExprAST*>(Args[0].get())) {
+			if (Proto->Name == "__linker_extra_flag") {
+				extra_libs.push_back(lit->Val.Str);
+				return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+			}
+			errs() << Loc << ": " << lit->Val.Str << '\n';
+			return nullptr;
+		}
+		errs() << Loc << ": " << Proto->Name << " requires 1 constant string literal as argument\n";
+		return nullptr;
+	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}

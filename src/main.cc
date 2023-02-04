@@ -16,6 +16,7 @@
 CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 std::vector<std::string> include_files = {};
+std::vector<std::string> extra_libs;
 std::vector<std::vector<const char*>> source_files = {{}};
 std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
 const std::string single_test_result_name = "__test_result";
@@ -1779,6 +1780,8 @@ int main(int argc, char* argv[]) {
 #ifdef _WIN32
 			}
 #endif
+			for (auto& lib: extra_libs)
+				clang_argv.push_back(const_cast<char*>(lib.c_str()));
 			clang_argv.push_back(nullptr);
 			if (verbosity)
 				for (auto a: clang_argv) {

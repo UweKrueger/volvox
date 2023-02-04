@@ -3,6 +3,9 @@
 import arch
 import arch.os
 
+if os.isWindows
+	__linker_extra_flag "Ws2_32.lib" .
+
 cdecl fn _volvox_WSAInit() int
 cdecl fn _volvox_WSACleanup()
 
