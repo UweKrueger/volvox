@@ -1,5 +1,5 @@
 import arch.os
-import ._win
+import ._winsock
 
 type Socket {
 	fd int
