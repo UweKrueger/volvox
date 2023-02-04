@@ -443,19 +443,32 @@ static void HandleTypeDef(unsigned share_kind) {
 static void HandleImport() {
 	bool from = CurTok.kind == tok_from;
 	std::vector<std::string> new_import_path = {};
+	bool follow_tok = false;
 	do {
 		getNextToken(ePath);
 		if (CurTok.kind != tok_identifier) {
-			if (new_import_path.empty() && CurTok.kind == tok_selector) {
-				// import path relative to current module
-				for (auto& s: lex.module->import_path)
-					new_import_path.push_back(s);
-				continue;
+			if (CurTok.kind == tok_selector) {
+				if (new_import_path.empty()) {
+					if (follow_tok) {
+						errs() << CurLoc << ": relative import path invalid\n";
+						purgeLine();
+						return;
+					}
+					follow_tok = true;
+					// import path relative to current module
+					for (auto& s: lex.module->import_path)
+						new_import_path.push_back(s);
+					continue;
+				} else {
+					new_import_path.pop_back();
+					continue;
+				}
 			}
 			errs() << CurLoc << ": unexpected token in import '" << CurTok << "'\n";
 			purgeLine();
 			return;
 		}
+		follow_tok = true;
 		new_import_path.push_back(IdentifierStr);
 		getNextToken(ePath);
 	} while (CurTok.kind == tok_selector);

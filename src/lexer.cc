@@ -820,7 +820,7 @@ startanalysis:
 	case '.':
 		IdentifierStr = CurChar;
 		CurChar = advance();
-		if (CurChar == '.') {
+		if (CurChar == '.' && expect != ePath) {
 			IdentifierStr += CurChar;
 			CurChar = advance();
 			if (CurChar == '.') {
@@ -832,7 +832,7 @@ startanalysis:
 			}
 		} else {
 			char nextchar = this->peek_strict();
-			if (isalpha(nextchar) || nextchar == '_')
+			if (isalpha(nextchar) || nextchar == '_' || nextchar == '.')
 				return tok_selector;
 			else
 				return tok_end;
