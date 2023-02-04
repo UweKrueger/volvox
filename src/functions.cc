@@ -679,10 +679,14 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 							}
 #endif
 						} else {
+							std::string lib;
 #ifdef _WIN32
-							std::string lib = std::string(lit->Val.Str) + ".lib";
+							lib = std::string(lit->Val.Str) + ".lib";
 #else
-							std::string lib = std::string("-l") + lit->Val.Str;
+							if (!strncmp(lit->Val.Str, "lib", 3))
+								lib = std::string(lit->Val.Str);
+							else
+								lib = std::string("-l") + lit->Val.Str;
 #endif
 							extra_libs.push_back(std::move(lib));
 						}
