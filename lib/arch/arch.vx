@@ -1,0 +1,9 @@
+# constants describing the platform the program is running on
+
+# true: we are running inside JIT engine - false: native code compile
+#
+pub const isJIT ::= __LLVM_JIT
+
+# size in bits for pointers and size_t
+#
+pub const bitwidth ::= __OS_Bitwidth
