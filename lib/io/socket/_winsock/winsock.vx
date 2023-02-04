@@ -4,7 +4,7 @@ import arch
 import arch.os
 
 if os.isWindows
-	__linker_extra_flag "Ws2_32.lib" .
+	__link_extra "Ws2_32" .
 
 const WSADESCRIPTION_LEN ::= 256
 const WSASYS_STATUS_LEN ::= 128

@@ -943,34 +943,6 @@ extern "C" DLLEXPORT void printadr(double* X) {
 	fprintf(stderr, "Adr: %p %g\n", X, *X);
 }
 
-#ifdef _WIN32
-// WSAInit() and _WSACleanup() have PASCAL calling convention so they cannot
-// be directly called from the Volvox lib. So we create some C wrappers
-//
-extern "C" DLLEXPORT int _volvox_WSAInit() {
-	// fprintf(stderr, "Initializing winsock-2.2\n");
-	WSADATA wsaData;
-	BYTE vers_major = 2;
-	BYTE vers_minor = 2;
-	WORD version = MAKEWORD(vers_minor, vers_major);
-	int res = WSAStartup(version, &wsaData);
-    if (res)
-	    fprintf(stderr, "Could not initialize Winsock (error %d)\n", res);
-    if (LOBYTE(wsaData.wVersion) != 2 || HIBYTE(wsaData.wVersion) != 2) {
-	    fprintf(stderr, "Could not get Winsock-2.2 (highest supported version: %d.%d)\n",
-	            HIBYTE(wsaData.wVersion), LOBYTE(wsaData.wVersion));
-	    abort();
-    }
-    // fprintf(stderr, "...done\n");
-    return res;
-}
-
-extern "C" DLLEXPORT void _volvox_WSACleanup() {
-	WSACleanup();
-	// fprintf(stderr, "cleaned up winsock\n");
-}
-#endif
-
 //===----------------------------------------------------------------------===//
 // Main driver code.
 //===----------------------------------------------------------------------===//

@@ -636,21 +636,55 @@ llvm::Function *PrototypeAST::codegen() {
 }
 
 llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
-	if (Proto && (Proto->Name == "__linker_extra_flag" || Proto->Name == "__error")) {
-		if (Args.size() != 1 || !(Args[0]->ft->type_attr & A_string)) {
-			errs() << Loc << ": " << Proto->Name << " requires 1 constant string argument\n";
+	bool is_error = Proto && Proto->Name == "__error";
+	if (is_error || Proto && Proto->Name == "__link_extra") {
+		if (Args.empty() || !(Args[0]->ft->type_attr & A_string)) {
+			errs() << Loc << ": " << Proto->Name << " requires at least 1 argument\n";
 			return nullptr;
 		}
-		if (auto lit = dynamic_cast<LiteralExprAST*>(Args[0].get())) {
-			if (Proto->Name == "__linker_extra_flag") {
-				extra_libs.push_back(lit->Val.Str);
-				return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+		if (is_error)
+			errs() << Loc << ':';
+		for (auto& arg: Args) {
+			if (auto lit = dynamic_cast<LiteralExprAST*>(arg.get())) {
+				if (!(arg->ft->type_attr & A_string) || !strlen(lit->Val.Str)) {
+					if (is_error)
+						errs() << '\n';
+					errs() << Loc << ": " << Proto->Name << " requires constant non-empty string literals as arguments\n";
+					return nullptr;
+				}
+				if (is_error) {
+					errs() << ' ' << lit->Val.Str;
+				} else {
+					if (lit->Val.Str[0] == '-') {
+						if (comp_mode != comp_jit)
+							extra_libs.push_back(lit->Val.Str);
+					} else {
+						if (comp_mode == comp_jit) {
+#ifdef _WIN32
+							std::string dll = std::string(lit->Val.Str) + ".dll";
+							LoadLibraryA(dll.c_str());
+#endif
+						} else {
+#ifdef _WIN32
+							std::string lib = std::string(lit->Val.Str) + ".lib";
+#else
+							std::string lib = std::string("-l") + lit->Val.Str;
+#endif
+							extra_libs.push_back(std::move(lib));
+						}
+					}
+				}
+			} else {
+				if (is_error)
+					errs() << '\n';
+				errs() << Loc << ": " << Proto->Name << " requires constant string literals as arguments\n";
+				return nullptr;
 			}
-			errs() << Loc << ": " << lit->Val.Str << '\n';
-			return nullptr;
 		}
-		errs() << Loc << ": " << Proto->Name << " requires 1 constant string literal as argument\n";
-		return nullptr;
+		if (is_error)
+			return nullptr;
+		else
+			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);

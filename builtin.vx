@@ -8,8 +8,8 @@ cdecl fn printf(s cstring, ...) int
 
 # pseudo functions for compiler
 #
-cdecl fn __linker_extra_flag(flag string)
-cdecl fn __error(msg string)
+cdecl fn __link_extra(library string, ...)
+cdecl fn __error(msg string, ...)
 
 type _ZN6volvox6RtTypeE packed {
 	key u32
