@@ -6,9 +6,6 @@ import arch.os
 if os.isWindows
 	__linker_extra_flag "Ws2_32.lib" .
 
-cdecl fn _volvox_WSAInit() int
-cdecl fn _volvox_WSACleanup()
-
 const WSADESCRIPTION_LEN ::= 256
 const WSASYS_STATUS_LEN ::= 128
 
@@ -37,37 +34,36 @@ cdecl(WSAStartup) fn WSAStartup64(wVersionRequested u16, &lpWSAData WSAData64) i
 cdecl fn WSACleanup() int
 
 type WsockProto {
-	status int
+	int
 }
 
 inline fn WsockProto
 	if os.isWindows
-		if arch.isJIT
-			this.status = _volvox_WSAInit
+		version := 0x0202u16
+		if (arch.bitwidth == 64)
+			data64 := WSAData64{}
+			this.int = WSAStartup64(version, data64)
+			version = data64.wVersion
 		else
-			version := 0x0202u16
-			if (arch.bitwidth == 64)
-				data64 := WSAData64{}
-				this.status = WSAStartup64(version, data64)
-				version = data64.wVersion
-			else
-				data32 := WSAData32{}
-				this.status = WSAStartup32(version, data32)
-				version = data32.wVersion .
-			if this.status != 0
-				printf("WSAStartup returned %d\n", this.status)
-			elif version != 0x0202
-				printf("requested WINSock version 2.2 not available - got version %d.%d\n", version/16, version%16) . .
+			data32 := WSAData32{}
+			this.int = WSAStartup32(version, data32)
+			version = data32.wVersion .
+		if this.int != 0
+			printf("WSAStartup returned %d\n", this.int)
+		elif version != 0x0202
+			printf("requested WINSock version 2.2 not available - got version %hu.%hu\n", version >> 8, version & 0xff)
+		elif __verbose
+			printf("got WINSock version %hu.%hu\n", version >> 8, version & 0xff) .
 	else
-		 this.status = 0 .
+		 this.int = 0 .
 	return
 
 inline fn ~WsockProto
 	if os.isWindows
-		if arch.isJIT
-			_volvox_WSACleanup
-		else
-			WSACleanup . .
+		WSACleanup .
 	return
 
-pub const proto := WsockProto
+# symbol of type 'WsockProto' to trigger constructor/destructor calls that do initialization/clean-up
+# '_win.status.int' contains 0 or the error status returned by WSAStartup()
+#
+pub const status := WsockProto

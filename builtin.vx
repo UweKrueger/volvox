@@ -1,3 +1,6 @@
+# library functions use this to trigger informative messages
+global __verbose := false
+
 cdecl fn exit(n int)
 cdecl fn strcmp(s1 cstring, s2 cstring) i32
 cdecl fn strncmp(s1 cstring, s2 cstring, len size_t) i32
