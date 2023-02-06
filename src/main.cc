@@ -1665,7 +1665,7 @@ int main(int argc, char* argv[]) {
 			const char* libpatterns[] = LIBDIRS;
 			char* libdirs[ARRAY_SIZE(libpatterns)];
 			if (!target_mingw) {
-				strcat(libpath, "\\lib\\libvolvox.lib");
+				strcat(libpath, "\\clib\\libvolvox.lib");
 				volvox_glob_t linkers = volvox_glob(LINKER);
 				if (!linkers.size) {
 					errs() << "Unable to find 'link.exe' (searched as \"" << LINKER << "\"\n";
