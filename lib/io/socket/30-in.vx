@@ -1,0 +1,32 @@
+type Ip4Socket union {
+	fd int
+	handle size_t
+}
+
+type in_addr union {
+	u32
+	__s4_addr [4]u8
+}
+
+type sockaddr_in {
+	sin_family u16
+	sin_port u16
+	sin_addr in_addr
+	sin_zero [8]u8
+}
+
+pub inline fn tcp4 Ip4Socket
+	s := Ip4Socket{}
+	if os.isWindows
+		s.handle = win_socket(AF_INET, SOCK_STREAM, 0)
+	else
+		s.fd = socket(AF_INET, SOCK_STREAM, 0) .
+	return s
+
+pub inline fn udp4 Ip4Socket
+	s := Ip4Socket{}
+	if os.isWindows
+		s.handle = win_socket(AF_INET, SOCK_DGRAM, 0)
+	else
+		s.fd = socket(AF_INET, SOCK_DGRAM, 0) .
+	return s

@@ -324,7 +324,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 		type = lex.get_full_type(IdentifierStr.c_str());
 	}
 	if (!type) {
-		errs() << "Unknown type '" << IdentifierStr << "'\n";
+		errs() << CurLoc << ": unknown type '" << IdentifierStr << "'\n";
 		return nullptr;
 	}
 	getNextToken(expect);

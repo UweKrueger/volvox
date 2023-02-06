@@ -1,0 +1,20 @@
+
+type LocalSocket union {
+	fd int
+	handle size_t
+}
+
+pub const UNIX_PATH_MAX	::= 108
+
+type sockaddr_un {
+	sun_family u16
+	sun_path [UNIX_PATH_MAX]i8
+}
+
+pub inline fn unix LocalSocket
+	s := LocalSocket{}
+	if os.isWindows
+		s.handle = win_socket(AF_UNIX, SOCK_STREAM, 0)
+	else
+		s.fd = socket(AF_UNIX, SOCK_STREAM, 0) .
+	return s

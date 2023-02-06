@@ -1,0 +1,7 @@
+type sockaddr_any union {
+	sockaddr
+	sockaddr_un
+	sockaddr_in
+	sockaddr_in6
+	sockaddr_storage
+}

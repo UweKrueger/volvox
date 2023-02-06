@@ -16,47 +16,6 @@ type sockaddr_storage {
 	pad2   [112]u8
 }
 
-pub const UNIX_PATH_MAX	::= 108
-
-type sockaddr_un {
-	sun_family u16
-	sun_path [UNIX_PATH_MAX]i8
-}
-
-type in_addr union {
-	u32
-	__s4_addr [4]u8
-}
-
-type sockaddr_in {
-	sin_family u16
-	sin_port u16
-	sin_addr in_addr
-	sin_zero [8]u8
-}
-
-type in6_addr union {
-	__s6_addr [16]u8
-	__s6_addr16 [8]u16
-	__s6_addr32 [4]u32
-}
-
-type sockaddr_in6 {
-	sin6_family u16
-	sin6_port u16
-	sin6_flowinfo u32
-	sin6_addr in6_addr
-	sin6_scope_id u32
-}
-
-type sockaddr_any union {
-	sockaddr
-	sockaddr_un
-	sockaddr_in
-	sockaddr_in6
-	sockaddr_storage
-}
-
 # address families
 #
 const AF_UNSPEC ::= 0
@@ -83,58 +42,3 @@ cdecl(socket) fn win_socket(domain int, typ int, protocol int) size_t
 cdecl fn bind(s int, addr sockaddr, addrlen u32) int
 cdecl fn accept(s int, &addr sockaddr, &addrlen u32) int
 cdecl fn accept4(s int, &addr sockaddr, &addrlen u32, flags int) int
-
-type Ip4Socket union {
-	fd int
-	handle size_t
-}
-
-type IpSocket union {
-	fd int
-	handle size_t
-}
-
-type LocalSocket union {
-	fd int
-	handle size_t
-}
-
-pub inline fn tcp4 Ip4Socket
-	s := Ip4Socket{}
-	if os.isWindows
-		s.handle = win_socket(AF_INET, SOCK_STREAM, 0)
-	else
-		s.fd = socket(AF_INET, SOCK_STREAM, 0) .
-	return s
-
-pub inline fn tcp IpSocket
-	s := IpSocket{}
-	if os.isWindows
-		s.handle = win_socket(AF_INET6, SOCK_STREAM, 0)
-	else
-		s.fd = socket(AF_INET6, SOCK_STREAM, 0) .
-	return s
-
-pub inline fn udp4 Ip4Socket
-	s := Ip4Socket{}
-	if os.isWindows
-		s.handle = win_socket(AF_INET, SOCK_DGRAM, 0)
-	else
-		s.fd = socket(AF_INET, SOCK_DGRAM, 0) .
-	return s
-
-pub inline fn udp IpSocket
-	s := IpSocket{}
-	if os.isWindows
-		s.handle = win_socket(AF_INET6, SOCK_DGRAM, 0)
-	else
-		s.fd = socket(AF_INET6, SOCK_DGRAM, 0) .
-	return s
-
-pub inline fn unix LocalSocket
-	s := LocalSocket{}
-	if os.isWindows
-		s.handle = win_socket(AF_UNIX, SOCK_STREAM, 0)
-	else
-		s.fd = socket(AF_UNIX, SOCK_STREAM, 0) .
-	return s
