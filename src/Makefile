@@ -149,26 +149,26 @@ LIBVOLVOXBASE := libvolvox.so
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
 LIBVOLVOXSONAMESPEC := -Wl,-soname,$(LIBVOLVOXSONAME)
 EXTRAINC :=
-RPATH := -Wl,-rpath,$(shell pwd)/../lib
+RPATH := -Wl,-rpath,$(shell pwd)/../clib
 endif
-LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
-LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
+LIBVOLVOX := ../clib/$(LIBVOLVOXSONAME)
+LIBVOLVOXLINK := ../clib/$(LIBVOLVOXBASE)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
-EXTRASRC := $(EXTRAOBJS:%.o=../lib/%.c)
+EXTRASRC := $(EXTRAOBJS:%.o=../clib/%.c)
 EDITLINESRC := $(EDITLINEOBJS:%.o=../wineditline/%.c)
 
-LIBSRC := $(LIBOBJS:%.o=../lib/%.cc)
-LIBCSRC := $(LIBCOBJS:%.o=../lib/%.c)
+LIBSRC := $(LIBOBJS:%.o=../clib/%.cc)
+LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 
 %.o: %.cc $(PCH)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $(EXTRAINC) $<
 
-%.o: ../lib/%.cc
+%.o: ../clib/%.cc
 	$(CXX) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) -fPIC $(OPT) $<
 
-%.o: ../lib/%.c
+%.o: ../clib/%.c
 	$(CC) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
 
 ifeq ($(NIXTYPE),mingw64)
@@ -190,7 +190,7 @@ $(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
 
 $(PROG): $(OBJS) $(LIBVOLVOX)
-	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../lib -lvolvox $(RPATH) $(LINKEXTRAFLAGS)
+	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../clib -lvolvox $(RPATH) $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:

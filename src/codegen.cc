@@ -6,7 +6,6 @@
 #include "../include/volvox.hh"
 #include "global.h"
 #include "AST.h"
-#include "../lib/str.h"
 
 //===----------------------------------------------------------------------===//
 // Debug Info Support

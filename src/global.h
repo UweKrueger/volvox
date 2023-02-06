@@ -10,9 +10,9 @@
 #include <synchapi.h>
 #include <processthreadsapi.h>
 #endif
-#include "../lib/map.h"
-#include "../lib/types.h"
-#include "../lib/str.h"
+#include "../clib/map.h"
+#include "../clib/types.h"
+#include "../clib/str.h"
 #if defined(__NetBSD__)
 #define alloca __builtin_alloca
 #endif
