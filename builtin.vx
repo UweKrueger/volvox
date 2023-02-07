@@ -69,7 +69,7 @@ cdecl fn __string_add(l string, r string) string
 cdecl fn __string_mult(n size_t, r string) string
 cdecl fn __string_mult_assign(n size_t, r string) string
 cdecl fn __string_make_writable(&s string) string
-cdecl fn __cstr2volvoxstr(s cstring) string
+cdecl fn __cstr2volvoxstr(s cstring, l size_t) string
 cdecl fn strdup(s cstring) cstring
 cdecl fn _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
 cdecl fn _ZN9ArrayNodeD1Ev(&a ArrayNode)

@@ -64,7 +64,7 @@ std::string Token::str() const {
 		}
 	}
 	if (kind == tok_str_lit)
-		return Val.Str;
+		return std::string(Val.CStr, Val.Len);
 	if (kind < tok_last_op)
 		return tokens[kind - 1 - tok_1st_keyword];
 	if (kind > 0)
@@ -176,7 +176,10 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 Token::Token(const std::string& str) : kind(tok_str_lit) {
 	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
 	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
-	Val.Str = strdup(str.c_str());
+	Val.CStr = (char*)malloc(str.size() + 1);
+	memcpy(Val.CStr, str.data(), str.size());
+	Val.CStr[str.size()] = '\0';
+	Val.Len = str.size();
 }
 
 Token::Token(void* ptr) : kind(tok_ptr_lit) {

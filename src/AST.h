@@ -127,7 +127,7 @@ public:
 			if (ft->type_attr & A_signed)
 				return ExprAST::dump(out << Val.Ptr, ind);
 			else
-				return ExprAST::dump(out << Val.Str, ind);
+				return ExprAST::dump(out << Val.CStr, ind);
 		default:
 			errs() << "internal compiler error: unhandled literal type '" << *ft->type << "'\n";
 			return out;

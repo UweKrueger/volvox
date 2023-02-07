@@ -82,16 +82,15 @@ namespace volvox {
 };
 
 _CDECL void showtestres(int fd, int width, const char* testcase, bool result);
-_CDECL char* __cstr2volvoxstr(const char* c_str);
+_CDECL char* __cstr2volvoxstr(const char* c_str, size_t len);
 
 #endif
 
 #ifndef cstr2volvoxstr
-#define cstr2volvoxstr(result, lalloc, target, cstr, allocfn)	  \
-	size_t _l = strlen(cstr); \
+#define cstr2volvoxstr_l(result, lalloc, target, cstr, allocfn, _l)	  \
 	lalloc = (_l+1+target_bytes+(target_bytes-1)) & ~(size_t)(target_bytes-1); /* add space for \0 and one aligend size_t */ \
 	target = (char*)allocfn(lalloc); /* create target_bytes-byte aligned space */ \
-	strcpy(target, cstr); \
+	memcpy(target, cstr, _l); \
 	for (size_t n = _l; n < lalloc-target_bytes; n++) \
 		target[n]=0; /* make sure padding is zerored */ \
 	result = target + lalloc - target_bytes; \
@@ -101,4 +100,8 @@ _CDECL char* __cstr2volvoxstr(const char* c_str);
 		*(uint32_t*)result = _l + 1; \
 	else \
 		*(uint16_t*)result = _l + 1
+
+#define cstr2volvoxstr(result, lalloc, target, cstr, allocfn)	  \
+	size_t _l = strlen(cstr); \
+	cstr2volvoxstr_l(result, lalloc, target, cstr, allocfn, _l)
 #endif

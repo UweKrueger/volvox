@@ -1249,11 +1249,11 @@ _DECL void printu64(uint64_t X) {
 
 #define target_bytes sizeof(size_t)
 
-_DECL char* __cstr2volvoxstr(const char* c_str) {
+_DECL char* __cstr2volvoxstr(const char* c_str, size_t len) {
 	char* res;
 	size_t l;
 	char* targ;
-	cstr2volvoxstr(res, l, targ, c_str, malloc);
+	cstr2volvoxstr_l(res, l, targ, c_str, malloc, len);
 	return res;
 }
 

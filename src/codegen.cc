@@ -67,7 +67,7 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
 		else if (ft->type_attr & A_string)
 		{
-			llvm::Value* theString = createStringConst(Val.Str);
+			llvm::Value* theString = createStringConst(Val.CStr, Val.Len);
 			return handle(target, theString);
 		}
 		// else fallthrough

@@ -648,18 +648,18 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			errs() << Loc << ':';
 		for (auto& arg: Args) {
 			if (auto lit = dynamic_cast<LiteralExprAST*>(arg.get())) {
-				if (!(arg->ft->type_attr & A_string) || !strlen(lit->Val.Str)) {
+				if (!(arg->ft->type_attr & A_string) || !strlen(lit->Val.CStr)) {
 					if (is_error)
 						errs() << '\n';
 					errs() << Loc << ": " << Proto->Name << " requires constant non-empty string literals as arguments\n";
 					return nullptr;
 				}
 				if (is_error) {
-					errs() << ' ' << lit->Val.Str;
+					errs() << ' ' << std::string(lit->Val.CStr, lit->Val.Len);
 				} else {
-					if (lit->Val.Str[0] == '-' || lit->Val.Str[0] == '/') {
+					if (lit->Val.CStr[0] == '-' || lit->Val.CStr[0] == '/') {
 						if (comp_mode != comp_jit)
-							extra_libs.push_back(lit->Val.Str);
+							extra_libs.push_back(lit->Val.CStr);
 					} else {
 						if (comp_mode == comp_jit) {
 							std::string dll;
@@ -667,10 +667,10 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 							dll = std::string(lit->Val.Str) + ".dll";
 							LoadLibraryA(dll.c_str());
 #else
-							if (!strncmp(lit->Val.Str, "lib", 3))
-								dll = std::string(lit->Val.Str);
+							if (!strncmp(lit->Val.CStr, "lib", 3))
+								dll = std::string(lit->Val.CStr, lit->Val.Len);
 							else
-								dll = std::string("lib") + lit->Val.Str + ".so";
+								dll = std::string("lib") + lit->Val.CStr + ".so";
 							auto handle = dlopen(dll.c_str(), RTLD_NOW | RTLD_GLOBAL);
 							if (!handle) {
 								errs() << arg->Loc << ": " << dlerror() << '\n';
@@ -682,10 +682,10 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 #ifdef _WIN32
 							lib = std::string(lit->Val.Str) + ".lib";
 #else
-							if (!strncmp(lit->Val.Str, "lib", 3))
-								lib = std::string(lit->Val.Str);
+							if (!strncmp(lit->Val.CStr, "lib", 3))
+								lib = std::string(lit->Val.CStr, lit->Val.Len);
 							else
-								lib = std::string("-l") + lit->Val.Str;
+								lib = std::string("-l") + std::string(lit->Val.CStr, lit->Val.Len);
 #endif
 							extra_libs.push_back(std::move(lib));
 						}
