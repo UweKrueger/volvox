@@ -363,16 +363,7 @@ static void HandleExtern(unsigned visibility) {
 				errs() << ProtoAST->retLoc << ": '" << ProtoAST->getName() << "' already in use as global variable\n";
 				return;
 			}
-			if (auto *FnIR = getFunction(ProtoAST.get())) {
-				if (dump_IR) {
-					errs() << "Read extern: ";
-					FnIR->print(errs());
-					errs() << "\n";
-				}
-				lex.module->FunctionProtos[unmangledName].push_back(std::move(ProtoAST));
-			} else {
-				errs() << "Error reading extern\n";
-			}
+			lex.module->FunctionProtos[unmangledName].push_back(std::move(ProtoAST));
 		} else {
 			// Skip token for error recovery.
 			purgeLine();
