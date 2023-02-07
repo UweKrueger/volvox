@@ -83,6 +83,7 @@ volvoxc::FullType* char_type;
 volvoxc::FullType* size_type;
 volvoxc::FullType* integer_type;
 volvoxc::FullType* interface_type;
+volvoxc::FullType* voidptr_type;
 
 #ifdef LEGACY_PASS_MANAGER
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM = nullptr;
@@ -164,6 +165,7 @@ void init(const llvm::Triple& triple) {
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "cstring") : nullptr, A_cstring);
 	lex.add_type("voidptr", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "voidptr") : nullptr);
+	voidptr_type = lex.get_full_type("voidptr");
 	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
 	std::vector<llvm::Type*> interface_type_elements = { llvm::Type::getInt8PtrTy(Context), llvm::Type::getInt8PtrTy(Context) };
 	llvm_interface_type = llvm::StructType::create(Context, interface_type_elements, "interface");

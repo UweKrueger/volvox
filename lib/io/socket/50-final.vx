@@ -5,3 +5,20 @@ type sockaddr_any union {
 	sockaddr_in6
 	sockaddr_storage
 }
+
+fn LocalSocket.bind(path string) Socket
+	saddr := sockaddr_any{}
+	saddr.sockaddr_un.sun_family = AF_UNIX
+	memcpy(&saddr.sockaddr_un.sun_path, voidptr(cstring(path)), path.size)
+	if os.isWindows
+		res := win_bind(this.handle, saddr.sockaddr, u32(path.size))
+		if res == 0
+			return Socket{ handle: this.handle }
+		else
+			return Socket{ handle: size_t(-1) }
+	else
+		res := bind(this.fd, saddr.sockaddr, u32(path.size))
+		if res == 0
+			return Socket{ fd: this.fd }
+		else
+			return Socket{ fd: -1 }

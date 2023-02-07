@@ -30,3 +30,8 @@ pub inline fn udp4 Ip4Socket
 	else
 		s.fd = socket(AF_INET, SOCK_DGRAM, 0) .
 	return s
+
+const INADDR_ANY       ::= 0x00000000
+const INADDR_BROADCAST ::= 0xffffffff
+const INADDR_NONE      ::= 0xffffffff
+const INADDR_LOOPBACK  ::= 0x7f000001

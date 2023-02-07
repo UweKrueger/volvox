@@ -32,3 +32,6 @@ pub inline fn udp IpSocket
 	else
 		s.fd = socket(AF_INET6, SOCK_DGRAM, 0) .
 	return s
+
+const IN6ADDR_ANY      ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+const IN6ADDR_LOOPBACK ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}

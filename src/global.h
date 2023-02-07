@@ -385,6 +385,7 @@ extern volvoxc::FullType* char_type;
 extern volvoxc::FullType* size_type;
 extern volvoxc::FullType* integer_type;
 extern volvoxc::FullType* interface_type;
+extern volvoxc::FullType* voidptr_type;
 extern std::unique_ptr<FunctionAST> MainFunction;
 static inline llvm::ConstantInt* getSize(uint64_t n) {
 	return llvm::ConstantInt::get(llvm::IntegerType::get(Context, target_bits), n);

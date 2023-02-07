@@ -628,12 +628,18 @@ public:
 	std::unique_ptr<LvalueExprAST> Operand;
 	ReferenceExprAST(SourceLocation Loc, std::unique_ptr<LvalueExprAST> _Operand)
 		: LvalueExprAST(Loc), Operand(std::move(_Operand)) {
-		ft = new_FullType(*Operand->ft);
-		ft->type_attr |= A_ptrref;
+		if (Operand->ft->type) {
+			// get address from expression as 'voidptr' to call C-functions "f(&x)"
+			ft = voidptr_type;
+		} else {
+			// declare reference "&r := x"
+			ft = new_FullType(*Operand->ft);
+			ft->type_attr |= A_ptrref;
+		}
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
-		errs() << "cannot generate \"value\" code for reference expression\n";
-		return nullptr;
+		auto pair = Operand->codegen_ref(false);
+		return handle(target, pair.second);
 	}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override {
 		auto pair = Operand->codegen_ref(silent_fail);
