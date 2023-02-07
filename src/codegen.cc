@@ -199,6 +199,12 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 						V = llvm::UndefValue::get(struct_type);
 						V = Builder->CreateInsertValue(V, ini, 0, "unioninit");
 					}
+					llvm::Value* store = (target && (intptr_t)target != -1) ? target : CreateEntryBlockAlloca(ft->type);
+					Builder->CreateStore(V, Builder->CreatePointerCast(store, V->getType()->getPointerTo()));
+					if (!target || (intptr_t)target == -1)
+						return Builder->CreateLoad(ft->type, store);
+					else
+						return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				} else {
 					V = Builder->CreateInsertValue(V, ini, i, "structinit");
 				}
