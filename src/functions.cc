@@ -664,7 +664,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 						if (comp_mode == comp_jit) {
 							std::string dll;
 #ifdef _WIN32
-							dll = std::string(lit->Val.Str) + ".dll";
+							dll = std::string(lit->Val.CStr, lit->Val.Len) + ".dll";
 							LoadLibraryA(dll.c_str());
 #else
 							if (!strncmp(lit->Val.CStr, "lib", 3))
@@ -680,7 +680,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 						} else {
 							std::string lib;
 #ifdef _WIN32
-							lib = std::string(lit->Val.Str) + ".lib";
+							lib = std::string(lit->Val.CStr, lit->Val.Len) + ".lib";
 #else
 							if (!strncmp(lit->Val.CStr, "lib", 3))
 								lib = std::string(lit->Val.CStr, lit->Val.Len);
