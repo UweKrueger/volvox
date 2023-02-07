@@ -1277,3 +1277,7 @@ _DECL char* __transformcstr2volvox(char* c_str) {
 }
 
 #undef target_bytes
+
+_DECL void __printerr() {
+	fprintf(stderr, "%s\n", strerror(errno));
+}

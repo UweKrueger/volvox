@@ -6,7 +6,7 @@ type sockaddr_any union {
 	sockaddr_storage
 }
 
-fn LocalSocket.bind(path string) Socket
+pub fn LocalSocket.bind(path string) Socket
 	saddr := sockaddr_any{}
 	saddr.sockaddr_un.sun_family = AF_UNIX
 	memcpy(&saddr.sockaddr_un.sun_path, voidptr(cstring(path)), path.size)
@@ -21,4 +21,24 @@ fn LocalSocket.bind(path string) Socket
 		if res == 0
 			return Socket{ fd: this.fd }
 		else
+			return Socket{ fd: -1 }
+
+pub fn Ip4Socket.bind(ownaddr u32, ownport u16) Socket
+	saddr := sockaddr_any{
+		sockaddr_in: {
+			sin_family: AF_INET
+			sin_port: ownport
+			sin_addr: { u32: ownaddr } } }
+	if os.isWindows
+		res := win_bind(this.handle, saddr.sockaddr, 16)
+		if res == 0
+			return Socket{ handle: this.handle }
+		else
+			return Socket{ handle: size_t(-1) }
+	else
+		res := bind(this.fd, saddr.sockaddr, 16)
+		if res == 0
+			return Socket{ fd: this.fd }
+		else
+			__printerr
 			return Socket{ fd: -1 }

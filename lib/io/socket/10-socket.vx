@@ -44,7 +44,7 @@ const SOCK_SEQPACKET ::= 5
 
 cdecl fn socket(domain int, typ int, protocol int) int
 cdecl(socket) fn win_socket(domain int, typ int, protocol int) size_t
-cdecl fn bind(s int, addr sockaddr, addrlen u32) int
-cdecl(bind) fn win_bind(s size_t, addr sockaddr, addrlen u32) int
+cdecl fn bind(s int, &addr sockaddr, addrlen u32) int
+cdecl(bind) fn win_bind(s size_t, &addr sockaddr, addrlen u32) int
 cdecl fn accept(s int, &addr sockaddr, &addrlen u32) int
 cdecl fn accept4(s int, &addr sockaddr, &addrlen u32, flags int) int

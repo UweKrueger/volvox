@@ -5,6 +5,7 @@ cdecl fn exit(n int)
 cdecl fn strcmp(s1 cstring, s2 cstring) i32
 cdecl fn strncmp(s1 cstring, s2 cstring, len size_t) i32
 cdecl fn printf(s cstring, ...) int
+cdecl fn __printerr()
 
 # pseudo functions for compiler
 #
