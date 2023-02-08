@@ -1714,10 +1714,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					result = Builder->CreateCall(powfn_proto->FT, powfn, std::vector<llvm::Value*>{ L, R });
 				}
 			} else {
-				result = Builder->CreateIntrinsic(llvm::Intrinsic::powi, { L->getType(), R->getType() }, { L, R });
+				result = Builder->CreateIntrinsic(llvm::Intrinsic::powi, { L->getType() }, { L, Builder->CreateIntCast(R, llvm::Type::getInt32Ty(Context), RHS->ft->type_attr & A_signed) });
 			}
 		} else {
-			result = Builder->CreateIntrinsic(llvm::Intrinsic::pow, { L->getType(), R->getType() }, { L, R });
+			result = Builder->CreateIntrinsic(llvm::Intrinsic::pow, { L->getType() }, { L, R });
 			needs_libm = true;
 		}
 		break;
