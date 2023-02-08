@@ -671,7 +671,7 @@ llvm::Function* init_setter_fn(std::string& setter_name, std::string& varname, l
 	if (last_shadow_restorer && comp_mode == comp_jit && !do_test) {
 		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
 		auto last_restorer = getFunction(last_restorer_proto);
-		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callrestorer");
+		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>());
 	}
 	return tmpf;
 }
@@ -999,7 +999,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
 			auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 			auto last_saver = getFunction(last_saver_proto);
-			Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callsaver");
+			Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>());
 		}
 		if (initializer || !needs_store)
 			Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
@@ -1083,7 +1083,7 @@ static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& var
 	if (last_shadow_saver) {
 		auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 		auto last_saver = getFunction(last_saver_proto);
-		Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>(), "callold")));
+		Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>())));
 	} else {
 		Builder->CreateRetVoid();
 	}
@@ -1100,7 +1100,7 @@ static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& var
 	if (last_shadow_restorer) {
 		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
 		auto last_restorer = getFunction(last_restorer_proto);
-		Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callold")));
+		Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>())));
 	} else {
 		Builder->CreateRetVoid();
 	}
@@ -1126,7 +1126,7 @@ static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* f
 		auto last_thrconstr_proto = (*lex.findProtos(last_thread_constructor_caller))[0].get();
 		auto last_caller = getFunction(last_thrconstr_proto);
 		Builder->CreateCall(last_thrconstr_proto->FT, last_caller,
-		                    std::vector<llvm::Value*>(), "callold");
+		                    std::vector<llvm::Value*>());
 	}
 	auto C = getConstructorOrDestructor(ft);
 	auto GV = GetGlobalHandle(ft->type, varname, sym_kind);
@@ -2066,6 +2066,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	auto enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
 	llvm::PHINode* condPN;
+	llvm::PHINode* savedStack;
 	llvm::BasicBlock* CondBB;
 	// find a suitable name for the loop block
 	const char* loopBBName;
@@ -2092,7 +2093,9 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
 		condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
+		savedStack =  Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
 		condPN->addIncoming(Builder->getInt8(2), enterBB);
+		savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
 	} else if (if_kind == tok_repeat) {
 		CondBB = llvm::BasicBlock::Create(Context, "until"); // will be filled at end
 		condPN = nullptr;
@@ -2160,27 +2163,36 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	llvm::Instruction* StackRestoreInst = nullptr; // to insert destructors before that
+	llvm::Value* savedStack0;
 	if (if_kind != tok_if) {
 		if (TheFunction) {
 			TheFunction->getBasicBlockList().push_back(StackSaveBB);
 			Builder->SetInsertPoint(StackSaveBB);
 		}
-		llvm::Value* savedStack = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {}, nullptr, "savedstack");
+		savedStack0 = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {}, nullptr, "savedstack");
 		Builder->CreateBr(ThenBB);
+		StackSaveBB = Builder->GetInsertBlock();
 		if (TheFunction) {
 			TheFunction->getBasicBlockList().push_back(StackRestoreBB);
 			Builder->SetInsertPoint(StackRestoreBB);
 		}
 		StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(ThenBB);
+		StackRestoreBB = Builder->GetInsertBlock();
 	}
 	llvm::Constant* thenConstV = nullptr;
 	llvm::Value* ThenV = nullptr;
 	llvm::Instruction* thenLast = nullptr;
+	llvm::PHINode* savedStack1;
 	if (CTcond != CTcond_false) {
 		if (TheFunction) {
 			TheFunction->getBasicBlockList().push_back(ThenBB);
 			Builder->SetInsertPoint(ThenBB);
+		}
+		if (if_kind == tok_while) {
+			savedStack1 =  Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack1");
+			savedStack1->addIncoming(savedStack0, StackSaveBB);
+			savedStack1->addIncoming(savedStack, StackRestoreBB);
 		}
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
@@ -2197,8 +2209,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 		ThenBB = Builder->GetInsertBlock();
-		if (if_kind == tok_while)
+		if (if_kind == tok_while) {
 			condPN->addIncoming(Builder->getInt8(0), ThenBB);
+			savedStack->addIncoming(savedStack1, ThenBB);
+		}
 	}
 	llvm::Value* ElseV = nullptr;
 	llvm::Instruction* elseLast = nullptr;;
@@ -2377,7 +2391,7 @@ void CallGlobalDestructorsJIT() {
 	if (last_shadow_restorer && comp_mode == comp_jit && !do_test) {
 		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
 		auto last_restorer = getFunction(last_restorer_proto);
-		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>(), "callrestorer");
+		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>());
 	}
 	for (auto& [modname, module] : Modules) {
 		if (module.globals_table.table)

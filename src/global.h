@@ -1332,7 +1332,7 @@ extern int builtin_input_fd;
 extern std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind = 0);
 extern bool DeclareGlobalConst(std::unique_ptr<ExprAST> expr, unsigned sym_kind);
 extern void InitializeModuleAndPassManager();
-extern void finishFunctionOrModule(llvm::Function* F = nullptr, unsigned dumpLevel = 1,
+extern bool finishFunctionOrModule(llvm::Function* F = nullptr, unsigned dumpLevel = 1,
                                    bool finishModule = true, bool newModule = true);
 extern std::unique_ptr<llvm::orc::VolvoxJIT> TheJIT;
 extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);

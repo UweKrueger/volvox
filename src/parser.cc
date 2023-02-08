@@ -1467,7 +1467,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			}
 		} else {
 			if (lex.peek() == '.' || (visibility & A_destructor)) {
-				errs() << CurLoc << ": internal error in " << ((visibility & A_destructor) ? "destructor" : "method")
+				errs() << CurLoc << ": error in " << ((visibility & A_destructor) ? "destructor" : "method")
 				       << " parsing - '" << IdentifierStr << "' is not a known type\n";
 				return nullptr;
 			}

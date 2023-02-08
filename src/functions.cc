@@ -557,17 +557,23 @@ void finish_constructors_and_destructor() {
 	last_defined_type = nullptr;
 }
 
-void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishModule, bool newModule) {
+bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishModule, bool newModule) {
+	bool success = true;
 	if (F) {
-		verifyFunction(*F);
-		if (dump_IR >= dumpLevel && dump_raw) {
-			errs() << "Read \"" << F->getName() << "()\" definition (raw):\n";
-			F->print(errs());
-			errs() << "\n";
-		}
+		success = !verifyFunction(*F, &errs());
+		if (success) {
+			if (dump_IR >= dumpLevel && dump_raw) {
+				errs() << "Read \"" << F->getName() << "()\" definition (raw):\n";
+				F->print(errs());
+				errs() << "\n";
+			}
 #ifdef LEGACY_PASS_MANAGER
-		TheFPM->run(*F);
+			TheFPM->run(*F);
 #endif
+		} else {
+			F->print(errs());
+			F->eraseFromParent();
+		}
 	}
 	if (finishModule) {
 #ifndef LEGACY_PASS_MANAGER
@@ -599,6 +605,7 @@ void finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 		}
 	}
 	Builder->ClearInsertionPoint();
+	return success;
 }
 
 llvm::Function *PrototypeAST::codegen() {
@@ -991,10 +998,10 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		// Callee was a function symbol like `sin`
 		if (Proto->const_result)
 			return Proto->const_result;
-		return Builder->CreateCall(FT, F, ArgsV, "calltmp");
+		return Builder->CreateCall(FT, F, ArgsV);
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
-		return Builder->CreateCall(FT, theFunction, ArgsV, "callptrtmp");
+		return Builder->CreateCall(FT, theFunction, ArgsV);
 	}
 }
 
@@ -1170,11 +1177,11 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 		KSDbgInfo.LexicalBlocks.pop_back();
 	}
 	// Validate the generated code, checking for consistency.
-	finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
+	bool success = finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
 	expr_temps.clear();
-	return TheFunction;
+	return success ? TheFunction : nullptr;
 }
 
 llvm::Function* FunctionAST::cleanup_codegen() {
