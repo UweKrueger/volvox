@@ -1083,10 +1083,9 @@ static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& var
 	if (last_shadow_saver) {
 		auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 		auto last_saver = getFunction(last_saver_proto);
-		Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>())));
-	} else {
-		Builder->CreateRetVoid();
+		Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>());
 	}
+	Builder->CreateRetVoid();
 	finishFunctionOrModule(Fsaver, 3, false);
 	auto saverProto = std::make_unique<PrototypeAST>(CurLoc, saver, std::vector<std::string>());
 	last_shadow_saver = saverProto->Name.c_str();
@@ -1100,10 +1099,9 @@ static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& var
 	if (last_shadow_restorer) {
 		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
 		auto last_restorer = getFunction(last_restorer_proto);
-		Builder->CreateRet(CheckTailCall(Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>())));
-	} else {
-		Builder->CreateRetVoid();
+		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>());
 	}
+	Builder->CreateRetVoid();
 	finishFunctionOrModule(Frestorer, 3, false);
 	auto restorerProto = std::make_unique<PrototypeAST>(CurLoc, restorer, std::vector<std::string>());
 	last_shadow_restorer = restorerProto->Name.c_str();
