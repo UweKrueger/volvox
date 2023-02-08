@@ -661,6 +661,10 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 			fields.push_back(nullptr);
 		for (auto struct_field = ft->first(); struct_field; ++struct_field) {
 			unsigned index = struct_field.getIndex();
+			if (ft->type_attr & A_union)
+				// only index '0' should be printed as struct field
+				if (index)
+					continue;
 			volvoxc::FullType* field_ft = struct_field.getFt();
 			const char* field_name = struct_field.getKey();
 			llvm::SmallVector<llvm::Constant*, 2> fld_descr;
