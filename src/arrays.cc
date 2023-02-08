@@ -147,7 +147,15 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			// allocated dynamically since it might be of variable size in the other branch
 			ArrayAlloc = Builder->CreateAlloca(alloc_arr_type, nullptr, Name);
 		} else {
-			ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
+			if (inside_function || comp_mode != comp_jit || do_test)
+				ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
+			else {
+				ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
+				                                          llvm_size_type, llvm::Type::getInt8PtrTy(Context),
+				                                          ElemSize, Len,
+				                                          nullptr, Name);
+				ArrayAlloc = Builder->Insert(ArrayAlloc);
+			}
 		}
 	} else {
 		if (inside_function || comp_mode != comp_jit || do_test)

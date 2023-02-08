@@ -962,7 +962,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 					expr->RHS->codegen_raw(GV);
 				else
 					Builder->CreateStore(Val, GV);
-			} else { // variable size array - no global
+			} else { // variable size array
 				auto retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
 					ndim = struct_type->getNumElements() - 1;
@@ -975,6 +975,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 					}
 					ptrRet = Builder->CreateExtractValue(retVal, ndim);
 					array_ptr_ty = ptrRet->getType();
+				} else if (auto array_type = llvm::dyn_cast<llvm::PointerType>(retVal->getType())) {
+					array_ptr_ty = retVal->getType();
+					ptrRet = retVal;
 				} else {
 					errs() << expr->Loc << ": internal error; stuct expected\n";
 					abort();
@@ -1026,14 +1029,18 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		char* varptr = PTR(Dims);
 		if (varptr) {
 			jit_main_variables.emplace_back(varptr);
-			std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm_size_type);
-			struct_type_el[ndim] = array_ptr_ty;
-			llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
-			llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
-			for (unsigned u = 0; u<ndim; u++)
-				the_struct = Builder->CreateInsertValue(the_struct, getSize(Dims[u]), u);
-			the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(getSize((uintptr_t)varptr), array_ptr_ty), ndim);
-			fv->val = the_struct;
+			if (ndim) {
+				std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm_size_type);
+				struct_type_el[ndim] = array_ptr_ty;
+				llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
+				llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
+				for (unsigned u = 0; u<ndim; u++)
+					the_struct = Builder->CreateInsertValue(the_struct, getSize(Dims[u]), u);
+				the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(getSize((uintptr_t)varptr), array_ptr_ty), ndim);
+				fv->val = the_struct;
+			} else {
+				fv->val = Builder->CreateBitCast(getSize((uintptr_t)varptr), expr->RHS->ft->type->getPointerTo());
+			}
 			fv->ft.type_attr &= ~A_mainvar;
 		}
 		ExitOnErr(RT->remove());
