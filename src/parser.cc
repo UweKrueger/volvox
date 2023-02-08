@@ -1758,7 +1758,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 		return_val_idx = ExprList.size() - 1;
 	} else {
-		std::string mangled_println = "_ZN6volvox7printlnEPKcPKNS_6RtTypeEz";
+		std::string mangled_println = "_ZN6volvox7printlnEPKcz";
 		auto println_proto = lex.findProtos(mangled_println);
 		if (!println_proto) {
 			errs() << "Fatal error: could not find 'println' function\n";

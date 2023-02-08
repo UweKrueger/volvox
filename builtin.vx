@@ -75,10 +75,10 @@ cdecl fn strdup(s cstring) cstring
 cdecl fn _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
 cdecl fn _ZN9ArrayNodeD1Ev(&a ArrayNode)
 cdecl fn _ZN9ArrayNode8pushbackEPcy(&a ArrayNode, s string, obj_size u64)
-cdecl fn _ZN6volvox6fprintEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
-cdecl fn _ZN6volvox8fprintlnEiPKcPKNS_6RtTypeEz(fd int, pre string, ft string, ...) bool
-cdecl fn _ZN6volvox5printEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
-cdecl fn _ZN6volvox7printlnEPKcPKNS_6RtTypeEz(pre string, ft string, ...) bool
+cdecl fn _ZN6volvox6fprintEiPKcz(fd int, pre string, ft string, ...) bool
+cdecl fn _ZN6volvox8fprintlnEiPKcz(fd int, pre string, ft string, ...) bool
+cdecl fn _ZN6volvox5printEPKcz(pre string, ...) bool
+cdecl fn _ZN6volvox7printlnEPKcz(pre string, ...) bool
 cdecl fn memcpy(dest voidptr, src voidptr, n size_t) voidptr
 cdecl fn new_global_var_shadow(adr string, sz u64) u64
 cdecl fn getTermSize(fd i32) i32

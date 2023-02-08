@@ -415,7 +415,7 @@ static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str) {
 	}
 }
 
-static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags */);
+static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, ... /* ft, val, int w, int p, unsigned flags */);
 
 static const char* ptr_align(const char* ptr, size_t bytes) {
 	if (bytes) {
@@ -638,7 +638,7 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned 
 		*pos += sprintf(*s + *pos, fmt, w, vall);
 }
 
-static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, va_list ap) {
+static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_list ap) {
 	if (!*cap) {
 		*cap = 128;
 		*s = (char*)realloc(*s, *cap);
@@ -646,6 +646,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 	if (pre)
 		prtstring(s, cap, pos, volvox2cstr(pre));
 	int space = *cap - *pos;
+	const VOLVOX_RtType* ft = va_arg(ap, const VOLVOX_RtType*);
 	while (ft) {
 		switch (ft->ID) {
 		case VOLVOX_BFloatTyID:
@@ -756,29 +757,18 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const
 	}
 }
 		
-static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags */) {
+static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, ... /* ft, val, int w, int p, unsigned flags */) {
 	va_list ap;
-	va_start(ap, ft);
-	vsprt(s, cap, pos, pre, ft, ap);
+	va_start(ap, pre);
+	vsprt(s, cap, pos, pre, ap);
 	va_end(ap);
 }
 
-static char* str(const VOLVOX_RtType* ft, ...) {
-	va_list ap;
+_DECL bool vfprint(int fd, bool newline, const char* pre, va_list ap) {
 	char* s = NULL;
 	unsigned cap = 0;
 	unsigned pos = 0;
-	va_start(ap, ft);
-	sprt(&s, &cap, &pos, nullptr, ft, ap);
-	va_end(ap);
-	return s;
-}
-
-_DECL bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* ft, va_list ap) {
-	char* s = NULL;
-	unsigned cap = 0;
-	unsigned pos = 0;
-	vsprt(&s, &cap, &pos, pre, ft, ap);
+	vsprt(&s, &cap, &pos, pre, ap);
 	unsigned bytes_to_write = pos;
 	if (newline) {
 		s[pos] = '\n';

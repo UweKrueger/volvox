@@ -36,38 +36,38 @@
 #include "types.h"
 #include "str.h"
 
-extern "C" bool vfprint(int fd, bool newline, const char* pre, const VOLVOX_RtType* ft, va_list ap);
+extern "C" bool vfprint(int fd, bool newline, const char* pre, va_list ap);
 
 namespace volvox {
 
-	_DECL bool fprint(int fd, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags, ..., char* post */) {
+	_DECL bool fprint(int fd, const char* pre, ... /* ft, val, int w, int p, unsigned flags, ..., char* post */) {
 		va_list ap;
-		va_start(ap, ft);
-		bool has_succeeded = vfprint(fd, false, pre, ft, ap);
+		va_start(ap, pre);
+		bool has_succeeded = vfprint(fd, false, pre, ap);
 		va_end(ap);
 		return has_succeeded;
 	}
 
-	_DECL bool fprintln(int fd, const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags, ..., char* post */) {
+	_DECL bool fprintln(int fd, const char* pre, ... /* ft, val, int w, int p, unsigned flags, ..., char* post */) {
 		va_list ap;
-		va_start(ap, ft);
-		bool has_succeeded = vfprint(fd, true, pre, ft, ap);
+		va_start(ap, pre);
+		bool has_succeeded = vfprint(fd, true, pre, ap);
 		va_end(ap);
 		return has_succeeded;
 	}
 
-	_DECL bool print(const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags, ..., char* post */) {
+	_DECL bool print(const char* pre, ... /* ft, val, int w, int p, unsigned flags, ..., char* post */) {
 		va_list ap;
-		va_start(ap, ft);
-		bool has_succeeded = vfprint(1, false, pre, ft, ap);
+		va_start(ap, pre);
+		bool has_succeeded = vfprint(1, false, pre, ap);
 		va_end(ap);
 		return has_succeeded;
 	}
 
-	_DECL bool println(const char* pre, const VOLVOX_RtType* ft, ... /* val, int w, int p, unsigned flags, ..., char* post */) {
+	_DECL bool println(const char* pre, ... /* ft, val, int w, int p, unsigned flags, ..., char* post */) {
 		va_list ap;
-		va_start(ap, ft);
-		bool has_succeeded = vfprint(1, true, pre, ft, ap);
+		va_start(ap, pre);
+		bool has_succeeded = vfprint(1, true, pre, ap);
 		va_end(ap);
 		return has_succeeded;
 	}
