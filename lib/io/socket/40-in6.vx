@@ -1,6 +1,6 @@
-type IpSocket union {
-	fd int
+type Ip6Socket union {
 	handle size_t
+	fd int
 }
 
 type in6_addr union {
@@ -17,21 +17,21 @@ type sockaddr_in6 {
 	sin6_scope_id u32
 }
 
-pub inline fn tcp IpSocket
-	s := IpSocket{}
+pub inline fn tcp6 Ip6Socket
+	s := Ip6Socket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_STREAM, 0)
 	else
 		s.fd = socket(AF_INET6, SOCK_STREAM, 0) .
 	return s
 
-pub inline fn udp IpSocket
-	s := IpSocket{}
+pub inline fn udp6 Ip6Socket
+	s := Ip6Socket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_DGRAM, 0)
 	else
 		s.fd = socket(AF_INET6, SOCK_DGRAM, 0) .
 	return s
 
-const IN6ADDR_ANY      ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
-const IN6ADDR_LOOPBACK ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}
+pub const IN6ADDR_ANY      ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
+pub const IN6ADDR_LOOPBACK ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}

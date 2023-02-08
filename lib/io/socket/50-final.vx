@@ -23,7 +23,7 @@ pub fn LocalSocket.bind(path string) Socket
 		else
 			return Socket{ fd: -1 }
 
-pub fn Ip4Socket.bind(ownaddr u32, ownport u16) Socket
+pub fn IpSocket.bind(ownaddr u32, ownport u16) Socket
 	saddr := sockaddr_any{
 		sockaddr_in: {
 			sin_family: AF_INET

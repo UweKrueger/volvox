@@ -1,11 +1,11 @@
-type Ip4Socket union {
-	fd int
+type IpSocket union {
 	handle size_t
+	fd int
 }
 
 type in_addr union {
-	u32
 	__s4_addr [4]u8
+	u32
 }
 
 type sockaddr_in {
@@ -15,16 +15,16 @@ type sockaddr_in {
 	sin_zero [8]u8
 }
 
-pub inline fn tcp4 Ip4Socket
-	s := Ip4Socket{}
+pub inline fn tcp IpSocket
+	s := IpSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_STREAM, 0)
 	else
 		s.fd = socket(AF_INET, SOCK_STREAM, 0) .
 	return s
 
-pub inline fn udp4 Ip4Socket
-	s := Ip4Socket{}
+pub inline fn udp IpSocket
+	s := IpSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_DGRAM, 0)
 	else
