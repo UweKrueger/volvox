@@ -2091,7 +2091,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
 		condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
-		savedStack =  Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
+		savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
 		condPN->addIncoming(Builder->getInt8(2), enterBB);
 		savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
 	} else if (if_kind == tok_repeat) {
@@ -2174,6 +2174,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			TheFunction->getBasicBlockList().push_back(StackRestoreBB);
 			Builder->SetInsertPoint(StackRestoreBB);
 		}
+		if (if_kind == tok_repeat)
+			savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 1, "savedstack");
 		StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(ThenBB);
 		StackRestoreBB = Builder->GetInsertBlock();
@@ -2187,7 +2189,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			TheFunction->getBasicBlockList().push_back(ThenBB);
 			Builder->SetInsertPoint(ThenBB);
 		}
-		if (if_kind == tok_while) {
+		if (if_kind == tok_while || if_kind == tok_repeat) {
 			savedStack1 =  Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack1");
 			savedStack1->addIncoming(savedStack0, StackSaveBB);
 			savedStack1->addIncoming(savedStack, StackRestoreBB);
@@ -2236,12 +2238,13 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value *CondV = Cond->codegen();
 		if (!CondV)
 			return nullptr;
-		CondBB = Builder->GetInsertBlock();
 		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
 			errs() << Cond->Loc << ": bool type expected as 'until' condition\n";
 			return nullptr;
 		}
 		Builder->CreateCondBr(CondV, MergeBB, StackRestoreBB);
+		CondBB = Builder->GetInsertBlock();
+		savedStack->addIncoming(savedStack1, CondBB);
 	} else {
 		if (CTcond != CTcond_true) {
 			// Emit else block.
