@@ -926,7 +926,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 							errs() << Args[i]->Loc << ": cannot generate reference function argument\n";
 							return nullptr;
 						}
-						arg = argref.second;
+						arg = Builder->CreatePointerCast(argref.second, argref.first->getPointerTo());
 					}
 					if (!arg) {
 						arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
