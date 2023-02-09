@@ -796,10 +796,10 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			// "Dim" aka "arg" was no compile time const - but we have all dimensions saved in dims_array
-			llvm::Type* dim_arr_type = llvm::ArrayType::get(llvm_size_type, dims_array.size());
+			llvm::Type* dim_arr_type = llvm::FixedVectorType::get(llvm_size_type, dims_array.size());
 			llvm::Value* DimsArray = llvm::UndefValue::get(dim_arr_type);
 			for (int i=0; i<dims_array.size(); i++)
-				DimsArray = Builder->CreateInsertValue(DimsArray, dims_array[i], i);
+				DimsArray = Builder->CreateInsertElement(DimsArray, dims_array[i], i);
 			return handle(target, Builder->CreateExtractElement(DimsArray, arg));
 		}
 	}
