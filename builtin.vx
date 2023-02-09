@@ -63,7 +63,7 @@ type __map_node_ref {
 type __map_value_ref {
 	&value __map_value
 }
-cdecl fn _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_(&root_ptr __map_node_ref, key string, value __map_value, value_size i32, &replace __map_node_ref) __map_node_ref
+cdecl fn _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_(&root_ptr __map_node_ref, key string, value u64, value_size i32, &replace __map_node_ref) __map_node_ref
 cdecl fn _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(&root __map_node, key string) __map_value_ref
 cdecl fn _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(&root __map_node, d string)
 cdecl fn __string_add(l string, r string) string

@@ -490,10 +490,22 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 	} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
 		// if (Field->ft->type_attr & A_map) {
 			llvm::Value* Map = Field->codegen();
-			llvm::Value* Key = Index->codegen();
-			if (!Map || !Key)
+			if (!Map)
 				return { nullptr, nullptr };
-			// Key = Builder->CreateGlobalStringPtr("aer", "", 0, TheModule.get());
+			llvm::Value* Key;
+			llvm::Value* _Key = Index->codegen();
+			if (!_Key)
+				return { nullptr, nullptr };
+			if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Key->getType())) {
+				if (arr_ty->getNumElements() == 1) {
+					Key = Builder->CreateExtractValue(_Key, 0);
+					if (Key->getType()->isPointerTy())
+						goto key_ok;
+				}
+			}
+			errs() << Index->Loc << ": invalid map index\n";
+			return { nullptr, nullptr };
+	key_ok:
 			const char* getter;
 			if (Field->ft->elem_type[0].type == llvm::Type::getInt8PtrTy(Context)) // string key type
 				getter = "_ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc";
