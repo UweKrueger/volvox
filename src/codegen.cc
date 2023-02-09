@@ -2137,7 +2137,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		condPN->addIncoming(Builder->getInt8(2), enterBB);
 		savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
 	} else if (if_kind == tok_repeat) {
-		CondBB = llvm::BasicBlock::Create(Context, "until"); // will be filled at end
+		CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "until"); // will be filled at end
 		condPN = nullptr;
 	} else {
 		CondBB = nullptr;
