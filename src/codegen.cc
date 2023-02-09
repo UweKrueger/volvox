@@ -459,8 +459,15 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 				errs() << Loc << ": cannot generate code for interface expression\n";
 				return nullptr;
 			}
-			if (array->getType()->isVoidTy())
-				return handle(target, array);
+			if (array->getType()->isVoidTy()) {
+				if (target)
+					return array;
+				else {
+					errs() << Loc << ": cannot generate code for interface  expression\n";
+					abort();
+					return nullptr;
+				}
+			}
 			// if it's an rvalue we have to store it on stack to get a reference
 			if (!target || (intptr_t)target == -1)
 				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
