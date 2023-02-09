@@ -1931,7 +1931,7 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 
 std::pair<llvm::Type*, llvm::Value*> merge_values(
 	llvm::Type* typA, llvm::Value* valA, llvm::BasicBlock* caseA, llvm::Instruction* lastA, 
-	llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB, llvm::Instruction* lastB) {
+	llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB, llvm::Instruction* lastB, llvm::Instruction* firstWhile, llvm::BasicBlock* enterBB) {
 	if (!valA || !typA) {
 		if (!valB || !typB) {
 			errs() << "error merging variables from if/while/else branches\n";
@@ -1948,7 +1948,15 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 			return { nullptr, nullptr };
 		}
 		llvm::PHINode* PN = Builder->CreatePHI(valA->getType(), 2, "iftmp");
-		PN->addIncoming(valA, caseA);
+		llvm::PHINode* PNW;
+		if (firstWhile) {
+			Builder->SetInsertPoint(firstWhile);
+			PNW = Builder->CreatePHI(valA->getType(), 2, "ifw");
+			PNW->addIncoming(llvm::Constant::getNullValue(valA->getType()), enterBB);
+			PNW->addIncoming(valA, lastA->getParent());
+			Builder->SetInsertPoint(MergeBB);
+		}
+		PN->addIncoming(firstWhile ? PNW : valA, caseA);
 		PN->addIncoming(valB, caseB);
 		return { typA, PN };
 	} else if (auto array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)) {
@@ -2089,7 +2097,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
 	llvm::PHINode* condPN;
 	llvm::PHINode* savedStack;
-	llvm::BasicBlock* CondBB;
+	llvm::BasicBlock* CondBB = nullptr;
+	llvm::BasicBlock* CondBBstart = nullptr;
 	// find a suitable name for the loop block
 	const char* loopBBName;
 	const char* contName;
@@ -2108,9 +2117,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		contName = "whilecont";
 	}
 	llvm::BasicBlock* ThenBB = (TheFunction && if_kind != tok_if) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
+	llvm::Instruction* firstWhile = nullptr;
 	if (if_kind == tok_while) {
-		CondBB = llvm::BasicBlock::Create(Context, "while");
-		Builder->CreateBr(CondBB);
+		CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "while");
+		Builder->CreateBr(CondBBstart);
 		if (TheFunction)
 			TheFunction->getBasicBlockList().push_back(CondBB);
 		Builder->SetInsertPoint(CondBB);
@@ -2148,9 +2158,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
 			return nullptr;
 		}
-		if (if_kind == tok_while)
+		if (if_kind == tok_while) {
+			firstWhile = CondBB->getFirstNonPHI();
 			CondBB = Builder->GetInsertBlock();
-		else if (if_kind == tok_if) {
+		} else if (if_kind == tok_if) {
 			if (auto static_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
 				CTcond = (CTcond_t)(static_cond->getZExtValue());
 			if (CTcond != CTcond_false && TheFunction)
@@ -2221,7 +2232,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
 		condnesting++;
-		std::tie(ThenV, thenLast) = createCondBranch(CondBB ? CondBB : MergeBB, false);
+		std::tie(ThenV, thenLast) = createCondBranch(CondBBstart ? CondBBstart : MergeBB, false);
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		condnesting--;
@@ -2340,7 +2351,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (else_var) {
 				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
-				                          else_var->ft.type, else_var->val, ElseBB, elseLast);
+				                          else_var->ft.type, else_var->val, ElseBB, elseLast, firstWhile, enterBB);
 				if (!merge.second)
 					return nullptr;
 				auto mergeVal = merge.second;
@@ -2396,7 +2407,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		else if (CTcond == CTcond_false)
 			return handle(target, ElseV);
 		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
-		                          Else.back()->ft->type, ElseV, ElseBB, elseLast);
+		                          Else.back()->ft->type, ElseV, ElseBB, elseLast, nullptr, nullptr);
 		if (ft->type != merge.first) {
 			ft = new_FullType(*ft);
 			ft-> type = merge.first;
