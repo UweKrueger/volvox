@@ -1696,7 +1696,7 @@ int main(int argc, char* argv[]) {
 				sprintf(stack_size, "-stack:%" PRIu64, stacksize);
 #else
 			if (!target_mingw) {
-				strcat(libpath, "/lib");
+				strcat(libpath, "/clib");
 			}
 #ifndef _WIN32
 			char* rpath = nullptr;
