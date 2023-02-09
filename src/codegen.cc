@@ -2080,7 +2080,15 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		}
 		Builder->SetInsertPoint(MergeBB);
 		llvm::PHINode* PN = Builder->CreatePHI(struct_type, 2, "ifdimtmp");
-		PN->addIncoming(the_structA, caseA);
+		llvm::PHINode* PNW;
+		if (firstWhile) {
+			Builder->SetInsertPoint(firstWhile);
+			PNW = Builder->CreatePHI(struct_type, 2, "ifw");
+			PNW->addIncoming(llvm::Constant::getNullValue(struct_type), enterBB);
+			PNW->addIncoming(the_structA, lastA->getParent());
+			Builder->SetInsertPoint(MergeBB);
+		}
+		PN->addIncoming(firstWhile ? PNW : the_structA, caseA);
 		PN->addIncoming(the_structB, caseB);
 		return { resultT, PN };
 	} else {
@@ -2407,7 +2415,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		else if (CTcond == CTcond_false)
 			return handle(target, ElseV);
 		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
-		                          Else.back()->ft->type, ElseV, ElseBB, elseLast, nullptr, nullptr);
+		                          Else.back()->ft->type, ElseV, ElseBB, elseLast, firstWhile, enterBB);
 		if (ft->type != merge.first) {
 			ft = new_FullType(*ft);
 			ft-> type = merge.first;
