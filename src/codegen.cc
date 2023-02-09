@@ -1721,7 +1721,17 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					result = Builder->CreateCall(powfn_proto->FT, powfn, std::vector<llvm::Value*>{ L, R });
 				}
 			} else {
+#if LLVM_VERSION_MAJOR < 13
 				result = Builder->CreateIntrinsic(llvm::Intrinsic::powi, { L->getType() }, { L, Builder->CreateIntCast(R, llvm::Type::getInt32Ty(Context), RHS->ft->type_attr & A_signed) });
+#else
+				unsigned exponent_bw = (int_exp_type->getBitWidth() > 16) ? 32 : 16;
+				if (int_exp_type->getBitWidth() == exponent_bw)
+					result = Builder->CreateIntrinsic(llvm::Intrinsic::powi, { L->getType(), R->getType() }, { L, R });
+				else {
+					llvm::Type* exp_type = llvm::IntegerType::get(Context, exponent_bw);
+					result = Builder->CreateIntrinsic(llvm::Intrinsic::powi, { L->getType(), exp_type }, { L, Builder->CreateIntCast(R, exp_type, RHS->ft->type_attr & A_signed) });
+				}
+#endif
 			}
 		} else {
 			result = Builder->CreateIntrinsic(llvm::Intrinsic::pow, { L->getType() }, { L, R });
