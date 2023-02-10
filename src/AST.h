@@ -12,6 +12,8 @@
 //===----------------------------------------------------------------------===//
 
 inline static llvm::Value* handle(llvm::Value* target, llvm::Value* val) {
+	if (!val)
+		return nullptr;
 	if (!target || (intptr_t)target == -1)
 		return val;
 	Builder->CreateStore(val, target);
