@@ -1,10 +1,13 @@
 
 type LocalSocket union {
-	fd int
 	handle size_t
+	fd int
 }
 
-pub const UNIX_PATH_MAX	::= 108
+pub const UNIX_PATH_MAX	::= if os.isWindows || os.isLinux
+		108
+	else
+		104 .
 
 type sockaddr_un {
 	sun_family u16

@@ -18,19 +18,27 @@ inline fn do_bind(handle size_t, &saddr sockaddr_any, size u32) Socket
 		s.handle = size_t(-1) .
 	return s
 
-cdecl fn strlen(s cstring) size_t
-
 pub inline fn LocalSocket.bind(path string) Socket
+	if path.len > UNIX_PATH_MAX
+		printf("socket.unix.bind: maximum path length (%u) exceeded\n", UNIX_PATH_MAX)
+		return Socket{ handle: size_t(-1) }
 	saddr := sockaddr_any{}
-	saddr.sockaddr_un.sun_family = AF_UNIX
+	if os.isWindows || os.isLinux
+		saddr.sockaddr_un.sun_family = AF_UNIX
+	else
+		saddr.sockaddr.len = u8(path.len) + 2
+		saddr.sockaddr.family = AF_UNIX .
 	memcpy(&saddr.sockaddr_un.sun_path, path, path.len)
-	printf("Path: >%s< >%s<\n", &saddr.sockaddr_un.sun_path, path)
-	return do_bind(this.handle, saddr, u32(strlen(path)) + 2)
+	return do_bind(this.handle, saddr, u32(path.len) + 2)
 
 pub inline fn IpSocket.bind(ownaddr u32, ownport u16) Socket
 	saddr := sockaddr_any{
 		sockaddr_in: {
-			sin_family: AF_INET
 			sin_port: ownport
 			sin_addr: { u32: ownaddr } } }
+	if os.isWindows || os.isLinux
+		saddr.sockaddr_in.sin_family: AF_INET
+	else
+		saddr.sockaddr.len = 16
+		saddr.sockaddr.family = AF_INET .
 	return do_bind(this.handle, saddr, 16)
