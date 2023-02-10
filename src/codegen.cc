@@ -1017,7 +1017,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (initializer || !needs_store)
 			Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 		else
-			Builder->CreateRet(Builder->CreateIntToPtr(ptrRet, llvm::Type::getInt8PtrTy(Context)));
+			Builder->CreateRet(Builder->CreatePointerCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
 		finishFunctionOrModule(tmpf, 2, true, false);
 		auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 		auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
@@ -2060,9 +2060,9 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		}
 		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : typA->getPointerTo();
 		Builder->SetInsertPoint(lastA);
-		Aptr = Builder->CreateIntToPtr(Aptr, ptr_t);
+		Aptr = Builder->CreatePointerCast(Aptr, ptr_t);
 		Builder->SetInsertPoint(lastB);
-		Bptr = Builder->CreateIntToPtr(Bptr, ptr_t);
+		Bptr = Builder->CreatePointerCast(Bptr, ptr_t);
 		llvm::Type* resultT = typA;
 		std::vector<llvm::Type*> struct_type_el(varDimsA.size() + 1, llvm_size_type);
 		struct_type_el[varDimsA.size()] = ptr_t;

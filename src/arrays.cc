@@ -105,7 +105,7 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 			else
 				is_empty_initializer = false;
 			if (!is_empty_initializer)
-				Builder->CreateStore(ArrData, Builder->CreateIntToPtr(ArrayAlloc, ArrData->getType()->getPointerTo()));
+				Builder->CreateStore(ArrData, Builder->CreatePointerCast(ArrayAlloc, ArrData->getType()->getPointerTo()));
 			Adr = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
 					Builder->CreatePtrToInt(Adr, llvm_size_type),
@@ -168,7 +168,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			ArrayAlloc = Builder->Insert(ArrayAlloc);
 		}
 	}
-	ArrayPtr = Builder->CreateIntToPtr(ArrayAlloc, elem_type->getPointerTo());
+	ArrayPtr = Builder->CreatePointerCast(ArrayAlloc, elem_type->getPointerTo());
 	// TODO: Insert run time check that initialization values fit into allocation size
 	StoreArray(ArrayPtr, ArrData, Sizes, 0);
 	// REMARK: returning the same pointer value as two different types will be obsolete with opaque pointers
@@ -340,7 +340,7 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 		return Builder->CreateLoad(
 			array_type->getElementType(),
 			Builder->CreateGEP(array_type->getElementType(),
-			                   Builder->CreateIntToPtr(ptr, array_type->getElementType()->getPointerTo()),
+			                   Builder->CreatePointerCast(ptr, array_type->getElementType()->getPointerTo()),
 			                   idx));
 	} else {
 		errs() << "cound not create code for index expression\n";
@@ -476,7 +476,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		if (offset)
 			Ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Ptr, llvm_size_type), offset), Field->ft->elem_type->type->getPointerTo());
 		else
-			Ptr = Builder->CreateIntToPtr(Ptr, Field->ft->elem_type->type->getPointerTo());
+			Ptr = Builder->CreatePointerCast(Ptr, Field->ft->elem_type->type->getPointerTo());
 		if (!n_var_dims)
 			return { ml_elem_type, Ptr };
 		std::vector<llvm::Type*> new_struct_el(n_var_dims + 1, llvm_size_type);
