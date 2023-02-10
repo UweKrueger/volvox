@@ -6,22 +6,25 @@ type sockaddr_any union {
 	sockaddr_storage
 }
 
-inline fn do_bind(handle size_t, &saddr sockaddr_any, size u32) Socket
+inline fn do_bind(handle ssize_t, &saddr sockaddr_any, size u32) Socket
 	s := Socket{ handle: handle }
 	if os.isWindows
-		res := win_bind(s.handle, saddr.sockaddr, size)
+		res := win_bind(u64(s.handle), saddr.sockaddr, size)
+		if res != 0
+			s.handle = -1
+			s.err = WSAGetLastError .
 	else
-		res := bind(s.fd, saddr.sockaddr, size) .
-	if res != 0
-		__printerr
-		printf("Handle: %d\n", s.fd)
-		s.handle = size_t(-1) .
+		res := bind(int(s.handle), saddr.sockaddr, size)
+		if res != 0
+			s.handle = -1
+			s.err = GetLastError . .
 	return s
 
 pub inline fn LocalSocket.bind(path string) Socket
+	if this.handle == -1
+		return Socket{ handle: this.handle, err: this.err }
 	if path.len > UNIX_PATH_MAX
-		printf("socket.unix.bind: maximum path length (%u) exceeded\n", UNIX_PATH_MAX)
-		return Socket{ handle: size_t(-1) }
+		return Socket{ handle: -1, err: ENAMETOOLONG }
 	saddr := sockaddr_any{}
 	if os.isWindows || os.isLinux
 		saddr.sockaddr_un.sun_family = AF_UNIX

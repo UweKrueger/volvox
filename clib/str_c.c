@@ -1271,3 +1271,11 @@ _DECL char* __transformcstr2volvox(char* c_str) {
 _DECL void __printerr() {
 	fprintf(stderr, "%s\n", strerror(errno));
 }
+
+#ifndef _WIN32
+
+_DECL unsigned GetLastError() {
+	return errno;
+}
+
+#endif

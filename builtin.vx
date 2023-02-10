@@ -92,6 +92,7 @@ cdecl fn printstr(fd int, s string)
 # only for debugging
 cdecl fn modstr(s string, idx i32, c u8)
 cdecl fn abort()
+cdecl fn GetLastError() u32
 
 inline fn panic(s string)
 	printstr(2, s)

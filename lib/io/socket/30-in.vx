@@ -1,6 +1,6 @@
 type IpSocket union {
-	handle size_t
-	fd int
+	handle ssize_t
+	err int
 }
 
 type in_addr union {
@@ -19,16 +19,24 @@ pub inline fn tcp IpSocket
 	s := IpSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_STREAM, 0)
+		if s.handle == -1
+			s.err = WSAGetLastError .
 	else
-		s.fd = socket(AF_INET, SOCK_STREAM, 0) .
+		s.handle = socket(AF_INET, SOCK_STREAM, 0) .
+		if s.handle == -1
+			s.err = GetLastError .
 	return s
 
 pub inline fn udp IpSocket
 	s := IpSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_DGRAM, 0)
+		if s.handle == -1
+			s.err = WSAGetLastError .
 	else
-		s.fd = socket(AF_INET, SOCK_DGRAM, 0) .
+		s.handle = socket(AF_INET, SOCK_DGRAM, 0) .
+		if s.handle == -1
+			s.err = GetLastError .
 	return s
 
 pub const INADDR_ANY       ::= 0x00000000

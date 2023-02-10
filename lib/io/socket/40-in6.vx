@@ -1,6 +1,6 @@
 type Ip6Socket union {
-	handle size_t
-	fd int
+	handle ssize_t
+	err int
 }
 
 type in6_addr union {
@@ -21,16 +21,24 @@ pub inline fn tcp6 Ip6Socket
 	s := Ip6Socket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_STREAM, 0)
+		if s.handle == -1
+			s.err = WSAGetLastError .
 	else
-		s.fd = socket(AF_INET6, SOCK_STREAM, 0) .
+		s.handle = socket(AF_INET6, SOCK_STREAM, 0) .
+		if s.handle == -1
+			s.err = GetLastError .
 	return s
 
 pub inline fn udp6 Ip6Socket
 	s := Ip6Socket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_DGRAM, 0)
+		if s.handle == -1
+			s.err = WSAGetLastError .
 	else
-		s.fd = socket(AF_INET6, SOCK_DGRAM, 0) .
+		s.handle = socket(AF_INET6, SOCK_DGRAM, 0) .
+		if s.handle == -1
+			s.err = GetLastError .
 	return s
 
 pub const IN6ADDR_ANY      ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}

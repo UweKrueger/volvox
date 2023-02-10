@@ -2,9 +2,9 @@ import arch.os
 import ._winsock
 from .. import Fd
 
-type Socket union {
-	fd int
-	handle size_t
+type Socket {
+	handle ssize_t
+	err int
 }
 
 type sockaddr {
@@ -48,3 +48,4 @@ cdecl fn bind(s int, &addr sockaddr, addrlen u32) int
 cdecl(bind) fn win_bind(s size_t, &addr sockaddr, addrlen u32) int
 cdecl fn accept(s int, &addr sockaddr, &addrlen u32) int
 cdecl fn accept4(s int, &addr sockaddr, &addrlen u32, flags int) int
+cdecl fn WSAGetLastError() int

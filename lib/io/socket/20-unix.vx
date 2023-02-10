@@ -1,7 +1,7 @@
 
 type LocalSocket union {
-	handle size_t
-	fd int
+	handle ssize_t
+	err int
 }
 
 pub const UNIX_PATH_MAX	::= if os.isWindows || os.isLinux
@@ -18,6 +18,15 @@ pub inline fn unix LocalSocket
 	s := LocalSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_UNIX, SOCK_STREAM, 0)
+		if s.handle == -1
+			s.err = WSAGetLastError .
 	else
-		s.fd = socket(AF_UNIX, SOCK_STREAM, 0) .
+		s.handle = socket(AF_UNIX, SOCK_STREAM, 0) .
+		if s.handle == -1
+			s.err = GetLastError .
 	return s
+
+const ENAMETOOLONG ::= if os.isWindows
+		206 # ERROR_FILENAME_EXCED_RANGE
+	else
+		36 .
