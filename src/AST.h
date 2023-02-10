@@ -641,7 +641,7 @@ public:
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
 		auto pair = Operand->codegen_ref(false);
-		return handle(target, pair.second);
+		return handle(target, Builder->CreatePointerCast(pair.second, llvm::Type::getInt8PtrTy(Context)));
 	}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override {
 		auto pair = Operand->codegen_ref(silent_fail);

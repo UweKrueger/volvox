@@ -28,5 +28,7 @@ pub inline fn unix LocalSocket
 
 const ENAMETOOLONG ::= if os.isWindows
 		206 # ERROR_FILENAME_EXCED_RANGE
+	elif os.isLinux
+		36
 	else
-		36 .
+		63 .
