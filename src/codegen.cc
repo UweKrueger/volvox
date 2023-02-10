@@ -469,8 +469,11 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 				}
 			}
 			// if it's an rvalue we have to store it on stack to get a reference
-			if (!target || (intptr_t)target == -1)
+			if (!target || (intptr_t)target == -1) {
+				condnesting++; // force 'alloca()' instead of 'malloc()' - TODO: implement and use 'codegen_dims()' instead
 				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
+				condnesting--;
+			}
 		}
 	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr->ft->type)) {
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
@@ -1014,7 +1017,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (initializer || !needs_store)
 			Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 		else
-			Builder->CreateRet(Builder->CreateBitCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
+			Builder->CreateRet(Builder->CreateIntToPtr(ptrRet, llvm::Type::getInt8PtrTy(Context)));
 		finishFunctionOrModule(tmpf, 2, true, false);
 		auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 		auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
@@ -1043,10 +1046,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 				for (unsigned u = 0; u<ndim; u++)
 					the_struct = Builder->CreateInsertValue(the_struct, getSize(Dims[u]), u);
-				the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateBitCast(getSize((uintptr_t)varptr), array_ptr_ty), ndim);
+				the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateIntToPtr(getSize((uintptr_t)varptr), array_ptr_ty), ndim);
 				fv->val = the_struct;
 			} else {
-				fv->val = Builder->CreateBitCast(getSize((uintptr_t)varptr), expr->RHS->ft->type->getPointerTo());
+				fv->val = Builder->CreateIntToPtr(getSize((uintptr_t)varptr), expr->RHS->ft->type->getPointerTo());
 			}
 			fv->ft.type_attr &= ~A_mainvar;
 		}
@@ -1316,6 +1319,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				} else {
+					// We should not get here! TODO: Implement 'codegen_dims()' and allocate
+					// space in advance so 'target' is available here
 					auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 					if (ValPtr)
 						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
@@ -2053,9 +2058,9 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		}
 		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : typA->getPointerTo();
 		Builder->SetInsertPoint(lastA);
-		Aptr = Builder->CreateBitCast(Aptr, ptr_t);
+		Aptr = Builder->CreateIntToPtr(Aptr, ptr_t);
 		Builder->SetInsertPoint(lastB);
-		Bptr = Builder->CreateBitCast(Bptr, ptr_t);
+		Bptr = Builder->CreateIntToPtr(Bptr, ptr_t);
 		llvm::Type* resultT = typA;
 		std::vector<llvm::Type*> struct_type_el(varDimsA.size() + 1, llvm_size_type);
 		struct_type_el[varDimsA.size()] = ptr_t;

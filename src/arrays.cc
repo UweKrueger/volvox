@@ -105,7 +105,7 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 			else
 				is_empty_initializer = false;
 			if (!is_empty_initializer)
-				Builder->CreateStore(ArrData, Builder->CreateBitCast(ArrayAlloc, ArrData->getType()->getPointerTo()));
+				Builder->CreateStore(ArrData, Builder->CreateIntToPtr(ArrayAlloc, ArrData->getType()->getPointerTo()));
 			Adr = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
 					Builder->CreatePtrToInt(Adr, llvm_size_type),
@@ -168,7 +168,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			ArrayAlloc = Builder->Insert(ArrayAlloc);
 		}
 	}
-	ArrayPtr = Builder->CreateBitCast(ArrayAlloc, elem_type->getPointerTo());
+	ArrayPtr = Builder->CreateIntToPtr(ArrayAlloc, elem_type->getPointerTo());
 	// TODO: Insert run time check that initialization values fit into allocation size
 	StoreArray(ArrayPtr, ArrData, Sizes, 0);
 	// REMARK: returning the same pointer value as two different types will be obsolete with opaque pointers
@@ -340,7 +340,7 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 		return Builder->CreateLoad(
 			array_type->getElementType(),
 			Builder->CreateGEP(array_type->getElementType(),
-			                   Builder->CreateBitCast(ptr, array_type->getElementType()->getPointerTo()),
+			                   Builder->CreateIntToPtr(ptr, array_type->getElementType()->getPointerTo()),
 			                   idx));
 	} else {
 		errs() << "cound not create code for index expression\n";
@@ -476,7 +476,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) 
 		if (offset)
 			Ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Ptr, llvm_size_type), offset), Field->ft->elem_type->type->getPointerTo());
 		else
-			Ptr = Builder->CreateBitCast(Ptr, Field->ft->elem_type->type->getPointerTo());
+			Ptr = Builder->CreateIntToPtr(Ptr, Field->ft->elem_type->type->getPointerTo());
 		if (!n_var_dims)
 			return { ml_elem_type, Ptr };
 		std::vector<llvm::Type*> new_struct_el(n_var_dims + 1, llvm_size_type);
@@ -592,7 +592,7 @@ llvm::Value* createJITStringConst(const char* str, size_t Len, const llvm::Twine
 	const char* new_cstr = volvox2cstr(v_str);
 	jit_string_consts.push_back(new_cstr);
 	llvm::Constant* iadr = getSize((uintptr_t)v_str);
-	return Builder->CreateBitCast(iadr, llvm::Type::getInt8PtrTy(Context));
+	return Builder->CreateIntToPtr(iadr, llvm::Type::getInt8PtrTy(Context));
 }
 
 llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name) {
