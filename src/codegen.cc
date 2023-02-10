@@ -1443,7 +1443,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		ft->type = llvm::Type::getVoidTy(Context);
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}
-	llvm::Value* result;
+	llvm::Value* result = nullptr;
 	bool ResSigned = ft->type_attr & A_signed;
 	bool OperandSigned = LHS->ft->type_attr & A_signed || RHS->ft->type_attr & A_signed;
 	const char* new_err_msg;
@@ -1886,6 +1886,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 		break;
+	default:
+		errs() << Loc << ": unexpected operator '" << Op << "' in this context\n";
 	}
 	return handle(target, result);
 }

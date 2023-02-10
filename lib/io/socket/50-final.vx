@@ -37,8 +37,8 @@ pub inline fn IpSocket.bind(ownaddr u32, ownport u16) Socket
 			sin_port: ownport
 			sin_addr: { u32: ownaddr } } }
 	if os.isWindows || os.isLinux
-		saddr.sockaddr_in.sin_family: AF_INET
+		saddr.sockaddr_in.sin_family = AF_INET
 	else
 		saddr.sockaddr.len = 16
 		saddr.sockaddr.family = AF_INET .
-	return do_bind(this.handle, saddr, 16)
+	return do_bind(this.handle, saddr, u32(16))
