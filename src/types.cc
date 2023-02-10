@@ -677,7 +677,7 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
 		fields.push_back(TypeName);
 		if (llvmtype.ID == VOLVOX_ArrayTyID) {
-			fields.push_back(getRtType(ft->elem_type));
+			fields.push_back(getRtType(new_FullType(elem_type, ft->type_attr & A_signed)));
 		} else {
 			fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 		}

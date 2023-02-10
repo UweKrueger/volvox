@@ -463,7 +463,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 				if (target)
 					return array;
 				else {
-					errs() << Loc << ": cannot generate code for interface  expression\n";
+					errs() << Loc << ": cannot generate code for interface expression\n";
 					abort();
 					return nullptr;
 				}
@@ -1312,18 +1312,22 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		} else {
 			if (allocsz > 16 || is_constructor_call) {
 				auto align = getAlignment(allocsz);
-				if (target && (intptr_t)target != -1)
+				if (target && (intptr_t)target != -1) {
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
-				else if (ValPtr)
-					Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
-				else {
-					auto voidval = RHS->codegen_raw(Variable.second);
-					if (!voidval || !voidval->getType()->isVoidTy()) {
-						errs() << Loc << ": internal error: sret ++call does not return void\n";
-						return nullptr;
+					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+				} else {
+					auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
+					if (ValPtr)
+						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
+					else {
+						auto voidval = RHS->codegen_raw(Variable.second);
+						if (!voidval || !voidval->getType()->isVoidTy()) {
+							errs() << Loc << ": internal error: sret ++call does not return void\n";
+							return nullptr;
+						}
 					}
+					return OldVal;
 				}
-				return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 			} else {
 				auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 				if (postpone_valgen)
