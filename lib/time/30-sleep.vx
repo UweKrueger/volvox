@@ -1,0 +1,33 @@
+
+cdecl fn Sleep(ms u32)
+cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
+
+const EINTR ::= 4
+
+# duration in 100ns ticks
+#
+type Duration {
+	i64
+}
+
+pub fn sleep(t Duration)
+	#if t.i64 <= 0
+	#	return
+	if os.isWindows
+		Sleep(u32(t.i64 / 10000))
+		return
+	else
+		ts := timespec{
+			sec: ssize_t(t.i64 / 10000000)
+			nsec: ssize_t(t.i64 % 10000000)
+		}
+		trem := timespec{}
+		sw := false
+		repeat
+			if sw
+				res := clock_nanosleep(CLOCK_MONOTONIC, 0, trem, ts)
+			else
+				res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, trem) .
+			sw = !sw
+		until res != EINTR
+		return
