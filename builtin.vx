@@ -11,6 +11,7 @@ cdecl fn __printerr()
 #
 cdecl fn __link_extra(library string, ...)
 cdecl fn __error(msg string, ...)
+cdecl fn sizeof(...) size_t
 
 type _ZN6volvox6RtTypeE packed {
 	key u32
@@ -80,7 +81,6 @@ cdecl fn _ZN6volvox8fprintlnEiPKcz(fd int, pre string, ft string, ...) bool
 cdecl fn _ZN6volvox5printEPKcz(pre string, ...) bool
 cdecl fn _ZN6volvox7printlnEPKcz(pre string, ...) bool
 cdecl fn memcpy(dest voidptr, src cstring, n size_t) voidptr
-cdecl fn new_global_var_shadow(adr string, sz u64) u64
 cdecl fn getTermSize(fd i32) i32
 cdecl fn showtestres(fd i32, width i32, testcase string, result bool)
 cdecl fn enableColorANSI(fd i32) bool

@@ -648,7 +648,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 	bool is_error = Proto && Proto->Name == "__error";
 	if (is_error || Proto && Proto->Name == "__link_extra") {
 		if (Args.empty() || !(Args[0]->ft->type_attr & A_string)) {
-			errs() << Loc << ": " << Proto->Name << " requires at least 1 argument\n";
+			errs() << Loc << ": '" << Proto->Name << "()' requires at least 1 argument\n";
 			return nullptr;
 		}
 		if (is_error)
@@ -709,6 +709,22 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		else
 			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+	}
+	if (Proto && Proto->Name == "sizeof") {
+		if (Args.size() != 1) {
+			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 1 argument\n";
+			return nullptr;
+		}
+		auto arg = Args[0].get();
+		size_t allocsz = 0;
+		if (!arg->ft || !arg->ft->type) {
+			errs() << arg->Loc << ": invalid argument\n";
+			return nullptr;
+		}
+		if (arg->ft->type->isSized())
+			allocsz = TheModule->getDataLayout().getTypeAllocSize(arg->ft->type);
+		// TODO: calculate run-time size of arrays when 'codegen_dims()' is available
+		return getSize(allocsz);
 	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);

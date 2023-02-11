@@ -42,9 +42,9 @@ pub inline fn IpSocket.bind(ownaddr u32, ownport u16) Socket
 	if os.isWindows || os.isLinux
 		saddr.sockaddr_in.sin_family = AF_INET
 	else
-		saddr.sockaddr.len = 16
+		saddr.sockaddr.len = u8(sizeof(sockaddr_in))
 		saddr.sockaddr.family = AF_INET .
-	return do_bind(this.handle, saddr, 16)
+	return do_bind(this.handle, saddr, u32(sizeof(sockaddr_in)))
 
 pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 	saddr := sockaddr_any{
@@ -54,9 +54,9 @@ pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 	if os.isWindows || os.isLinux
 		saddr.sockaddr_in6.sin6_family = AF_INET6
 	else
-		saddr.sockaddr.len = 28
+		saddr.sockaddr.len = u8(sizeof(sockaddr_in6))
 		saddr.sockaddr.family = AF_INET6 .
-	return do_bind(this.handle, saddr, 28)
+	return do_bind(this.handle, saddr, u32(sizeof(sockaddr_in6)))
 
 pub inline fn Ip6Socket.bind(ownport u16) Socket
 	adr := in6_addr{}

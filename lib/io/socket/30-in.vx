@@ -1,4 +1,4 @@
-type IpSocket union {
+type IpSocket {
 	handle ssize_t
 	err int
 }
