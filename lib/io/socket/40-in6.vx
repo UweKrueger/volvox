@@ -1,4 +1,4 @@
-type Ip6Socket union {
+type Ip6Socket {
 	handle ssize_t
 	err int
 }
