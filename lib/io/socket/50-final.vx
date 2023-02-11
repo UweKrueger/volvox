@@ -58,6 +58,6 @@ pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 		saddr.sockaddr.family = AF_INET6 .
 	return do_bind(this.handle, saddr, 28)
 
-pub inline fn Ip6Socket.bind(ownaddr [16]u8, ownport u16) Socket
-	adr := in6_addr{ __s6_addr: ownaddr }
+pub inline fn Ip6Socket.bind(ownport u16) Socket
+	adr := in6_addr{}
 	return this.bind(adr, ownport)
