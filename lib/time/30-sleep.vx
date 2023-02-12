@@ -15,7 +15,6 @@ pub fn sleep(t Duration)
 		return
 	if os.isWindows
 		Sleep(u32(t.i64 / 10000))
-		return
 	else
 		ts := timespec{
 			sec: ssize_t(t.i64 / 10000000)
@@ -29,5 +28,5 @@ pub fn sleep(t Duration)
 			else
 				res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, trem) .
 			sw = !sw
-		until res != EINTR
-		return
+		until res != EINTR .
+	return

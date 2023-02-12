@@ -832,9 +832,11 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 	auto Cond = ParseExpression(terminator);
 	if (!Cond)
 		return nullptr;
-	auto condclose = TokenKind(';');
-	if (!Expect(condclose))
-		return nullptr;
+	if (kind != tok_repeat) {
+		auto condclose = TokenKind(';');
+		if (!Expect(condclose))
+			return nullptr;
+	}
 	if (kind == tok_if || kind == tok_while)
 		prompt_indent++;
 	return Cond;
