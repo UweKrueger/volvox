@@ -31,7 +31,7 @@ pub const CLOCK_MONOTONIC ::= if os.isLinux
 
 # Unix function to get precise time from a specific clock
 #
-pub cdecl(clock_gettime) fn _clock_gettime(clockid int, &tp timespec) int
+pub cdecl fn clock_gettime(clockid int, &tp timespec) int
 
 # In Volvox time intervals are be measured in "ticks" which are 1n intervals on Unix
 # and whatever QueryPerformanceFrequency() reports on Windows.
@@ -75,7 +75,7 @@ fn get_common_timestamp() common_timestamp
 		if !_QueryPerformanceCounter(_tmp_ts.i64)
 			panic("fatal: cannot query system performance counter\n") .
 	else
-		if _clock_gettime(CLOCK_MONOTONIC, _tmp_ts.timespec) != 0
+		if clock_gettime(CLOCK_MONOTONIC, _tmp_ts.timespec) != 0
 			panic("fatal: cannot query CLOCK_MONOTONIC\n") . .
 	return _tmp_ts
 
@@ -110,7 +110,7 @@ pub inline fn get() i64
 		return t - program_start_common_timestamp.i64
 	else
 		tsx := timespec{}
-		if _clock_gettime(CLOCK_MONOTONIC, tsx) != 0
+		if clock_gettime(CLOCK_MONOTONIC, tsx) != 0
 			panic("fatal: cannot query CLOCK_MONOTONIC\n") .
 		return nanoseconds_since_start(tsx)
 
@@ -157,7 +157,7 @@ pub inline fn now() TimeStamp
 		GetSystemTimePreciseAsFileTime(ft.FILETIME)
 	else
 		ts := timespec{}
-		_clock_gettime(CLOCK_REALTIME, ts)
+		clock_gettime(CLOCK_REALTIME, ts)
 		# calculate "(1e7 * ts.sec + epoch_offset) + ts.nsec / 100" avoiding division
 		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + ((u64(ts.nsec) * 42949673) >> 32) .
 	return ft.TimeStamp

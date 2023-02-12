@@ -284,8 +284,14 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	else if (select_expr)
 		name = select_expr->FieldName;
 	if (!type_expr || type_expr->ft->type->isStructTy()) {
-		for (auto& arg: Args)
+		for (auto& arg: Args) {
+			if (!arg->ft || !arg->ft->type) {
+				errs() << arg->Loc << ": function argument indeterminate\n";
+				ft->type = nullptr;
+				return;
+			}
 			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, (bool)dynamic_cast<ListExprAST*>(arg.get())});
+		}
 		std::vector<std::unique_ptr<PrototypeAST>>* protos;
 		if (type_expr) {
 			protos = findProtos(std::string(type_expr->ft->mangled_name), type_expr->Name);
