@@ -18,7 +18,7 @@ pub fn sleep(t Duration)
 	else
 		ts := timespec{
 			sec: ssize_t(t.i64 / 10000000)
-			nsec: ssize_t(t.i64 % 10000000)
+			nsec: 100 * ssize_t(t.i64 % 10000000)
 		}
 		trem := timespec{}
 		sw := false
@@ -29,4 +29,8 @@ pub fn sleep(t Duration)
 				res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, trem) .
 			sw = !sw
 		until res != EINTR .
+	return
+
+pub inline fn sleep(t f64)
+	sleep(Duration{ i64: i64(f64(t * 10000000)) })
 	return
