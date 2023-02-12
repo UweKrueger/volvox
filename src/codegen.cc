@@ -1897,9 +1897,18 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
-	if (EndKind == tok_return)
-		Branch.back()->desired_type = theFunction_ret_ft->type;
-	for (auto& expr : Branch) {
+	if (EndKind == tok_return) {
+		if (!theFunction_ret_ft->type->isVoidTy()) {
+			if (Branch.empty()) {
+				errs() << Loc << ": return value value of type " << *theFunction_ret_ft << " required\n";
+				return { nullptr, nullptr };
+			}
+			Branch.back()->desired_type = theFunction_ret_ft->type;
+		}
+	}
+	if (Branch.empty()) {
+		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+	} else for (auto& expr : Branch) {
 		BranchV = expr->codegen();
 		InsertDestructors(expr_temps);
 	}
@@ -1908,9 +1917,10 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	if (!BranchV && !isElse)
 		return { nullptr, nullptr };
 	if (EndKind == tok_return) {
-		if (auto lastif = dynamic_cast<IfExprAST*>(Branch.back().get()))
-			if (lastif->always_return)
-				return { llvm::UndefValue::get(llvm::Type::getVoidTy(Context)), firstBreak };
+		if (!Branch.empty())
+			if (auto lastif = dynamic_cast<IfExprAST*>(Branch.back().get()))
+				if (lastif->always_return)
+					return { llvm::UndefValue::get(llvm::Type::getVoidTy(Context)), firstBreak };
 		if (theFunction_ret_ft->type->isVoidTy()) {
 			InsertDestructors(nullptr);
 			Builder->CreateRetVoid();

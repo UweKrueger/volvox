@@ -11,8 +11,8 @@ type Duration {
 }
 
 pub fn sleep(t Duration)
-	#if t.i64 <= 0
-	#	return
+	if t.i64 <= 0
+		return
 	if os.isWindows
 		Sleep(u32(t.i64 / 10000))
 		return
