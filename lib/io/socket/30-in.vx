@@ -3,6 +3,20 @@ type IpSocket {
 	err int
 }
 
+import arch
+
+pub inline fn htons(x u16) u16
+	if arch.isLittleEndian
+		return (x >> 8) | (x << 8)
+	else
+		return x
+
+pub inline fn htonl(x u32) u32
+	if arch.isLittleEndian
+		return (x >> 24) | ((x & 0xff0000) >> 8) | ((x & 0xff00) << 8) | (x << 24)
+	else
+		return x
+
 type in_addr union {
 	__s4_addr [4]u8
 	u32

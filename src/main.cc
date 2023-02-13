@@ -271,6 +271,18 @@ void init(const llvm::Triple& triple) {
 		errs() << "cannot create const " << "__OS_Bitwidth" << '\n';
 		abort();
 	}
+	FullVar is_little_endian = {
+		.val = llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), triple.isLittleEndian()),
+		.mangled_name = strdup("__ARCH_LITTLE_ENDIAN"),
+		.ft = {
+			.type = llvm::Type::getInt1Ty(Context),
+			.type_attr = A_rvalue | A_global | A_const | A_mainvar,
+		}
+	};
+	if (!lex.module->globals_table.insert("__ARCH_LITTLE_ENDIAN", is_little_endian)) {
+		errs() << "cannot create const " << "__ARCH_LITTLE_ENDIAN" << '\n';
+		abort();
+	}
 	FullVar is_jit_fv = {
 		.val = llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), comp_mode == comp_jit),
 		.mangled_name = strdup("__LLVM_JIT"),

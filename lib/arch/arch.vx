@@ -7,3 +7,8 @@ pub const isJIT ::= __LLVM_JIT
 # size in bits for pointers and size_t
 #
 pub const bitwidth ::= __OS_Bitwidth
+
+# byte order big/little endian
+#
+pub const isLittleEndian ::= __ARCH_LITTLE_ENDIAN
+pub const isBigEndian ::= !__ARCH_LITTLE_ENDIAN
