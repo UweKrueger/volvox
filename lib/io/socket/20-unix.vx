@@ -1,5 +1,5 @@
 
-type LocalSocket union {
+type UnixSocket union {
 	handle ssize_t
 	err int
 }
@@ -14,8 +14,8 @@ type sockaddr_un {
 	sun_path [UNIX_PATH_MAX]i8
 }
 
-pub inline fn unix LocalSocket
-	s := LocalSocket{}
+pub inline fn unix UnixSocket
+	s := UnixSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_UNIX, SOCK_STREAM, 0)
 		if s.handle == -1

@@ -53,7 +53,7 @@ pub inline fn udp IpSocket
 			s.err = GetLastError .
 	return s
 
-pub const INADDR_ANY       ::= 0x00000000
+pub const in_any       := in_addr{ __s4_addr: [4]u8{ 0, 0, 0, 0 } }
 pub const INADDR_BROADCAST ::= 0xffffffff
 pub const INADDR_NONE      ::= 0xffffffff
 pub const INADDR_LOOPBACK  ::= 0x7f000001

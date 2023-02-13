@@ -20,7 +20,7 @@ inline fn do_bind(handle ssize_t, &saddr sockaddr_any, size u32) Socket
 			s.err = GetLastError . .
 	return s
 
-pub inline fn LocalSocket.bind(path string) Socket
+pub inline fn UnixSocket.bind(path string) Socket
 	if this.handle == -1
 		return Socket{ handle: this.handle, err: this.err }
 	if path.len > UNIX_PATH_MAX
@@ -34,11 +34,11 @@ pub inline fn LocalSocket.bind(path string) Socket
 	memcpy(&saddr.sockaddr_un.sun_path, path, path.len)
 	return do_bind(this.handle, saddr, u32(path.len) + 2)
 
-pub inline fn IpSocket.bind(ownaddr u32, ownport u16) Socket
+pub inline fn IpSocket.bind(ownaddr in_addr, ownport u16) Socket
 	saddr := sockaddr_any{
 		sockaddr_in: {
-			sin_port: ownport
-			sin_addr: { u32: ownaddr } } }
+			sin_port: htons(ownport)
+			sin_addr: ownaddr } }
 	if os.isWindows || os.isLinux
 		saddr.sockaddr_in.sin_family = AF_INET
 	else
@@ -46,10 +46,19 @@ pub inline fn IpSocket.bind(ownaddr u32, ownport u16) Socket
 		saddr.sockaddr.family = AF_INET .
 	return do_bind(this.handle, saddr, u32(sizeof(sockaddr_in)))
 
+pub inline fn IpSocket.bind(ownaddr u32, ownport u16) Socket
+	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport)
+
+pub inline fn IpSocket.bind(ownaddr [4]u8, ownport u16) Socket
+	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport)
+
+pub inline fn IpSocket.bind(ownport u16) Socket
+	return this.bind(in_addr{ __s4_addr: in_any }, ownport)
+
 pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 	saddr := sockaddr_any{
 		sockaddr_in6: {
-			sin6_port: ownport
+			sin6_port: htons(ownport)
 			sin6_addr: ownaddr } }
 	if os.isWindows || os.isLinux
 		saddr.sockaddr_in6.sin6_family = AF_INET6
