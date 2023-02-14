@@ -53,7 +53,7 @@ pub inline fn udp IpSocket
 			s.err = GetLastError .
 	return s
 
-pub const in_any       ::= in_addr{ __s4_addr: [4]u8{ 0, 0, 0, 0 } }
-pub const in_broadcast ::= in_addr{ __s4_addr: [4]u8{ 255, 255, 255, 255 } }
-pub const in_none      ::= in_addr{ __s4_addr: [4]u8{ 255, 255, 255, 255 } }
-pub const in_loopback  ::= in_addr{ __s4_addr: [4]u8{ 127, 0, 0, 1 } }
+pub const in_any       ::= in_addr{ __s4_addr: { 0, 0, 0, 0 } }
+pub const in_broadcast ::= in_addr{ __s4_addr: { 255, 255, 255, 255 } }
+pub const in_none      ::= in_addr{ __s4_addr: { 255, 255, 255, 255 } }
+pub const in_loopback  ::= in_addr{ __s4_addr: { 127, 0, 0, 1 } }

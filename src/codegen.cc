@@ -81,7 +81,7 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	if (desired_type)
+	if (desired_type) {
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(desired_type)) {
 			// cannot move "this" so create a new unique expr...
 			auto str_ft = struct_mangled_ft[std::string(struct_type->getName())];
@@ -91,6 +91,29 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 				return struct_expr->codegen_raw(target);
 			}
 		}
+		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(desired_type)) {
+			std::vector<std::unique_ptr<ExprAST>> Dims;
+			std::vector<SourceLocation> LenLocs;
+			llvm::Type* elem_type;
+			do {
+				uint64_t dim = array_type->getNumElements();
+				if (!dim) {
+					errs() << Loc << ": { ... } short syntax initialization only supported for const size arrays\n";
+					return nullptr;
+				}
+				Dims.push_back(std::move(std::make_unique<ConstExprAST>(getSize(dim))));
+				LenLocs.push_back(SourceLocation{});
+				elem_type = array_type->getElementType();
+			} while ((array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)));
+			auto iter = ExprListIterator(std::move(Dims));
+			std::vector<std::unique_ptr<ExprAST>> Elems = iter.prepare_list(std::move(Elements), 0);
+			if (iter.struct_error())
+				return nullptr;
+			auto ft = new_FullType(desired_type, 0, nullptr, new_FullType(elem_type, 0));
+			auto array_expr = std::make_unique<FixedArrayExprAST>(Loc, ft, std::move(Elems), std::move(iter.valid_exprs), std::move(iter.LitDims), std::move(iter.Dims), LenLocs);
+			return array_expr->codegen_raw(target);
+		}
+	}
 	if (Elements.size()) {
 		std::vector<llvm::Type*> types;
 		types.reserve(Elements.size());
@@ -174,9 +197,15 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i]) {
 				llvm::Value* ini = initializers[i]->codegen();
-				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(ini->getType()))
-					if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(initializers[i]->ft->type))
+				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(ini->getType())) {
+					llvm::ArrayType* array_type = nullptr;
+					if (initializers[i]->ft->type)
+						array_type = llvm::dyn_cast<llvm::ArrayType>(initializers[i]->ft->type);
+					else if (initializers[i]->desired_type)
+						array_type = llvm::dyn_cast<llvm::ArrayType>(initializers[i]->desired_type);
+					if (array_type)
 						ini = expandArrayInitializer(ini, ini_array_type, array_type);
+				}
 				if (ft->type_attr & A_union) {
 					size_t unionsize = TheModule->getDataLayout().getTypeAllocSize(ft->type);
 					size_t valsize = TheModule->getDataLayout().getTypeAllocSize(ini->getType());
