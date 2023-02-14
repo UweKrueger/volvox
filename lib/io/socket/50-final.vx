@@ -69,3 +69,29 @@ pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 
 pub inline fn Ip6Socket.bind(ownport u16) Socket
 	return this.bind(in6_any, ownport)
+
+cdecl fn listen(s int, backlog int) int
+cdecl(listen) fn win_listen(s size_t, backlog int) int
+
+type ListeningSocket {
+	handle ssize_t
+	err int
+}
+
+pub inline fn Socket.listen(backlog int) ListeningSocket
+	if this.handle == -1
+		return ListeningSocket{ handle: this.handle, err: this.err }
+	if os.isWindows
+		success := win_listen(this.handle, backlog)
+	else
+		success := listen(int(this.handle), backlog) .
+	if success == -1
+		if os.isWindows
+			err := WSAGetLastError
+		else
+			err := GetLastError.
+		return ListeningSocket{ handle: -1, err: err }
+	return ListeningSocket{ handle: this.handle, err: 0 }
+
+	
+	
