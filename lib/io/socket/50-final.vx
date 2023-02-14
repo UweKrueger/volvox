@@ -82,7 +82,7 @@ pub inline fn Socket.listen(backlog int) ListeningSocket
 	if this.handle == -1
 		return ListeningSocket{ handle: this.handle, err: this.err }
 	if os.isWindows
-		success := win_listen(this.handle, backlog)
+		success := win_listen(size_t(this.handle), backlog)
 	else
 		success := listen(int(this.handle), backlog) .
 	if success == -1
@@ -93,5 +93,32 @@ pub inline fn Socket.listen(backlog int) ListeningSocket
 		return ListeningSocket{ handle: -1, err: err }
 	return ListeningSocket{ handle: this.handle, err: 0 }
 
-	
-	
+const SOMAXCONN ::= 0x7fffffff
+
+pub inline fn Socket.listen ListeningSocket
+	return this.listen(SOMAXCONN)
+
+pub inline fn IpSocket.listen(ownaddr in_addr, ownport u16, backlog int) ListeningSocket
+	return this.bind(ownaddr, ownport).listen(backlog)
+
+pub inline fn IpSocket.listen(ownaddr in_addr, ownport u16) ListeningSocket
+	return this.bind(ownaddr, ownport).listen(SOMAXCONN)
+
+pub inline fn IpSocket.listen(ownaddr u32, ownport u16, backlog int) ListeningSocket
+	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport).listen(backlog)
+
+pub inline fn IpSocket.listen(ownaddr u32, ownport u16) ListeningSocket
+	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport).listen(SOMAXCONN)
+
+pub inline fn IpSocket.listen(ownaddr [4]u8, ownport u16, backlog int) ListeningSocket
+	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport).listen(backlog)
+
+pub inline fn IpSocket.listen(ownaddr [4]u8, ownport u16) ListeningSocket
+	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport).listen(SOMAXCONN)
+
+pub inline fn IpSocket.listen(ownport u16, backlog int) ListeningSocket
+	return this.bind(in_addr{ __s4_addr: in_any }, ownport).listen(backlog)
+
+pub inline fn IpSocket.listen(ownport u16) ListeningSocket
+	return this.bind(in_addr{ __s4_addr: in_any }, ownport).listen(SOMAXCONN)
+
