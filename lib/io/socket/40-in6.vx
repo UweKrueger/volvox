@@ -41,5 +41,5 @@ pub inline fn udp6 Ip6Socket
 			s.err = GetLastError .
 	return s
 
-pub const IN6ADDR_ANY      ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}
-pub const IN6ADDR_LOOPBACK ::= [16]u8{0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1}
+pub const in6_any      ::= in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} }
+pub const in6_loopback ::= in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1} }

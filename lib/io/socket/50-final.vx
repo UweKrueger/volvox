@@ -68,5 +68,4 @@ pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 	return do_bind(this.handle, saddr, u32(sizeof(sockaddr_in6)))
 
 pub inline fn Ip6Socket.bind(ownport u16) Socket
-	adr := in6_addr{}
-	return this.bind(adr, ownport)
+	return this.bind(in6_any, ownport)
