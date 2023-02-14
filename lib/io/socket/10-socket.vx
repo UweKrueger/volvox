@@ -28,6 +28,8 @@ const AF_UNIX   ::= if os.isHaiku; 9 else 1 .
 const AF_INET   ::= 2
 const AF_INET6  ::= if os.isWindows
 		23
+	elif os.isLinux
+		10
 	elif os.isNetBSD || os.isOpenBSD
 		24
 	elif os.isHaiku
