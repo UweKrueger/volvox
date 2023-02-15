@@ -1,4 +1,5 @@
 import arch.os
+import limits
 import ._winsock
 from .. import Fd
 

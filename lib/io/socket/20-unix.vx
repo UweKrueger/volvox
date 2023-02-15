@@ -6,6 +6,8 @@ type UnixSocket union {
 
 pub const UNIX_PATH_MAX	::= if os.isWindows || os.isLinux
 		108
+	elif os.isHaiku
+		126
 	else
 		104 .
 
@@ -30,5 +32,7 @@ const ENAMETOOLONG ::= if os.isWindows
 		206 # ERROR_FILENAME_EXCED_RANGE
 	elif os.isLinux
 		36
+	elif os.isHaiku
+		limits.int_min + 0x6000 + 4
 	else
 		63 .
