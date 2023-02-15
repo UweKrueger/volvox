@@ -4,7 +4,9 @@ import arch
 import arch.os
 
 if os.isWindows
-	__link_extra "Ws2_32" .
+	__link_extra "Ws2_32"
+elif os.isHaiku
+	__link_extra "network" .
 
 const WSADESCRIPTION_LEN ::= 256
 const WSASYS_STATUS_LEN ::= 128
