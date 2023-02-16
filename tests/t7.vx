@@ -143,3 +143,31 @@ fn test_string_len_3 bool
 
 fn test_string_len_4 bool
 	return ("fgjhhgf" + "12").len == 9
+
+type RtzRi {
+	x f64
+	y int
+	z f64
+}
+
+fn ggg(a [4]u64) u64
+	s := 0u64
+	s += a[0]
+	s += 3*a[2]
+	return s
+
+fn ggg(b f64, a RtzRi) f64
+	s := 0.
+	s += a.x
+	s *= a.y
+	s += b + a.z
+	return s
+
+fn ggg(a int) int
+	return a*a
+
+fn test_anonynous_array_1 bool
+	return ggg({2,5,7,13}) == 23
+
+fn test_anonynous_struct_1 bool
+	return ggg(5, {y: 3, x: 23.75, z: 10}) == 86.25
