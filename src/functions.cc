@@ -148,7 +148,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 				if (candidate < 0)
 					fnargs[i].Conv = nullptr; // for variadic args - but see comment above
 			} else {
-				if (fnargs[i].argtype->isPointerTy() && proto->ArgTypes[i]->type->isPointerTy()) {
+				if (fnargs[i].argtype && fnargs[i].argtype->isPointerTy() && proto->ArgTypes[i]->type->isPointerTy()) {
 					if ((fnargs[i].argtype_attr & A_string) && (proto->ArgTypes[i]->type_attr & A_string)
 					    || (fnargs[i].argtype_attr & A_cstring) && (proto->ArgTypes[i]->type_attr & A_cstring)
 					    || !(fnargs[i].argtype_attr & (A_string | A_cstring)) && !(proto->ArgTypes[i]->type_attr & (A_string | A_cstring))) {
@@ -162,9 +162,12 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 						arg_matches_exactly = false;
 					}
 				} else {
-					conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
-					               fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
-					               false, false, &arg_matches_exactly);
+					if (fnargs[i].is_anonymous_list && (proto->ArgTypes[i]->type->isStructTy() || proto->ArgTypes[i]->type->isArrayTy()))
+						conv = NoConversion;
+					else
+						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
+						               fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
+						               false, false, &arg_matches_exactly);
 				}
 				if (arg_matches_exactly) {
 					if (!cands1)
@@ -285,12 +288,16 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		name = select_expr->FieldName;
 	if (!type_expr || type_expr->ft->type->isStructTy()) {
 		for (auto& arg: Args) {
+			bool is_list = false;
 			if (!arg->ft || !arg->ft->type) {
-				errs() << arg->Loc << ": function argument indeterminate\n";
-				ft->type = nullptr;
-				return;
+				is_list = (bool)dynamic_cast<ListExprAST*>(arg.get());
+				if (!is_list) {
+					errs() << arg->Loc << ": function argument indeterminate " << (void*)arg->ft->type << "\n";
+					ft->type = nullptr;
+					return;
+				}
 			}
-			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, (bool)dynamic_cast<ListExprAST*>(arg.get())});
+			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list});
 		}
 		std::vector<std::unique_ptr<PrototypeAST>>* protos;
 		if (type_expr) {

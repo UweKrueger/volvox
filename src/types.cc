@@ -150,7 +150,6 @@ no_explicit_constructor:
 			return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
 		else
 			return nullptr;
-		
 	}
 	if (auto expr_array = llvm::dyn_cast<llvm::ArrayType>(expr_type)) {
 		auto desired_array = llvm::dyn_cast<llvm::ArrayType>(desired_type);
