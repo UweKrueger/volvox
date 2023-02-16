@@ -148,6 +148,8 @@ no_explicit_constructor:
 		auto convFN = getConversion(m_name);
 		if (convFN)
 			return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
+		else
+			return nullptr;
 		
 	}
 	if (auto expr_array = llvm::dyn_cast<llvm::ArrayType>(expr_type)) {

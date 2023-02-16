@@ -1291,7 +1291,7 @@ public:
 			auto raw_array_type = llvm::dyn_cast<llvm::ArrayType>(rawV->getType());
 			auto desired_array_type = llvm::dyn_cast<llvm::ArrayType>(desired_type);
 			if (!raw_array_type || !desired_array_type) {
-				errs() << Loc << "cannot automatically convert " << *rawV->getType() << " to " << *desired_type << '\n';
+				errs() << Loc << ": cannot automatically convert " << *rawV->getType() << " to " << *desired_type << '\n';
 				return nullptr;
 			}
 		}

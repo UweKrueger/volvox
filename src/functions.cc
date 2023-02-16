@@ -173,7 +173,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 						convs2[i] = nullptr;
 					if (!cands3)
 						convs3[i] = nullptr;
-				} else if (conv || proto->ArgTypes[i]->type->isStructTy() && fnargs[i].is_anonymous_list) {
+				} else if (conv || (proto->ArgTypes[i]->type->isStructTy() || proto->ArgTypes[i]->type->isArrayTy()) && fnargs[i].is_anonymous_list) {
 					exact = false;
 					if (!cands2)
 						convs2[i] = conv;

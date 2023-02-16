@@ -53,7 +53,7 @@ pub inline fn IpSocket.bind(ownaddr [4]u8, ownport u16) Socket
 	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport)
 
 pub inline fn IpSocket.bind(ownport u16) Socket
-	return this.bind(in_addr{ __s4_addr: in_any }, ownport)
+	return this.bind(in_any, ownport)
 
 pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 	saddr := sockaddr_any{
@@ -117,8 +117,8 @@ pub inline fn IpSocket.listen(ownaddr [4]u8, ownport u16) ListeningSocket
 	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport).listen(SOMAXCONN)
 
 pub inline fn IpSocket.listen(ownport u16, backlog int) ListeningSocket
-	return this.bind(in_addr{ __s4_addr: in_any }, ownport).listen(backlog)
+	return this.bind(in_any, ownport).listen(backlog)
 
 pub inline fn IpSocket.listen(ownport u16) ListeningSocket
-	return this.bind(in_addr{ __s4_addr: in_any }, ownport).listen(SOMAXCONN)
+	return this.bind(in_any, ownport).listen(SOMAXCONN)
 

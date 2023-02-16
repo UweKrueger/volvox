@@ -33,6 +33,6 @@ const ENAMETOOLONG ::= if os.isWindows
 	elif os.isLinux
 		36
 	elif os.isHaiku
-		limits.int_min + 0x6000 + 4
+		limits.min_int + 0x6000 + 4
 	else
 		63 .
