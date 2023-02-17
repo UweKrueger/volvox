@@ -23,6 +23,7 @@
 #define A_string (1U<<12)
 #define A_cstring (1U<<13)
 #define A_interface (1U<<14)
+#define A_optional (1U<<15)
 // symbol visibility attributes
 #define A_pub    (1U<<16)
 #define A_mainvar (1U<<17) // global for LLVM

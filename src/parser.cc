@@ -368,6 +368,9 @@ static std::pair<std::string,volvoxc::FullType*> ParseTypedIdent(int terminator,
 	case tok_ref:
 		attribs |= A_ref;
 		break;
+	case tok_optional:
+		attribs |= (A_ref | A_optional);
+		break;
 	default:
 		goto no_attribute;;
 	}
@@ -1070,7 +1073,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	// If the current token is not an operator, it must be a primary expr.
 	auto kind = CurTok.kind;
-	if (kind != tok_unary && kind != tok_ref)
+	if (kind != tok_unary && kind != tok_ref && kind != tok_optional)
 		return ParsePrimary(terminator);
 	
 	// If this is a unary operator, read it.
@@ -1082,7 +1085,7 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 		Operand = ParseBinOpRHS(TokPrec, std::move(Operand), terminator);
 		if (!Operand)
 			return nullptr;
-		if (kind == tok_ref) {
+		if (kind == tok_ref || kind == tok_optional) {
 			if (auto lval = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 				auto Lval = std::unique_ptr<LvalueExprAST>(lval);
 				Operand.release();
