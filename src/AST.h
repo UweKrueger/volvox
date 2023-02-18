@@ -628,7 +628,7 @@ public:
 class ReferenceExprAST : public LvalueExprAST {
 public:
 	std::unique_ptr<LvalueExprAST> Operand;
-	ReferenceExprAST(SourceLocation Loc, std::unique_ptr<LvalueExprAST> _Operand)
+	ReferenceExprAST(SourceLocation Loc, std::unique_ptr<LvalueExprAST> _Operand, bool is_optional = false)
 		: LvalueExprAST(Loc), Operand(std::move(_Operand)) {
 		if (Operand->ft->type) {
 			// get address from expression as 'voidptr' to call C-functions "f(&x)"
@@ -637,6 +637,8 @@ public:
 			// declare reference "&r := x"
 			ft = new_FullType(*Operand->ft);
 			ft->type_attr |= A_ptrref;
+			if (is_optional)
+				ft->type_attr |= A_optional;
 		}
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {

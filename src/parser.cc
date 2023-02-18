@@ -1089,7 +1089,7 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 			if (auto lval = dynamic_cast<LvalueExprAST*>(Operand.get())) {
 				auto Lval = std::unique_ptr<LvalueExprAST>(lval);
 				Operand.release();
-				return std::make_unique<ReferenceExprAST>(Loc, std::move(Lval));
+				return std::make_unique<ReferenceExprAST>(Loc, std::move(Lval), kind == tok_optional);
 			}
 			errs() << Loc << ": reference operator '&' cannot be applied to rvalue\n";
 			return nullptr;
