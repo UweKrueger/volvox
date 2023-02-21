@@ -646,7 +646,7 @@ std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_
 	volvoxc::FullType* TheType = lex.get_full_type(ret_type);
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
 	                                            std::vector<std::string>(),
-	                                            A_c_api, CurLoc, false, TheType);
+	                                            A_c_api | A_pub, CurLoc, false, TheType);
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
@@ -687,7 +687,7 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 	volvoxc::FullType* TheType = lex.get_full_type(ret_type);
 	auto Proto = std::make_unique<PrototypeAST>(CurLoc, main_name,
 	                                            std::vector<std::string>(),
-	                                            A_c_api, CurLoc, false, TheType);
+	                                            A_c_api | A_pub, CurLoc, false, TheType);
 	if (!have_return)
 		GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
 	auto ProtoRef = Proto.get();
