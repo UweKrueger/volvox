@@ -142,7 +142,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		bool with_conv = true;
 		bool with_undefconv = true;
 		for (int i=0; i<fnargs.size(); i++) {
-			bool arg_matches_exactly;
+			bool arg_matches_exactly = false;
 			std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
 			if (i >= proto->ArgTypes.size()) {
 				if (candidate < 0)
