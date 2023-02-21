@@ -955,11 +955,13 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 							errs() << Args[i]->Loc << ": cannot generate reference function argument\n";
 							return nullptr;
 						}
-						arg = Builder->CreatePointerCast(argref.second, argref.first->getPointerTo());
+						if (argref.second)
+							arg = Builder->CreatePointerCast(argref.second, argref.first->getPointerTo());
 					}
 					if (!arg) {
 						arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
-						auto tmparg = Args[i]->codegen();
+						//errs() << Loc << ": arg #" << i << " " << *arg << '\n';
+						auto tmparg = Args[i]->codegen_raw(arg);
 						if (!tmparg) {
 							errs() << Args[i]->Loc << ": cannot generate code for2 expression\n";
 							return nullptr;
@@ -979,18 +981,14 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 							// (probably a bug in LLVM) we can work around this by making this store volatile
 							store_volatile = true;
 #endif
-						Builder->CreateStore(tmparg, arg, store_volatile);
+						// Builder->CreateStore(tmparg, arg, store_volatile);
 					}
-#if LLVM_VERSION_MAJOR < 14 || LLVM_VERSION_MAJOR < 15 && defined(__aarch64__)
+#if LLVM_VERSION_MAJOR < 14 || defined(__aarch64__)
 					if (
-#if LLVM_VERSION_MAJOR < 14
-						codegenopt != llvm::CodeGenOpt::None
-#if defined(__aarch64__)
-						||
-#endif
-#endif
 #if defined(__aarch64__)
 						comp_mode == comp_jit
+#else
+						codegenopt != llvm::CodeGenOpt::None
 #endif
 						) {
 						// Old LLVM versions seem to do illegal optimizations for call by reference
@@ -1001,8 +999,10 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 						arg = Builder->CreateLoad(arg->getType(), rec_ptr_loc);
 					}
 #endif
-				} else
+				} else {
 					arg = Args[i]->codegen();
+					//errs() << Loc << ": valarg #" << i << " " << *arg << ' ' << Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal) << '\n';
+				}
 			}
 			if (!arg)
 				return nullptr;
