@@ -375,6 +375,8 @@ extern const char* volvox_lib();
 extern unsigned target_bytes; // size_t, pointer size in bytes
 extern unsigned target_bits; // in bits
 extern uint64_t target_mask;
+extern CPU_Type_t cpu_idx;
+extern OS_Type_t os_idx;
 extern llvm::Type* llvm_int_type;
 extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;

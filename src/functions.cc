@@ -1030,6 +1030,11 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 		return Builder->CreateCall(FT, F, ArgsV);
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
+		llvm::Type* Ft = theFunction->getType();
+		errs() << "Function: " << *theFunction << ' ' << *Ft << '\n';
+		llvm::Value* fstore = CreateEntryBlockAlloca(Ft);
+		Builder->CreateStore(theFunction, fstore, true);
+		theFunction = Builder->CreateLoad(Ft, fstore, true);
 		return Builder->CreateCall(FT, theFunction, ArgsV);
 	}
 }

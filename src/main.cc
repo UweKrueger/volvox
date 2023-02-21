@@ -37,6 +37,8 @@ uint64_t target_mask;
 unsigned target_int_bits;
 std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
+CPU_Type_t cpu_idx;
+OS_Type_t os_idx;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -181,7 +183,6 @@ void init(const llvm::Triple& triple) {
 			std::vector<SourceLocation>{ SourceLocation{} }),
 		SourceLocation{.File = "<builtin array method>"});
 	// create build in constexprs to describe target
-	OS_Type_t os_idx;
 	switch (triple.getOS()) {
 	case llvm::Triple::DragonFly:
 		os_idx = OS_DragonFly;
@@ -215,7 +216,6 @@ void init(const llvm::Triple& triple) {
 		else
 			os_idx = OS_UnknownOS;
 	}
-	CPU_Type_t cpu_idx;
 	switch (triple.getArch()) {
 	case llvm::Triple::arm:
 		cpu_idx = CPU_arm;
