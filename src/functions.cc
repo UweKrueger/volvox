@@ -961,7 +961,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 					if (!arg) {
 						arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
 						//errs() << Loc << ": arg #" << i << " " << *arg << '\n';
-						auto tmparg = Args[i]->codegen_raw(arg);
+						auto tmparg = Args[i]->codegen_raw();
 						if (!tmparg) {
 							errs() << Args[i]->Loc << ": cannot generate code for2 expression\n";
 							return nullptr;
@@ -981,7 +981,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 							// (probably a bug in LLVM) we can work around this by making this store volatile
 							store_volatile = true;
 #endif
-						// Builder->CreateStore(tmparg, arg, store_volatile);
+						Builder->CreateStore(tmparg, arg, store_volatile);
 					}
 #if LLVM_VERSION_MAJOR < 14 || defined(__aarch64__)
 					if (
