@@ -744,7 +744,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
                            std::vector<SourceLocation> _ArgPos, bool IsVarArgs)
 		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
 		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(std::move(_ArgTypes)),
-		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs), visibility(visibility)
+		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs), visibility(visibility), link_typ(link_type(visibility))
 {
 	size_t ret_size = (!(visibility & A_constructor) && RetType->type->isSized()) ?
 		TheModule->getDataLayout().getTypeAllocSize(RetType->type) :

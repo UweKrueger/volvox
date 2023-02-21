@@ -863,7 +863,7 @@ public:
 	bool IsOperator = false;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
 	unsigned visibility = 0;
-	llvm::GlobalValue::LinkageTypes link_type;
+	llvm::GlobalValue::LinkageTypes link_typ;
 	int Line;
 	std::string Name;
 	PrototypeAST(const PrototypeAST& proto) = default;
