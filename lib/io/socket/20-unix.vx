@@ -36,3 +36,48 @@ const ENAMETOOLONG ::= if os.isWindows
 		limits.min_int + 0x6000 + 4
 	else
 		63 .
+
+type ucred {
+	pid u32
+	uid u32
+	gid u32
+}
+
+const SOL_SOCKET ::= if os.isLinux
+		1
+	else
+		0xffff .
+
+const IOC_VENDOR ::= 0x18000000
+const IOC_OUT    ::= 0x40000000
+
+const SO_PEERCRED ::= if os.isLinux
+		17
+	elif os.isFreeBSD
+		1
+	elif os.isNetBSD
+		3
+	elif os.isOpenBSD
+		0x1022
+	elif os.isWindows
+		IOC_OUT | IOC_VENDOR | 256 # SIO_AF_UNIX_GETPEERPID
+	else 0 .
+
+cdecl fn WSAIoctl(s size_t, dwIoControlCode u32, lpvInBuffer voidptr, cbInBuffer u32,
+               lpvOutBuffer voidptr, cbOutBuffer u32, &lpcbBytesReturned u32,
+			   lpOverlapped voidptr, lpCompletionRoutine voidptr) int
+
+cdecl fn getsockopt(sockfd int, level int, optname int, optval voidptr, &optlen u32) int
+
+fn UnixSocket.peer ucred
+	p := ucred{}
+	l := u32
+	if os.isWindows
+		pid := u32
+		r := WSAIoctl(u64(this.handle), SO_PEERCRED, nil, 0, &pid, u32(sizeof(u32)), l, nil, nil)
+		if r != -1
+			p.pid = pid .
+	else
+		l := u32
+		r := getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l) .
+	return p
