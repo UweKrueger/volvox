@@ -45,6 +45,8 @@ type ucred {
 
 const SOL_SOCKET ::= if os.isLinux
 		1
+	elif os.isHaiku
+		-1
 	else
 		0xffff .
 
@@ -59,6 +61,8 @@ const SO_PEERCRED ::= if os.isLinux
 		3
 	elif os.isOpenBSD
 		0x1022
+	elif os.isHaiku
+		0x4000000b
 	elif os.isWindows
 		IOC_OUT | IOC_VENDOR | 256 # SIO_AF_UNIX_GETPEERPID
 	else 0 .
