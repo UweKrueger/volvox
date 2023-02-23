@@ -493,6 +493,8 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(LV->ft->type))
 				val = getInterfaceArrayValue(val, array_type);
 		} else {
+			if (expr->needs_target() && !target)
+				errs() << Loc << ": no target\n";
 			llvm::Value* array = expr->codegen_raw(target);
 			if (!array) {
 				errs() << Loc << ": cannot generate code for interface expression\n";
@@ -2627,4 +2629,42 @@ llvm::Value *ForExprAST::codegen_raw(llvm::Value* target) {
 		locals_table.back().erase(VarName.c_str());
 	// for expr always returns 0.0.
 	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(Context));
+}
+
+llvm::Value* ExprAST::codegen() {
+	auto rawV = codegen_raw();
+	if (!rawV)
+		return nullptr;
+	if (desired_type && rawV && rawV->getType() != desired_type && !rawV->getType()->isVoidTy()) {
+		auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
+		                        conv_kind == ConvImplicit ? ft->type_attr & A_signed : conv_kind == ConvSigned,
+		                        conv_kind != ConvImplicit, is_unknown_type);
+		if (postConv)
+			return postConv(rawV);
+		auto raw_array_type = llvm::dyn_cast<llvm::ArrayType>(rawV->getType());
+		auto desired_array_type = llvm::dyn_cast<llvm::ArrayType>(desired_type);
+		if (!raw_array_type || !desired_array_type) {
+			errs() << Loc << ": cannot automatically convert " << *rawV->getType() << " to " << *desired_type << '\n';
+			return nullptr;
+		}
+	}
+	return rawV;
+}
+
+llvm::Value* ExprAST::alloc_size() {
+	if (ft->type->isFunctionTy())
+		return getSize(target_bytes);
+	if (ft->type->isSized()) {
+		uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(ft->type);
+		if (sz)
+			return getSize(sz);
+	}
+	auto Dims = codegen_dims();
+	if (!Dims.first || !Dims.second)
+		return nullptr;
+	uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(Dims.first);
+	llvm::Value* Sz = getSize(sz);
+	for (auto dim: *Dims.second)
+		Sz = Builder->CreateMul(Sz, dim);
+	return Sz;
 }

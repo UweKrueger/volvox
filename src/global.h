@@ -1278,27 +1278,13 @@ public:
 	//      value is registred
 	// - (void*)(-1): like '(void*)0' but no destructor call is registred. This is needed to create compile time const
 	//      initializers for use with '::='
-	virtual llvm::Value *codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
+	virtual llvm::Value* codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
 	virtual bool needs_target() { return false; } // e.g. struct return in CallExpr
-	llvm::Value* codegen() {
-		auto rawV = codegen_raw();
-		if (!rawV)
-			return nullptr;
-		if (desired_type && rawV && rawV->getType() != desired_type && !rawV->getType()->isVoidTy()) {
-			auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
-			                        conv_kind == ConvImplicit ? ft->type_attr & A_signed : conv_kind == ConvSigned,
-			                        conv_kind != ConvImplicit, is_unknown_type);
-			if (postConv)
-				return postConv(rawV);
-			auto raw_array_type = llvm::dyn_cast<llvm::ArrayType>(rawV->getType());
-			auto desired_array_type = llvm::dyn_cast<llvm::ArrayType>(desired_type);
-			if (!raw_array_type || !desired_array_type) {
-				errs() << Loc << ": cannot automatically convert " << *rawV->getType() << " to " << *desired_type << '\n';
-				return nullptr;
-			}
-		}
-		return rawV;
-	}
+	// there are cases where the storage size, i.e. the dimensions of a tensor ist needed
+	// before the elements can be calculated, e.g. to reserve space
+	virtual std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() { return { nullptr, nullptr }; }
+	virtual llvm::Value* alloc_size();
+	llvm::Value* codegen();
 	int getLine() const { return Loc.Line; }
 	int getCol() const { return Loc.Col; }
 #ifndef NDEBUG
