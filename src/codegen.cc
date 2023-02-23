@@ -2668,3 +2668,18 @@ llvm::Value* ExprAST::alloc_size() {
 		Sz = Builder->CreateMul(Sz, dim);
 	return Sz;
 }
+
+std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> ExprAST::codegen_dims() {
+	if (ft && ft->type) {
+		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
+			llvm::Type* elem_type;
+			auto Dims = std::make_unique<std::vector<llvm::Value*>>();
+			do {
+				elem_type = array_type->getElementType();
+				Dims->push_back(getSize(array_type->getNumElements()));
+			} while ((array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)));
+			return { elem_type, std::move(Dims) };
+		}
+	}
+	return { nullptr, nullptr };
+}

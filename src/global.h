@@ -1282,7 +1282,7 @@ public:
 	virtual bool needs_target() { return false; } // e.g. struct return in CallExpr
 	// there are cases where the storage size, i.e. the dimensions of a tensor ist needed
 	// before the elements can be calculated, e.g. to reserve space
-	virtual std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() { return { nullptr, nullptr }; }
+	virtual std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims();
 	virtual llvm::Value* alloc_size();
 	llvm::Value* codegen();
 	int getLine() const { return Loc.Line; }
