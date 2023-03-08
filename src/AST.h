@@ -149,14 +149,23 @@ inline bool is_ccfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
 
 // Expressions that can the the LHS of an assignmen: `a = 1`, `b[3] = 4.5`, `s.a = 9`
 class LvalueExprAST : public ExprAST {
-
+	std::pair<llvm::Type*,llvm::Value*> ref_cache = { nullptr, nullptr };
 public:
 	std::string Name;
 	LvalueExprAST(SourceLocation Loc, std::string Name = "") : ExprAST(Loc), Name(Name) {}
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
-	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) = 0;
+	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) = 0;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) {
+		if (ref_cache.first) {
+			if (!ref_cache.second && !silent_fail)
+				errs() << Loc << ": cannot get reference\n";
+			return ref_cache;
+		}
+		return codegen_ref_(silent_fail);
+	}
+	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	virtual VariableExprAST* getBase() = 0;
 	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
@@ -196,7 +205,7 @@ public:
 	const std::string &getName() const { return Name; }
 	VariableExprAST* getBase() override { return this; }
 	// create reference to this variable - second result is the storage_type
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
@@ -218,7 +227,7 @@ public:
 			ft->type_attr |= A_ref;
 		}
 	}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override {
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override {
 		return { ft->type, ref };
 	}
 	VariableExprAST* getBase() override { return var; }
@@ -395,7 +404,7 @@ public:
 				ft = nullptr;
 			}
 		}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	VariableExprAST* getBase() override {
 		if (auto lval = dynamic_cast<LvalueExprAST*>(Struct.get()))
@@ -437,7 +446,7 @@ public:
 		llvm::Type* elem_type, std::vector<llvm::Value*>& Idxs,
 		llvm::Value* Dims, int idx_idx, int dim_idx);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override;
 	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type);
 	VariableExprAST* getBase() override {
 		if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get()))
@@ -645,7 +654,7 @@ public:
 		auto pair = Operand->codegen_ref(false);
 		return handle(target, Builder->CreatePointerCast(pair.second, llvm::Type::getInt8PtrTy(Context)));
 	}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) override {
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override {
 		auto pair = Operand->codegen_ref(silent_fail);
 		ft->type = pair.first;
 		return pair;
@@ -682,8 +691,12 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	bool needs_target() override { return (opclass == OpAssign || opclass == OpModAssign) && LHS->ft && LHS->ft->type && LHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(LHS->ft->type) == 0; }
 	llvm::Value* alloc_size() override {
-		if (opclass == OpAssign || opclass == OpModAssign)
-			return LHS->alloc_size();
+		if (opclass == OpAssign || opclass == OpModAssign) {
+			auto alz = LHS->alloc_size();
+			errs() << "allocsz assign: " << *alz << '\n';
+			return alz;
+			// return LHS->alloc_size();
+		}
 		return ((ExprAST*)this)->alloc_size();
 	}
 #ifndef NDEBUG

@@ -286,7 +286,7 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
-std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref(bool silent_fail) {
+std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fail) {
 	if (!full_var) {
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
 		return { nullptr, nullptr };
@@ -384,7 +384,7 @@ llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, llvm::Type* exp
 	}
 }
 
-std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref(bool silent_fail) {
+std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref_(bool silent_fail) {
 	if (!ft || !ft->type)
 		return { nullptr, nullptr }; // error message was already generated in AST
 	if (Struct->ft->type->isArrayTy() || Struct->ft->type->isPointerTy())
@@ -2683,4 +2683,25 @@ std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> ExprAST::codeg
 		}
 	}
 	return { nullptr, nullptr };
+}
+
+std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> LvalueExprAST::codegen_dims() {
+	auto ref = codegen_ref(true);
+	if (ref.second) {
+		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ref.first)) {
+			llvm::Type* elem_type;
+			auto Dims = std::make_unique<std::vector<llvm::Value*>>();
+			unsigned n = 0;
+			do {
+				elem_type = array_type->getElementType();
+				size_t nelem = array_type->getNumElements();
+				if (nelem)
+					Dims->push_back(getSize(nelem));
+				else
+					Dims->push_back(Builder->CreateExtractValue(ref.second, n++));
+			} while ((array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)));
+			return { elem_type, std::move(Dims) };
+		}
+	}
+	return ((ExprAST*)this)->codegen_dims();
 }

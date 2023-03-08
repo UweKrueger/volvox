@@ -444,7 +444,7 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 	return res;
 }
 
-std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref(bool silent_fail) {
+std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(bool silent_fail) {
 	llvm::Value* NumElem = nullptr;
 	if (!Field->ft || !Field->ft->type) {
 		errs() << Field->Loc << ": unknown type\n";
