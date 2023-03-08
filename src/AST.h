@@ -681,6 +681,11 @@ public:
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	bool needs_target() override { return (opclass == OpAssign || opclass == OpModAssign) && LHS->ft && LHS->ft->type && LHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(LHS->ft->type) == 0; }
+	llvm::Value* alloc_size() override {
+		if (opclass == OpAssign || opclass == OpModAssign)
+			return LHS->alloc_size();
+		return ((ExprAST*)this)->alloc_size();
+	}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "binary" << Op, ind);

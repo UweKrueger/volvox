@@ -493,8 +493,9 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(LV->ft->type))
 				val = getInterfaceArrayValue(val, array_type);
 		} else {
-			if (expr->needs_target() && !target)
-				errs() << Loc << ": no target\n";
+			
+			if (expr->needs_target() && !target) 
+				errs() << Loc << ": no target - allocsz " << *expr->alloc_size() << "\n";
 			llvm::Value* array = expr->codegen_raw(target);
 			if (!array) {
 				errs() << Loc << ": cannot generate code for interface expression\n";
