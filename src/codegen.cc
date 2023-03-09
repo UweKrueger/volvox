@@ -493,28 +493,33 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(LV->ft->type))
 				val = getInterfaceArrayValue(val, array_type);
 		} else {
-			
-			if (expr->needs_target() && !target) 
-				errs() << Loc << ": no target - allocsz " << *expr->alloc_size() << "\n";
-			llvm::Value* array = expr->codegen_raw(target);
+			llvm::Value* array = nullptr;
+			if (expr->needs_target() && !target) {
+				llvm::Value* allocsz = expr->alloc_size();
+				val = Builder->CreateAlloca(llvm::Type::getInt8Ty(Context), allocsz);
+				array = expr->codegen_raw(val);
+			} else {
+				array = expr->codegen_raw(target);
+			}
 			if (!array) {
-				errs() << Loc << ": cannot generate code for interface expression\n";
+				errs() << Loc << ": cannot generate code for interface -expression\n";
 				return nullptr;
 			}
 			if (array->getType()->isVoidTy()) {
-				if (target)
+				if (target) // Does this happen at all?
 					return array;
-				else {
-					errs() << Loc << ": cannot generate code for interface expression\n";
-					abort();
-					return nullptr;
+				// else {
+				// 	errs() << Loc << ": cannot generate code for interface expression\n";
+				// 	abort();
+				// 	return nullptr;
+				// }
+			} else {
+				// if it's an rvalue we have to store it on stack to get a reference
+				if (!target || (intptr_t)target == -1) {
+					condnesting++; // force 'alloca()' instead of 'malloc()' - TODO: implement and use 'codegen_dims()' instead
+					val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
+					condnesting--;
 				}
-			}
-			// if it's an rvalue we have to store it on stack to get a reference
-			if (!target || (intptr_t)target == -1) {
-				condnesting++; // force 'alloca()' instead of 'malloc()' - TODO: implement and use 'codegen_dims()' instead
-				val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
-				condnesting--;
 			}
 		}
 	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr->ft->type)) {
@@ -1376,11 +1381,33 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					return OldVal;
 				}
 			} else {
-				auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
+				llvm::Value* OldVal = nullptr;
+				// if (!target)
+					OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 				if (postpone_valgen)
 					RHS->codegen_raw(Variable.second);
 				else
-					Builder->CreateStore(Val, Variable.second);
+					if (ValPtr) {
+						llvm::Value* dptr = Variable.second;
+						if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Variable.second->getType())) {
+							dptr = Builder->CreateExtractValue(dptr, struct_type->getNumElements()-1);
+						}
+						if (!allocsz) {
+							llvm::Value* Allocsz = LHSE->alloc_size();
+							auto align = getAlignment(1);
+							if (target)
+								Builder->CreateMemCpy(target, align, dptr, align, Allocsz);
+							Builder->CreateMemCpy(dptr, align, ValPtr, align, Allocsz);
+						} else {
+							auto align = getAlignment(allocsz);
+							if (target)
+								Builder->CreateMemCpy(target, align, dptr, align, allocsz);
+							Builder->CreateMemCpy(dptr, align, ValPtr, align, allocsz);
+						}
+						if (target)
+							return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+					} else
+						Builder->CreateStore(Val, Variable.second);
 				// call destructor for OldVal if discarded
 				// it might be that opclass has been changed to OpAssign by HandleGlobalVariable()
 				// in this case Op will still be ':='

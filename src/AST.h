@@ -692,10 +692,7 @@ public:
 	bool needs_target() override { return (opclass == OpAssign || opclass == OpModAssign) && LHS->ft && LHS->ft->type && LHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(LHS->ft->type) == 0; }
 	llvm::Value* alloc_size() override {
 		if (opclass == OpAssign || opclass == OpModAssign) {
-			auto alz = LHS->alloc_size();
-			errs() << "allocsz assign: " << *alz << '\n';
-			return alz;
-			// return LHS->alloc_size();
+			return LHS->alloc_size();
 		}
 		return ((ExprAST*)this)->alloc_size();
 	}
