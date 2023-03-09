@@ -691,10 +691,14 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	bool needs_target() override { return (opclass == OpAssign || opclass == OpModAssign) && LHS->ft && LHS->ft->type && LHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(LHS->ft->type) == 0; }
 	llvm::Value* alloc_size() override {
-		if (opclass == OpAssign || opclass == OpModAssign) {
+		if (opclass == OpAssign || opclass == OpModAssign)
 			return LHS->alloc_size();
-		}
 		return ((ExprAST*)this)->alloc_size();
+	}
+	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override {
+		if (opclass == OpAssign || opclass == OpModAssign)
+			return LHS->codegen_dims();
+		return ((ExprAST*)this)->codegen_dims();
 	}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

@@ -1369,7 +1369,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				} else {
 					// We should not get here! TODO: Implement 'codegen_dims()' and allocate
 					// space in advance so 'target' is available here
-					errs() << Loc << ": internal problem - loading large value\n";
+					//errs() << Loc << ": internal problem - loading large value\n";
 					auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 					if (ValPtr)
 						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
@@ -2759,9 +2759,7 @@ std::tuple<llvm::Value*,llvm::Value*,unsigned> ExprAST::alloc_dims() {
 	llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	unsigned u = 0;
-	for (auto dim: *Dims.second) {
+	for (auto dim: *Dims.second)
 		the_struct = Builder->CreateInsertValue(the_struct, dim, u++);
-		errs() << Loc << ": added dim " << *dim << ' ' << *Sz << '\n';
-	}
 	return { Sz, the_struct, Dims.second->size() };
 }
