@@ -495,9 +495,10 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 		} else {
 			llvm::Value* array = nullptr;
 			if (expr->needs_target() && !target) {
-				llvm::Value* allocsz = expr->alloc_size();
+				auto [allocsz, valproto, ndim] = expr->alloc_dims();
 				val = Builder->CreateAlloca(llvm::Type::getInt8Ty(Context), allocsz);
 				array = expr->codegen_raw(val);
+				val = Builder->CreateInsertValue(valproto, Builder->CreatePointerCast(val, llvm::cast<llvm::StructType>(valproto->getType())->getElementType(ndim)), ndim);
 			} else {
 				array = expr->codegen_raw(target);
 			}
@@ -1368,6 +1369,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				} else {
 					// We should not get here! TODO: Implement 'codegen_dims()' and allocate
 					// space in advance so 'target' is available here
+					errs() << Loc << ": internal problem - loading large value\n";
 					auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 					if (ValPtr)
 						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
@@ -1381,9 +1383,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					return OldVal;
 				}
 			} else {
-				llvm::Value* OldVal = nullptr;
-				// if (!target)
-					OldVal = Builder->CreateLoad(Variable.first, Variable.second);
+				llvm::Value* OldVal = (target && ValPtr && !postpone_valgen) ?
+					llvm::UndefValue::get(llvm::Type::getVoidTy(Context)) :
+					(llvm::Value*)Builder->CreateLoad(Variable.first, Variable.second);
 				if (postpone_valgen)
 					RHS->codegen_raw(Variable.second);
 				else
@@ -2731,4 +2733,35 @@ std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> LvalueExprAST:
 		}
 	}
 	return ((ExprAST*)this)->codegen_dims();
+}
+
+// combination of the above that returns alloc_size() and an incomplete reference value
+std::tuple<llvm::Value*,llvm::Value*,unsigned> ExprAST::alloc_dims() {
+	llvm::Value* Sz = nullptr;
+	if (ft->type->isFunctionTy())
+		Sz = getSize(target_bytes);
+	else if (ft->type->isSized()) {
+		uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(ft->type);
+		if (sz)
+			Sz = getSize(sz);
+	}
+	auto Dims = codegen_dims();
+	if (!Dims.first || !Dims.second)
+		return { Sz, nullptr, 0 };
+	if (!Sz) {
+		uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(Dims.first);
+		Sz = getSize(sz);
+		for (auto dim: *Dims.second)
+			Sz = Builder->CreateMul(Sz, dim);
+	}
+	std::vector<llvm::Type*> struct_type_el(Dims.second->size() + 1, llvm_size_type);
+	struct_type_el[Dims.second->size()] = Dims.first->getPointerTo();
+	llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
+	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
+	unsigned u = 0;
+	for (auto dim: *Dims.second) {
+		the_struct = Builder->CreateInsertValue(the_struct, dim, u++);
+		errs() << Loc << ": added dim " << *dim << ' ' << *Sz << '\n';
+	}
+	return { Sz, the_struct, Dims.second->size() };
 }

@@ -1284,6 +1284,7 @@ public:
 	// before the elements can be calculated, e.g. to reserve space
 	virtual std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims();
 	virtual llvm::Value* alloc_size();
+	std::tuple<llvm::Value*,llvm::Value*,unsigned> alloc_dims();
 	llvm::Value* codegen();
 	int getLine() const { return Loc.Line; }
 	int getCol() const { return Loc.Col; }
