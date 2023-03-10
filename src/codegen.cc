@@ -576,6 +576,12 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (auto int_ty = llvm::dyn_cast<llvm::IntegerType>(OperandV.first)) {
 		auto One = llvm::ConstantInt::get(int_ty, 1);
+		if (Operand->ft->type_attr & A_atomic) {
+			if (Opcode[0] == '+')
+				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add, OperandV.second, One));
+			else
+				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Sub, OperandV.second, One));
+		}
 		llvm::Value* oldVal = Builder->CreateLoad(int_ty, OperandV.second);
 		llvm::Value* newVal;
 		if (Opcode[0] == '+')
@@ -586,6 +592,12 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 		return handle(target, oldVal);
 	} else if (OperandV.first->isFloatingPointTy()) {
 		auto One = Builder->CreateUIToFP(Builder->getInt32(1), OperandV.first);
+		if (Operand->ft->type_attr & A_atomic) {
+			if (Opcode[0] == '+')
+				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::FAdd, OperandV.second, One));
+			else
+				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::FSub, OperandV.second, One));
+		}
 		llvm::Value* oldVal = Builder->CreateLoad(OperandV.first, OperandV.second);
 		llvm::Value* newVal;
 		if (Opcode[0] == '+')
