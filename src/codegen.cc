@@ -1192,6 +1192,38 @@ static llvm::Value* compare_strings(llvm::Value* L, llvm::Value* R) {
 			Volvox2CStr(L), Volvox2CStr(R) });
 }
 
+llvm::Value* BinaryExprAST::codegen_atomic_Xassign(llvm::Value* ptr, llvm::Value* val) {
+	switch (Op[0]) {
+	case '=':
+		return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Xchg, ptr, val);
+	case '+':
+		if (val->getType()->isFloatingPointTy())
+			return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::FAdd, ptr, val);
+		return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add, ptr, val);
+	case '-':
+		if (val->getType()->isFloatingPointTy())
+			return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::FSub, ptr, val);
+		return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Sub, ptr, val);
+	case '&':
+		if (Op[1] == '&') {
+			errs() << Loc << ": lazy '&&=' not possible for atomic LHS\n";
+			return nullptr;
+		}
+		return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::And, ptr, val);
+	case '|':
+		if (Op[1] == '|') {
+			errs() << Loc << ": lazy '||=' not possible for atomic LHS\n";
+			return nullptr;
+		}
+		return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Or, ptr, val);
+	case '>':
+		return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Xor, ptr, val);
+	default:
+		errs() << Loc << ": '" << Op << "' not supported for atomics\n";
+		return nullptr;
+	}
+}
+
 llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -1212,8 +1244,17 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 		ReferenceExprAST* LREF = dynamic_cast<ReferenceExprAST*>(LHS.get());
-		if (opclass != OpDeclAssign)
+		if (opclass != OpDeclAssign) {
 			Variable = LHSE->codegen_ref();
+			if (!Variable.second)
+				return nullptr;
+			if (LHSE->ft->type_attr & A_atomic) {
+				llvm::Value* rhsval = RHS->codegen();
+				if (!rhsval)
+					return nullptr;
+				return codegen_atomic_Xassign(Variable.second, rhsval);
+			}
+		}
 		if (opclass == OpModAssign) { // +=, <<=, ...
 			auto new_LHS = std::make_unique<RefExprAST>(LHS->Loc, LHS->ft, LHSE->getBase(), Variable.second, LHSE->Name);
 			char newOp[4];

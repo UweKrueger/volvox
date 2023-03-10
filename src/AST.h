@@ -689,6 +689,7 @@ public:
 				LHS->ft = RHS->ft;
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	llvm::Value* codegen_atomic_Xassign(llvm::Value* ptr, llvm::Value* val);
 	bool needs_target() override { return (opclass == OpAssign || opclass == OpModAssign) && LHS->ft && LHS->ft->type && LHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(LHS->ft->type) == 0; }
 	llvm::Value* alloc_size() override {
 		if (opclass == OpAssign || opclass == OpModAssign)
