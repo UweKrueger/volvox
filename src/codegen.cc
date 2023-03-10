@@ -280,9 +280,12 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 		return full_var->val;
 	}
 	auto V = codegen_ref();
-	if (V.first && V.second)
+	if (V.first && V.second) {
 		// Load the value.
+		if (full_var->ft.type_attr & A_atomic)
+			return handle(target, CreateAtomicLoad(V.first, V.second, Name.c_str()));
 		return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()));
+	}
 	return nullptr;
 }
 
