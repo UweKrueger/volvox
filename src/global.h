@@ -1319,7 +1319,6 @@ struct DebugInfo {
 extern DebugInfo KSDbgInfo;
 extern int builtin_input_fd;
 extern std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind = 0);
-extern bool DeclareGlobalConst(std::unique_ptr<ExprAST> expr, unsigned sym_kind);
 extern void InitializeModuleAndPassManager();
 extern bool finishFunctionOrModule(llvm::Function* F = nullptr, unsigned dumpLevel = 1,
                                    bool finishModule = true, bool newModule = true);
@@ -1347,4 +1346,8 @@ static inline llvm::StoreInst *CreateAtomicStore(llvm::Value* val, llvm::Value* 
 	auto align = TheModule->getDataLayout().getABITypeAlign(val->getType());
 	return Builder->Insert(
 		new llvm::StoreInst(val, adr, true, align, llvm::AtomicOrdering::SequentiallyConsistent));
+}
+
+static inline llvm::AtomicRMWInst* CreateAtomicRMW(llvm::AtomicRMWInst::BinOp Op, llvm::Value *Ptr, llvm::Value *Val) {
+	return Builder->CreateAtomicRMW(Op, Ptr, Val, llvm::AtomicOrdering::SequentiallyConsistent);
 }

@@ -837,7 +837,8 @@ static void MainLoop() {
 				sym_kind |= (A_mainvar | A_const);
 				break;
 			case tok_atomic:
-				sharebits = sharebits ? sharebits : A_atomic;
+				sym_kind |= A_atomic;
+				break;
 			case tok_shared:
 				sharebits = sharebits ? sharebits : A_shared;
 			case tok_unique:

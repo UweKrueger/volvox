@@ -671,38 +671,6 @@ llvm::Value* DefaultConstructorCall::codegen_raw(llvm::Value* target) {
 	return Builder->CreateCall(C, { GV.second });
 }
 
-bool DeclareGlobalConst(std::unique_ptr<ExprAST> expr, unsigned sym_kind) {
-	auto binexpr = dynamic_cast<BinaryExprAST*>(expr.get());
-	if (!binexpr) {
-		errs() << expr->Loc << ": binary expression expected\n";
-		return false;
-	}
-	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(binexpr->LHS.get());
-	if (!LHSE) {
-		errs() << LHSE->Loc << ": LHS of const declaration must be a name\n";
-		return false;
-	}
-	const std::string& unmangled_name = LHSE->getName();
-	std::string varname;
-	if (lex.module->import_path.empty()) {
-		varname = unmangled_name;
-	} else {
-		llvm::SmallString<128> buf = llvm::StringRef("_Z");
-		varname = std::string(MangleBase(buf, lex.module->import_path, unmangled_name));
-	}
-	FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
-	if (!fv) {
-		errs() << binexpr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
-		return false;
-	}
-	fv->val = nullptr;
-	fv->mangled_name = strdup(varname.c_str());
-	fv->ft = *binexpr->RHS->ft;
-	fv->ft.type_attr |= sym_kind | A_mainvar | A_global | A_const;
-	GlobalExprList.push_back(std::move(expr));
-	return true;
-}
-
 static std::string create_mangled_global(const std::string& unmangled_name) {
 	std::string varname;
 	if (lex.module->import_path.empty()) {
@@ -971,7 +939,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	fv->mangled_name = strdup(varname.c_str());
 	fv->ft = *expr->RHS->ft;
 	fv->ft.type = use_target ? expr->RHS->ft->type : type;
-	fv->ft.type_attr = sym_kind | attribs | is_union | (LREF ? A_ptrref : 0U) | A_mainvar | ((sym_kind & A_const) ? A_global : 0);
+	fv->ft.type_attr = sym_kind | attribs | is_union | (LREF ? A_ptrref : 0U) | A_mainvar | ((sym_kind & (A_const | A_atomic)) ? A_global : 0);
 	if (sym_kind & A_rvalue) {
 		if (sym_kind & A_const) {
 			if (expr->RHS->is_unknown_type && (fv->ft.type->isFloatTy() || fv->ft.type->isDoubleTy()
