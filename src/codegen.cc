@@ -1164,7 +1164,7 @@ static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* f
 	Builder->CreateCall(C, { GV });
 	Builder->CreateRetVoid();
 	finishFunctionOrModule(newConstructorCaller, 1, jit_repl);
-	auto constructor_caller_Proto = std::make_unique<PrototypeAST>(CurLoc, constructor_caller, std::vector<std::string>());
+	auto constructor_caller_Proto = std::make_unique<PrototypeAST>(CurLoc, constructor_caller, std::vector<std::string>(), A_pub);
 	last_thread_constructor_caller = constructor_caller_Proto->Name.c_str();
 	// constructor callers must be always accessible so force them into builtin namespace
 	Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;

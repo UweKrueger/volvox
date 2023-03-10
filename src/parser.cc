@@ -1604,6 +1604,8 @@ nobrace:
 			tmp_rec_type->type_attr |= A_constructor;
 		}
 	}
+	if (visibility & (A_constructor | A_destructor))
+		visibility |= A_pub;
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
 }
 
@@ -1743,7 +1745,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 	volvoxc::FullType* TheType = lex.get_full_type(have_return ? "int" : "bool");
 	auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 	                                            std::vector<std::string>(),
-	                                            A_c_api,
+	                                            A_c_api | A_pub,
 	                                            FnLoc, false, TheType);
 	std::vector<std::unique_ptr<ExprAST>> ExprList;
 	int return_val_idx = -1;
@@ -1809,6 +1811,6 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 /// external ::= 'extern' prototype
 std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
 	getNextToken(eSemi); // eat fn.
-	visibility |= A_extern;
+	visibility |= (A_extern | A_pub);
 	return ParsePrototype(visibility);
 }
