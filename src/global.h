@@ -1349,5 +1349,10 @@ static inline llvm::StoreInst *CreateAtomicStore(llvm::Value* val, llvm::Value* 
 }
 
 static inline llvm::AtomicRMWInst* CreateAtomicRMW(llvm::AtomicRMWInst::BinOp Op, llvm::Value *Ptr, llvm::Value *Val) {
+#if LLVM_VERSION_MAJOR < 13
 	return Builder->CreateAtomicRMW(Op, Ptr, Val, llvm::AtomicOrdering::SequentiallyConsistent);
+#else
+	auto align = TheModule->getDataLayout().getABITypeAlign(Val->getType());
+	return Builder->CreateAtomicRMW(Op, Ptr, Val, align, llvm::AtomicOrdering::SequentiallyConsistent);
+#endif
 }
