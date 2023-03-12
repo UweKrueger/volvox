@@ -67,6 +67,7 @@ cdecl fn pthread_mutex_timedlock(&m mutex, &abs_timeout time.timespec) int
 cdecl fn pthread_mutex_lock(&m mutex) int
 cdecl fn pthread_mutex_trylock(&m mutex) int
 cdecl fn pthread_mutex_consistent(&m mutex) int
+cdecl fn GetLastError() u32
 
 const EOWNERDEAD ::= if os.isFreeBSD
 		96
@@ -80,6 +81,8 @@ const EOWNERDEAD ::= if os.isFreeBSD
 pub inline fn mutex.lock int
 	if os.isWindows
 		res := WaitForSingleObjectEx(this.size_t, u32(-1), true)
+		if res != 0
+			res = GetLastError() .
 	else
 		res := pthread_mutex_lock(this) .
 	if res == 0
@@ -94,8 +97,39 @@ pub inline fn mutex.lock int
 cdecl fn ReleaseMutex(m size_t) bool
 cdecl fn pthread_mutex_unlock(&m mutex) int
 
+const ETIMEDOUT ::= if os.isWindows
+		0x00000102 # WAIT_TIMEOUT
+	elif os.isLinux
+		110
+	else
+		60 .
+
+const EPERM ::= if os.isWindows
+		288 # ERROR_NOT_OWNER
+	else
+		1 .
+
+const EBUSY ::= 16
+
 pub inline fn mutex.unlock int
 	if os.isWindows
+		if arch.isREPL
+			res := WaitForSingleObjectEx(this.size_t, 0, false)
+			if res == 0
+				ReleaseMutex(this.size_t)
+				return EPERM .
+			res = GetLastError()
+			if res != ETIMEDOUT && res != EOWNERDEAD
+				return res . .
 		return int(!ReleaseMutex(this.size_t))
 	else
+		if arch.isREPL && (os.isLinux || os.isFreeBSD)
+			res := pthread_mutex_trylock(this)
+			if res == 0
+				pthread_mutex_unlock(this)
+				return EPERM .
+			if res != EBUSY && res != EOWNERDEAD
+				return res .
+			if res == EOWNERDEAD
+				pthread_mutex_consistent(this) . .
 		return pthread_mutex_unlock(this)
