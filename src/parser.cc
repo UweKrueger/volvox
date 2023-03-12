@@ -869,7 +869,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			getNextToken();
 	} else if (Then.second == tok_return) {
 		if (CurTok.kind == tok_end) {
-			getNextToken();
 			have_else = false;
 		} else {
 			getNextToken();
@@ -1371,7 +1370,7 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	if (kind == tok_return || kind == tok_else || kind == tok_elif || kind == tok_end || kind == tok_until) {
 		if (kind == tok_return) {
 			getNextToken(eSemi);
-			if (CurTok.kind == ';') 
+			if (CurTok.kind == ';' || CurTok.kind == tok_end) 
 				return { nullptr, kind };
 			else
 				return { ParseExpression(), kind };
