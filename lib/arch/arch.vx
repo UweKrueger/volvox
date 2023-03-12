@@ -1,8 +1,11 @@
 # constants describing the platform the program is running on
 
-# true: we are running inside JIT engine - false: native code compile
+# true: we are running inside just-in-time engine - false: native code compile
 #
 pub const isJIT ::= __LLVM_JIT
+
+# interactive read-evaluate-print-loop
+pub const isREPL ::= __LLVM_REPL
 
 # size in bits for pointers and size_t
 #
