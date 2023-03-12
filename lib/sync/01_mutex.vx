@@ -1,0 +1,62 @@
+import arch
+import arch.os
+
+const __MUTEX_ATTR_SIZE ::= if os.isLinux
+		4
+	else
+		arch.bitwidth >> 3 .
+
+type mutex_attr union {
+	voidptr
+	size_t
+	bytes [__MUTEX_ATTR_SIZE]u8
+}
+
+cdecl fn pthread_mutexattr_init(&attr mutex_attr) int
+cdecl fn pthread_mutexattr_destroy(&attr mutex_attr) int
+cdecl fn pthread_mutexattr_setrobust(&attr mutex_attr, robustness int) int
+
+fn get_robust_mutex_attr mutex_attr
+	m := mutex_attr{}
+	if !os.isWindows
+		pthread_mutexattr_init(m)
+		if os.isLinux || os.isFreeBSD
+			pthread_mutexattr_setrobust(m, 1) . .
+	return m
+
+const default_mutex_attr := get_robust_mutex_attr
+
+const __MUTEX_SIZE ::= if os.isLinux
+		if arch.bitwidth == 64
+			40
+		else
+			32 .
+	else
+		arch.bitwidth >> 3 .
+
+type mutex
+
+cdecl fn CreateMutexA(lpMutexAttributes voidptr, bInitialOwner bool, lpName cstring) size_t
+cdecl fn CloseHandle(size_t) bool
+cdecl fn pthread_mutex_init(&m mutex, &attr mutex_attr) int
+cdecl fn pthread_mutex_destroy(&m mutex) int
+
+type mutex union {
+	voidptr
+	size_t
+	bytes [__MUTEX_SIZE]u8
+}
+
+pub fn mutex
+	if os.isWindows
+		this.size_t = CreateMutexA(voidptr(0), false, cstring(0))
+	else
+		pthread_mutex_init(this, default_mutex_attr) .
+	return
+
+pub fn ~mutex
+	if os.isWindows
+		CloseHandle(this.size_t)
+	else
+		pthread_mutex_destroy(this) .
+	return
