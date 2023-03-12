@@ -1,5 +1,6 @@
 import arch
 import arch.os
+import time
 
 const __MUTEX_ATTR_SIZE ::= if os.isLinux
 		4
@@ -60,3 +61,41 @@ pub fn ~mutex
 	else
 		pthread_mutex_destroy(this) .
 	return
+
+cdecl fn WaitForSingleObjectEx(hHandle size_t, dwMilliseconds u32, bAlertable bool) u32
+cdecl fn pthread_mutex_timedlock(&m mutex, &abs_timeout time.timespec) int
+cdecl fn pthread_mutex_lock(&m mutex) int
+cdecl fn pthread_mutex_trylock(&m mutex) int
+cdecl fn pthread_mutex_consistent(&m mutex) int
+
+const EOWNERDEAD ::= if os.isFreeBSD
+		96
+	elif os.isLinux
+		130
+	elif os.isWindows
+		0x00000080 # WAIT_ABANDONED
+	else
+		0 . # other OSs do not support robust mutexes :-(
+
+pub inline fn mutex.lock int
+	if os.isWindows
+		res := WaitForSingleObjectEx(this.size_t, u32(-1), true)
+	else
+		res := pthread_mutex_lock(this) .
+	if res == 0
+		return 0
+	if os.isLinux || os.isFreeBSD || os.isWindows
+		if res == EOWNERDEAD
+			if !os.isWindows
+				pthread_mutex_consistent(this) .
+			return 0 .
+	return res
+
+cdecl fn ReleaseMutex(m size_t) bool
+cdecl fn pthread_mutex_unlock(&m mutex) int
+
+pub inline fn mutex.unlock int
+	if os.isWindows
+		return int(!ReleaseMutex(this.size_t))
+	else
+		return pthread_mutex_unlock(this)
