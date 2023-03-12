@@ -88,7 +88,7 @@ pub inline fn mutex.lock int
 		if res == EOWNERDEAD
 			if !os.isWindows
 				pthread_mutex_consistent(this) .
-			return 0 .
+			return 0 . .
 	return res
 
 cdecl fn ReleaseMutex(m size_t) bool

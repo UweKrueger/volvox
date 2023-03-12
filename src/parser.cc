@@ -869,6 +869,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			getNextToken();
 	} else if (Then.second == tok_return) {
 		if (CurTok.kind == tok_end) {
+			getNextToken();
 			have_else = false;
 		} else {
 			getNextToken();
