@@ -82,11 +82,27 @@ pub inline fn mutex.lock int
 	if os.isWindows
 		res := WaitForSingleObjectEx(this.size_t, u32(-1), true)
 		if res != 0
-			res = GetLastError() .
+			res = GetLastError()
+			if res == EOWNERDEAD
+				res = 0 . .
 	else
 		res := pthread_mutex_lock(this) .
-	if res == 0
-		return 0
+	if os.isLinux || os.isFreeBSD || os.isWindows
+		if res == EOWNERDEAD
+			if !os.isWindows
+				pthread_mutex_consistent(this) .
+			return 0 . .
+	return res
+
+pub inline fn mutex.trylock int
+	if os.isWindows
+		res := WaitForSingleObjectEx(this.size_t, 0, true)
+		if res != 0
+			res = GetLastError()
+			if res == EOWNERDEAD
+				res = 0 . .
+	else
+		res := pthread_mutex_trylock(this) .
 	if os.isLinux || os.isFreeBSD || os.isWindows
 		if res == EOWNERDEAD
 			if !os.isWindows
@@ -114,7 +130,7 @@ const EBUSY ::= 16
 pub inline fn mutex.unlock int
 	if os.isWindows
 		if arch.isREPL
-			res := WaitForSingleObjectEx(this.size_t, 0, false)
+			res := WaitForSingleObjectEx(this.size_t, 0, true)
 			if res == 0
 				ReleaseMutex(this.size_t)
 				return EPERM .
