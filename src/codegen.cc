@@ -1034,13 +1034,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			// interactive JIT mode - immediately call constructor from setter function
 			Builder->CreateCall(C, { GV });
 		}
-		if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test) {
+		if (jit_extra_thread && (sym_kind & A_global)) {
 			auto V = GetShadowHandle(initializer, varname);
 			auto Vval = Builder->CreateLoad(initializer->getType(), GV);
 			Builder->CreateStore(Vval, V);
 		}
 		InsertDestructors(expr_temps);
-		if (last_shadow_saver && comp_mode == comp_jit && !do_test) {
+		if (jit_extra_thread && last_shadow_saver) {
 			auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 			auto last_saver = getFunction(last_saver_proto);
 			Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>());
@@ -1059,7 +1059,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// by the resource tracker
 		if (initializer && needs_call)
 			GV = CreateGlobal(initializer, varname, sym_kind);
-		if (comp_mode == comp_jit && (sym_kind & A_global) && needs_call && !do_test)
+		if (jit_extra_thread && (sym_kind & A_global) && needs_call)
 			shadow_already_created = CreateShadow(initializer, varname);
 		finishFunctionOrModule();
 		// Search the JIT for the <setter_name> symbol.
@@ -1088,7 +1088,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	if (needs_constructor && (sym_kind & A_global))
 		RegisterThreadConstructor(varname, &fv->ft, sym_kind);
-	if (comp_mode == comp_jit && (sym_kind & A_global) && !do_test)
+	if (jit_extra_thread && (sym_kind & A_global))
 		RegisterShadowHandlers(initializer, varname, shadow_already_created);
 	return nullptr;
 }
@@ -2565,7 +2565,11 @@ void CallGlobalDestructorsJIT() {
 	InitializeModuleAndPassManager();
 	auto ExprSymbol = ExitOnErr(TheJIT->lookup(destr_name));
 	bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
-	bool b = spawn_bool_expr(BOOL);
+	bool b;
+	if (jit_extra_thread)
+		b = spawn_bool_expr(BOOL);
+	else
+		b = BOOL();
 	ExitOnErr(RT->remove());
 }
 

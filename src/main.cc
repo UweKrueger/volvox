@@ -636,10 +636,16 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				// arguments, returns a bool) so we can call it as a native function.
 				if (have_return) {
 					int (*INT)() = (int (*)())(intptr_t)ExprSymbol.getAddress();
-					return_value = spawn_int_expr(INT);
+					if (jit_extra_thread)
+						return_value = spawn_int_expr(INT);
+					else
+						return_value = INT();
 				} else {
 					bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
-					b = spawn_bool_expr(BOOL);
+					if (jit_extra_thread)
+						b = spawn_bool_expr(BOOL);
+					else
+						b = BOOL();
 				}
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
@@ -1036,6 +1042,7 @@ unsigned dump_IR = 0;
 bool do_test = false;
 bool do_repl_test = false;
 bool jit_repl = false;
+bool jit_extra_thread = false;
 bool gen_pic = false;
 bool run_program = false;
 promptcolor_t p_col = { 30, 100, 236 };
@@ -1360,6 +1367,19 @@ int main(int argc, char* argv[]) {
 			jit_repl = true;
 		}
 	}
+#if defined(__linux__) || defined(_WIN32) || defined(__FreeBSD__)
+	if (jit_repl)
+		// We have robust mutexes on these 3 OSs so each top level expression can be
+		// run in a newly spawned thread in interactive JIT mode.
+		// This allows better error recovery:
+		// When a signal is raise()d the signal handler can terminate the thread
+		// and mutexes held by that thread can be made consistent the next time they are
+		// locked.
+		// Other OSs (OpenBSD, NetBSD, DragonflyBSD, MacOSX, ...) always run top level
+		// expessions in the main thread. Unfortunately, this means that signaling errors
+		// may lead to dead locks or complete termination of the interpreter.
+		jit_extra_thread = true;
+#endif
 	if (!link_mode) {
 		if (comp_mode == comp_jit)
 			link_mode = dont_link;
@@ -1621,7 +1641,11 @@ int main(int argc, char* argv[]) {
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
 				bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
-				bool ret = spawn_bool_expr(BOOL);
+				bool ret;
+				if (jit_extra_thread)
+					ret = spawn_bool_expr(BOOL);
+				else
+					ret = BOOL();
 				if (ret)
 					errs() << "All test cases passed\n";
 				else
