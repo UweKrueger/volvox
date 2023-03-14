@@ -10,23 +10,26 @@ type Duration {
 	i64
 }
 
+pub inline fn Duration.timespec timespec
+	return timespec{
+		sec: ssize_t(this.i64 / 10000000)
+		nsec: 100 * ssize_t(this.i64 % 10000000)
+	}
+
 pub fn sleep(t Duration)
 	if t.i64 <= 0
 		return
 	if os.isWindows
 		Sleep(u32(t.i64 / 10000))
 	else
-		ts := timespec{
-			sec: ssize_t(t.i64 / 10000000)
-			nsec: 100 * ssize_t(t.i64 % 10000000)
-		}
-		trem := timespec{}
+		ts := t.timespec
+		t_remaining := timespec{}
 		sw := false
 		repeat
 			if sw
-				res := clock_nanosleep(CLOCK_MONOTONIC, 0, trem, ts)
+				res := clock_nanosleep(CLOCK_MONOTONIC, 0, t_remaining, ts)
 			else
-				res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, trem) .
+				res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, t_remaining) .
 			sw = !sw
 		until res != EINTR .
 	return

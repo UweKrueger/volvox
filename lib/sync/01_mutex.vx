@@ -76,7 +76,7 @@ const EOWNERDEAD ::= if os.isFreeBSD
 	elif os.isWindows
 		0x00000080 # WAIT_ABANDONED
 	else
-		0 . # other OSs do not support robust mutexes :-(
+		-1 . # other OSs do not support robust mutexes :-(
 
 pub inline fn mutex.lock int
 	if os.isWindows
@@ -110,6 +110,23 @@ pub inline fn mutex.trylock int
 			return 0 . .
 	return res
 
+pub inline fn mutex.timedlock(timeout time.Duration) int
+	if os.isWindows
+		res := WaitForSingleObjectEx(this.size_t, u32(timeout / 10000), true)
+		if res != 0
+			res = GetLastError()
+			if res == EOWNERDEAD
+				res = 0 . .
+	else
+		ts := timeout.timespec
+		res := pthread_mutex_timedlock(this, ts) .
+	if os.isLinux || os.isFreeBSD || os.isWindows
+		if res == EOWNERDEAD
+			if !os.isWindows
+				pthread_mutex_consistent(this) .
+			return 0 . .
+	return res
+
 cdecl fn ReleaseMutex(m size_t) bool
 cdecl fn pthread_mutex_unlock(&m mutex) int
 
@@ -127,6 +144,10 @@ const EPERM ::= if os.isWindows
 
 const EBUSY ::= 16
 
+# In non-REPL case 'mutex.unlock()' is a simple inline wrapper for the OSs function.
+# In the REPL case a new thread is created for each top level expression so there is always
+# the "owner dead" case and we have to make things consistent first.
+#
 pub inline fn mutex.unlock int
 	if os.isWindows
 		if arch.isREPL
