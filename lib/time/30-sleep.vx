@@ -1,5 +1,6 @@
 
 cdecl fn Sleep(ms u32)
+cdecl fn nanosleep(&rqtp timespec, &rmtp timespec) int
 cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
 
 const EINTR ::= 4
@@ -27,10 +28,16 @@ pub fn sleep(t Duration)
 		sw := false
 		repeat
 			if sw
-				res := clock_nanosleep(CLOCK_MONOTONIC, 0, t_remaining, ts)
+				if os.isOpenBSD
+					res := nanosleep(t_remaining, ts)
+				else
+					res := clock_nanosleep(CLOCK_MONOTONIC, 0, t_remaining, ts)
 			else
-				res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, t_remaining) .
-			sw = !sw
+				if os.isOpenBSD
+					res := nanosleep(ts, t_remaining)
+				else
+					res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, t_remaining) .
+				sw = !sw
 		until res != EINTR .
 	return
 
