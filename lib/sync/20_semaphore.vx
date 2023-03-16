@@ -1,0 +1,23 @@
+cdecl fn eventfd(initval u32, flags int) int
+cdecl fn write(fd int, buf cstring, count size_t) ssize_t
+cdecl fn read(fd int, buf cstring, count size_t) ssize_t
+cdecl fn semget(key ssize_t, nsems int, semflg int) int
+cdecl fn CreateSemaphoreA(lpSemaphoreAttributes voidptr, lInitialCount int, lMaximumCount int, lpName cstring) size_t
+
+from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT
+
+type Semaphore {
+	handle ssize_t
+	err int
+}
+
+pub fn semaphore Semaphore
+	sem := Semaphore{}
+	if os.isWindows
+		sem.handle = ssize_t(CreateSemaphoreA(voidptr(0), 0, 1000, cstring(0)))
+	elif os.isLinux || os.isFreeBSD || os.isNetBSD
+		sem.handle = eventfd(0, CLOEXEC | NONBLOCK | SEMAPHORE)
+	else
+		sem.handle = semget(PRIVATE, 1, 0x1ff | CREAT) .
+	return sem
+

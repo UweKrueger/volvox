@@ -25,3 +25,15 @@ pub const CLOEXEC ::= if os.isLinux
 	else
 		0 .
 pub const NOINHERIT ::= CLOEXEC # flag's Windows name as alias
+pub const NONBLOCK ::= if os.isLinux
+		0x0800
+	else
+		0x0004 .
+
+# for eventfd (only supported by Linux, FreeBSD and NetBSD)
+pub const SEMAPHORE ::= if os.isNetBSD
+		2
+	else
+		1 .
+
+pub const PRIVATE ::= 0
