@@ -71,3 +71,17 @@ pub fn semaphore(init_val int, desired_max int) Semaphore
 			return sem .
 		sem._step_or_max = SEMVMX / desired_max .
 	return sem
+
+pub inline fn Semaphore.is_selectable bool
+	if os.isLinux || os.isFreeBSD || os.isNetBSD
+		return this._step_or_max == 0
+	else
+		return false
+
+pub inline fn Semaphore.max_value int
+	if os.isWindows
+		return this._step_or_max
+	elif this._step_or_max == 0
+		return 0
+	else
+		return SEMVMX / this._step_or_max
