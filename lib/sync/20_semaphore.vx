@@ -15,76 +15,59 @@ import limits
 cdecl fn eventfd(initval u32, flags int) int
 cdecl fn write(fd int, buf cstring, count size_t) ssize_t
 cdecl fn read(fd int, buf cstring, count size_t) ssize_t
-# !!! is 'long' on most systems but 'int' on Linux - but since we use eventfd on Linux semget() is not used
-cdecl fn semget(key ssize_t, nsems int, semflg int) int
+# key is 'long' on most systems but 'int' on Linux - so declare 32 and 64 bit versions here and decide later
+cdecl fn semget(key i32, nsems int, semflg u32) int
+cdecl fn semget(key i64, nsems int, semflg u32) int
 cdecl fn CreateSemaphoreA(lpSemaphoreAttributes voidptr, lInitialCount int, lMaximumCount int, lpName cstring) size_t
 
 from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT
 
-const SEMVMX ::= if os.isLinux || os.isFreeBSD || os.isNetBSD
-		0xfffffffffffffffe # eventfd() max value
-	elif os.isWindows
+const SEMVMX ::= if os.isWindows
 		limits.max_int # Windows allows setting max value separately for each semaphore
 	else
-		32767 . # System V semaphores - usually fixed (FreeBSD: kern.ipc.semvmx, but we use eventfd)
+		32767 . # System V semaphores - usually fixed (FreeBSD: kern.ipc.semvmx)
 
 # Use union of different representations to make Semaphore type at most 16 bytes in size
 
-type SemaphoreEventfd {
-	err int
-	handle int
-	_step u64
-}
-
-type SemaphoreSystemV {
-	err int
-	_step int
+type Semaphore {
 	handle ssize_t
-}
-
-type SemaphoreWindows {
 	err int
-	maxval int
-	handle size_t
+	_step_or_max int
 }
-
-type Semaphore union {
-	 SemaphoreEventfd
-	 SemaphoreSystemV
-	 SemaphoreWindows
-}
-
-pub inline fn Semaphore.err(e int) int
-	if os.isLinux || os.isFreeBSD || os.isNetBSD
-		return this.SemaphoreEventfd.err = e
-	elif os.isWindows
-		return this.SemaphoreWindows.err = e
-	else
-		return this.SemaphoreSystemV.err = e
-
-pub inline fn Semaphore.err int
-	if os.isWindows
-		return this.SemaphoreWindows.err
-	elif os.isLinux || os.isFreeBSD || os.isNetBSD
-		return this.SemaphoreEventfd.err
-	else
-		return this.SemaphoreSystemV.err
 
 pub const EINVAL ::= if os.isWindows
 		87 # ERROR_INVALID_PARAMETER
 	else
 		22 .
 
-pub fn semaphore(init int, max int) Semaphore
+cdecl fn GetLastError() u32
+
+pub fn semaphore(init_val int, desired_max int) Semaphore
 	sem := Semaphore{}
-	if max > SEMVMX || init > max
+	if desired_max > SEMVMX || desired_max != 0 && init_val > desired_max
 		sem.err = EINVAL
 		return sem .
 	if os.isWindows
-		sem.SemaphoreWindows.handle = CreateSemaphoreA(voidptr(0), 0, 1000, cstring(0))
-	elif os.isLinux || os.isFreeBSD || os.isNetBSD
-		sem.SemaphoreEventfd.handle = eventfd(0, CLOEXEC | NONBLOCK | SEMAPHORE)
+		sem.handle = ssize_t(CreateSemaphoreA(voidptr(0), init_val, desired_max, cstring(0)))
+		if sem.handle == 0
+			sem.err = GetLastError()
+			return sem .
+		sem._step_or_max = desired_max
 	else
-		sem.SemaphoreSystemV.handle = semget(PRIVATE, 1, 0x1ff | CREAT) .
+		if desired_max == 0
+			if os.isLinux || os.isFreeBSD || os.isNetBSD
+				sem.handle = eventfd(0, CLOEXEC | NONBLOCK | SEMAPHORE)
+				if sem.handle < 0
+					sem.err = GetLastError() .
+				return sem
+			else
+				desired_max = SEMVMX . .
+		if os.isLinux
+			sem.handle = semget(i32(PRIVATE), 1, 0x1ff | CREAT)
+		else
+			sem.handle = semget(size_t(PRIVATE), 1, 0x1ff | CREAT) .
+		if sem.handle < 0
+			sem.err = GetLastError()
+			return sem .
+		sem._step_or_max = SEMVMX / desired_max .
 	return sem
-
