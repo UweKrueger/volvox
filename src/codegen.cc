@@ -1793,9 +1793,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				RHSBB = Builder->GetInsertBlock();
 				Builder->SetInsertPoint(enterBB);
 				if (Op[0] == '&')
-					Builder->CreateCondBr(L, RHSBB, ContBB);
+					Builder->CreateCondBr(L, RHSBBstart, ContBB);
 				else
-					Builder->CreateCondBr(L, ContBB, RHSBB);
+					Builder->CreateCondBr(L, ContBB, RHSBBstart);
 				TheFunction->getBasicBlockList().push_back(ContBB);
 				Builder->SetInsertPoint(ContBB);
 				auto PN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "merged_lazy");
