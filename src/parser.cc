@@ -886,7 +886,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			return nullptr;
 		}
 		locals_table.emplace_back();
-		if (Then.second == tok_elif) {
+		if (CurTok.kind == tok_elif) {
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
 			if (!elifif_expr) {
