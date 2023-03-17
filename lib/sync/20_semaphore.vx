@@ -72,6 +72,12 @@ pub fn semaphore(init_val int, desired_max int) Semaphore
 		sem._step_or_max = u32(SEMVMX) / u32(desired_max) .
 	return sem
 
+pub fn semaphore(desired_max int) Semaphore
+	return semaphore(0, desired_max)
+
+pub fn semaphore Semaphore
+	return semaphore(0, 0)
+
 pub inline fn Semaphore.is_selectable bool
 	if os.isLinux || os.isFreeBSD || os.isNetBSD
 		return this._step_or_max == 0
@@ -129,10 +135,12 @@ pub fn Semaphore.post(n int) bool
 		success := write(int(this.handle), &add, sizeof(add)) == sizeof(add) .
 	if !success
 		err := GetLastError()
-		printf("error %d\n", err)
 		if err != ERANGE
 			this.err = err . .
 	return success
+
+pub inline fn Semaphore.post bool
+	return this.post(1)
 
 type pollfd {
 	fd int
@@ -157,18 +165,27 @@ pub fn Semaphore.wait bool
 			success := semop(i32(this.handle), bufelem, 1) == 0
 		else
 			success := semop(size_t(this.handle), bufelem, 1) == 0
+		if !success
+			this.err = GetLastError() .
 	else
 		get := u64(0)
 		pfd := pollfd{
 			fd: int(this.handle)
 			events: POLLIN
 		}
+		err := 0u32
 		repeat
 			if os.isLinux
-				res := ppoll(pfd, size_t(1), nil, voidptr(0))
+				res := ppoll(pfd, size_t(1), nil, nil)
 			else
-				res := ppoll(pfd, u32(1), nil, voidptr(0)) .
-			success := read(int(this.handle), &get, sizeof(get)) == sizeof(get)
+				res := ppoll(pfd, u32(1), nil, nil) .
+			if res < 0
+				this.err = GetLastError()
+				return false .
+			if pfd.revents & POLLIN
+				success := read(int(this.handle), &get, sizeof(get)) == sizeof(get)
+			else
+				success := false .
 		until success .
 	return success
 
