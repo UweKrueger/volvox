@@ -161,6 +161,10 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 						conv = nullptr;
 						arg_matches_exactly = false;
 					}
+				} else if (fnargs[i].argtype && fnargs[i].argtype->isPointerTy() && !(fnargs[i].argtype_attr & A_string)
+				           && (proto->ArgTypes[i]->type_attr & A_optional)) {
+					conv = nullptr;
+					arg_matches_exactly = true;
 				} else {
 					if (fnargs[i].is_anonymous_list && (proto->ArgTypes[i]->type->isStructTy() || proto->ArgTypes[i]->type->isArrayTy()))
 						conv = NoConversion;
@@ -959,29 +963,38 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 							arg = Builder->CreatePointerCast(argref.second, argref.first->getPointerTo());
 					}
 					if (!arg) {
-						arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
-						//errs() << Loc << ": arg #" << i << " " << *arg << '\n';
-						auto tmparg = Args[i]->codegen_raw();
-						if (!tmparg) {
-							errs() << Args[i]->Loc << ": cannot generate code for2 expression\n";
-							return nullptr;
-						}
-						// The following sections are ugly hacks to circumvent bugs in
-						// over aggressive optimizers. In particular a storage space might be
-						// optimized away even if a pointer (or a pointer to a pointer) to this
-						// space is passed to a called function - however, 'volatile' storage can help.
-						// Not all LLVM versions and backends have these bugs and they depend
-						// on optimization levels. This should be taken into account to avoid
-						// unnecessary performance impacts
-						bool store_volatile = false;
+						auto lit = dynamic_cast<LiteralExprAST*>(Args[i].get());
+						if (lit && lit->ft->type->isPointerTy()) {
+							llvm::Type* target_type =
+								(Proto->ArgTypes[i+arg_offs]->type_attr & A_ref) ?
+								Proto->ArgTypes[i+arg_offs]->type->getPointerTo() :
+								Proto->ArgTypes[i+arg_offs]->type;
+							arg = Builder->CreatePointerCast(Args[i]->codegen_raw(), target_type);
+						} else {
+							arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
+							//errs() << Loc << ": arg #" << i << " " << *arg << '\n';
+							auto tmparg = Args[i]->codegen_raw();
+							if (!tmparg) {
+								errs() << Args[i]->Loc << ": cannot generate code for2 expression\n";
+								return nullptr;
+							}
+							// The following sections are ugly hacks to circumvent bugs in
+							// over aggressive optimizers. In particular a storage space might be
+							// optimized away even if a pointer (or a pointer to a pointer) to this
+							// space is passed to a called function - however, 'volatile' storage can help.
+							// Not all LLVM versions and backends have these bugs and they depend
+							// on optimization levels. This should be taken into account to avoid
+							// unnecessary performance impacts
+							bool store_volatile = false;
 #ifndef LEGACY_PASS_MANAGER
-						if (jit_repl && optimization_level != llvm::OptimizationLevel::O0
-						    && optimization_level != llvm::OptimizationLevel::O1)
-							// the new optimizer tends to optimize this store away in -O2 and higher
-							// (probably a bug in LLVM) we can work around this by making this store volatile
-							store_volatile = true;
+							if (jit_repl && optimization_level != llvm::OptimizationLevel::O0
+							    && optimization_level != llvm::OptimizationLevel::O1)
+								// the new optimizer tends to optimize this store away in -O2 and higher
+								// (probably a bug in LLVM) we can work around this by making this store volatile
+								store_volatile = true;
 #endif
-						Builder->CreateStore(tmparg, arg, store_volatile);
+							Builder->CreateStore(tmparg, arg, store_volatile);
+						}
 					}
 #if LLVM_VERSION_MAJOR < 14 || defined(__aarch64__)
 					if (

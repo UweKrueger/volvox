@@ -140,8 +140,8 @@ type pollfd {
 	revents i16
 }
 
-cdecl fn ppoll(&fds pollfd, nfds u32, timeout voidptr, sigmask voidptr) int
-cdecl fn ppoll(&fds pollfd, nfds u64, timeout voidptr, sigmask voidptr) int
+cdecl fn ppoll(&fds pollfd, nfds u32, ?timeout time.timespec, sigmask voidptr) int
+cdecl fn ppoll(&fds pollfd, nfds u64, ?timeout time.timespec, sigmask voidptr) int
 cdecl fn read(fd int, buf voidptr, count size_t) ssize_t
 
 pub fn Semaphore.wait bool
