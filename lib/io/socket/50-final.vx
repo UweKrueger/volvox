@@ -12,7 +12,7 @@ inline fn do_bind(handle ssize_t, &saddr sockaddr_any, size u32) Socket
 		res := win_bind(u64(s.handle), saddr.sockaddr, size)
 		if res != 0
 			s.handle = -1
-			s.err = WSAGetLastError .
+			s.err = u32(WSAGetLastError) .
 	else
 		res := bind(int(s.handle), saddr.sockaddr, size)
 		if res != 0

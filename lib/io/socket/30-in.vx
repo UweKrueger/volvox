@@ -1,6 +1,6 @@
 type IpSocket {
 	handle ssize_t
-	err int
+	err u32
 }
 
 import arch
@@ -34,7 +34,7 @@ pub inline fn tcp IpSocket
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = WSAGetLastError .
+			s.err = u32(WSAGetLastError()) .
 	else
 		s.handle = socket(AF_INET, SOCK_STREAM, 0) .
 		if s.handle == -1
@@ -46,7 +46,7 @@ pub inline fn udp IpSocket
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_DGRAM, 0)
 		if s.handle == -1
-			s.err = WSAGetLastError .
+			s.err = u32(WSAGetLastError) .
 	else
 		s.handle = socket(AF_INET, SOCK_DGRAM, 0) .
 		if s.handle == -1

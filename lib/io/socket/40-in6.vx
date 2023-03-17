@@ -1,6 +1,6 @@
 type Ip6Socket {
 	handle ssize_t
-	err int
+	err u32
 }
 
 type in6_addr union {
@@ -22,7 +22,7 @@ pub inline fn tcp6 Ip6Socket
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = WSAGetLastError .
+			s.err = u32(WSAGetLastError) .
 	else
 		s.handle = socket(AF_INET6, SOCK_STREAM, 0) .
 		if s.handle == -1
@@ -34,7 +34,7 @@ pub inline fn udp6 Ip6Socket
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_DGRAM, 0)
 		if s.handle == -1
-			s.err = WSAGetLastError .
+			s.err = u32(WSAGetLastError) .
 	else
 		s.handle = socket(AF_INET6, SOCK_DGRAM, 0) .
 		if s.handle == -1

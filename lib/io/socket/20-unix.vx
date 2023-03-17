@@ -1,7 +1,7 @@
 
 type UnixSocket union {
 	handle ssize_t
-	err int
+	err u32
 }
 
 pub const UNIX_PATH_MAX	::= if os.isWindows || os.isLinux
@@ -21,7 +21,7 @@ pub inline fn unix UnixSocket
 	if os.isWindows
 		s.handle = win_socket(AF_UNIX, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = WSAGetLastError .
+			s.err = u32(WSAGetLastError()) .
 	else
 		s.handle = socket(AF_UNIX, SOCK_STREAM, 0) .
 		if s.handle == -1

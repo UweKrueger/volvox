@@ -5,7 +5,7 @@ from .. import Fd
 
 type Socket {
 	handle ssize_t
-	err int
+	err u32
 }
 
 type sockaddr {
