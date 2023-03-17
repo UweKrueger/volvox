@@ -154,9 +154,9 @@ pub fn Semaphore.wait bool
 			sem_op: -i16(this._step_or_max)
 		}
 		if os.isLinux
-			success := semop(i32(this.handle), bufelem, size_t(1)) == 0
+			success := semop(i32(this.handle), bufelem, 1) == 0
 		else
-			success := semop(size_t(this.handle), bufelem, size_t(1)) == 0
+			success := semop(size_t(this.handle), bufelem, 1) == 0
 	else
 		get := u64(0)
 		pfd := pollfd{

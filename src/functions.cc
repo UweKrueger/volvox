@@ -110,9 +110,9 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	int candidate = -1;
 	// there are 3 classes of match for a function signature:
 	// 1. exact match - all arguments match without conversion (with the default type for untyped parameters)
-	// 2. all arguments match with automatic conversions when the default type for untyped is used
-	// 3. all arguments match with automatic conversions that include those that are only allowed due to
-	//    relaxed constraints for untyped arguments
+	// 2. match with no conversions except for untyped parameters
+	// 3. all arguments match with automatic conversions
+	//
 	// a prototype is selected if either there is a canditate of class 1 (should never be more) or there is
 	// exactly one candidate of class 2 or there is exactly one candidate of class 3
 	//
@@ -180,25 +180,33 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 						convs2[i] = nullptr;
 					if (!cands3)
 						convs3[i] = nullptr;
-				} else if (conv || (proto->ArgTypes[i]->type->isStructTy() || proto->ArgTypes[i]->type->isArrayTy()) && fnargs[i].is_anonymous_list) {
+				} else if (fnargs[i].arg_unknown_type) {
 					exact = false;
-					if (!cands2)
-						convs2[i] = conv;
-					if (!cands3)
-						convs3[i] = conv;
-				} else {
-					exact = with_conv = false;
-					if (fnargs[i].arg_unknown_type) {
+					if (conv) {
+						if (!cands2)
+							convs2[i] = conv;
+						if (!cands3)
+							convs3[i] = conv;
+					} else {
 						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
 						               fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
 						               false, true, nullptr);
 						if (conv) {
+							if (!cands2)
+								convs2[i] = conv;
 							if (!cands3)
 								convs3[i] = conv;
-							continue; // with i, i.e. next argument
+						} else {
+							with_conv = with_undefconv = false;
+							break;
 						}
 					}
-					with_undefconv = false;
+				} else if (conv || (proto->ArgTypes[i]->type->isStructTy() || proto->ArgTypes[i]->type->isArrayTy()) && fnargs[i].is_anonymous_list) {
+					exact = with_undefconv = false;
+					if (!cands3)
+						convs3[i] = conv;
+				} else {
+					exact = with_conv = with_undefconv = false;
 					break; // no match - continue with next prototype
 				}
 			}
@@ -206,9 +214,9 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		if (exact) {
 			selected_idx = i_proto; // we are done - this is the best (the only exact) match
 			goto check_selected_proto;
-		} else if (with_conv) {
-			candidates_2[cands2++] = i_proto;
 		} else if (with_undefconv) {
+			candidates_2[cands2++] = i_proto;
+		} else if (with_conv) {
 			candidates_3[cands3++] = i_proto;
 		}
 		i_proto++;
