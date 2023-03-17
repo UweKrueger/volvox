@@ -94,7 +94,7 @@ type sembuf {
 	sem_flg u32
 }
 
-cdecl fn semop(semid i64, &sops sembuf, nsops size_t)
+cdecl fn semop(semid i64, &sops sembuf, nsops size_t) int
 cdecl fn semop(semid i32, &sops sembuf, nsops size_t) int
 cdecl fn write(fd int, buf voidptr, count size_t) ssize_t
 
@@ -118,8 +118,10 @@ pub inline fn Semaphore.post(n int) bool
 		if os.isLinux
 			res2 := semop(i32(this.handle), bufelem, size_t(1))
 		else
-			res2 := semop(i32(this.handle), bufelem, size_t(1)) .
-		return res2 != 0
+			res2 := semop(size_t(this.handle), bufelem, size_t(1)) .
+		if res2 != 0
+			printf("error %d\n", GetLastError()) .
+		return res2 == 0
 	else
 		add := u64(n)
 		res3 := write(int(this.handle), &add, sizeof(add))
