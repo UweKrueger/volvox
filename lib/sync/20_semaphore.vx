@@ -20,7 +20,7 @@ cdecl fn semget(key i32, nsems int, semflg u32) int
 cdecl fn semget(key i64, nsems int, semflg u32) int
 cdecl fn CreateSemaphoreA(lpSemaphoreAttributes voidptr, lInitialCount int, lMaximumCount int, lpName cstring) size_t
 
-from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT
+from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT, POLLIN
 
 const SEMVMX ::= if os.isWindows
 		limits.max_int # Windows allows setting max value separately for each semaphore
@@ -103,7 +103,7 @@ const ERANGE ::= if os.isWindows
 	else
 		34 .
 
-pub inline fn Semaphore.post(n int) bool
+pub fn Semaphore.post(n int) bool
 	if this.err != 0
 		return false .
 	if n <= 0
@@ -118,6 +118,7 @@ pub inline fn Semaphore.post(n int) bool
 			return false .
 		bufelem := sembuf{
 			sem_op: i16(count)
+			sem_flg: NONBLOCK
 		}
 		if os.isLinux
 			success := semop(i32(this.handle), bufelem, size_t(1)) == 0
@@ -132,3 +133,42 @@ pub inline fn Semaphore.post(n int) bool
 		if err != ERANGE
 			this.err = err . .
 	return success
+
+type pollfd {
+	fd int
+	events i16
+	revents i16
+}
+
+cdecl fn ppoll(&fds pollfd, nfds u32, timeout voidptr, sigmask voidptr) int
+cdecl fn ppoll(&fds pollfd, nfds u64, timeout voidptr, sigmask voidptr) int
+cdecl fn read(fd int, buf voidptr, count size_t) ssize_t
+
+pub fn Semaphore.wait bool
+	if this.err != 0
+		return false .
+	if os.isWindows
+		success := WaitForSingleObjectEx(size_t(this.handle), u32(-1), true) != 0
+	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
+		bufelem := sembuf{
+			sem_op: -i16(this._step_or_max)
+		}
+		if os.isLinux
+			success := semop(i32(this.handle), bufelem, size_t(1)) == 0
+		else
+			success := semop(size_t(this.handle), bufelem, size_t(1)) == 0
+	else
+		get := u64(0)
+		pfd := pollfd{
+			fd: int(this.handle)
+			events: POLLIN
+		}
+		repeat
+			if os.isLinux
+				res := ppoll(pfd, size_t(1), nil, voidptr(0))
+			else
+				res := ppoll(pfd, u32(1), nil, voidptr(0)) .
+			success := read(int(this.handle), &get, sizeof(get)) == sizeof(get)
+		until success .
+	return success
+

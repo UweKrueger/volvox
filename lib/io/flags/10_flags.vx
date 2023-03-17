@@ -37,3 +37,10 @@ pub const SEMAPHORE ::= if os.isNetBSD
 		1 .
 
 pub const PRIVATE ::= 0
+
+pub const POLLIN   ::= 0x001
+pub const POLLPRI  ::= 0x002
+pub const POLLOUT  ::= 0x004
+pub const POLLERR  ::= 0x008
+pub const POLLHUP  ::= 0x010
+pub const POLLNVAL ::= 0x020
