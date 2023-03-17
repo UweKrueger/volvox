@@ -85,3 +85,42 @@ pub inline fn Semaphore.max_value int
 		return 0
 	else
 		return SEMVMX / this._step_or_max
+
+cdecl fn ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voidptr) bool
+
+type sembuf {
+	sem_num u16
+	sem_op i16
+	sem_flg u32
+}
+
+cdecl fn semop(semid i64, &sops sembuf, nsops size_t)
+cdecl fn semop(semid i32, &sops sembuf, nsops size_t) int
+cdecl fn write(fd int, buf voidptr, count size_t) ssize_t
+
+const ERROR_TOO_MANY_POSTS ::= 298
+
+pub inline fn Semaphore.post(n int) bool
+	if this.err != 0
+		return false .
+	if os.isWindows
+		res := ReleaseSemaphore(size_t(this.handle), n, voidptr(0))
+		if !res
+			err := GetLastError()
+			if err != ERROR_TOO_MANY_POSTS
+				this.err = err . .
+		return res
+	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
+		bufelem := sembuf{
+			sem_op: i16(n * this._step_or_max)
+			sem_flg: NONBLOCK
+		}
+		if os.isLinux
+			res2 := semop(i32(this.handle), bufelem, size_t(1))
+		else
+			res2 := semop(i32(this.handle), bufelem, size_t(1)) .
+		return res2 != 0
+	else
+		add := u64(n)
+		res3 := write(int(this.handle), &add, sizeof(add))
+		return res3 == sizeof(add)
