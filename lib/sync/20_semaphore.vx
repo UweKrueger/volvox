@@ -31,8 +31,8 @@ const SEMVMX ::= if os.isWindows
 
 type Semaphore {
 	handle ssize_t
-	err int
-	_step_or_max int
+	err u32
+	_step_or_max u32
 }
 
 pub const EINVAL ::= if os.isWindows
@@ -52,7 +52,7 @@ pub fn semaphore(init_val int, desired_max int) Semaphore
 		if sem.handle == 0
 			sem.err = GetLastError()
 			return sem .
-		sem._step_or_max = desired_max
+		sem._step_or_max = u32(desired_max)
 	else
 		if desired_max == 0
 			if os.isLinux || os.isFreeBSD || os.isNetBSD
@@ -69,7 +69,7 @@ pub fn semaphore(init_val int, desired_max int) Semaphore
 		if sem.handle < 0
 			sem.err = GetLastError()
 			return sem .
-		sem._step_or_max = SEMVMX / desired_max .
+		sem._step_or_max = u32(SEMVMX) / u32(desired_max) .
 	return sem
 
 pub inline fn Semaphore.is_selectable bool
@@ -78,11 +78,11 @@ pub inline fn Semaphore.is_selectable bool
 	else
 		return false
 
-pub inline fn Semaphore.max_value int
+pub inline fn Semaphore.max u64
 	if os.isWindows
 		return this._step_or_max
 	elif this._step_or_max == 0
-		return 0
+		return 0xfffffffffffffffe # eventfd max value
 	else
 		return SEMVMX / this._step_or_max
 
@@ -98,31 +98,37 @@ cdecl fn semop(semid i64, &sops sembuf, nsops size_t) int
 cdecl fn semop(semid i32, &sops sembuf, nsops size_t) int
 cdecl fn write(fd int, buf voidptr, count size_t) ssize_t
 
-const ERROR_TOO_MANY_POSTS ::= 298
+const ERANGE ::= if os.isWindows
+		298 # ERROR_TOO_MANY_POSTS
+	else
+		34 .
 
 pub inline fn Semaphore.post(n int) bool
 	if this.err != 0
 		return false .
+	if n <= 0
+		this.err = EINVAL
+		return false .
 	if os.isWindows
-		res := ReleaseSemaphore(size_t(this.handle), n, voidptr(0))
-		if !res
-			err := GetLastError()
-			if err != ERROR_TOO_MANY_POSTS
-				this.err = err . .
-		return res
+		success := ReleaseSemaphore(size_t(this.handle), n, voidptr(0))
 	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
+		count := n * this._step_or_max
+		if count > SEMVMX
+			this.err = ERANGE
+			return false .
 		bufelem := sembuf{
-			sem_op: i16(n * this._step_or_max)
-			sem_flg: NONBLOCK
+			sem_op: i16(count)
 		}
 		if os.isLinux
-			res2 := semop(i32(this.handle), bufelem, size_t(1))
+			success := semop(i32(this.handle), bufelem, size_t(1)) == 0
 		else
-			res2 := semop(size_t(this.handle), bufelem, size_t(1)) .
-		if res2 != 0
-			printf("error %d\n", GetLastError()) .
-		return res2 == 0
+			success := semop(size_t(this.handle), bufelem, size_t(1)) == 0
 	else
 		add := u64(n)
-		res3 := write(int(this.handle), &add, sizeof(add))
-		return res3 == sizeof(add)
+		success := write(int(this.handle), &add, sizeof(add)) == sizeof(add) .
+	if !success
+		err := GetLastError()
+		printf("error %d\n", err)
+		if err != ERANGE
+			this.err = err . .
+	return success
