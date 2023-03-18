@@ -50,11 +50,11 @@ std::pair<unsigned, bool> getBitWidth(llvm::Type* type) {
 	}
 }
 			
-static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false) {
+static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false, bool maybe_f80 = false) {
 	if (bitwidth == 1) // bitwidth = 1 is always bool, i.e. u1
 		return llvm::Type::getInt1Ty(Context);
 	if (is_float)
-		if (bitwidth > 53) // only used for intermediate results during comparisons
+		if (bitwidth > 53 && maybe_f80) // only used for intermediate results during comparisons
 			if (support_fp80 && bitwidth <= 64)
 				return llvm::Type::getX86_FP80Ty(Context);
 			else
@@ -383,7 +383,7 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 					if (!left_is_signed && left_bitwidth >= right_bitwidth
 					    || !right_is_signed && right_bitwidth >= left_bitwidth)
 						desired_bitwidth++;;
-					desired_left_type = desired_right_type = getFittingType(desired_bitwidth, desire_float);
+					desired_left_type = desired_right_type = getFittingType(desired_bitwidth, desire_float, true);
 					goto normal_return;
 				}
 			}
