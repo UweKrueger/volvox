@@ -19,10 +19,16 @@ cdecl fn read(fd int, buf cstring, count size_t) ssize_t
 cdecl fn semget(key i32, nsems int, semflg u32) int
 cdecl fn semget(key i64, nsems int, semflg u32) int
 cdecl fn CreateSemaphoreA(lpSemaphoreAttributes voidptr, lInitialCount int, lMaximumCount int, lpName cstring) size_t
+cdecl fn create_sem(count i32, name cstring) i32
+cdecl fn delete_sem(id i32) i32
+cdecl fn acquire_sem(id i32) i32
+cdecl fn acquire_sem_etc(id i32, count i32, flags u32, bigtime_t i64) i32
+cdecl fn release_sem(id i32) i32
+cdecl fn release_sem_etc(id i32, count i32, flags u32) i32
 
 from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT, POLLIN
 
-const SEMVMX ::= if os.isWindows
+const SEMVMX ::= if os.isWindows || os.isHaiku
 		limits.max_int # Windows allows setting max value separately for each semaphore
 	else
 		32767 . # System V semaphores - usually fixed (FreeBSD: kern.ipc.semvmx)
@@ -47,6 +53,9 @@ pub fn semaphore(init_val int, desired_max int) Semaphore
 	if desired_max > SEMVMX || desired_max != 0 && init_val > desired_max
 		sem.err = EINVAL
 		return sem .
+	if os.isWindows || os.isHaiku
+		if desired_max == 0
+			desired_max = SEMVMX . .
 	if os.isWindows
 		sem.handle = ssize_t(CreateSemaphoreA(voidptr(0), init_val, desired_max, cstring(0)))
 		if sem.handle == 0
@@ -54,38 +63,43 @@ pub fn semaphore(init_val int, desired_max int) Semaphore
 			return sem .
 		sem._step_or_max = u32(desired_max)
 	else
-		if desired_max == 0
-			if os.isLinux || os.isFreeBSD || os.isNetBSD
-				sem.handle = eventfd(0, CLOEXEC | NONBLOCK | SEMAPHORE)
-				if sem.handle < 0
-					sem.err = GetLastError() .
-				return sem
-			else
-				desired_max = SEMVMX . .
-		if os.isLinux
-			sem.handle = semget(i32(PRIVATE), 1, 0x180)
+		if os.isHaiku
+			sem.handle = create_sem(init_val, cstring(0))
 		else
-			sem.handle = semget(size_t(PRIVATE), 1, 0x180) .
+			if desired_max == 0
+				if os.isLinux || os.isFreeBSD || os.isNetBSD
+					sem.handle = eventfd(0, CLOEXEC | NONBLOCK | SEMAPHORE)
+					if sem.handle < 0
+						sem.err = GetLastError() .
+					return sem
+				else
+					desired_max = SEMVMX . .
+			if os.isLinux
+				sem.handle = semget(i32(PRIVATE), 1, 0x180)
+			else
+				sem.handle = semget(size_t(PRIVATE), 1, 0x180) . .
 		if sem.handle < 0
 			sem.err = GetLastError()
 			return sem .
 		sem._step_or_max = u32(SEMVMX) / u32(desired_max) .
 	return sem
 
-pub fn semaphore(desired_max int) Semaphore
-	return semaphore(0, desired_max)
+pub fn semaphore(init_val int) Semaphore
+	return semaphore(init_val, 0)
 
 pub fn semaphore Semaphore
 	return semaphore(0, 0)
 
 pub inline fn Semaphore.is_selectable bool
+	if os.isWindows || os.isHaiku
+		return true
 	if os.isLinux || os.isFreeBSD || os.isNetBSD
 		return this._step_or_max == 0
 	else
 		return false
 
 pub inline fn Semaphore.max u64
-	if os.isWindows
+	if os.isWindows || os.isHaiku
 		return this._step_or_max
 	elif this._step_or_max == 0
 		return 0xfffffffffffffffe # eventfd max value
@@ -118,6 +132,9 @@ pub fn Semaphore.post(n int) bool
 		return false .
 	if os.isWindows
 		success := ReleaseSemaphore(size_t(this.handle), n, voidptr(0))
+	elif os.isHaiku
+		this.err = u32(release_sem(i32(this.handle)))
+		success := this.err == 0
 	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
 		count := n * this._step_or_max
 		if count > SEMVMX
@@ -156,6 +173,9 @@ pub fn Semaphore.wait bool
 		return false .
 	if os.isWindows
 		success := WaitForSingleObjectEx(size_t(this.handle), u32(-1), true) != 0
+	elif os.isHaiku
+		this.err = u32(acquire_sem(i32(this.handle)))
+		success := this.err == 0
 	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
 		bufelem := sembuf{
 			sem_op: -i16(this._step_or_max)
