@@ -205,3 +205,61 @@ pub fn Semaphore.wait bool
 		until success .
 	return success
 
+type object_wait_info {
+	object i32 # ID of the object
+	typ    u16 # type of the object
+	events u16 # events mask
+}
+
+const B_OBJECT_TYPE_SEMAPHORE ::= 1
+const B_EVENT_ACQUIRE_SEMAPHORE ::= 0x0001 # semaphore can be acquired
+
+cdecl fn wait_for_objects_etc(&infos object_wait_info, numInfos int, flags u32, timeout i64) ssize_t
+
+pub fn Semaphore.timedwait(timeout time.Duration) bool
+	if this.err != 0
+		return false .
+	if timeout.i64 < 0
+		timeout.i64 = 0 .
+	if os.isWindows
+		success := WaitForSingleObjectEx(size_t(this.handle), u32(timeout.i64 / 10000), true) != 0
+	elif os.isHaiku
+		# this does not work - maybe a bug in Haiku
+		this.err = u32(acquire_sem_etc(i32(this.handle), 1, 0, timeout.i64 / 10))
+		# info := object_wait_info{
+		# 	object : i32(this.handle)
+		# 	typ: B_OBJECT_TYPE_SEMAPHORE
+		# 	events: B_EVENT_ACQUIRE_SEMAPHORE
+		# }
+		# n := wait_for_objects_etc(info, 1, 0, timeout.i64 / 10)
+		success := this.err == 0
+		this.err = 0
+	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
+		bufelem := sembuf{
+			sem_op: -i16(this._step_or_max)
+		}
+		success := semop(int(this.handle), bufelem, 1) == 0
+		if !success
+			this.err = GetLastError() .
+	else
+		get := u64(0)
+		pfd := pollfd{
+			fd: int(this.handle)
+			events: POLLIN
+		}
+		err := 0u32
+		repeat
+			if os.isLinux
+				res := ppoll(pfd, size_t(1), nil, nil)
+			else
+				res := ppoll(pfd, u32(1), nil, nil) .
+			if res < 0
+				this.err = GetLastError()
+				return false .
+			if pfd.revents & POLLIN
+				success := read(int(this.handle), &get, sizeof(get)) == sizeof(get)
+			else
+				success := false .
+		until success .
+	return success
+
