@@ -1601,7 +1601,8 @@ nobrace:
 			visibility = (visibility & ~A_constructor) | A_conversion;
 		} else {
 			// default constructor - set flag in type
-			tmp_rec_type->type_attr |= A_constructor;
+			if (ArgTypes.size() == 1)
+				tmp_rec_type->type_attr |= A_constructor;
 		}
 	}
 	if (visibility & (A_constructor | A_destructor))

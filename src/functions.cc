@@ -949,7 +949,7 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 					if (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor) {
 						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
 						if (!F) {
-							errs() << Args[i]->Loc << ": internal error - default constructor not found for " << Proto->ArgTypes[i+arg_offs] << "\n";
+							errs() << Args[i]->Loc << ": internal error - default constructor not found for " << *Proto->ArgTypes[i+arg_offs] << "\n";
 							return nullptr;
 						} else
 							Builder->CreateCall(F, { arg });
