@@ -100,14 +100,15 @@ type sembuf {
 	sem_flg u32
 }
 
-cdecl fn semop(semid i64, &sops sembuf, nsops size_t) int
-cdecl fn semop(semid i32, &sops sembuf, nsops size_t) int
+cdecl fn semop(semid int, &sops sembuf, nsops size_t) int
 cdecl fn write(fd int, buf voidptr, count size_t) ssize_t
 
 const ERANGE ::= if os.isWindows
 		298 # ERROR_TOO_MANY_POSTS
 	else
 		34 .
+
+const NOWAIT ::= 0x800
 
 pub fn Semaphore.post(n int) bool
 	if this.err != 0
@@ -124,12 +125,10 @@ pub fn Semaphore.post(n int) bool
 			return false .
 		bufelem := sembuf{
 			sem_op: i16(count)
-			sem_flg: NONBLOCK
+			sem_flg: NOWAIT
 		}
-		if os.isLinux
-			success := semop(i32(this.handle), bufelem, size_t(1)) == 0
-		else
-			success := semop(size_t(this.handle), bufelem, size_t(1)) == 0
+		printf("adding %d\n", bufelem.sem_op)
+		success := semop(int(this.handle), bufelem, size_t(1)) == 0
 	else
 		add := u64(n)
 		success := write(int(this.handle), &add, sizeof(add)) == sizeof(add) .
@@ -161,10 +160,7 @@ pub fn Semaphore.wait bool
 		bufelem := sembuf{
 			sem_op: -i16(this._step_or_max)
 		}
-		if os.isLinux
-			success := semop(i32(this.handle), bufelem, 1) == 0
-		else
-			success := semop(size_t(this.handle), bufelem, 1) == 0
+		success := semop(int(this.handle), bufelem, 1) == 0
 		if !success
 			this.err = GetLastError() .
 	else
