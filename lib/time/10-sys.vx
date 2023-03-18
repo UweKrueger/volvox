@@ -19,7 +19,11 @@ type timespec {
 
 # "REALTIME" and "MONOTONIC" clocks on Unix systems
 
-pub const CLOCK_REALTIME ::= 0
+pub const CLOCK_REALTIME ::= if os.isHaiku
+		-1
+	else
+		0 .
+
 pub const CLOCK_MONOTONIC ::= if os.isLinux
 		1
 	elif os.isOpenBSD || os.isNetBSD
