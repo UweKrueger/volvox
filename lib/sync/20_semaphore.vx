@@ -63,9 +63,9 @@ pub fn semaphore(init_val int, desired_max int) Semaphore
 			else
 				desired_max = SEMVMX . .
 		if os.isLinux
-			sem.handle = semget(i32(PRIVATE), 1, 0x1ff | CREAT)
+			sem.handle = semget(i32(PRIVATE), 1, 0x180)
 		else
-			sem.handle = semget(size_t(PRIVATE), 1, 0x1ff | CREAT) .
+			sem.handle = semget(size_t(PRIVATE), 1, 0x180) .
 		if sem.handle < 0
 			sem.err = GetLastError()
 			return sem .
