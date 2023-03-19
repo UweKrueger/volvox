@@ -78,7 +78,7 @@ pub fn semaphore(init_val int) Semaphore
 			sem.handle = fds.ssize_t
 			if init_val > 0
 				buf := [init_val]u8{}
-				if write(fds.fds[1], &buf[0], init_val) != init_val
+				if write(fds.fds[1], &buf, init_val) != init_val
 					sem.err = GetLastError() . . . .
 	return sem
 
@@ -111,7 +111,7 @@ pub fn Semaphore.post(n int) bool
 	else
 		c := [n]u8{}
 		p := pipehandle_t{ ssize_t: this.handle }
-		success := write(p.fds[1], &c[0], n) == n .
+		success := write(p.fds[1], &c, n) == n .
 	if !success
 		err := GetLastError()
 		if err != ERROR_TOO_MANY_POSTS

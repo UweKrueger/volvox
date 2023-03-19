@@ -652,7 +652,16 @@ public:
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
 		auto pair = Operand->codegen_ref(false);
-		return handle(target, Builder->CreatePointerCast(pair.second, llvm::Type::getInt8PtrTy(Context)));
+		llvm::Value* ptr;
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(pair.second->getType()))
+			ptr = Builder->CreateExtractValue(pair.second, struct_type->getNumElements() - 1);
+		else if (pair.second->getType()->isPointerTy())
+			ptr = pair.second;
+		else {
+			errs() << Loc << ": cannot get address of expression\n";
+			return nullptr;
+		}
+		return handle(target, Builder->CreatePointerCast(ptr, llvm::Type::getInt8PtrTy(Context)));
 	}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override {
 		auto pair = Operand->codegen_ref(silent_fail);
