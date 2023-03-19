@@ -171,3 +171,7 @@ fn test_anonynous_array_1 bool
 
 fn test_anonynous_struct_1 bool
 	return ggg(5, {y: 3, x: 23.75, z: 10}) == 86.25
+
+fn test_unsigned_from_unknown bool
+	b := 0x7fffffff
+	return u64(b) < 0xfffffffffffffffe
