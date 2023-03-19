@@ -25,20 +25,23 @@ cdecl fn acquire_sem(id i32) i32
 cdecl fn acquire_sem_etc(id i32, count i32, flags u32, bigtime_t i64) i32
 cdecl fn release_sem(id i32) i32
 cdecl fn release_sem_etc(id i32, count i32, flags u32) i32
+cdecl fn pipe(&filedes [2]int) int
+cdecl fn pipe2(&filedes [2]int, flags u32) int
 
 from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT, POLLIN
 
-const SEMVMX ::= if os.isWindows || os.isHaiku
+const SEMVMX ::= if os.isWindows
 		limits.max_int # Windows allows setting max value separately for each semaphore
+	elif os.isLinux || os.isFreeBSD || os.isNetBSD
+		limits.max_u64 - 1
 	else
-		32767 . # System V semaphores - usually fixed (FreeBSD: kern.ipc.semvmx)
+		512 .
 
 # Use union of different representations to make Semaphore type at most 16 bytes in size
 
 type Semaphore {
 	handle ssize_t
 	err u32
-	_step_or_max u32
 }
 
 pub const EINVAL ::= if os.isWindows
@@ -48,79 +51,44 @@ pub const EINVAL ::= if os.isWindows
 
 cdecl fn GetLastError() u32
 
-pub fn semaphore(init_val int, desired_max int) Semaphore
-	sem := Semaphore{}
-	if desired_max > SEMVMX || desired_max != 0 && init_val > desired_max
-		sem.err = EINVAL
-		return sem .
-	if os.isWindows || os.isHaiku
-		if desired_max == 0
-			desired_max = SEMVMX . .
-	if os.isWindows
-		sem.handle = ssize_t(CreateSemaphoreA(voidptr(0), init_val, desired_max, cstring(0)))
-		if sem.handle == 0
-			sem.err = GetLastError()
-			return sem .
-		sem._step_or_max = u32(desired_max)
-	else
-		if os.isHaiku
-			sem.handle = create_sem(init_val, cstring(0))
-		else
-			if desired_max == 0
-				if os.isLinux || os.isFreeBSD || os.isNetBSD
-					sem.handle = eventfd(0, CLOEXEC | NONBLOCK | SEMAPHORE)
-					if sem.handle < 0
-						sem.err = GetLastError() .
-					return sem
-				else
-					desired_max = SEMVMX . .
-			if os.isLinux
-				sem.handle = semget(i32(PRIVATE), 1, 0x180)
-			else
-				sem.handle = semget(size_t(PRIVATE), 1, 0x180) . .
-		if sem.handle < 0
-			sem.err = GetLastError()
-			return sem .
-		sem._step_or_max = u32(SEMVMX) / u32(desired_max) .
-	return sem
+type pipehandle_t union {
+	fds [2]int
+	ssize_t
+}
 
 pub fn semaphore(init_val int) Semaphore
-	return semaphore(init_val, 0)
+	sem := Semaphore{}
+	if os.isWindows
+		sem.handle = ssize_t(CreateSemaphoreA(voidptr(0), init_val, limits.max_int, cstring(0)))
+		if sem.handle == 0
+			sem.err = GetLastError() .
+	elif os.isLinux || os.isFreeBSD || os.isNetBSD
+		sem.handle = eventfd(0, CLOEXEC | NONBLOCK | SEMAPHORE)
+		if sem.handle < 0
+			sem.err = GetLastError() .
+	else
+		fds := pipehandle_t{}
+		res := pipe2(fds.fds, CLOEXEC | NONBLOCK)
+		if res < 0
+			sem.err = GetLastError()
+		else
+			sem.handle = fds.ssize_t . .
+	return sem
 
 pub fn semaphore Semaphore
-	return semaphore(0, 0)
-
-pub inline fn Semaphore.is_selectable bool
-	if os.isWindows || os.isHaiku
-		return true
-	if os.isLinux || os.isFreeBSD || os.isNetBSD
-		return this._step_or_max == 0
-	else
-		return false
+	return semaphore(0)
 
 pub inline fn Semaphore.max u64
-	if os.isWindows || os.isHaiku
-		return this._step_or_max
-	elif this._step_or_max == 0
-		return 0xfffffffffffffffe # eventfd max value
-	else
-		return SEMVMX / this._step_or_max
+	return SEMVMX
 
 cdecl fn ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voidptr) bool
 
-type sembuf {
-	sem_num u16
-	sem_op i16
-	sem_flg u32
-}
-
-cdecl fn semop(semid int, &sops sembuf, nsops size_t) int
 cdecl fn write(fd int, buf voidptr, count size_t) ssize_t
 
-const ERANGE ::= if os.isWindows
-		298 # ERROR_TOO_MANY_POSTS
+const ERROR_TOO_MANY_POSTS ::= if os.isWindows
+		298
 	else
-		34 .
+		35 .
 
 const NOWAIT ::= 0x800
 
@@ -132,26 +100,16 @@ pub fn Semaphore.post(n int) bool
 		return false .
 	if os.isWindows
 		success := ReleaseSemaphore(size_t(this.handle), n, voidptr(0))
-	elif os.isHaiku
-		this.err = u32(release_sem(i32(this.handle)))
-		success := this.err == 0
-	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
-		count := n * this._step_or_max
-		if count > SEMVMX
-			this.err = ERANGE
-			return false .
-		bufelem := sembuf{
-			sem_op: i16(count)
-			sem_flg: NOWAIT
-		}
-		printf("adding %d\n", bufelem.sem_op)
-		success := semop(int(this.handle), bufelem, size_t(1)) == 0
-	else
+	elif os.isLinux || os.isFreeBSD || os.isNetBSD
 		add := u64(n)
-		success := write(int(this.handle), &add, sizeof(add)) == sizeof(add) .
+		success := write(int(this.handle), &add, sizeof(add)) == sizeof(add)
+	else
+		c := u8(0)
+		p := pipehandle_t{ ssize_t: this.handle }
+		success := write(p.fds[1], &c, 1) == 1 .
 	if !success
 		err := GetLastError()
-		if err != ERANGE
+		if err != ERROR_TOO_MANY_POSTS
 			this.err = err . .
 	return success
 
@@ -176,17 +134,14 @@ pub fn Semaphore.wait bool
 	elif os.isHaiku
 		this.err = u32(acquire_sem(i32(this.handle)))
 		success := this.err == 0
-	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
-		bufelem := sembuf{
-			sem_op: -i16(this._step_or_max)
-		}
-		success := semop(int(this.handle), bufelem, 1) == 0
-		if !success
-			this.err = GetLastError() .
 	else
-		get := u64(0)
+		if os.isLinux || os.isFreeBSD || os.isNetBSD
+			fd := int(this.handle)
+		else
+			p := pipehandle_t{ ssize_t: this.handle }
+			fd := p.fds[0] .
 		pfd := pollfd{
-			fd: int(this.handle)
+			fd: fd
 			events: POLLIN
 		}
 		err := 0u32
@@ -199,22 +154,16 @@ pub fn Semaphore.wait bool
 				this.err = GetLastError()
 				return false .
 			if pfd.revents & POLLIN
-				success := read(int(this.handle), &get, sizeof(get)) == sizeof(get)
+				if os.isLinux || os.isFreeBSD || os.isNetBSD
+					get := u64(0)
+					success := read(fd, &get, sizeof(get)) == sizeof(get)
+				else
+					b := u8(0)
+					success := read(fd, &b, 1) == 1 .
 			else
 				success := false .
 		until success .
 	return success
-
-type object_wait_info {
-	object i32 # ID of the object
-	typ    u16 # type of the object
-	events u16 # events mask
-}
-
-const B_OBJECT_TYPE_SEMAPHORE ::= 1
-const B_EVENT_ACQUIRE_SEMAPHORE ::= 0x0001 # semaphore can be acquired
-
-cdecl fn wait_for_objects_etc(&infos object_wait_info, numInfos int, flags u32, timeout i64) ssize_t
 
 pub fn Semaphore.timedwait(timeout time.Duration) bool
 	if this.err != 0
@@ -223,24 +172,6 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 		timeout.i64 = 0 .
 	if os.isWindows
 		success := WaitForSingleObjectEx(size_t(this.handle), u32(timeout.i64 / 10000), true) != 0
-	elif os.isHaiku
-		# this does not work - maybe a bug in Haiku
-		this.err = u32(acquire_sem_etc(i32(this.handle), 1, 0, timeout.i64 / 10))
-		# info := object_wait_info{
-		# 	object : i32(this.handle)
-		# 	typ: B_OBJECT_TYPE_SEMAPHORE
-		# 	events: B_EVENT_ACQUIRE_SEMAPHORE
-		# }
-		# n := wait_for_objects_etc(info, 1, 0, timeout.i64 / 10)
-		success := this.err == 0
-		this.err = 0
-	elif !os.isLinux && !os.isFreeBSD && !os.isNetBSD || this._step_or_max != 0
-		bufelem := sembuf{
-			sem_op: -i16(this._step_or_max)
-		}
-		success := semop(int(this.handle), bufelem, 1) == 0
-		if !success
-			this.err = GetLastError() .
 	else
 		get := u64(0)
 		pfd := pollfd{
@@ -257,7 +188,12 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 				this.err = GetLastError()
 				return false .
 			if pfd.revents & POLLIN
-				success := read(int(this.handle), &get, sizeof(get)) == sizeof(get)
+				if os.isLinux || os.isFreeBSD || os.isNetBSD
+					get := u64(0)
+					success := read(int(this.handle), &get, sizeof(get)) == sizeof(get)
+				else
+					b := u8(0)
+					success := read(int(this.handle), &b, 1) == 1 .
 			else
 				success := false .
 		until success .
