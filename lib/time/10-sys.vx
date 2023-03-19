@@ -94,15 +94,22 @@ pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
 	}
 	if res.nsec < 0
 		res.nsec += ufrequency
-		res.sec--
-	elif res.nsec >= ufrequency
+		res.sec-- .
+	return res
+
+pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
+	res := timespec{
+		sec: t1.sec + t2.sec
+		nsec: t1.nsec + t2.nsec
+	}
+	if res.nsec >= ufrequency
 		res.nsec -= ufrequency
 		res.sec++ .
 	return res
 
 inline fn nanoseconds_since_start(ts timespec) i64
 	d := timespec_diff(ts, program_start_common_timestamp.timespec)
-	return 1000000000i64 * d.sec + d.nsec
+	return i64(ufrequency) * d.sec + d.nsec
 
 # read a timestamp as ticks since program start
 #

@@ -130,6 +130,11 @@ type pollfd {
 cdecl fn ppoll(&fds pollfd, nfds u32, ?timeout time.timespec, sigmask voidptr) int
 cdecl fn ppoll(&fds pollfd, nfds u64, ?timeout time.timespec, sigmask voidptr) int
 
+pub const EAGAIN ::= if os.isLinux
+		11
+	else
+		35 .
+
 pub fn Semaphore.wait bool
 	if this.err != 0
 		return false .
@@ -177,29 +182,53 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 	if os.isWindows
 		success := WaitForSingleObjectEx(size_t(this.handle), u32(timeout.i64 / 10000), true) != 0
 	else
-		get := u64(0)
+		timeo := timeout.timespec
+		if os.isLinux || os.isFreeBSD || os.isNetBSD
+			fd := int(this.handle)
+		else
+			p := pipehandle_t{ ssize_t: this.handle }
+			fd := p.fds[0] .
 		pfd := pollfd{
-			fd: int(this.handle)
+			fd: fd
 			events: POLLIN
 		}
-		err := 0u32
+		get := u64(0)
+		start_time := time.timespec{}
+		time.clock_gettime(time.CLOCK_MONOTONIC, start_time)
+		end_time := time.timespec_sum(start_time, timeo)
 		repeat
 			if os.isLinux
-				res := ppoll(pfd, size_t(1), nil, nil)
+				res := ppoll(pfd, size_t(1), timeo, nil)
 			else
-				res := ppoll(pfd, u32(1), nil, nil) .
-			if res < 0
-				this.err = GetLastError()
+				res := ppoll(pfd, u32(1), timeo, nil) .
+			if res <= 0
+				if res < 0
+					this.err = GetLastError() .
 				return false .
 			if pfd.revents & POLLIN
 				if os.isLinux || os.isFreeBSD || os.isNetBSD
 					get := u64(0)
-					success := read(int(this.handle), &get, sizeof(get)) == sizeof(get)
+					success := read(fd, &get, sizeof(get)) == sizeof(get)
 				else
 					b := u8(0)
-					success := read(int(this.handle), &b, 1) == 1 .
+					success := read(fd, &b, 1) == 1 .
+				if !success
+					err := GetLastError()
+					if err == EAGAIN
+						# semaphore has been consumed by another thread so we recalculate
+						# timeo and retry - TODO: on Linux use epoll() and EPOLLEXCLUSIVE
+						# to make this case unlikely
+						cur_time := time.timespec{}
+						time.clock_gettime(time.CLOCK_MONOTONIC, cur_time)
+						timeo = time.timespec_diff(end_time, cur_time)
+						if timeo.sec < 0
+							res = 0 . # time has already elapsed
+					else
+						this.err = err
+						return false .
 			else
 				success := false .
-		until success .
+		until success || res == 0 .
 	return success
 
+89.7 + 9
