@@ -1540,7 +1540,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	llvm::Value* result = nullptr;
 	bool ResSigned = ft->type_attr & A_signed;
-	bool OperandSigned = LHS->ft->type_attr & A_signed || RHS->ft->type_attr & A_signed;
+	bool OperandSigned = (LHS->ft->type_attr & A_signed) && !LHS->is_unknown_type || (RHS->ft->type_attr & A_signed) && !RHS->is_unknown_type
+		|| (LHS->ft->type_attr & RHS->ft->type_attr & A_signed);
 	const char* new_err_msg;
 	std::tie(LHS->desired_type, RHS->desired_type, new_err_msg) = getDesiredTypes(
 		ft->type, desired_type, LHS->ft->type, RHS->ft->type, opclass, ft->type_attr & A_signed,
