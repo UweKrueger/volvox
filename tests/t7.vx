@@ -172,6 +172,30 @@ fn test_anonynous_array_1 bool
 fn test_anonynous_struct_1 bool
 	return ggg(5, {y: 3, x: 23.75, z: 10}) == 86.25
 
-fn test_unsigned_from_unknown bool
+fn test_unsigned_from_unknown_1 bool
 	b := 0x7fffffff
 	return u64(b) < 0xfffffffffffffffe
+
+pub const SEMVMX1 ::= 0xfffffffffffffffd
+const ppeer ::= false
+pub const SEMVMX2 ::= if ppeer
+		17
+	else
+		SEMVMX1 + 1 .
+
+fn test_unsigned_from_unknown_2 bool
+	b := 511
+	return !(b < 0 || u64(b) > SEMVMX2)
+
+import limits
+
+pub const SEMVMX ::= if os.isWindows
+		u64(limits.max_i32)
+	elif os.isLinux || os.isFreeBSD || os.isNetBSD
+		limits.max_u64 - 1
+	else
+		u64(512) .
+
+fn test_unsigned_from_unknown_3 bool
+	b := 511
+	return !(b < 0 || u64(b) > SEMVMX)

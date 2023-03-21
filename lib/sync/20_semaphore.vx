@@ -30,11 +30,17 @@ cdecl fn pipe2(&filedes [2]int, flags u32) int
 
 from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT, POLLIN
 
+# Normally SEMVMX is is the maximum value of Sytem V semaphores - however we do not use those.
+# Instead Volvox Semaphores are based on something that can be *select*ed
+#
 pub const SEMVMX ::= if os.isWindows
-		u64(limits.max_int) # Windows allows setting max value separately for each semaphore
+		# Windows native semaphores
+		u64(limits.max_int)
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
-		u64(limits.max_u64 - 1)
+		# eventfd
+		limits.max_u64 - 1
 	else
+		# pipe as last resort
 		u64(512) .
 
 # Use union of different representations to make Semaphore type at most 16 bytes in size
@@ -58,7 +64,7 @@ type pipehandle_t union {
 
 pub fn semaphore(init_val int) Semaphore
 	sem := Semaphore{}
-	if init_val < 0 || init_val > SEMVMX
+	if init_val < 0 || u64(init_val) > SEMVMX
 		sem.err = EINVAL
 		return sem .
 	if os.isWindows

@@ -382,7 +382,7 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 				if (left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type) {
 					if (!left_is_signed && left_bitwidth >= right_bitwidth
 					    || !right_is_signed && right_bitwidth >= left_bitwidth)
-						desired_bitwidth++;;
+						desired_bitwidth++;
 					desired_left_type = desired_right_type = getFittingType(desired_bitwidth, desire_float, true);
 					goto normal_return;
 				}

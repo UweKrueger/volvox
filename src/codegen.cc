@@ -272,10 +272,10 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (full_var->ft.type_attr & A_rvalue) {
 		if (full_var->val->getType()->isIntegerTy() && (full_var->ft.type_attr & A_untyped)) {
-			if (desired_type)
-				conv_kind = ConvSigned;
-			else
-				return Builder->CreateIntCast(full_var->val, llvm::Type::getInt32Ty(Context), true);
+			if (desired_type && conv_kind == ConvImplicit)
+				conv_kind = ConvSigned; // ???
+			// else
+			// 	return Builder->CreateIntCast(full_var->val, llvm::Type::getInt32Ty(Context), true);
 		}
 		return full_var->val;
 	}
@@ -1546,6 +1546,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	std::tie(LHS->desired_type, RHS->desired_type, new_err_msg) = getDesiredTypes(
 		ft->type, desired_type, LHS->ft->type, RHS->ft->type, opclass, ft->type_attr & A_signed,
 		LHS->ft->type_attr & A_signed, RHS->ft->type_attr & A_signed, LHS->is_unknown_type, RHS->is_unknown_type);
+	if (!OperandSigned) {
+		if (LHS->is_unknown_type)
+			LHS->conv_kind = ConvUnsigned;
+		if (RHS->is_unknown_type)
+			RHS->conv_kind = ConvUnsigned;
+	}
 	if (false) {
 		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
 		if (RHS->desired_type) errs() << "RHS desired_type: " << *RHS->desired_type << ' ';
