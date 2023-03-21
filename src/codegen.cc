@@ -2696,10 +2696,28 @@ llvm::Value* ExprAST::codegen() {
 		return nullptr;
 	if (desired_type && rawV && rawV->getType() != desired_type && !rawV->getType()->isVoidTy()) {
 		auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr & A_signed,
-		                        conv_kind == ConvImplicit ? ft->type_attr & A_signed : conv_kind == ConvSigned,
+		                        conv_kind == ConvImplicit ? (bool)(ft->type_attr & A_signed) :
+		                        conv_kind == ConvSigned,
 		                        conv_kind != ConvImplicit, is_unknown_type);
-		if (postConv)
-			return postConv(rawV);
+		if (postConv) {
+			llvm::Value* V = postConv(rawV);
+			if (conv_kind == ConvImplicit) {
+				if (auto constV = llvm::dyn_cast<llvm::ConstantInt>(V)) {
+					if (auto const_rawV = llvm::dyn_cast<llvm::ConstantInt>(rawV)) {
+						if (ft->type_attr & A_signed) {
+							auto rawv = const_rawV->getSExtValue();
+							auto v = constV->getSExtValue();
+							if (v != rawv) {
+								errs() << Loc << ": untyped value " << rawv << " would be truncated to " << v
+								       << " when default converted to 'int' - use explicit type/conversion\n";
+								return nullptr;
+							}
+						}
+					}
+				}
+			}
+			return V;
+		}
 		auto raw_array_type = llvm::dyn_cast<llvm::ArrayType>(rawV->getType());
 		auto desired_array_type = llvm::dyn_cast<llvm::ArrayType>(desired_type);
 		if (!raw_array_type || !desired_array_type) {
