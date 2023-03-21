@@ -760,7 +760,6 @@ llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
 				return llvm::Constant::getNullValue(ft->type);
 			if (Args.size() == 1) {
 				Args[0]->desired_type = ft->type;
-				Args[0]->conv_kind = (ft->type_attr & A_signed) ? ConvSigned : ConvUnsigned;
 				llvm::Value* expr = Args[0]->codegen_raw();
 				auto conv = getConv(expr->getType(), ft->type, Loc, (bool)(Args[0]->ft->type_attr & A_signed),
 				                    (bool)(ft->type_attr & A_signed), true, false, nullptr);
