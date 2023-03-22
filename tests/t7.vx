@@ -172,7 +172,7 @@ fn test_anonynous_array_1 bool
 fn test_anonynous_struct_1 bool
 	return ggg(5, {y: 3, x: 23.75, z: 10}) == 86.25
 
-fn test_unsigned_from_unknown_1 bool
+fn test_unsigned_from_untyped_1 bool
 	b := 0x7fffffff
 	return u64(b) < 0xfffffffffffffffe
 
@@ -183,7 +183,7 @@ pub const SEMVMX2 ::= if ppeer
 	else
 		SEMVMX1 + 1 .
 
-fn test_unsigned_from_unknown_2 bool
+fn test_unsigned_from_untyped_2 bool
 	b := 511
 	return !(b < 0 || u64(b) > SEMVMX2)
 
@@ -196,6 +196,14 @@ pub const SEMVMX ::= if os.isWindows
 	else
 		u64(512) .
 
-fn test_unsigned_from_unknown_3 bool
+fn test_unsigned_from_untyped_3 bool
 	b := 511
 	return !(b < 0 || u64(b) > SEMVMX)
+
+# const b5532 ::= 0xfffffaff57fffffe
+const b5532 ::= 0x57fffffe
+
+global a3297t5 := b5532
+
+fn test_int_from_untyped_1 bool
+	return a3297t5 == 0x57fffffe
