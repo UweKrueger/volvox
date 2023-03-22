@@ -1305,12 +1305,14 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
 					ft->type, ft->type_attr & (A_signed | A_string | A_map), is_unknown_type, getOpClass(newOp), err_msg });
 		}
-		RHS->desired_type = LHSE->ft->type;
+		if (Op[0] != ':' || Op[1] != '=') // opclass might have been changed by HandleGlobalVariable()
+			RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
 		uint64_t allocsz = LREF ?
 			target_bytes :
-			(RHS->desired_type && RHS->desired_type->isSized()) ?
-			TheModule->getDataLayout().getTypeAllocSize(RHS->desired_type) : 0; // if size is compile time const
+			(LHSE->ft->type && LHSE->ft->type->isSized()) ?
+			TheModule->getDataLayout().getTypeAllocSize(LHSE->ft->type) :
+			0; // if size is compile time const
 		llvm::Value* Val = nullptr;
 		llvm::Value* ValPtr = nullptr;
 		llvm::Value* AllocSize = nullptr;
@@ -1390,7 +1392,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				if (RHS->ft->type_attr & A_string)
 					Val = RHS->codegen_raw((llvm::Value*)(intptr_t)-1);
 				else
-					Val = RHS->codegen();
+					Val = RHS->codegen(true);
 				if (!Val)
 					return nullptr;
 			}

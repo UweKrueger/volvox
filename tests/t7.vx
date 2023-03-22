@@ -200,7 +200,7 @@ fn test_unsigned_from_untyped_3 bool
 	b := 511
 	return !(b < 0 || u64(b) > SEMVMX)
 
-# const b5532 ::= 0xfffffaff57fffffe
+#const b5532 ::= 0xfffffaff57fffffe
 const b5532 ::= 0x57fffffe
 
 global a3297t5 := b5532
