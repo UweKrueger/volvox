@@ -207,6 +207,7 @@ public:
 	// create reference to this variable - second result is the storage_type
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	llvm::Value* codegen(bool suppress_destructor = false) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);

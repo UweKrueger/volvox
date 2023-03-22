@@ -537,19 +537,6 @@ std::tuple<llvm::Type*, bool> MakeType(llvm::Type* type, bool is_signed, bool is
 		return { type, false };
 }
 
-volvoxc::FullType* MakeType(volvoxc::FullType* base, bool is_unknown_type) {
-	if (is_unknown_type && base->type->isIntegerTy()) {
-		volvoxc::FullType* new_type = lex.get_full_type("i32");
-		if (!new_type) {
-			errs() <<"Fatal: Could not find i32 type!\n";
-			return nullptr;
-		}
-		return new_type;
-	} else {
-		return base;
-	}
-}
-
 // get element type of an array
 volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs) {
 	bool is_unsigned = false;

@@ -283,6 +283,35 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
+llvm::Value* VariableExprAST::codegen(bool suppress_destructor) {
+	auto rawV = codegen_raw((llvm::Value*)((intptr_t)(-(int)suppress_destructor)));
+	if (suppress_destructor && is_unknown_type && !desired_type) {
+		if (ft->type->isIntegerTy()) {
+			llvm::Value* V = Builder->CreateIntCast(rawV, ft->type, (bool)(ft->type_attr & A_signed));
+			if (auto constV = llvm::dyn_cast<llvm::ConstantInt>(V)) {
+				if (auto const_rawV = llvm::dyn_cast<llvm::ConstantInt>(rawV)) {
+					if (ft->type_attr & A_signed) {
+						auto rawv = (ft->type_attr & A_signed) ? const_rawV->getSExtValue() : (int64_t)const_rawV->getZExtValue();
+						auto v = (ft->type_attr & A_signed) ? constV->getSExtValue() : (int64_t)constV->getZExtValue();
+						if (v != rawv) {
+							errs() << Loc << ": untyped value ";
+							if (ft->type_attr & A_signed)
+								errs() << rawv;
+							else
+								errs() << (uint64_t)rawv;
+							errs() << " would be truncated to " << v
+							       << " when default converted to 'int' - use explicit type/conversion\n";
+							return nullptr;
+						}
+					}
+				}
+			}
+			return V;
+		}
+	}
+	return convert_raw(rawV);
+}
+
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fail) {
 	if (!full_var) {
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
@@ -871,7 +900,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			if (rhs_is_constexpr && (sym_kind & A_const) && expr->RHS->is_unknown_type)
 				if (expr->RHS->ft->type->isIntegerTy())
 					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
-			Val = expr->RHS->codegen_raw((llvm::Value*)(intptr_t)(-1));
+			Val = expr->RHS->codegen(true);
 		}
 	}
 	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_map) : (A_signed | A_string | A_map | A_destructor));
@@ -2690,8 +2719,7 @@ llvm::Value *ForExprAST::codegen_raw(llvm::Value* target) {
 	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(Context));
 }
 
-llvm::Value* ExprAST::codegen() {
-	auto rawV = codegen_raw();
+llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {
 	if (!rawV)
 		return nullptr;
 	if (desired_type && rawV && rawV->getType() != desired_type && !rawV->getType()->isVoidTy()) {
@@ -2701,21 +2729,6 @@ llvm::Value* ExprAST::codegen() {
 		                        conv_kind != ConvImplicit, is_unknown_type);
 		if (postConv) {
 			llvm::Value* V = postConv(rawV);
-			if (conv_kind == ConvImplicit) {
-				if (auto constV = llvm::dyn_cast<llvm::ConstantInt>(V)) {
-					if (auto const_rawV = llvm::dyn_cast<llvm::ConstantInt>(rawV)) {
-						if (ft->type_attr & A_signed) {
-							auto rawv = const_rawV->getSExtValue();
-							auto v = constV->getSExtValue();
-							if (v != rawv) {
-								errs() << Loc << ": untyped value " << rawv << " would be truncated to " << v
-								       << " when default converted to 'int' - use explicit type/conversion\n";
-								return nullptr;
-							}
-						}
-					}
-				}
-			}
 			return V;
 		}
 		auto raw_array_type = llvm::dyn_cast<llvm::ArrayType>(rawV->getType());
