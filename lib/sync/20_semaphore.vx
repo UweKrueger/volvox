@@ -239,3 +239,43 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 
 pub fn Semaphore.timedwait(timeout f64) bool
 	return this.timedwait(time.Duration(timeout))
+
+pub fn Semaphore.trywait bool
+	if this.err != 0
+		return false .
+	if os.isWindows
+		success := WaitForSingleObjectEx(size_t(this.handle), 0, true) != 0
+	else
+		if os.isLinux || os.isFreeBSD || os.isNetBSD
+			fd := int(this.handle)
+		else
+			p := pipehandle_t{ ssize_t: this.handle }
+			fd := p.fds[0] .
+		pfd := pollfd{
+			fd: fd
+			events: POLLIN
+		}
+		get := u64(0)
+		timeo := time.timespec{}
+		if os.isLinux
+			res := ppoll(pfd, size_t(1), timeo, nil)
+		else
+			res := ppoll(pfd, u32(1), timeo, nil) .
+		if res <= 0
+			if res < 0
+				this.err = GetLastError() .
+			return false .
+		if pfd.revents & POLLIN
+			if os.isLinux || os.isFreeBSD || os.isNetBSD
+				get := u64(0)
+				success := read(fd, &get, sizeof(get)) == sizeof(get)
+			else
+				b := u8(0)
+				success := read(fd, &b, 1) == 1 .
+			if !success
+				err := GetLastError()
+				if err != EAGAIN
+					this.err = err . .
+		else
+			success := false . .
+	return success

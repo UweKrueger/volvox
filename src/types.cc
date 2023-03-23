@@ -372,11 +372,11 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 		return { nullptr, nullptr, nullptr };
 	case OpComparison:
 		if (left_type == right_type && left_is_signed == right_is_signed) {
-			return { nullptr, nullptr, nullptr };
+			return { left_type, right_type, nullptr };
 		} else {
 			auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 			auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
-			desired_bitwidth = Max(left_bitwidth, right_bitwidth);
+			// desired_bitwidth = Max(left_bitwidth, right_bitwidth);
 			bool desire_float = left_is_float || right_is_float;
 			if (!desire_float) {
 				if (left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type) {
@@ -425,10 +425,6 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	if (desired_bitwidth)
 		desired_left_type = desired_right_type = getFittingType(desired_bitwidth, res_is_float);
 normal_return:
-	if (desired_left_type == left_type)
-		desired_left_type = nullptr;
-	if (desired_right_type == right_type)
-		desired_right_type = nullptr;
 	return { desired_left_type, desired_right_type, nullptr };
 }
 
