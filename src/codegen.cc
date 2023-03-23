@@ -40,8 +40,8 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		if (desired_type) {
 			if (auto it = llvm::dyn_cast<llvm::IntegerType>(desired_type))
 				bw = it->getBitWidth();
-			else if (desired_type->isDoubleTy())
-				return handle(target, llvm::ConstantFP::get(Context, llvm::APFloat(ft->type_attr & A_signed ? (double)Val.Int : (double)Val.Uint)));
+			else if (desired_type->isDoubleTy() || desired_type->isFloatTy())
+				return handle(target, llvm::ConstantFP::get(desired_type, ft->type_attr & A_signed ? (double)Val.Int : (double)Val.Uint));
 		}
 		if (!bw)
 			bw = ft->type->getIntegerBitWidth();
@@ -57,11 +57,9 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::BFloatTyID:
 		errs() << "Sorry, 16 bit floats are not supported, yet\n";
 		return nullptr;
-		// passthrough to 32 bit float for now - but expect problems...
 	case llvm::Type::FloatTyID:
-		return handle(target, llvm::ConstantFP::get(Context, llvm::APFloat((float)Val.Float)));
 	case llvm::Type::DoubleTyID:
-		return handle(target, llvm::ConstantFP::get(Context, llvm::APFloat(Val.Float)));
+		return handle(target, llvm::ConstantFP::get(ft->type, Val.Float));
 	case llvm::Type::PointerTyID:
 		if (ft->type_attr & A_signed)
 			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));

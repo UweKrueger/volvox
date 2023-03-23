@@ -403,7 +403,7 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 			}
 		} else {
 			if (res_is_float) {
-				desired_left_type = getFittingType(desired_bitwidth, true);
+				desired_left_type = getFittingType(left_bitwidth, true);
 				if (right_is_float)
 					desired_right_type = desired_left_type;
 				else
