@@ -22,11 +22,15 @@ pub const CLOEXEC ::= if os.isLinux
 		0x020000
 	elif os.isWindows
 		0x000080 # called _O_NOINHERIT there
+	elif os.isHaiku
+		0x000040
 	else
 		0 .
 pub const NOINHERIT ::= CLOEXEC # flag's Windows name as alias
 pub const NONBLOCK ::= if os.isLinux
 		0x0800
+	elif os.isHaiku
+		0x0080
 	else
 		0x0004 .
 

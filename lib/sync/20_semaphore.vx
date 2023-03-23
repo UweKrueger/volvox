@@ -27,6 +27,8 @@ cdecl fn release_sem(id i32) i32
 cdecl fn release_sem_etc(id i32, count i32, flags u32) i32
 cdecl fn pipe(&filedes [2]int) int
 cdecl fn pipe2(&filedes [2]int, flags u32) int
+cdecl fn fcntl(fd int, op int, ...) int
+const SETFD ::= 0x004 # Haiku: set fd flags
 
 from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT, POLLIN
 
@@ -77,7 +79,14 @@ pub fn semaphore(init_val int) Semaphore
 			sem.err = GetLastError() .
 	else
 		fds := pipehandle_t{}
-		res := pipe2(fds.fds, CLOEXEC | NONBLOCK)
+		if os.isHaiku
+			res := pipe(fds.fds)
+			if res >= 0
+				res = fcntl(fds.fds[0], SETFD, CLOEXEC | NONBLOCK)
+				if res >= 0
+					res = fcntl(fds.fds[1], SETFD, CLOEXEC | NONBLOCK) . .
+		else
+			res := pipe2(fds.fds, CLOEXEC | NONBLOCK) .
 		if res < 0
 			sem.err = GetLastError()
 		else
@@ -146,9 +155,6 @@ pub fn Semaphore.wait bool
 		return false .
 	if os.isWindows
 		success := WaitForSingleObjectEx(size_t(this.handle), u32(-1), true) != 0
-	elif os.isHaiku
-		this.err = u32(acquire_sem(i32(this.handle)))
-		success := this.err == 0
 	else
 		if os.isLinux || os.isFreeBSD || os.isNetBSD
 			fd := int(this.handle)
