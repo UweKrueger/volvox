@@ -23,21 +23,26 @@ const char* tokens[] = {
 
 MapNode* keyword_toks = nullptr;
 
+void insert_token_into_map(int token) {
+	MapValue val = { .i32 = token };
+	const char* tokenstr = tokens[token - 1 - tok_1st_keyword];
+	MapNode* replace = nullptr;
+	MapNode* res = map_string_insert(&keyword_toks, tokenstr, val, 0, replace);
+	if (replace) {
+		errs() << "internal error: map entry for keyword \"" << tokenstr << " already exists\n";
+		abort();
+	}
+}
+
 void init_token_map() {
 	// first fix two exceptions in token array
 	tokens[tok_end - 1 - tok_1st_keyword] = ".";
 	tokens[tok_invisible - 1 - tok_1st_keyword] = "<invisible operator>";
 	// now fill token map with those tokens that correspond to ASCII-keywords (not operators)
 	for (int token = tok_1st_keyword + 1; token < tok_last_keyword; token++) {
-		MapValue val = { .i32 = token };
-		const char* tokenstr = tokens[token - 1 - tok_1st_keyword];
-		MapNode* replace = nullptr;
-		MapNode* res = map_string_insert(&keyword_toks, tokenstr, val, 0, replace);
-		if (replace) {
-			errs() << "internal error: map entry for keyword \"" << tokenstr << " already exists\n";
-			abort();
-		}
+		insert_token_into_map(token);
 	}
+	insert_token_into_map(tok_task);
 }
 
 std::string Token::str() const {

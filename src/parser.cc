@@ -1073,7 +1073,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	// If the current token is not an operator, it must be a primary expr.
 	auto kind = CurTok.kind;
-	if (kind != tok_unary && kind != tok_ref && kind != tok_optional)
+	if (kind != tok_unary && kind != tok_ref && kind != tok_optional && kind != tok_task)
 		return ParsePrimary(terminator);
 	
 	// If this is a unary operator, read it.
@@ -1093,8 +1093,16 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 			}
 			errs() << Loc << ": reference operator '&' cannot be applied to rvalue\n";
 			return nullptr;
-		} else
-			return std::make_unique<UnaryExprAST>(Loc, Op.c_str(), std::move(Operand));
+		} else if (kind == tok_task) {
+			if (auto call = dynamic_cast<CallExprAST*>(Operand.get())) {
+				auto Call = std::unique_ptr<CallExprAST>(call);
+				Operand.release();
+				return std::make_unique<TaskExprAST>(Loc, std::move(Call));
+			}
+			errs() << Operand->Loc << ": 'task' requires a call expression as operand\n";
+			return nullptr;
+		}
+		return std::make_unique<UnaryExprAST>(Loc, Op.c_str(), std::move(Operand));
 	}
 	return nullptr;
 }

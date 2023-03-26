@@ -669,7 +669,11 @@ llvm::Function *PrototypeAST::codegen() {
 	return F;
 }
 
-llvm::Value *CallExprAST::codegen_raw(llvm::Value* target) {
+llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
+	return nullptr;
+}
+
+llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	bool is_error = Proto && Proto->Name == "__error";
 	if (is_error || Proto && Proto->Name == "__link_extra") {
 		if (Args.empty() || !(Args[0]->ft->type_attr & A_string)) {
