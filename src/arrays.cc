@@ -151,7 +151,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 				ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
 			else {
 				ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-				                                          llvm_size_type, llvm::Type::getInt8PtrTy(Context),
+				                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
 				                                          ElemSize, Len,
 				                                          nullptr, Name);
 				ArrayAlloc = Builder->Insert(ArrayAlloc);
@@ -162,7 +162,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 		else {
 			ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-			                                          llvm_size_type, llvm::Type::getInt8PtrTy(Context),
+			                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
 			                                          ElemSize, Len,
 			                                          nullptr, Name);
 			ArrayAlloc = Builder->Insert(ArrayAlloc);

@@ -596,7 +596,7 @@ public:
 
 /// UnaryExprAST - Expression class for a unary operator (-x, !e)
 class UnaryExprAST : public ExprAST {
-	char Opcode[8] = { 0, 0, 0, 0 };
+	char Opcode[4] = { 0, 0, 0, 0 };
 	std::unique_ptr<ExprAST> Operand;
 public:
 	UnaryExprAST(SourceLocation Loc, const char* Op, std::unique_ptr<ExprAST> _Operand)

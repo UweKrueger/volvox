@@ -670,7 +670,34 @@ llvm::Function *PrototypeAST::codegen() {
 }
 
 llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
-	return nullptr;
+	llvm::Value* AllocSz = Call->alloc_size();
+	std::vector<std::tuple<llvm::Value*,llvm::Value*,bool>> Alloc; // offset, size, is_ref
+	Alloc.reserve(Call->Args.size());
+	unsigned i = 0;
+	for (auto& arg: Call->Args) {
+		unsigned attr = Call->Proto->ArgTypes[i]->type_attr;
+		if (attr & A_ref) {
+			if (attr & (A_unique | A_shared | A_const)) {
+				llvm::Value* sz = getSize(target_bytes);
+				Alloc.push_back({ AllocSz, sz, true });
+				AllocSz = Builder->CreateAdd(AllocSz, sz);
+			} else {
+				errs() << arg->Loc << ": reference argument for 'task' only allowed when 'unique', 'shared' or 'const'";
+				return nullptr;
+			}
+		} else {
+			llvm::Value* sz = arg->alloc_size();
+			Alloc.push_back({ AllocSz, sz, false });
+			AllocSz = Builder->CreateAdd(AllocSz, sz);
+		}
+	}
+	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
+		Builder->GetInsertBlock(),
+		llvm_size_type, llvm::Type::getInt8Ty(Context),
+		AllocSz, nullptr, nullptr, "task");
+	Malloc =  Builder->Insert(Malloc);
+	// return Malloc;
+	return llvm::Constant::getNullValue(ft->type);
 }
 
 llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
