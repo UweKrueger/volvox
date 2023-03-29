@@ -669,17 +669,37 @@ llvm::Function *PrototypeAST::codegen() {
 	return F;
 }
 
+std::vector<unsigned> get_vardims(llvm::Type* ty) {
+	std::vector<unsigned> var_dims;
+	unsigned idx = 0;
+	while (auto array_ty = llvm::dyn_cast<llvm::ArrayType>(ty)) {
+		if (!array_ty->getNumElements())
+			var_dims.push_back(idx);
+		idx++;
+	}
+	return var_dims;
+}
+
 llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* AllocSz = Call->alloc_size();
-	std::vector<std::tuple<llvm::Value*,llvm::Value*,bool>> Alloc; // offset, size, is_ref
+	// offset, allocsz, var_indices, is_reference
+	std::vector<std::tuple<llvm::Value*,llvm::Value*,std::vector<unsigned>,bool>> Alloc;
 	Alloc.reserve(Call->Args.size());
 	unsigned i = 0;
 	for (auto& arg: Call->Args) {
 		unsigned attr = Call->Proto->ArgTypes[i]->type_attr;
+		llvm::Type* ty = Call->Proto->ArgTypes[i]->type;
+		std::vector<unsigned> var_dims = get_vardims(ty);
+		unsigned n_var_dims = var_dims.size();
+		// align AllocSz to target_bytes
+		AllocSz = Builder->CreateAdd(AllocSz, getSize(target_bytes - 1));
+		AllocSz = Builder->CreateAnd(AllocSz, getSize(-target_bytes));
+		if (n_var_dims)
+			AllocSz = Builder->CreateAdd(AllocSz, getSize(n_var_dims * target_bytes));
 		if (attr & A_ref) {
 			if (attr & (A_unique | A_shared | A_const)) {
 				llvm::Value* sz = getSize(target_bytes);
-				Alloc.push_back({ AllocSz, sz, true });
+				Alloc.push_back({ AllocSz, sz, var_dims, true });
 				AllocSz = Builder->CreateAdd(AllocSz, sz);
 			} else {
 				errs() << arg->Loc << ": reference argument for 'task' only allowed when 'unique', 'shared' or 'const'";
@@ -687,7 +707,7 @@ llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
 			}
 		} else {
 			llvm::Value* sz = arg->alloc_size();
-			Alloc.push_back({ AllocSz, sz, false });
+			Alloc.push_back({ AllocSz, sz, var_dims, false });
 			AllocSz = Builder->CreateAdd(AllocSz, sz);
 		}
 	}

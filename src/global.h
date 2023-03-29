@@ -389,8 +389,8 @@ extern volvoxc::FullType* integer_type;
 extern volvoxc::FullType* interface_type;
 extern volvoxc::FullType* voidptr_type;
 extern std::unique_ptr<FunctionAST> MainFunction;
-static inline llvm::ConstantInt* getSize(uint64_t n) {
-	return llvm::ConstantInt::get(llvm::IntegerType::get(Context, target_bits), n);
+static inline llvm::ConstantInt* getSize(int64_t n) {
+	return llvm::ConstantInt::get(llvm::IntegerType::get(Context, target_bits), n, true);
 }
 extern const char* last_shadow_saver;
 extern const char* last_shadow_restorer;
