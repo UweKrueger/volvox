@@ -710,12 +710,21 @@ llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
 			Alloc.push_back({ AllocSz, sz, var_dims, false });
 			AllocSz = Builder->CreateAdd(AllocSz, sz);
 		}
+		i++;
 	}
 	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
 		Builder->GetInsertBlock(),
 		llvm_size_type, llvm::Type::getInt8Ty(Context),
 		AllocSz, nullptr, nullptr, "task");
 	Malloc =  Builder->Insert(Malloc);
+	for (unsigned j=0; j<i; j++) {
+		auto [ offs, sz, var_dims, is_ref ] = Alloc[j];
+		llvm::Value* val = nullptr;
+		llvm::Value* ref = nullptr;
+		if (!var_dims.empty()) {
+			
+		}
+	}
 	// return Malloc;
 	return llvm::Constant::getNullValue(ft->type);
 }
