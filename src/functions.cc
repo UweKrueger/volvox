@@ -721,8 +721,20 @@ llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
 		auto [ offs, sz, var_dims, is_ref ] = Alloc[j];
 		llvm::Value* val = nullptr;
 		llvm::Value* ref = nullptr;
+		llvm::Value* Adr;
 		if (!var_dims.empty()) {
-			
+			llvm::Value* IdxOffs = Builder->CreateSub(offs, getSize(var_dims.size() * target_bytes));
+			llvm::Value* IdxsAdr = Builder->CreateGEP(llvm::Type::getInt8Ty(Context), Malloc, IdxOffs);
+			auto dim_vals = Call->Args[j]->codegen_dims();
+			for (unsigned n=0; ; n++) {
+				llvm::Value* Adr = Builder->CreateConstGEP1_32(
+					llvm_size_type, Builder->CreatePointerCast(Adr, llvm_size_type->getPointerTo()), n);
+				if (n == var_dims.size())
+					break;
+				Builder->CreateStore(Adr, (*dim_vals.second)[var_dims[n]]);
+			}
+		} else {
+			Adr = Builder->CreateGEP(llvm::Type::getInt8Ty(Context), Malloc, offs);
 		}
 	}
 	// return Malloc;
