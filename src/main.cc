@@ -162,11 +162,29 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("f32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("f32", 32, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
-	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "string") : nullptr, A_string);
+	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
+#if LLVM_VERSION_MAJOR >= 16
+	                                                    std::nullopt,
+#else
+	                                                    llvm::None,
+#endif
+	                                                    "string") : nullptr, A_string);
 	lex.add_type("cstring", llvm::Type::getInt8PtrTy(Context),
-	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "cstring") : nullptr, A_cstring);
+	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
+#if LLVM_VERSION_MAJOR >= 16
+	                                                    std::nullopt,
+#else
+	                                                    llvm::None,
+#endif
+	                                                    "cstring") : nullptr, A_cstring);
 	lex.add_type("voidptr", llvm::Type::getInt8PtrTy(Context),
-	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0, llvm::None, "voidptr") : nullptr);
+	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
+#if LLVM_VERSION_MAJOR >= 16
+	                                                    std::nullopt,
+#else
+	                                                    llvm::None,
+#endif
+	                                                    "voidptr") : nullptr);
 	voidptr_type = lex.get_full_type("voidptr");
 	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
 	std::vector<llvm::Type*> interface_type_elements = { llvm::Type::getInt8PtrTy(Context), llvm::Type::getInt8PtrTy(Context) };
@@ -1558,7 +1576,13 @@ int main(int argc, char* argv[]) {
 		}
 	} else {
 		TheTargetMachine =
-			Target->createTargetMachine(TargetTriple, CPU, Features, target_opts, RM, llvm::None, codegenopt);
+			Target->createTargetMachine(TargetTriple, CPU, Features, target_opts, RM,
+#if LLVM_VERSION_MAJOR >= 16
+			                            std::nullopt,
+#else
+			                            llvm::None,
+#endif
+			                            codegenopt);
 	}
 	if (verbosity >= 1) {
 		if (TheTargetMachine->useEmulatedTLS())

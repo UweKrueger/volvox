@@ -1792,7 +1792,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				auto RHSBB = enterBB ? llvm::BasicBlock::Create(Context, "lazy_rhs") : nullptr;
 				auto RHSBBstart = RHSBB;
 				if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+					TheFunction->insert(TheFunction->end(), RHSBB);
+#else
 					TheFunction->getBasicBlockList().push_back(RHSBB);
+#endif
 					Builder->SetInsertPoint(RHSBB);
 				}
 				R = RHS->codegen();
@@ -1826,7 +1830,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Builder->CreateCondBr(L, RHSBBstart, ContBB);
 				else
 					Builder->CreateCondBr(L, ContBB, RHSBBstart);
+#if LLVM_VERSION_MAJOR >= 16
+				TheFunction->insert(TheFunction->end(), ContBB);
+#else
 				TheFunction->getBasicBlockList().push_back(ContBB);
+#endif
 				Builder->SetInsertPoint(ContBB);
 				auto PN = Builder->CreatePHI(llvm::Type::getInt1Ty(Context), 2, "merged_lazy");
 				PN->addIncoming(Op[0] == '&' ? Builder->getFalse() : Builder->getTrue(), enterBB);
@@ -2275,8 +2283,13 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (if_kind == tok_while) {
 		CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "while");
 		Builder->CreateBr(CondBBstart);
-		if (TheFunction)
+		if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), CondBB);
+#else
 			TheFunction->getBasicBlockList().push_back(CondBB);
+#endif
+		}
 		Builder->SetInsertPoint(CondBB);
 		condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
 		savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
@@ -2353,14 +2366,22 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* savedStack0;
 	if (if_kind != tok_if) {
 		if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), StackSaveBB);
+#else
 			TheFunction->getBasicBlockList().push_back(StackSaveBB);
+#endif
 			Builder->SetInsertPoint(StackSaveBB);
 		}
 		savedStack0 = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {}, nullptr, "savedstack");
 		Builder->CreateBr(ThenBB);
 		StackSaveBB = Builder->GetInsertBlock();
 		if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), StackRestoreBB);
+#else
 			TheFunction->getBasicBlockList().push_back(StackRestoreBB);
+#endif
 			Builder->SetInsertPoint(StackRestoreBB);
 		}
 		if (if_kind == tok_repeat)
@@ -2375,7 +2396,11 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	llvm::PHINode* savedStack1;
 	if (CTcond != CTcond_false) {
 		if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), ThenBB);
+#else
 			TheFunction->getBasicBlockList().push_back(ThenBB);
+#endif
 			Builder->SetInsertPoint(ThenBB);
 		}
 		if (if_kind == tok_while || if_kind == tok_repeat) {
@@ -2407,8 +2432,13 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Instruction* elseLast = nullptr;;
 	llvm::Constant* elseConstV = nullptr;
 	if (if_kind == tok_repeat) {
-		if (TheFunction)
+		if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), CondBB);
+#else
 			TheFunction->getBasicBlockList().push_back(CondBB);
+#endif
+		}
 		Builder->SetInsertPoint(CondBB);
 		if (then_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
@@ -2437,8 +2467,13 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	} else {
 		if (CTcond != CTcond_true) {
 			// Emit else block.
-			if (TheFunction)
+			if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+				TheFunction->insert(TheFunction->end(), ElseBB);
+#else
 				TheFunction->getBasicBlockList().push_back(ElseBB);
+#endif
+			}
 			Builder->SetInsertPoint(ElseBB);
 			locals_table.push_back(std::move(else_locals_table));
 			condnesting++;
@@ -2466,13 +2501,21 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		if (CTcond != CTcond_undef) { // at least one branch can be removed
 			if (thenConstV && ThenEndKind == tok_else && !ft->type->isVoidTy()) {
 				if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+					TheFunction->insert(TheFunction->end(), MergeBB);
+#else
 					TheFunction->getBasicBlockList().push_back(MergeBB);
+#endif
 					Builder->SetInsertPoint(MergeBB);
 				}
 				return thenConstV;
 			} else if (elseConstV && ElseEndKind == tok_end && !ft->type->isVoidTy()) {
 				if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+					TheFunction->insert(TheFunction->end(), MergeBB);
+#else
 					TheFunction->getBasicBlockList().push_back(MergeBB);
+#endif
 					Builder->SetInsertPoint(MergeBB);
 				}
 				return elseConstV;
@@ -2494,7 +2537,11 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 	if (always_return)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+		TheFunction->insert(TheFunction->end(), MergeBB);
+#else
 		TheFunction->getBasicBlockList().push_back(MergeBB);
+#endif
 		Builder->SetInsertPoint(MergeBB);
 	}
 	// Emit merge block.

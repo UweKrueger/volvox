@@ -371,12 +371,6 @@ llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& Va
 	return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
-static void EraseInstruction(llvm::Instruction* inst) {
-	llvm::BasicBlock::iterator BI(inst);
-	llvm::BasicBlock::InstListType& BIL = inst->getParent()->getInstList();
-	BIL.erase(BI);
-}
-
 void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
                               volvoxc::FullType* array_elem_type, llvm::Value* val, llvm::Instruction* before,
                               bool is_constructor) {
@@ -421,7 +415,11 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	} else
 		ContBB = llvm::BasicBlock::Create(Context, "contloop");
 	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "loopwhile");
+#if LLVM_VERSION_MAJOR >= 16
+	TheFunction->insert(TheFunction->end(), DestructorBB);
+#else
 	TheFunction->getBasicBlockList().push_back(DestructorBB);
+#endif
 	Builder->SetInsertPoint(DestructorBB);
 	Ptr = Builder->CreateLoad(llvm_size_type, PtrStore);
 	llvm::Value* ElPtr = Builder->CreateIntToPtr(Ptr, elem_ptr_ty);
@@ -429,7 +427,11 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	llvm::Value* NewPtr = Builder->CreateAdd(Ptr, ElemAllocSize);
 	Builder->CreateStore(NewPtr, PtrStore);
 	Builder->CreateBr(CondBB);
+#if LLVM_VERSION_MAJOR >= 16
+	TheFunction->insert(TheFunction->end(), CondBB);
+#else
 	TheFunction->getBasicBlockList().push_back(CondBB);
+#endif
 	Builder->SetInsertPoint(CondBB);
 	Ptr = Builder->CreateLoad(llvm_size_type, PtrStore);
 	auto is_less = Builder->CreateICmpULT(Ptr, UpperLimit);
@@ -437,7 +439,11 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	if (before)
 		Builder->SetInsertPoint(before);
 	else {
+#if LLVM_VERSION_MAJOR >= 16
+		TheFunction->insert(TheFunction->end(), ContBB);
+#else
 		TheFunction->getBasicBlockList().push_back(ContBB);
+#endif
 		Builder->SetInsertPoint(ContBB);
 	}
 }
@@ -525,12 +531,20 @@ void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "stringdestr");
 	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "contdestr");
 	Builder->CreateCondBr(destructflag, DestructorBB, ContBB);
+#if LLVM_VERSION_MAJOR >= 16
+	TheFunction->insert(TheFunction->end(), DestructorBB);
+#else
 	TheFunction->getBasicBlockList().push_back(DestructorBB);
+#endif
 	Builder->SetInsertPoint(DestructorBB);
 	auto cstr = Volvox2CStr2(v, subtrahend);
 	Builder->Insert(llvm::CallInst::CreateFree(cstr, DestructorBB));
 	Builder->CreateBr(ContBB);
+#if LLVM_VERSION_MAJOR >= 16
+	TheFunction->insert(TheFunction->end(), ContBB);
+#else
 	TheFunction->getBasicBlockList().push_back(ContBB);
+#endif
 	Builder->SetInsertPoint(ContBB);
 }
 
