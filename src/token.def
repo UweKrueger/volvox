@@ -22,6 +22,7 @@ TOKEN(for) \
 TOKEN(else) \
 TOKEN(elif) \
 TOKEN(if) \
+TOKEN(end) /* '.' at end of if/while/else branch */ \
 TOKEN(pub) \
 TOKEN(cpub) \
 TOKEN(as) \
@@ -43,7 +44,6 @@ TOKEN(number) \
 TOKEN(identifier) \
 TOKEN(ellipsis) \
 TOKEN(star) /* '*' in import list */ \
-TOKEN(end) /* '.' at end of if/while/else branch */ \
 TOKEN(eof) \
 TOKEN(last_op) /* only used for comparisons to identify operators */ \
 TOKEN(selector) /* '.' (struct.field, module.ident), invisible operator in `sin(x)` - so `sin(x)a` = `(sin(x))a */ \
