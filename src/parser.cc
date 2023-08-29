@@ -868,16 +868,18 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (Then.second != tok_elif)
 			getNextToken();
 	} else if (Then.second == tok_return) {
+		while (CurTok.kind == ';')
+			getNextToken();
 		if (CurTok.kind == tok_end) {
 			getNextToken();
 			have_else = false;
+		} else if (CurTok.kind == tok_else || CurTok.kind == tok_elif) {
+			if (CurTok.kind != tok_elif)
+				getNextToken();
+			have_else = true;
 		} else {
-			getNextToken();
-			if (CurTok.kind == tok_else || CurTok.kind == tok_elif) {
-				if (CurTok.kind != tok_elif)
-					getNextToken();
-				have_else = true;
-			}
+			errs() << CurLoc << ": 'else', 'elif' or 'end' expected\n";
+			return nullptr;
 		}
 	}
 	if (have_else) {
