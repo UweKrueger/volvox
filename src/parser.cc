@@ -899,8 +899,19 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			std::vector<std::unique_ptr<ExprAST>> l;
 			l.push_back(std::move(elif_expr));
 			Else = { std::move(l), end_k };
-		} else
+		} else {
 			Else = ParseExprList();
+			if (Else.second == tok_return) {
+				while (CurTok.kind == ';')
+					getNextToken();
+				if (CurTok.kind == tok_end) {
+					getNextToken();
+				} else {
+					errs() << CurLoc << ": 'end' expected\n";
+					return nullptr;
+				}
+			}
+		}
 	} else {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
