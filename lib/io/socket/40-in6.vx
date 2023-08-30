@@ -22,11 +22,14 @@ pub inline fn tcp6 Ip6Socket
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = u32(WSAGetLastError) .
+			s.err = u32(WSAGetLastError)
+		end
 	else
-		s.handle = socket(AF_INET6, SOCK_STREAM, 0) .
+		s.handle = socket(AF_INET6, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = GetLastError .
+			s.err = GetLastError
+		end
+	end
 	return s
 
 pub inline fn udp6 Ip6Socket
@@ -34,11 +37,14 @@ pub inline fn udp6 Ip6Socket
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_DGRAM, 0)
 		if s.handle == -1
-			s.err = u32(WSAGetLastError) .
+			s.err = u32(WSAGetLastError)
+		end
 	else
-		s.handle = socket(AF_INET6, SOCK_DGRAM, 0) .
+		s.handle = socket(AF_INET6, SOCK_DGRAM, 0)
 		if s.handle == -1
-			s.err = GetLastError .
+			s.err = GetLastError
+		end
+	end
 	return s
 
 pub const in6_any      ::= in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} }

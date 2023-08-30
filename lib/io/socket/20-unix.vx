@@ -9,7 +9,8 @@ pub const UNIX_PATH_MAX	::= if os.isWindows || os.isLinux
 	elif os.isHaiku
 		126
 	else
-		104 .
+		104
+	end
 
 type sockaddr_un {
 	sun_family u16
@@ -21,11 +22,14 @@ pub inline fn unix UnixSocket
 	if os.isWindows
 		s.handle = win_socket(AF_UNIX, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = u32(WSAGetLastError()) .
+			s.err = u32(WSAGetLastError())
+		end
 	else
-		s.handle = socket(AF_UNIX, SOCK_STREAM, 0) .
+		s.handle = socket(AF_UNIX, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = GetLastError .
+			s.err = GetLastError
+		end
+	end
 	return s
 
 const ENAMETOOLONG ::= if os.isWindows
@@ -35,7 +39,8 @@ const ENAMETOOLONG ::= if os.isWindows
 	elif os.isHaiku
 		limits.min_int + 0x6000 + 4
 	else
-		63 .
+		63
+	end
 
 type ucred {
 	pid u32
@@ -48,7 +53,8 @@ const SOL_SOCKET ::= if os.isLinux
 	elif os.isHaiku
 		-1
 	else
-		0xffff .
+		0xffff
+	end
 
 const IOC_VENDOR ::= 0x18000000
 const IOC_OUT    ::= 0x40000000
@@ -65,7 +71,9 @@ const SO_PEERCRED ::= if os.isLinux
 		0x4000000b
 	elif os.isWindows
 		IOC_OUT | IOC_VENDOR | 256 # SIO_AF_UNIX_GETPEERPID
-	else 0 .
+	else
+		0
+	end
 
 cdecl fn WSAIoctl(s size_t, dwIoControlCode u32, lpvInBuffer voidptr, cbInBuffer u32,
                lpvOutBuffer voidptr, cbOutBuffer u32, &lpcbBytesReturned u32,
@@ -80,8 +88,10 @@ fn UnixSocket.peer ucred
 		pid := u32
 		r := WSAIoctl(u64(this.handle), SO_PEERCRED, nil, 0, &pid, u32(sizeof(u32)), l, nil, nil)
 		if r != -1
-			p.pid = pid .
+			p.pid = pid
+		end
 	else
 		l := u32
-		r := getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l) .
+		r := getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l)
+	end
 	return p

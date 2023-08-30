@@ -25,7 +25,7 @@ type sockaddr_storage {
 # address families
 #
 const AF_UNSPEC ::= 0
-const AF_UNIX   ::= if os.isHaiku; 9 else 1 .
+const AF_UNIX   ::= if os.isHaiku; 9 else 1 end
 const AF_INET   ::= 2
 const AF_INET6  ::= if os.isWindows
 		23
@@ -36,7 +36,8 @@ const AF_INET6  ::= if os.isWindows
 	elif os.isHaiku
 		5
 	else
-		28 .
+		28
+	end
 
 # socket types
 #

@@ -6,7 +6,8 @@ import arch.os
 if os.isWindows
 	__link_extra "Ws2_32"
 elif os.isHaiku
-	__link_extra "network" .
+	__link_extra "network"
+end
 
 const WSADESCRIPTION_LEN ::= 256
 const WSASYS_STATUS_LEN ::= 128
@@ -49,20 +50,24 @@ inline fn WsockProto
 		else
 			data32 := WSAData32{}
 			this.int = WSAStartup32(version, data32)
-			version = data32.wVersion .
+			version = data32.wVersion
+		end
 		if this.int != 0
 			printf("WSAStartup returned %d\n", this.int)
 		elif version != 0x0202
 			printf("requested WINSock version 2.2 not available - got version %hu.%hu\n", version >> 8, version & 0xff)
 		elif __verbose
-			printf("got WINSock version %hu.%hu\n", version >> 8, version & 0xff) .
+			printf("got WINSock version %hu.%hu\n", version >> 8, version & 0xff)
+		end
 	else
-		 this.int = 0 .
+		this.int = 0
+	end
 	return
 
 inline fn ~WsockProto
 	if os.isWindows
-		WSACleanup .
+		WSACleanup
+	end
 	return
 
 # symbol of type 'WsockProto' to trigger constructor/destructor calls that do initialization/clean-up

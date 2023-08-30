@@ -10,12 +10,14 @@ pub inline fn htons(x u16) u16
 		return (x >> 8) | (x << 8)
 	else
 		return x
+	end
 
 pub inline fn htonl(x u32) u32
 	if arch.isLittleEndian
 		return (x >> 24) | ((x & 0xff0000) >> 8) | ((x & 0xff00) << 8) | (x << 24)
 	else
 		return x
+	end
 
 type in_addr union {
 	__s4_addr [4]u8
@@ -34,11 +36,14 @@ pub inline fn tcp IpSocket
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = u32(WSAGetLastError()) .
+			s.err = u32(WSAGetLastError())
+		end
 	else
-		s.handle = socket(AF_INET, SOCK_STREAM, 0) .
+		s.handle = socket(AF_INET, SOCK_STREAM, 0)
 		if s.handle == -1
-			s.err = GetLastError .
+			s.err = GetLastError
+		end
+	end
 	return s
 
 pub inline fn udp IpSocket
@@ -46,11 +51,14 @@ pub inline fn udp IpSocket
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_DGRAM, 0)
 		if s.handle == -1
-			s.err = u32(WSAGetLastError) .
+			s.err = u32(WSAGetLastError)
+		end
 	else
-		s.handle = socket(AF_INET, SOCK_DGRAM, 0) .
+		s.handle = socket(AF_INET, SOCK_DGRAM, 0)
 		if s.handle == -1
-			s.err = GetLastError .
+			s.err = GetLastError
+		end
+	end
 	return s
 
 pub const in_any       ::= in_addr{ __s4_addr: { 0, 0, 0, 0 } }

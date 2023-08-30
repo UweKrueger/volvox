@@ -41,3 +41,5 @@ fn test_semaphore_2 bool
 	b := s.timedwait(1.0)
 	c := s.timedwait(0.05)
 	return a && b && !c && s.err == 0
+
+import io.socket
