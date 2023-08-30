@@ -24,7 +24,9 @@ pub inline fn F64 f64
 			mask := 0u64 - (r0 >> 63)
 			c := Fu64{ f: 0.5 * epsilon64 }
 			c.u &= mask
-			x.f += c.f .
+			x.f += c.f
+		end
 		return x.f
 	else
 		return u64(U64 & ((1 << 53) - 1)) * 0x1.0p-53
+	end

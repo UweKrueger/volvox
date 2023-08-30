@@ -39,7 +39,8 @@ elif os.isWindows
 	# clock instead...
 	GetSystemTimePreciseAsFileTime(t)
 	# switch low/high parts for x0 to get more randomness in high bits
-	x0 = t.dwHighDateTime | (t.dwLowDateTime << 32) .
+	x0 = t.dwHighDateTime | (t.dwLowDateTime << 32)
+end
 
 atomic x := x0 + 0x9e3779b97f4a7c15u64 # The state can be seeded with any value.
 
