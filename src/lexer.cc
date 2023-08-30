@@ -847,11 +847,12 @@ startanalysis:
 				return tok_range;
 			}
 		} else {
-			char nextchar = this->peek_strict();
-			if (isalpha(nextchar) || nextchar == '_' || nextchar == '.')
-				return tok_selector;
-			else
-				return tok_end;
+			return tok_selector;
+			// char nextchar = this->peek_strict();
+			// if (isalpha(nextchar) || nextchar == '_' || nextchar == '.')
+			// 	return tok_selector;
+			// else
+			// 	return tok_end;
 		}
 	case '<':
 		if (linebuf[Loc.Col] == '-') {

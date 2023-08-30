@@ -8,33 +8,45 @@ fn test_built_in_consts bool
 fn test_exactly_one_os_is_defined bool
 	n := 0
 	if os.isFreeBSD
-		n++ .
+		n++
+	end
 	if os.isNetBSD
-		n++ .
+		n++
+	end
 	if os.isOpenBSD
-		n++ .
+		n++
+	end
 	if os.isWindows
-		n++ .
+		n++
+	end
 	if os.isLinux
-		n++ .
+		n++
+	end
 	if os.isHaiku
-		n++ .
+		n++
+	end
 	if os.isMacOSX
-		n++ .
+		n++
+	end
 	return n == 1
 
 fn test_exactly_one_cpu_is_defined bool
 	m := 0
 	if cpu.isARM
-		m++ .
+		m++
+	end
 	if cpu.isAArch64
-		m++ .
+		m++
+	end
 	if cpu.isAVR
-		m++ .
+		m++
+	end
 	if cpu.isX86
-		m++ .
+		m++
+	end
 	if cpu.isX86_64
-		m++ .
+		m++
+	end
 	return m == 1
 
 fn p7_1 string
@@ -49,28 +61,32 @@ fn test_incompatible_branches_1 bool
 	if x7_1 > 3
 		p7_1
 	else
-		q7_1 .
+		q7_1
+	end
 	return true
 
 fn test_incompatible_branches_2 bool
 	if x7_1 > 1
 		p7_1
 	else
-		q7_1 .
+		q7_1
+	end
 	return true
 
 fn test_incompatible_branches_3 bool
 	if 2 > 3
 		p7_1
 	else
-		q7_1 .
+		q7_1
+	end
 	return true
 
 fn test_incompatible_branches_4 bool
 	if 2 > 1
 		p7_1
 	else
-		q7_1 .
+		q7_1
+	end
 	return true
 
 fn test_array_value_attrib_1 bool
@@ -181,7 +197,8 @@ const ppeer ::= false
 pub const SEMVMX2 ::= if ppeer
 		17
 	else
-		SEMVMX1 + 1 .
+		SEMVMX1 + 1
+	end
 
 fn test_unsigned_from_untyped_2 bool
 	b := 511
@@ -194,7 +211,8 @@ pub const SEMVMX ::= if os.isWindows
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
 		limits.max_u64 - 1
 	else
-		u64(512) .
+		u64(512)
+	end
 
 fn test_unsigned_from_untyped_3 bool
 	b := 511

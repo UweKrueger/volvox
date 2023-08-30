@@ -75,7 +75,8 @@ fn test_destructor_1 bool
 fn hhwe2(n i32) i32
 	if n<=0
 		llk3e := YY{ r: n-8 }
-		return llk3e.r .
+		return llk3e.r
+	end
 	return 5
 
 fn test_destructor_2 bool
@@ -87,7 +88,8 @@ fn hhwe3(n i32) i32
 		x := YY{ r: n, w: XX{ a: -71 }}
 		n = n + x.w.a
 	else
-		n = n - 1 .
+		n = n - 1
+	end
 	return n
 
 fn test_destructor_then_branch_1 bool
@@ -116,7 +118,8 @@ type LL {
 fn test_auto_destructor_1 bool
 	if cntd > 0
 		p := LL{ a: 3, p: YY{ r: 5 }}
-		p.p.r = p.p.r - 1 .
+		p.p.r = p.p.r - 1
+	end
 	return cntd == -3
 
 cntd = 100
@@ -125,7 +128,8 @@ fn test_array_destructor_1 bool
 	if cntd > 99
 		iorrt := 34.5
 		prtz := [2][cntd-95][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 2 }}}}, 1: { 4: { 1: LL{ p: YY{ r: 3 }}}}}
-		prtz[1][4][0].p.r = 7 .
+		prtz[1][4][0].p.r = 7
+	end
 	return cntd == 88
 
 fn call_array_destructor f64
@@ -147,7 +151,7 @@ cntd = 200
 fn test_array_destructor_3 bool
 	if cntd > 100
 		rr := QQ{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
-	.
+	end
 	return cntd == 171
 
 type RR {

@@ -101,88 +101,119 @@ inline fn panic(s string)
 
 inline fn __check_array_index(index u64, length u64)
 	if index >= length
-		__signal_out_of_range().
+		__signal_out_of_range()
+	end
 	return
 
 inline fn __i32_pow(b i32, e i32) i32
 	if b == 1 || e == 0
-		return 1 .
+		return 1
+	end
 	if e >= 0
 		r := if (e & 1) != 0
 			b
 		else
-			1 .
+			1
+		end
 		while true
 			e >>= 1
 			if e == 0
-				return r .
+				return r
+			end
 			b *= b
 			if (e & 1) != 0
-				r *= b . . .
+				r *= b
+			end
+		end
+	end
 	if b == -1
 		if (e & 1) != 0
-			return -1 .
-		return 1 .
+			return -1
+		end
+		return 1
+	end
 	return 0
 
 # specialized version for constant exponents - all conditions are resolved at compile time
 inline fn __i32_pow_constexp(b i32, e i32) i32
 	if e == 0
-		return 1 .
+		return 1
+	end
 	if e == 1
-		return b .
+		return b
+	end
 	if e == 2
-		return b * b .
+		return b * b
+	end
 	if e == 3
-		return b * b * b .
+		return b * b * b
+	end
 	if e == 4
 		t := b * b
-		return t * t .
+		return t * t
+	end
 	if e == 5
-		return b * __i32_pow_constexp(b, 4) .
+		return b * __i32_pow_constexp(b, 4)
+	end
 	if e == 8
 		t := b * b
 		t *= t
-		return t * t .
+		return t * t
+	end
 	return __i32_pow(b, e)
 
 inline fn __i64_pow(b i64, e i32) i64
 	if b == 1 || e == 0
-		return 1 .
+		return 1
+	end
 	if e >= 0
 		r := if (e & 1) != 0
 			b
 		else
-			1 .
+			1
+		end
 		while true
 			e >>= 1
 			if e == 0
-				return r .
+				return r
+			end
 			b *= b
 			if (e & 1) != 0
-				r *= b . . .
+				r *= b
+			end
+		end
+	end
 	if b == -1
 		if (e & 1) != 0
-			return -1 .
-		return 1 .
+			return -1
+		end
+		return 1
+	end
 	return 0
 
 inline fn __i64_pow_constexp(b i64, e i32) i64
 	if e == 0
-		return 1 .
+		return 1
+	end
 	if e == 1
-		return b .
+		return b
+	end
 	if e == 2
-		return b * b .
+		return b * b
+	end
 	if e == 3
-		return b * b * b .
+		return b * b * b
+	end
 	if e == 4
 		t := b * b
-		return t * t .
+		return t * t
+	end
 	if e == 5
-		return b * __i64_pow_constexp(b, 4) .
+		return b * __i64_pow_constexp(b, 4)
+	end
 	if e == 8
 		t := b * b
 		t *= t
-		return t * t .
+		return t * t
+	end
 	return __i64_pow(b, e)

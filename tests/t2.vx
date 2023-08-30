@@ -69,29 +69,29 @@ fn kk
 
 global l := true
 
-if l; kk.
+if l; kk end
 
 l = false
 
-if l; kk.
-if l; kk.
+if l; kk end
+if l; kk; end
 
 fn test_if_then_no_else bool
 	return pp == 12.6875
 
-if l; kk else kk; kk.
+if l; kk else kk; kk end
 
 fn test_if_else_1 bool
 	return pp == 13.1875
 
 l = true
 
-if l; kk else kk; kk.
+if l; kk else kk; kk end
 
 fn test_if_else_2 bool
 	return pp == 13.4375
 
-pp = if l; 22.75 else 56.3.
+pp = if l; 22.75 else 56.3 end
 
 fn test_if_else_3 bool
 	return pp == 22.75
