@@ -33,13 +33,15 @@ pub fn StopWatch.elapsed f64
 		return f64(i64(get - this.begin)) * tick_period
 	else
 		return f64(i64(this.finish - this.begin)) * tick_period
+	end
 
 # continue accumulating time
 #
 pub fn StopWatch.cont
 	if this.finish != 0
 		this.begin += get - this.finish
-		this.finish = 0 .
+		this.finish = 0
+	end
 	return
 
 # calculate elapsed time in seconds since program start

@@ -14,5 +14,15 @@ fn test_rand_F64 bool
 		n++
 	end
 	p := 4. * s / n_pi
-	# printf("approximation for pi: %.10f\n", p)
+	# printf("approximation for pi: %.5f\n", p)
 	return p > 3.140 && p < 3.143
+
+import time
+
+fn test_sleep bool
+	s := time.StopWatch{}
+	time.sleep(0.35)
+	s.stop
+	e := s.elapsed
+	# printf("elapsed time: %.5f\n", e)
+	return e >= 0.35 && e < 0.37

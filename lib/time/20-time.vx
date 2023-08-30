@@ -62,10 +62,12 @@ pub inline fn time_t.gm tm
 			_gmtime32_s(res, t32)
 		else
 			t64 := i64(this.sec)
-			_gmtime64_s(res, t64) .
+			_gmtime64_s(res, t64)
+		end
 	else
 		t := this.sec
-		gmtime_r(t, res) .
+		gmtime_r(t, res)
+	end
 	return res
 
 pub inline fn time_t.local tm
@@ -76,10 +78,12 @@ pub inline fn time_t.local tm
 			_localtime32_s(res, t)
 		else
 			t := i64(this.sec)
-			_localtime64_s(res, t) .
+			_localtime64_s(res, t)
+		end
 	else
 		t := this.sec
-		localtime_r(t, res) .
+		localtime_r(t, res)
+	end
 	return res
 
 pub inline fn timespec.gm tm

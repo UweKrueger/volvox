@@ -24,6 +24,7 @@ pub inline fn Duration.timespec timespec
 pub fn sleep(t Duration)
 	if t.i64 <= 0
 		return
+	end
 	if os.isWindows
 		Sleep(u32(t.i64 / 10000))
 	else
@@ -36,13 +37,17 @@ pub fn sleep(t Duration)
 					res := nanosleep(t_remaining, ts)
 				else
 					res := clock_nanosleep(CLOCK_MONOTONIC, 0, t_remaining, ts)
+				end
 			else
 				if os.isOpenBSD
 					res := nanosleep(ts, t_remaining)
 				else
-					res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, t_remaining) .
+					res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, t_remaining)
+				end
 				sw = !sw
-		until res != EINTR .
+			end
+		until res != EINTR
+	end
 	return
 
 pub inline fn sleep(t int)

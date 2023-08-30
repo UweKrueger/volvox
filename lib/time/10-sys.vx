@@ -22,7 +22,8 @@ type timespec {
 pub const CLOCK_REALTIME ::= if os.isHaiku
 		-1
 	else
-		0 .
+		0
+	end
 
 pub const CLOCK_MONOTONIC ::= if os.isLinux
 		1
@@ -31,7 +32,8 @@ pub const CLOCK_MONOTONIC ::= if os.isLinux
 	elif os.isFreeBSD || os.isDragonFly
 		4
 	else
-		0 . # fall back to CLOCK_REALTIME if no MONOTONIC clock is known
+		0 # fall back to CLOCK_REALTIME if no MONOTONIC clock is known
+	end
 
 # Unix function to get precise time from a specific clock
 #
@@ -55,10 +57,12 @@ fn get_system_tick_frequency() int
 	if os.isWindows
 		f := 0i64
 		if !QueryPerformanceFrequency(f)
-			panic("fatal: cannot probe system tick frequency\n") .
+			panic("fatal: cannot probe system tick frequency\n")
+		end
 		return int(f)
 	else
 		return ufrequency
+	end
 
 pub const tick_frequency := get_system_tick_frequency()
 pub const tick_period := 1.0f64 / tick_frequency
@@ -77,10 +81,13 @@ fn get_common_timestamp() common_timestamp
 	_tmp_ts := common_timestamp{}
 	if os.isWindows
 		if !_QueryPerformanceCounter(_tmp_ts.i64)
-			panic("fatal: cannot query system performance counter\n") .
+			panic("fatal: cannot query system performance counter\n")
+		end
 	else
 		if clock_gettime(CLOCK_MONOTONIC, _tmp_ts.timespec) != 0
-			panic("fatal: cannot query CLOCK_MONOTONIC\n") . .
+			panic("fatal: cannot query CLOCK_MONOTONIC\n")
+		end
+	end
 	return _tmp_ts
 
 const program_start_common_timestamp := get_common_timestamp()
@@ -94,7 +101,8 @@ pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
 	}
 	if res.nsec < 0
 		res.nsec += ufrequency
-		res.sec-- .
+		res.sec--
+	end
 	return res
 
 pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
@@ -104,7 +112,8 @@ pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
 	}
 	if res.nsec >= ufrequency
 		res.nsec -= ufrequency
-		res.sec++ .
+		res.sec++
+	end
 	return res
 
 inline fn nanoseconds_since_start(ts timespec) i64
@@ -117,13 +126,16 @@ pub inline fn get() i64
 	if os.isWindows
 		t := 0i64
 		if !_QueryPerformanceCounter(t)
-			panic("fatal: cannot query system performance counter\n") .
+			panic("fatal: cannot query system performance counter\n")
+		end
 		return t - program_start_common_timestamp.i64
 	else
 		tsx := timespec{}
 		if clock_gettime(CLOCK_MONOTONIC, tsx) != 0
-			panic("fatal: cannot query CLOCK_MONOTONIC\n") .
+			panic("fatal: cannot query CLOCK_MONOTONIC\n")
+		end
 		return nanoseconds_since_start(tsx)
+	end
 
 # calculate difference of two timestamps as float in seconds
 #
@@ -145,7 +157,7 @@ type TimeStamp {
 
 # Microsoft discourages from treating FILETIME as u64 because of different alignment constraints,
 # i.e. if you get a FILETIME value from the system it might have 32 bit alignment.
-# However in this code here it's us who provides the allocation space and we always pass this
+# However, here we provides the allocation space ourselves and we always pass this
 # allocation by reference to get a value from the system. So we can make sure
 # it's always aligned like a 64 bit type.
 
@@ -170,7 +182,8 @@ pub inline fn now() TimeStamp
 		ts := timespec{}
 		clock_gettime(CLOCK_REALTIME, ts)
 		# calculate "(1e7 * ts.sec + epoch_offset) + ts.nsec / 100" avoiding division
-		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + ((u64(ts.nsec) * 42949673) >> 32) .
+		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + ((u64(ts.nsec) * 42949673) >> 32)
+	end
 	return ft.TimeStamp
 
 
@@ -189,6 +202,8 @@ pub inline fn time() time_t
 			t.sec = ssize_t(_time32(0))
 		else
 			t.sec = ssize_t(_time64(0))
+		end
 	else
-		t.sec = _time(0) .
+		t.sec = _time(0)
+	end
 	return t
