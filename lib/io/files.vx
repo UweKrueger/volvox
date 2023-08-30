@@ -44,7 +44,8 @@ pub inline fn openfile(filename cstring, flags int, mode int) Fd
 	if os.isWindows
 		fd := _open(filename, flags, mode)
 	else
-		fd := open(filename, flags, mode) .
+		fd := open(filename, flags, mode)
+	end
 	return Fd { fd: fd }
 
 # open file for read/write (like '>' in shell scripts)
@@ -83,6 +84,7 @@ pub inline fn Fd.close int
 		return _close(fd)
 	else
 		return close(fd)
+	end
 
 cdecl fn _write(fd int, buf cstring, count u32) int
 cdecl fn write(fd int, buf cstring, count size_t) ssize_t
@@ -97,16 +99,21 @@ fn win64_write(fd int, buf cstring, count size_t) ssize_t
 			written = _write(fd, buf, u32(limits.max_i32))
 			if written >= 0
 				bytes_written += u32(written)
-				count -= u32(written) . .
+				count -= u32(written)
+			end
+		end
 		if written == limits.max_i32
-			written = _write(fd, buf, u32(count)) .
+			written = _write(fd, buf, u32(count))
+		end
 		if written < 0
 			return -1
 		else
 			return bytes_written + written
+		end
 	else
 		# this function will not be called in other cases - so keep it small
 		return 0
+	end
 
 # basically the POSIX 'write()' function - do not use this function directly
 # unless you know what you are doing...
@@ -117,8 +124,10 @@ pub inline fn Fd._write(buf cstring, count size_t) ssize_t
 			return win64_write(this.fd, buf, count)
 		else
 			return _write(this.fd, buf, u32(count))
+		end
 	else
 		return write(this.fd, buf, count)
+	end
 
 
 cdecl fn strlen(s cstring) size_t

@@ -43,7 +43,8 @@ pub const SEMVMX ::= if os.isWindows
 		limits.max_u64 - 1
 	else
 		# pipe as last resort
-		u64(512) .
+		u64(512)
+	end
 
 # Use union of different representations to make Semaphore type at most 16 bytes in size
 
@@ -55,7 +56,8 @@ type Semaphore {
 pub const EINVAL ::= if os.isWindows
 		87 # ERROR_INVALID_PARAMETER
 	else
-		22 .
+		22
+	end
 
 cdecl fn GetLastError() u32
 
@@ -68,15 +70,18 @@ pub fn semaphore(init_val int) Semaphore
 	sem := Semaphore{}
 	if init_val < 0 || u64(init_val) > SEMVMX
 		sem.err = EINVAL
-		return sem .
+		return sem
+	end
 	if os.isWindows
 		sem.handle = ssize_t(CreateSemaphoreA(voidptr(0), init_val, limits.max_int, cstring(0)))
 		if sem.handle == 0
-			sem.err = GetLastError() .
+			sem.err = GetLastError()
+		end
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
 		sem.handle = eventfd(u32(init_val), CLOEXEC | NONBLOCK | SEMAPHORE)
 		if sem.handle < 0
-			sem.err = GetLastError() .
+			sem.err = GetLastError()
+		end
 	else
 		fds := pipehandle_t{}
 		if os.isHaiku
@@ -84,9 +89,12 @@ pub fn semaphore(init_val int) Semaphore
 			if res >= 0
 				res = fcntl(fds.fds[0], SETFD, CLOEXEC | NONBLOCK)
 				if res >= 0
-					res = fcntl(fds.fds[1], SETFD, CLOEXEC | NONBLOCK) . .
+					res = fcntl(fds.fds[1], SETFD, CLOEXEC | NONBLOCK)
+				end
+			end
 		else
-			res := pipe2(fds.fds, CLOEXEC | NONBLOCK) .
+			res := pipe2(fds.fds, CLOEXEC | NONBLOCK)
+		end
 		if res < 0
 			sem.err = GetLastError()
 		else
@@ -94,7 +102,11 @@ pub fn semaphore(init_val int) Semaphore
 			if init_val > 0
 				buf := [init_val]u8{}
 				if write(fds.fds[1], &buf, init_val) != init_val
-					sem.err = GetLastError() . . . .
+					sem.err = GetLastError()
+				end
+			end
+		end
+	end
 	return sem
 
 pub fn semaphore Semaphore
@@ -108,16 +120,19 @@ cdecl fn ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount 
 const ERROR_TOO_MANY_POSTS ::= if os.isWindows
 		298
 	else
-		35 .
+		35
+	end
 
 const NOWAIT ::= 0x800
 
 pub fn Semaphore.post(n int) bool
 	if this.err != 0
-		return false .
+		return false
+	end
 	if n <= 0 || n > SEMVMX
 		this.err = EINVAL
-		return false .
+		return false
+	end
 	if os.isWindows
 		success := ReleaseSemaphore(size_t(this.handle), n, voidptr(0))
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
@@ -126,11 +141,14 @@ pub fn Semaphore.post(n int) bool
 	else
 		c := [n]u8{}
 		p := pipehandle_t{ ssize_t: this.handle }
-		success := write(p.fds[1], &c, n) == n .
+		success := write(p.fds[1], &c, n) == n
+	end
 	if !success
 		err := GetLastError()
 		if err != ERROR_TOO_MANY_POSTS
-			this.err = err . .
+			this.err = err
+		end
+	end
 	return success
 
 pub inline fn Semaphore.post bool
@@ -148,11 +166,13 @@ cdecl fn ppoll(&fds pollfd, nfds u64, ?timeout time.timespec, sigmask voidptr) i
 pub const EAGAIN ::= if os.isLinux
 		11
 	else
-		35 .
+		35
+	end
 
 pub fn Semaphore.wait bool
 	if this.err != 0
-		return false .
+		return false
+	end
 	if os.isWindows
 		success := WaitForSingleObjectEx(size_t(this.handle), u32(-1), true) != 0
 	else
@@ -160,7 +180,8 @@ pub fn Semaphore.wait bool
 			fd := int(this.handle)
 		else
 			p := pipehandle_t{ ssize_t: this.handle }
-			fd := p.fds[0] .
+			fd := p.fds[0]
+		end
 		pfd := pollfd{
 			fd: fd
 			events: POLLIN
@@ -170,27 +191,34 @@ pub fn Semaphore.wait bool
 			if os.isLinux
 				res := ppoll(pfd, size_t(1), nil, nil)
 			else
-				res := ppoll(pfd, u32(1), nil, nil) .
+				res := ppoll(pfd, u32(1), nil, nil)
+			end
 			if res < 0
 				this.err = GetLastError()
-				return false .
+				return false
+			end
 			if pfd.revents & POLLIN
 				if os.isLinux || os.isFreeBSD || os.isNetBSD
 					get := u64(0)
 					success := read(fd, &get, sizeof(get)) == sizeof(get)
 				else
 					b := u8(0)
-					success := read(fd, &b, 1) == 1 .
+					success := read(fd, &b, 1) == 1
+				end
 			else
-				success := false .
-		until success .
+				success := false
+			end
+		until success
+	end
 	return success
 
 pub fn Semaphore.timedwait(timeout time.Duration) bool
 	if this.err != 0
-		return false .
+		return false
+	end
 	if timeout.i64 < 0
-		timeout.i64 = 0 .
+		timeout.i64 = 0
+	end
 	if os.isWindows
 		success := WaitForSingleObjectEx(size_t(this.handle), u32(timeout.i64 / 10000), true) != 0
 	else
@@ -199,7 +227,8 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 			fd := int(this.handle)
 		else
 			p := pipehandle_t{ ssize_t: this.handle }
-			fd := p.fds[0] .
+			fd := p.fds[0]
+		end
 		pfd := pollfd{
 			fd: fd
 			events: POLLIN
@@ -212,18 +241,22 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 			if os.isLinux
 				res := ppoll(pfd, size_t(1), timeo, nil)
 			else
-				res := ppoll(pfd, u32(1), timeo, nil) .
+				res := ppoll(pfd, u32(1), timeo, nil)
+			end
 			if res <= 0
 				if res < 0
-					this.err = GetLastError() .
-				return false .
+					this.err = GetLastError()
+				end
+				return false
+			end
 			if pfd.revents & POLLIN
 				if os.isLinux || os.isFreeBSD || os.isNetBSD
 					get := u64(0)
 					success := read(fd, &get, sizeof(get)) == sizeof(get)
 				else
 					b := u8(0)
-					success := read(fd, &b, 1) == 1 .
+					success := read(fd, &b, 1) == 1
+				end
 				if !success
 					err := GetLastError()
 					if err == EAGAIN
@@ -234,13 +267,18 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 						time.clock_gettime(time.CLOCK_MONOTONIC, cur_time)
 						timeo = time.timespec_diff(end_time, cur_time)
 						if timeo.sec < 0
-							res = 0 . # time has already elapsed
+							res = 0 # time has already elapsed
+						end
 					else
 						this.err = err
-						return false .
+						return false
+					end
+				end
 			else
-				success := false .
-		until success || res == 0 .
+				success := false
+			end
+		until success || res == 0
+	end
 	return success
 
 pub fn Semaphore.timedwait(timeout f64) bool
@@ -248,7 +286,8 @@ pub fn Semaphore.timedwait(timeout f64) bool
 
 pub fn Semaphore.trywait bool
 	if this.err != 0
-		return false .
+		return false
+	end
 	if os.isWindows
 		success := WaitForSingleObjectEx(size_t(this.handle), 0, true) != 0
 	else
@@ -256,7 +295,8 @@ pub fn Semaphore.trywait bool
 			fd := int(this.handle)
 		else
 			p := pipehandle_t{ ssize_t: this.handle }
-			fd := p.fds[0] .
+			fd := p.fds[0]
+		end
 		pfd := pollfd{
 			fd: fd
 			events: POLLIN
@@ -266,22 +306,30 @@ pub fn Semaphore.trywait bool
 		if os.isLinux
 			res := ppoll(pfd, size_t(1), timeo, nil)
 		else
-			res := ppoll(pfd, u32(1), timeo, nil) .
+			res := ppoll(pfd, u32(1), timeo, nil)
+		end
 		if res <= 0
 			if res < 0
-				this.err = GetLastError() .
-			return false .
+				this.err = GetLastError()
+			end
+			return false
+		end
 		if pfd.revents & POLLIN
 			if os.isLinux || os.isFreeBSD || os.isNetBSD
 				get := u64(0)
 				success := read(fd, &get, sizeof(get)) == sizeof(get)
 			else
 				b := u8(0)
-				success := read(fd, &b, 1) == 1 .
+				success := read(fd, &b, 1) == 1
+			end
 			if !success
 				err := GetLastError()
 				if err != EAGAIN
-					this.err = err . .
+					this.err = err
+				end
+			end
 		else
-			success := false . .
+			success := false
+		end
+	end
 	return success

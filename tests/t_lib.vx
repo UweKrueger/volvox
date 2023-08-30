@@ -26,3 +26,18 @@ fn test_sleep bool
 	e := s.elapsed
 	# printf("elapsed time: %.5f\n", e)
 	return e >= 0.35 && e < 0.37
+
+import sync
+
+fn test_semaphore_1 bool
+	s := sync.semaphore(3)
+	return s.wait && s.wait && s.wait
+
+fn test_semaphore_2 bool
+	s := sync.semaphore
+	s.post
+	s.post
+	a := s.timedwait(0.0)
+	b := s.timedwait(1.0)
+	c := s.timedwait(0.05)
+	return a && b && !c && s.err == 0
