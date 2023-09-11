@@ -13,6 +13,10 @@ ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	NIXTYPE := mingw64
 	LINKEXTRAFLAGS := -ledit -lpthread
 else
+ifeq ($(shell test -x /usr/local/bin/llvm-config17 && echo -n true),true)
+	PREFIX := /usr/local
+	SUFFIX := 17
+else
 ifeq ($(shell test -x /usr/local/bin/llvm-config16 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := 16
@@ -45,6 +49,7 @@ else
 ifeq ($(shell test -x /usr/pkg/bin/llvm-config && echo -n true),true)
 	PREFIX := /usr/pkg
 	SUFFIX :=
+endif
 endif
 endif
 endif
