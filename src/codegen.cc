@@ -1086,7 +1086,11 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// Search the JIT for the <setter_name> symbol.
 		auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
 		// C syntax at its best...
+#if LLVM_VERSION_MAJOR >= 17
+		char* (*PTR)(size_t*) = ExprSymbol.getAddress().toPtr<char* (*)(size_t*)>();
+#else
 		char* (*PTR)(size_t*) = (char* (*)(size_t*))(intptr_t)ExprSymbol.getAddress();
+#endif
 		size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
 		char* varptr = PTR(Dims);
 		if (varptr) {
@@ -2641,7 +2645,11 @@ void CallGlobalDestructorsJIT() {
 	ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 	InitializeModuleAndPassManager();
 	auto ExprSymbol = ExitOnErr(TheJIT->lookup(destr_name));
+#if LLVM_VERSION_MAJOR >= 17
+	bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
+#else
 	bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
 	bool b;
 	if (jit_extra_thread)
 		b = spawn_bool_expr(BOOL);

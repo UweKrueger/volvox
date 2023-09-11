@@ -28,6 +28,7 @@ std::map<std::string, Module> Modules;
 DebugInfo KSDbgInfo;
 const char* last_defined_type = nullptr;
 bool needs_libm = false;
+bool needs_pthread = true; // for now - may be false when not needed, but hard to figure out...
 bool support_fp80;
 bool have_return = false;
 int return_value = 0;
@@ -653,13 +654,21 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
 				if (have_return) {
+#if LLVM_VERSION_MAJOR >= 17
+					int (*INT)() = ExprSymbol.getAddress().toPtr<int (*)()>();;
+#else
 					int (*INT)() = (int (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
 					if (jit_extra_thread)
 						return_value = spawn_int_expr(INT);
 					else
 						return_value = INT();
 				} else {
+#if LLVM_VERSION_MAJOR >= 17
+					bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
+#else
 					bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
 					if (jit_extra_thread)
 						b = spawn_bool_expr(BOOL);
 					else
@@ -1565,7 +1574,11 @@ int main(int argc, char* argv[]) {
 	// is 'gnueabihf'. We set the 'hard' float abi here as a quick hack
 	if (!strcmp(Target->getName(), "arm"))
 		target_opts.FloatABIType = llvm::FloatABI::Hard;
+#if LLVM_VERSION_MAJOR >= 17
+	auto RM = std::optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
+#else
 	auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
+#endif
 	std::unique_ptr<llvm::TargetMachine> u_tartgetm = nullptr;
 	if (comp_mode == comp_jit) {
 		if (auto ptr = TheJIT->createTargetMachine()) {
@@ -1664,7 +1677,11 @@ int main(int argc, char* argv[]) {
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
+#if LLVM_VERSION_MAJOR >= 17
+				bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
+#else
 				bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
 				bool ret;
 				if (jit_extra_thread)
 					ret = spawn_bool_expr(BOOL);
@@ -1833,6 +1850,8 @@ int main(int argc, char* argv[]) {
 				}
 				if (needs_libm)
 					clang_argv.push_back(const_cast<char*>("-lm"));
+				if (needs_pthread)
+					clang_argv.push_back(const_cast<char*>("-lpthread"));
 #endif
 				if(verbosity)
 					clang_argv.push_back(const_cast<char*>("-v"));
