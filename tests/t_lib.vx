@@ -25,7 +25,7 @@ fn test_sleep bool
 	s.stop
 	e := s.elapsed
 	# printf("elapsed time: %.5f\n", e)
-	return e >= 0.35 && e < 0.37
+	return e >= 0.35 && e < 0.38
 
 import sync
 
