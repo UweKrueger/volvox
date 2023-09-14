@@ -874,24 +874,20 @@ public:
 };
 
 /// ForExprAST - Expression class for for/in.
-class ForExprAST : public ExprAST {
-	std::string VarName;
-	std::unique_ptr<ExprAST> Start, End, Step, Body;
+class ForExprAST : public BranchExprAST {
+	std::unique_ptr<ExprAST> Iterator;
+	std::string IdxName, VarName;
 
 public:
-	ForExprAST(const std::string &VarName, std::unique_ptr<ExprAST> Start,
-	           std::unique_ptr<ExprAST> End, std::unique_ptr<ExprAST> Step,
-	           std::unique_ptr<ExprAST> Body, SourceLocation Loc = CurLoc)
-		: ExprAST(Loc), VarName(VarName), Start(std::move(Start)), End(std::move(End)),
-		  Step(std::move(Step)), Body(std::move(Body)) {}
+	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table, int EndKind,
+	           const std::string &_IdxName, const std::string &_VarName, std::vector<std::unique_ptr<ExprAST>> _Body)
+		: BranchExprAST(Loc, std::move(_Body), std::move(_locals_table), EndKind), IdxName(_IdxName),
+		  VarName(_VarName) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "for", ind);
-		Start->dump(indent(out, ind) << "Cond:", ind + 1);
-		End->dump(indent(out, ind) << "End:", ind + 1);
-		Step->dump(indent(out, ind) << "Step:", ind + 1);
-		Body->dump(indent(out, ind) << "Body:", ind + 1);
+		ExprAST::dump(out << "for " << IdxName << "," << VarName, ind);
+		Then[0]->dump(indent(out, ind) << "Body:", ind + 1);
 		return out;
 	}
 #endif
