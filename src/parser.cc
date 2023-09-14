@@ -837,10 +837,13 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 		return nullptr;
 	if (kind != tok_repeat) {
 		auto condclose = TokenKind(';');
-		if (!Expect(condclose))
+		if (!Expect(condclose)) {
+			errs() << CurLoc << ": <newline> or ';' expected after "
+			       << ((kind == tok_in) ? "iterator\n" : "condition\n");
 			return nullptr;
+		}
 	}
-	if (kind == tok_if || kind == tok_while)
+	if (kind == tok_if || kind == tok_while || kind == tok_in)
 		prompt_indent++;
 	return Cond;
 }
@@ -965,56 +968,65 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
 static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
-	getNextToken(); // eat the for.
-
-	if (CurTok.kind != tok_identifier) {
-		errs() << "expected identifier after for\n";
+	SourceLocation ForLoc = CurLoc;
+	getNextToken(); // eat for.
+	// condition - expect bool.
+	locals_table.emplace_back();
+	auto KeyVal = ParseExpression(tok_in);
+	if (!Expect(tok_in, eNone)) {
+		errs() << CurLoc << ": 'in' expected!\n";
 		return nullptr;
 	}
-
-	std::string IdName = IdentifierStr;
-	getNextToken(eBinOp); // eat identifier.
-
-	if (CurTok.kind != tok_assign) {
-		errs() << "expected '=' after for\n";
+	std::unique_ptr<ExprAST> Key;
+	std::unique_ptr<ExprAST> Value;
+	BinaryExprAST* bin_expr;
+	if ((bin_expr = dynamic_cast<BinaryExprAST*>(KeyVal.get())) && bin_expr->Op[0] == ',' && !bin_expr->Op[1]) {
+		Key = std::move(bin_expr->LHS);
+		Value = std::move(bin_expr->RHS);
+	} else {
+		Value = std::move(KeyVal);
+	}
+	if (!Key && !Value) {
+		errs() << CurLoc << ": at least one control variable must be declared for 'for' loop\n";
 		return nullptr;
 	}
-	getNextToken(); // eat '='.
-
-	auto Start = ParseExpression();
-	if (!Start)
-		return nullptr;
-	if (CurTok.kind != ',') {
-		errs() << "expected ',' after for start value\n";
-		return nullptr;
-	}
-	getNextToken();
-
-	auto End = ParseExpression();
-	if (!End)
-		return nullptr;
-
-	// The step value is optional.
-	std::unique_ptr<ExprAST> Step;
-	if (CurTok.kind == ',') {
-		getNextToken();
-		Step = ParseExpression();
-		if (!Step)
+	std::string KeyName;
+	std::string ValueName;
+	if (Key) {
+		if (auto lvalKey = dynamic_cast<LvalueExprAST*>(Key.get())) {
+			KeyName = lvalKey->Name;
+		} else {
+			errs() << Key->Loc << ": 'for' key control variable must be an Lvalue\n";
 			return nullptr;
+		}
 	}
-
-	if (CurTok.kind != tok_in) {
-		errs() << "expected 'in' after for\n";
+	if (Value) {
+		if (auto lvalValue = dynamic_cast<LvalueExprAST*>(Value.get())) {
+			ValueName = lvalValue->Name;
+		} else {
+			errs() << Value->Loc << ": 'for' key control variable must be an Lvalue\n";
+			return nullptr;
+		}
+	}
+	auto Iterator = ParseCondition(tok_in);
+	auto Body = ParseExprList();
+	VarTable then_locals_table = std::move(locals_table.back());
+	locals_table.pop_back();
+	if (Body.second == tok_return) {
+		while (CurTok.kind == ';')
+			getNextToken();
+		if (CurTok.kind == tok_end) {
+			getNextToken();
+		} else {
+			errs() << CurLoc << ": 'end' expected\n";
+			return nullptr;
+		}
+	} else if (Body.second != tok_end) {
+		errs() << CurLoc << ": 'end' expected\n";
 		return nullptr;
 	}
-	getNextToken(); // eat 'in'.
-
-	auto Body = ParseExpression();
-	if (!Body)
-		return nullptr;
-
-	return std::make_unique<ForExprAST>(IdName, std::move(Start), std::move(End),
-	                                    std::move(Step), std::move(Body));
+	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
+	                                    std::move(KeyName), std::move(ValueName), std::move(Body.first));
 }
 
 std::vector<std::vector<std::string>> captured_variables;
