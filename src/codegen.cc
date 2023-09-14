@@ -2029,9 +2029,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	return handle(target, result);
 }
 
-std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
-	int EndKind = isElse ? ElseEndKind : ThenEndKind;
-	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
+std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm::BasicBlock* MergeBB,
+	      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse) {
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
 	if (EndKind == tok_return) {
@@ -2415,7 +2414,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
 		condnesting++;
-		std::tie(ThenV, thenLast) = createCondBranch(CondBBstart ? CondBBstart : MergeBB, false);
+		std::tie(ThenV, thenLast) = createCondBranch(CondBBstart ? CondBBstart : MergeBB, Then, ThenEndKind, false);
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		condnesting--;
@@ -2484,7 +2483,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
-			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, true);
+			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, Else, ElseEndKind, true);
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
 			if (CTcond == CTcond_undef)
