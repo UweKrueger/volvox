@@ -878,16 +878,21 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			return nullptr;
 	} else {
 		if (have_else && Else.second == tok_end && Then.second != tok_elif || !have_else && Then.second == tok_end)
-			if (!Expect(tok_end, eBinOp))
+			if (!Expect(tok_end, eBinOp)) {
+				errs() << CurLoc << ": 'end' expected\n";
 				return nullptr;
+			}
 	}
 	bool always_return = Then.second == tok_return && have_else && Else.second == tok_return;
-	auto res_t = ((kind == tok_if || kind == tok_elif) && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
-	              && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy() && !(Then.second == tok_return || have_else && Else.second == tok_return)) ?
+	auto res_t = ((kind == tok_if || kind == tok_elif) && Else.first.size() && Else.first.back()->ft->type &&
+	              !Else.first.back()->ft->type->isVoidTy() && Then.first.back()->ft->type &&
+	              !Then.first.back()->ft->type->isVoidTy() &&
+	              !(Then.second == tok_return || have_else && Else.second == tok_return)) ?
 		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
-		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
+		           Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
 		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
-		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), 0, false, OpNormal, nullptr };
+		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context),
+		                                                                 0, false, OpNormal, nullptr };
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
@@ -1030,24 +1035,17 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	auto Body = ParseExprList();
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	VarTable else_locals_table; // dummy for now
-	std::vector<std::unique_ptr<ExprAST>> Else;
-	if (Body.second == tok_return) {
-		while (CurTok.kind == ';')
-			getNextToken();
-		if (CurTok.kind == tok_end) {
-			getNextToken();
-		} else {
+	auto [Else, else_locals_table, have_else, success] = ParseElse(then_locals_table, ForLoc, tok_for, Body.second);
+	if (!success)
+		return nullptr;
+	if (have_else && Else.second == tok_end && Body.second != tok_elif || !have_else && Body.second == tok_end)
+		if (!Expect(tok_end, eBinOp)) {
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
 		}
-	} else if (Body.second != tok_end) {
-		errs() << CurLoc << ": 'end' expected\n";
-		return nullptr;
-	}
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
 	                                    std::move(else_locals_table), std::move(KeyName),
-	                                    std::move(ValueName), std::move(Body.first), std::move(Else),
+	                                    std::move(ValueName), std::move(Body.first), std::move(Else.first),
 	                                    tok_end, 0);
 }
 
