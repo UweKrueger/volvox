@@ -1395,7 +1395,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				if (auto bin_rhs = dynamic_cast<BinaryExprAST*>(RHS.get()))
 					if (!strcmp(bin_rhs->Op, ",") || !strcmp(bin_rhs->Op, ":"))
 						goto valid_void;
-				if (terminator == tok_in)
+				if (!RHS_type && terminator == tok_in)
 					goto valid_void; // allow declaration of control variables
 			}
 			errs() << BinLoc << ": RHS of '" << BinOp << "' is " << (RHS_type ? "of void type\n" : "indeterminate\n");
