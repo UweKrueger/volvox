@@ -848,6 +848,9 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 	return Cond;
 }
 
+static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,bool,bool> ParseElse(
+	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
+
 /// ifexpr ::= 'if' expression 'then' expression 'else' expression
 static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	SourceLocation IfLoc = CurLoc;
@@ -864,86 +867,9 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	auto Then = ParseExprList();
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
-	bool have_else = false;
-	if (Then.second == tok_else || Then.second == tok_elif) {
-		have_else = true;
-		if (Then.second != tok_elif)
-			getNextToken();
-	} else if (Then.second == tok_return) {
-		while (CurTok.kind == ';')
-			getNextToken();
-		if (CurTok.kind == tok_end) {
-			getNextToken();
-			have_else = false;
-		} else if (CurTok.kind == tok_else || CurTok.kind == tok_elif) {
-			if (CurTok.kind != tok_elif)
-				getNextToken();
-			have_else = true;
-		} else {
-			errs() << CurLoc << ": 'else', 'elif' or 'end' expected\n";
-			return nullptr;
-		}
-	}
-	if (have_else) {
-		if (kind == tok_repeat) {
-			errs() << CurLoc << ": 'else' not allowed with 'repeat'\n";
-			return nullptr;
-		}
-		locals_table.emplace_back();
-		if (CurTok.kind == tok_elif) {
-			auto elif_expr = ParseIfExpr();
-			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
-			if (!elifif_expr) {
-				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
-				return nullptr;
-			}
-			auto end_k = elifif_expr->always_return ? tok_return : tok_end;
-			std::vector<std::unique_ptr<ExprAST>> l;
-			l.push_back(std::move(elif_expr));
-			Else = { std::move(l), end_k };
-		} else {
-			Else = ParseExprList();
-			if (Else.second == tok_return) {
-				while (CurTok.kind == ';')
-					getNextToken();
-				if (CurTok.kind == tok_end) {
-					getNextToken();
-				} else {
-					errs() << CurLoc << ": 'end' expected\n";
-					return nullptr;
-				}
-			}
-		}
-	} else {
-		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
-	}
-	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
-	if (kind == tok_repeat) {
-		if (then_locals_table.table) {
-			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
-				MapValue* node = then_node.getValue();
-				auto then_var = (FullVar*)((char*)node + node->offset);
-				if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
-					errs() << IfLoc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-					return nullptr;
-				}
-			}
-		}
-	} else if (have_else) {
-		locals_table.pop_back();
-		if (then_locals_table.table && else_locals_table.table) {
-			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
-				FullVar* else_var = else_locals_table[then_node.getKey()];
-				if (else_var) {
-					if (!locals_table.back().insert(then_node.getKey(), *else_var)) {
-						errs() << IfLoc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-						return nullptr;
-					}
-				}
-			}
-		}
-	}
+	auto [Else, else_locals_table, have_else, success] = ParseElse(then_locals_table, IfLoc, kind, Then.second);
+	if (!success)
+		return nullptr;
 	if (kind == tok_repeat) {
 		if (!Expect(tok_until))
 			return nullptr;
@@ -964,6 +890,98 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), 0, false, OpNormal, nullptr };
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
 	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
+}
+
+static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,bool,bool> ParseElse(
+	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
+{
+	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
+	bool have_else = false;
+	if (ThenEndkind == tok_else || ThenEndkind == tok_elif) {
+		have_else = true;
+		if (ThenEndkind != tok_elif)
+			getNextToken();
+	} else if (ThenEndkind == tok_return) {
+		while (CurTok.kind == ';')
+			getNextToken();
+		if (CurTok.kind == tok_end) {
+			getNextToken();
+			have_else = false;
+		} else if (CurTok.kind == tok_else || CurTok.kind == tok_elif) {
+			if (CurTok.kind != tok_elif)
+				getNextToken();
+			have_else = true;
+		} else {
+			errs() << CurLoc << ": 'else', 'elif' or 'end' expected\n";
+			return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+					std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+		}
+	}
+	if (have_else) {
+		if (kind == tok_repeat) {
+			errs() << CurLoc << ": 'else' not allowed with 'repeat'\n";
+			return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+					std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+		}
+		locals_table.emplace_back();
+		if (CurTok.kind == tok_elif) {
+			auto elif_expr = ParseIfExpr();
+			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
+			if (!elifif_expr) {
+				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
+				return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+						std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+			}
+			auto end_k = elifif_expr->always_return ? tok_return : tok_end;
+			std::vector<std::unique_ptr<ExprAST>> l;
+			l.push_back(std::move(elif_expr));
+			Else = { std::move(l), end_k };
+		} else {
+			Else = ParseExprList();
+			if (Else.second == tok_return) {
+				while (CurTok.kind == ';')
+					getNextToken();
+				if (CurTok.kind == tok_end) {
+					getNextToken();
+				} else {
+					errs() << CurLoc << ": 'end' expected\n";
+					return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+							std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+				}
+			}
+		}
+	} else {
+		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
+	}
+	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
+	if (kind == tok_repeat) {
+		if (then_locals_table.table) {
+			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
+				MapValue* node = then_node.getValue();
+				auto then_var = (FullVar*)((char*)node + node->offset);
+				if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
+					errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
+					return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+							std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+				}
+			}
+		}
+	} else if (have_else) {
+		locals_table.pop_back();
+		if (then_locals_table.table && else_locals_table.table) {
+			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
+				FullVar* else_var = else_locals_table[then_node.getKey()];
+				if (else_var) {
+					if (!locals_table.back().insert(then_node.getKey(), *else_var)) {
+						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
+						return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+								std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+					}
+				}
+			}
+		}
+	}
+	return { std::move(Else), std::move(else_locals_table), have_else, true };
 }
 
 /// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
