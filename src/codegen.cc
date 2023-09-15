@@ -2254,7 +2254,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 	}
 }
 
-llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
+llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -2305,7 +2305,13 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		CondBB = nullptr;
 		condPN = nullptr;
 	}
-	Cond->desired_type = llvm::Type::getInt1Ty(Context);
+	ExprAST* Cond;
+	if (auto if_expr = dynamic_cast<IfExprAST*>(this))
+		Cond = if_expr->Cond.get();
+	else
+		Cond = nullptr;
+	if (Cond)
+		Cond->desired_type = llvm::Type::getInt1Ty(Context);
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
 	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat || if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "else");
@@ -2655,122 +2661,6 @@ void CallGlobalDestructorsJIT() {
 	else
 		b = BOOL();
 	ExitOnErr(RT->remove());
-}
-
-// Output for-loop as:
-//   var = alloca double
-//   ...
-//   start = startexpr
-//   store start -> var
-//   goto loop
-// loop:
-//   ...
-//   bodyexpr
-//   ...
-// loopend:
-//   step = stepexpr
-//   endcond = endexpr
-//
-//   curvar = load var
-//   nextvar = curvar + step
-//   store nextvar -> var
-//   br endcond, loop, endloop
-// outloop:
-llvm::Value *ForExprAST::codegen_raw(llvm::Value* target) {
-	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
-
-	// Create an alloca for the variable in the entry block.
-	llvm::Type* AllocaT = llvm::Type::getInt32Ty(Context);
-	unsigned AllocaF = A_signed;
-	llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(AllocaT, VarName, TheFunction);
-
-	if (comp_mode == comp_dbg) {
-		KSDbgInfo.emitLocation(this);
-	}
-	// Emit the start code first, without 'variable' in scope.
-	llvm::Value *StartVal = Start->codegen();
-	if (!StartVal)
-		return nullptr;
-
-	// Store the value into the alloca.
-	Builder->CreateStore(StartVal, Alloca);
-
-	// Make the new basic block for the loop header, inserting after current
-	// block.
-	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(Context, "loop", TheFunction);
-
-	// Insert an explicit fall through from the current block to the LoopBB.
-	Builder->CreateBr(LoopBB);
-
-	// Start insertion in LoopBB.
-	Builder->SetInsertPoint(LoopBB);
-
-	// Within the loop, the variable is defined equal to the PHI node.  If it
-	// shadows an existing variable, we have to restore it, so save it now.
-	FullVar* OldValPtr = locals_table.back()[VarName.c_str()];
-	llvm::Value *OldVal = OldValPtr ? OldValPtr->val : nullptr;
-	if (OldVal) {
-		OldVal = Alloca;
-	} else {
-		FullVar fv = {
-			.val = Alloca,
-			.ft = {
-				.type = AllocaT,
-				.type_attr = AllocaF
-			},
-		};
-		locals_table.back().insert(VarName.c_str(), fv);
-	}
-	// Emit the body of the loop.  This, like any other expr, can change the
-	// current BB.  Note that we ignore the value computed by the body, but don't
-	// allow an error.
-	if (!Body->codegen())
-		return nullptr;
-
-	// Emit the step value.
-	llvm::Value *StepVal = nullptr;
-	if (Step) {
-		StepVal = Step->codegen();
-		if (!StepVal)
-			return nullptr;
-	} else {
-		// If not specified, use 1.0.
-		StepVal = llvm::ConstantFP::get(Context, llvm::APFloat(1.0));
-	}
-
-	// Compute the end condition.
-	llvm::Value *EndCond = End->codegen();
-	if (!EndCond)
-		return nullptr;
-
-	// Reload, increment, and restore the alloca.  This handles the case where
-	// the body of the loop mutates the variable.
-	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), Alloca,
-	                                          VarName.c_str());
-	llvm::Value *NextVar = Builder->CreateFAdd(CurVar, StepVal, "nextvar");
-	Builder->CreateStore(NextVar, Alloca);
-
-	// Convert condition to a bool by comparing non-equal to 0.0.
-	EndCond = Builder->CreateFCmpONE(
-		EndCond, llvm::ConstantFP::get(Context, llvm::APFloat(0.0)), "loopcond");
-
-	// Create the "after loop" block and insert it.
-	llvm::BasicBlock *AfterBB =
-		llvm::BasicBlock::Create(Context, "afterloop", TheFunction);
-
-	// Insert the conditional branch into the end of LoopEndBB.
-	Builder->CreateCondBr(EndCond, LoopBB, AfterBB);
-
-	// Any new code will be inserted in AfterBB.
-	Builder->SetInsertPoint(AfterBB);
-
-	// Restore the unshadowed variable.
-	if (OldVal)
-		OldValPtr->val = OldVal;
-	else
-		locals_table.back().erase(VarName.c_str());
-	// for expr always returns 0.0.
-	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(Context));
 }
 
 llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {

@@ -799,21 +799,27 @@ public:
 
 class BranchExprAST : public ExprAST {
 protected:
-	std::vector<std::unique_ptr<ExprAST>> Then;
-	VarTable then_locals_table;
+	std::vector<std::unique_ptr<ExprAST>> Then, Else;
+	VarTable then_locals_table, else_locals_table;
+	const char* errmsg;
+	TokenKind if_kind = (TokenKind)0;
 
 public:
 	int ThenEndKind; // maybe tok_else, tok_end, tok_return, ...
-	BranchExprAST(SourceLocation Loc, std::vector<std::unique_ptr<ExprAST>> _Then, VarTable _then_locals_table, int ThenEndKind,
-	              llvm::Type* type = llvm::Type::getVoidTy(Context), unsigned type_attr = 0, bool is_unknown_type = false)
-		: ExprAST(type, type_attr, Loc, is_unknown_type), Then(std::move(_Then)), then_locals_table(std::move(_then_locals_table)),
-		  ThenEndKind(ThenEndKind) {}
+	int ElseEndKind;
+	bool always_return = false;
+	BranchExprAST(SourceLocation Loc, llvm::Type* type, unsigned type_attr,
+	              bool is_unknown_type, const char* errmsg,
+	              std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
+	              VarTable _then_locals_table, VarTable _else_locals_table, int ThenEndKind, int ElseEndKind,
+	              TokenKind if_kind = (TokenKind)0, bool always_return = false)
+		: ExprAST(type, type_attr, Loc, is_unknown_type), Then(std::move(_Then)), Else(std::move(_Else)),
+		  then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)),
+		  ThenEndKind(ThenEndKind), ElseEndKind(ElseEndKind), if_kind(if_kind), always_return(always_return),
+		  errmsg(errmsg) {}
 	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock* MergeBB,
 		      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse);
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override { return nullptr; }
-#ifndef NDEBUG
-	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override { return out; }
-#endif
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
 enum CTcond_t : uint8_t {
@@ -824,25 +830,18 @@ enum CTcond_t : uint8_t {
 
 /// IfExprAST - Expression class for if/then/else.
 class IfExprAST : public BranchExprAST {
-	std::unique_ptr<ExprAST> Cond;
-	std::vector<std::unique_ptr<ExprAST>> Else;
-	const char* errmsg = nullptr;
-	TokenKind if_kind = (TokenKind)0;
-	VarTable else_locals_table;
 
 public:
-	int ElseEndKind;
-	bool always_return = false;
-
+	std::unique_ptr<ExprAST> Cond;
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
-	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if, bool always_return = false)
-		: BranchExprAST(Loc, std::move(_Then), std::move(_then_locals_table), ThenEndKind,
-		                _Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context), std::get<1>(res_t), std::get<2>(res_t)),
-		  errmsg(std::get<4>(res_t)), Cond(std::move(_Cond)), Else(std::move(_Else)),
-		  ElseEndKind(ElseEndKind), else_locals_table(std::move(_else_locals_table)), if_kind(if_kind),
-		  always_return(always_return)
+	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
+	          bool always_return = false)
+		: BranchExprAST(Loc, _Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context),
+		                std::get<1>(res_t), std::get<2>(res_t), std::get<4>(res_t), std::move(_Then),
+		                std::move(_Else), std::move(_then_locals_table), std::move(_else_locals_table),
+		                ThenEndKind, ElseEndKind, if_kind, always_return), Cond(std::move(_Cond))
 		{
 			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
 			if (Then.size() && Then.back()->ft && Then.back()->ft->type && !Then.back()->ft->type->isSingleValueType() && !Then.back()->ft->type->isVoidTy()
@@ -851,7 +850,6 @@ public:
 			if (!ft->type)
 				ft = new_FullType(llvm::Type::getVoidTy(Context), 0);
 		}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
@@ -881,11 +879,13 @@ class ForExprAST : public BranchExprAST {
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
-	           std::string _KeyName, std::string _ValueName,
-	           std::vector<std::unique_ptr<ExprAST>> _Body)
-		: BranchExprAST(Loc, std::move(_Body), std::move(_locals_table), tok_end),
+	           VarTable else_locals_table, std::string _KeyName, std::string _ValueName,
+	           std::vector<std::unique_ptr<ExprAST>> _Body, std::vector<std::unique_ptr<ExprAST>> _Else,
+	           int EndKind, int ElseEndKind, bool always_return = false)
+		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
+		                std::move(_Else), std::move(_locals_table),
+		                std::move(else_locals_table), EndKind, ElseEndKind),
 		  KeyName(std::move(_KeyName)), ValueName(std::move(_ValueName)) {}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "for " << KeyName << "," << ValueName, ind);

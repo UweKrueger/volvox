@@ -1012,6 +1012,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	auto Body = ParseExprList();
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
+	VarTable else_locals_table; // dummy for now
+	std::vector<std::unique_ptr<ExprAST>> Else;
 	if (Body.second == tok_return) {
 		while (CurTok.kind == ';')
 			getNextToken();
@@ -1026,7 +1028,9 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		return nullptr;
 	}
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
-	                                    std::move(KeyName), std::move(ValueName), std::move(Body.first));
+	                                    std::move(else_locals_table), std::move(KeyName),
+	                                    std::move(ValueName), std::move(Body.first), std::move(Else),
+	                                    tok_end, 0);
 }
 
 std::vector<std::vector<std::string>> captured_variables;
