@@ -851,7 +851,7 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,bool,bool> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
-/// ifexpr ::= 'if' expression 'then' expression 'else' expression
+/// if..., elif..., while...[elif...]else...end, repeat...until
 static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	SourceLocation IfLoc = CurLoc;
 	auto kind = TokenKind(CurTok.kind); // to remember if it's 'if', 'while' or 'repeat'
@@ -989,7 +989,7 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 	return { std::move(Else), std::move(else_locals_table), have_else, true };
 }
 
-/// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
+/// for...in...;...[elif...]else...end
 static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	SourceLocation ForLoc = CurLoc;
 	getNextToken(); // eat for.
