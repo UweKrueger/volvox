@@ -869,6 +869,8 @@ std::pair<volvoxc::FullType*,volvoxc::FullType*> getKeyValueTypes(volvoxc::FullT
 		return { new_FullType(IteratorType->type, IteratorType->type_attr & A_signed),
 			IteratorType->elem_type };
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(IteratorType->type))
-		return { size_type, IteratorType->elem_type };
+		// array could in principle be size_t, but only in rare cases
+		// we default to int - if a 64-bit type is needed, it has to be predefined
+		return { integer_type, IteratorType->elem_type };
 	return { nullptr, nullptr };
 }

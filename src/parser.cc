@@ -173,7 +173,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 						} else {
 							// we are parsing a pure type - like "[5][][7]f64"
 							// in this case the dimensions ("5", "7") must be compile time consts
-							// and we can calculate ther values now
+							// and we can calculate their values now
 							auto VLen = e->codegen();
 							if (!VLen) {
 								errs() << "cannot generate code for dimension\n";
@@ -182,7 +182,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 							if (auto Len = llvm::dyn_cast<llvm::ConstantInt>(VLen)) {
 								int64_t len = Len->getSExtValue();
 								if (len <= 0) {
-									errs() << "dimension must be a positive int (not " << len << "\n";
+									errs() << "dimension must be a positive int (not " << len << ")\n";
 									return nullptr;
 								} else {
 									lens.push_back((uint64_t)len);
