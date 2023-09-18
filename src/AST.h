@@ -869,18 +869,17 @@ class ForExprAST : public BranchExprAST {
 	llvm::Type* IteratorTy;
 	std::string KeyName, ValueName;
 	std::unique_ptr<LvalueExprAST> Key, Value;
-	llvm::Value* iterator;
-	llvm::Value* limit;
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, std::string _KeyName, std::string _ValueName,
 	           std::vector<std::unique_ptr<ExprAST>> _Body, std::vector<std::unique_ptr<ExprAST>> _Else,
-	           int EndKind, int ElseEndKind, bool always_return = false)
+	           int EndKind, int ElseEndKind, llvm::Type* IteratorTy, bool always_return = false)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
 		                std::move(_Else), std::move(_locals_table),
 		                std::move(else_locals_table), EndKind, ElseEndKind),
-		  KeyName(std::move(_KeyName)), ValueName(std::move(_ValueName)) {}
+		  KeyName(std::move(_KeyName)), ValueName(std::move(_ValueName)),
+		  IteratorTy(IteratorTy) {}
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "for " << KeyName << "," << ValueName, ind);

@@ -1138,12 +1138,20 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	}
 	auto Iterator = ParseCondition(tok_in);
 	auto [KeyFt, ValueFt, IteratorTy] = getKeyValueIteratorTypes(Iterator->ft);
-	if (Value) {
-		if (!ValueFt) {
-			errs() << Iterator->Loc << ": unable to determine type of for control value variable\n";
+	if (Key) {
+		if (!KeyFt) {
+			errs() << Iterator->Loc << ": unable to determine type of 'for' key control variable\n";
 			return nullptr;
 		}
-		if (!DeclareNewVariable(Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr, ValueFt->type_attr, Value->Loc, Value->is_unknown_type, false /* RHS_is_unknown_type */, false, true))
+		if (!DeclareNewVariable(Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr, KeyFt->type_attr, Key->Loc, Key->is_unknown_type, Iterator->is_unknown_type, false, true))
+			return nullptr;
+	}
+	if (Value) {
+		if (!ValueFt) {
+			errs() << Iterator->Loc << ": unable to determine type of 'for' value control variable\n";
+			return nullptr;
+		}
+		if (!DeclareNewVariable(Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr, ValueFt->type_attr, Value->Loc, Value->is_unknown_type, Iterator->is_unknown_type, false, true))
 			return nullptr;
 	}
 	auto Body = ParseExprList();
@@ -1160,7 +1168,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
 	                                    std::move(else_locals_table), std::move(KeyName),
 	                                    std::move(ValueName), std::move(Body.first), std::move(Else.first),
-	                                    tok_end, 0);
+	                                    Body.second, Else.second, IteratorTy);
 }
 
 std::vector<std::vector<std::string>> captured_variables;
