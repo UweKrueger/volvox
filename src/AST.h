@@ -863,20 +863,14 @@ public:
 #endif
 };
 
-class IteratorAST {
-public:
-	std::unique_ptr<ExprAST> Cond, Iterate, Init, Key, Value;
-	bool skip_1st_check = false;
-	IteratorAST(std::unique_ptr<ExprAST> Cond, std::unique_ptr<ExprAST> Iterate, bool skip_1st_check, std::unique_ptr<ExprAST> Init, std::unique_ptr<ExprAST> Key, std::unique_ptr<ExprAST> Value)
-		: Cond(std::move(Cond)), Iterate(std::move(Iterate)), skip_1st_check(skip_1st_check), Init(std::move(Init)), Key(std::move(Key)), Value(std::move(Value)) {}
-	virtual ~IteratorAST() = default;
-};
-
 /// ForExprAST - Expression class for for/in.
 class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> Iterator;
+	llvm::Type* IteratorTy;
 	std::string KeyName, ValueName;
 	std::unique_ptr<LvalueExprAST> Key, Value;
+	llvm::Value* iterator;
+	llvm::Value* limit;
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,

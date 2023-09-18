@@ -295,7 +295,7 @@ namespace volvoxc {
 
 }
 
-extern std::pair<volvoxc::FullType*,volvoxc::FullType*> getKeyValueTypes(volvoxc::FullType* IteratorType);
+extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(volvoxc::FullType* IteratorType);
 
 extern llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type);
 

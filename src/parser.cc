@@ -989,6 +989,111 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 	return { std::move(Else), std::move(else_locals_table), have_else, true };
 }
 
+static bool DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_ptr<ExprAST>* RHS,
+                               llvm::Type* LHS_type, llvm::Type* RHS_type, unsigned LHS_attr,
+                               unsigned RHS_attr, SourceLocation& BinLoc, bool LHS_is_unknown_type,
+                               bool RHS_is_unknown_type, bool ref_allowed = true, bool is_iterator = false)
+{
+	if (!RHS_type || RHS_type->isVoidTy()) {
+		errs() << BinLoc << ": RHS of declaration is " << (RHS_type ? "of void type\n" : "indeterminate\n");
+		return false;
+	}
+	ReferenceExprAST* RefL;
+	VariableExprAST* VarL = nullptr;
+	if (auto v = dynamic_cast<VariableExprAST*>(LHS.get())) {
+		VarL = v;
+	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
+		if (inside_function) { // local variable will shadow function name
+			LHS = std::make_unique<VariableExprAST>(function->Loc, function->Name, nullptr);
+			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+		} else {
+			errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
+			return false;
+		}
+	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
+		if (inside_function) {
+			LHS = std::make_unique<VariableExprAST>(mod->Loc, mod->Name, nullptr);
+			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+		} else {
+			errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
+			return false;
+		}
+	}
+	if (VarL)
+		RefL = nullptr;
+	else
+		if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get()))) {
+			if (!ref_allowed) {
+				errs() << LHS->Loc << ": reference not allowed "
+				      << (is_iterator ? " with this iterator\n" : "in this case\n");
+				return false;
+			}
+			VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
+			if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
+				// LHS is function pointer; signature of RHS will be used to select overloaded function
+				if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
+					errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
+					return false;
+				} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
+					errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
+					return false;
+				}
+				*RHS = std::make_unique<FunctionExprAST>(call_expr);
+				RHS_type = (*RHS)->ft ? (*RHS)->ft->type : nullptr;
+				RHS_attr = 0;
+				RHS_is_unknown_type = false;
+				LHS = std::move(RefL->Operand);
+				RefL = nullptr;
+				LHS_type = LHS->ft ? LHS->ft->type : nullptr;
+				LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
+				LHS_is_unknown_type = LHS->is_unknown_type;
+				VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+			}
+		}
+	if (!VarL) {
+		errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
+		return false;
+	} else {
+		auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
+		FullVar fv = {
+			.val = nullptr,
+			.ft = *(*RHS)->ft
+		};
+		fv.ft.type = type;
+		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
+		if (is_signed)
+			fv.ft.type_attr |= A_signed;
+		else
+			fv.ft.type_attr &= ~A_signed;
+		if (RefL)
+			if (dynamic_cast<LvalueExprAST*>(LHS.get()))
+				fv.ft.type_attr = (fv.ft.type_attr | A_ptrref) & ~A_destructor; // references need no destructors
+			else {
+				errs() << (RHS ? (*RHS)->Loc : CurLoc) << ": RHS of reference declaration must be an lvalue\n";
+				return false;
+			}
+		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
+			fv.ft.type_attr |= A_destructor;
+		}
+		if (inside_function) {
+			if (locals_table.back().insert(VarL->Name.c_str(), fv)) {
+				VarL->full_var = nullptr; // in case a global with the same name had been found
+			} else {
+				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
+				return false;
+			}
+		} else {
+			fv.ft.type_attr |= A_mainvar;
+			if (!lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
+				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
+				return false;
+			}
+			// errs() << VarL->Loc << ": inserted " << VarL->Name << ", " << fv.ft.type_attr << " in mainvars\n";
+		}
+	}
+	return true;
+}
+
 /// for...in...;...[elif...]else...end
 static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	SourceLocation ForLoc = CurLoc;
@@ -1032,6 +1137,15 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		}
 	}
 	auto Iterator = ParseCondition(tok_in);
+	auto [KeyFt, ValueFt, IteratorTy] = getKeyValueIteratorTypes(Iterator->ft);
+	if (Value) {
+		if (!ValueFt) {
+			errs() << Iterator->Loc << ": unable to determine type of for control value variable\n";
+			return nullptr;
+		}
+		if (!DeclareNewVariable(Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr, ValueFt->type_attr, Value->Loc, Value->is_unknown_type, false /* RHS_is_unknown_type */, false, true))
+			return nullptr;
+	}
 	auto Body = ParseExprList();
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
@@ -1152,104 +1266,6 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	return nullptr;
 }
 
-static bool DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_ptr<ExprAST>& RHS,
-                               llvm::Type* LHS_type, llvm::Type* RHS_type, unsigned LHS_attr,
-                               unsigned RHS_attr, bool LHS_is_unknown_type, bool RHS_is_unknown_type,
-                               SourceLocation& BinLoc) {
-	if (!RHS_type || RHS_type->isVoidTy()) {
-		errs() << BinLoc << ": RHS of declaration is " << (RHS_type ? "of void type\n" : "indeterminate\n");
-		return false;
-	}
-	ReferenceExprAST* RefL;
-	VariableExprAST* VarL = nullptr;
-	if (auto v = dynamic_cast<VariableExprAST*>(LHS.get())) {
-		VarL = v;
-	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
-		if (inside_function) { // local variable will shadow function name
-			LHS = std::make_unique<VariableExprAST>(function->Loc, function->Name, nullptr);
-			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
-		} else {
-			errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
-			return false;
-		}
-	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
-		if (inside_function) {
-			LHS = std::make_unique<VariableExprAST>(mod->Loc, mod->Name, nullptr);
-			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
-		} else {
-			errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
-			return false;
-		}
-	}
-	if (VarL)
-		RefL = nullptr;
-	else
-		if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get()))) {
-			VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
-			if (auto call_expr = dynamic_cast<CallExprAST*>(RHS.get())) {
-				if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
-					errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
-					return false;
-				} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
-					errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
-					return false;
-				}
-				RHS = std::make_unique<FunctionExprAST>(call_expr);
-				RHS_type = RHS->ft ? RHS->ft->type : nullptr;
-				RHS_attr = 0;
-				RHS_is_unknown_type = false;
-				LHS = std::move(RefL->Operand);
-				RefL = nullptr;
-				LHS_type = LHS->ft ? LHS->ft->type : nullptr;
-				LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
-				LHS_is_unknown_type = LHS->is_unknown_type;
-				VarL = dynamic_cast<VariableExprAST*>(LHS.get());
-			}
-		}
-	if (!VarL) {
-		errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
-		return false;
-	} else {
-		auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
-		FullVar fv = {
-			.val = nullptr,
-			.ft = *RHS->ft
-		};
-		fv.ft.type = type;
-		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
-		if (is_signed)
-			fv.ft.type_attr |= A_signed;
-		else
-			fv.ft.type_attr &= ~A_signed;
-		if (RefL)
-			if (dynamic_cast<LvalueExprAST*>(LHS.get()))
-				fv.ft.type_attr = (fv.ft.type_attr | A_ptrref) & ~A_destructor; // references need no destructors
-			else {
-				errs() << RHS->Loc << ": RHS of reference declaration must be an lvalue\n";
-				return false;
-			}
-		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
-			fv.ft.type_attr |= A_destructor;
-		}
-		if (inside_function) {
-			if (locals_table.back().insert(VarL->Name.c_str(), fv)) {
-				VarL->full_var = nullptr; // in case a global with the same name had been found
-			} else {
-				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
-				return false;
-			}
-		} else {
-			fv.ft.type_attr |= A_mainvar;
-			if (!lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
-				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
-				return false;
-			}
-			// errs() << VarL->Loc << ": inserted " << VarL->Name << ", " << fv.ft.type_attr << " in mainvars\n";
-		}
-	}
-	return true;
-}
-
 /// binoprhs
 ///   ::= ('+' unary)*
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator) {
@@ -1323,8 +1339,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		if (BinOp == ":=" || BinOp == "::=") {
-			if (!DeclareNewVariable(LHS, RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
-			                        LHS_is_unknown_type, RHS_is_unknown_type, BinLoc))
+			if (!DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
+			                        BinLoc, LHS_is_unknown_type, RHS_is_unknown_type))
 				return nullptr;
 		} else if (LHS_type && (LHS_type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			if (BinOp[0] == '(' || BinOp[0] == '\0') {

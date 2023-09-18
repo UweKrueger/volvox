@@ -862,18 +862,18 @@ llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned t
 	return out << *type;
 }
 
-std::pair<volvoxc::FullType*,volvoxc::FullType*> getKeyValueTypes(volvoxc::FullType* IteratorType) {
+std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(volvoxc::FullType* IteratorType) {
 	if (!IteratorType || !IteratorType->type)
-		return { nullptr, nullptr };
+		return { nullptr, nullptr, nullptr };
 	if (IteratorType->type_attr & A_map)
 		return { new_FullType(IteratorType->type, IteratorType->type_attr & A_signed),
-			IteratorType->elem_type };
+		         IteratorType->elem_type, llvm::Type::getInt8PtrTy(Context) };
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(IteratorType->type))
 		// array could in principle be size_t, but only in rare cases
 		// we default to int - if a 64-bit type is needed, it has to be predefined
-		return { integer_type, IteratorType->elem_type };
+		return { integer_type, IteratorType->elem_type, llvm::Type::getInt8PtrTy(Context) };
 	if (llvm::isa<llvm::IntegerType>(IteratorType->type))
 		// a single int 'n' can be used as an iterator for the range 0..(n-1)
-		return { nullptr, new_FullType(IteratorType->type, IteratorType->type_attr & A_signed) };
-	return { nullptr, nullptr };
+		return { nullptr, new_FullType(IteratorType->type, IteratorType->type_attr & A_signed), nullptr };
+	return { nullptr, nullptr, nullptr };
 }
