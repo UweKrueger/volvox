@@ -1057,7 +1057,7 @@ static bool DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_ptr<Ex
 		auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 		FullVar fv = {
 			.val = nullptr,
-			.ft = *(*RHS)->ft
+			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{}
 		};
 		fv.ft.type = type;
 		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
@@ -1166,9 +1166,9 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
-	                                    std::move(else_locals_table), std::move(KeyName),
-	                                    std::move(ValueName), std::move(Body.first), std::move(Else.first),
-	                                    Body.second, Else.second, IteratorTy);
+	                                    std::move(else_locals_table), std::move(Key), std::move(Value),
+	                                    std::move(KeyName), std::move(ValueName), std::move(Body.first),
+	                                    std::move(Else.first), Body.second, Else.second, IteratorTy);
 }
 
 std::vector<std::vector<std::string>> captured_variables;

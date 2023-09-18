@@ -866,20 +866,33 @@ public:
 /// ForExprAST - Expression class for for/in.
 class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> Iterator;
-	llvm::Type* IteratorTy;
+	llvm::Type* IteratorTy = nullptr;
+	llvm::Type* KeyTy = nullptr;
+	llvm::Type* ValueTy = nullptr;
+	llvm::Value* IteratorRef = nullptr;
+	llvm::Value* KeyRef = nullptr;
+	llvm::Value* ValueRef = nullptr;
+	llvm::Value* limit = nullptr;
 	std::string KeyName, ValueName;
-	std::unique_ptr<LvalueExprAST> Key, Value;
+	std::unique_ptr<ExprAST> Key, Value;
+	std::unique_ptr<LvalueExprAST> LV_Key, LV_Value;
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
-	           VarTable else_locals_table, std::string _KeyName, std::string _ValueName,
+	           VarTable else_locals_table, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
+	           std::string _KeyName, std::string _ValueName,
 	           std::vector<std::unique_ptr<ExprAST>> _Body, std::vector<std::unique_ptr<ExprAST>> _Else,
 	           int EndKind, int ElseEndKind, llvm::Type* IteratorTy, bool always_return = false)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
 		                std::move(_Else), std::move(_locals_table),
 		                std::move(else_locals_table), EndKind, ElseEndKind),
+		  Key(std::move(_Key)), Value(std::move(_Value)),
 		  KeyName(std::move(_KeyName)), ValueName(std::move(_ValueName)),
 		  IteratorTy(IteratorTy) {}
+	bool PrepareForIterator();
+	llvm::Value* CreateCondition();
+	bool SetupLoop();
+	bool Iterate();
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "for " << KeyName << "," << ValueName, ind);

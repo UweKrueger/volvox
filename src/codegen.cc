@@ -2254,7 +2254,33 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 	}
 }
 
-static bool PrepareForIterator(ForExprAST* thisFor) {
+bool ForExprAST::PrepareForIterator() {
+	// integer iterator - initialize with 0
+	LV_Value = std::make_unique<VariableExprAST>(Value->Loc, ValueName);
+	if (!Value) {
+		errs() << Loc << ": internal error - control variable '" << ValueName << "' not found\n";
+		return false;
+	}
+	std::tie(ValueTy, ValueRef) = LV_Value->codegen_ref();
+	auto initializer = llvm::Constant::getNullValue(ValueTy);
+	Builder->CreateStore(initializer, ValueRef);
+	limit = Iterator->codegen();
+	return true;
+}
+
+llvm::Value* ForExprAST::CreateCondition() {
+	auto ctrl_var = Builder->CreateLoad(ValueTy, ValueRef);
+	if (Iterator->ft->type_attr & A_signed)
+		return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
+	else
+		return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
+}
+
+bool ForExprAST::SetupLoop() {
+	return true;
+}
+
+bool ForExprAST::Iterate() {
 	return true;
 }
 
@@ -2297,7 +2323,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		if (if_kind == tok_while)
 			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "whilecond");
 		else {
-			if (!PrepareForIterator(for_expr))
+			if (!for_expr->PrepareForIterator())
 				return nullptr;
 			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "forcond");
 		}
@@ -2343,7 +2369,10 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		// 1st iteration: save stack
 		Builder->CreateBr(StackSaveBB);
 	} else {
-		CondV = Cond->codegen();
+		if (for_expr)
+			CondV = for_expr->CreateCondition();
+		else
+			CondV = Cond->codegen();
 		if (!CondV)
 			return nullptr;
 		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
