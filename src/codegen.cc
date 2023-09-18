@@ -2254,10 +2254,16 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 	}
 }
 
+static bool PrepareForIterator(ForExprAST* thisFor) {
+	return true;
+}
+
 llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	auto if_expr = dynamic_cast<IfExprAST*>(this);
+	auto for_expr = dynamic_cast<ForExprAST*>(this);
 	auto enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
 	llvm::PHINode* condPN;
@@ -2277,14 +2283,24 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		loopBBName = "repeat";
 		contName = "repeatcont";
 		break;
+	case tok_for:
+		loopBBName = "for";
+		contName = "forcont";
+		break;
 	default:
 		loopBBName = "loop";
 		contName = "whilecont";
 	}
 	llvm::BasicBlock* ThenBB = (TheFunction && if_kind != tok_if) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
 	llvm::Instruction* firstWhile = nullptr;
-	if (if_kind == tok_while) {
-		CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "while");
+	if (if_kind == tok_while || if_kind == tok_for) {
+		if (if_kind == tok_while)
+			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "whilecond");
+		else {
+			if (!PrepareForIterator(for_expr))
+				return nullptr;
+			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "forcond");
+		}
 		Builder->CreateBr(CondBBstart);
 		if (TheFunction) {
 #if LLVM_VERSION_MAJOR >= 16
@@ -2306,12 +2322,12 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		condPN = nullptr;
 	}
 	ExprAST* Cond;
-	if (auto if_expr = dynamic_cast<IfExprAST*>(this))
+	if (if_expr) {
 		Cond = if_expr->Cond.get();
-	else
-		Cond = nullptr;
-	if (Cond)
 		Cond->desired_type = llvm::Type::getInt1Ty(Context);
+	} else {
+		Cond = nullptr;
+	}
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
 	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat || if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "else");

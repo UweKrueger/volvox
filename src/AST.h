@@ -805,6 +805,7 @@ protected:
 	TokenKind if_kind = (TokenKind)0;
 
 public:
+	std::unique_ptr<ExprAST> Cond;
 	int ThenEndKind; // maybe tok_else, tok_end, tok_return, ...
 	int ElseEndKind;
 	bool always_return = false;
@@ -812,11 +813,12 @@ public:
 	              bool is_unknown_type, const char* errmsg,
 	              std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	              VarTable _then_locals_table, VarTable _else_locals_table, int ThenEndKind, int ElseEndKind,
-	              TokenKind if_kind = (TokenKind)0, bool always_return = false)
+	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
+	              bool always_return = false)
 		: ExprAST(type, type_attr, Loc, is_unknown_type), Then(std::move(_Then)), Else(std::move(_Else)),
 		  then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)),
-		  ThenEndKind(ThenEndKind), ElseEndKind(ElseEndKind), if_kind(if_kind), always_return(always_return),
-		  errmsg(errmsg) {}
+		  ThenEndKind(ThenEndKind), ElseEndKind(ElseEndKind), Cond(std::move(_Cond)), if_kind(if_kind),
+		  always_return(always_return), errmsg(errmsg) {}
 	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock* MergeBB,
 		      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
@@ -832,7 +834,6 @@ enum CTcond_t : uint8_t {
 class IfExprAST : public BranchExprAST {
 
 public:
-	std::unique_ptr<ExprAST> Cond;
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
@@ -841,7 +842,7 @@ public:
 		: BranchExprAST(Loc, _Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context),
 		                std::get<1>(res_t), std::get<2>(res_t), std::get<4>(res_t), std::move(_Then),
 		                std::move(_Else), std::move(_then_locals_table), std::move(_else_locals_table),
-		                ThenEndKind, ElseEndKind, if_kind, always_return), Cond(std::move(_Cond))
+		                ThenEndKind, ElseEndKind, std::move(_Cond), if_kind, always_return)
 		{
 			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
 			if (Then.size() && Then.back()->ft && Then.back()->ft->type && !Then.back()->ft->type->isSingleValueType() && !Then.back()->ft->type->isVoidTy()
