@@ -2277,9 +2277,14 @@ bool ForExprAST::PrepareForIterator() {
 		limit = Iterator->codegen();
 		auto initializer = llvm::Constant::getNullValue(ValueFV->ft.type);
 		if (!ValueFV->val)
-			ValueFV->val = StoreValue(initializer, &ValueFV->ft);
-		else
-			Builder->CreateStore(initializer, ValueFV->val);
+			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
+		else {
+			llvm::Type* dummy;
+			std::tie(dummy, ValueRef) = var_expr->codegen_ref();
+			if (!ValueRef)
+				return false;
+			Builder->CreateStore(initializer, ValueRef);
+		}
 		return true;
 	} else {
 		errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
@@ -2288,7 +2293,7 @@ bool ForExprAST::PrepareForIterator() {
 }
 
 llvm::Value* ForExprAST::CreateCondition() {
-	auto ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueFV->val);
+	auto ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueRef);
 	if (Iterator->ft->type_attr & A_signed)
 		return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
 	else
@@ -2300,10 +2305,10 @@ bool ForExprAST::SetupLoop() {
 }
 
 bool ForExprAST::Iterate() {
-	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueFV->val);
+	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueRef);
 	llvm::Value* One = llvm::ConstantInt::get(ValueFV->ft.type, 1, true);
 	ctrl_var = Builder->CreateAdd(ctrl_var, One);
-	Builder->CreateStore(ctrl_var, ValueFV->val);
+	Builder->CreateStore(ctrl_var, ValueRef);
 	return true;
 }
 

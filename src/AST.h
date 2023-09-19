@@ -871,6 +871,7 @@ class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> Key, Value;
 	FullVar* KeyFV = nullptr;
 	FullVar* ValueFV = nullptr;
+	llvm::Value* ValueRef = nullptr;
 	std::unique_ptr<LvalueExprAST> LV_Key, LV_Value;
 
 public:

@@ -1147,16 +1147,22 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			errs() << Iterator->Loc << ": unable to determine type of 'for' key control variable\n";
 			return nullptr;
 		}
-		if (!(KeyFV = DeclareNewVariable(Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr, KeyFt->type_attr, Key->Loc, Key->is_unknown_type, Iterator->is_unknown_type, false, true)))
-			return nullptr;
+		if (!KeyFV)
+			if (!(KeyFV = DeclareNewVariable(Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr, KeyFt->type_attr, Key->Loc, Key->is_unknown_type, Iterator->is_unknown_type, false, true)))
+				return nullptr;
 	}
 	if (Value) {
 		if (!ValueFt) {
 			errs() << Iterator->Loc << ": unable to determine type of 'for' value control variable\n";
 			return nullptr;
 		}
-		if (!(ValueFV = DeclareNewVariable(Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr, ValueFt->type_attr, Value->Loc, Value->is_unknown_type, Iterator->is_unknown_type, false, true)))
-			return nullptr;
+		if (auto value_var = dynamic_cast<VariableExprAST*>(Value.get())) {
+			if (value_var->full_var)
+				ValueFV = value_var->full_var;
+			else
+				if (!(ValueFV = DeclareNewVariable(Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr, ValueFt->type_attr, Value->Loc, Value->is_unknown_type, Iterator->is_unknown_type, false, true)))
+					return nullptr;
+		}
 	}
 	auto Body = ParseExprList();
 	VarTable then_locals_table = std::move(locals_table.back());

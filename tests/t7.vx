@@ -235,3 +235,13 @@ fn for_loop_1 int
 
 fn test_int_for_1 bool
 	return for_loop_1 == 17
+
+xxsd := 2
+global cprr := 3
+
+for xxsd in 100
+	cprr += xxsd
+end
+
+fn test_int_for_2 bool
+	return cprr == 4953
