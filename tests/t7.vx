@@ -225,3 +225,13 @@ global a3297t5 := b5532
 
 fn test_int_from_untyped_1 bool
 	return a3297t5 == 0x57fffffe
+
+fn for_loop_1 int
+	k := 2
+	for n in 5
+		k += (n + 1)
+	end
+	return k
+
+fn test_int_for_1 bool
+	return for_loop_1 == 17

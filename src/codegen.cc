@@ -2033,7 +2033,12 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 	      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse) {
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
+	auto for_expr = dynamic_cast<ForExprAST*>(this);
 	if (EndKind == tok_return) {
+		if (for_expr) {
+			errs() << Loc << ": 'return' at end of 'for' loop not allowed - use 'if' instead\n";
+			return { nullptr, nullptr };
+		}
 		if (!theFunction_ret_ft->type->isVoidTy()) {
 			if (Branch.empty()) {
 				errs() << Loc << ": return value value of type " << *theFunction_ret_ft << " required\n";
@@ -2050,8 +2055,11 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 	}
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
-	if (!BranchV && !isElse)
+	if (for_expr && !isElse)
+		for_expr->Iterate();
+	if (!BranchV && !isElse && !for_expr) {
 		return { nullptr, nullptr };
+	}
 	if (EndKind == tok_return) {
 		if (!Branch.empty())
 			if (auto lastif = dynamic_cast<IfExprAST*>(Branch.back().get()))
@@ -2256,24 +2264,35 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 
 bool ForExprAST::PrepareForIterator() {
 	// integer iterator - initialize with 0
-	LV_Value = std::make_unique<VariableExprAST>(Value->Loc, ValueName);
-	if (!Value) {
-		errs() << Loc << ": internal error - control variable '" << ValueName << "' not found\n";
+	if (auto var_expr = dynamic_cast<VariableExprAST*>(Value.get())) {
+		if (var_expr->full_var) {
+			if (!ValueFV)
+				ValueFV = var_expr->full_var;
+		}
+		if (!ValueFV) {
+			errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
+			return false;
+		}
+		Iterator->desired_type = ValueFV->ft.type;
+		limit = Iterator->codegen();
+		auto initializer = llvm::Constant::getNullValue(ValueFV->ft.type);
+		if (!ValueFV->val)
+			ValueFV->val = StoreValue(initializer, &ValueFV->ft);
+		else
+			Builder->CreateStore(initializer, ValueFV->val);
+		return true;
+	} else {
+		errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
 		return false;
 	}
-	std::tie(ValueTy, ValueRef) = LV_Value->codegen_ref();
-	auto initializer = llvm::Constant::getNullValue(ValueTy);
-	Builder->CreateStore(initializer, ValueRef);
-	limit = Iterator->codegen();
-	return true;
 }
 
 llvm::Value* ForExprAST::CreateCondition() {
-	auto ctrl_var = Builder->CreateLoad(ValueTy, ValueRef);
+	auto ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueFV->val);
 	if (Iterator->ft->type_attr & A_signed)
-		return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
+		return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
 	else
-		return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
+		return Builder->CreateICmpULT(ctrl_var, limit, "for_cond");
 }
 
 bool ForExprAST::SetupLoop() {
@@ -2281,6 +2300,10 @@ bool ForExprAST::SetupLoop() {
 }
 
 bool ForExprAST::Iterate() {
+	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueFV->val);
+	llvm::Value* One = llvm::ConstantInt::get(ValueFV->ft.type, 1, true);
+	ctrl_var = Builder->CreateAdd(ctrl_var, One);
+	Builder->CreateStore(ctrl_var, ValueFV->val);
 	return true;
 }
 
@@ -2379,7 +2402,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
 			return nullptr;
 		}
-		if (if_kind == tok_while) {
+		if (if_kind == tok_while || if_kind == tok_for) {
 			firstWhile = CondBB->getFirstNonPHI();
 			CondBB = Builder->GetInsertBlock();
 		} else if (if_kind == tok_if) {
@@ -2406,7 +2429,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			ThenBBstart = ThenBB;
 			ElseBBstart = ElseBB;
 		} else {
-			// save stack at 1st run and restore at followind runs
+			// save stack at 1st run and restore at following runs
 			llvm::Value* CondVV = Builder->CreateIntCast(CondV, llvm::Type::getInt8Ty(Context), false, "expandcond");
 			llvm::Value* switchVal = Builder->CreateOr(condPN, CondVV, "switchval");
 			llvm::MDNode* branch_weights = MDBuilder->createBranchWeights({10,75,5,10});
@@ -2457,7 +2480,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 #endif
 			Builder->SetInsertPoint(ThenBB);
 		}
-		if (if_kind == tok_while || if_kind == tok_repeat) {
+		if (if_kind == tok_while || if_kind == tok_for || if_kind == tok_repeat) {
 			savedStack1 =  Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack1");
 			savedStack1->addIncoming(savedStack0, StackSaveBB);
 			savedStack1->addIncoming(savedStack, StackRestoreBB);
@@ -2477,7 +2500,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 		ThenBB = Builder->GetInsertBlock();
-		if (if_kind == tok_while) {
+		if (if_kind == tok_while || if_kind == tok_for) {
 			condPN->addIncoming(Builder->getInt8(0), ThenBB);
 			savedStack->addIncoming(savedStack1, ThenBB);
 		}
@@ -2605,7 +2628,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (else_var) {
-				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
+				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while || if_kind == tok_for) ?
+				                          CondBB : ThenBB, thenLast,
 				                          else_var->ft.type, else_var->val, ElseBB, elseLast, firstWhile, enterBB);
 				if (!merge.second)
 					return nullptr;
@@ -2661,7 +2685,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			return handle(target, ThenV);
 		else if (CTcond == CTcond_false)
 			return handle(target, ElseV);
-		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
+		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while || if_kind == tok_for) ?
+		                          CondBB : ThenBB, thenLast,
 		                          Else.back()->ft->type, ElseV, ElseBB, elseLast, firstWhile, enterBB);
 		if (ft->type != merge.first) {
 			ft = new_FullType(*ft);
