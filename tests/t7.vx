@@ -245,3 +245,22 @@ end
 
 fn test_int_for_2 bool
 	return cprr == 4953
+
+cprr = 0
+
+for qqfdr in 7
+	cprr++
+end
+
+fn test_int_for_3 bool
+	return cprr == 7
+
+global ffwed7 := 4
+
+if ffwed7 > 2
+	gdfre0 := 9
+	ffwed7 += gdfre0
+end
+
+fn test_declaration_in_global_if bool
+	return ffwed7 == 13
