@@ -477,10 +477,30 @@ struct int_val_type_t {
 
 struct FullVar {
 	union {
+		// Function local "stack" variables store the address in 'val'.
+		//
 		llvm::Value* val = nullptr;
-		llvm::Type* storage_type; // for global variables
+
+		// For global variables the address changes from run to run in
+		// interactive JIT mode. So we have to lookup them in LLVM
+		// each time. On the other hand the declared llvm::Type of
+		// variable-sized arrays is zero-sized so it's handy to store
+		// the "real" storage type/size here. This, however is only
+		// possible in interactive JIT-mode since otherwise we would not
+		// know the size at "compile time".
+		//
+		llvm::Type* storage_type;
 	};
-	const char* mangled_name = nullptr; // only for pub globals
+	union {
+		// global variables need a mangled name for C++-compatible linkage
+		//
+		const char* mangled_name = nullptr; // only for pub globals
+
+		// for function/branch-variables we use this pointer to refer to
+		// a global instead if declared as "global a, b, c"
+		//
+		FullVar* global;
+	}
 	llvm::Function* destructor = nullptr;
 	llvm::Instruction* constructor; // to erase in auto-conversion to move
 	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
