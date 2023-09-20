@@ -1191,11 +1191,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	                                    std::move(Else.first), Body.second, Else.second, ValueFV, KeyFV);
 }
 
-std::vector<std::vector<std::string>> captured_variables;
-
 static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {
 	auto FnLoc = CurLoc;
-	captured_variables.push_back(std::vector<std::string>{});
 	unsigned visibility = A_closure;
 	auto ast = ParseDefinition(visibility);
 	return std::make_unique<FunctionExprAST>(FnLoc, std::move(ast));

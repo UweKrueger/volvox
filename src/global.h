@@ -754,7 +754,6 @@ enum LinkModes {
 extern CompModes comp_mode;
 extern LinkModes link_mode;
 extern std::vector<VarTable> locals_table; // including function arguments
-extern std::vector<std::vector<std::string>> captured_variables;
 extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
@@ -1232,13 +1231,8 @@ inline FullVar* lookup_var(const char* Name) {
 	FullVar* full_var;
 	for (int i = locals_table.size() - 1; i >= 0; i--) {
 		full_var = locals_table[i][Name];
-		if (full_var) {
-			if (i < locals_table.size()-1 && !captured_variables.empty()) {
-				locals_table.back().insert(Name, *full_var);
-				captured_variables.back().emplace_back(Name);
-			}
+		if (full_var)
 			return full_var;
-		}
 	}
 	// it's no function local var - maybe a global one from this module
 	full_var = lex.module->globals_table[Name];
