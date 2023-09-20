@@ -5,6 +5,7 @@ const n_pi := 10000000
 fn test_rand_F64 bool
 	n := 0
 	s := 0
+	global n_pi
 	while n < n_pi
 		x := rand.F64
 		y := rand.F64

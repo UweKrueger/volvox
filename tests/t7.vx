@@ -2,6 +2,7 @@ import arch.os
 import arch.cpu
 
 fn test_built_in_consts bool
+	global __OS_Idx, __CPU_Idx
 	x := __OS_Idx
 	return x > 0 && __CPU_Idx > 0
 
@@ -58,6 +59,7 @@ fn q7_1 int
 global x7_1 := 2
 
 fn test_incompatible_branches_1 bool
+	global x7_1
 	if x7_1 > 3
 		p7_1
 	else
@@ -66,6 +68,7 @@ fn test_incompatible_branches_1 bool
 	return true
 
 fn test_incompatible_branches_2 bool
+	global x7_1
 	if x7_1 > 1
 		p7_1
 	else
@@ -131,6 +134,7 @@ fn test_array_dim_3 bool
 global ffddff ::= [3][13][5]f64{}
 
 fn test_array_dim_4 bool
+	global ffddff
 	n := 1
 	return ffddff.dim(n) == 13
 
@@ -141,6 +145,7 @@ ffkld3 := [3][asd99][5]f64{}
 global eqwef3 := ffkld3.dim(1) + 4
 
 fn test_array_dim_5 bool
+	global eqwef3
 	return eqwef3 == 21
 
 fn test_string_size_1 bool
@@ -201,6 +206,7 @@ pub const SEMVMX2 ::= if ppeer
 	end
 
 fn test_unsigned_from_untyped_2 bool
+	global SEMVMX2
 	b := 511
 	return !(b < 0 || u64(b) > SEMVMX2)
 
@@ -215,6 +221,7 @@ pub const SEMVMX ::= if os.isWindows
 	end
 
 fn test_unsigned_from_untyped_3 bool
+	global SEMVMX
 	b := 511
 	return !(b < 0 || u64(b) > SEMVMX)
 
@@ -224,6 +231,7 @@ const b5532 ::= 0x57fffffe
 global a3297t5 := b5532
 
 fn test_int_from_untyped_1 bool
+	global a3297t5
 	return a3297t5 == 0x57fffffe
 
 fn for_loop_1 int
@@ -244,6 +252,7 @@ for xxsd in 100
 end
 
 fn test_int_for_2 bool
+	global cprr
 	return cprr == 4953
 
 cprr = 0
@@ -253,6 +262,7 @@ for qqfdr in 7
 end
 
 fn test_int_for_3 bool
+	global cprr
 	return cprr == 7
 
 global ffwed7 := 4
@@ -263,4 +273,5 @@ if ffwed7 > 2
 end
 
 fn test_declaration_in_global_if bool
+	global ffwed7
 	return ffwed7 == 13
