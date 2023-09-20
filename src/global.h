@@ -500,7 +500,7 @@ struct FullVar {
 		// a global instead if declared as "global a, b, c"
 		//
 		FullVar* global;
-	}
+	};
 	llvm::Function* destructor = nullptr;
 	llvm::Instruction* constructor; // to erase in auto-conversion to move
 	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
@@ -523,7 +523,7 @@ struct FullVar {
 		}
 	}
 	void destroy() { // we cannot call it "~FullVar()" because it must not be called automatically
-		free((void*)this->mangled_name);
+		// free((void*)this->mangled_name);
 		free((void*)this->possible_references);
 	}
 };
