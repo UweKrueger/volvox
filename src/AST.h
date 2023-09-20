@@ -572,7 +572,7 @@ public:
 				for (unsigned i = 0; i < order; i++)
 					ft->type = llvm::ArrayType::get(ft->type, 0);
 			} else {
-				errs() << "undefined element type\n";
+				errs() << Loc << ": unable to determine element type of fixed array\n";
 				ft = nullptr;
 			}
 		}

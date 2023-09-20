@@ -1357,9 +1357,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		// the pending operator take RHS as its LHS.
 		if (TokPrec <= NextTokPrecedence()) {
 			RHS = ParseBinOpRHS(TokPrec, std::move(RHS), terminator);
-			if (!RHS || !RHS->ft)
-				return nullptr;
 		}
+		if (!RHS || !RHS->ft)
+			return nullptr;
 		if (RHS->ft->type && RHS->ft->type->isFunctionTy())
 			RHS = std::make_unique<CallExprAST>(RHS->Loc, std::move(RHS), std::vector<std::unique_ptr<ExprAST>>{});
 		// Merge LHS/RHS.
@@ -1388,7 +1388,15 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			}
 		} else if (is_index) {
 			if (!LHS->ft || !LHS->ft->type) {
-				errs() << LHS->Loc << ": undefined expression - array expected\n";
+				errs() << LHS->Loc << ": ";
+				if (auto lval = dynamic_cast<LvalueExprAST*>(LHS.get()))
+					if (!lval->Name.empty()) {
+						errs() << "unknown identifier '" << lval->Name << "'";
+						goto have_varname2;
+					}
+				errs() << "undefined expression";
+			have_varname2:
+				errs() << " - array expected\n";
 				return nullptr;
 			}
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
@@ -1438,7 +1446,15 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				LHS = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
 				continue;
 			} else {
-				errs() << LHS->Loc << ": LHS of '.' is neither a module nor a known variable nor a struct literal\n";
+				errs() << LHS->Loc << ": ";
+				if (auto lval = dynamic_cast<LvalueExprAST*>(LHS.get()))
+					if (!lval->Name.empty()) {
+						errs() << "'" << lval->Name << "'";
+						goto have_varname;
+					}
+				errs() << "LHS of '.'";
+			have_varname:
+				errs() << " is neither a module nor a known variable nor a struct literal\n";
 				return nullptr;
 			}
 		}
@@ -1450,12 +1466,19 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		}
 		if ((!RHS_type || RHS_type->isVoidTy()) && !dynamic_cast<ListExprAST*>(RHS.get())) {
 			if (BinOp == ",") {
-				if (auto bin_rhs = dynamic_cast<BinaryExprAST*>(RHS.get()))
+				if (auto bin_rhs = dynamic_cast<BinaryExprAST*>(RHS.get())) {
 					if (!strcmp(bin_rhs->Op, ",") || !strcmp(bin_rhs->Op, ":"))
 						goto valid_void;
+				} else {
+					goto valid_void; // TODO: more sophisticated check if this is allowed,
+					                 // e.g. "global a, b, c", "x, y = f()", ...
+				}
 				if (!RHS_type && terminator == tok_in)
 					goto valid_void; // allow declaration of control variables
 			}
+			if (auto lval = dynamic_cast<LvalueExprAST*>(RHS.get()))
+				if (!lval->Name.empty())
+					errs() << lval->Loc << ": unknown identifier '" << lval->Name << "'\n";
 			errs() << BinLoc << ": RHS of '" << BinOp << "' is " << (RHS_type ? "of void type\n" : "indeterminate\n");
 			return nullptr;
 		}
@@ -1523,7 +1546,6 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 		getNextToken();
 		auto globals_list = ParseExpression();
 		while (auto bin_expr = dynamic_cast<BinaryExprAST*>(globals_list.get())) {
-			errs() << bin_expr->Loc << " found global declaration\n";
 			if (bin_expr->Op[0] != ',') {
 				errs() << bin_expr->Loc << ": ',' expected as separator in 'global' list\n";
 				return { nullptr, 0 };

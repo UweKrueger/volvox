@@ -1228,7 +1228,7 @@ inline FullVar* lookup_var(const char* prefix, const char* unmangledName) {
 
 // look up local var - or global var if !inside_function
 inline FullVar* lookup_var(const char* Name, bool skip_local = false) {
-	FullVar* full_var;
+	FullVar* full_var = nullptr;
 	if (!skip_local) { // skipped for processing 'global' list inside function
 		for (int i = locals_table.size() - 1; i >= 0; i--) {
 			full_var = locals_table[i][Name];
@@ -1240,18 +1240,20 @@ inline FullVar* lookup_var(const char* Name, bool skip_local = false) {
 			}
 		}
 	}
-	// it's no function local var - maybe a global one from this module
-	full_var = lex.module->globals_table[Name];
-	// or from an imported module
-	if (!full_var || !(full_var->ft.type_attr & A_global) && inside_function)
-		full_var = lookup_var("", Name);
-	if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
-		full_var = nullptr;
-	if (!full_var && lex.source_stack.size())
-		// search in "builtin" as last resort - lowest in source_stack
-		full_var = lex.source_stack.front().module->globals_table[Name];
-	if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
-		full_var = nullptr;
+	if (skip_local || !inside_function) {
+		// it's no function local var - maybe a global one from this module
+		full_var = lex.module->globals_table[Name];
+		// or from an imported module
+		if (!full_var || !(full_var->ft.type_attr & A_global) && inside_function)
+			full_var = lookup_var("", Name);
+		if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
+			full_var = nullptr;
+		if (!full_var && lex.source_stack.size())
+			// search in "builtin" as last resort - lowest in source_stack
+			full_var = lex.source_stack.front().module->globals_table[Name];
+		if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
+			full_var = nullptr;
+	}
 	return full_var;
 }
 
