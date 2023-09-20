@@ -868,6 +868,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	auto old_inside_branch = inside_branch;
 	inside_branch = true;
 	auto Then = ParseExprList();
+	if (!Then.second && Then.first.empty())
+		return nullptr;
 	inside_branch = old_inside_branch;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
@@ -949,6 +951,9 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 			Else = { std::move(l), end_k };
 		} else {
 			Else = ParseExprList();
+			if (!Else.second && Else.first.empty())
+				return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+						std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 			if (Else.second == tok_return) {
 				while (CurTok.kind == ';')
 					getNextToken();
@@ -1174,6 +1179,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		}
 	}
 	auto Body = ParseExprList();
+	if (!Body.second && Body.first.empty())
+		return nullptr;
 	inside_branch = old_inside_branch;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
@@ -1471,6 +1478,29 @@ std::unique_ptr<ExprAST> ParseExpression(int terminator) {
 	return LHS;
 }
 
+static bool MarkAsGlobalVar(ExprAST* expr) {
+	if (auto var_expr = dynamic_cast<VariableExprAST*>(expr)) {
+		if (var_expr->full_var) {
+			errs() << var_expr->Loc << "'" << var_expr->Name << "' is already in use as "
+			       << (var_expr->full_var->global ? "reference to global\n" : "local variable\n");
+			return false;
+		}
+		if (auto global_fv = lookup_var(var_expr->Name.c_str(), true)) {
+			FullVar fv = {
+				.global = global_fv
+			};
+			locals_table.back().insert(var_expr->Name.c_str(), fv);
+			return true;
+		} else {
+			errs() << var_expr->Loc << ": there is no known global variable '" << var_expr->Name << "'\n";
+			return false;
+		}
+	} else {
+		errs() << expr->Loc << ": comma separated list of variable names expected\n";
+		return false;
+	}
+}
+
 static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	while (CurTok.kind == ';')
 		getNextToken();
@@ -1483,6 +1513,27 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 			else
 				return { ParseExpression(), kind };
 		}
+		else
+			return { nullptr, kind };
+	} else if (kind == tok_global) {
+		if (!inside_function) {
+			errs() << CurLoc << ": global list useless outside functions\n";
+			return { nullptr, 0 };
+		}
+		getNextToken();
+		auto globals_list = ParseExpression();
+		while (auto bin_expr = dynamic_cast<BinaryExprAST*>(globals_list.get())) {
+			errs() << bin_expr->Loc << " found global declaration\n";
+			if (bin_expr->Op[0] != ',') {
+				errs() << bin_expr->Loc << ": ',' expected as separator in 'global' list\n";
+				return { nullptr, 0 };
+			}
+			if (!MarkAsGlobalVar(bin_expr->RHS.get()))
+				return { nullptr, 0 };
+			globals_list = std::move(bin_expr->LHS);
+		}
+		if (!MarkAsGlobalVar(globals_list.get()))
+			return { nullptr, 0 };
 		else
 			return { nullptr, kind };
 	} else {
@@ -1502,6 +1553,11 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 					if (I->ThenEndKind == tok_return && I->ElseEndKind == tok_return)
 						end_kind = tok_return;
 			expr_list.push_back(std::move(expr.first));
+		} else {
+			if (!end_kind)
+				return { std::vector<std::unique_ptr<ExprAST>>{}, 0 };
+			if (end_kind == tok_global)
+				end_kind = 0;
 		}
 	}
 	return { std::move(expr_list), end_kind };
@@ -1805,6 +1861,8 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			return nullptr;
 	}
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList();
+	if (!Elist.second && Elist.first.empty())
+		return nullptr;
 	prompt_indent = 0;
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second, std::move(unmangledName));
 }

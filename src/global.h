@@ -1226,13 +1226,19 @@ inline FullVar* lookup_var(const char* prefix, const char* unmangledName) {
 	return nullptr;
 }
 
-// look up var and return if it's global
-inline FullVar* lookup_var(const char* Name) {
+// look up local var - or global var if !inside_function
+inline FullVar* lookup_var(const char* Name, bool skip_local = false) {
 	FullVar* full_var;
-	for (int i = locals_table.size() - 1; i >= 0; i--) {
-		full_var = locals_table[i][Name];
-		if (full_var)
-			return full_var;
+	if (!skip_local) { // skipped for processing 'global' list inside function
+		for (int i = locals_table.size() - 1; i >= 0; i--) {
+			full_var = locals_table[i][Name];
+			if (full_var) {
+				if (full_var->global)
+					return full_var->global;
+				else
+					return full_var;
+			}
+		}
 	}
 	// it's no function local var - maybe a global one from this module
 	full_var = lex.module->globals_table[Name];

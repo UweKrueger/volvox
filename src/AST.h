@@ -180,7 +180,7 @@ public:
 class VariableExprAST : public LvalueExprAST {
 
 public:
-	FullVar* full_var; // and if it's global
+	FullVar* full_var; // description in local or global database
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: LvalueExprAST(Loc, Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var) {
@@ -188,7 +188,7 @@ public:
 			if (ft->type_attr & A_untyped)
 				is_unknown_type = true;
 		}
-		// if the variable name has not found in the database we don't generate
+		// if the variable name has not found in the databases we don't generate
 		// an error message here because this VariableExprAST could be the LHS of
 		// an initialization e.g. `a := 42`
 	}
