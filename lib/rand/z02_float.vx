@@ -9,6 +9,7 @@ type Fu64 union {
 # create an equally distributed random real in the range [0; 1)
 #
 pub inline fn F64 f64
+	global avoid_multiplication, epsilon64, compensate_for_53rd_bit
 	if avoid_multiplication
 		# this code is for CPUs on which multiplications are expensive
 		r0 := U64

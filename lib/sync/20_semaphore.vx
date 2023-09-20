@@ -67,6 +67,7 @@ type pipehandle_t union {
 }
 
 pub fn semaphore(init_val int) Semaphore
+	global SEMVMX, EINVAL, NONBLOCK, SEMAPHORE, CLOEXEC, SETFD
 	sem := Semaphore{}
 	if init_val < 0 || u64(init_val) > SEMVMX
 		sem.err = EINVAL
@@ -113,6 +114,7 @@ pub fn semaphore Semaphore
 	return semaphore(0)
 
 pub inline fn Semaphore.max u64
+	global SEMVMX
 	return SEMVMX
 
 cdecl fn ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voidptr) bool
@@ -126,6 +128,7 @@ const ERROR_TOO_MANY_POSTS ::= if os.isWindows
 const NOWAIT ::= 0x800
 
 pub fn Semaphore.post(n int) bool
+	global SEMVMX, EINVAL, ERROR_TOO_MANY_POSTS
 	if this.err != 0
 		return false
 	end
@@ -170,6 +173,7 @@ pub const EAGAIN ::= if os.isLinux
 	end
 
 pub fn Semaphore.wait bool
+	global POLLIN
 	if this.err != 0
 		return false
 	end
@@ -213,6 +217,7 @@ pub fn Semaphore.wait bool
 	return success
 
 pub fn Semaphore.timedwait(timeout time.Duration) bool
+	global POLLIN, EAGAIN
 	if this.err != 0
 		return false
 	end
@@ -285,6 +290,7 @@ pub fn Semaphore.timedwait(timeout f64) bool
 	return this.timedwait(time.Duration(timeout))
 
 pub fn Semaphore.trywait bool
+	global POLLIN, EAGAIN
 	if this.err != 0
 		return false
 	end

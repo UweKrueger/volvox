@@ -18,6 +18,7 @@ type sockaddr_in6 {
 }
 
 pub inline fn tcp6 Ip6Socket
+	global AF_INET6, SOCK_STREAM
 	s := Ip6Socket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_STREAM, 0)
@@ -33,6 +34,7 @@ pub inline fn tcp6 Ip6Socket
 	return s
 
 pub inline fn udp6 Ip6Socket
+	global AF_INET6, SOCK_DGRAM
 	s := Ip6Socket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_DGRAM, 0)

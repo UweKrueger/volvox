@@ -54,6 +54,7 @@ pub cdecl(QueryPerformanceCounter) fn _QueryPerformanceCounter(&ticks i64) bool
 const ufrequency ::= 1000000000
 
 fn get_system_tick_frequency() int
+	global ufrequency
 	if os.isWindows
 		f := 0i64
 		if !QueryPerformanceFrequency(f)
@@ -78,6 +79,7 @@ type common_timestamp union {
 }
 
 fn get_common_timestamp() common_timestamp
+	global CLOCK_MONOTONIC
 	_tmp_ts := common_timestamp{}
 	if os.isWindows
 		if !_QueryPerformanceCounter(_tmp_ts.i64)
@@ -95,6 +97,7 @@ const program_start_common_timestamp := get_common_timestamp()
 # difference of two timespec values in ns
 #
 pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
+	global ufrequency
 	res := timespec {
 		sec: finish.sec - start.sec
 		nsec : finish.nsec - start.nsec
@@ -106,6 +109,7 @@ pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
 	return res
 
 pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
+	global ufrequency
 	res := timespec{
 		sec: t1.sec + t2.sec
 		nsec: t1.nsec + t2.nsec
@@ -117,12 +121,14 @@ pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
 	return res
 
 inline fn nanoseconds_since_start(ts timespec) i64
+	global ufrequency, program_start_common_timestamp
 	d := timespec_diff(ts, program_start_common_timestamp.timespec)
 	return i64(ufrequency) * d.sec + d.nsec
 
 # read a timestamp as ticks since program start
 #
 pub inline fn get() i64
+	global CLOCK_MONOTONIC, program_start_common_timestamp
 	if os.isWindows
 		t := 0i64
 		if !_QueryPerformanceCounter(t)
@@ -140,6 +146,7 @@ pub inline fn get() i64
 # calculate difference of two timestamps as float in seconds
 #
 pub inline fn diff(finish i64, start i64) f64
+	global tick_period
 	return f64(i64(finish - start)) * tick_period
 
 # Windows timestamp in 0.1µs resolution
@@ -175,6 +182,7 @@ cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
 # get 0.1µs ticks since January 1, 1601 (in field u64)
 #
 pub inline fn now() TimeStamp
+	global CLOCK_REALTIME, epoch_offset
 	ft := _TimeStamp{}
 	if os.isWindows
 		GetSystemTimePreciseAsFileTime(ft.FILETIME)

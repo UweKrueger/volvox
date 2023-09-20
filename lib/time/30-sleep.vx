@@ -31,6 +31,7 @@ pub fn sleep(t Duration)
 		ts := t.timespec
 		t_remaining := timespec{}
 		sw := false
+		global CLOCK_MONOTONIC, EINTR
 		repeat
 			if sw
 				if os.isOpenBSD

@@ -1,4 +1,5 @@
 pub fn TimeStamp.timespec timespec
+	global epoch_offset
 	ts := timespec {
 		sec: ssize_t(this.u64 / 10000000 - epoch_offset)
 		nsec: ssize_t((this.u64 % 10000000) * 100)
@@ -9,6 +10,7 @@ pub fn timespec.time_t time_t
 	return time_t{ sec: this.sec }
 
 pub fn TimeStamp.time_t time_t
+	global epoch_offset
 	return time_t{ sec: ssize_t(this.u64 / 10000000 - epoch_offset) }
 
 # Structure to store real time with 1s precision used on all OSs
