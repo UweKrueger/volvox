@@ -28,22 +28,22 @@ pub fn sleep(t Duration)
 	if os.isWindows
 		Sleep(u32(t.i64 / 10000))
 	else
-		ts := t.timespec
-		t_remaining := timespec{}
-		sw := false
+		ts = t.timespec
+		t_remaining = timespec{}
+		sw = false
 		global CLOCK_MONOTONIC, EINTR
 		repeat
 			if sw
 				if os.isOpenBSD
-					res := nanosleep(t_remaining, ts)
+					res = nanosleep(t_remaining, ts)
 				else
-					res := clock_nanosleep(CLOCK_MONOTONIC, 0, t_remaining, ts)
+					res = clock_nanosleep(CLOCK_MONOTONIC, 0, t_remaining, ts)
 				end
 			else
 				if os.isOpenBSD
-					res := nanosleep(ts, t_remaining)
+					res = nanosleep(ts, t_remaining)
 				else
-					res := clock_nanosleep(CLOCK_MONOTONIC, 0, ts, t_remaining)
+					res = clock_nanosleep(CLOCK_MONOTONIC, 0, ts, t_remaining)
 				end
 				sw = !sw
 			end

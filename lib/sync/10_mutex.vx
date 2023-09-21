@@ -19,7 +19,7 @@ cdecl fn pthread_mutexattr_destroy(&attr mutex_attr) int
 cdecl fn pthread_mutexattr_setrobust(&attr mutex_attr, robustness int) int
 
 fn get_robust_mutex_attr mutex_attr
-	m := mutex_attr{}
+	m = mutex_attr{}
 	if !os.isWindows
 		pthread_mutexattr_init(m)
 		if os.isLinux || os.isFreeBSD
@@ -28,7 +28,7 @@ fn get_robust_mutex_attr mutex_attr
 	end
 	return m
 
-const default_mutex_attr := get_robust_mutex_attr
+const default_mutex_attr = get_robust_mutex_attr
 
 const __MUTEX_SIZE ::= if os.isLinux
 		if arch.bitwidth == 64
@@ -90,7 +90,7 @@ const EOWNERDEAD ::= if os.isFreeBSD
 pub inline fn mutex.lock int
 	global EOWNERDEAD
 	if os.isWindows
-		res := WaitForSingleObjectEx(this.size_t, u32(-1), true)
+		res = WaitForSingleObjectEx(this.size_t, u32(-1), true)
 		if res != 0
 			res = GetLastError()
 			if res == EOWNERDEAD
@@ -98,7 +98,7 @@ pub inline fn mutex.lock int
 			end
 		end
 	else
-		res := pthread_mutex_lock(this)
+		res = pthread_mutex_lock(this)
 	end
 	if os.isLinux || os.isFreeBSD || os.isWindows
 		if res == EOWNERDEAD
@@ -113,7 +113,7 @@ pub inline fn mutex.lock int
 pub inline fn mutex.trylock int
 	global EOWNERDEAD
 	if os.isWindows
-		res := WaitForSingleObjectEx(this.size_t, 0, true)
+		res = WaitForSingleObjectEx(this.size_t, 0, true)
 		if res != 0
 			res = GetLastError()
 			if res == EOWNERDEAD
@@ -121,7 +121,7 @@ pub inline fn mutex.trylock int
 			end
 		end
 	else
-		res := pthread_mutex_trylock(this)
+		res = pthread_mutex_trylock(this)
 	end
 	if os.isLinux || os.isFreeBSD || os.isWindows
 		if res == EOWNERDEAD
@@ -136,7 +136,7 @@ pub inline fn mutex.trylock int
 pub inline fn mutex.timedlock(timeout time.Duration) int
 	global EOWNERDEAD
 	if os.isWindows
-		res := WaitForSingleObjectEx(this.size_t, u32(timeout / 10000), true)
+		res = WaitForSingleObjectEx(this.size_t, u32(timeout / 10000), true)
 		if res != 0
 			res = GetLastError()
 			if res == EOWNERDEAD
@@ -144,8 +144,8 @@ pub inline fn mutex.timedlock(timeout time.Duration) int
 			end
 		end
 	else
-		ts := timeout.timespec
-		res := pthread_mutex_timedlock(this, ts)
+		ts = timeout.timespec
+		res = pthread_mutex_timedlock(this, ts)
 	end
 	if os.isLinux || os.isFreeBSD || os.isWindows
 		if res == EOWNERDEAD
@@ -184,7 +184,7 @@ pub inline fn mutex.unlock int
 	global EOWNERDEAD, ETIMEDOUT, EPERM, EBUSY
 	if os.isWindows
 		if arch.isREPL
-			res := WaitForSingleObjectEx(this.size_t, 0, true)
+			res = WaitForSingleObjectEx(this.size_t, 0, true)
 			if res == 0
 				ReleaseMutex(this.size_t)
 				return EPERM
@@ -197,7 +197,7 @@ pub inline fn mutex.unlock int
 		return int(!ReleaseMutex(this.size_t))
 	else
 		if arch.isREPL && (os.isLinux || os.isFreeBSD)
-			res := pthread_mutex_trylock(this)
+			res = pthread_mutex_trylock(this)
 			if res == 0
 				pthread_mutex_unlock(this)
 				return EPERM

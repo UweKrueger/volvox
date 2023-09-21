@@ -38,7 +38,7 @@ fn State4
 
 # thread local state
 #
-global s := State4{}
+global s = State4{}
 
 # function names for random functions are the same as the type they produce but with uppercase
 # letter because type names are not allowed for (non-constructor) function names
@@ -47,9 +47,9 @@ global s := State4{}
 #
 pub inline fn U64 u64
 	global s
-	result := rotl(s.s[1] + (s.s[1] << 2), 7)
+	result = rotl(s.s[1] + (s.s[1] << 2), 7)
 	result += (result << 3)
-	t := s.s[1] << 17
+	t = s.s[1] << 17
 	s.s[2] ><= s.s[0]
 	s.s[3] ><= s.s[1]
 	s.s[1] ><= s.s[2]

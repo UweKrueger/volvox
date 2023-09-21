@@ -1,10 +1,10 @@
 # test some UTF-8
-zu := "Für's Café im Sträßle!\n"
+zu = "Für's Café im Sträßle!\n"
 
-q := 12.3
+q = 12.3
 
 fn fib(x u64) u64
-	t := if x < 3
+	t = if x < 3
 	    1u64
 	else
 	    fib(x - 2) + fib(x - 1) .

@@ -1,5 +1,5 @@
 # library functions use this to trigger informative messages
-global __verbose := false
+global __verbose = false
 
 cdecl fn exit(n int)
 cdecl fn strcmp(s1 cstring, s2 cstring) i32
@@ -110,7 +110,7 @@ inline fn __i32_pow(b i32, e i32) i32
 		return 1
 	end
 	if e >= 0
-		r := if (e & 1) != 0
+		r = if (e & 1) != 0
 			b
 		else
 			1
@@ -149,14 +149,14 @@ inline fn __i32_pow_constexp(b i32, e i32) i32
 		return b * b * b
 	end
 	if e == 4
-		t := b * b
+		t = b * b
 		return t * t
 	end
 	if e == 5
 		return b * __i32_pow_constexp(b, 4)
 	end
 	if e == 8
-		t := b * b
+		t = b * b
 		t *= t
 		return t * t
 	end
@@ -167,7 +167,7 @@ inline fn __i64_pow(b i64, e i32) i64
 		return 1
 	end
 	if e >= 0
-		r := if (e & 1) != 0
+		r = if (e & 1) != 0
 			b
 		else
 			1
@@ -205,14 +205,14 @@ inline fn __i64_pow_constexp(b i64, e i32) i64
 		return b * b * b
 	end
 	if e == 4
-		t := b * b
+		t = b * b
 		return t * t
 	end
 	if e == 5
 		return b * __i64_pow_constexp(b, 4)
 	end
 	if e == 8
-		t := b * b
+		t = b * b
 		t *= t
 		return t * t
 	end

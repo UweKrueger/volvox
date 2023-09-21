@@ -22,7 +22,7 @@ pub inline fn I8 i8
 # overloaded function that take a maximum value
 
 pub inline fn n(max u64) u64
-	mask := max
+	mask = max
 	mask |= (mask >> 1)
 	mask |= (mask >> 2)
 	mask |= (mask >> 4)
@@ -30,40 +30,40 @@ pub inline fn n(max u64) u64
 	mask |= (mask >> 16)
 	mask |= (mask >> 32)
 	repeat
-		res := U64 & mask
+		res = U64 & mask
 	until res <= max
 	return res
 
 pub inline fn n(max u32) u32
-	mask := max
+	mask = max
 	mask |= (mask >> 1)
 	mask |= (mask >> 2)
 	mask |= (mask >> 4)
 	mask |= (mask >> 8)
 	mask |= (mask >> 16)
 	repeat
-		res := u32(U64) & mask
+		res = u32(U64) & mask
 	until res <= max
 	return res
 
 pub inline fn n(max u16) u16
-	mask := max
+	mask = max
 	mask |= (mask >> 1)
 	mask |= (mask >> 2)
 	mask |= (mask >> 4)
 	mask |= (mask >> 8)
 	repeat
-		res := u16(U64) & mask
+		res = u16(U64) & mask
 	until res <= max
 	return res
 
 pub inline fn n(max u8) u8
-	mask := max
+	mask = max
 	mask |= (mask >> 1)
 	mask |= (mask >> 2)
 	mask |= (mask >> 4)
 	repeat
-		res := u8(U64) & mask
+		res = u8(U64) & mask
 	until res <= max
 	return res
 
@@ -86,17 +86,17 @@ pub inline fn n(max i8) i8
 	return i8(n(u8(max)))
 
 pub inline fn n(min i64, max i64) i64
-	delta := u64(max - min)
+	delta = u64(max - min)
 	return min + n(delta)
 
 pub inline fn n(min i32, max i32) i32
-	delta := u32(max - min)
+	delta = u32(max - min)
 	return min + n(delta)
 
 pub inline fn n(min i16, max i16) i16
-	delta := u16(max - min)
+	delta = u16(max - min)
 	return min + n(delta)
 
 pub inline fn n(min i8, max i8) i8
-	delta := u8(max - min)
+	delta = u8(max - min)
 	return min + n(delta)

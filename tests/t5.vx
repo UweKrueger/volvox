@@ -1,7 +1,7 @@
 import tests.testmod.subb
 import tests.testmod.suba
 
-global hjggd := subb.CCv{
+global hjggd = subb.CCv{
 	w: {
 		q: [1.25, -6.75, 0.0625, 1.5, -3.75]
 		pp: 67.0625
@@ -12,11 +12,11 @@ fn test_multi_level_type_import bool
 	global hjggd
 	return hjggd.w.q[1] == -6.75 && hjggd.w.pp == 67.0625 && hjggd.z.q.e == 0.
 
-global oolt := 12.125
+global oolt = 12.125
 
 oolt = oolt + 3
 
-rrwe := 78.5 + oolt
+rrwe = 78.5 + oolt
 
 oolt = oolt + rrwe
 
@@ -24,12 +24,12 @@ fn test_non_global_main_var_1 bool
 	global oolt
 	return oolt == 108.75
 
-kkq93 := 6
-pp372 := 5
+kkq93 = 6
+pp372 = 5
 
-xpps29 := [kkq93][3][pp372]f64{2: {1: {3: 8.25}}, 5: {2: {4: -3.5}}}
+xpps29 = [kkq93][3][pp372]f64{2: {1: {3: 8.25}}, 5: {2: {4: -3.5}}}
 
-global jjf04 := 0.
+global jjf04 = 0.
 
 jjf04 = xpps29[0][0][0] + xpps29[2][1][3] + xpps29[5][2][4]
 
@@ -42,7 +42,7 @@ type XX {
 	b f64
 }
 
-global cntd := 10
+global cntd = 10
 
 type YY {
 	r i32
@@ -62,36 +62,36 @@ fn YY bool
 	return this.r == -13
 
 fn hhwe i32
-   llk3e := YY{ r: 17 }
+   llk3e = YY{ r: 17 }
    return llk3e.r
 
 fn test_local_shadow_of_global bool
-	hjggd := 34.125
-	subb := 1.25
-	hhwe := -3.5
-	z := hjggd + subb - hhwe
+	hjggd = 34.125
+	subb = 1.25
+	hhwe = -3.5
+	z = hjggd + subb - hhwe
 	return z == 38.875
 
 fn test_destructor_1 bool
 	global cntd
-	z := hhwe
+	z = hhwe
 	return z == 17 && cntd == -7
 
 fn hhwe2(n i32) i32
 	if n<=0
-		llk3e := YY{ r: n-8 }
+		llk3e = YY{ r: n-8 }
 		return llk3e.r
 	end
 	return 5
 
 fn test_destructor_2 bool
 	global cntd
-	z := hhwe2(-5)
+	z = hhwe2(-5)
 	return cntd == 6 && z == -13
 
 fn hhwe3(n i32) i32
 	if n>7
-		x := YY{ r: n, w: XX{ a: -71 }}
+		x = YY{ r: n, w: XX{ a: -71 }}
 		n = n + x.w.a
 	else
 		n = n - 1
@@ -100,13 +100,13 @@ fn hhwe3(n i32) i32
 
 fn test_destructor_then_branch_1 bool
 	global cntd
-	k := hhwe3(8)
+	k = hhwe3(8)
 	return cntd == -2 && k == -63
 
 fn hhwe4(n i32) i32
-	w := n
+	w = n
 	repeat
-		x := YY{ r: n, w: XX{ a: 13 }}
+		x = YY{ r: n, w: XX{ a: 13 }}
 		n = n - 1
 		w = w + n
 	until n <= 2
@@ -114,7 +114,7 @@ fn hhwe4(n i32) i32
 	return w
 
 fn test_destructor_repeat_stack_restore_1 bool
-	p := hhwe4(7)
+	p = hhwe4(7)
 	global cntd
 	return cntd == 1 && p == 27
 
@@ -126,7 +126,7 @@ type LL {
 fn test_auto_destructor_1 bool
 	global cntd
 	if cntd > 0
-		p := LL{ a: 3, p: YY{ r: 5 }}
+		p = LL{ a: 3, p: YY{ r: 5 }}
 		p.p.r = p.p.r - 1
 	end
 	return cntd == -3
@@ -136,15 +136,15 @@ cntd = 100
 fn test_array_destructor_1 bool
 	global cntd
 	if cntd > 99
-		iorrt := 34.5
-		prtz := [2][cntd-95][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 2 }}}}, 1: { 4: { 1: LL{ p: YY{ r: 3 }}}}}
+		iorrt = 34.5
+		prtz = [2][cntd-95][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 2 }}}}, 1: { 4: { 1: LL{ p: YY{ r: 3 }}}}}
 		prtz[1][4][0].p.r = 7
 	end
 	return cntd == 88
 
 fn call_array_destructor f64
-	iorrt := 34.5
-	prtz := [2][5][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 7 }}}}, 1: { 3: { 1: LL{ p: YY{ r: 31 }}}}}
+	iorrt = 34.5
+	prtz = [2][5][2]LL{ 0: { 0: { 0: LL{ a: 3, p: YY{ r: 7 }}}}, 1: { 3: { 1: LL{ p: YY{ r: 31 }}}}}
 	prtz[1][1][1].p.r = -13
 	return iorrt + prtz[1][4][0].p.r
 
@@ -162,7 +162,7 @@ cntd = 200
 fn test_array_destructor_3 bool
 	global cntd
 	if cntd > 100
-		rr := QQ{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
+		rr = QQ{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
 	end
 	return cntd == 171
 
@@ -178,19 +178,19 @@ fn ~RR
 cntd = 150
 
 fn call_array_destr2 i32
-	rr := RR{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
+	rr = RR{ a: [ YY{ r: 3 }, YY{ r: 10 }, YY{ r: -7 }, YY{}, YY{ r: 23 } ] }
 	return rr.a[2].r
 
 fn test_array_destructor_4 bool
 	global cntd
-	x := call_array_destr2
+	x = call_array_destr2
 	return x == -7 && cntd == 121
 
-global tzv := 3
+global tzv = 3
 
-rklr := 56
+rklr = 56
 
-&mkc3 := rklr
+&mkc3 = rklr
 
 mkc3
 
@@ -202,16 +202,16 @@ fn test_mainvar_reference_1 bool
 	global tzv
 	return tzv == -78
 
-global w3e := 3
+global w3e = 3
 
-ssa := [4][w3e][2]f64{ 3: { 2: { 1: 56.0625 }}}
+ssa = [4][w3e][2]f64{ 3: { 2: { 1: 56.0625 }}}
 
-&qjf1 := ssa[3][2][1]
+&qjf1 = ssa[3][2][1]
 
-&qjf2 := ssa[1][0][1]
+&qjf2 = ssa[1][0][1]
 
-global fr1 := 0.0
-global fr2 := 0.0
+global fr1 = 0.0
+global fr2 = 0.0
 
 fr1 = qjf1
 qjf2 = -27.5625
@@ -223,8 +223,8 @@ fn test_mainvar_reference_2 bool
 
 fn ggeewf f64
 	global w3e
-	a := [4][5][2]f64{ 3: { 3: { 1: 56.0625 }}}
-	&u2 := a[3][w3e][1]
+	a = [4][5][2]f64{ 3: { 3: { 1: 56.0625 }}}
+	&u2 = a[3][w3e][1]
 	u2 = 24.25
 	return u2 + a[3][3][1]
 

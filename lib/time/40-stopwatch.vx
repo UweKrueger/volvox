@@ -5,7 +5,7 @@ type StopWatch {
 	finish i64
 }
 
-# default constructor, e.g. "z := StopWatch{}" creates stop watch
+# default constructor, e.g. "z = StopWatch{}" creates stop watch
 # started at current time
 #
 pub fn StopWatch

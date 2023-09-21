@@ -12,8 +12,8 @@ pub inline fn F64 f64
 	global avoid_multiplication, epsilon64, compensate_for_53rd_bit
 	if avoid_multiplication
 		# this code is for CPUs on which multiplications are expensive
-		r0 := U64
-		x := Fu64{ u: r0 }
+		r0 = U64
+		x = Fu64{ u: r0 }
 		# x.u = r0
 		# this code assumes IEEE-754 representation
 		x.u &= (1 << 52) - 1 # mask the mantissa
@@ -22,8 +22,8 @@ pub inline fn F64 f64
 		if compensate_for_53rd_bit
 			# the result only contains 52 bits of information i.e. the "last" bit is always 0
 			# we can compensate this by adding epsilon/2 with a probability of 50%
-			mask := 0u64 - (r0 >> 63)
-			c := Fu64{ f: 0.5 * epsilon64 }
+			mask = 0u64 - (r0 >> 63)
+			c = Fu64{ f: 0.5 * epsilon64 }
 			c.u &= mask
 			x.f += c.f
 		end

@@ -3,11 +3,11 @@ import arch.cpu
 
 fn test_built_in_consts bool
 	global __OS_Idx, __CPU_Idx
-	x := __OS_Idx
+	x = __OS_Idx
 	return x > 0 && __CPU_Idx > 0
 
 fn test_exactly_one_os_is_defined bool
-	n := 0
+	n = 0
 	if os.isFreeBSD
 		n++
 	end
@@ -32,7 +32,7 @@ fn test_exactly_one_os_is_defined bool
 	return n == 1
 
 fn test_exactly_one_cpu_is_defined bool
-	m := 0
+	m = 0
 	if cpu.isARM
 		m++
 	end
@@ -56,7 +56,7 @@ fn p7_1 string
 fn q7_1 int
 	return 7
 
-global x7_1 := 2
+global x7_1 = 2
 
 fn test_incompatible_branches_1 bool
 	global x7_1
@@ -93,56 +93,56 @@ fn test_incompatible_branches_4 bool
 	return true
 
 fn test_array_value_attrib_1 bool
-	a := [[4,5,6],[2,3,6]].order
+	a = [[4,5,6],[2,3,6]].order
 	return a == 2
 
 fn test_array_value_attrib_2 bool
-	a := [[4,5,6],[2,3,6]].size
+	a = [[4,5,6],[2,3,6]].size
 	return a == 6
 
 fn test_array_value_attrib_3 bool
-	a := [3][4]f64{}.size
+	a = [3][4]f64{}.size
 	return a == 12
 
 fn test_array_value_attrib_4 bool
-	a := [3][4]f64{}.order
+	a = [3][4]f64{}.order
 	return a == 2
 
 fn test_array_value_attrib_5 bool
-	f := 7
-	a := [3][f][4]f64{}.order
+	f = 7
+	a = [3][f][4]f64{}.order
 	return a == 3
 
 fn test_array_value_attrib_6 bool
-	f := 13
-	g := 5
-	a := [f][7][g]f64{}.size
+	f = 13
+	g = 5
+	a = [f][7][g]f64{}.size
 	return a == 455
 
 fn test_array_dim_1 bool
 	return [3][7][5]f64{}.dim(1) == 7
 
 fn test_array_dim_2 bool
-	f := 13
+	f = 13
 	return [3][f][5]f64{}.dim(1) == 13
 
 fn test_array_dim_3 bool
-	f := 13
-	n := 1
+	f = 13
+	n = 1
 	return [3][f][5]f64{}.dim(n) == 13
 
 global ffddff ::= [3][13][5]f64{}
 
 fn test_array_dim_4 bool
 	global ffddff
-	n := 1
+	n = 1
 	return ffddff.dim(n) == 13
 
-asd99 := 17
+asd99 = 17
 
-ffkld3 := [3][asd99][5]f64{}
+ffkld3 = [3][asd99][5]f64{}
 
-global eqwef3 := ffkld3.dim(1) + 4
+global eqwef3 = ffkld3.dim(1) + 4
 
 fn test_array_dim_5 bool
 	global eqwef3
@@ -155,11 +155,11 @@ fn test_string_len_1 bool
 	return "hjdrt56".len == 7
 
 fn test_string_len_2 bool
-	a := "vbhgf"
+	a = "vbhgf"
 	return a.len == 5
 
 fn test_string_len_3 bool
-	a := "vbhgf" + "c543"
+	a = "vbhgf" + "c543"
 	return a.len == 9
 
 fn test_string_len_4 bool
@@ -172,13 +172,13 @@ type RtzRi {
 }
 
 fn ggg(a [4]u64) u64
-	s := 0u64
+	s = 0u64
 	s += a[0]
 	s += 3*a[2]
 	return s
 
 fn ggg(b f64, a RtzRi) f64
-	s := 0.
+	s = 0.
 	s += a.x
 	s *= a.y
 	s += b + a.z
@@ -194,7 +194,7 @@ fn test_anonynous_struct_1 bool
 	return ggg(5, {y: 3, x: 23.75, z: 10}) == 86.25
 
 fn test_unsigned_from_untyped_1 bool
-	b := 0x7fffffff
+	b = 0x7fffffff
 	return u64(b) < 0xfffffffffffffffe
 
 pub const SEMVMX1 ::= 0xfffffffffffffffd
@@ -207,7 +207,7 @@ pub const SEMVMX2 ::= if ppeer
 
 fn test_unsigned_from_untyped_2 bool
 	global SEMVMX2
-	b := 511
+	b = 511
 	return !(b < 0 || u64(b) > SEMVMX2)
 
 import limits
@@ -222,20 +222,20 @@ pub const SEMVMX ::= if os.isWindows
 
 fn test_unsigned_from_untyped_3 bool
 	global SEMVMX
-	b := 511
+	b = 511
 	return !(b < 0 || u64(b) > SEMVMX)
 
 #const b5532 ::= 0xfffffaff57fffffe
 const b5532 ::= 0x57fffffe
 
-global a3297t5 := b5532
+global a3297t5 = b5532
 
 fn test_int_from_untyped_1 bool
 	global a3297t5
 	return a3297t5 == 0x57fffffe
 
 fn for_loop_1 int
-	k := 2
+	k = 2
 	for n in 5
 		k += (n + 1)
 	end
@@ -244,8 +244,8 @@ fn for_loop_1 int
 fn test_int_for_1 bool
 	return for_loop_1 == 17
 
-xxsd := 2
-global cprr := 3
+xxsd = 2
+global cprr = 3
 
 for xxsd in 100
 	cprr += xxsd
@@ -265,10 +265,10 @@ fn test_int_for_3 bool
 	global cprr
 	return cprr == 7
 
-global ffwed7 := 4
+global ffwed7 = 4
 
 if ffwed7 > 2
-	gdfre0 := 9
+	gdfre0 = 9
 	ffwed7 += gdfre0
 end
 

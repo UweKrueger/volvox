@@ -1,46 +1,46 @@
 import rand
 
-const n_pi := 10000000
+const n_pi = 10000000
 
 fn test_rand_F64 bool
-	n := 0
-	s := 0
+	n = 0
+	s = 0
 	global n_pi
 	while n < n_pi
-		x := rand.F64
-		y := rand.F64
+		x = rand.F64
+		y = rand.F64
 		if x*x + y*y < 1.0
 			s++
 		end
 		n++
 	end
-	p := 4. * s / n_pi
+	p = 4. * s / n_pi
 	# printf("approximation for pi: %.5f\n", p)
 	return p > 3.140 && p < 3.143
 
 import time
 
 fn test_sleep bool
-	s := time.StopWatch{}
+	s = time.StopWatch{}
 	time.sleep(0.35)
 	s.stop
-	e := s.elapsed
+	e = s.elapsed
 	# printf("elapsed time: %.5f\n", e)
 	return e >= 0.35 && e < 0.38
 
 import sync
 
 fn test_semaphore_1 bool
-	s := sync.semaphore(3)
+	s = sync.semaphore(3)
 	return s.wait && s.wait && s.wait
 
 fn test_semaphore_2 bool
-	s := sync.semaphore
+	s = sync.semaphore
 	s.post
 	s.post
-	a := s.timedwait(0.0)
-	b := s.timedwait(1.0)
-	c := s.timedwait(0.05)
+	a = s.timedwait(0.0)
+	b = s.timedwait(1.0)
+	c = s.timedwait(0.05)
 	return a && b && !c && s.err == 0
 
 import io.socket

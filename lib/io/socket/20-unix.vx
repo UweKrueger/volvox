@@ -19,7 +19,7 @@ type sockaddr_un {
 
 pub inline fn unix UnixSocket
 	global AF_UNIX, SOCK_STREAM
-	s := UnixSocket{}
+	s = UnixSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_UNIX, SOCK_STREAM, 0)
 		if s.handle == -1
@@ -84,16 +84,16 @@ cdecl fn getsockopt(sockfd int, level int, optname int, optval voidptr, &optlen 
 
 fn UnixSocket.peer ucred
 	global SO_PEERCRED, SOL_SOCKET
-	p := ucred{}
-	l := u32
+	p = ucred{}
+	l = u32
 	if os.isWindows
-		pid := u32
-		r := WSAIoctl(u64(this.handle), SO_PEERCRED, nil, 0, &pid, u32(sizeof(u32)), l, nil, nil)
+		pid = u32
+		r = WSAIoctl(u64(this.handle), SO_PEERCRED, nil, 0, &pid, u32(sizeof(u32)), l, nil, nil)
 		if r != -1
 			p.pid = pid
 		end
 	else
 		l = u32
-		r := getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l)
+		r = getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l)
 	end
 	return p
