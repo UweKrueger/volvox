@@ -1050,33 +1050,38 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 				      << (is_iterator ? " with this iterator\n" : "in this case\n");
 				return nullptr;
 			}
-			VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
-			if (VarL->full_var)
-				return (FullVar*)((uintptr_t)VarL->full_var | 1);
-			if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
-				// LHS is function pointer; signature of RHS will be used to select overloaded function
-				if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
-					errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
-					return nullptr;
-				} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
-					errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
-					return nullptr;
+			if ((VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get()))) {
+				if (VarL->full_var)
+					return (FullVar*)((uintptr_t)VarL->full_var | 1);
+				if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
+					// LHS is function pointer; signature of RHS will be used to select overloaded function
+					if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
+						errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
+						return nullptr;
+					} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
+						errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
+						return nullptr;
+					}
+					*RHS = std::make_unique<FunctionExprAST>(call_expr);
+					RHS_type = (*RHS)->ft ? (*RHS)->ft->type : nullptr;
+					RHS_attr = 0;
+					RHS_is_unknown_type = false;
+					LHS = std::move(RefL->Operand);
+					RefL = nullptr;
+					LHS_type = LHS->ft ? LHS->ft->type : nullptr;
+					LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
+					LHS_is_unknown_type = LHS->is_unknown_type;
+					VarL = dynamic_cast<VariableExprAST*>(LHS.get());
 				}
-				*RHS = std::make_unique<FunctionExprAST>(call_expr);
-				RHS_type = (*RHS)->ft ? (*RHS)->ft->type : nullptr;
-				RHS_attr = 0;
-				RHS_is_unknown_type = false;
-				LHS = std::move(RefL->Operand);
-				RefL = nullptr;
-				LHS_type = LHS->ft ? LHS->ft->type : nullptr;
-				LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
-				LHS_is_unknown_type = LHS->is_unknown_type;
-				VarL = dynamic_cast<VariableExprAST*>(LHS.get());
 			}
 		}
 	if (!VarL) {
-		errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
-		return nullptr;
+		if (dynamic_cast<LvalueExprAST*>(LHS.get()))
+			return (FullVar*)(uintptr_t)(intptr_t)(-1);
+		else {
+			errs() << LHS->Loc << ": left operand of assignment/declaration must be an lvalue\n";
+			return nullptr;
+		}
 	} else {
 		auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 		FullVar fv = {
@@ -1397,7 +1402,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		bool is_decl = false;
-		if (/* BinOp == "=" || */ BinOp == ":=" || BinOp == "::=") {
+		if (BinOp == "=" || BinOp == ":=" || BinOp == "::=") {
 			auto new_fv = DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
 			                                 BinLoc, LHS_is_unknown_type, RHS_is_unknown_type);
 			if (!new_fv)
@@ -1487,8 +1492,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				return nullptr;
 			}
 		}
-		auto res_t = getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
-		                        LHS_is_unknown_type, RHS_is_unknown_type);
+		auto res_t = is_decl ? std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{
+			nullptr, 0, false, OpDeclAssign, nullptr } :
+			getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
+			           LHS_is_unknown_type, RHS_is_unknown_type);
 		if (std::get<4>(res_t)) {
 			errs() << BinLoc << ": " << llvm::format(std::get<4>(res_t), BinOp.c_str());
 			return nullptr;
