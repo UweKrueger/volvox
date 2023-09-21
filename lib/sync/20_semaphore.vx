@@ -256,7 +256,7 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 			end
 			if pfd.revents & POLLIN
 				if os.isLinux || os.isFreeBSD || os.isNetBSD
-					get := u64(0)
+					get = u64(0)
 					success := read(fd, &get, sizeof(get)) == sizeof(get)
 				else
 					b := u8(0)
@@ -322,7 +322,7 @@ pub fn Semaphore.trywait bool
 		end
 		if pfd.revents & POLLIN
 			if os.isLinux || os.isFreeBSD || os.isNetBSD
-				get := u64(0)
+				get = u64(0)
 				success := read(fd, &get, sizeof(get)) == sizeof(get)
 			else
 				b := u8(0)

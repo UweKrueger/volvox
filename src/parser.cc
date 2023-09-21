@@ -27,6 +27,7 @@ FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
 ProtoListElem* anon_protos = nullptr;
 ProtoListElem** anon_protos_end = &anon_protos;
+bool local_var_may_shadow_func_and_mod = true;
 
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
@@ -1001,6 +1002,13 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 	return { std::move(Else), std::move(else_locals_table), have_else, true };
 }
 
+// try to add new variable to current context's database
+// return values:
+//   - nullptr:    error, e.g. symbol already in use as function or module name
+//   - otherwise:  pointer to description of variable
+//      * bit 0 set:   variable was newly created
+//      * bit 0 clean: variable has existed before
+
 static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_ptr<ExprAST>* RHS,
                                llvm::Type* LHS_type, llvm::Type* RHS_type, unsigned LHS_attr,
                                unsigned RHS_attr, SourceLocation& BinLoc, bool LHS_is_unknown_type,
@@ -1013,9 +1021,11 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 	ReferenceExprAST* RefL;
 	VariableExprAST* VarL = nullptr;
 	if (auto v = dynamic_cast<VariableExprAST*>(LHS.get())) {
+		if (v->full_var)
+			return v->full_var;
 		VarL = v;
 	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
-		if (inside_function) { // local variable will shadow function name
+		if (inside_function && local_var_may_shadow_func_and_mod) { // local variable will shadow function name
 			LHS = std::make_unique<VariableExprAST>(function->Loc, function->Name, nullptr);
 			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
 		} else {
@@ -1023,7 +1033,7 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 			return nullptr;
 		}
 	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
-		if (inside_function) {
+		if (inside_function && local_var_may_shadow_func_and_mod) {
 			LHS = std::make_unique<VariableExprAST>(mod->Loc, mod->Name, nullptr);
 			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
 		} else {
@@ -1041,6 +1051,8 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 				return nullptr;
 			}
 			VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
+			if (VarL->full_var)
+				return VarL->full_var;
 			if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
 				// LHS is function pointer; signature of RHS will be used to select overloaded function
 				if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
@@ -1090,7 +1102,7 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 		if (inside_function || inside_branch) {
 			if (auto entry = locals_table.back().insert(VarL->Name.c_str(), fv)) {
 				VarL->full_var = nullptr; // in case a global with the same name had been found
-				return entry;
+				return (FullVar*)((uintptr_t)entry | 1);
 			} else {
 				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
 				return nullptr;
@@ -1098,7 +1110,7 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 		} else {
 			fv.ft.type_attr |= A_mainvar;
 			if (auto entry = lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
-				return entry;
+				return (FullVar*)((uintptr_t)entry | 1);
 			} else {
 				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
 				return nullptr;
@@ -1161,9 +1173,19 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			errs() << Iterator->Loc << ": unable to determine type of 'for' key control variable\n";
 			return nullptr;
 		}
-		if (!KeyFV)
-			if (!(KeyFV = DeclareNewVariable(Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr, KeyFt->type_attr, Key->Loc, Key->is_unknown_type, Iterator->is_unknown_type, false, true)))
-				return nullptr;
+		if (auto key_var = dynamic_cast<VariableExprAST*>(Key.get())) {
+			if (key_var->full_var)
+				KeyFV = key_var->full_var;
+			else
+				if (!(KeyFV = (FullVar*)((uintptr_t)DeclareNewVariable(
+					                         Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr,
+					                         KeyFt->type_attr, Key->Loc, Key->is_unknown_type,
+					                         Iterator->is_unknown_type, false, true) & ~(uintptr_t)1))) {
+					errs() << key_var->Loc << ": unable to declare key control variable '" << key_var->Name
+					       << "'\n";
+					return nullptr;
+				}
+		}
 	}
 	if (Value) {
 		if (!ValueFt) {
@@ -1174,8 +1196,14 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			if (value_var->full_var)
 				ValueFV = value_var->full_var;
 			else
-				if (!(ValueFV = DeclareNewVariable(Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr, ValueFt->type_attr, Value->Loc, Value->is_unknown_type, Iterator->is_unknown_type, false, true)))
+				if (!(ValueFV = (FullVar*)((uintptr_t)DeclareNewVariable(
+					                           Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr,
+					                           ValueFt->type_attr, Value->Loc, Value->is_unknown_type,
+					                           Iterator->is_unknown_type, false, true) & ~(uintptr_t)1))) {
+					errs() << value_var->Loc << ": unable to declare value control variable '" << value_var->Name
+					       << "'\n";
 					return nullptr;
+				}
 		}
 	}
 	auto Body = ParseExprList();
@@ -1262,7 +1290,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 ///   ::= primary
 ///   ::= '!' unary
 static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
-	// If the current token is not an operator, it must be a primary expr.
+	// If the current token is not an unary prefix operator, it must be a primary expr.
 	auto kind = CurTok.kind;
 	if (kind != tok_unary && kind != tok_ref && kind != tok_optional && kind != tok_task)
 		return ParsePrimary(terminator);
@@ -1320,7 +1348,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		if (LHS->ft->type && (LHS->ft->type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			// make this a call expression even without '()' if the following if followed by a usual operand
 			// (';' and '\n' are handled above or below. The ',' case will need special handling if used inside LHS
-			// of decl-assign but this can only be done later when the ':=' operator has been seen
+			// of decl-assign but this can only be done later when the '=' operator has been seen
 			if (BinKind == tok_selector && BinOp != "(" || BinKind >= tok_mult && BinKind < tok_colon || BinKind == tok_comma) {
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 				continue;
@@ -1371,8 +1399,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		if (BinOp == ":=" || BinOp == "::=") {
-			if (!DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
-			                        BinLoc, LHS_is_unknown_type, RHS_is_unknown_type))
+			if (!((uintptr_t)DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
+			                                    BinLoc, LHS_is_unknown_type, RHS_is_unknown_type) & ~(uintptr_t)1))
 				return nullptr;
 		} else if (LHS_type && (LHS_type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			if (BinOp[0] == '(' || BinOp[0] == '\0') {
@@ -1906,12 +1934,6 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 					else
 						return E;
 				}
-				if (!strcmp(B->Op, "="))
-					if (auto leftVar = dynamic_cast<VariableExprAST*>(B->LHS.get()))
-						if (!leftVar->full_var) {
-							errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
-							return nullptr;
-						}
 				errs() << E->Loc << ' ' << B->Op << ": Cannot evaluate expression\n";
 				return nullptr;
 			} else {

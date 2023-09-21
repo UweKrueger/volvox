@@ -93,7 +93,7 @@ fn UnixSocket.peer ucred
 			p.pid = pid
 		end
 	else
-		l := u32
+		l = u32
 		r := getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l)
 	end
 	return p
