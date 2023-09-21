@@ -67,9 +67,9 @@ fn hhwe i32
 
 fn test_local_shadow_of_global bool
 	hjggd = 34.125
-	subb = 1.25
-	hhwe = -3.5
-	z = hjggd + subb - hhwe
+	subb2 = 1.25
+	hhwe2 = -3.5
+	z = hjggd + subb2 - hhwe2
 	return z == 38.875
 
 fn test_destructor_1 bool

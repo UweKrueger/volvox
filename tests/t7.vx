@@ -115,8 +115,8 @@ fn test_array_value_attrib_5 bool
 
 fn test_array_value_attrib_6 bool
 	f = 13
-	g = 5
-	a = [f][7][g]f64{}.size
+	g2 = 5
+	a = [f][7][g2]f64{}.size
 	return a == 455
 
 fn test_array_dim_1 bool

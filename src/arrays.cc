@@ -45,7 +45,10 @@ llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	for (int j = 0; j < Dims.size(); j++) {
 		llvm::Value* curDim;
 		if (Dims[j])
-			curDim = Builder->CreateIntCast(Dims[j]->codegen(), llvm_size_type, false);
+			if (auto dims_j = Dims[j]->codegen())
+				curDim = Builder->CreateIntCast(dims_j, llvm_size_type, false);
+			else
+				return nullptr;
 		else
 			curDim = getSize(LitDims[j]);
 		LenVal = Builder->CreateMul(LenVal, curDim);

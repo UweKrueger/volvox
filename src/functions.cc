@@ -971,7 +971,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	if (needs_target()) {
 		if (!target || (intptr_t)target == -1) {
 			errs() << Loc << ": " << Proto->Name << " - internal error: no target for struct return\n";
-			abort();
+			return nullptr;
 		}
 		ArgsV.push_back(target);
 	}
