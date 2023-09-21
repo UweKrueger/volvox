@@ -332,7 +332,8 @@ enum OpClass : uint8_t {
 	OpNormal,
 	OpAssign,
 	OpModAssign,
-	OpDeclAssign,
+	OpDeclAssign, // set by ParseBinOpRHS() if LHS is undeclared
+	OpGlobalDeclAssign, // set by HandleGlobalVariable
 	OpComparison,
 	OpShift,
 	OpLogical,

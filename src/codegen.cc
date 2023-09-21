@@ -997,7 +997,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				// transform this declaration to an assignment and insert it into "main()"'s expr list
 				// the operator remains '::=' to indicate that no destructor for the old LHS value
 				// must be inserted
-				expr->opclass = OpAssign;
+				expr->opclass = OpGlobalDeclAssign;
 				LHSE->full_var = fv;
 				GlobalExprList.push_back(std::move(expr));
 			}
@@ -1270,7 +1270,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (opclass == OpDeclAssign || opclass == OpAssign || opclass == OpModAssign) {
+	if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign || opclass == OpAssign || opclass == OpModAssign) {
 		bool postpone_valgen = false;
 		std::pair<llvm::Type*,llvm::Value*> Variable = { nullptr, nullptr };
 		const char* varname = nullptr;
@@ -1461,11 +1461,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 							return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 					} else
 						Builder->CreateStore(Val, Variable.second);
-				// call destructor for OldVal if discarded
-				// it might be that opclass has been changed to OpAssign by HandleGlobalVariable()
-				// in this case Op will still be ':='
-				if (Op[0] == ':')
+				if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign)
+					// declarations have no return type
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+				// call destructor for OldVal if discarded
 				return handle_d(target, OldVal, LHS->ft->type_attr);
 			}
 		}
