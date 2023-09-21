@@ -1006,8 +1006,8 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 // return values:
 //   - nullptr:    error, e.g. symbol already in use as function or module name
 //   - otherwise:  pointer to description of variable
-//      * bit 0 set:   variable was newly created
-//      * bit 0 clean: variable has existed before
+//      * bit 0 clear: variable was newly created
+//      * bit 0 set:   variable has existed before
 
 static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_ptr<ExprAST>* RHS,
                                llvm::Type* LHS_type, llvm::Type* RHS_type, unsigned LHS_attr,
@@ -1022,7 +1022,7 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 	VariableExprAST* VarL = nullptr;
 	if (auto v = dynamic_cast<VariableExprAST*>(LHS.get())) {
 		if (v->full_var)
-			return v->full_var;
+			return (FullVar*)((uintptr_t)v->full_var | 1);
 		VarL = v;
 	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
 		if (inside_function && local_var_may_shadow_func_and_mod) { // local variable will shadow function name
@@ -1052,7 +1052,7 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 			}
 			VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
 			if (VarL->full_var)
-				return VarL->full_var;
+				return (FullVar*)((uintptr_t)VarL->full_var | 1);
 			if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
 				// LHS is function pointer; signature of RHS will be used to select overloaded function
 				if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
@@ -1102,7 +1102,7 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 		if (inside_function || inside_branch) {
 			if (auto entry = locals_table.back().insert(VarL->Name.c_str(), fv)) {
 				VarL->full_var = nullptr; // in case a global with the same name had been found
-				return (FullVar*)((uintptr_t)entry | 1);
+				return entry;
 			} else {
 				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
 				return nullptr;
@@ -1110,7 +1110,7 @@ static FullVar* DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_pt
 		} else {
 			fv.ft.type_attr |= A_mainvar;
 			if (auto entry = lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
-				return (FullVar*)((uintptr_t)entry | 1);
+				return entry;
 			} else {
 				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
 				return nullptr;
@@ -1396,10 +1396,13 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_type = RHS->ft ? RHS->ft->type : nullptr;
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
-		if (BinOp == ":=" || BinOp == "::=") {
-			if (!((uintptr_t)DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
-			                                    BinLoc, LHS_is_unknown_type, RHS_is_unknown_type) & ~(uintptr_t)1))
+		bool is_decl = false;
+		if (/* BinOp == "=" || */ BinOp == ":=" || BinOp == "::=") {
+			auto new_fv = DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
+			                                 BinLoc, LHS_is_unknown_type, RHS_is_unknown_type);
+			if (!new_fv)
 				return nullptr;
+			is_decl = !(bool)((uintptr_t)new_fv & 1);
 		} else if (LHS_type && (LHS_type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			if (BinOp[0] == '(' || BinOp[0] == '\0') {
 				auto Args = SplitExprList(std::move(RHS));
