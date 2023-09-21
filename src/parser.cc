@@ -1174,17 +1174,16 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 		if (auto key_var = dynamic_cast<VariableExprAST*>(Key.get())) {
-			if (key_var->full_var)
-				KeyFV = key_var->full_var;
-			else
-				if (!(KeyFV = (FullVar*)((uintptr_t)DeclareNewVariable(
-					                         Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr,
-					                         KeyFt->type_attr, Key->Loc, Key->is_unknown_type,
-					                         Iterator->is_unknown_type, false, true) & ~(uintptr_t)1))) {
-					errs() << key_var->Loc << ": unable to declare key control variable '" << key_var->Name
-					       << "'\n";
-					return nullptr;
-				}
+			KeyFV = DeclareNewVariable(
+				Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr,
+				KeyFt->type_attr, Key->Loc, Key->is_unknown_type,
+				Iterator->is_unknown_type, false, true);
+			if (!KeyFV) {
+				errs() << key_var->Loc << ": unable to declare key control variable '"
+				       << key_var->Name << "'\n";
+				return nullptr;
+			}
+			KeyFV = (FullVar*)((uintptr_t)KeyFV & ~(uintptr_t)1);
 		}
 	}
 	if (Value) {
@@ -1193,17 +1192,16 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 		if (auto value_var = dynamic_cast<VariableExprAST*>(Value.get())) {
-			if (value_var->full_var)
-				ValueFV = value_var->full_var;
-			else
-				if (!(ValueFV = (FullVar*)((uintptr_t)DeclareNewVariable(
-					                           Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr,
-					                           ValueFt->type_attr, Value->Loc, Value->is_unknown_type,
-					                           Iterator->is_unknown_type, false, true) & ~(uintptr_t)1))) {
-					errs() << value_var->Loc << ": unable to declare value control variable '" << value_var->Name
-					       << "'\n";
-					return nullptr;
-				}
+			ValueFV = DeclareNewVariable(
+				Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr,
+				ValueFt->type_attr, Value->Loc, Value->is_unknown_type,
+				Iterator->is_unknown_type, false, true);
+			if (!ValueFV) {
+				errs() << value_var->Loc << ": unable to declare value control variable '"
+				       << value_var->Name << "'\n";
+				return nullptr;
+			}
+			ValueFV = (FullVar*)((uintptr_t)ValueFV & ~(uintptr_t)1);
 		}
 	}
 	auto Body = ParseExprList();
