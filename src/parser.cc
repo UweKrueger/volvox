@@ -398,7 +398,7 @@ no_attribute:
 	return { name, ParseType(attribs, eComma, terminator, nullptr, nullptr, nullptr, false, resolve_ref) };
 }
 
-/// numberexpr ::= number
+/// numberexpr := number
 static std::unique_ptr<ExprAST> ParseNumberExpr(int terminator = 0) {
 	auto Result = std::make_unique<LiteralExprAST>(std::move(CurTok));
 	getNextToken(eBinOp, terminator); // consume the number
@@ -417,7 +417,7 @@ static std::unique_ptr<ExprAST> ParsePointerExpr(int terminator = 0) {
 	return Result;
 }
 
-/// parenexpr ::= '(' expression ')'
+/// parenexpr := '(' expression ')'
 static std::unique_ptr<ExprAST> ParseParenExpr(int terminator = 0) {
 	getNextToken(); // eat (.
 	auto V = ParseExpression(')');
@@ -436,8 +436,8 @@ static std::unique_ptr<ExprAST> ParseIdent(int terminator = 0) {
 }
 
 /// identifierexpr
-///   ::= identifier
-///   ::= identifier '(' expression* ')'
+///   := identifier
+///   := identifier '(' expression* ')'
 static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 	std::string IdName = IdentifierStr;
 
@@ -1237,12 +1237,12 @@ static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {
 }
 
 /// primary
-///   ::= identifierexpr
-///   ::= numberexpr
-///   ::= parenexpr
-///   ::= ifexpr
-///   ::= forexpr
-///   ::= varexpr
+///   := identifierexpr
+///   := numberexpr
+///   := parenexpr
+///   := ifexpr
+///   := forexpr
+///   := varexpr
 static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	switch ((int)CurTok.kind) {
 	case tok_eof:
@@ -1290,8 +1290,8 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator = 0);
 
 /// unary
-///   ::= primary
-///   ::= '!' unary
+///   := primary
+///   := '!' unary
 static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	// If the current token is not an unary prefix operator, it must be a primary expr.
 	auto kind = CurTok.kind;
@@ -1330,7 +1330,7 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 }
 
 /// binoprhs
-///   ::= ('+' unary)*
+///   := ('+' unary)*
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator) {
 	// If this is a binop, find its precedence.
 	while (true) {
@@ -1402,7 +1402,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
 		bool is_decl = false;
-		if (BinOp == "=" || BinOp == ":=" || BinOp == "::=") {
+		if (BinOp == "=" || BinOp == ":=") {
 			auto new_fv = DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
 			                                 BinLoc, LHS_is_unknown_type, RHS_is_unknown_type);
 			if (!new_fv)
@@ -1524,7 +1524,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 }
 
 /// expression
-///   ::= unary binoprhs
+///   := unary binoprhs
 ///
 std::unique_ptr<ExprAST> ParseExpression(int terminator) {
 	auto LHS = ParseUnary(terminator);
@@ -1622,9 +1622,9 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 }
 
 /// prototype
-///   ::= id '(' id* ')'
-///   ::= binary LETTER number? (id, id)
-///   ::= unary LETTER (id)
+///   := id '(' id* ')'
+///   := binary LETTER number? (id, id)
+///   := unary LETTER (id)
 static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	std::string FnName;
 	volvoxc::FullType* ReceiverType = nullptr;
@@ -1849,7 +1849,7 @@ static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& prot
 
 #define TEST_FN_PREFIX "test_"
 
-/// definition ::= 'fn' prototype expression
+/// definition := 'fn' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
 		getNextToken(eSemi); // eat fn.
@@ -1932,7 +1932,7 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 				if (B->err_msg)
 					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->err_msg);
 				if (B->opclass == OpDeclAssign) {
-					if (!strcmp(B->Op, "::="))
+					if (!strcmp(B->Op, ":="))
 						sym_kind |= A_rvalue;
 					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_globally_visible)) {
 						auto uB = std::unique_ptr<BinaryExprAST>(B);
@@ -2026,7 +2026,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName), return_val_idx);
 }
 
-/// external ::= 'extern' prototype
+/// external := 'extern' prototype
 std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
 	getNextToken(eSemi); // eat fn.
 	visibility |= (A_extern | A_pub);

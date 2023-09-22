@@ -24,10 +24,10 @@ type sockaddr_storage {
 
 # address families
 #
-const AF_UNSPEC ::= 0
-const AF_UNIX   ::= if os.isHaiku; 9 else 1 end
-const AF_INET   ::= 2
-const AF_INET6  ::= if os.isWindows
+const AF_UNSPEC := 0
+const AF_UNIX   := if os.isHaiku; 9 else 1 end
+const AF_INET   := 2
+const AF_INET6  := if os.isWindows
 		23
 	elif os.isLinux
 		10
@@ -41,10 +41,10 @@ const AF_INET6  ::= if os.isWindows
 
 # socket types
 #
-const SOCK_STREAM    ::= 1
-const SOCK_DGRAM     ::= 2
-const SOCK_RAW       ::= 3
-const SOCK_SEQPACKET ::= 5
+const SOCK_STREAM    := 1
+const SOCK_DGRAM     := 2
+const SOCK_RAW       := 3
+const SOCK_SEQPACKET := 5
 
 cdecl fn socket(domain int, typ int, protocol int) int
 cdecl(socket) fn win_socket(domain int, typ int, protocol int) size_t

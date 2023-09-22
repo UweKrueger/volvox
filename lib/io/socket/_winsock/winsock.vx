@@ -9,8 +9,8 @@ elif os.isHaiku
 	__link_extra "network"
 end
 
-const WSADESCRIPTION_LEN ::= 256
-const WSASYS_STATUS_LEN ::= 128
+const WSADESCRIPTION_LEN := 256
+const WSASYS_STATUS_LEN := 128
 
 type WSAData32 {
 	wVersion       u16

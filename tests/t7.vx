@@ -131,7 +131,7 @@ fn test_array_dim_3 bool
 	n = 1
 	return [3][f][5]f64{}.dim(n) == 13
 
-global ffddff ::= [3][13][5]f64{}
+global ffddff := [3][13][5]f64{}
 
 fn test_array_dim_4 bool
 	global ffddff
@@ -197,9 +197,9 @@ fn test_unsigned_from_untyped_1 bool
 	b = 0x7fffffff
 	return u64(b) < 0xfffffffffffffffe
 
-pub const SEMVMX1 ::= 0xfffffffffffffffd
-const ppeer ::= false
-pub const SEMVMX2 ::= if ppeer
+pub const SEMVMX1 := 0xfffffffffffffffd
+const ppeer := false
+pub const SEMVMX2 := if ppeer
 		17
 	else
 		SEMVMX1 + 1
@@ -212,7 +212,7 @@ fn test_unsigned_from_untyped_2 bool
 
 import limits
 
-pub const SEMVMX ::= if os.isWindows
+pub const SEMVMX := if os.isWindows
 		u64(limits.max_i32)
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
 		limits.max_u64 - 1
@@ -225,8 +225,8 @@ fn test_unsigned_from_untyped_3 bool
 	b = 511
 	return !(b < 0 || u64(b) > SEMVMX)
 
-#const b5532 ::= 0xfffffaff57fffffe
-const b5532 ::= 0x57fffffe
+#const b5532 := 0xfffffaff57fffffe
+const b5532 := 0x57fffffe
 
 global a3297t5 = b5532
 

@@ -231,7 +231,7 @@ fn QwER
 fn ~QwER
 	return
 
-global eewc ::= QwER{ w: 2 }
+global eewc := QwER{ w: 2 }
 
 fn test_constructor_for_global bool
 	global eewc
@@ -343,7 +343,7 @@ akd6 = akd6 + akd5
 
 akd6
 
-const akd7 ::= "hfd"
+const akd7 := "hfd"
 
 akd7
 
@@ -379,7 +379,7 @@ fn str_drop
 
 from math import sqrt
 
-const urZ ::= 373491
+const urZ := 373491
 
 fn test_const_int bool
 	global urZ
@@ -407,7 +407,7 @@ inline fn PoerAS f64
 	global urZ
 	return urZ + 2.5
 
-const Jd45tz ::= PoerAS + 0.25
+const Jd45tz := PoerAS + 0.25
 
 fn test_trivial_const_function bool
 	global Jd45tz

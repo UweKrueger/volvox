@@ -2,7 +2,7 @@ import arch
 import arch.os
 import time
 
-const __MUTEX_ATTR_SIZE ::= if os.isLinux
+const __MUTEX_ATTR_SIZE := if os.isLinux
 		4
 	else
 		arch.bitwidth >> 3
@@ -30,7 +30,7 @@ fn get_robust_mutex_attr mutex_attr
 
 const default_mutex_attr = get_robust_mutex_attr
 
-const __MUTEX_SIZE ::= if os.isLinux
+const __MUTEX_SIZE := if os.isLinux
 		if arch.bitwidth == 64
 			40
 		else
@@ -77,7 +77,7 @@ cdecl fn pthread_mutex_trylock(&m mutex) int
 cdecl fn pthread_mutex_consistent(&m mutex) int
 cdecl fn GetLastError() u32
 
-const EOWNERDEAD ::= if os.isFreeBSD
+const EOWNERDEAD := if os.isFreeBSD
 		96
 	elif os.isLinux
 		130
@@ -160,7 +160,7 @@ pub inline fn mutex.timedlock(timeout time.Duration) int
 cdecl fn ReleaseMutex(m size_t) bool
 cdecl fn pthread_mutex_unlock(&m mutex) int
 
-const ETIMEDOUT ::= if os.isWindows
+const ETIMEDOUT := if os.isWindows
 		0x00000102 # WAIT_TIMEOUT
 	elif os.isLinux
 		110
@@ -168,13 +168,13 @@ const ETIMEDOUT ::= if os.isWindows
 		60
 	end
 
-const EPERM ::= if os.isWindows
+const EPERM := if os.isWindows
 		288 # ERROR_NOT_OWNER
 	else
 		1
 	end
 
-const EBUSY ::= 16
+const EBUSY := 16
 
 # In non-REPL case 'mutex.unlock()' is a simple inline wrapper for the OSs function.
 # In the REPL case a new thread is created for each top level expression so there is always

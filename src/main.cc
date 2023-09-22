@@ -845,7 +845,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 	}
 }
 
-/// top ::= definition | external | expression | ';'
+/// top := definition | external | expression | ';'
 static void MainLoop() {
 	for (;;) {
 		if (last_defined_type)

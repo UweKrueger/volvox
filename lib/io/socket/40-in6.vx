@@ -49,5 +49,5 @@ pub inline fn udp6 Ip6Socket
 	end
 	return s
 
-pub const in6_any      ::= in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} }
-pub const in6_loopback ::= in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1} }
+pub const in6_any      := in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} }
+pub const in6_loopback := in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1} }

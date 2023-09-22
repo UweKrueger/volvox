@@ -1,5 +1,5 @@
-const avoid_multiplication ::= !cpu.isX86_64
-const compensate_for_53rd_bit ::= cpu.isX86
+const avoid_multiplication := !cpu.isX86_64
+const compensate_for_53rd_bit := cpu.isX86
 
 type Fu64 union {
 	f f64

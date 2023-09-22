@@ -28,14 +28,14 @@ cdecl fn release_sem_etc(id i32, count i32, flags u32) i32
 cdecl fn pipe(&filedes [2]int) int
 cdecl fn pipe2(&filedes [2]int, flags u32) int
 cdecl fn fcntl(fd int, op int, ...) int
-const SETFD ::= 0x004 # Haiku: set fd flags
+const SETFD := 0x004 # Haiku: set fd flags
 
 from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT, POLLIN
 
 # Normally SEMVMX is is the maximum value of Sytem V semaphores - however we do not use those.
 # Instead Volvox Semaphores are based on something that can be *select*ed
 #
-pub const SEMVMX ::= if os.isWindows
+pub const SEMVMX := if os.isWindows
 		# Windows native semaphores
 		u64(limits.max_int)
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
@@ -53,7 +53,7 @@ type Semaphore {
 	err u32
 }
 
-pub const EINVAL ::= if os.isWindows
+pub const EINVAL := if os.isWindows
 		87 # ERROR_INVALID_PARAMETER
 	else
 		22
@@ -119,13 +119,13 @@ pub inline fn Semaphore.max u64
 
 cdecl fn ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voidptr) bool
 
-const ERROR_TOO_MANY_POSTS ::= if os.isWindows
+const ERROR_TOO_MANY_POSTS := if os.isWindows
 		298
 	else
 		35
 	end
 
-const NOWAIT ::= 0x800
+const NOWAIT := 0x800
 
 pub fn Semaphore.post(n int) bool
 	global SEMVMX, EINVAL, ERROR_TOO_MANY_POSTS
@@ -166,7 +166,7 @@ type pollfd {
 cdecl fn ppoll(&fds pollfd, nfds u32, ?timeout time.timespec, sigmask voidptr) int
 cdecl fn ppoll(&fds pollfd, nfds u64, ?timeout time.timespec, sigmask voidptr) int
 
-pub const EAGAIN ::= if os.isLinux
+pub const EAGAIN := if os.isLinux
 		11
 	else
 		35

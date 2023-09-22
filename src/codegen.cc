@@ -829,7 +829,7 @@ static inline const char* global_kind_str(unsigned flags) {
 }
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
-	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
+	bool rhs_is_constexpr = !strcmp(expr->Op, ":=");
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
@@ -846,7 +846,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	const std::string& unmangled_name = LHSE->getName();
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
 		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
-		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using '::='\n";
+		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using ':='\n";
 		return cleanupGlobal(nullptr, unmangled_name.c_str(), nullptr);
 	}
 	auto varname = create_mangled_global(unmangled_name);
@@ -908,7 +908,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (rhs_is_constexpr) {
 			initializer = llvm::dyn_cast<llvm::Constant>(Val);
 			if (!initializer) {
-				errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
+				errs() << expr->RHS->Loc << ": initialization with ':=' requires a compile time const on the RHS\n";
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 			}
 		}
@@ -995,7 +995,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			auto theLoc = expr->LHS->Loc;
 			if (!rhs_is_constexpr) {
 				// transform this declaration to an assignment and insert it into "main()"'s expr list
-				// the operator remains '::=' to indicate that no destructor for the old LHS value
+				// the operator remains ':=' to indicate that no destructor for the old LHS value
 				// must be inserted
 				expr->opclass = OpGlobalDeclAssign;
 				LHSE->full_var = fv;
@@ -1307,7 +1307,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
 					ft->type, ft->type_attr & (A_signed | A_string | A_map), is_unknown_type, getOpClass(newOp), err_msg });
 		}
-		if (Op[0] != ':' || Op[1] != '=') // opclass might have been changed by HandleGlobalVariable()
+		if (opclass != OpDeclAssign && opclass == OpGlobalDeclAssign)
 			RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
 		uint64_t allocsz = LREF ?

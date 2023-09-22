@@ -4,7 +4,7 @@ type UnixSocket union {
 	err u32
 }
 
-pub const UNIX_PATH_MAX	::= if os.isWindows || os.isLinux
+pub const UNIX_PATH_MAX	:= if os.isWindows || os.isLinux
 		108
 	elif os.isHaiku
 		126
@@ -33,7 +33,7 @@ pub inline fn unix UnixSocket
 	end
 	return s
 
-const ENAMETOOLONG ::= if os.isWindows
+const ENAMETOOLONG := if os.isWindows
 		206 # ERROR_FILENAME_EXCED_RANGE
 	elif os.isLinux
 		36
@@ -49,7 +49,7 @@ type ucred {
 	gid u32
 }
 
-const SOL_SOCKET ::= if os.isLinux
+const SOL_SOCKET := if os.isLinux
 		1
 	elif os.isHaiku
 		-1
@@ -57,10 +57,10 @@ const SOL_SOCKET ::= if os.isLinux
 		0xffff
 	end
 
-const IOC_VENDOR ::= 0x18000000
-const IOC_OUT    ::= 0x40000000
+const IOC_VENDOR := 0x18000000
+const IOC_OUT    := 0x40000000
 
-const SO_PEERCRED ::= if os.isLinux
+const SO_PEERCRED := if os.isLinux
 		17
 	elif os.isFreeBSD
 		1

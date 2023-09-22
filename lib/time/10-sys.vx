@@ -19,13 +19,13 @@ type timespec {
 
 # "REALTIME" and "MONOTONIC" clocks on Unix systems
 
-pub const CLOCK_REALTIME ::= if os.isHaiku
+pub const CLOCK_REALTIME := if os.isHaiku
 		-1
 	else
 		0
 	end
 
-pub const CLOCK_MONOTONIC ::= if os.isLinux
+pub const CLOCK_MONOTONIC := if os.isLinux
 		1
 	elif os.isOpenBSD || os.isNetBSD
 		3
@@ -51,7 +51,7 @@ cdecl fn QueryPerformanceFrequency(&f i64) bool
 pub cdecl(QueryPerformanceCounter) fn _QueryPerformanceCounter(&ticks i64) bool
 
 # for calculations a constexpr might be handy on Unix systems
-const ufrequency ::= 1000000000
+const ufrequency := 1000000000
 
 fn get_system_tick_frequency() int
 	global ufrequency
@@ -175,7 +175,7 @@ type _TimeStamp union {
 
 # seconds of January 1, 1970 since January 1, 1601
 #
-pub const epoch_offset ::= 11644473600
+pub const epoch_offset := 11644473600
 
 cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
 

@@ -110,7 +110,7 @@ pub inline fn Socket.listen(backlog int) ListeningSocket
 	end
 	return ListeningSocket{ handle: this.handle, err: 0 }
 
-const SOMAXCONN ::= 0x7fffffff
+const SOMAXCONN := 0x7fffffff
 
 pub inline fn Socket.listen ListeningSocket
 	global SOMAXCONN

@@ -1302,7 +1302,7 @@ public:
 	//      an intermediate value (e.g. '(b + c)' in 'x = a * (b + c)' and a potential destructor call for the
 	//      value is registred
 	// - (void*)(-1): like '(void*)0' but no destructor call is registred. This is needed to create compile time const
-	//      initializers for use with '::='
+	//      initializers for use with ':='
 	virtual llvm::Value* codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
 	virtual bool needs_target() { return false; } // e.g. struct return in CallExpr
 	// there are cases where the storage size, i.e. the dimensions of a tensor ist needed
