@@ -27,7 +27,7 @@
    fun:_Z21GetTopLevelExpressionj
    fun:main
 }
-# alternative version
+# alternative versions
 {
    emutls/aligned_malloc_opt2
    Memcheck:Leak
@@ -36,5 +36,16 @@
    obj:/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
    fun:__emutls_get_address
    obj:*
+   fun:main
+}
+{
+   emutls/aligned_malloc_opt3
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   obj:/usr/lib/x86_64-linux-gnu/libgcc_s.so.1
+   fun:__emutls_get_address
+   obj:*
+   fun:_Z21GetTopLevelExpressionj
    fun:main
 }
