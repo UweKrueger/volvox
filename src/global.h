@@ -524,7 +524,8 @@ struct FullVar {
 		}
 	}
 	void destroy() { // we cannot call it "~FullVar()" because it must not be called automatically
-		// free((void*)this->mangled_name);
+		if (val)
+			free((void*)this->mangled_name);
 		free((void*)this->possible_references);
 	}
 };

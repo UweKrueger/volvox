@@ -607,9 +607,9 @@ bool spawn_bool_expr(bool (*expr)()) {
 		errs() << "Error creating execution thread: " << strerror(res) << '\n';
 		abort();
 	}
-	pthread_attr_destroy(&attr);
 	void* retval;
 	res = pthread_join(thread, &retval);
+	pthread_attr_destroy(&attr);
 	return !(!retval);
 }
 int spawn_int_expr(int (*expr)()) {
@@ -622,9 +622,9 @@ int spawn_int_expr(int (*expr)()) {
 		errs() << "Error creating execution thread: " << strerror(res) << '\n';
 		abort();
 	}
-	pthread_attr_destroy(&attr);
 	void* retval;
 	res = pthread_join(thread, &retval);
+	pthread_attr_destroy(&attr);
 	return (int)(intptr_t)retval;
 }
 #endif

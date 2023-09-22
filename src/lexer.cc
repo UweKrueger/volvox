@@ -127,9 +127,6 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    for (int i=0; i<prompt_indent && i<200; i++)
 					    strcat(prompt, "    ");
 				    lex.use_readline = true;
-#ifndef _WIN32
-				    rl_initialize();
-#endif
 			    }
 			    c = '\r'; // abuse Windows logic to repeat read
 		    }
