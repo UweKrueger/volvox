@@ -2054,8 +2054,21 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 	}
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
-	if (for_expr && !isElse)
+	if (for_expr && !isElse && EndKind != tok_return) {
+		llvm::Value* cond = for_expr->CreateCondition(true);
+		llvm::BasicBlock* IterateBB = llvm::BasicBlock::Create(Context, "Iterate");
+		Builder->CreateCondBr(cond, IterateBB, MergeBB);
+		if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), IterateBB);
+#else
+			TheFunction->getBasicBlockList().push_back(IterateBB);
+#endif
+			Builder->SetInsertPoint(IterateBB);
+		}
 		for_expr->Iterate();
+		firstBreak = Builder->CreateBr(StackRestoreBB0);
+	}
 	if (!BranchV && !isElse && !for_expr) {
 		return { nullptr, nullptr };
 	}
@@ -2087,7 +2100,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		else if (!BranchV)
 			BranchV = llvm::Constant::getNullValue(ft->type);
-		if (MergeBB)
+		if (MergeBB && !(for_expr && !isElse))
 			firstBreak = Builder->CreateBr(MergeBB);
 	}
 	return { BranchV, firstBreak };
@@ -2296,12 +2309,18 @@ bool ForExprAST::PrepareForIterator() {
 	}
 }
 
-llvm::Value* ForExprAST::CreateCondition() {
+llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 	auto ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueRef);
 	if (Iterator->ft->type_attr & A_signed)
-		return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
+		if (at_end)
+			return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
+		else
+			return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
 	else
-		return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
+		if (at_end)
+			return Builder->CreateICmpULT(ctrl_var, limit, "for_cond");
+		else
+			return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
 }
 
 bool ForExprAST::SetupLoop() {
@@ -2323,7 +2342,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	auto if_expr = dynamic_cast<IfExprAST*>(this);
 	auto for_expr = dynamic_cast<ForExprAST*>(this);
 	auto enterBB = Builder->GetInsertBlock();
-	llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
+	TheFunction = enterBB ? enterBB->getParent() : nullptr;
 	llvm::PHINode* condPN;
 	llvm::PHINode* savedStack;
 	llvm::BasicBlock* CondBB = nullptr;
@@ -2357,21 +2376,23 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		else {
 			if (!for_expr->PrepareForIterator())
 				return nullptr;
-			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "forcond");
+			// CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "forcond");
 		}
-		Builder->CreateBr(CondBBstart);
-		if (TheFunction) {
+		if (!for_expr) {
+			Builder->CreateBr(CondBBstart);
+			if (TheFunction) {
 #if LLVM_VERSION_MAJOR >= 16
-			TheFunction->insert(TheFunction->end(), CondBB);
+				TheFunction->insert(TheFunction->end(), CondBB);
 #else
-			TheFunction->getBasicBlockList().push_back(CondBB);
+				TheFunction->getBasicBlockList().push_back(CondBB);
 #endif
+			}
+			Builder->SetInsertPoint(CondBB);
+			condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
+			savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
+			condPN->addIncoming(Builder->getInt8(2), enterBB);
+			savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
 		}
-		Builder->SetInsertPoint(CondBB);
-		condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
-		savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
-		condPN->addIncoming(Builder->getInt8(2), enterBB);
-		savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
 	} else if (if_kind == tok_repeat) {
 		CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "until"); // will be filled at end
 		condPN = nullptr;
@@ -2391,7 +2412,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat || if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "else");
 	llvm::BasicBlock* MergeBB = (always_return || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, contName);
 	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
-	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
+	llvm::BasicBlock* StackRestoreBB = StackRestoreBB0 = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
 	llvm::BasicBlock* EntryBBend;
 	llvm::BasicBlock* ThenBBstart;
 	llvm::BasicBlock* ElseBBstart;
@@ -2411,7 +2432,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
 			return nullptr;
 		}
-		if (if_kind == tok_while || if_kind == tok_for) {
+		if (if_kind == tok_while) {
 			firstWhile = CondBB->getFirstNonPHI();
 			CondBB = Builder->GetInsertBlock();
 		} else if (if_kind == tok_if) {
@@ -2433,7 +2454,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 		}
-		if (if_kind == tok_if) {
+		if (if_kind == tok_if || if_kind == tok_for) {
 			EntryBBend = Builder->GetInsertBlock();
 			ThenBBstart = ThenBB;
 			ElseBBstart = ElseBB;
@@ -2472,7 +2493,10 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (if_kind == tok_repeat)
 			savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 1, "savedstack");
-		StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
+		if (if_kind == tok_for)
+			StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack0);
+		else
+			StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(ThenBB);
 		StackRestoreBB = Builder->GetInsertBlock();
 	}
@@ -2489,27 +2513,34 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 #endif
 			Builder->SetInsertPoint(ThenBB);
 		}
-		if (if_kind == tok_while || if_kind == tok_for || if_kind == tok_repeat) {
-			savedStack1 =  Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack1");
+		if (if_kind == tok_while || if_kind == tok_repeat) {
+			savedStack1 = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack1");
 			savedStack1->addIncoming(savedStack0, StackSaveBB);
 			savedStack1->addIncoming(savedStack, StackRestoreBB);
 		}
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
 		condnesting++;
-		std::tie(ThenV, thenLast) = createCondBranch(CondBBstart ? CondBBstart : MergeBB, Then, ThenEndKind, false);
+		llvm::BasicBlock* BlockToJump;
+		if (if_kind == tok_for)
+			BlockToJump = MergeBB;
+		else if(CondBBstart)
+			BlockToJump = CondBBstart;
+		else
+			BlockToJump = MergeBB;
+		std::tie(ThenV, thenLast) = createCondBranch(BlockToJump, Then, ThenEndKind, false);
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		condnesting--;
 		then_locals_table = std::move(locals_table.back());
 		locals_table.pop_back();
 		if (!ThenV) {
-			errs() << Loc << ": if expression - 'then' block did not compile\n";
+			errs() << Loc << ": conditional expression - then/for/while/repeat block did not compile\n";
 			return nullptr;
 		}
 		// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 		ThenBB = Builder->GetInsertBlock();
-		if (if_kind == tok_while || if_kind == tok_for) {
+		if (if_kind == tok_while) {
 			condPN->addIncoming(Builder->getInt8(0), ThenBB);
 			savedStack->addIncoming(savedStack1, ThenBB);
 		}
@@ -2582,9 +2613,9 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			ElseBB = Builder->GetInsertBlock();
 		}
 	}
-	if (if_kind == tok_if) {
+	if (if_kind == tok_if || if_kind == tok_for) {
 		Builder->SetInsertPoint(EntryBBend);
-		if (CTcond != CTcond_undef) { // at least one branch can be removed
+		if (CTcond != CTcond_undef && if_kind != tok_for) { // at least one branch can be removed
 			if (thenConstV && ThenEndKind == tok_else && !ft->type->isVoidTy()) {
 				if (TheFunction) {
 #if LLVM_VERSION_MAJOR >= 16
@@ -2617,7 +2648,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				errs() << Loc << ": inconsistency (constexpr expected but expr not const?)\n";
 				return nullptr;
 			}
-			Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);
+			Builder->CreateCondBr(CondV, if_kind == tok_for ? StackSaveBB : ThenBBstart, ElseBBstart);
 		}
 	}
 	if (always_return)

@@ -803,6 +803,8 @@ protected:
 	VarTable then_locals_table, else_locals_table;
 	const char* errmsg;
 	TokenKind if_kind = (TokenKind)0;
+	llvm::BasicBlock* StackRestoreBB0;
+	llvm::Function* TheFunction = nullptr;
 
 public:
 	std::unique_ptr<ExprAST> Cond;
@@ -888,7 +890,7 @@ public:
 		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)),
 		  ValueName(std::move(_ValueName)) {}
 	bool PrepareForIterator();
-	llvm::Value* CreateCondition();
+	llvm::Value* CreateCondition(bool at_end = false);
 	bool SetupLoop();
 	bool Iterate();
 #ifndef NDEBUG
