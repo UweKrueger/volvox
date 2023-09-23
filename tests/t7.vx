@@ -244,6 +244,23 @@ fn for_loop_1 int
 fn test_int_for_1 bool
 	return for_loop_1 == 17
 
+fn for_loop_2(mx int) int
+	z := 10
+	for n in mx
+		z += (n+1)
+	else
+		n = -19
+	end
+	return z + 100 * n
+
+fn test_int_for_2 bool
+	res = for_loop_2(3)
+	return res == 216
+
+fn test_int_for_3 bool
+	res = for_loop_2(-5)
+	return res == -1890
+
 xxsd = 2
 global cprr = 3
 
@@ -251,7 +268,7 @@ for xxsd in 100
 	cprr += xxsd
 end
 
-fn test_int_for_2 bool
+fn test_int_for_4 bool
 	global cprr
 	return cprr == 4953
 
@@ -261,7 +278,7 @@ for qqfdr in 7
 	cprr++
 end
 
-fn test_int_for_3 bool
+fn test_int_for_5 bool
 	global cprr
 	return cprr == 7
 

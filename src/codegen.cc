@@ -2057,7 +2057,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 	if (for_expr && !isElse && EndKind != tok_return) {
 		llvm::Value* cond = for_expr->CreateCondition(true);
 		llvm::BasicBlock* IterateBB = llvm::BasicBlock::Create(Context, "Iterate");
-		Builder->CreateCondBr(cond, IterateBB, MergeBB);
+		firstBreak = Builder->CreateCondBr(cond, IterateBB, MergeBB);
 		if (TheFunction) {
 #if LLVM_VERSION_MAJOR >= 16
 			TheFunction->insert(TheFunction->end(), IterateBB);
@@ -2067,7 +2067,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 			Builder->SetInsertPoint(IterateBB);
 		}
 		for_expr->Iterate();
-		firstBreak = Builder->CreateBr(StackRestoreBB0);
+		Builder->CreateBr(StackRestoreBB0);
 	}
 	if (!BranchV && !isElse && !for_expr) {
 		return { nullptr, nullptr };
@@ -2668,8 +2668,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (else_var) {
-				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while || if_kind == tok_for) ?
-				                          CondBB : ThenBB, thenLast,
+				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ?
+				                          CondBB : (if_kind == tok_for) ? thenLast->getParent() : ThenBB, thenLast,
 				                          else_var->ft.type, else_var->val, ElseBB, elseLast, firstWhile, enterBB);
 				if (!merge.second)
 					return nullptr;
