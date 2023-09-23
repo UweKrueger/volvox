@@ -2274,6 +2274,11 @@ bool ForExprAST::PrepareForIterator() {
 		}
 		Iterator->desired_type = ValueFV->ft.type;
 		limit = Iterator->codegen();
+		// The following is somewhat special: Volvox 'for' compares the integer value *before*
+		// incrementing it. So the limit must be the greatest *valid* value. If only one
+		// integer 'n' is given we need 'limit = n-1'
+		llvm::Value* One = llvm::ConstantInt::get(limit->getType(), 1, true);
+		limit = Builder->CreateSub(limit, One);
 		auto initializer = llvm::Constant::getNullValue(ValueFV->ft.type);
 		if (!ValueFV->val)
 			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
@@ -2294,9 +2299,9 @@ bool ForExprAST::PrepareForIterator() {
 llvm::Value* ForExprAST::CreateCondition() {
 	auto ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueRef);
 	if (Iterator->ft->type_attr & A_signed)
-		return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
+		return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
 	else
-		return Builder->CreateICmpULT(ctrl_var, limit, "for_cond");
+		return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
 }
 
 bool ForExprAST::SetupLoop() {
