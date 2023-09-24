@@ -1149,26 +1149,6 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	}
 	std::string KeyName;
 	std::string ValueName;
-	LvalueExprAST* lvalKey;
-	if (Key) {
-		if (auto lvalKey = dynamic_cast<LvalueExprAST*>(Key.get())) {
-			KeyName = lvalKey->Name;
-		} else {
-			errs() << Key->Loc << ": 'for' key control variable must be an Lvalue\n";
-			return nullptr;
-		}
-	} else
-		lvalKey = nullptr;
-	LvalueExprAST* lvalValue;
-	if (Value) {
-		if (auto lvalValue = dynamic_cast<LvalueExprAST*>(Value.get())) {
-			ValueName = lvalValue->Name;
-		} else {
-			errs() << Value->Loc << ": 'for' key control variable must be an Lvalue\n";
-			return nullptr;
-		}
-	} else
-		lvalValue = nullptr;
 	auto Iterator = ParseCondition(tok_in);
 	auto [KeyFt, ValueFt, IteratorTy] = getKeyValueIteratorTypes(Iterator->ft);
 	FullVar* KeyFV = nullptr;
@@ -1179,16 +1159,19 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			errs() << Iterator->Loc << ": unable to determine type of 'for' key control variable\n";
 			return nullptr;
 		}
-		if (auto key_var = dynamic_cast<VariableExprAST*>(Key.get())) {
+		if (auto lvalKey = dynamic_cast<LvalueExprAST*>(Key.get())) {
 			std::tie(KeyFV, key_kind) = DeclareNewVariable(
 				Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr,
 				KeyFt->type_attr, Key->Loc, Key->is_unknown_type,
 				Iterator->is_unknown_type, false, true);
 			if (key_kind == new_var_none) {
-				errs() << key_var->Loc << ": unable to declare key control variable '"
-				       << key_var->Name << "'\n";
+				errs() << lvalKey->Loc << ": unable to declare key control variable '"
+				       << lvalKey->Name << "'\n";
 				return nullptr;
 			}
+		} else {
+			errs() << Key->Loc << ": 'for' key control variable must be an Lvalue\n";
+			return nullptr;
 		}
 	}
 	if (Value) {
@@ -1196,7 +1179,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			errs() << Iterator->Loc << ": unable to determine type of 'for' value control variable\n";
 			return nullptr;
 		}
-		if (lvalValue) {
+		if (auto lvalValue = dynamic_cast<LvalueExprAST*>(Value.get())) {
 			std::tie(ValueFV, value_kind) = DeclareNewVariable(
 				Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr,
 				ValueFt->type_attr, Value->Loc, Value->is_unknown_type,
@@ -1206,6 +1189,9 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 				       << lvalValue->Name << "'\n";
 				return nullptr;
 			}
+		} else {
+			errs() << Value->Loc << ": 'for' key control variable must be an Lvalue\n";
+			return nullptr;
 		}
 	}
 	auto Body = ParseExprList();
