@@ -339,6 +339,7 @@ enum OpClass : uint8_t {
 	OpLogical,
 	OpBitwise,
 	OpExponentiation,
+	OpRange,
 	OpColon,
 	OpComma
 };

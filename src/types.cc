@@ -304,6 +304,8 @@ OpClass getOpClass(const char* Op) {
 			return OpLogical;
 		else
 			return OpModAssign; // &&=, ||=
+	case '.':
+		return OpRange; // ..
 	case '\0':
 		switch (Op[0]) {
 		case '>':
@@ -521,7 +523,12 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	}
 	if (res_is_float)
 		res_bitwidth = Min(res_bitwidth, 53); // limit to f64
-	return { getFittingType(res_bitwidth, res_is_float), res_is_signed ? A_signed : 0, res_is_unknown_type, opclass, nullptr };
+	unsigned res_attr = 0;
+	if (res_is_signed)
+		res_attr |= A_signed;
+	if (opclass == OpRange)
+		res_attr |= A_range;
+	return { getFittingType(res_bitwidth, res_is_float), res_attr, res_is_unknown_type, opclass, nullptr };
 }
 
 std::tuple<llvm::Type*, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
