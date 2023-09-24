@@ -1149,6 +1149,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	}
 	std::string KeyName;
 	std::string ValueName;
+	LvalueExprAST* lvalKey;
 	if (Key) {
 		if (auto lvalKey = dynamic_cast<LvalueExprAST*>(Key.get())) {
 			KeyName = lvalKey->Name;
@@ -1156,7 +1157,9 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			errs() << Key->Loc << ": 'for' key control variable must be an Lvalue\n";
 			return nullptr;
 		}
-	}
+	} else
+		lvalKey = nullptr;
+	LvalueExprAST* lvalValue;
 	if (Value) {
 		if (auto lvalValue = dynamic_cast<LvalueExprAST*>(Value.get())) {
 			ValueName = lvalValue->Name;
@@ -1164,7 +1167,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			errs() << Value->Loc << ": 'for' key control variable must be an Lvalue\n";
 			return nullptr;
 		}
-	}
+	} else
+		lvalValue = nullptr;
 	auto Iterator = ParseCondition(tok_in);
 	auto [KeyFt, ValueFt, IteratorTy] = getKeyValueIteratorTypes(Iterator->ft);
 	FullVar* KeyFV = nullptr;
@@ -1192,14 +1196,14 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			errs() << Iterator->Loc << ": unable to determine type of 'for' value control variable\n";
 			return nullptr;
 		}
-		if (auto value_var = dynamic_cast<VariableExprAST*>(Value.get())) {
+		if (lvalValue) {
 			std::tie(ValueFV, value_kind) = DeclareNewVariable(
 				Value, nullptr, Value->ft->type, ValueFt->type, Value->ft->type_attr,
 				ValueFt->type_attr, Value->Loc, Value->is_unknown_type,
 				Iterator->is_unknown_type, false, true);
 			if (value_kind == new_var_none) {
-				errs() << value_var->Loc << ": unable to declare value control variable '"
-				       << value_var->Name << "'\n";
+				errs() << lvalValue->Loc << ": unable to declare value control variable '"
+				       << lvalValue->Name << "'\n";
 				return nullptr;
 			}
 		}
