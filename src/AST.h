@@ -865,29 +865,43 @@ public:
 #endif
 };
 
+enum new_var_kind : uint8_t {
+	new_var_none = 0,
+	new_var_created,
+	existing_var_returned,
+	generic_lvalue_returned
+};
+
 /// ForExprAST - Expression class for for/in.
 class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> Iterator;
 	llvm::Value* limit = nullptr;
 	std::string KeyName, ValueName;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
-	FullVar* KeyFV = nullptr;
-	FullVar* ValueFV = nullptr;
+	union {
+		FullVar* KeyFV = nullptr;
+		LvalueExprAST* KeyLval;
+	};
+	union {
+		FullVar* ValueFV = nullptr;
+		LvalueExprAST* ValueLval;
+	};
 	llvm::Value* ValueRef = nullptr;
+	new_var_kind new_Key, new_Value;
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
 	           std::string _KeyName, std::string _ValueName,
 	           std::vector<std::unique_ptr<ExprAST>> _Body, std::vector<std::unique_ptr<ExprAST>> _Else,
-	           int EndKind, int ElseEndKind, FullVar* ValueFV,
-	           FullVar* KeyFV = nullptr)
+	           int EndKind, int ElseEndKind, FullVar* ValueFV, FullVar* KeyFV = nullptr,
+	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
 		                std::move(_Else), std::move(_locals_table),
 		                std::move(else_locals_table), EndKind, ElseEndKind, nullptr, tok_for),
 		  Iterator(std::move(_Iterator)), Key(std::move(_Key)), Value(std::move(_Value)),
 		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)),
-		  ValueName(std::move(_ValueName)) {}
+		  ValueName(std::move(_ValueName)), new_Key(new_Key), new_Value(new_Value) {}
 	bool PrepareForIterator();
 	llvm::Value* CreateCondition(bool at_end = false);
 	bool SetupLoop();
