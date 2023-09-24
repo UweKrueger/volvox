@@ -870,11 +870,10 @@ class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> Iterator;
 	llvm::Value* limit = nullptr;
 	std::string KeyName, ValueName;
-	std::unique_ptr<ExprAST> Key, Value;
+	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
 	FullVar* KeyFV = nullptr;
 	FullVar* ValueFV = nullptr;
 	llvm::Value* ValueRef = nullptr;
-	std::unique_ptr<LvalueExprAST> LV_Key, LV_Value;
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
