@@ -887,6 +887,7 @@ class ForExprAST : public BranchExprAST {
 		LvalueExprAST* ValueLval;
 	};
 	llvm::Value* ValueRef = nullptr;
+	llvm::Type* ValueType = nullptr;
 	new_var_kind new_Key, new_Value;
 
 public:

@@ -2276,41 +2276,48 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 
 bool ForExprAST::PrepareForIterator() {
 	// integer iterator - initialize with 0
-	if (auto var_expr = dynamic_cast<VariableExprAST*>(Value.get())) {
-		if (var_expr->full_var) {
-			if (!ValueFV)
-				ValueFV = var_expr->full_var;
-		}
+	if (Value->ft && Value->ft->type)
+		Iterator->desired_type = Value->ft->type;
+	limit = Iterator->codegen();
+	// The following is somewhat special: Volvox 'for' compares the integer value *before*
+	// incrementing it. So the limit must be the greatest *valid* value. If only one
+	// integer 'n' is given we need 'limit = n-1'
+	llvm::Value* One = llvm::ConstantInt::get(limit->getType(), 1, true);
+	limit = Builder->CreateSub(limit, One);
+	llvm::Value* initializer = llvm::Constant::getNullValue(limit->getType());
+	switch (new_Value) {
+	case new_var_none:
+		errs() << Loc << ": cannot initialize 'for' control variable '" << ValueName << "'\n";
+		return false;
+	case new_var_created:
+	case existing_var_returned:
 		if (!ValueFV) {
 			errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
 			return false;
 		}
-		Iterator->desired_type = ValueFV->ft.type;
-		limit = Iterator->codegen();
-		// The following is somewhat special: Volvox 'for' compares the integer value *before*
-		// incrementing it. So the limit must be the greatest *valid* value. If only one
-		// integer 'n' is given we need 'limit = n-1'
-		llvm::Value* One = llvm::ConstantInt::get(limit->getType(), 1, true);
-		limit = Builder->CreateSub(limit, One);
-		auto initializer = llvm::Constant::getNullValue(ValueFV->ft.type);
-		if (!ValueFV->val)
+		if (!ValueFV->val) {
 			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
-		else {
-			llvm::Type* dummy;
-			std::tie(dummy, ValueRef) = var_expr->codegen_ref();
-			if (!ValueRef)
-				return false;
-			Builder->CreateStore(initializer, ValueRef);
+			ValueType = ValueFV->ft.type;
+			return true;
 		}
+		// else: we cannot rely on ValueFV->val. So we get the generic Lvalue...
+		ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
+		// ...and fall though
+	case generic_lvalue_returned:
+		llvm::Type* dummy;
+		std::tie(dummy, ValueRef) = ValueLval->codegen_ref();
+		if (!ValueRef)
+			return false;
+		ValueType = Value->ft->type;
+		if (initializer->getType() != ValueType)
+			initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
+		Builder->CreateStore(initializer, ValueRef);
 		return true;
-	} else {
-		errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
-		return false;
 	}
 }
 
 llvm::Value* ForExprAST::CreateCondition(bool at_end) {
-	auto ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueRef);
+	auto ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
 	if (Iterator->ft->type_attr & A_signed)
 		if (at_end)
 			return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
@@ -2328,8 +2335,8 @@ bool ForExprAST::SetupLoop() {
 }
 
 bool ForExprAST::Iterate() {
-	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueFV->ft.type, ValueRef);
-	llvm::Value* One = llvm::ConstantInt::get(ValueFV->ft.type, 1, true);
+	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
+	llvm::Value* One = llvm::ConstantInt::get(ValueType, 1, true);
 	ctrl_var = Builder->CreateAdd(ctrl_var, One);
 	Builder->CreateStore(ctrl_var, ValueRef);
 	return true;
