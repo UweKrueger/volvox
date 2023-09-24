@@ -118,25 +118,30 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	}
 	// try to parse same number as float
 	char* endptr_f;
-	double f = strtod(*s_ptr, &endptr_f);
-	if (errno == 0 && endptr_f > endptr) {
-		if (*endptr == '.' && endptr_f - endptr == 1) {
-			if (isalpha(*endptr_f)) {
-				int i = 1;
-				while (isalnum(*(endptr_f + i)))
-					i++;
-				if (*(endptr_f + i) == '(') {
-					// method call on integer literal - discard parsed float
-					*s_ptr = endptr;
-					return;
+	if (*endptr == '.' && *(endptr+1) == '.' && *(endptr+2) != '.') {
+		// don't parse as float if range operator is seen, e.g. '2..7' (but do for '2...7' which is '2. .. 7')
+		*s_ptr = endptr;
+	} else {
+		double f = strtod(*s_ptr, &endptr_f);
+		if (errno == 0 && endptr_f > endptr) {
+			if (*endptr == '.' && endptr_f - endptr == 1) {
+				if (isalpha(*endptr_f)) {
+					int i = 1;
+					while (isalnum(*(endptr_f + i)))
+						i++;
+					if (*(endptr_f + i) == '(') {
+						// method call on integer literal - discard parsed float
+						*s_ptr = endptr;
+						return;
+					}
 				}
 			}
+			gen_type = { .ID = VOLVOX_DoubleTyID };
+			Val.Float = f;
+			*s_ptr = endptr_f;
+		} else {
+			*s_ptr = endptr;
 		}
-		gen_type = { .ID = VOLVOX_DoubleTyID };
-		Val.Float = f;
-		*s_ptr = endptr_f;
-	} else {
-		*s_ptr = endptr;
 	}
 	// handle explicit typed numeric tokens
 	char t = tolower(**s_ptr);
