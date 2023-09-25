@@ -2022,6 +2022,18 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 		break;
+	case '.': // range expression 2..5
+		if (ft && ft->type) {
+			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+				result = llvm::UndefValue::get(struct_type);
+				result = Builder->CreateInsertValue(result, L, 0); // min
+				result = Builder->CreateInsertValue(result, R, 1); // max
+				break;
+			}
+		}
+		if (!result)
+			errs() << Loc << ": unable to evaluate range expression\n";
+		break;
 	default:
 		errs() << Loc << ": unexpected operator '" << Op << "' in this context\n";
 	}
