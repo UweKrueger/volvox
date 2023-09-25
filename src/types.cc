@@ -877,9 +877,9 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 		// array could in principle be size_t, but only in rare cases
 		// we default to int - if a 64-bit type is needed, it has to be predefined
 		return { integer_type, IteratorType->elem_type, llvm::Type::getInt8PtrTy(Context) };
-	if (llvm::isa<llvm::IntegerType>(IteratorType->type))
-		// a single int 'n' can be used as an iterator for the range 0..(n-1)
-		return { nullptr, new_FullType(IteratorType->type, IteratorType->type_attr & A_signed), nullptr };
+	if (IteratorType->type->isSingleValueType())
+		// a single int/float 'n' can be used as an iterator for the range 0..(n-1)
+		return { nullptr, IteratorType, nullptr };
 	if (llvm::isa<llvm::StructType>(IteratorType->type)) {
 		MapValue* mv = map_string_get(IteratorType->fields, "min");
 		if (mv) {

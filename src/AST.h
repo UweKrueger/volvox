@@ -898,6 +898,7 @@ enum new_var_kind : uint8_t {
 class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> Iterator;
 	llvm::Value* limit = nullptr;
+	llvm::Value* approx_limit = nullptr; // for float
 	std::string KeyName, ValueName;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
 	union {
@@ -910,6 +911,8 @@ class ForExprAST : public BranchExprAST {
 	};
 	llvm::Value* ValueRef = nullptr;
 	llvm::Type* ValueType = nullptr;
+	volvoxc::FullType* ValueFT;
+	llvm::Value* Step = nullptr;
 	new_var_kind new_Key, new_Value;
 
 public:
@@ -917,14 +920,14 @@ public:
 	           VarTable else_locals_table, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
 	           std::string _KeyName, std::string _ValueName,
 	           std::vector<std::unique_ptr<ExprAST>> _Body, std::vector<std::unique_ptr<ExprAST>> _Else,
-	           int EndKind, int ElseEndKind, FullVar* ValueFV, FullVar* KeyFV = nullptr,
+	           int EndKind, int ElseEndKind, FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
 	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
 		                std::move(_Else), std::move(_locals_table),
 		                std::move(else_locals_table), EndKind, ElseEndKind, nullptr, tok_for),
 		  Iterator(std::move(_Iterator)), Key(std::move(_Key)), Value(std::move(_Value)),
 		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)),
-		  ValueName(std::move(_ValueName)), new_Key(new_Key), new_Value(new_Value) {}
+		  ValueName(std::move(_ValueName)), ValueFT(ValueFT), new_Key(new_Key), new_Value(new_Value) {}
 	bool PrepareForIterator();
 	llvm::Value* CreateCondition(bool at_end = false);
 	bool SetupLoop();

@@ -329,6 +329,27 @@ fn test_int_for_9 bool
 	end
 	return res == 75 && t == 12
 
+# for iteration with float ranges should run up to approximately the max value
+# so we test this with two versions...
+
+fn test_int_for_10 bool
+	res = 0.
+	for q in 2.25..7.24
+		res += q
+	else
+		q = -17.3
+	end
+	return res == 28.5 && q == 7.25
+
+fn test_int_for_11 bool
+	res = 0.
+	for q in 2.25..7.26
+		res += q
+	else
+		q = -17.3
+	end
+	return res == 28.5 && q == 7.25
+
 global ffwed7 = 4
 
 if ffwed7 > 2

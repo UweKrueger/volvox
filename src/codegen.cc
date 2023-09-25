@@ -2301,9 +2301,16 @@ bool ForExprAST::PrepareForIterator() {
 		// incrementing it. So the limit must be the greatest *valid* value. If only one
 		// integer 'n' is given we need 'limit = n-1'
 		if (iterator_type->isIntegerTy()) {
-			llvm::Value* One = llvm::ConstantInt::get(limit->getType(), 1, true);
+			llvm::Value* One = Step = llvm::ConstantInt::get(limit->getType(), 1, true);
 			limit = Builder->CreateSub(limit, One);
 			initializer = llvm::Constant::getNullValue(limit->getType());
+		} else if (iterator_type->isFloatingPointTy()) {
+			llvm::Value* One = Step = llvm::ConstantFP::get(limit->getType(), 1.0);
+			limit = Builder->CreateFSub(limit, One);
+			initializer = llvm::Constant::getNullValue(limit->getType());
+		} else {
+			errs() << Iterator->Loc << ": unsupported iterator type " << *Iterator->ft << "\n";
+			return false;
 		}
 	} else if (iterator_type->isStructTy()) {
 		// to get polymorphism here we only require that the object has field
@@ -2339,6 +2346,7 @@ bool ForExprAST::PrepareForIterator() {
 			if (signedness_mismatch)
 				errs() << " - " << (max_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
 			errs() << ") do not match\n";
+			return false;
 		}
 	}
 	switch (new_Value) {
@@ -2354,7 +2362,7 @@ bool ForExprAST::PrepareForIterator() {
 		if (!ValueFV->val) {
 			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
 			ValueType = ValueFV->ft.type;
-			return true;
+			goto defstep;
 		}
 		// else: we cannot rely on ValueFV->val. So we get the generic Lvalue...
 		ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
@@ -2368,22 +2376,45 @@ bool ForExprAST::PrepareForIterator() {
 		if (initializer->getType() != ValueType)
 			initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
 		Builder->CreateStore(initializer, ValueRef);
-		return true;
+		goto defstep;
 	}
+defstep:
+	if (ValueType->isIntegerTy()) {
+		if (!Step)
+			Step = llvm::ConstantInt::get(limit->getType(), 1, true);
+	} else if (ValueType->isFloatingPointTy()) {
+		if (!Step)
+			Step = llvm::ConstantFP::get(limit->getType(), 1.0);
+		// floats accumulate rounding errors so the precise upper limit might not be hit
+		// we define a target intervall [limit-0.5*Step, limit+0.5*Step)
+		llvm::Value* step_half = Builder->CreateFMul(Step, llvm::ConstantFP::get(limit->getType(), .5));
+		// lower boundary:
+		approx_limit = Builder->CreateFSub(limit, step_half);
+	}
+	return true;
 }
 
 llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 	auto ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
-	if (Iterator->ft->type_attr & A_signed)
-		if (at_end)
-			return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
+	if (ValueType->isIntegerTy())
+		if (ValueFT->type_attr & A_signed)
+			if (at_end)
+				return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
+			else
+				return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
 		else
-			return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
+			if (at_end)
+				return Builder->CreateICmpULT(ctrl_var, limit, "for_cond");
+			else
+				return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
 	else
 		if (at_end)
-			return Builder->CreateICmpULT(ctrl_var, limit, "for_cond");
+			return Builder->CreateFCmpOLT(ctrl_var, approx_limit, "for_cond");
 		else
-			return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
+			// for the start we check the precise limit but allow equality
+			// so 'for x in 2.3..2.3' will have one iteration,
+			// but 'for x in 2.3..2.29999' will only run the 'else' branch if present
+			return Builder->CreateFCmpOLE(ctrl_var, limit, "for_cond");
 }
 
 bool ForExprAST::SetupLoop() {
@@ -2393,7 +2424,10 @@ bool ForExprAST::SetupLoop() {
 bool ForExprAST::Iterate() {
 	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
 	llvm::Value* One = llvm::ConstantInt::get(ValueType, 1, true);
-	ctrl_var = Builder->CreateAdd(ctrl_var, One);
+	if (ValueType->isIntegerTy())
+		ctrl_var = Builder->CreateAdd(ctrl_var, Step);
+	else
+		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
 	Builder->CreateStore(ctrl_var, ValueRef);
 	return true;
 }
