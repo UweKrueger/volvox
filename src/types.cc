@@ -867,7 +867,7 @@ llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned t
 	return out << *type;
 }
 
-std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(volvoxc::FullType* IteratorType) {
+std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(volvoxc::FullType* IteratorType, SourceLocation Loc) {
 	if (!IteratorType || !IteratorType->type)
 		return { nullptr, nullptr, nullptr };
 	if (IteratorType->type_attr & A_map)
@@ -880,5 +880,23 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 	if (llvm::isa<llvm::IntegerType>(IteratorType->type))
 		// a single int 'n' can be used as an iterator for the range 0..(n-1)
 		return { nullptr, new_FullType(IteratorType->type, IteratorType->type_attr & A_signed), nullptr };
+	if (llvm::isa<llvm::StructType>(IteratorType->type)) {
+		MapValue* mv = map_string_get(IteratorType->fields, "min");
+		if (mv) {
+			auto adr = (char*)mv + mv->offset + 4;
+			volvoxc::FullType* ft;
+			memcpy(&ft, adr, sizeof(void*));
+			return { nullptr, ft, nullptr };
+		}
+		if (IteratorType->mangled_name) {
+			auto protos = MethodProtos.find({IteratorType->mangled_name, "min"});
+			if (protos != MethodProtos.end()) {
+				std::vector<FnArg> fn_args = {};
+				auto selected_proto = selectProto(&protos->second, "min", fn_args, Loc);
+				if (selected_proto >= 0)
+					return { nullptr, protos->second[selected_proto]->RetType, nullptr };
+			}
+		}
+	}
 	return { nullptr, nullptr, nullptr };
 }

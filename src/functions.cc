@@ -104,7 +104,7 @@ inline static void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* pr
 }
 
 int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
-                std::vector<FnArg>& fnargs, SourceLocation Loc = {0}) {
+                std::vector<FnArg>& fnargs, SourceLocation Loc) {
 	bool exact_match = false;
 	int noundefcandidate = -1;
 	int candidate = -1;

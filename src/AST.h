@@ -61,15 +61,20 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr);
 };
 
+// internal AST node to hold an already (i.e. no more changing) evaluated
+// expression value
+//
 class ConstExprAST : public ExprAST {
-	llvm::Constant* val;
+	llvm::Value* val;
 public:
-	ConstExprAST(llvm::Constant* val) : val(val) {
+	ConstExprAST(llvm::Value* val) : val(val) {
 		if (!val)
 			errs() << "ConstExprAST: no valid value\n";
 		else
 			ft->type = val->getType();
 	}
+	ConstExprAST(SourceLocation Loc, volvoxc::FullType* full_type, llvm::Value* val, bool is_unknown_type = false)
+		: ExprAST(full_type, Loc, is_unknown_type), val(val) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return val; }
 };
 

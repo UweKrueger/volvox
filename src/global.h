@@ -295,7 +295,8 @@ namespace volvoxc {
 
 }
 
-extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(volvoxc::FullType* IteratorType);
+extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(
+	volvoxc::FullType* IteratorType, SourceLocation Loc = {0});
 
 extern llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type);
 
@@ -1364,7 +1365,8 @@ extern bool jit_repl;
 extern bool jit_extra_thread;
 extern int builtin_input_fd;
 extern void CallGlobalDestructorsJIT();
-
+extern int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
+                       std::vector<FnArg>& fnargs, SourceLocation Loc = {0});
 static inline llvm::LoadInst* CreateAtomicLoad(llvm::Type* ty, llvm::Value* adr, const llvm::Twine &Name = "") {
 	auto align = TheModule->getDataLayout().getABITypeAlign(ty);
 	return Builder->Insert(

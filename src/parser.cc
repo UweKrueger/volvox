@@ -1150,7 +1150,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	std::string KeyName;
 	std::string ValueName;
 	auto Iterator = ParseCondition(tok_in);
-	auto [KeyFt, ValueFt, IteratorTy] = getKeyValueIteratorTypes(Iterator->ft);
+	auto [KeyFt, ValueFt, IteratorTy] = getKeyValueIteratorTypes(Iterator->ft, Iterator->Loc);
 	FullVar* KeyFV = nullptr;
 	FullVar* ValueFV = nullptr;
 	new_var_kind key_kind = new_var_none, value_kind = new_var_none;

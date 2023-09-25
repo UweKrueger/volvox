@@ -2290,13 +2290,53 @@ bool ForExprAST::PrepareForIterator() {
 	// integer iterator - initialize with 0
 	if (Value->ft && Value->ft->type)
 		Iterator->desired_type = Value->ft->type;
-	limit = Iterator->codegen();
-	// The following is somewhat special: Volvox 'for' compares the integer value *before*
-	// incrementing it. So the limit must be the greatest *valid* value. If only one
-	// integer 'n' is given we need 'limit = n-1'
-	llvm::Value* One = llvm::ConstantInt::get(limit->getType(), 1, true);
-	limit = Builder->CreateSub(limit, One);
-	llvm::Value* initializer = llvm::Constant::getNullValue(limit->getType());
+	llvm::Value* iterator = Iterator->codegen();
+	if (!iterator)
+		return false;
+	llvm::Value* initializer = nullptr;
+	llvm::Type* iterator_type = iterator->getType();
+	if (iterator_type->isSingleValueType()) {
+		limit = iterator;
+		// The following is somewhat special: Volvox 'for' compares the integer value *before*
+		// incrementing it. So the limit must be the greatest *valid* value. If only one
+		// integer 'n' is given we need 'limit = n-1'
+		if (iterator_type->isIntegerTy()) {
+			llvm::Value* One = llvm::ConstantInt::get(limit->getType(), 1, true);
+			limit = Builder->CreateSub(limit, One);
+			initializer = llvm::Constant::getNullValue(limit->getType());
+		}
+	} else if (iterator_type->isStructTy()) {
+		// to get polymorphism here we only require that the object has field
+		// elements or methods called 'min' and 'max' that return the same single value type
+		// to achive this we construct SelectExprASTs
+		auto receiver = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
+		auto selector = std::make_unique<IdentExprAST>(Iterator->Loc, "min");
+		auto min_expr = std::make_unique<SelectExprAST>(Iterator->Loc, std::move(receiver), std::move(selector));
+		// we have to recreate 'receiver' because it has been moved
+		receiver = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
+		selector = std::make_unique<IdentExprAST>(Iterator->Loc, "max");
+		auto max_expr = std::make_unique<SelectExprAST>(Iterator->Loc, std::move(receiver), std::move(selector));
+		if (!min_expr || !min_expr->ft || !max_expr || !max_expr->ft) {
+			errs() << Iterator->Loc << ": could not find min/max fields of iterator\n";
+			return false;
+		}
+		initializer = min_expr->codegen();
+		limit = max_expr->codegen();
+		if (!initializer || !limit) {
+			errs() << Iterator->Loc << ": could not create code for 'for' range limit\n";
+			return false;
+		}
+		bool signedness_mismatch = (bool)((min_expr->ft->type_attr ^ max_expr->ft->type_attr) & A_signed);
+		if (initializer->getType() != limit->getType() || signedness_mismatch) {
+			errs() << Iterator->Loc << ": types of 'min' (" << *initializer->getType();
+			if (signedness_mismatch)
+				errs() << " - " << (min_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
+			errs() << ") and 'max' (" << *limit->getType();
+			if (signedness_mismatch)
+				errs() << " - " << (max_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
+			errs() << ") do not match\n";
+		}
+	}
 	switch (new_Value) {
 	case new_var_none:
 		errs() << Loc << ": cannot initialize 'for' control variable '" << ValueName << "'\n";
