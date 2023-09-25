@@ -891,8 +891,10 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 		if (IteratorType->mangled_name) {
 			auto protos = MethodProtos.find({IteratorType->mangled_name, "min"});
 			if (protos != MethodProtos.end()) {
-				std::vector<FnArg> fn_args = {};
+				std::vector<FnArg> fn_args = { FnArg{ nullptr, IteratorType->type,
+				                                      static_cast<bool>(IteratorType->type_attr & A_signed), false } };
 				auto selected_proto = selectProto(&protos->second, "min", fn_args, Loc);
+				// errs() << "found " << protos->second.size() << " protos for 'min', selected #" << selected_proto << "\n";
 				if (selected_proto >= 0)
 					return { nullptr, protos->second[selected_proto]->RetType, nullptr };
 			}

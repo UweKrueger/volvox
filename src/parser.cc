@@ -1315,6 +1315,15 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	return nullptr;
 }
 
+std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident) {
+	if (LHS->ft->mangled_name) {
+		auto proto = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
+		if (proto != MethodProtos.end())
+			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &proto->second);
+	}
+	return std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
+}
+
 /// binoprhs
 ///   := ('+' unary)*
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator) {
@@ -1425,7 +1434,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		} else if (is_dotselect) {
 			auto ident = dynamic_cast<IdentExprAST*>(RHS.get());
 			if (!ident) {
-				errs() << RHS->Loc << ": identifier expected\n";
+				errs() << RHS->Loc << ": selector name expected\n";
 				return nullptr;
 			}
 			auto Ident = std::unique_ptr<IdentExprAST>(ident);
@@ -1457,14 +1466,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					}
 				}
 			} else if (LHS->ft && LHS->ft->type) {
-				if (LHS->ft->mangled_name) {
-					auto proto = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
-					if (proto != MethodProtos.end()) {
-						LHS = std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &proto->second);
-						continue;
-					}
-				}
-				LHS = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
+				LHS = getSelect(LHS->Loc, std::move(LHS), std::move(Ident));
 				continue;
 			} else {
 				errs() << LHS->Loc << ": ";

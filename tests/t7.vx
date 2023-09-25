@@ -300,6 +300,35 @@ fn test_int_for_7 bool
 	end
 	return t == 28 && hjssq9.y == 6
 
+fn test_int_for_8 bool
+	res = 0
+	for t in 2..7
+		res += t
+	else
+		t = -17
+	end
+	return res == 27 && t == 7 
+
+type Qhddf {
+	s int
+}
+
+fn Qhddf.min int
+	return this.s / 2
+
+fn Qhddf.max int
+	return this.s + this.s
+
+fn test_int_for_9 bool
+	res = 0
+	q = Qhddf{ s: 6 }
+	for t in q
+		res += t
+	else
+		t = -17
+	end
+	return res == 75 && t == 12
+
 global ffwed7 = 4
 
 if ffwed7 > 2

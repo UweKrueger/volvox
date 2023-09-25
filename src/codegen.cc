@@ -2311,11 +2311,15 @@ bool ForExprAST::PrepareForIterator() {
 		// to achive this we construct SelectExprASTs
 		auto receiver = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
 		auto selector = std::make_unique<IdentExprAST>(Iterator->Loc, "min");
-		auto min_expr = std::make_unique<SelectExprAST>(Iterator->Loc, std::move(receiver), std::move(selector));
+		auto min_expr = getSelect(Iterator->Loc, std::move(receiver), std::move(selector));
+		if (auto method = dynamic_cast<MethodExprAST*>(min_expr.get()))
+			min_expr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(min_expr));
 		// we have to recreate 'receiver' because it has been moved
 		receiver = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
 		selector = std::make_unique<IdentExprAST>(Iterator->Loc, "max");
-		auto max_expr = std::make_unique<SelectExprAST>(Iterator->Loc, std::move(receiver), std::move(selector));
+		auto max_expr = getSelect(Iterator->Loc, std::move(receiver), std::move(selector));
+		if (auto method = dynamic_cast<MethodExprAST*>(max_expr.get()))
+			max_expr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(max_expr));
 		if (!min_expr || !min_expr->ft || !max_expr || !max_expr->ft) {
 			errs() << Iterator->Loc << ": could not find min/max fields of iterator\n";
 			return false;
