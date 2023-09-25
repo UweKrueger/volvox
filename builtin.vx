@@ -64,6 +64,47 @@ type __map_node_ref {
 type __map_value_ref {
 	&value __map_value
 }
+type __range_u8 {
+	min u8
+	max u8
+}
+type __range_u16 {
+	min u16
+	max u16
+}
+type __range_u32 {
+	min u32
+	max u32
+}
+type __range_u64 {
+	min u64
+	max u64
+}
+type __range_i8 {
+	min i8
+	max i8
+}
+type __range_i16 {
+	min i16
+	max i16
+}
+type __range_i32 {
+	min i32
+	max i32
+}
+type __range_i64 {
+	min i64
+	max i64
+}
+type __range_f32 {
+	min f32
+	max f32
+}
+type __range_f64 {
+	min f64
+	max f64
+}
+
 cdecl fn _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_(&root_ptr voidptr, key string, value u64, value_size i32, &replace voidptr) __map_node_ref
 cdecl fn _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(root voidptr, key string) __map_value_ref
 cdecl fn _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(root voidptr, d string)

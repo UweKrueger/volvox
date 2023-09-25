@@ -710,6 +710,21 @@ public:
 			strcpy(Op, _Op);
 			if (opclass == OpDeclAssign)
 				LHS->ft = RHS->ft;
+			if (opclass == OpRange && ft && ft->type) {
+				auto limits_type_name = lex.get_type_name(ft->type, (bool)(ft->type_attr & A_signed));
+				if (limits_type_name) {
+#define RANGE_PREFIX "__range_"
+#define RANGE_PREFIX_SIZE ARRAY_SIZE(RANGE_PREFIX) /* including terminating 0 */
+					auto range_type_name = (char*)alloca(ARRAY_SIZE(RANGE_PREFIX) + strlen(limits_type_name));
+					strcpy(range_type_name, RANGE_PREFIX);
+					strcpy(range_type_name + (RANGE_PREFIX_SIZE - 1), limits_type_name);
+					ft = lex.get_full_type(range_type_name);
+					if (ft)
+						return;
+				} else
+					ft = nullptr;
+				errs() << Loc << ": cannot create range from types " << *LHS->ft->type << " and " << *RHS->ft->type << "\n";
+			}
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen_atomic_Xassign(llvm::Value* ptr, llvm::Value* val);

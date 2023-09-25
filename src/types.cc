@@ -526,8 +526,6 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	unsigned res_attr = 0;
 	if (res_is_signed)
 		res_attr |= A_signed;
-	if (opclass == OpRange)
-		res_attr |= A_range;
 	return { getFittingType(res_bitwidth, res_is_float), res_attr, res_is_unknown_type, opclass, nullptr };
 }
 
