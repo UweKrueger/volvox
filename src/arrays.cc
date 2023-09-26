@@ -271,7 +271,7 @@ static std::pair<llvm::Value*, SourceLocation> GenIndex(ExprAST* Index) {
 	}
 }
 
-void CheckArrayIndex(llvm::Value* idx, llvm::Value* Len, SourceLocation Loc,
+static void CheckArrayIndex(llvm::Value* idx, llvm::Value* Len, SourceLocation Loc,
                      bool idx_is_signed = true) {
 	if (!do_range_checks)
 		return;
@@ -415,6 +415,9 @@ std::tuple<uint64_t,llvm::Value*,llvm::Value*> IndexExprAST::getMLIdxOffset(llvm
 // Idxs, val - returns full field of nested IndexExprs, i.e. something like '{ i64, i64, i64, double* }'
 llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type) {
 	llvm::Value* res = nullptr;
+	static int var_dims_to_process = 0;
+	// for a multi level index expression 'x[l][m][n]' we need the 'val' of 'x'
+	// so this function recursively call itself until we have it
 	if (auto fieldidxexpr = dynamic_cast<IndexExprAST*>(Field.get())) {
 		auto fieldval = fieldidxexpr->codegen_ref0(Idxs, ml_field_type);
 		if (!fieldval)
@@ -424,35 +427,42 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 		auto elem = lval->codegen_ref();
 		ml_field_type = Field->ft->type;
 		res = elem.second;
+		var_dims_to_process = 0;
 	}
+	// from here on 'res' contains the full 'val' (variable dimensions, storage pointers) of 'x'
 	if (res) {
 		ft = new_FullType(*ft);
-		ft->type = llvm::cast<llvm::ArrayType>(Field->ft->type)->getElementType();
+		auto array_type = llvm::cast<llvm::ArrayType>(Field->ft->type);
+		ft->type = array_type->getElementType();
 		if (auto aggr = dynamic_cast<AggregateExprAST*>(Index.get())) {
 			if (aggr->Elements.size() != 1) {
 				errs() << "exactly one index expected (for now)\n";
 				return nullptr;
 			}
 			auto idx = aggr->Elements[0]->codegen();
-			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
-				uint64_t num_elem = array_type->getNumElements();
-				if (num_elem) {
-					if (auto c_idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {
-						uint64_t u_idx = c_idx->getZExtValue();
-						if (u_idx >= num_elem) {
-							errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << num_elem << ")\n";
-							return nullptr;
-						}
-					}
-					// TODO: run time check for index range
-				}
-			}
 			if (auto int_type = llvm::dyn_cast<llvm::IntegerType>(idx->getType())) {
 				if (int_type->getBitWidth() != target_bits)
-					idx = Builder->CreateIntCast(idx, llvm_size_type, false);
+					idx = Builder->CreateIntCast(idx, llvm_size_type, true);
 			} else {
 				errs() << aggr->Elements[0]->Loc << ": array indices must be integers - not " << *idx->getType() << '\n';
 				return nullptr;
+			}
+			uint64_t num_elem = array_type->getNumElements();
+			llvm::ConstantInt* c_idx = num_elem ? llvm::dyn_cast<llvm::ConstantInt>(idx) : nullptr;
+			if (c_idx) {
+				uint64_t u_idx = c_idx->getZExtValue();
+				if (u_idx >= num_elem) {
+					errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << num_elem << ")\n";
+					return nullptr;
+				}
+				// TODO: run time check for index range
+			} else {
+				llvm::Value* NumElem;
+				if (num_elem)
+					NumElem = llvm::ConstantInt::get(llvm_size_type, num_elem);
+				else
+					NumElem = Builder->CreateExtractValue(res, var_dims_to_process++);
+				CheckArrayIndex(idx, NumElem, aggr->Elements[0]->Loc, aggr->Elements[0]->ft->type_attr & A_signed);
 			}
 			Idxs.push_back(idx);
 		} else {
