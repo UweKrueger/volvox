@@ -102,6 +102,7 @@ class ForExprAST;
 class VarExprAST;
 class UnaryExprAST;
 class BinaryExprAST;
+typedef void (*signalhandler_t)(int);
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))

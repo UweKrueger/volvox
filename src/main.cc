@@ -40,6 +40,8 @@ std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
 CPU_Type_t cpu_idx;
 OS_Type_t os_idx;
+signalhandler_t old_abort = nullptr;
+signalhandler_t old_flt = nullptr;
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -1026,6 +1028,10 @@ uint64_t stacksize = 10485760; // 10MB as safe fallback
 #define O_CLOEXEC 0
 #endif
 
+void finish_thread(int) {
+	pthread_exit(nullptr);
+}
+
 static void usage(const char* prog) {
 	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
 	errs() << " -h ........... print this help screen\n";
@@ -1653,6 +1659,12 @@ int main(int argc, char* argv[]) {
 			abort();
 		}
 		MainFunction->prepare_codegen();
+	}
+	if (jit_repl) {
+		// running Volvox code may raise SIGABRT or SIGFPE
+		// we do not want the REPL to crash completely so we install signal handlers
+		// that just exit the current running thread
+		old_abort = signal(SIGABRT, finish_thread);
 	}
 	// Prime the first token.
 	getNextToken();
