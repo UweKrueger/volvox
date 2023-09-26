@@ -1272,6 +1272,14 @@ _DECL void __printerr() {
 	fprintf(stderr, "%s\n", strerror(errno));
 }
 
+_DECL void err_printf(const char* fmt, ...) {
+	va_list args;
+	va_start(args, fmt);
+	fflush(stdout);
+	vfprintf(stderr, fmt, args);
+	va_end(args);
+}
+
 #ifndef _WIN32
 
 _DECL unsigned GetLastError() {

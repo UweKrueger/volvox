@@ -8,6 +8,7 @@
 #include "AST.h"
 
 std::vector<const char*> jit_string_consts;
+bool do_range_checks = true;
 
 llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type, ListExprAST* List) {
 	uint64_t dim = initializer_type->getNumElements();
@@ -270,6 +271,20 @@ static std::pair<llvm::Value*, SourceLocation> GenIndex(ExprAST* Index) {
 	}
 }
 
+void CheckArrayIndex(llvm::Value* idx, llvm::Value* Len, SourceLocation Loc,
+                     bool idx_is_signed = true) {
+	if (!do_range_checks)
+		return;
+	auto checker_proto = (*lex.findProtos("__check_array_index"))[0].get();
+	auto checker = getFunction(checker_proto);
+	if (idx->getType() != llvm_size_type)
+		idx = Builder->CreateIntCast(idx, llvm_size_type, idx_is_signed);
+	auto File = Builder->CreateGlobalStringPtr(Loc.File, "", 0, TheModule.get());
+	auto Line = llvm::ConstantInt::get(llvm_int_type, Loc.Line, true);
+	auto Col = llvm::ConstantInt::get(llvm_int_type, Loc.Col, true);
+	Builder->CreateCall(checker_proto->FT, checker, { idx, Len, File, Line, Col });
+}
+
 llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 	// first try to get a reference to the element ...
 	auto V = codegen_ref(true);
@@ -289,9 +304,11 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 		int64_t len = -1;
 		llvm::Value* Len = nullptr;
 		llvm::ArrayType* array_type = llvm::dyn_cast<llvm::ArrayType>(fld->getType());
-		if (array_type)
+		if (array_type) {
 			len = array_type->getNumElements();
-		else
+			if (len > 0)
+				Len = llvm::ConstantInt::get(llvm_size_type, len);
+		} else
 			if (auto st = llvm::dyn_cast<llvm::StructType>(fld->getType())) {
 				Len = Builder->CreateExtractValue(fld, 0);
 				fld = Builder->CreateExtractValue(fld, 1);
@@ -301,10 +318,10 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 					len = len2->getZExtValue();
 				}
 			}
-		if (!array_type) {
+		if (!array_type || (!len && !Len)) {
 			// if it's no array it must be a pointer - but then this would be an lvalue
 			// and codegen_ref() above would have succeeded - so we should not get here
-			errs() << "internal compiler error\n";
+			errs() << Loc << ": internal compiler error - inconsistent array\n";
 			abort();
 		}
 		auto FixedField = dynamic_cast<FixedArrayExprAST*>(Field.get());
@@ -326,20 +343,19 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 				errs() << LenLoc << ": array length must be greater than any element index\n";
 				return nullptr;
 			} else if (i >= (uint64_t)len) {
-				errs() << IdxLoc << ": index out of range (should >= 0 and < "
-				       << len << ")\n";
+				errs() << IdxLoc << ": index (" << i << ") out of range (should be in 0.."
+				       << (len-1) << ")\n";
 				return nullptr;
 			}
 			return Builder->CreateExtractValue(fld, i);
 		}
 	run_time_len:
-		// TODO: Insert run time check of index
 		llvm::Value* ptr = StoreValue(fld_save, Field->ft);
 		if (llvm::isa<llvm::StructType>(ptr->getType())) {
 			Len = Builder->CreateExtractValue(ptr, 0);
 			ptr = Builder->CreateExtractValue(ptr, 1);
 		}
-		// TODO: insert code for index range check
+		CheckArrayIndex(idx, Len, Index->Loc, Index->ft->type_attr & A_signed);
 		return Builder->CreateLoad(
 			array_type->getElementType(),
 			Builder->CreateGEP(array_type->getElementType(),

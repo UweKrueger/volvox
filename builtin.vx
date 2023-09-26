@@ -6,6 +6,8 @@ cdecl fn strcmp(s1 cstring, s2 cstring) i32
 cdecl fn strncmp(s1 cstring, s2 cstring, len size_t) i32
 cdecl fn printf(s cstring, ...) int
 cdecl fn __printerr()
+cdecl fn err_printf(s cstring, ...)
+cdecl fn raise(signal int)
 
 # pseudo functions for compiler
 #
@@ -125,7 +127,6 @@ cdecl fn memcpy(dest voidptr, src cstring, n size_t) voidptr
 cdecl fn getTermSize(fd i32) i32
 cdecl fn showtestres(fd i32, width i32, testcase string, result bool)
 cdecl fn enableColorANSI(fd i32) bool
-cdecl fn __signal_out_of_range()
 cdecl fn printadr(&x f64)
 cdecl fn printd(x f64)
 cdecl fn printu64(x u64)
@@ -140,9 +141,11 @@ inline fn panic(s string)
 	abort
 	return
 
-inline fn __check_array_index(index u64, length u64)
+inline fn __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
 	if index >= length
-		__signal_out_of_range()
+		err_printf("%s:%d:%d: index (%zd) out of range (0..%zd)\n",
+			srcfile, line, col, index, length-1)
+		raise(6) # SIGABRT on all known systems
 	end
 	return
 

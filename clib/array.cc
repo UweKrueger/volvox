@@ -34,10 +34,3 @@ _DECL void ArrayNode::pushback(char* obj, usize obj_size) {
 	data = realloc(data, dest + obj_size);
 	memcpy((char*)data + dest, obj, obj_size);
 }
-
-extern "C" {
-	_DECL void __signal_out_of_range() {
-		write(2, WR_STRING("Error: array index out of range\n"));
-		raise(SIGABRT);
-	}
-}

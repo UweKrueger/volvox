@@ -1036,6 +1036,7 @@ static void usage(const char* prog) {
 	errs() << " -fPIC ........ generate position independent code\n";
 	errs() << " -fdiv-floored  signed division is floored, remainder gets sign of divisor\n"; 
 	errs() << " -fdiv-c99 .... signed division rounds towards 0, remainder gets sign of divident\n"; 
+	errs() << " -fno-idx-chk . do not check array indices to be within bounds\n"; 
 	errs() << " -g ........... compile with debug information\n";
 	errs() << " -On[m] ....... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
 	errs() << "                m: optional separate level machine specific codegen (default: n)\n";
@@ -1253,6 +1254,9 @@ int main(int argc, char* argv[]) {
 					usage(argv[0]);
 				}
 				idiv_mode = idiv_mode_c99;
+			} else if (!strcmp(optarg, "no-idx-chk") ||
+			           !strcmp(optarg, "no-index-checks")) {
+				do_range_checks = false;
 			} else {
 				errs() << "Unknown option '-f" << optarg << "'\n";
 				usage(argv[0]);

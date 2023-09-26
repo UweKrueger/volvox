@@ -500,10 +500,11 @@ struct FullVar {
 		const char* mangled_name = nullptr; // only for pub globals
 
 		// for function/branch-variables we use this pointer to refer to
-		// a global instead if declared as "global a, b, c"
+		// a global instead, if declared as "global a, b, c"
 		//
 		FullVar* global;
 	};
+	llvm::Value* max_address = nullptr; // experimental - used for arrays to check access
 	llvm::Function* destructor = nullptr;
 	llvm::Instruction* constructor; // to erase in auto-conversion to move
 	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
@@ -1072,6 +1073,7 @@ extern Token CurTok;
 extern bool parseOk;
 extern Token& getNextToken(eXpect expect = eNone, int terminator = 0);
 extern Token& purgeLine();
+extern bool do_range_checks;
 
 struct SourceLocState {
 	SourceLocation Loc = {0};
