@@ -741,7 +741,7 @@ llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* IdxsAdr = Builder->CreateGEP(llvm::Type::getInt8Ty(Context), Malloc, IdxOffs);
 			auto dim_vals = Call->Args[j]->codegen_dims();
 			for (unsigned n=0; ; n++) {
-				llvm::Value* Adr = Builder->CreateConstGEP1_32(
+				Adr = Builder->CreateConstGEP1_32(
 					llvm_size_type, Builder->CreatePointerCast(Adr, llvm_size_type->getPointerTo()), n);
 				if (n == var_dims.size())
 					break;

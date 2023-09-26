@@ -9,6 +9,8 @@
 #ifdef _WIN32
 #include <winsock.h>
 #endif
+#include <signal.h>
+
 // some names for environment variables
 
 #define PROMPT_COL "VOLVOX_COLORS"
@@ -1028,8 +1030,16 @@ uint64_t stacksize = 10485760; // 10MB as safe fallback
 #define O_CLOEXEC 0
 #endif
 
+// signal handler to avoid complete crash of REPL in case of "index out of range" and
+// similar errors
+// this is not a clean "exit": memory blocks might become orphaned, ...
+//
 void finish_thread(int) {
+#ifdef _WIN32
+	ExitThread(0);
+#else
 	pthread_exit(nullptr);
+#endif
 }
 
 static void usage(const char* prog) {
