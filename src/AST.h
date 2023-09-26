@@ -863,7 +863,7 @@ public:
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
 	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
 	          bool always_return = false)
-		: BranchExprAST(Loc, _Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context),
+		: BranchExprAST(Loc, std::get<0>(res_t),
 		                std::get<1>(res_t), std::get<2>(res_t), std::get<4>(res_t), std::move(_Then),
 		                std::move(_Else), std::move(_then_locals_table), std::move(_else_locals_table),
 		                ThenEndKind, ElseEndKind, std::move(_Cond), if_kind, always_return)
