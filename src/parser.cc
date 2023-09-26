@@ -1466,7 +1466,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					}
 				}
 			} else if (LHS->ft && LHS->ft->type) {
-				LHS = getSelect(LHS->Loc, std::move(LHS), std::move(Ident));
+				// create temporary to work around MSVC problem
+				auto LL = LHS->Loc;
+				LHS = getSelect(LL, std::move(LHS), std::move(Ident));
 				continue;
 			} else {
 				errs() << LHS->Loc << ": ";

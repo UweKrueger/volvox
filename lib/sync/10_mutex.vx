@@ -136,7 +136,7 @@ pub inline fn mutex.trylock int
 pub inline fn mutex.timedlock(timeout time.Duration) int
 	global EOWNERDEAD
 	if os.isWindows
-		res = WaitForSingleObjectEx(this.size_t, u32(timeout / 10000), true)
+		res = WaitForSingleObjectEx(this.size_t, u32(timeout.i64 / 10000), true)
 		if res != 0
 			res = GetLastError()
 			if res == EOWNERDEAD

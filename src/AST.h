@@ -709,7 +709,7 @@ public:
 	OpClass opclass = OpNormal;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, unsigned, bool, OpClass,
-	              const char*> res_t = { nullptr, 0, false, OpDeclAssign, nullptr })
+	              const char*> res_t = { llvm::Type::getVoidTy(Context), 0, false, OpDeclAssign, nullptr })
 		: ExprAST(std::get<0>(res_t), std::get<1>(res_t), Loc,
 		          std::get<2>(res_t)),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
