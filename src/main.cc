@@ -443,21 +443,27 @@ static void HandleTypeDef(unsigned share_kind) {
 	};
 	MapNode* replace = nullptr;
 	MapNode* new_node = lex.add_type(type_name.c_str(), &Ft, replace);
-	MapValue* val = &new_node->value;
-	volvoxc::FullType* ft = (volvoxc::FullType*)((char*)val + val->offset);
+	MapValue* val;
+	volvoxc::FullType* ft;
 	llvm::StructType* struct_type;
 	if (replace) { // new_node is actually an old node
+		val = &replace->value;
+		ft = (volvoxc::FullType*)((char*)val + val->offset);
+		// errs() << "got old node " << ft << "\n";
 		struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
 		if (!struct_type || !struct_type->isOpaque()) {
 			errs() << TypeLoc << ": cannot define '" << type_name << "' - type already exists\n";
 			return;
 		}
 	} else {
+		val = &new_node->value;
+		ft = (volvoxc::FullType*)((char*)val + val->offset);
 		struct_type = llvm::StructType::create(Context, volvox_name);
 		ft->type = struct_type;
 		llvm::SmallString<128> buf;
 		auto mangled_name = MangleBase(buf, lex.module->import_path, type_name);
 		ft->mangled_name = strdup(mangled_name.c_str());
+		// errs() << "created new node " << ft << "\n";
 	}
 	getNextToken(eSemi);
 	if (CurTok.kind == ';') {

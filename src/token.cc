@@ -27,7 +27,7 @@ void insert_token_into_map(int token) {
 	MapValue val = { .i32 = token };
 	const char* tokenstr = tokens[token - 1 - tok_1st_keyword];
 	MapNode* replace = nullptr;
-	MapNode* res = map_string_insert(&keyword_toks, tokenstr, val, 0, replace);
+	MapNode* res = map_string_insert(&keyword_toks, tokenstr, val, 0, &replace);
 	if (replace) {
 		errs() << "internal error: map entry for keyword \"" << tokenstr << " already exists\n";
 		abort();

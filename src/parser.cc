@@ -272,7 +272,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			MapNode* fields = map_string_new_map();
 			for (int i=0; i<FieldNames.size(); i++) {
 				MapNode* replace = nullptr;
-				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = &FieldTypes[i] }, sizeof(void*), replace);
+				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = &FieldTypes[i] }, sizeof(void*), &replace);
 				if (replace) {
 					errs() << "Duplicate field name '" << FieldNames[i] << "' in struct declaration\n";
 					return nullptr;

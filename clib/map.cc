@@ -357,7 +357,7 @@ namespace volvox {
 		 * ┃ replace=target  ┃ newNode, nullptr   │ newNode, oldNode ┃
 		 * ┗━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━┷━━━━━━━━━━━━━━━━━━┛
 		 */
-		_DECL Node* string_tag_insert(Node** root_ptr, const char* key, unsigned tag, Value value, int value_size, Node*& target) {
+		_DECL Node* string_tag_insert(Node** root_ptr, const char* key, unsigned tag, Value value, int value_size, Node** target) {
 			bool use_tag = false;
 			if ((uintptr_t)root_ptr & 0x01)
 				root_ptr = (Node**)((uintptr_t)root_ptr & ~1ULL);
@@ -369,7 +369,8 @@ namespace volvox {
 				Node* node = string_tag_new_node(key, tag, value, value_size, use_tag);
 				insert_priv(root_ptr, node, insert_node, insert_pos.parent_ptr);
 				if (insert_pos.is_parent) {
-					target = nullptr;
+					*target = nullptr;
+					// fprintf(stderr, "### key '%s' is parent - node: %p\n", key, node);
 				} else { // target was set
 					// replace current element with new
 					node->parent = insert_pos.node->parent;
@@ -379,31 +380,32 @@ namespace volvox {
 					insert_pos.node->parent = NULL;
 					insert_pos.node->leftChild = NULL;
 					insert_pos.node->rightChild = NULL;
-					target = insert_pos.node;
+					*target = insert_pos.node;
+					// fprintf(stderr, "### key '%s' replaced - node: %p %p\n", key, node, *target);
 				}
 				return node;
 			} else {
-				target = (Node*)(intptr_t)(-1); // indicate that key already exists
+				*target = (Node*)(intptr_t)(-1); // indicate that key already exists
 				return insert_node;
 			}
 		}
 
-		_DECL Node* string_insert(Node** root_ptr, const char* key, Value value, int value_size, Node*& target) {
+		_DECL Node* string_insert(Node** root_ptr, const char* key, Value value, int value_size, Node** target) {
 			return string_tag_insert((Node**)((uintptr_t)root_ptr | 0x01), key, 0, value, value_size, target);
 		}
 
-		_DECL Node* volvoxstring_insert(Node** root_ptr, const char* key, Value value, int value_size, Node*& target) {
+		_DECL Node* volvoxstring_insert(Node** root_ptr, const char* key, Value value, int value_size, Node** target) {
 			return string_tag_insert((Node**)((uintptr_t)root_ptr | 0x01), volvox2cstr(key), 0, value, value_size, target);
 		}
 
-#define DEFINE_INSERT_FOR(typ) _DECL Node* typ ## _insert(Node** root_ptr, typ key, Value value, int value_size, Node*& target) { \
+#define DEFINE_INSERT_FOR(typ) _DECL Node* typ ## _insert(Node** root_ptr, typ key, Value value, int value_size, Node** target) { \
 			NodePosition insert_pos = typ ## _find(root_ptr, key); \
 			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~0x01ULL); \
 			if(insert_pos.is_parent || target) { \
 				Node* node = typ ## _new_node(key, value, value_size); \
 				insert_priv(root_ptr, node, insert_node, insert_pos.parent_ptr); \
 				if (insert_pos.is_parent) { \
-					target = nullptr; \
+					*target = nullptr; \
 				} else { \
 					node->parent = insert_pos.node->parent; \
 					node->leftChild = insert_pos.node->leftChild; \
@@ -411,11 +413,11 @@ namespace volvox {
 					insert_pos.node->parent = NULL; \
 					insert_pos.node->leftChild = NULL; \
 					insert_pos.node->rightChild = NULL; \
-					target = insert_pos.node; \
+					*target = insert_pos.node; \
 				} \
 				return node; \
 			} else { \
-				target = (Node*)(intptr_t)(-1); \
+				*target = (Node*)(intptr_t)(-1); \
 				return insert_node; \
 			} \
 		}
