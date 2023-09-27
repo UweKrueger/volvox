@@ -365,7 +365,7 @@ namespace volvox {
 				use_tag = true;
 			NodePosition insert_pos = string_find(root_ptr, key);
 			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~0x01ULL);
-			if(insert_pos.is_parent || target) {
+			if(insert_pos.is_parent || *target) {
 				Node* node = string_tag_new_node(key, tag, value, value_size, use_tag);
 				insert_priv(root_ptr, node, insert_node, insert_pos.parent_ptr);
 				if (insert_pos.is_parent) {

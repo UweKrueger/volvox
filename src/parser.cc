@@ -1951,7 +1951,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 	if (comp_mode == comp_jit)
 		finishFunctionOrModule();
 	// Make an anonymous proto.
-	volvoxc::FullType* TheType = lex.get_full_type(have_return ? "int" : "bool");
+	volvoxc::FullType* TheType = have_return ? integer_type : bool_type;
 	auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 	                                            std::vector<std::string>(),
 	                                            A_c_api | A_pub,
