@@ -2720,6 +2720,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 #else
 					TheFunction->getBasicBlockList().push_back(MergeBB);
 #endif
+					if (ThenBBstart)
+						Builder->CreateBr(ThenBBstart);
 					Builder->SetInsertPoint(MergeBB);
 				}
 				return thenConstV;
@@ -2730,6 +2732,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 #else
 					TheFunction->getBasicBlockList().push_back(MergeBB);
 #endif
+					if (ElseBBstart)
+						Builder->CreateBr(ElseBBstart);
 					Builder->SetInsertPoint(MergeBB);
 				}
 				return elseConstV;
