@@ -2423,7 +2423,6 @@ bool ForExprAST::SetupLoop() {
 
 bool ForExprAST::Iterate() {
 	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
-	llvm::Value* One = llvm::ConstantInt::get(ValueType, 1, true);
 	if (ValueType->isIntegerTy())
 		ctrl_var = Builder->CreateAdd(ctrl_var, Step);
 	else
