@@ -470,9 +470,12 @@ static void HandleTypeDef(unsigned share_kind) {
 		purgeLine();
 		return;
 	}
-	// newft remains alive even after lex has been destroyed
-	newft->mangled_name = strdup(ft->mangled_name);
+	// newft remains alive even after lex goes out of scope
+	newft->mangled_name = ft->mangled_name;
 	*ft = *newft;
+	// mangled_name will intentionally *not* be automatically freed because
+	// it can be referred anywhere. We keep a database of all types with mangled
+	// names so valgrind will not report leaks
 	struct_mangled_ft[std::string(struct_type->getName())] = newft;
 	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
