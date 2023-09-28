@@ -81,12 +81,18 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    kept_buf = *lineptr;
 				    kept_bufsize = *n;
 			    }
-			    *lineptr = readline(prompt);
-			    if (!*lineptr) {
+			    int max_fail = 2;
+			    for(;;) {
+				    *lineptr = readline(prompt);
+				    if (*lineptr)
+					    break;
 #if !defined (_MSC_VER)
 				    outs() << "\n";
 #endif
-				    return -1;
+				    if (max_fail > 0)
+					    errs() << "Press Crtl-C " << max_fail-- << "x again to exit...\n";
+				    else
+					    return -1;
 			    }
 			    *n = strlen(*lineptr);
 			    if (*n)

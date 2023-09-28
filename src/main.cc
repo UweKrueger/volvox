@@ -45,6 +45,9 @@ CPU_Type_t cpu_idx;
 OS_Type_t os_idx;
 signalhandler_t old_abort = nullptr;
 signalhandler_t old_flt = nullptr;
+#ifdef _WIN32
+std::atomic<HANDLE> execution_thread = nullptr;
+#endif
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -612,20 +615,25 @@ static void HandleImport() {
 
 static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 	bool (*expr)() = (bool (*)())expr_ptr;
-	return (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
+	THREAD_RETURN res = (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
+	execution_thread = nullptr;
+	return res;
 }
 
-#if defined (_MSC_VER)
-bool spawn_bool_expr(bool (*expr)()) {
-	DWORD thr_id;
-	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, &thr_id);
+// This starts the main JIT execution thread for each command.
+// We use a separate thread so signals from "inside" (e.g. index out of range)
+// or TerminateThread() from "outside" can kill this thread without
+// crashing the whole REPL application.
+//
 #ifdef _WIN32
-	get_running_threads();
-#endif
-	errs() << "Thread " << thr_id << " handle: " << thread << " created\n";
+bool spawn_bool_expr(bool (*expr)()) {
+	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
+	execution_thread = thread;
 	WaitForSingleObject(thread, INFINITE);
+	execution_thread = nullptr; // in case thread was terminated by signal
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
+	CloseHandle(thread);
 	return !(!retval);
 }
 int spawn_int_expr(int (*expr)()) {
@@ -633,6 +641,7 @@ int spawn_int_expr(int (*expr)()) {
 	WaitForSingleObject(thread, INFINITE);
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
+	CloseHandle(thread);
 	return (int)retval;
 }
 #else
@@ -1020,7 +1029,9 @@ static void MainLoop() {
 			Builder->ClearInsertionPoint();
 			if (auto expr = GetTopLevelExpression(sym_kind)) {
 				if (comp_mode == comp_jit && !do_test)
-					HandleTopLevelExpression(std::move(expr));
+					if (!HandleTopLevelExpression(std::move(expr))) {
+						errs() << "Command aborted...\n";
+					}
 				else
 					GlobalExprList.push_back(std::move(expr));
 			}
@@ -1081,6 +1092,18 @@ void finish_thread(int caught_signal) {
 	pthread_exit(nullptr);
 #endif
 }
+
+#ifdef _WIN32
+BOOL WINAPI CtrlCHandler(DWORD event) {
+	// Terminate the main execution thread if there is one
+	// otherwise just ignore the interrupt
+	// the REPL is not terminated
+	HANDLE handle = execution_thread.exchange(nullptr);
+	if (handle)
+		TerminateThread(handle, 0);
+	return TRUE;
+}
+#endif
 
 static void usage(const char* prog) {
 	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
@@ -1225,6 +1248,7 @@ int main(int argc, char* argv[]) {
 	old_input_cp = GetConsoleCP();
 	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
+	SetConsoleCtrlHandler(CtrlCHandler, TRUE);
 #endif
 	setlocale(LC_CTYPE, "en_US.UTF-8");
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
@@ -1472,9 +1496,6 @@ int main(int argc, char* argv[]) {
 		else
 			link_mode = do_link;
 	}
-#ifdef _WIN32
-	get_running_threads();
-#endif
 	if (idiv_mode == idiv_mode_undef)
 		idiv_mode = idiv_mode_floored; // default to Knuth's suggestion
 	if (run_program && link_mode == dont_link) {
