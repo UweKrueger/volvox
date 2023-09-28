@@ -475,6 +475,12 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
 	auto opclass = getOpClass(Op);
+	if (opclass != OpComma && opclass != OpBitwise && opclass != OpColon) {
+		if (left_bitwidth == 1 && right_bitwidth != 1)
+			return { nullptr, 0, false, opclass, "LHS of type 'bool' cannot be combined with numeric RHS value\n" };
+		if (right_bitwidth == 1 && left_bitwidth != 1)
+			return { nullptr, 0, false, opclass, "RHS of type 'bool' cannot be combined with numeric LHS value\n" };
+	}
 	unsigned res_bitwidth;
 	bool res_is_unknown_type = left_is_unknown_type & right_is_unknown_type;
 	bool res_is_float = left_is_float || right_is_float;

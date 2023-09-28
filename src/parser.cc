@@ -1011,6 +1011,10 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 {
 	if (!RHS_type || RHS_type->isVoidTy()) {
 		errs() << BinLoc << ": RHS of declaration is " << (RHS_type ? "of void type\n" : "indeterminate\n");
+		if (RHS_type)
+			if (auto branch_expr = dynamic_cast<BranchExprAST*>((*RHS).get()))
+				if (branch_expr->errmsg)
+					errs() << branch_expr->Loc << ": in conditional expression: " << branch_expr->errmsg;
 		return { nullptr, new_var_none };
 	}
 	ReferenceExprAST* RefL;
@@ -1507,6 +1511,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				if (!lval->Name.empty())
 					errs() << lval->Loc << ": unknown identifier '" << lval->Name << "'\n";
 			errs() << BinLoc << ": RHS of '" << BinOp << "' is " << (RHS_type ? "of void type\n" : "indeterminate\n");
+			if (RHS_type)
+				if (auto branch_expr = dynamic_cast<BranchExprAST*>((RHS).get()))
+					if (branch_expr->errmsg)
+						errs() << branch_expr->Loc << ": in conditional expression: " << branch_expr->errmsg;
+
 			return nullptr;
 		}
 	valid_void:

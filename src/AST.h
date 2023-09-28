@@ -823,12 +823,13 @@ class BranchExprAST : public ExprAST {
 protected:
 	std::vector<std::unique_ptr<ExprAST>> Then, Else;
 	VarTable then_locals_table, else_locals_table;
-	const char* errmsg;
 	TokenKind if_kind = (TokenKind)0;
 	llvm::BasicBlock* StackRestoreBB0;
 	llvm::Function* TheFunction = nullptr;
 
 public:
+	const char* errmsg; // postponed: result type is just void if branch last values do not match
+	                    // however if a result value is needed by a consumer this message is used
 	std::unique_ptr<ExprAST> Cond;
 	int ThenEndKind; // maybe tok_else, tok_end, tok_return, ...
 	int ElseEndKind;

@@ -43,7 +43,7 @@ const __MUTEX_SIZE := if os.isLinux
 type mutex
 
 cdecl fn CreateMutexA(lpMutexAttributes voidptr, bInitialOwner bool, lpName cstring) size_t
-cdecl fn CloseHandle(size_t) int
+cdecl fn CloseHandle(size_t) bool
 cdecl fn pthread_mutex_init(&m mutex, &attr mutex_attr) int
 cdecl fn pthread_mutex_destroy(&m mutex) int
 
