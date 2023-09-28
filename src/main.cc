@@ -1938,6 +1938,12 @@ int main(int argc, char* argv[]) {
 			CallGlobalDestructorsJIT();
 		ExitOnErr(TheJIT->getMainJITDylib().clear());
 		result = return_value;
+#ifdef _WIN32
+		while (!extra_dlls.empty()) {
+			FreeLibrary(extra_dlls.back());
+			extra_dlls.pop_back();
+		}
+#endif
 	}
 	for (auto str: SourceFileNames)
 		free((void*)str);

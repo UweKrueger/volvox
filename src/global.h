@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
-#if defined (_WIN32)
+#ifdef _WIN32
 #include "../include/volvox-15.hh"
 #include <windows.h>
 #include <synchapi.h>
@@ -472,6 +472,9 @@ extern llvm::ExitOnError ExitOnErr;
 extern llvm::DISubprogram *SP;
 extern llvm::DIFile *Unit;
 extern volvoxc::FullType* theFunction_ret_ft;
+#ifdef _WIN32
+extern std::vector<HMODULE> extra_dlls;
+#endif
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type

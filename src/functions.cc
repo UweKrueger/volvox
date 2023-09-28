@@ -17,6 +17,9 @@ llvm::DISubprogram *SP;
 llvm::DIFile *Unit;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
 std::vector<FullVar> expr_temps; // to call destructors immediatelly after expr
+#ifdef _WIN32
+std::vector<HMODULE> extra_dlls; // loaded by '__link_extra' at runtime in JIT mode
+#endif
 
 // global function to find method protos
 std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName) {
@@ -783,18 +786,35 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 							std::string dll;
 #ifdef _WIN32
 							dll = std::string(lit->Val.CStr, lit->Val.Len) + ".dll";
-							LoadLibraryA(dll.c_str());
+							auto handle = LoadLibraryA(dll.c_str());
+							if (handle) {
+								extra_dlls.push_back(handle);
+							}
 #else
 							if (!strncmp(lit->Val.CStr, "lib", 3))
 								dll = std::string(lit->Val.CStr, lit->Val.Len);
 							else
 								dll = std::string("lib") + lit->Val.CStr + ".so";
 							auto handle = dlopen(dll.c_str(), RTLD_NOW | RTLD_GLOBAL);
-							if (!handle) {
-								errs() << arg->Loc << ": " << dlerror() << '\n';
+#endif
+							if (handle) {
+								if (verbosity >= 2)
+									errs() << ": loaded extra DLL '" << dll << "'\n";
+							} else {
+								char* msg = nullptr;
+#ifdef _WIN32
+								DWORD last_err = GetLastError();
+								FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+								                           FORMAT_MESSAGE_IGNORE_INSERTS, NULL, last_err, 0, (LPTSTR)&msg, 0, nullptr);
+#else
+								msg = dlerror();
+#endif
+								errs() << arg->Loc << ": cannot load extra library '" << dll << "': " << msg << '\n';
+#ifdef _WIN32
+								LocalFree(msg);
+#endif
 								return nullptr;
 							}
-#endif
 						} else {
 							std::string lib;
 #ifdef _WIN32
