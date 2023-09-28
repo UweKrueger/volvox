@@ -1036,10 +1036,15 @@ uint64_t stacksize = 10485760; // 10MB as safe fallback
 // similar errors
 // this is not a clean "exit": memory blocks might become orphaned, ...
 //
-void finish_thread(int) {
+void finish_thread(int caught_signal) {
 #ifdef _WIN32
+	// the Windows signal() implementation seems to use the "classic"
+	// semantics where the handler has to be restored after the signal
+	// is caught - let's hope we do not get race conditions...
+	old_abort = signal(caught_signal, finish_thread);
 	ExitThread(0);
 #else
+	// modern Linux follows the BSD semantics where the handler remains set
 	pthread_exit(nullptr);
 #endif
 }
