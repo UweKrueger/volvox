@@ -157,6 +157,7 @@ class LvalueExprAST : public ExprAST {
 	std::pair<llvm::Type*,llvm::Value*> ref_cache = { nullptr, nullptr };
 public:
 	std::string Name;
+	bool error_already_printed = false;
 	LvalueExprAST(SourceLocation Loc, std::string Name = "") : ExprAST(Loc), Name(Name) {}
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned

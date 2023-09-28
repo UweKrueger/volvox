@@ -343,8 +343,9 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 				errs() << LenLoc << ": array length must be greater than any element index\n";
 				return nullptr;
 			} else if (i >= (uint64_t)len) {
-				errs() << IdxLoc << ": index (" << i << ") out of range (should be in 0.."
-				       << (len-1) << ")\n";
+				if (!error_already_printed)
+					errs() << IdxLoc << ": index (" << (ssize_t)i << ") out of range (0.."
+					       << (len-1) << ")\n";
 				return nullptr;
 			}
 			return Builder->CreateExtractValue(fld, i);
@@ -452,7 +453,8 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 			if (c_idx) {
 				uint64_t u_idx = c_idx->getZExtValue();
 				if (u_idx >= num_elem) {
-					errs() << aggr->Elements[0]->Loc << ": array index (" << u_idx << ") must be less than array length (" << num_elem << ")\n";
+					errs() << aggr->Elements[0]->Loc << ": index (" << (int64_t)u_idx << ") out of range (0.." << (num_elem-1) << ")\n";
+					error_already_printed = true;
 					return nullptr;
 				}
 				// TODO: run time check for index range
