@@ -360,3 +360,22 @@ end
 fn test_declaration_in_global_if bool
 	global ffwed7
 	return ffwed7 == 13
+
+fn bool_func_1 bool
+	return true
+
+fn int_func_1 int
+	return 7
+
+fn float_func_1 f64
+	if true
+		bool_func_1
+	else
+		int_func_1
+	end
+	return 12.75
+
+4
+
+fn test_void_if bool
+	return float_func_1 == 12.75
