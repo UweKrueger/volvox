@@ -32,7 +32,9 @@ import sync
 
 fn test_semaphore_1 bool
 	s = sync.semaphore(3)
-	return s.wait && s.wait && s.wait
+	success = s.wait && s.wait && s.wait
+	s.close
+	return success
 
 fn test_semaphore_2 bool
 	s = sync.semaphore
@@ -41,6 +43,8 @@ fn test_semaphore_2 bool
 	a = s.timedwait(0.0)
 	b = s.timedwait(1.0)
 	c = s.timedwait(0.05)
-	return a && b && !c && s.err == 0
+	success = a && b && !c && s.err == 0
+	s.close
+	return success
 
 import io.socket

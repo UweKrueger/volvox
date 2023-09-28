@@ -28,6 +28,8 @@ cdecl fn release_sem_etc(id i32, count i32, flags u32) i32
 cdecl fn pipe(&filedes [2]int) int
 cdecl fn pipe2(&filedes [2]int, flags u32) int
 cdecl fn fcntl(fd int, op int, ...) int
+cdecl fn close(fd int) int
+
 const SETFD := 0x004 # Haiku: set fd flags
 
 from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT, POLLIN
@@ -113,6 +115,25 @@ pub fn semaphore(init_val int) Semaphore
 pub fn semaphore Semaphore
 	return semaphore(0)
 
+pub fn Semaphore.close
+	if os.isWindows
+		success = CloseHandle(size_t(this.handle))
+	elif os.isLinux || os.isFreeBSD || os.isNetBSD
+		success = close(int(this.handle)) == 0
+	else
+		p = pipehandle_t{ ssize_t: this.handle }
+		success = close(p.fds[1]) == 0
+		if (success)
+			success = close(p.fds[0]) == 0
+		end
+	end
+	if !success
+		this.err = GetLastError()
+	else
+		this.handle = 0
+	end
+	return
+
 pub inline fn Semaphore.max u64
 	global SEMVMX
 	return SEMVMX
@@ -178,7 +199,7 @@ pub fn Semaphore.wait bool
 		return false
 	end
 	if os.isWindows
-		success = WaitForSingleObjectEx(size_t(this.handle), u32(-1), true) != 0
+		success = WaitForSingleObjectEx(size_t(this.handle), u32(-1), true) == 0
 	else
 		if os.isLinux || os.isFreeBSD || os.isNetBSD
 			fd = int(this.handle)
@@ -225,7 +246,7 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 		timeout.i64 = 0
 	end
 	if os.isWindows
-		success = WaitForSingleObjectEx(size_t(this.handle), u32(timeout.i64 / 10000), true) != 0
+		success = WaitForSingleObjectEx(size_t(this.handle), u32(timeout.i64 / 10000), true) == 0
 	else
 		timeo = timeout.timespec
 		if os.isLinux || os.isFreeBSD || os.isNetBSD
@@ -295,7 +316,7 @@ pub fn Semaphore.trywait bool
 		return false
 	end
 	if os.isWindows
-		success = WaitForSingleObjectEx(size_t(this.handle), 0, true) != 0
+		success = WaitForSingleObjectEx(size_t(this.handle), 0, true) == 0
 	else
 		if os.isLinux || os.isFreeBSD || os.isNetBSD
 			fd = int(this.handle)
