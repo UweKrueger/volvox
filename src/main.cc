@@ -8,6 +8,7 @@
 #include "AST.h"
 #ifdef _WIN32
 #include <winsock.h>
+#include <tlhelp32.h>
 #endif
 #include <signal.h>
 
@@ -332,6 +333,33 @@ void init(const llvm::Triple& triple) {
 	}
 }
 
+#ifdef _WIN32
+// helper function - for debug purposes only
+void get_running_threads() {
+	auto mypid = GetCurrentProcessId();
+	auto snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+	if (snap == INVALID_HANDLE_VALUE) {
+		errs() << "No thread list\n";
+		return;
+	}
+	THREADENTRY32 thr {
+		.dwSize = sizeof(THREADENTRY32)
+	};
+	if (!Thread32First(snap, &thr)) {
+		errs() << "no first thread\n";
+		CloseHandle(snap);
+		return;
+	}
+	do {
+		if (thr.th32OwnerProcessID == mypid) {
+			errs() << "Thread ID: " << thr.th32ThreadID << "\n";
+		}
+	} while (Thread32Next(snap, &thr));
+	CloseHandle(snap);
+	return;
+}
+#endif
+
 //===----------------------------------------------------------------------===//
 // Top-Level parsing and JIT Driver
 //===----------------------------------------------------------------------===//
@@ -589,7 +617,12 @@ static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 
 #if defined (_MSC_VER)
 bool spawn_bool_expr(bool (*expr)()) {
-	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
+	DWORD thr_id;
+	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, &thr_id);
+#ifdef _WIN32
+	get_running_threads();
+#endif
+	errs() << "Thread " << thr_id << " handle: " << thread << " created\n";
 	WaitForSingleObject(thread, INFINITE);
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
@@ -1439,6 +1472,9 @@ int main(int argc, char* argv[]) {
 		else
 			link_mode = do_link;
 	}
+#ifdef _WIN32
+	get_running_threads();
+#endif
 	if (idiv_mode == idiv_mode_undef)
 		idiv_mode = idiv_mode_floored; // default to Knuth's suggestion
 	if (run_program && link_mode == dont_link) {
