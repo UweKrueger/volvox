@@ -990,10 +990,12 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				FullVar* else_var = else_locals_table[then_node.getKey()];
 				if (else_var) {
-					if (!locals_table.back().insert(then_node.getKey(), *else_var)) {
-						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-						return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-								std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+					if (!locals_table.empty()) {
+						if (!locals_table.back().insert(then_node.getKey(), *else_var)) {
+							errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
+							return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+									std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+						}
 					}
 				}
 			}
