@@ -53,7 +53,7 @@ static char prompt[1024];
 std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid after files have been processed
 
 #ifdef MONOCHROME_PROMPT
-// OpendBSD's version of editline does not support colors
+// OpenBSD's version of editline does not support colors
 #define VOLVOX_PROMPT "%04d> "
 #elif defined(_WIN32)
 // our patched version of wineditline recognizes ANSI escape sequences

@@ -737,7 +737,7 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 		// Skip rest for error recovery.
 		purgeLine();
 	}
-	return b;
+	return b || have_return;
 }
 
 std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_type = "int") {
