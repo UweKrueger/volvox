@@ -1121,11 +1121,10 @@ CTRL_C_HANDLER_DECL CtrlCHandler(int event) {
 		// On other system this handler runs on an arbitrary  existing thread. So we have to
 		// figure out if we should terminate ourself or pass the signal on to execution_thread
 		if (handle == pthread_self()) {
-			write(2, WR_STRING("exiting myself\n"));
 			pthread_exit(nullptr);
 		} else {
-			write(2, WR_STRING("killing execution thread\n"));
-			pthread_kill(handle, signal);
+			execution_thread = handle;
+			pthread_kill(handle, event);
 		}
 #endif
 	}
