@@ -83,14 +83,20 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    }
 			    int max_fail = 2;
 			    for(;;) {
+#ifndef _WIN32
 				    errno = 0;
+#endif
 				    *lineptr = readline(prompt);
 				    if (*lineptr)
 					    break;
 #if !defined (_MSC_VER)
 				    outs() << "\n";
 #endif
-				    if (errno == EINTR && max_fail > 0)
+				    if (
+#ifndef _WIN32
+					    errno == EINTR &&
+#endif
+					    max_fail > 0)
 					    errs() << "Press Crtl-C " << max_fail-- << "x again to exit...\n";
 				    else
 					    return -1;
@@ -884,4 +890,3 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, eXpect expect) {
 		return out << "### internal error ###";
 	}
 }
-

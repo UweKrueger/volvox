@@ -1103,12 +1103,14 @@ void finish_thread(int caught_signal) {
 #ifdef _WIN32
 #define CTRL_C_HANDLER_DECL BOOL WINAPI
 #define CTRL_C_HANDLER_RETURN TRUE
+#define CTRL_C_HANDLER_EVENT_TY DWORD
 #else
 #define CTRL_C_HANDLER_DECL void
 #define CTRL_C_HANDLER_RETURN
+#define CTRL_C_HANDLER_EVENT_TY int
 #endif
 
-CTRL_C_HANDLER_DECL CtrlCHandler(int event) {
+CTRL_C_HANDLER_DECL CtrlCHandler(CTRL_C_HANDLER_EVENT_TY event) {
 	// Terminate the main execution thread if there is one
 	// otherwise just ignore the interrupt
 	// the REPL is not terminated
