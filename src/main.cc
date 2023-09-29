@@ -45,9 +45,13 @@ CPU_Type_t cpu_idx;
 OS_Type_t os_idx;
 signalhandler_t old_abort = nullptr;
 signalhandler_t old_flt = nullptr;
+signalhandler_t old_intr = nullptr;
 #ifdef _WIN32
-std::atomic<HANDLE> execution_thread = nullptr;
+#define THREAD_HANDLE_TY HANDLE
+#else
+#define THREAD_HANDLE_TY pthread_t
 #endif
+std::atomic<THREAD_HANDLE_TY> execution_thread{0};
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -616,7 +620,7 @@ static void HandleImport() {
 static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 	bool (*expr)() = (bool (*)())expr_ptr;
 	THREAD_RETURN res = (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
-	execution_thread = nullptr;
+	execution_thread = (THREAD_HANDLE_TY)0;
 	return res;
 }
 
@@ -630,7 +634,7 @@ bool spawn_bool_expr(bool (*expr)()) {
 	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
 	execution_thread = thread;
 	WaitForSingleObject(thread, INFINITE);
-	execution_thread = nullptr; // in case thread was terminated by signal
+	execution_thread = (THREAD_HANDLE_TY)0; // in case did not finish due to signal
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
 	CloseHandle(thread);
@@ -655,8 +659,10 @@ bool spawn_bool_expr(bool (*expr)()) {
 		errs() << "Error creating execution thread: " << strerror(res) << '\n';
 		abort();
 	}
+	execution_thread = thread;
 	void* retval;
 	res = pthread_join(thread, &retval);
+	execution_thread = (THREAD_HANDLE_TY)0; // in case did not finish due to signal
 	pthread_attr_destroy(&attr);
 	return !(!retval);
 }
@@ -1028,12 +1034,13 @@ static void MainLoop() {
 				finish_constructors_and_destructor();
 			Builder->ClearInsertionPoint();
 			if (auto expr = GetTopLevelExpression(sym_kind)) {
-				if (comp_mode == comp_jit && !do_test)
+				if (comp_mode == comp_jit && !do_test) {
 					if (!HandleTopLevelExpression(std::move(expr))) {
 						errs() << "Command aborted...\n";
 					}
-				else
+				} else {
 					GlobalExprList.push_back(std::move(expr));
+				}
 			}
 			if (have_return)
 				return;
@@ -1094,16 +1101,36 @@ void finish_thread(int caught_signal) {
 }
 
 #ifdef _WIN32
-BOOL WINAPI CtrlCHandler(DWORD event) {
+#define CTRL_C_HANDLER_DECL BOOL WINAPI
+#define CTRL_C_HANDLER_RETURN TRUE
+#else
+#define CTRL_C_HANDLER_DECL void
+#define CTRL_C_HANDLER_RETURN
+#endif
+
+CTRL_C_HANDLER_DECL CtrlCHandler(int event) {
 	// Terminate the main execution thread if there is one
 	// otherwise just ignore the interrupt
 	// the REPL is not terminated
-	HANDLE handle = execution_thread.exchange(nullptr);
-	if (handle)
+	THREAD_HANDLE_TY handle = execution_thread.exchange((THREAD_HANDLE_TY)0);
+	if (handle) {
+#ifdef _WIN32
+		// On Windows this handler is always executed in a newly created separate thread
 		TerminateThread(handle, 0);
-	return TRUE;
-}
+#else
+		// On other system this handler runs on an arbitrary  existing thread. So we have to
+		// figure out if we should terminate ourself or pass the signal on to execution_thread
+		if (handle == pthread_self()) {
+			write(2, WR_STRING("exiting myself\n"));
+			pthread_exit(nullptr);
+		} else {
+			write(2, WR_STRING("killing execution thread\n"));
+			pthread_kill(handle, signal);
+		}
 #endif
+	}
+	return CTRL_C_HANDLER_RETURN;
+}
 
 static void usage(const char* prog) {
 	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
@@ -1248,7 +1275,6 @@ int main(int argc, char* argv[]) {
 	old_input_cp = GetConsoleCP();
 	SetConsoleCP(CP_UTF8);
 	SetConsoleOutputCP(CP_UTF8);
-	SetConsoleCtrlHandler(CtrlCHandler, TRUE);
 #endif
 	setlocale(LC_CTYPE, "en_US.UTF-8");
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
@@ -1735,10 +1761,16 @@ int main(int argc, char* argv[]) {
 		MainFunction->prepare_codegen();
 	}
 	if (jit_repl) {
-		// running Volvox code may raise SIGABRT or SIGFPE
-		// we do not want the REPL to crash completely so we install signal handlers
-		// that just exit the current running thread
+		// Running Volvox code may raise SIGABRT or SIGFPE, the user my press Ctrl-C.
+		// We do not want the REPL to crash completely so we install signal handlers
+		// that just exit the currently running main execution thread, if any
 		old_abort = signal(SIGABRT, finish_thread);
+		old_flt = signal(SIGFPE, finish_thread);
+#ifdef _WIN32
+		SetConsoleCtrlHandler(CtrlCHandler, TRUE);
+#else
+		old_intr = signal(SIGINT, CtrlCHandler);
+#endif
 	}
 	// Prime the first token.
 	getNextToken();

@@ -106,6 +106,7 @@ typedef void (*signalhandler_t)(int);
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#define WR_STRING(a) a, ARRAY_SIZE(a) - 1
 #endif
 
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
