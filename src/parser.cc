@@ -990,12 +990,24 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				FullVar* else_var = else_locals_table[then_node.getKey()];
 				if (else_var) {
-					if (!locals_table.empty()) {
-						if (!locals_table.back().insert(then_node.getKey(), *else_var)) {
-							errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-							return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-									std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
+					bool success = false;
+					if (locals_table.empty()) {
+						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
+							// std::string var_name = then_node.getKey();
+							// auto bin_expr = std::make_unique<BinaryExprAST>(
+							// 	Loc, "=",
+							// 	std::make_unique<VariableExprAST>(Loc, var_name, fv),
+							// 	std::make_unique<ConstExprAST>(Loc, &else_var->ft, llvm::Constant::getNullValue(else_var->ft.type)));
+							// HandleGlobalVariable(std::move(bin_expr), else_var->ft.type_attr);
+							success = true;
 						}
+					} else {
+						success = locals_table.back().insert(then_node.getKey(), *else_var);
+					}
+					if (!success) {
+						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
+						return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+								std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 					}
 				}
 			}

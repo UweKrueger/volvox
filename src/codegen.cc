@@ -2774,18 +2774,21 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				if (!merge.second)
 					return nullptr;
 				auto mergeVal = merge.second;
-				if (!locals_table.empty()) {
-					FullVar* entry = locals_table.back()[then_node.getKey()];
-					if (!entry) {
-						errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
-						abort();
-					}
-					entry->ft.type = merge.first;
-					entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
-					entry->val = mergeVal;
-					else_var->ft.type_attr |= A_merged; // mark as merged to avoid destructor call below
-					then_var->ft.type_attr |= A_merged;
+				FullVar* entry;
+				if (locals_table.empty()) {
+					entry = lex.module->globals_table[then_node.getKey()];
+				} else {
+					entry = locals_table.back()[then_node.getKey()];
 				}
+				if (!entry) {
+					errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
+					abort();
+				}
+				entry->ft.type = merge.first;
+				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
+				entry->val = mergeVal;
+				else_var->ft.type_attr |= A_merged; // mark as merged to avoid destructor call below
+				then_var->ft.type_attr |= A_merged;
 			}
 		}
 	}

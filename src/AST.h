@@ -196,7 +196,7 @@ public:
 		}
 		// if the variable name has not found in the databases we don't generate
 		// an error message here because this VariableExprAST could be the LHS of
-		// an initialization e.g. `a := 42`
+		// an initialization e.g. `a = 42`
 	}
 	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv)
 		: LvalueExprAST(Loc, Name), full_var(fv) {
