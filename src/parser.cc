@@ -993,6 +993,7 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 					bool success = false;
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
+							fv->ft.type_attr |= A_mainvar;
 							// std::string var_name = then_node.getKey();
 							// auto bin_expr = std::make_unique<BinaryExprAST>(
 							// 	Loc, "=",

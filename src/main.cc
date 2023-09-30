@@ -701,7 +701,20 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 				InitializeModuleAndPassManager();
-				
+				if (!pending_globals.empty()) {
+					for (auto& new_decl: pending_globals) {
+						auto GV = CreateGlobal(std::get<0>(new_decl), std::get<1>(new_decl), std::get<2>(new_decl));
+						if (!GV) {
+							errs() << "error creating main scope variable '" << std::get<1>(new_decl) << "'\n";
+							ExitOnErr(RT->remove());
+							return false;
+						}
+					}
+					pending_globals.clear();
+					ExitOnErr(TheJIT->addModule(
+						          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
+					InitializeModuleAndPassManager();
+				}
 				// Search the JIT for the __anon_expr symbol.
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
 				// Get the symbol's address and cast it to the right type (takes no

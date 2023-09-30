@@ -24,6 +24,7 @@ llvm::Value* ret_ptr = nullptr; // for sret
 // the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
 unsigned condnesting = 0;
 idiv_modes idiv_mode = idiv_mode_undef;
+std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
 
 //===----------------------------------------------------------------------===//
 // Code Generation
@@ -782,7 +783,7 @@ static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varn
 	return GV;
 }
 
-static llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
+llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
 	llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 	                                                    false, link_type(sym_kind), initializer, varname, nullptr,
 	                                                    tls_model(sym_kind), 0, false);
@@ -1418,9 +1419,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				} else {
-					// We should not get here! TODO: Implement 'codegen_dims()' and allocate
-					// space in advance so 'target' is available here
-					//errs() << Loc << ": internal problem - loading large value\n";
 					auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 					if (ValPtr)
 						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
@@ -2786,7 +2784,23 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				}
 				entry->ft.type = merge.first;
 				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
-				entry->val = mergeVal;
+				if (comp_mode == comp_jit && locals_table.empty()) {
+					if (merge.first->isSized()) {
+						std::string var_name = then_node.getKey();
+						entry->storage_type = merge.first;
+						entry->ft.type_attr |= A_mainvar;
+						entry->mangled_name = strdup(var_name.c_str());
+						auto GV = GetGlobalHandle(merge.first, var_name, entry->ft.type_attr);
+						pending_globals.push_back({ llvm::Constant::getNullValue(merge.first), std::move(var_name), entry->ft.type_attr });
+						auto align = TheModule->getDataLayout().getPrefTypeAlign(merge.first);
+						auto sz = TheModule->getDataLayout().getTypeAllocSize(merge.first);
+						Builder->CreateMemCpy(GV, align, mergeVal, align, sz);
+					} else {
+						errs() << Loc << ": declaring valiable size array '" << then_node.getKey() << "' in global scopy from conditional branches not supported, yet (sorry)\n";
+					}
+				} else {
+					entry->val = mergeVal;
+				}
 				else_var->ft.type_attr |= A_merged; // mark as merged to avoid destructor call below
 				then_var->ft.type_attr |= A_merged;
 			}

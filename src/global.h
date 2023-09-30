@@ -769,6 +769,7 @@ extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
 extern std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 extern std::vector<const char*> jit_string_consts;
+extern std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
 
 extern void InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
@@ -778,6 +779,7 @@ extern void InsertDestructors(llvm::Value* retp);
 extern void InsertDestructors(std::vector<FullVar>& t);
 extern void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 extern void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
+extern llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind);
 
 inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before) {
 	InsertArrayConDestructor(fv->ft.type, fv->ft.elem_type, val, before);
