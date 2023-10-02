@@ -2118,21 +2118,21 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 
 std::pair<llvm::Type*, llvm::Value*> merge_values(
 	llvm::Type* typA, llvm::Value* valA, llvm::BasicBlock* caseA, llvm::Instruction* lastA, 
-	llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB, llvm::Instruction* lastB, llvm::Instruction* firstWhile, llvm::BasicBlock* enterBB) {
+	llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB, llvm::Instruction* lastB,
+	llvm::Instruction* firstWhile, llvm::BasicBlock* enterBB, SourceLocation locA,
+	SourceLocation locB, const char* unmangled_name = nullptr) {
+	auto MergeBB = Builder->GetInsertBlock();
 	if (!valA || !typA) {
 		if (!valB || !typB) {
-			errs() << "error merging variables from if/while/else branches\n";
-			return { nullptr, nullptr };
+			goto uncompatible_types;
 		}
 		return { typB, valB };
 	} else if (!valB || !typB) {
 		return { typA, valA };
 	}
-	auto MergeBB = Builder->GetInsertBlock();
 	if (typA == typB) {
 		if (valA->getType() != valB->getType()) {
-			errs() << "internal error: types of if-branches do not match: " << *valA->getType() << " vs. " << *valB->getType() << "\n";
-			return { nullptr, nullptr };
+			goto uncompatible_types;
 		}
 		llvm::PHINode* PN = Builder->CreatePHI(valA->getType(), 2, "iftmp");
 		llvm::PHINode* PNW;
@@ -2169,8 +2169,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		unsigned n_vardims_B;
 		auto array_tB = llvm::dyn_cast<llvm::ArrayType>(typB);
 		if (!array_tB) {
-			errs() << "error: array / scalar mismatch\n";
-			return { nullptr, nullptr };
+			goto uncompatible_types;
 		}
 		Builder->SetInsertPoint(lastB);
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(valB->getType())) {
@@ -2202,38 +2201,31 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 					if (nA)
 						dimA = getSize(nA);
 					else
-						if (iA < n_vardims_A) {
+						if (iA < n_vardims_A)
 							dimA = Builder->CreateExtractValue(valA, iA++);
-						} else {
-							errs() << "error: mismatch in array value structure\n";
-							return { nullptr, nullptr };
-						}
+						else
+							goto uncompatible_types;
 					varDimsA.push_back(dimA);
 					llvm::Value* dimB;
 					Builder->SetInsertPoint(lastB);
 					if (nB)
 						dimB = getSize(nB);
 					else
-						if (iB < n_vardims_B) {
+						if (iB < n_vardims_B)
 							dimB = Builder->CreateExtractValue(valB, iB++);
-						} else {
-							errs() << "error: mismatch in array value structure\n";
-							return { nullptr, nullptr };
-						}
+						else
+							goto uncompatible_types;
 					varDimsB.push_back(dimB);
 				}
 				typA = elem_tA;
 				typB = elem_tB;
 			} else {
-				errs() << "incompatible types\n";
-				return { nullptr, nullptr };
+				goto uncompatible_types;
 			}
 			array_tB = llvm::dyn_cast<llvm::ArrayType>(typB);
 		} while ((array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)));
-		if (typA != typB) {
-			errs() << "mismatch in array element types " << *typA << " vs. " << *typB << '\n';
-			return { nullptr, nullptr };
-		}
+		if (typA != typB)
+			goto uncompatible_types;
 		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : typA->getPointerTo();
 		Builder->SetInsertPoint(lastA);
 		Aptr = Builder->CreatePointerCast(Aptr, ptr_t);
@@ -2255,10 +2247,8 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 				structIdx++;
 			}
 		}
-		if (structIdx != varDimsA.size() || structIdx != varDimsB.size()) {
-			errs() << "internal error: could not create merge value\n";
-			return { nullptr, nullptr };
-		}
+		if (structIdx != varDimsA.size() || structIdx != varDimsB.size())
+			goto uncompatible_types;
 		Builder->SetInsertPoint(lastB);
 		llvm::Value* the_structB = llvm::UndefValue::get(struct_type);
 		the_structB = Builder->CreateInsertValue(the_structB, Bptr, varDimsB.size());
@@ -2278,10 +2268,16 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		PN->addIncoming(firstWhile ? PNW : the_structA, caseA);
 		PN->addIncoming(the_structB, caseB);
 		return { resultT, PN };
-	} else {
-		errs() << "merge not possible " << *typA << " # " << *typB << '\n';
-		return { nullptr, nullptr };
 	}
+uncompatible_types:
+	if (unmangled_name)
+		errs() << "declaration types for variable '" << unmangled_name << "'";
+	else
+		errs() << "types of final value";
+	errs() << " in conditional branches do not match:\n"
+	       << locA << ": " << *typA << " here vs.\n"
+	       << locB << ": " << *typB << " there\n";
+	return { nullptr, nullptr };
 }
 
 bool ForExprAST::PrepareForIterator() {
@@ -2768,7 +2764,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (else_var) {
 				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ?
 				                          CondBB : (if_kind == tok_for) ? thenLast->getParent() : ThenBB, thenLast,
-				                          else_var->ft.type, else_var->val, ElseBB, elseLast, firstWhile, enterBB);
+				                          else_var->ft.type, else_var->val, ElseBB, elseLast, firstWhile, enterBB,
+				                          then_var->decl_loc, else_var->decl_loc, then_node.getKey());
 				if (!merge.second)
 					return nullptr;
 				auto mergeVal = merge.second;
@@ -2846,8 +2843,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		else if (CTcond == CTcond_false)
 			return handle(target, ElseV);
 		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while || if_kind == tok_for) ?
-		                          CondBB : ThenBB, thenLast,
-		                          Else.back()->ft->type, ElseV, ElseBB, elseLast, firstWhile, enterBB);
+		                          CondBB : ThenBB, thenLast, Else.back()->ft->type, ElseV, ElseBB, elseLast,
+		                          firstWhile, enterBB, Then.back()->Loc, Else.back()->Loc);
 		if (ft->type != merge.first) {
 			ft = new_FullType(*ft);
 			ft-> type = merge.first;
