@@ -2782,7 +2782,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				entry->ft.type = merge.first;
 				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
 				if (comp_mode == comp_jit && !do_test && locals_table.empty()) {
-					if (merge.first->isSized()) {
+					if (merge.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(merge.first) > 0) {
 						std::string var_name = then_node.getKey();
 						entry->storage_type = merge.first;
 						entry->ft.type_attr |= A_mainvar;
@@ -2792,6 +2792,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 						pending_globals.push_back({ initializer, std::move(var_name), entry->ft.type_attr });
 						auto align = TheModule->getDataLayout().getPrefTypeAlign(merge.first);
 						auto sz = TheModule->getDataLayout().getTypeAllocSize(merge.first);
+						errs() << Loc << ": memcpy for " << *merge.first << " size: " << sz << " align: " << align.value() << " val: " << *mergeVal << "\n";
 						Builder->CreateMemCpy(GV, align, mergeVal, align, sz);
 					} else {
 						errs() << Loc << ": declaring valiable size array '" << then_node.getKey() << "' in global scopy from conditional branches not supported, yet (sorry)\n";
