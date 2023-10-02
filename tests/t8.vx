@@ -17,10 +17,25 @@ fn test_outer_scope_branch_declaration_1 bool
 
 i93 = 7
 
-if ggwqljj > 3
-	LPPO = [3][i93+1][i93+2]real{1: {2: {3: -23.75}}}
+if ggwqljj > 7.5
+	LPPO = [5][i93+1][i93+2]real{1: {2: {3: -23.75}}}
 else
-	LPPO = [i93+5][5][i93+7]real{1: {2: {3: 7.25}}}
+	LPPO = [5][5][i93+7]real{1: {2: {3: 7.25}}}
 end
 
-LPPO[1][2][3]
+printf("%zu %zu %zu %f\n", LPPO.dim(0), LPPO.dim(1), LPPO.dim(2), LPPO[1][2][3])
+
+if ggwqljj > 7
+	LPPQ = [3][i93+1][8]real{1: {2: {3: -23.75}}}
+else
+	LPPQ = [i93+5][5][9]real{1: {2: {3: 7.25}}}
+end
+
+printf("%zu %zu %zu %f\n", LPPQ.dim(0), LPPQ.dim(1), LPPQ.dim(2), LPPQ[1][2][3])
+
+global LPPG1 = LPPO[1][2][3]
+global LPPG2 = LPPQ[1][2][3]
+
+fn test_outer_scope_branch_declaration_2 bool
+	global LPPG1, LPPG2
+	return LPPG1 == 7.25 && LPPG2 == -23.75

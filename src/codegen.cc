@@ -2795,7 +2795,15 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 						errs() << Loc << ": memcpy for " << *merge.first << " size: " << sz << " align: " << align.value() << " val: " << *mergeVal << "\n";
 						Builder->CreateMemCpy(GV, align, mergeVal, align, sz);
 					} else {
-						errs() << Loc << ": declaring valiable size array '" << then_node.getKey() << "' in global scopy from conditional branches not supported, yet (sorry)\n";
+						auto [el_type, data_ptr, Dims] = getArrayDims(mergeVal, merge.first);
+						// find out memory size of array in bytes: get element size and multiply witch each dimension
+						llvm::Value* Sz = getSize(TheModule->getDataLayout().getTypeAllocSize(el_type));
+						for (auto Dim: Dims)
+							Sz = Builder->CreateMul(Sz, Dim);
+						auto align = TheModule->getDataLayout().getPrefTypeAlign(el_type);
+						
+						errs() << Loc << ": declaring variable size array '" << then_node.getKey() << "', "
+						       << *mergeVal << " " << *merge.first << " in global scopy from conditional branches not supported, yet (sorry)\n";
 					}
 				} else {
 					entry->val = mergeVal;

@@ -868,6 +868,8 @@ extern llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayT
                                                   bool do_store = false, const llvm::Twine &Name = "");
 extern llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* ini_array_type,
                                            llvm::ArrayType* array_type);
+extern std::tuple<llvm::Type*,llvm::Value*,std::vector<llvm::Value*>> getArrayDims(
+	llvm::Value* val, llvm::Type* _type);
 extern llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type,
                                 std::vector<llvm::Value*>& Dims, std::vector<llvm::Value*>& returnDims,
                                 llvm::ArrayType* expected_array_type = nullptr);

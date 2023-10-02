@@ -179,6 +179,33 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 	return { ArrayAlloc, ArrayPtr };
 }
 
+// get element type, memory pointer, and dimensions of array in memory
+//
+std::tuple<llvm::Type*,llvm::Value*,std::vector<llvm::Value*>> getArrayDims(
+	llvm::Value* val, llvm::Type* _type) {
+	std::vector<llvm::Value*> Dims;
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(_type)) {
+		int idx = 0;
+		llvm::Type* elem_type;
+		do {
+			elem_type = array_type->getElementType();
+			uint64_t nominal_dim = array_type->getNumElements();
+			llvm::Value* Dim;
+			if (nominal_dim)
+				Dim = getSize(nominal_dim);
+			else
+				Dim = Builder->CreateExtractValue(val, idx++);
+			Dims.push_back(Dim);
+			array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
+		} while (array_type);
+		return { elem_type, Builder->CreateExtractValue(val, idx), Dims };
+	} else {
+		return { nullptr, nullptr, Dims };
+	}
+}
+
+// a more complex variant of the above for special purposes
+//
 llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type, std::vector<llvm::Value*>& Dims,
                          std::vector<llvm::Value*>& returnDims, llvm::ArrayType* expected_array_type) {
 	if (!expected_array_type)
