@@ -1803,12 +1803,8 @@ int main(int argc, char* argv[]) {
 		if (auto *FnIR = MainFunction->finish_codegen(true)) {
 			if (comp_mode == comp_jit) {
 				// call test_main()
-				// Create a ResourceTracker to track JIT'd memory allocated to our
-				// anonymous expression -- that way we can free it after executing.
-				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
-				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-				InitializeModuleAndPassManager();
+				ExitOnErr(TheJIT->addModule(std::move(TSM)));
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
@@ -1826,8 +1822,6 @@ int main(int argc, char* argv[]) {
 					errs() << "All test cases passed\n";
 				else
 					errs() << "Some test cases failed\n";
-				// Delete the anonymous expression module from the JIT.
-				ExitOnErr(RT->remove());
 			}
 		} else {
 			errs() << "error generating code for main function\n";
