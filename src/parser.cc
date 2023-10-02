@@ -1095,6 +1095,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 		auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
 		FullVar fv = {
 			.val = nullptr,
+			.decl_loc = LHS->Loc,
 			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{}
 		};
 		fv.ft.type = type;
@@ -1555,7 +1556,10 @@ static bool MarkAsGlobalVar(ExprAST* expr) {
 		}
 		if (auto global_fv = lookup_var(var_expr->Name.c_str(), true)) {
 			FullVar fv = {
-				.global = global_fv
+				.global = global_fv,
+				// we use the position in the function's global statements here
+				// if the original location is needed, .global can be dereferenced
+				.decl_loc = expr->Loc
 			};
 			locals_table.back().insert(var_expr->Name.c_str(), fv);
 			return true;
@@ -1877,6 +1881,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
 		FullVar fv = {
+			.decl_loc = Proto->ArgPos[i],
 			.ft = *Proto->ArgTypes[i]
 		};
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);

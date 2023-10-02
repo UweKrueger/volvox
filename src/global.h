@@ -511,8 +511,9 @@ struct FullVar {
 	};
 	llvm::Value* max_address = nullptr; // experimental - used for arrays to check access
 	llvm::Function* destructor = nullptr;
-	llvm::Instruction* constructor; // to erase in auto-conversion to move
+	llvm::Instruction* constructor = nullptr; // to erase in auto-conversion to move
 	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
+	SourceLocation decl_loc = SourceLocation{0};
 	unsigned n_p_r = 0;
 	unsigned c_p_r = 0;
 	volvoxc::FullType ft = {0};
