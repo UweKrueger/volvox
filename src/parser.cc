@@ -994,12 +994,6 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
 							fv->ft.type_attr |= A_mainvar;
-							// std::string var_name = then_node.getKey();
-							// auto bin_expr = std::make_unique<BinaryExprAST>(
-							// 	Loc, "=",
-							// 	std::make_unique<VariableExprAST>(Loc, var_name, fv),
-							// 	std::make_unique<ConstExprAST>(Loc, &else_var->ft, llvm::Constant::getNullValue(else_var->ft.type)));
-							// HandleGlobalVariable(std::move(bin_expr), else_var->ft.type_attr);
 							success = true;
 						}
 					} else {

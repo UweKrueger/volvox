@@ -2784,14 +2784,15 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				}
 				entry->ft.type = merge.first;
 				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
-				if (comp_mode == comp_jit && locals_table.empty()) {
+				if (comp_mode == comp_jit && !do_test && locals_table.empty()) {
 					if (merge.first->isSized()) {
 						std::string var_name = then_node.getKey();
 						entry->storage_type = merge.first;
 						entry->ft.type_attr |= A_mainvar;
 						entry->mangled_name = strdup(var_name.c_str());
+						auto initializer = llvm::Constant::getNullValue(merge.first);
 						auto GV = GetGlobalHandle(merge.first, var_name, entry->ft.type_attr);
-						pending_globals.push_back({ llvm::Constant::getNullValue(merge.first), std::move(var_name), entry->ft.type_attr });
+						pending_globals.push_back({ initializer, std::move(var_name), entry->ft.type_attr });
 						auto align = TheModule->getDataLayout().getPrefTypeAlign(merge.first);
 						auto sz = TheModule->getDataLayout().getTypeAllocSize(merge.first);
 						Builder->CreateMemCpy(GV, align, mergeVal, align, sz);
