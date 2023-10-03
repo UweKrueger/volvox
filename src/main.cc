@@ -742,6 +742,22 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				}
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
+				if (!pending_arrays.empty()) {
+					for (auto& new_decl: pending_arrays) {
+						llvm::SmallVector<llvm::Constant*, 16> fields;
+						auto struct_type = llvm::dyn_cast<llvm::StructType>(std::get<2>(new_decl));
+						unsigned n_elem = struct_type->getNumElements() - 1;
+						for (unsigned i=0; i<n_elem; i++)
+							fields.push_back(llvm::ConstantInt::get(llvm_size_type,
+							                                        ((size_t*)std::get<0>(new_decl))[i]));
+						fields.push_back(
+							llvm::cast<llvm::Constant>(
+								Builder->CreateIntToPtr(
+									llvm::ConstantInt::get(llvm_size_type, ((size_t*)std::get<0>(new_decl))[n_elem]),
+									llvm::Type::getInt8PtrTy(Context))));
+						*std::get<1>(new_decl) = llvm::ConstantStruct::get(struct_type, fields);
+					}
+				}
 			}
 		} else {
 			errs() << "Error generating code for top level expr\n";

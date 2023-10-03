@@ -25,6 +25,7 @@ llvm::Value* ret_ptr = nullptr; // for sret
 unsigned condnesting = 0;
 idiv_modes idiv_mode = idiv_mode_undef;
 std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
+std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
 
 //===----------------------------------------------------------------------===//
 // Code Generation
@@ -2782,8 +2783,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				entry->ft.type = merge.first;
 				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
 				if (comp_mode == comp_jit && !do_test && locals_table.empty()) {
+					std::string var_name = then_node.getKey();
 					if (merge.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(merge.first) > 0) {
-						std::string var_name = then_node.getKey();
 						entry->storage_type = merge.first;
 						entry->ft.type_attr |= A_mainvar;
 						entry->mangled_name = strdup(var_name.c_str());
@@ -2792,18 +2793,32 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 						pending_globals.push_back({ initializer, std::move(var_name), entry->ft.type_attr });
 						auto align = TheModule->getDataLayout().getPrefTypeAlign(merge.first);
 						auto sz = TheModule->getDataLayout().getTypeAllocSize(merge.first);
-						errs() << Loc << ": memcpy for " << *merge.first << " size: " << sz << " align: " << align.value() << " val: " << *mergeVal << "\n";
 						Builder->CreateMemCpy(GV, align, mergeVal, align, sz);
 					} else {
+						auto struct_type = llvm::dyn_cast<llvm::StructType>(mergeVal->getType());
 						auto [el_type, data_ptr, Dims] = getArrayDims(mergeVal, merge.first);
-						// find out memory size of array in bytes: get element size and multiply witch each dimension
-						llvm::Value* Sz = getSize(TheModule->getDataLayout().getTypeAllocSize(el_type));
-						for (auto Dim: Dims)
-							Sz = Builder->CreateMul(Sz, Dim);
-						auto align = TheModule->getDataLayout().getPrefTypeAlign(el_type);
-						
-						errs() << Loc << ": declaring variable size array '" << then_node.getKey() << "', "
-						       << *mergeVal << " " << *merge.first << " in global scopy from conditional branches not supported, yet (sorry)\n";
+						if (el_type && struct_type) {
+							// find out memory size of array in bytes: get element size and multiply witch each dimension
+							llvm::Value* ElemSz = getSize(TheModule->getDataLayout().getTypeAllocSize(el_type));
+							llvm::Value* Sz = getSize(1);
+							for (auto Dim: Dims)
+								Sz = Builder->CreateMul(Sz, Dim);
+							auto align = TheModule->getDataLayout().getPrefTypeAlign(el_type);
+							auto mal_inst = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), llvm_size_type,
+							                                             llvm::Type::getInt8Ty(Context), ElemSz, Sz,
+							                                             nullptr, var_name);
+							llvm::Value* Ptr = Builder->Insert(mal_inst);
+							auto num_dims = struct_type->getNumElements(); // +1 for pointer
+							auto dim_array = malloc(sizeof(size_t)*num_dims);
+							llvm::Constant* DimArray = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(
+								llvm::ConstantInt::get(llvm_size_type, (uintptr_t)dim_array),
+								struct_type->getPointerTo()));
+							Builder->CreateStore(mergeVal, DimArray);
+							pending_arrays.push_back({dim_array, &entry->val, struct_type});
+						} else {
+							errs() << Loc << ": declaring variable size array '" << then_node.getKey() << "', "
+							       << *mergeVal << " " << *merge.first << " in global scopy from conditional branches not supported, yet (sorry)\n";
+						}
 					}
 				} else {
 					entry->val = mergeVal;

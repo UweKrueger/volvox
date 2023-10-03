@@ -771,7 +771,7 @@ extern llvm::Value* ret_ptr; // for sret
 extern std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 extern std::vector<const char*> jit_string_consts;
 extern std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
-
+extern std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
 extern void InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
 	llvm::Instruction* before = nullptr, bool is_constructor = false);
