@@ -15,7 +15,7 @@ del /q *.obj *.pdb ..\volvox.* ..\libvolvox.*
 @goto compile
 :default
 @set OPT=/O2
-@set MDFLAG=/MDd
+@set MDFLAG=/MD
 @set LLVMOPT=-O2
 @set LINKOPT=
 :compile
