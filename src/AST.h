@@ -154,15 +154,19 @@ inline bool is_ccfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
 
 // Expressions that can the the LHS of an assignmen: `a = 1`, `b[3] = 4.5`, `s.a = 9`
 class LvalueExprAST : public ExprAST {
+protected:
 	std::pair<llvm::Type*,llvm::Value*> ref_cache = { nullptr, nullptr };
 public:
 	std::string Name;
 	bool error_already_printed = false;
-	LvalueExprAST(SourceLocation Loc, std::string Name = "") : ExprAST(Loc), Name(Name) {}
+	LvalueExprAST(SourceLocation Loc, std::string Name = "")
+		: ExprAST(Loc), Name(std::move(Name)) {}
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
-	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) = 0;
+	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) {
+		return { nullptr, nullptr };
+	}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) {
 		if (ref_cache.first) {
 			if (!ref_cache.second && !silent_fail)
@@ -180,6 +184,19 @@ public:
 		else
 			return nullptr;
 	}
+};
+
+// internal AST node to hold an already (i.e. no more changing) evaluated
+// lvalue expression value
+//
+class ConstLvalueAST : public LvalueExprAST {
+public:
+	ConstLvalueAST(SourceLocation Loc, llvm::Type* type, llvm::Value* ref_val, std::string Name = "")
+		: LvalueExprAST(Loc, std::move(Name))
+		{
+			ref_cache.first = type;
+			ref_cache.second = ref_val;
+		}
 };
 
 /// VariableExprAST - Expression class for referencing a variable, like "a".

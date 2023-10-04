@@ -2285,11 +2285,17 @@ bool ForExprAST::PrepareForIterator() {
 	// integer iterator - initialize with 0
 	if (Value->ft && Value->ft->type)
 		Iterator->desired_type = Value->ft->type;
-	llvm::Value* iterator = Iterator->codegen();
-	if (!iterator)
+	llvm::Value* iterator = nullptr;
+	llvm::Value* iterator_ref = nullptr;
+	llvm::Type* iterator_type = Iterator->ft->type;
+	if (!iterator_type->isSingleValueType() && !iterator_type->isStructTy())
+		if (auto lval = dynamic_cast<LvalueExprAST*>(Iterator.get()))
+			std::tie(iterator_type, iterator_ref) = lval->codegen_ref(true);
+	if (!iterator_ref)
+		iterator = Iterator->codegen();
+	if (!iterator_ref && !iterator)
 		return false;
 	llvm::Value* initializer = nullptr;
-	llvm::Type* iterator_type = iterator->getType();
 	if (iterator_type->isSingleValueType()) {
 		limit = iterator;
 		// The following is somewhat special: Volvox 'for' compares the integer value *before*
@@ -2343,6 +2349,8 @@ bool ForExprAST::PrepareForIterator() {
 			errs() << ") do not match\n";
 			return false;
 		}
+	} else if (iterator_type->isArrayTy()) {
+		auto [ElType, Ptr, Dims] = getArrayDims(iterator_ref, iterator_type);
 	}
 	switch (new_Value) {
 	case new_var_none:

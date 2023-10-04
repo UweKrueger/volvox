@@ -179,7 +179,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 	return { ArrayAlloc, ArrayPtr };
 }
 
-// get element type, memory pointer, dimensions of array in memory, is_var_dimension
+// get element type, memory pointer, dimensions of array in memory
 //
 std::tuple<llvm::Type*,llvm::Value*,std::vector<llvm::Value*>> getArrayDims(
 	llvm::Value* val, llvm::Type* _type) {
