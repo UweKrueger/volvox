@@ -756,16 +756,24 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 									llvm::ConstantInt::get(llvm_size_type, ((size_t*)std::get<0>(new_decl))[n_elem]),
 									llvm::Type::getInt8PtrTy(Context))));
 						*std::get<1>(new_decl) = llvm::ConstantStruct::get(struct_type, fields);
+						free(std::get<0>(new_decl));
 					}
+					pending_arrays.clear();
 				}
 			}
+			goto do_return;
 		} else {
 			errs() << "Error generating code for top level expr\n";
+			goto cleanup;
 		}
-	} else {
-		// Skip rest for error recovery.
-		purgeLine();
 	}
+cleanup:
+	pending_globals.clear();
+	for (auto& new_decl: pending_arrays)
+		free(std::get<0>(new_decl));
+	pending_arrays.clear();
+	purgeLine();
+do_return:
 	return b || have_return;
 }
 
