@@ -1309,7 +1309,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
 					ft->type, ft->type_attr & (A_signed | A_string | A_map), is_unknown_type, getOpClass(newOp), err_msg });
 		}
-		if (opclass != OpDeclAssign && opclass == OpGlobalDeclAssign)
+		if (opclass != OpDeclAssign && opclass != OpGlobalDeclAssign)
 			RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
 		uint64_t allocsz = LREF ?
@@ -2363,6 +2363,9 @@ bool ForExprAST::PrepareForIterator() {
 			return false;
 		}
 	} else if (iterator_type->isArrayTy()) {
+		if (!iterator_ref) {
+			iterator_ref =  StoreValue(iterator, Iterator->ft, nullptr, "");
+		}
 		auto [ElType, Ptr, Dims] = getArrayDims(iterator_ref, iterator_type);
 	}
 	switch (new_Value) {
