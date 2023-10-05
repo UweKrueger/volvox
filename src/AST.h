@@ -152,7 +152,12 @@ inline bool is_ccfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
 	return Proto && (*Proto).size() >= 1 && (*Proto)[0]->getName().c_str()[0] == '_' && (*Proto)[0]->getName().c_str()[1] == 'Z';
 }
 
-// Expressions that can the the LHS of an assignmen: `a = 1`, `b[3] = 4.5`, `s.a = 9`
+// Expressions that can the the LHS of an assignment: `a = 1`, `b[3] = 4.5`, `s.a = 9`
+// However, there are exceptions: LvalueExprAST is base class for IndexExprAST and SelectExprAST
+// but it is possible that the array/struct is in fact an rvalue. These cases need special
+// treatment is the derived classes. Here we provide an option 'silent_fail' for 'codegen_ref()'
+// that makes the method return a type but no pointer in these cases
+//
 class LvalueExprAST : public ExprAST {
 protected:
 	std::pair<llvm::Type*,llvm::Value*> ref_cache = { nullptr, nullptr };
@@ -177,7 +182,7 @@ public:
 	}
 	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	virtual VariableExprAST* getBase() = 0;
+	virtual VariableExprAST* getBase() { return nullptr; }
 	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
 		if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
 			return Builder->CreateLoad(ref.first, ref.second, Name.c_str());
@@ -191,11 +196,12 @@ public:
 //
 class ConstLvalueAST : public LvalueExprAST {
 public:
-	ConstLvalueAST(SourceLocation Loc, llvm::Type* type, llvm::Value* ref_val, std::string Name = "")
+	ConstLvalueAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* type, llvm::Value* ref_val, std::string Name = "")
 		: LvalueExprAST(Loc, std::move(Name))
 		{
 			ref_cache.first = type;
 			ref_cache.second = ref_val;
+			ft = _ft;
 		}
 };
 
