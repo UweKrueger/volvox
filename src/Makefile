@@ -86,7 +86,7 @@ ifeq ($(shell uname),DragonFly)
 	LINKEXTRAFLAGS := -L/usr/local/lib $(LINKEXTRAFLAGS)
 else
 ifeq ($(shell uname),Haiku)
-	CPPEXTRAFLAGS := -stdlib++-isystem /system/develop/tools/lib/gcc/x86_64-unknown-haiku/11.2.0/include/c++ -stdlib++-isystem /system/develop/tools/lib/gcc/x86_64-unknown-haiku/11.2.0/include/c++/x86_64-unknown-haiku -I/system/develop/headers/editline -fPIC
+	CPPEXTRAFLAGS := -stdlib++-isystem /system/develop/tools/lib/gcc/x86_64-unknown-haiku/13.2.0/include/c++ -stdlib++-isystem /system/develop/tools/lib/gcc/x86_64-unknown-haiku/13.2.0/include/c++/x86_64-unknown-haiku -I/system/develop/headers/editline -fPIC
 	EXTRAOBJS :=
 	EDITLINEOBJS := # we use system provided BSD editline
 	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
@@ -158,10 +158,10 @@ LIBVOLVOXBASE := libvolvox.so
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
 LIBVOLVOXSONAMESPEC := -Wl,-soname,$(LIBVOLVOXSONAME)
 EXTRAINC :=
-RPATH := -Wl,-rpath,$(shell pwd)/../clib
+RPATH := -Wl,-rpath,$(shell pwd)/../lib
 endif
-LIBVOLVOX := ../clib/$(LIBVOLVOXSONAME)
-LIBVOLVOXLINK := ../clib/$(LIBVOLVOXBASE)
+LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
+LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
@@ -199,7 +199,7 @@ $(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
 
 $(PROG): $(OBJS) $(LIBVOLVOX)
-	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../clib -lvolvox $(RPATH) $(LINKEXTRAFLAGS)
+	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../lib -lvolvox $(RPATH) $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:
@@ -207,7 +207,7 @@ clean:
 
 .PHONY: distclean
 distclean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS)  $(LIBCOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) *~ ../include/*~ ../include/*.gch .depend
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS)  $(LIBCOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) $(LIBVOLVOXLINK) *~ ../include/*~ ../include/*.gch .depend
 
 .depend:
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend
