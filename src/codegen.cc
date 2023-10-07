@@ -16,7 +16,7 @@ const char* last_shadow_saver = nullptr;
 const char* last_shadow_restorer = nullptr;
 const char* last_thread_constructor_caller = nullptr;
 // list of boolean values that indicate that this loop branch is run for the first time
-// this is used to avoid multiple  allocations of variables that are declared inside a then/while/repaet loop
+// this is used to avoid multiple  allocations of variables that are declared inside a then/while/repeat loop
 VarTable* IfWhileVarTable = nullptr;
 llvm::Value* ret_ptr = nullptr; // for sret
 // both in loop bodies and in 'else' blocks array allocation should *not* be done in the entry block
@@ -30,6 +30,13 @@ std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
 //===----------------------------------------------------------------------===//
 // Code Generation
 //===----------------------------------------------------------------------===//
+
+inline llvm::AllocaInst* CreateAlloca(llvm::Value* AllocSize, llvm::Align align,
+                                      const llvm::Twine &Name = "") {
+   unsigned AddrSpace = TheModule->getDataLayout().getAllocaAddrSpace();
+   return Builder->Insert(new llvm::AllocaInst(llvm::Type::getInt8Ty(Context),
+                                               AddrSpace, AllocSize, align), Name);
+}
 
 llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
@@ -522,7 +529,8 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* array = nullptr;
 			if (expr->needs_target() && !target) {
 				auto [allocsz, valproto, ndim] = expr->alloc_dims();
-				val = Builder->CreateAlloca(llvm::Type::getInt8Ty(Context), allocsz);
+				val = CreateAlloca(allocsz,
+				                   TheModule->getDataLayout().getPrefTypeAlign(llvm_size_type));
 				array = expr->codegen_raw(val);
 				val = Builder->CreateInsertValue(valproto, Builder->CreatePointerCast(val, llvm::cast<llvm::StructType>(valproto->getType())->getElementType(ndim)), ndim);
 			} else {
@@ -1507,14 +1515,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			RHS->codegen_raw(entry->val);
 		} else if (ValPtr) {
 			if (allocsz) {
-				auto align = getAlignment(allocsz);
 				llvm::AllocaInst* Alloca;
 				if (LREF) {
 					entry->ft.type_attr |= A_ptrref;
+					auto align = TheModule->getDataLayout().getPrefTypeAlign(ValPtr->getType());
 					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
 					Builder->CreateAlignedStore(ValPtr, Alloca, align);
 					entry->mark_as_referencing(is_referencing);
 				} else {
+					auto align = getAlignment(allocsz);
 					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
 				}
@@ -2281,8 +2290,12 @@ uncompatible_types:
 	return { nullptr, nullptr };
 }
 
-bool ForExprAST::PrepareForIterator() {
+bool ForExprAST::PrepareIterator() {
 	// integer iterator - initialize with 0
+	if (!ValueFV) {
+		errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
+		return false;
+	}
 	if (Value->ft && Value->ft->type)
 		Iterator->desired_type = Value->ft->type;
 	llvm::Value* iterator = nullptr;
@@ -2308,12 +2321,12 @@ bool ForExprAST::PrepareForIterator() {
 		// incrementing it. So the limit must be the greatest *valid* value. If only one
 		// integer 'n' is given we need 'limit = n-1'
 		if (iterator_type->isIntegerTy()) {
-			llvm::Value* One = Step = llvm::ConstantInt::get(limit->getType(), 1, true);
-			limit = Builder->CreateSub(limit, One);
+			Step = llvm::ConstantInt::get(limit->getType(), 1, true);
+			limit = Builder->CreateSub(limit, Step);
 			initializer = llvm::Constant::getNullValue(limit->getType());
 		} else if (iterator_type->isFloatingPointTy()) {
-			llvm::Value* One = Step = llvm::ConstantFP::get(limit->getType(), 1.0);
-			limit = Builder->CreateFSub(limit, One);
+			Step = llvm::ConstantFP::get(limit->getType(), 1.0);
+			limit = Builder->CreateFSub(limit, Step);
 			initializer = llvm::Constant::getNullValue(limit->getType());
 		} else {
 			errs() << Iterator->Loc << ": unsupported iterator type " << *Iterator->ft << "\n";
@@ -2367,6 +2380,26 @@ bool ForExprAST::PrepareForIterator() {
 			iterator_ref =  StoreValue(iterator, Iterator->ft, nullptr, "");
 		}
 		auto [ElType, Ptr, Dims] = getArrayDims(iterator_ref, iterator_type);
+		Step = llvm::ConstantInt::get(
+			llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
+		// for multi dimentsional array fullElemSize should be the storage size of the sub-tensor
+		unsigned subDims = Dims.size() - 2;
+		for (int i=1; i<=subDims; i++)
+			Step = Builder->CreateMul(Step, Dims[i]);
+		initializer = Ptr;
+		limit = Builder->CreateAdd(
+			Builder->CreatePtrToInt(Ptr, llvm_size_type),
+			Builder->CreateMul(Step, Dims[0]));
+		if (ValueFV->ft.type_attr & A_ptrref) {
+			// The control variable is a reference to the sub tensor
+			ValueFV->val = iterator_ref; // TODO: handle references to variable sized arrays
+		} else {
+			// The control variable is an independent copy of the sub tensor
+			rvalue_align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+			ValueFV->val = CreateAlloca(Step, rvalue_align);
+			ptr_storage = Builder->CreateAlloca(llvm::Type::getInt8PtrTy(Context));
+			Builder->CreateStore(initializer, ptr_storage);
+		}
 	}
 	switch (new_Value) {
 	case new_var_none:
@@ -2374,10 +2407,6 @@ bool ForExprAST::PrepareForIterator() {
 		return false;
 	case new_var_created:
 	case existing_var_returned:
-		if (!ValueFV) {
-			errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
-			return false;
-		}
 		if (!ValueFV->val) {
 			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
 			ValueType = ValueFV->ft.type;
@@ -2489,7 +2518,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		if (if_kind == tok_while)
 			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "whilecond");
 		else {
-			if (!for_expr->PrepareForIterator())
+			if (!for_expr->PrepareIterator())
 				return nullptr;
 			// CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "forcond");
 		}

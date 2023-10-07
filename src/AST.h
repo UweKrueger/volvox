@@ -924,6 +924,10 @@ class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> Iterator;
 	llvm::Value* limit = nullptr;
 	llvm::Value* approx_limit = nullptr; // for float
+	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
+	                                    // value variable there's still an unnamed
+	                                    // control variable pointing to the current elem
+	llvm::Align rvalue_align;
 	std::string KeyName, ValueName;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
 	union {
@@ -953,7 +957,7 @@ public:
 		  Iterator(std::move(_Iterator)), Key(std::move(_Key)), Value(std::move(_Value)),
 		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)),
 		  ValueName(std::move(_ValueName)), ValueFT(ValueFT), new_Key(new_Key), new_Value(new_Value) {}
-	bool PrepareForIterator();
+	bool PrepareIterator();
 	llvm::Value* CreateCondition(bool at_end = false);
 	bool SetupLoop();
 	bool Iterate();
