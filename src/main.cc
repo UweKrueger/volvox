@@ -1904,7 +1904,7 @@ int main(int argc, char* argv[]) {
 			const char* libpatterns[] = LIBDIRS;
 			char* libdirs[ARRAY_SIZE(libpatterns)];
 			if (!target_mingw) {
-				strcat(libpath, "\\clib\\libvolvox.lib");
+				strcat(libpath, "\\lib\\libvolvox.lib");
 				volvox_glob_t linkers = volvox_glob(LINKER);
 				if (!linkers.size) {
 					errs() << "Unable to find 'link.exe' (searched as \"" << LINKER << "\"\n";
@@ -1941,7 +1941,7 @@ int main(int argc, char* argv[]) {
 				sprintf(stack_size, "-stack:%" PRIu64, stacksize);
 #else
 			if (!target_mingw) {
-				strcat(libpath, "/clib");
+				strcat(libpath, "/lib");
 			}
 #ifndef _WIN32
 			char* rpath = nullptr;

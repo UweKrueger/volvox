@@ -47,7 +47,7 @@ fn test_var_array_multi_level_ref bool
 	global yn210, wn2
 	vv = [yn210][13][wn2]f64{1: {12: {0: 78.25}}, 2: {5: {2: -17.125}}}
 	# vv = [yn210][13][wn2]f64{2: {5: {2: -17.125}}, 1: {12: {0: 78.25}}}
-	&h = vv
-	x = h[2][5][2]
-	y = h[1][12][0]
-	return x == -17.125 && y == 78.25 && h.dim(1) == 13 && h.dim(2) == 7
+	&pph = vv
+	x = pph[2][5][2]
+	y = pph[1][12][0]
+	return x == -17.125 && y == 78.25 && pph.dim(1) == 13 && pph.dim(2) == 7

@@ -332,7 +332,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 			return { nullptr, nullptr };
 		}
 	}
-	llvm::GlobalVariable* V;
+	llvm::Value* V;
 	llvm::Type* storage_type;
 	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && (comp_mode == comp_jit && !do_test)) {
 		// global variable or main var in interactive JIT
@@ -341,16 +341,17 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 			return { nullptr, nullptr };
 		}
 		storage_type = full_var->storage_type;
-		V = TheModule->getGlobalVariable(full_var->mangled_name, true);
-		if (!V)
-			V = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
+		llvm::GlobalVariable* GV = TheModule->getGlobalVariable(full_var->mangled_name, true);
+		if (!GV)
+			GV = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
 			                             false, link_type(full_var->ft.type_attr),
 			                             nullptr, full_var->mangled_name, nullptr,
 			                             tls_model(full_var->ft.type_attr),
 			                             0, true);
-		V->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(full_var->storage_type));
+		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(full_var->storage_type));
+		V = GV;
 	} else {
-		V = (llvm::GlobalVariable*)full_var->val;
+		V = full_var->val;
 		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
 		if (storage_type->isFunctionTy() || (ft->type_attr & A_ptrref))
 			storage_type = storage_type->getPointerTo();
@@ -359,8 +360,22 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 		KSDbgInfo.emitLocation(this);
 	}
 	if (full_var->ft.type_attr & A_ptrref) {
-		auto the_ref = Builder->CreateLoad(storage_type, V);
-		return { full_var->ft.type, the_ref };
+		if (V->getType()->isPointerTy()) {
+			auto the_ref = Builder->CreateLoad(storage_type, V);
+			return { full_var->ft.type, the_ref };
+		} else {
+			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(V->getType())) {
+				unsigned max_el = struct_type->getNumElements() - 1;
+				llvm::Value* val = llvm::UndefValue::get(struct_type);
+				for (unsigned i=0; i<max_el; i++)
+					val = Builder->CreateInsertValue(val, Builder->CreateExtractValue(V, i), i);
+				llvm::Value* ptr = Builder->CreateLoad(struct_type->getElementType(max_el), Builder->CreatePointerCast(Builder->CreateExtractValue(V, max_el), struct_type->getElementType(max_el)));
+				V = Builder->CreateInsertValue(val, ptr, max_el);
+			} else {
+				errs() << Loc << ": internal error - multi level array reference inconsistent\n";
+				return { nullptr, nullptr };
+			}
+		}
 	}
 	return { storage_type, V };
 }
@@ -1520,14 +1535,32 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					entry->ft.type_attr |= A_ptrref;
 					auto align = TheModule->getDataLayout().getPrefTypeAlign(ValPtr->getType());
 					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
-					Builder->CreateAlignedStore(ValPtr, Alloca, align);
 					entry->mark_as_referencing(is_referencing);
+					if (ValPtr->getType()->isPointerTy()) {
+						Builder->CreateAlignedStore(ValPtr, Alloca, align);
+						entry->val = Alloca;
+					} else {
+						if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ValPtr->getType())) {
+							unsigned max_el = struct_type->getNumElements() - 1;
+							llvm::Value* val = llvm::UndefValue::get(struct_type);
+							for (unsigned i=0; i<max_el; i++)
+								val = Builder->CreateInsertValue(val, Builder->CreateExtractValue(ValPtr, i), i);
+							Builder->CreateAlignedStore(Builder->CreateExtractValue(ValPtr, max_el), Alloca, align);
+							val = Builder->CreateInsertValue(
+								val, Builder->CreatePointerCast(
+									Alloca, struct_type->getElementType(max_el)), max_el);
+							entry->val = val;
+						} else {
+							errs() << LHS->Loc << ": internal error - inconsistent reference initialization for'" << varname << "'\n";
+							return nullptr;
+						}
+					}
 				} else {
 					auto align = getAlignment(allocsz);
 					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
+					entry->val = Alloca;
 				}
-				entry->val = Alloca;
 			} else {
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
