@@ -733,7 +733,7 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 							case '{':
 								idx = key->getZExtValue();
 								if (idx < Elements.size()) {
-									errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+									errs() << bin_expr->LHS->Loc << ": index '" << idx << "' invalid (should be > " << Elements.size()-1 << " - indices must be in ascending order)\n";
 									struct_err = true;
 									return {};
 								} else {
