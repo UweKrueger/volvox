@@ -4,7 +4,7 @@
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
-#if defined (_WIN32)
+#ifdef _WIN32
 #include "../include/volvox-15.hh"
 #include <windows.h>
 #include <synchapi.h>
@@ -57,8 +57,8 @@ extern "C" {
 		MapKey key;
 	};
 #define map_string_new_map _ZN6volvox3map11num_new_mapEv
-#define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_
-#define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEiRS2_
+#define map_string_insert _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_
+#define map_string_tag_insert _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEiS3_
 #define map_string_get _ZN6volvox3map10string_getEPNS0_4NodeEPKc
 #define map_destroy _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE
 #define map_iter_up _ZN6volvox3map7iter_upEPNS0_4NodeE
@@ -67,8 +67,8 @@ extern "C" {
 #define map_min _ZN6volvox3map3MinEPNS0_4NodeE
 #define map_max _ZN6volvox3map3MaxEPNS0_4NodeE
 	_DECL MapNode* map_string_new_map();
-	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, MapNode*& replace);
-	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, MapNode*& replace);
+	_DECL MapNode* map_string_insert(MapNode** root_ptr, const char* key, MapValue value, int value_size, MapNode** replace);
+	_DECL MapNode* map_string_tag_insert(MapNode** root_ptr, const char* key, unsigned tag, MapValue value, int value_size, MapNode** replace);
 	_DECL MapValue* map_string_get(MapNode* root, const char* key);
 	_DECL void map_destroy(MapNode* root, void (*destruct)(MapValue* ptr));
 	_DECL MapNode* map_iter_up(MapNode* elem);
@@ -102,9 +102,11 @@ class ForExprAST;
 class VarExprAST;
 class UnaryExprAST;
 class BinaryExprAST;
+typedef void (*signalhandler_t)(int);
 
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof(a)/sizeof(a[0]))
+#define WR_STRING(a) a, ARRAY_SIZE(a) - 1
 #endif
 
 // The lexer returns tokens [0-255] if it is an unknown character, otherwise one
@@ -295,6 +297,9 @@ namespace volvoxc {
 
 }
 
+extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(
+	volvoxc::FullType* IteratorType, SourceLocation Loc = {0});
+
 extern llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type);
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
@@ -330,12 +335,14 @@ enum OpClass : uint8_t {
 	OpNormal,
 	OpAssign,
 	OpModAssign,
-	OpDeclAssign,
+	OpDeclAssign, // set by ParseBinOpRHS() if LHS is undeclared
+	OpGlobalDeclAssign, // set by HandleGlobalVariable
 	OpComparison,
 	OpShift,
 	OpLogical,
 	OpBitwise,
 	OpExponentiation,
+	OpRange,
 	OpColon,
 	OpComma
 };
@@ -466,6 +473,9 @@ extern llvm::ExitOnError ExitOnErr;
 extern llvm::DISubprogram *SP;
 extern llvm::DIFile *Unit;
 extern volvoxc::FullType* theFunction_ret_ft;
+#ifdef _WIN32
+extern std::vector<HMODULE> extra_dlls;
+#endif
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type
@@ -475,13 +485,35 @@ struct int_val_type_t {
 
 struct FullVar {
 	union {
+		// Function local "stack" variables store the address in 'val'.
+		//
 		llvm::Value* val = nullptr;
-		llvm::Type* storage_type; // for global variables
+
+		// For global variables the address changes from run to run in
+		// interactive JIT mode. So we have to lookup them in LLVM
+		// each time. On the other hand the declared llvm::Type of
+		// variable-sized arrays is zero-sized so it's handy to store
+		// the "real" storage type/size here. This, however is only
+		// possible in interactive JIT-mode since otherwise we would not
+		// know the size at "compile time".
+		//
+		llvm::Type* storage_type;
 	};
-	const char* mangled_name = nullptr; // only for pub globals
+	union {
+		// global variables need a mangled name for C++-compatible linkage
+		//
+		const char* mangled_name = nullptr; // only for pub globals
+
+		// for function/branch-variables we use this pointer to refer to
+		// a global instead, if declared as "global a, b, c"
+		//
+		FullVar* global;
+	};
+	llvm::Value* max_address = nullptr; // experimental - used for arrays to check access
 	llvm::Function* destructor = nullptr;
-	llvm::Instruction* constructor; // to erase in auto-conversion to move
+	llvm::Instruction* constructor = nullptr; // to erase in auto-conversion to move
 	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
+	SourceLocation decl_loc = SourceLocation{0};
 	unsigned n_p_r = 0;
 	unsigned c_p_r = 0;
 	volvoxc::FullType ft = {0};
@@ -501,7 +533,8 @@ struct FullVar {
 		}
 	}
 	void destroy() { // we cannot call it "~FullVar()" because it must not be called automatically
-		free((void*)this->mangled_name);
+		if (val)
+			free((void*)this->mangled_name);
 		free((void*)this->possible_references);
 	}
 };
@@ -580,7 +613,7 @@ public:
 		MapValue val = {
 			.src_ptr = ft
 		};
-		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), target);
+		MapNode* new_node = map_string_insert(&table, name, val, sizeof(volvoxc::FullType), &target);
 		if (target) {
 			return new_node; // actually existing node
 		}
@@ -699,7 +732,7 @@ public:
 	FullVar* insert(const char* key, const FullVar& value) {
 		MapValue mv = { .src_ptr = const_cast<FullVar*>(&value) };
 		MapNode* target = nullptr;
-		MapNode* res = map_string_insert(&table, key, mv, sizeof(FullVar), target);
+		MapNode* res = map_string_insert(&table, key, mv, sizeof(FullVar), &target);
 		if (target)
 			return nullptr;
 		auto fv = (FullVar*)((char*)&res->value + res->value.offset);
@@ -732,13 +765,13 @@ enum LinkModes {
 extern CompModes comp_mode;
 extern LinkModes link_mode;
 extern std::vector<VarTable> locals_table; // including function arguments
-extern std::vector<std::vector<std::string>> captured_variables;
 extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
 extern std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 extern std::vector<const char*> jit_string_consts;
-
+extern std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
+extern std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
 extern void InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
 	llvm::Instruction* before = nullptr, bool is_constructor = false);
@@ -747,6 +780,7 @@ extern void InsertDestructors(llvm::Value* retp);
 extern void InsertDestructors(std::vector<FullVar>& t);
 extern void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 extern void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
+extern llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind);
 
 inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before) {
 	InsertArrayConDestructor(fv->ft.type, fv->ft.elem_type, val, before);
@@ -834,6 +868,8 @@ extern llvm::Value* getInterfaceArrayOrStoreValue(llvm::Value* val, llvm::ArrayT
                                                   bool do_store = false, const llvm::Twine &Name = "");
 extern llvm::Value* expandArrayInitializer(llvm::Value* initializer, llvm::ArrayType* ini_array_type,
                                            llvm::ArrayType* array_type);
+extern std::tuple<llvm::Type*,llvm::Value*,std::vector<llvm::Value*>> getArrayDims(
+	llvm::Value* val, llvm::Type* _type);
 extern llvm::Type* getArrayDims(llvm::Value* val, llvm::ArrayType* array_type,
                                 std::vector<llvm::Value*>& Dims, std::vector<llvm::Value*>& returnDims,
                                 llvm::ArrayType* expected_array_type = nullptr);
@@ -1047,6 +1083,7 @@ extern Token CurTok;
 extern bool parseOk;
 extern Token& getNextToken(eXpect expect = eNone, int terminator = 0);
 extern Token& purgeLine();
+extern bool do_range_checks;
 
 struct SourceLocState {
 	SourceLocation Loc = {0};
@@ -1205,31 +1242,34 @@ inline FullVar* lookup_var(const char* prefix, const char* unmangledName) {
 	return nullptr;
 }
 
-// look up var and return if it's global
-inline FullVar* lookup_var(const char* Name) {
-	FullVar* full_var;
-	for (int i = locals_table.size() - 1; i >= 0; i--) {
-		full_var = locals_table[i][Name];
-		if (full_var) {
-			if (i < locals_table.size()-1 && !captured_variables.empty()) {
-				locals_table.back().insert(Name, *full_var);
-				captured_variables.back().emplace_back(Name);
+// look up local var - or global var if !inside_function
+inline FullVar* lookup_var(const char* Name, bool skip_local = false) {
+	FullVar* full_var = nullptr;
+	if (!skip_local) { // skipped for processing 'global' list inside function
+		for (int i = locals_table.size() - 1; i >= 0; i--) {
+			full_var = locals_table[i][Name];
+			if (full_var) {
+				if (full_var->global)
+					return full_var->global;
+				else
+					return full_var;
 			}
-			return full_var;
 		}
 	}
-	// it's no function local var - maybe a global one from this module
-	full_var = lex.module->globals_table[Name];
-	// or from an imported module
-	if (!full_var || !(full_var->ft.type_attr & A_global) && inside_function)
-		full_var = lookup_var("", Name);
-	if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
-		full_var = nullptr;
-	if (!full_var && lex.source_stack.size())
-		// search in "builtin" as last resort - lowest in source_stack
-		full_var = lex.source_stack.front().module->globals_table[Name];
-	if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
-		full_var = nullptr;
+	if (skip_local || !inside_function) {
+		// it's no function local var - maybe a global one from this module
+		full_var = lex.module->globals_table[Name];
+		// or from an imported module
+		if (!full_var || !(full_var->ft.type_attr & A_global) && inside_function)
+			full_var = lookup_var("", Name);
+		if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
+			full_var = nullptr;
+		if (!full_var && lex.source_stack.size())
+			// search in "builtin" as last resort - lowest in source_stack
+			full_var = lex.source_stack.front().module->globals_table[Name];
+		if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
+			full_var = nullptr;
+	}
 	return full_var;
 }
 
@@ -1277,7 +1317,7 @@ public:
 	//      an intermediate value (e.g. '(b + c)' in 'x = a * (b + c)' and a potential destructor call for the
 	//      value is registred
 	// - (void*)(-1): like '(void*)0' but no destructor call is registred. This is needed to create compile time const
-	//      initializers for use with '::='
+	//      initializers for use with ':='
 	virtual llvm::Value* codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
 	virtual bool needs_target() { return false; } // e.g. struct return in CallExpr
 	// there are cases where the storage size, i.e. the dimensions of a tensor ist needed
@@ -1337,7 +1377,8 @@ extern bool jit_repl;
 extern bool jit_extra_thread;
 extern int builtin_input_fd;
 extern void CallGlobalDestructorsJIT();
-
+extern int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
+                       std::vector<FnArg>& fnargs, SourceLocation Loc = {0});
 static inline llvm::LoadInst* CreateAtomicLoad(llvm::Type* ty, llvm::Value* adr, const llvm::Twine &Name = "") {
 	auto align = TheModule->getDataLayout().getABITypeAlign(ty);
 	return Builder->Insert(

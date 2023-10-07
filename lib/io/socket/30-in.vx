@@ -32,7 +32,8 @@ type sockaddr_in {
 }
 
 pub inline fn tcp IpSocket
-	s := IpSocket{}
+	global AF_INET, SOCK_STREAM
+	s = IpSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_STREAM, 0)
 		if s.handle == -1
@@ -47,7 +48,8 @@ pub inline fn tcp IpSocket
 	return s
 
 pub inline fn udp IpSocket
-	s := IpSocket{}
+	global AF_INET, SOCK_DGRAM
+	s = IpSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_DGRAM, 0)
 		if s.handle == -1
@@ -61,7 +63,7 @@ pub inline fn udp IpSocket
 	end
 	return s
 
-pub const in_any       ::= in_addr{ __s4_addr: { 0, 0, 0, 0 } }
-pub const in_broadcast ::= in_addr{ __s4_addr: { 255, 255, 255, 255 } }
-pub const in_none      ::= in_addr{ __s4_addr: { 255, 255, 255, 255 } }
-pub const in_loopback  ::= in_addr{ __s4_addr: { 127, 0, 0, 1 } }
+pub const in_any       := in_addr{ __s4_addr: { 0, 0, 0, 0 } }
+pub const in_broadcast := in_addr{ __s4_addr: { 255, 255, 255, 255 } }
+pub const in_none      := in_addr{ __s4_addr: { 255, 255, 255, 255 } }
+pub const in_loopback  := in_addr{ __s4_addr: { 127, 0, 0, 1 } }

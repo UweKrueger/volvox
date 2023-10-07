@@ -18,7 +18,8 @@ type sockaddr_in6 {
 }
 
 pub inline fn tcp6 Ip6Socket
-	s := Ip6Socket{}
+	global AF_INET6, SOCK_STREAM
+	s = Ip6Socket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_STREAM, 0)
 		if s.handle == -1
@@ -33,7 +34,8 @@ pub inline fn tcp6 Ip6Socket
 	return s
 
 pub inline fn udp6 Ip6Socket
-	s := Ip6Socket{}
+	global AF_INET6, SOCK_DGRAM
+	s = Ip6Socket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET6, SOCK_DGRAM, 0)
 		if s.handle == -1
@@ -47,5 +49,5 @@ pub inline fn udp6 Ip6Socket
 	end
 	return s
 
-pub const in6_any      ::= in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} }
-pub const in6_loopback ::= in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1} }
+pub const in6_any      := in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} }
+pub const in6_loopback := in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1} }

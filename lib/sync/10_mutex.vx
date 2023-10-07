@@ -2,7 +2,7 @@ import arch
 import arch.os
 import time
 
-const __MUTEX_ATTR_SIZE ::= if os.isLinux
+const __MUTEX_ATTR_SIZE := if os.isLinux
 		4
 	else
 		arch.bitwidth >> 3
@@ -19,7 +19,7 @@ cdecl fn pthread_mutexattr_destroy(&attr mutex_attr) int
 cdecl fn pthread_mutexattr_setrobust(&attr mutex_attr, robustness int) int
 
 fn get_robust_mutex_attr mutex_attr
-	m := mutex_attr{}
+	m = mutex_attr{}
 	if !os.isWindows
 		pthread_mutexattr_init(m)
 		if os.isLinux || os.isFreeBSD
@@ -28,9 +28,9 @@ fn get_robust_mutex_attr mutex_attr
 	end
 	return m
 
-const default_mutex_attr := get_robust_mutex_attr
+const default_mutex_attr = get_robust_mutex_attr
 
-const __MUTEX_SIZE ::= if os.isLinux
+const __MUTEX_SIZE := if os.isLinux
 		if arch.bitwidth == 64
 			40
 		else
@@ -57,6 +57,7 @@ pub fn mutex
 	if os.isWindows
 		this.size_t = CreateMutexA(voidptr(0), false, cstring(0))
 	else
+		global default_mutex_attr
 		pthread_mutex_init(this, default_mutex_attr)
 	end
 	return
@@ -76,7 +77,7 @@ cdecl fn pthread_mutex_trylock(&m mutex) int
 cdecl fn pthread_mutex_consistent(&m mutex) int
 cdecl fn GetLastError() u32
 
-const EOWNERDEAD ::= if os.isFreeBSD
+const EOWNERDEAD := if os.isFreeBSD
 		96
 	elif os.isLinux
 		130
@@ -87,8 +88,9 @@ const EOWNERDEAD ::= if os.isFreeBSD
 	end
 
 pub inline fn mutex.lock int
+	global EOWNERDEAD
 	if os.isWindows
-		res := WaitForSingleObjectEx(this.size_t, u32(-1), true)
+		res = WaitForSingleObjectEx(this.size_t, u32(-1), true)
 		if res != 0
 			res = GetLastError()
 			if res == EOWNERDEAD
@@ -96,7 +98,7 @@ pub inline fn mutex.lock int
 			end
 		end
 	else
-		res := pthread_mutex_lock(this)
+		res = pthread_mutex_lock(this)
 	end
 	if os.isLinux || os.isFreeBSD || os.isWindows
 		if res == EOWNERDEAD
@@ -109,8 +111,9 @@ pub inline fn mutex.lock int
 	return res
 
 pub inline fn mutex.trylock int
+	global EOWNERDEAD
 	if os.isWindows
-		res := WaitForSingleObjectEx(this.size_t, 0, true)
+		res = WaitForSingleObjectEx(this.size_t, 0, true)
 		if res != 0
 			res = GetLastError()
 			if res == EOWNERDEAD
@@ -118,7 +121,7 @@ pub inline fn mutex.trylock int
 			end
 		end
 	else
-		res := pthread_mutex_trylock(this)
+		res = pthread_mutex_trylock(this)
 	end
 	if os.isLinux || os.isFreeBSD || os.isWindows
 		if res == EOWNERDEAD
@@ -131,8 +134,9 @@ pub inline fn mutex.trylock int
 	return res
 
 pub inline fn mutex.timedlock(timeout time.Duration) int
+	global EOWNERDEAD
 	if os.isWindows
-		res := WaitForSingleObjectEx(this.size_t, u32(timeout / 10000), true)
+		res = WaitForSingleObjectEx(this.size_t, u32(timeout.i64 / 10000), true)
 		if res != 0
 			res = GetLastError()
 			if res == EOWNERDEAD
@@ -140,8 +144,8 @@ pub inline fn mutex.timedlock(timeout time.Duration) int
 			end
 		end
 	else
-		ts := timeout.timespec
-		res := pthread_mutex_timedlock(this, ts)
+		ts = timeout.timespec
+		res = pthread_mutex_timedlock(this, ts)
 	end
 	if os.isLinux || os.isFreeBSD || os.isWindows
 		if res == EOWNERDEAD
@@ -156,7 +160,7 @@ pub inline fn mutex.timedlock(timeout time.Duration) int
 cdecl fn ReleaseMutex(m size_t) bool
 cdecl fn pthread_mutex_unlock(&m mutex) int
 
-const ETIMEDOUT ::= if os.isWindows
+const ETIMEDOUT := if os.isWindows
 		0x00000102 # WAIT_TIMEOUT
 	elif os.isLinux
 		110
@@ -164,22 +168,23 @@ const ETIMEDOUT ::= if os.isWindows
 		60
 	end
 
-const EPERM ::= if os.isWindows
+const EPERM := if os.isWindows
 		288 # ERROR_NOT_OWNER
 	else
 		1
 	end
 
-const EBUSY ::= 16
+const EBUSY := 16
 
 # In non-REPL case 'mutex.unlock()' is a simple inline wrapper for the OSs function.
 # In the REPL case a new thread is created for each top level expression so there is always
 # the "owner dead" case and we have to make things consistent first.
 #
 pub inline fn mutex.unlock int
+	global EOWNERDEAD, ETIMEDOUT, EPERM, EBUSY
 	if os.isWindows
 		if arch.isREPL
-			res := WaitForSingleObjectEx(this.size_t, 0, true)
+			res = WaitForSingleObjectEx(this.size_t, 0, true)
 			if res == 0
 				ReleaseMutex(this.size_t)
 				return EPERM
@@ -192,7 +197,7 @@ pub inline fn mutex.unlock int
 		return int(!ReleaseMutex(this.size_t))
 	else
 		if arch.isREPL && (os.isLinux || os.isFreeBSD)
-			res := pthread_mutex_trylock(this)
+			res = pthread_mutex_trylock(this)
 			if res == 0
 				pthread_mutex_unlock(this)
 				return EPERM

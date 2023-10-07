@@ -304,6 +304,8 @@ OpClass getOpClass(const char* Op) {
 			return OpLogical;
 		else
 			return OpModAssign; // &&=, ||=
+	case '.':
+		return OpRange; // ..
 	case '\0':
 		switch (Op[0]) {
 		case '>':
@@ -473,6 +475,12 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
 	auto opclass = getOpClass(Op);
+	if (opclass != OpComma && opclass != OpBitwise && opclass != OpColon) {
+		if (left_bitwidth == 1 && right_bitwidth != 1)
+			return { nullptr, 0, false, opclass, "LHS of type 'bool' cannot be combined with numeric RHS value\n" };
+		if (right_bitwidth == 1 && left_bitwidth != 1)
+			return { nullptr, 0, false, opclass, "RHS of type 'bool' cannot be combined with numeric LHS value\n" };
+	}
 	unsigned res_bitwidth;
 	bool res_is_unknown_type = left_is_unknown_type & right_is_unknown_type;
 	bool res_is_float = left_is_float || right_is_float;
@@ -521,7 +529,10 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	}
 	if (res_is_float)
 		res_bitwidth = Min(res_bitwidth, 53); // limit to f64
-	return { getFittingType(res_bitwidth, res_is_float), res_is_signed ? A_signed : 0, res_is_unknown_type, opclass, nullptr };
+	unsigned res_attr = 0;
+	if (res_is_signed)
+		res_attr |= A_signed;
+	return { getFittingType(res_bitwidth, res_is_float), res_attr, res_is_unknown_type, opclass, nullptr };
 }
 
 std::tuple<llvm::Type*, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
@@ -860,4 +871,40 @@ llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned t
 			return out << "<anonymous struct>";
 	}
 	return out << *type;
+}
+
+std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(volvoxc::FullType* IteratorType, SourceLocation Loc) {
+	if (!IteratorType || !IteratorType->type)
+		return { nullptr, nullptr, nullptr };
+	if (IteratorType->type_attr & A_map)
+		return { new_FullType(IteratorType->type, IteratorType->type_attr & A_signed),
+		         IteratorType->elem_type, llvm::Type::getInt8PtrTy(Context) };
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(IteratorType->type))
+		// array could in principle be size_t, but only in rare cases
+		// we default to int - if a 64-bit type is needed, it has to be predefined
+		return { integer_type, IteratorType->elem_type, llvm::Type::getInt8PtrTy(Context) };
+	if (IteratorType->type->isSingleValueType())
+		// a single int/float 'n' can be used as an iterator for the range 0..(n-1)
+		return { nullptr, IteratorType, nullptr };
+	if (llvm::isa<llvm::StructType>(IteratorType->type)) {
+		MapValue* mv = map_string_get(IteratorType->fields, "min");
+		if (mv) {
+			auto adr = (char*)mv + mv->offset + 4;
+			volvoxc::FullType* ft;
+			memcpy(&ft, adr, sizeof(void*));
+			return { nullptr, ft, nullptr };
+		}
+		if (IteratorType->mangled_name) {
+			auto protos = MethodProtos.find({IteratorType->mangled_name, "min"});
+			if (protos != MethodProtos.end()) {
+				std::vector<FnArg> fn_args = { FnArg{ nullptr, IteratorType->type,
+				                                      static_cast<bool>(IteratorType->type_attr & A_signed), false } };
+				auto selected_proto = selectProto(&protos->second, "min", fn_args, Loc);
+				// errs() << "found " << protos->second.size() << " protos for 'min', selected #" << selected_proto << "\n";
+				if (selected_proto >= 0)
+					return { nullptr, protos->second[selected_proto]->RetType, nullptr };
+			}
+		}
+	}
+	return { nullptr, nullptr, nullptr };
 }

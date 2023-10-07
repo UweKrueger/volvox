@@ -1,12 +1,13 @@
 fn call_by_ref_1(&x f64) f64
-	a := x
+	a = x
 	x = a / 2
 	return a
 
-global p32 := -12.25
+global p32 = -12.25
 
 fn test_call_by_ref_1 bool
-	rrq := call_by_ref_1(p32)
+	global p32
+	rrq = call_by_ref_1(p32)
 	return rrq == -12.25 && p32 == -6.125
 
 fn mod_val_array(qq4 [7]f64) f64
@@ -14,17 +15,17 @@ fn mod_val_array(qq4 [7]f64) f64
 	return 2 * qq4[2]
 
 fn test_array_call_by_value_1 bool
-	ma := [7]f64{2.25, 3.5, -12.125, 13.75, 0.5, -0.75, 0.125}
-	s78 := mod_val_array(ma)
+	ma = [7]f64{2.25, 3.5, -12.125, 13.75, 0.5, -0.75, 0.125}
+	s78 = mod_val_array(ma)
 	return ma[2] == -12.125 && s78 == 34.5
 
 fn mod_val_array_2(qq5 [7]f64) f64
-	ri := mod_val_array(qq5)
+	ri = mod_val_array(qq5)
 	return ri + qq5[2]
 
 fn test_array_call_by_value_2 bool
-	ma := [7]f64{1.5, -2.25, 2.5, -3.125, -0.0625, 0.5, -0.25}
-	s79 := mod_val_array_2(ma)
+	ma = [7]f64{1.5, -2.25, 2.5, -3.125, -0.0625, 0.5, -0.25}
+	s79 = mod_val_array_2(ma)
 	return ma[2] == 2.5 && s79 == -8.25
 
 fn mod_val_array_3(&qq4 [7]f64) f64
@@ -32,17 +33,17 @@ fn mod_val_array_3(&qq4 [7]f64) f64
 	return 2 * qq4[2]
 
 fn test_array_call_by_ref_2 bool
-	ma := [7]f64{2.25, 3.5, -12.125, 13.75, 0.5, -0.75, 0.125}
-	s78 := mod_val_array_3(ma)
+	ma = [7]f64{2.25, 3.5, -12.125, 13.75, 0.5, -0.75, 0.125}
+	s78 = mod_val_array_3(ma)
 	return ma[2] == 17.25 && s78 == 34.5
 
 fn mod_val_array_4(&qq5 [7]f64) f64
-	ri := mod_val_array_3(qq5)
+	ri = mod_val_array_3(qq5)
 	return ri + qq5[2]
 
 fn test_array_call_by_ref_3 bool
-	ma := [7]f64{1.5, -2.25, 2.5, -3.125, -0.0625, 0.5, -0.25}
-	s79 := mod_val_array_4(ma)
+	ma = [7]f64{1.5, -2.25, 2.5, -3.125, -0.0625, 0.5, -0.25}
+	s79 = mod_val_array_4(ma)
 	return ma[2] == -5.375 && s79 == -16.125
 
 
@@ -52,12 +53,13 @@ type QwF packed {
 	rtt f32
 }
 
-global lfg := QwF{
+global lfg = QwF{
 	rtt: 34.5f32
 	o2a: 4234
 }
 
 fn test_packed_struct_1 bool
+	global lfg
 	return lfg.pgh == 0. && lfg.o2a == 4234 && lfg.rtt == 34.5
 
 type XXt {
@@ -70,7 +72,7 @@ type YYt {
 	w XXt
 }
 
-global suo := YYt{
+global suo = YYt{
 	rz: -345
 	w: XXt{
 		a: 12
@@ -81,31 +83,32 @@ global suo := YYt{
 suo.w.b = -67.25
 
 fn test_struct_1 bool
+	global suo
 	return suo.w.a == 12 && suo.w.b == -67.25 && suo.rz == -345
 
 fn get_field f64
-	lld := XXt{ a: -94, b: 127.75 }
-	p := lld.b
+	lld = XXt{ a: -94, b: 127.75 }
+	p = lld.b
 	return p
 
 fn test_struct_2 bool
-	cc := get_field
+	cc = get_field
 	return cc == 127.75
 
 fn test_struct_3 bool
-	qb := XXt{ a: -94, b: -93.0625 }.b
+	qb = XXt{ a: -94, b: -93.0625 }.b
 	return qb == -93.0625
 
 fn test_struct_4 bool
-	qe := YYt{ rz: 17, w: XXt{ a: 27, b: 33.25 }}.w
+	qe = YYt{ rz: 17, w: XXt{ a: 27, b: 33.25 }}.w
 	return qe.b == 33.25
 
 fn get_big_struct YYt
-	qe := YYt{ rz: 14, w: XXt{ a: -63, b: -11.125 }}
+	qe = YYt{ rz: 14, w: XXt{ a: -63, b: -11.125 }}
 	return qe
 
 fn test_struct_return_1 bool
-	hsm := get_big_struct
+	hsm = get_big_struct
 	return hsm.rz == 14 && hsm.w.a == -63 && hsm.w.b == -11.125
 
 type PPl {
@@ -114,40 +117,43 @@ type PPl {
 }
 
 fn get_small_struct PPl
-	qf := PPl{ b: -34, t: 27 }
+	qf = PPl{ b: -34, t: 27 }
 	return qf
 
 fn test_struct_return_2 bool
-	hlw := get_small_struct
+	hlw = get_small_struct
 	return hlw.b == -34 && hlw.t == 27
 
 fn small_struct_arg(vx PPl) i32
-	mmd := vx.t
+	mmd = vx.t
 	return mmd
 
-global ggds := PPl{ b: -65343, t: 24453 }
+global ggds = PPl{ b: -65343, t: 24453 }
 
 fn test_small_struct_arg_1 bool
-	llq := small_struct_arg(ggds)
+	global ggds
+	llq = small_struct_arg(ggds)
 	return llq == 24453
 
 fn test_small_struct_arg_2 bool
-	llq := small_struct_arg(PPl{ b: 6634, t: -7334 })
+	llq = small_struct_arg(PPl{ b: 6634, t: -7334 })
 	return llq == -7334
 
 fn big_struct_arg(vb YYt) f64
-	mkd := vb.w.b
+	mkd = vb.w.b
 	return mkd
 
 fn test_big_struct_arg_1 bool
-	llq := big_struct_arg(suo)
+	global suo
+	llq = big_struct_arg(suo)
 	return llq == -67.25
 
 fn test_big_struct_arg_2 bool
+	global suo
 	return -67.25 == big_struct_arg(suo)
 
 fn test_big_struct_arg_3 bool
-	llqr := big_struct_arg(YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }})
+	llqr = big_struct_arg(YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }})
 	return llqr == 66.5
 
 type ZZu {
@@ -155,21 +161,22 @@ type ZZu {
 	aq [2][3]f64
 }
 
-global qql := ZZu{
+global qql = ZZu{
 	aq: [ [ 1.25, -3.25
 	17.125 ]
 	      [ -4.5, 8.75, 9.0625 ] ]
 	p: -517
 }
 
-global fgsde ::= [ ZZu{ p: -17 }, ZZu{ aq: [[13.5,3,2],[-34.5,0,7]]}]
+global fgsde := [ ZZu{ p: -17 }, ZZu{ aq: [[13.5,3,2],[-34.5,0,7]]}]
 
-global fgh211 ::= [ PPl{ b: -34 }, PPl{ t: 23 } ]
+global fgh211 := [ PPl{ b: -34 }, PPl{ t: 23 } ]
 
 fn ZZu.jjc(x f64) f64
 	return x*x
 
 fn test_method_call_1 bool
+	global qql
 	return qql.jjc(12.5) == 156.25
 
 fn ZZu.change(y f64) f64
@@ -177,5 +184,6 @@ fn ZZu.change(y f64) f64
 	return y * this.p
 
 fn test_method_call_2 bool
-	gghd := qql.change(2.5)
+	global qql
+	gghd = qql.change(2.5)
 	return gghd == -1292.5 && qql.aq[0][1] == -17.125

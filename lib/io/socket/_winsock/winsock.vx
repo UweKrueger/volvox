@@ -9,8 +9,8 @@ elif os.isHaiku
 	__link_extra "network"
 end
 
-const WSADESCRIPTION_LEN ::= 256
-const WSASYS_STATUS_LEN ::= 128
+const WSADESCRIPTION_LEN := 256
+const WSASYS_STATUS_LEN := 128
 
 type WSAData32 {
 	wVersion       u16
@@ -42,13 +42,14 @@ type WsockProto {
 
 inline fn WsockProto
 	if os.isWindows
-		version := 0x0202u16
+		global __verbose
+		version = 0x0202u16
 		if (arch.bitwidth == 64)
-			data64 := WSAData64{}
+			data64 = WSAData64{}
 			this.int = WSAStartup64(version, data64)
 			version = data64.wVersion
 		else
-			data32 := WSAData32{}
+			data32 = WSAData32{}
 			this.int = WSAStartup32(version, data32)
 			version = data32.wVersion
 		end
@@ -73,4 +74,4 @@ inline fn ~WsockProto
 # symbol of type 'WsockProto' to trigger constructor/destructor calls that do initialization/clean-up
 # '_winsock.status.int' contains 0 or the error status returned by WSAStartup()
 #
-pub const status := WsockProto
+pub const status = WsockProto

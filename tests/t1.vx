@@ -1,5 +1,5 @@
 fn fib(x u64) u64
-	t := if x < 3
+	t = if x < 3
 	    1u64
 	else
 	    fib(x - 2) + fib(x - 1)
@@ -19,37 +19,38 @@ fn factorial(n i64) i64
 fn test_factorial bool
 	return factorial(15) == 1307674368000i64
 
-const r6zer ::= if false || true; 4 else 5 end
-const r7zrr ::= if true && false; 7.5 else -3.75 end
+const r6zer := if false || true; 4 else 5 end
+const r7zrr := if true && false; 7.5 else -3.75 end
 
 fn test_const_condition bool
+	global r6zer, r7zrr
 	return r6zer == 4 && r7zrr == -3.75
 
 cdecl fn function_that_does_not_exist(x f64) f64
 
 fn test_branch_elimination_1 bool
 	if 4 > 5
-		a := 13
+		a = 13
 		if function_that_does_not_exist(1.2) > 7.5
 			a += 4
 		end
 	else
-		a := -4
+		a = -4
 	end
 	return a < 0
 
 fn test_branch_elimination_2 bool
 	if 4 < 5
-		b := 89.0625
+		b = 89.0625
 	else
-		b := function_that_does_not_exist(1.2)
+		b = function_that_does_not_exist(1.2)
 		b += 4
 	end
 	return b == 89.0625
 
 fn loo(x f64) f64
-	sum := 0.
-	xx := x
+	sum = 0.
+	xx = x
 	while xx < 12
 		sum = sum + xx
 		xx = xx + 1
@@ -60,8 +61,8 @@ fn test_while bool
    return loo(3.25) == 65.25
 
 fn loo2(x f64) f64
-	sum := 0.
-	xx := x
+	sum = 0.
+	xx = x
 	while xx >= -11.25
 		sum = sum + xx
 		xx = xx - 1.5
@@ -77,13 +78,13 @@ fn test_while_3 bool
    return loo2(-9.5) == -20.5
 
 fn gwhel(r f64) f64
-	n := 2.25
+	n = 2.25
 	while r < 2557.5
 		r = r + 1
-		aaap := r + n
+		aaap = r + n
 		n = aaap + 1
 	else
-		aaap := -13.0625
+		aaap = -13.0625
 	end
 	return aaap
 
@@ -94,17 +95,17 @@ fn test_while_else_const_alloc_2 bool
 	return gwhel(2557.5) == -13.0625
 
 fn ghjj(wwj i32, rtt f64) f64
-	n := 12.75
-	p := 10
+	n = 12.75
+	p = 10
 	while rtt < 23.75
-		aaaq := [wwj+p]f64{200: 34.5, 300: -17.25}
+		aaaq = [wwj+p]f64{200: 34.5, 300: -17.25}
 		aaaq[wwj+p-1] = 1.125 + rtt
 		n = n + 1.125
 		aaaq[wwj/3] = aaaq[wwj/3] + n + aaaq[wwj/2] + aaaq[wwj+p-1]
 		rtt = aaaq[wwj+p-1]
 		p = p + 20
 	else
-		aaaq := [wwj+7]f64{}
+		aaaq = [wwj+7]f64{}
 		aaaq[wwj+6] = 67.25
 		aaaq[wwj+3] = -13.125
 		aaaq[wwj/3] = aaaq[wwj+6] + aaaq[wwj+3]
@@ -118,8 +119,8 @@ fn test_while_else_dyn_alloc_2 bool
 	return ghjj(600, 25) == 54.125
 
 fn dorep f64
-	a7 := 0
-	bpp := 1.25
+	a7 = 0
+	bpp = 1.25
 	repeat
 		a7 = a7 + 1
 		bpp = bpp + a7
@@ -130,9 +131,9 @@ fn test_repeat_1 bool
 	return dorep == 67.25
 
 fn vecrep(a7 int) f64
-	bpp := -7.25
+	bpp = -7.25
 	repeat
-		vd := [a7]f64{5: 13.75}
+		vd = [a7]f64{5: 13.75}
 		vd[a7-1] = vd[5] + bpp
 		bpp = .5 + vd[a7-1]
 		a7 = a7 + 873
@@ -144,9 +145,9 @@ fn test_repeat_dyn_array bool
 
 fn merge_array(i int) real
 	if i > 3
-		L := [3][i+1][i+2]real{1: {2: {3: -23.75}}}
+		L = [3][i+1][i+2]real{1: {2: {3: -23.75}}}
 	else
-		L := [i+5][5][i+7]real{1: {2: {3: 7.25}}}
+		L = [i+5][5][i+7]real{1: {2: {3: 7.25}}}
 	end
 	return L[1][2][3]
 
@@ -158,11 +159,11 @@ fn test_merge_different_but_compatible_arrays_2 bool
 
 fn merge_array_2(i int) real
 	while i > 3
-		L := [4][7][4]real{1: {2: {3: i+12}}}
+		L = [4][7][4]real{1: {2: {3: i+12}}}
 		i = i - 1
 		L[0][0][0] = i * L[1][2][3]
 	else
-		L := [5][5][4+i]real{{{-17}}, 1: {2: {3: 7.25}}}
+		L = [5][5][4+i]real{{{-17}}, 1: {2: {3: 7.25}}}
 	end
 	return L[0][0][0] + L[1][2][3]
 
@@ -175,11 +176,11 @@ fn test_merge_different_but_compatible_arrays_4 bool
 # TODO: fixed but diffent dimensions
 
 fn merge_array_3(i int) real
-	L := if i > 3
-		S := [4]real{1: i+12}
+	L = if i > 3
+		S = [4]real{1: i+12}
 		S
 	else
-		T := [4]real{-17, 1: 7.25}
+		T = [4]real{-17, 1: 7.25}
 		T
 	end
 	return L[0] + L[1]
@@ -191,7 +192,7 @@ fn test_merge_if_else_2 bool
 	return merge_array_3(4) == 16
 
 fn merge_array_4(i int) real
-	L := while i > 4
+	L = while i > 4
 		i = i - 1
 		[4]real{2: i+11}
 	else
@@ -206,11 +207,11 @@ fn test_merge_if_else_4 bool
 	return merge_array_4(7) == 15
 
 fn merge_array_5(i int) real
-	L := if i > 3
-		S := [4][7][4]real{1: {2: {3: i+12}}}
+	L = if i > 3
+		S = [4][7][4]real{1: {2: {3: i+12}}}
 		S
 	else
-		T := [4][7][4]real{{{-17}}, 1: {2: {3: 7.25}}}
+		T = [4][7][4]real{{{-17}}, 1: {2: {3: 7.25}}}
 		T
 	end
 	return L[0][0][0] + L[1][2][3]
@@ -222,7 +223,7 @@ fn test_merge_if_else_6 bool
 	return merge_array_5(3) == -9.75
 
 fn merge_array_6(i int) real
-	L := if i > 3
+	L = if i > 3
 		[4][7+i][4]real{1: {2: {3: i+13}}}
 	else
 		[8][7][4+i]real{{{-18}}, 1: {2: {3: 7.25}}}
@@ -237,9 +238,9 @@ fn test_merge_if_else_8 bool
 
 fn merge_array_7(i int) real
 	if i > 3
-		L := [4]real{1: i+12}
+		L = [4]real{1: i+12}
 	else
-		L := [5]real{-17, 1: 7.25}
+		L = [5]real{-17, 1: 7.25}
 	end
 	return L[0] + L[1]
 
@@ -250,7 +251,7 @@ fn test_merge_if_else_10 bool
 	return merge_array_7(2) == -9.75
 
 fn merge_array_8(i int) real
-	L := if i > 3
+	L = if i > 3
 		[4]real{1: i+12}
 	else
 		[5]real{-17, 1: 7.25, 3: -17}
@@ -264,11 +265,11 @@ fn test_merge_if_else_12 bool
 	return merge_array_8(2) == -9.75
 
 fn merge_array_9(i int) real
-	L := if i > 3
-		S := [4]real{1: i+12}
+	L = if i > 3
+		S = [4]real{1: i+12}
 		S
 	else
-		T := [5]real{-17, 1: 7.25}
+		T = [5]real{-17, 1: 7.25}
 		T
 	end
 	return L[0] + L[1]

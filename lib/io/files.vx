@@ -42,9 +42,9 @@ cdecl fn _open(filename cstring, flags int, mode int) int
 #
 pub inline fn openfile(filename cstring, flags int, mode int) Fd
 	if os.isWindows
-		fd := _open(filename, flags, mode)
+		fd = _open(filename, flags, mode)
 	else
-		fd := open(filename, flags, mode)
+		fd = open(filename, flags, mode)
 	end
 	return Fd { fd: fd }
 
@@ -53,18 +53,21 @@ pub inline fn openfile(filename cstring, flags int, mode int) Fd
 # - create new file otherwise
 #
 pub inline fn create(filename cstring) Fd
+	global CREAT, RDWR, TRUNC, BINARY, CLOEXEC
 	return openfile(filename, CREAT | RDWR | TRUNC | BINARY | CLOEXEC, 0666)
 
 # open existing file for read
 # return error otherwise
 #
 pub inline fn open(filename cstring) Fd
+	global RDONLY, BINARY, CLOEXEC
 	return openfile(filename, RDONLY | BINARY | CLOEXEC, 0)
 
 # create new file for read/write
 # - if file name already exists do nothing and return error
 #
 pub inline fn newfile(filename cstring) Fd
+	global CREAT, RDWR, EXCL, BINARY, CLOEXEC
 	return openfile(filename, CREAT | RDWR | EXCL | BINARY | CLOEXEC, 0666)
 
 # open file to append data (like '>>' in shell scripts)
@@ -72,13 +75,14 @@ pub inline fn newfile(filename cstring) Fd
 # - create new file otherwise
 #
 pub inline fn append(filename cstring) Fd
+	global CREAT, WRONLY, APPEND, BINARY, CLOEXEC
 	return openfile(filename, CREAT | WRONLY | APPEND | BINARY | CLOEXEC, 0666)
 
 cdecl fn close(fd int) int
 cdecl fn _close(fd int) int
 
 pub inline fn Fd.close int
-	fd := this.fd
+	fd = this.fd
 	this.fd = -1
 	if os.isWindows
 		return _close(fd)
@@ -93,8 +97,8 @@ fn win64_write(fd int, buf cstring, count size_t) ssize_t
 	# The Windows _write() can only handle max_int bytes but size_t might exceed this value
 	# on 64 bit platforms. So we split the operation into several parts in that case
 	if os.isWindows && arch.bitwidth > 32
-		bytes_written := size_t(0)
-		written := limits.max_i32
+		bytes_written = size_t(0)
+		written = limits.max_i32
 		while count > limits.max_i32 && written == limits.max_i32
 			written = _write(fd, buf, u32(limits.max_i32))
 			if written >= 0
@@ -133,5 +137,5 @@ pub inline fn Fd._write(buf cstring, count size_t) ssize_t
 cdecl fn strlen(s cstring) size_t
 
 pub inline fn Fd.write(buf cstring) ssize_t
-	len := strlen(buf)
+	len = strlen(buf)
 	return this._write(buf, len)

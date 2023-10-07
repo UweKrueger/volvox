@@ -1,4 +1,4 @@
-// do not insert empty or comment lines below
+// token classes - do not insert empty or comment lines below
 constexpr int TOKBEGIN = __LINE__;
 #define TOKENS \
 TOKEN(chan) \
@@ -22,7 +22,7 @@ TOKEN(for) \
 TOKEN(else) \
 TOKEN(elif) \
 TOKEN(if) \
-TOKEN(end) /* '.' at end of if/while/else branch */ \
+TOKEN(end) \
 TOKEN(pub) \
 TOKEN(cpub) \
 TOKEN(as) \

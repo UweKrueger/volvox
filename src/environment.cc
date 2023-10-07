@@ -92,7 +92,7 @@ generror:
 }
 
 const char* volvox_root() {
-	static char* root = nullptr; // cache result
+	static char* root = nullptr; // static variable to cache result
 	if (root)
 		return root;
 	root = getenv(VOLVOX_ROOT);

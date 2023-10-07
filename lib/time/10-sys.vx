@@ -19,13 +19,13 @@ type timespec {
 
 # "REALTIME" and "MONOTONIC" clocks on Unix systems
 
-pub const CLOCK_REALTIME ::= if os.isHaiku
+pub const CLOCK_REALTIME := if os.isHaiku
 		-1
 	else
 		0
 	end
 
-pub const CLOCK_MONOTONIC ::= if os.isLinux
+pub const CLOCK_MONOTONIC := if os.isLinux
 		1
 	elif os.isOpenBSD || os.isNetBSD
 		3
@@ -51,11 +51,12 @@ cdecl fn QueryPerformanceFrequency(&f i64) bool
 pub cdecl(QueryPerformanceCounter) fn _QueryPerformanceCounter(&ticks i64) bool
 
 # for calculations a constexpr might be handy on Unix systems
-const ufrequency ::= 1000000000
+const ufrequency := 1000000000
 
 fn get_system_tick_frequency() int
+	global ufrequency
 	if os.isWindows
-		f := 0i64
+		f = 0i64
 		if !QueryPerformanceFrequency(f)
 			panic("fatal: cannot probe system tick frequency\n")
 		end
@@ -64,8 +65,8 @@ fn get_system_tick_frequency() int
 		return ufrequency
 	end
 
-pub const tick_frequency := get_system_tick_frequency()
-pub const tick_period := 1.0f64 / tick_frequency
+pub const tick_frequency = get_system_tick_frequency()
+pub const tick_period = 1.0f64 / tick_frequency
 
 # monotonic timestamps are of type 'timespec' on Unix and 'LARGE_INTEGER' on Windows
 # to avoid the clumsy timespec structure, Volvox timestamps are i64 on all systems and represent
@@ -78,7 +79,8 @@ type common_timestamp union {
 }
 
 fn get_common_timestamp() common_timestamp
-	_tmp_ts := common_timestamp{}
+	global CLOCK_MONOTONIC
+	_tmp_ts = common_timestamp{}
 	if os.isWindows
 		if !_QueryPerformanceCounter(_tmp_ts.i64)
 			panic("fatal: cannot query system performance counter\n")
@@ -90,12 +92,13 @@ fn get_common_timestamp() common_timestamp
 	end
 	return _tmp_ts
 
-const program_start_common_timestamp := get_common_timestamp()
+const program_start_common_timestamp = get_common_timestamp()
 
 # difference of two timespec values in ns
 #
 pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
-	res := timespec {
+	global ufrequency
+	res = timespec {
 		sec: finish.sec - start.sec
 		nsec : finish.nsec - start.nsec
 	}
@@ -106,7 +109,8 @@ pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
 	return res
 
 pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
-	res := timespec{
+	global ufrequency
+	res = timespec{
 		sec: t1.sec + t2.sec
 		nsec: t1.nsec + t2.nsec
 	}
@@ -117,20 +121,22 @@ pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
 	return res
 
 inline fn nanoseconds_since_start(ts timespec) i64
-	d := timespec_diff(ts, program_start_common_timestamp.timespec)
+	global ufrequency, program_start_common_timestamp
+	d = timespec_diff(ts, program_start_common_timestamp.timespec)
 	return i64(ufrequency) * d.sec + d.nsec
 
 # read a timestamp as ticks since program start
 #
 pub inline fn get() i64
+	global CLOCK_MONOTONIC, program_start_common_timestamp
 	if os.isWindows
-		t := 0i64
+		t = 0i64
 		if !_QueryPerformanceCounter(t)
 			panic("fatal: cannot query system performance counter\n")
 		end
 		return t - program_start_common_timestamp.i64
 	else
-		tsx := timespec{}
+		tsx = timespec{}
 		if clock_gettime(CLOCK_MONOTONIC, tsx) != 0
 			panic("fatal: cannot query CLOCK_MONOTONIC\n")
 		end
@@ -140,6 +146,7 @@ pub inline fn get() i64
 # calculate difference of two timestamps as float in seconds
 #
 pub inline fn diff(finish i64, start i64) f64
+	global tick_period
 	return f64(i64(finish - start)) * tick_period
 
 # Windows timestamp in 0.1µs resolution
@@ -168,18 +175,19 @@ type _TimeStamp union {
 
 # seconds of January 1, 1970 since January 1, 1601
 #
-pub const epoch_offset ::= 11644473600
+pub const epoch_offset := 11644473600
 
 cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
 
 # get 0.1µs ticks since January 1, 1601 (in field u64)
 #
 pub inline fn now() TimeStamp
-	ft := _TimeStamp{}
+	global CLOCK_REALTIME, epoch_offset
+	ft = _TimeStamp{}
 	if os.isWindows
 		GetSystemTimePreciseAsFileTime(ft.FILETIME)
 	else
-		ts := timespec{}
+		ts = timespec{}
 		clock_gettime(CLOCK_REALTIME, ts)
 		# calculate "(1e7 * ts.sec + epoch_offset) + ts.nsec / 100" avoiding division
 		ft.TimeStamp.u64 = 10000000 * (u64(ts.sec) + epoch_offset) + ((u64(ts.nsec) * 42949673) >> 32)
@@ -196,7 +204,7 @@ type time_t {
 }
 
 pub inline fn time() time_t
-	t := time_t{}
+	t = time_t{}
 	if os.isWindows
 		if arch.bitwidth == 32
 			t.sec = ssize_t(_time32(0))

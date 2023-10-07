@@ -8,7 +8,10 @@
 #include "AST.h"
 #ifdef _WIN32
 #include <winsock.h>
+#include <tlhelp32.h>
 #endif
+#include <signal.h>
+
 // some names for environment variables
 
 #define PROMPT_COL "VOLVOX_COLORS"
@@ -28,6 +31,7 @@ std::map<std::string, Module> Modules;
 DebugInfo KSDbgInfo;
 const char* last_defined_type = nullptr;
 bool needs_libm = false;
+bool needs_pthread = true; // for now - may be false when not needed, but hard to figure out...
 bool support_fp80;
 bool have_return = false;
 int return_value = 0;
@@ -39,6 +43,15 @@ std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
 CPU_Type_t cpu_idx;
 OS_Type_t os_idx;
+signalhandler_t old_abort = nullptr;
+signalhandler_t old_flt = nullptr;
+signalhandler_t old_intr = nullptr;
+#ifdef _WIN32
+#define THREAD_HANDLE_TY HANDLE
+#else
+#define THREAD_HANDLE_TY pthread_t
+#endif
+std::atomic<THREAD_HANDLE_TY> execution_thread{0};
 
 #if defined(_MSC_VER)
 // some tokens from library have GNU/Itanium style mangling - so compensate
@@ -327,6 +340,33 @@ void init(const llvm::Triple& triple) {
 	}
 }
 
+#ifdef _WIN32
+// helper function - for debug purposes only
+void get_running_threads() {
+	auto mypid = GetCurrentProcessId();
+	auto snap = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+	if (snap == INVALID_HANDLE_VALUE) {
+		errs() << "No thread list\n";
+		return;
+	}
+	THREADENTRY32 thr {
+		.dwSize = sizeof(THREADENTRY32)
+	};
+	if (!Thread32First(snap, &thr)) {
+		errs() << "no first thread\n";
+		CloseHandle(snap);
+		return;
+	}
+	do {
+		if (thr.th32OwnerProcessID == mypid) {
+			errs() << "Thread ID: " << thr.th32ThreadID << "\n";
+		}
+	} while (Thread32Next(snap, &thr));
+	CloseHandle(snap);
+	return;
+}
+#endif
+
 //===----------------------------------------------------------------------===//
 // Top-Level parsing and JIT Driver
 //===----------------------------------------------------------------------===//
@@ -386,7 +426,6 @@ static void HandleDefinition(unsigned& visibility) {
 	TestFunction = nullptr;
 cleanup:
 	locals_table[0].clear();
-	captured_variables.clear();
 	locals_table = std::move(std::vector<VarTable>{});
 	inside_function = false;
 }
@@ -458,7 +497,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	getNextToken(eSemi);
 	if (CurTok.kind == ';') {
 		if (verbosity >= 2)
-			errs() << "declared type " << *ft->type << '\n';
+			errs() << "declared type - ft: " << ft << " " << *ft->type << '\n';
 		return; // only declaration of incomplete type
 	}
 	auto newft = ParseType(false, eComma, 0, volvox_name.c_str(), nullptr, struct_type);
@@ -466,14 +505,16 @@ static void HandleTypeDef(unsigned share_kind) {
 		purgeLine();
 		return;
 	}
-	const char* mangled_name = ft->mangled_name;
+	// newft remains alive even after lex goes out of scope
+	newft->mangled_name = ft->mangled_name;
 	*ft = *newft;
-	ft->mangled_name = mangled_name;
-	auto keep = new_FullType(*ft); // to keep a handle to mangled_name after lex.module has gone out of scope
-	struct_mangled_ft[std::string(struct_type->getName())] = ft;
+	// mangled_name will intentionally *not* be automatically freed because
+	// it can be referred anywhere. We keep a database of all types with mangled
+	// names so valgrind will not report leaks
+	struct_mangled_ft[std::string(struct_type->getName())] = newft;
 	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
-		errs() << "defined type " << *ft << " as " << *ft->type << '\n';
+		errs() << "defined type - ft: " << ft << " " << *ft << ", " << ft->type << " as " << *ft->type << '\n';
 }
 
 static void HandleImport() {
@@ -578,15 +619,25 @@ static void HandleImport() {
 
 static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 	bool (*expr)() = (bool (*)())expr_ptr;
-	return (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
+	THREAD_RETURN res = (THREAD_RETURN)(uintptr_t)(expr() ? 1 : 0);
+	execution_thread = (THREAD_HANDLE_TY)0;
+	return res;
 }
 
-#if defined (_MSC_VER)
+// This starts the main JIT execution thread for each command.
+// We use a separate thread so signals from "inside" (e.g. index out of range)
+// or TerminateThread() from "outside" can kill this thread without
+// crashing the whole REPL application.
+//
+#ifdef _WIN32
 bool spawn_bool_expr(bool (*expr)()) {
 	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
+	execution_thread = thread;
 	WaitForSingleObject(thread, INFINITE);
+	execution_thread = (THREAD_HANDLE_TY)0; // in case did not finish due to signal
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
+	CloseHandle(thread);
 	return !(!retval);
 }
 int spawn_int_expr(int (*expr)()) {
@@ -594,6 +645,7 @@ int spawn_int_expr(int (*expr)()) {
 	WaitForSingleObject(thread, INFINITE);
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
+	CloseHandle(thread);
 	return (int)retval;
 }
 #else
@@ -607,9 +659,11 @@ bool spawn_bool_expr(bool (*expr)()) {
 		errs() << "Error creating execution thread: " << strerror(res) << '\n';
 		abort();
 	}
-	pthread_attr_destroy(&attr);
+	execution_thread = thread;
 	void* retval;
 	res = pthread_join(thread, &retval);
+	execution_thread = (THREAD_HANDLE_TY)0; // in case did not finish due to signal
+	pthread_attr_destroy(&attr);
 	return !(!retval);
 }
 int spawn_int_expr(int (*expr)()) {
@@ -622,9 +676,9 @@ int spawn_int_expr(int (*expr)()) {
 		errs() << "Error creating execution thread: " << strerror(res) << '\n';
 		abort();
 	}
-	pthread_attr_destroy(&attr);
 	void* retval;
 	res = pthread_join(thread, &retval);
+	pthread_attr_destroy(&attr);
 	return (int)(intptr_t)retval;
 }
 #endif
@@ -647,19 +701,40 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 				InitializeModuleAndPassManager();
-				
+				if (!pending_globals.empty()) {
+					for (auto& new_decl: pending_globals) {
+						auto GV = CreateGlobal(std::get<0>(new_decl), std::get<1>(new_decl), std::get<2>(new_decl));
+						if (!GV) {
+							errs() << "error creating main scope variable '" << std::get<1>(new_decl) << "'\n";
+							ExitOnErr(RT->remove());
+							return false;
+						}
+					}
+					pending_globals.clear();
+					ExitOnErr(TheJIT->addModule(
+						          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
+					InitializeModuleAndPassManager();
+				}
 				// Search the JIT for the __anon_expr symbol.
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
 				if (have_return) {
+#if LLVM_VERSION_MAJOR >= 17
+					int (*INT)() = ExprSymbol.getAddress().toPtr<int (*)()>();;
+#else
 					int (*INT)() = (int (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
 					if (jit_extra_thread)
 						return_value = spawn_int_expr(INT);
 					else
 						return_value = INT();
 				} else {
+#if LLVM_VERSION_MAJOR >= 17
+					bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
+#else
 					bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
 					if (jit_extra_thread)
 						b = spawn_bool_expr(BOOL);
 					else
@@ -667,15 +742,39 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				}
 				// Delete the anonymous expression module from the JIT.
 				ExitOnErr(RT->remove());
+				if (!pending_arrays.empty()) {
+					for (auto& new_decl: pending_arrays) {
+						llvm::SmallVector<llvm::Constant*, 16> fields;
+						auto struct_type = llvm::dyn_cast<llvm::StructType>(std::get<2>(new_decl));
+						unsigned n_elem = struct_type->getNumElements() - 1;
+						for (unsigned i=0; i<n_elem; i++)
+							fields.push_back(llvm::ConstantInt::get(llvm_size_type,
+							                                        ((size_t*)std::get<0>(new_decl))[i]));
+						fields.push_back(
+							llvm::cast<llvm::Constant>(
+								Builder->CreateIntToPtr(
+									llvm::ConstantInt::get(llvm_size_type, ((size_t*)std::get<0>(new_decl))[n_elem]),
+									llvm::Type::getInt8PtrTy(Context))));
+						*std::get<1>(new_decl) = llvm::ConstantStruct::get(struct_type, fields);
+						free(std::get<0>(new_decl));
+					}
+					pending_arrays.clear();
+				}
 			}
+			goto do_return;
 		} else {
 			errs() << "Error generating code for top level expr\n";
+			goto cleanup;
 		}
-	} else {
-		// Skip rest for error recovery.
-		purgeLine();
 	}
-	return b;
+cleanup:
+	pending_globals.clear();
+	for (auto& new_decl: pending_arrays)
+		free(std::get<0>(new_decl));
+	pending_arrays.clear();
+	purgeLine();
+do_return:
+	return b || have_return;
 }
 
 std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_type = "int") {
@@ -837,7 +936,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 	}
 }
 
-/// top ::= definition | external | expression | ';'
+/// top := definition | external | expression | ';'
 static void MainLoop() {
 	for (;;) {
 		if (last_defined_type)
@@ -972,10 +1071,13 @@ static void MainLoop() {
 				finish_constructors_and_destructor();
 			Builder->ClearInsertionPoint();
 			if (auto expr = GetTopLevelExpression(sym_kind)) {
-				if (comp_mode == comp_jit && !do_test)
-					HandleTopLevelExpression(std::move(expr));
-				else
+				if (comp_mode == comp_jit && !do_test) {
+					if (!HandleTopLevelExpression(std::move(expr))) {
+						errs() << "Command aborted...\n";
+					}
+				} else {
 					GlobalExprList.push_back(std::move(expr));
+				}
 			}
 			if (have_return)
 				return;
@@ -1018,6 +1120,56 @@ uint64_t stacksize = 10485760; // 10MB as safe fallback
 #define O_CLOEXEC 0
 #endif
 
+// signal handler to avoid complete crash of REPL in case of "index out of range" and
+// similar errors
+// this is not a clean "exit": memory blocks might become orphaned, ...
+//
+void finish_thread(int caught_signal) {
+#ifdef _WIN32
+	// the Windows signal() implementation seems to use the "classic"
+	// semantics where the handler has to be restored after the signal
+	// is caught - let's hope we do not get race conditions...
+	old_abort = signal(caught_signal, finish_thread);
+	ExitThread(0);
+#else
+	// modern Linux follows the BSD semantics where the handler remains set
+	pthread_exit(nullptr);
+#endif
+}
+
+#ifdef _WIN32
+#define CTRL_C_HANDLER_DECL BOOL WINAPI
+#define CTRL_C_HANDLER_RETURN TRUE
+#define CTRL_C_HANDLER_EVENT_TY DWORD
+#else
+#define CTRL_C_HANDLER_DECL void
+#define CTRL_C_HANDLER_RETURN
+#define CTRL_C_HANDLER_EVENT_TY int
+#endif
+
+CTRL_C_HANDLER_DECL CtrlCHandler(CTRL_C_HANDLER_EVENT_TY event) {
+	// Terminate the main execution thread if there is one
+	// otherwise just ignore the interrupt
+	// the REPL is not terminated
+	THREAD_HANDLE_TY handle = execution_thread.exchange((THREAD_HANDLE_TY)0);
+	if (handle) {
+#ifdef _WIN32
+		// On Windows this handler is always executed in a newly created separate thread
+		TerminateThread(handle, 0);
+#else
+		// On other system this handler runs on an arbitrary  existing thread. So we have to
+		// figure out if we should terminate ourself or pass the signal on to execution_thread
+		if (handle == pthread_self()) {
+			pthread_exit(nullptr);
+		} else {
+			execution_thread = handle;
+			pthread_kill(handle, event);
+		}
+#endif
+	}
+	return CTRL_C_HANDLER_RETURN;
+}
+
 static void usage(const char* prog) {
 	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
 	errs() << " -h ........... print this help screen\n";
@@ -1028,6 +1180,7 @@ static void usage(const char* prog) {
 	errs() << " -fPIC ........ generate position independent code\n";
 	errs() << " -fdiv-floored  signed division is floored, remainder gets sign of divisor\n"; 
 	errs() << " -fdiv-c99 .... signed division rounds towards 0, remainder gets sign of divident\n"; 
+	errs() << " -fno-idx-chk . do not check array indices to be within bounds\n"; 
 	errs() << " -g ........... compile with debug information\n";
 	errs() << " -On[m] ....... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
 	errs() << "                m: optional separate level machine specific codegen (default: n)\n";
@@ -1245,6 +1398,9 @@ int main(int argc, char* argv[]) {
 					usage(argv[0]);
 				}
 				idiv_mode = idiv_mode_c99;
+			} else if (!strcmp(optarg, "no-idx-chk") ||
+			           !strcmp(optarg, "no-index-checks")) {
+				do_range_checks = false;
 			} else {
 				errs() << "Unknown option '-f" << optarg << "'\n";
 				usage(argv[0]);
@@ -1565,7 +1721,11 @@ int main(int argc, char* argv[]) {
 	// is 'gnueabihf'. We set the 'hard' float abi here as a quick hack
 	if (!strcmp(Target->getName(), "arm"))
 		target_opts.FloatABIType = llvm::FloatABI::Hard;
+#if LLVM_VERSION_MAJOR >= 17
+	auto RM = std::optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
+#else
 	auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
+#endif
 	std::unique_ptr<llvm::TargetMachine> u_tartgetm = nullptr;
 	if (comp_mode == comp_jit) {
 		if (auto ptr = TheJIT->createTargetMachine()) {
@@ -1638,6 +1798,18 @@ int main(int argc, char* argv[]) {
 		}
 		MainFunction->prepare_codegen();
 	}
+	if (jit_repl) {
+		// Running Volvox code may raise SIGABRT or SIGFPE, the user my press Ctrl-C.
+		// We do not want the REPL to crash completely so we install signal handlers
+		// that just exit the currently running main execution thread, if any
+		old_abort = signal(SIGABRT, finish_thread);
+		old_flt = signal(SIGFPE, finish_thread);
+#ifdef _WIN32
+		SetConsoleCtrlHandler(CtrlCHandler, TRUE);
+#else
+		old_intr = signal(SIGINT, CtrlCHandler);
+#endif
+	}
 	// Prime the first token.
 	getNextToken();
 	// Run the main "interpreter loop" now.
@@ -1655,16 +1827,16 @@ int main(int argc, char* argv[]) {
 		if (auto *FnIR = MainFunction->finish_codegen(true)) {
 			if (comp_mode == comp_jit) {
 				// call test_main()
-				// Create a ResourceTracker to track JIT'd memory allocated to our
-				// anonymous expression -- that way we can free it after executing.
-				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
-				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-				InitializeModuleAndPassManager();
+				ExitOnErr(TheJIT->addModule(std::move(TSM)));
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
+#if LLVM_VERSION_MAJOR >= 17
+				bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
+#else
 				bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
 				bool ret;
 				if (jit_extra_thread)
 					ret = spawn_bool_expr(BOOL);
@@ -1674,8 +1846,6 @@ int main(int argc, char* argv[]) {
 					errs() << "All test cases passed\n";
 				else
 					errs() << "Some test cases failed\n";
-				// Delete the anonymous expression module from the JIT.
-				ExitOnErr(RT->remove());
 			}
 		} else {
 			errs() << "error generating code for main function\n";
@@ -1833,6 +2003,8 @@ int main(int argc, char* argv[]) {
 				}
 				if (needs_libm)
 					clang_argv.push_back(const_cast<char*>("-lm"));
+				if (needs_pthread)
+					clang_argv.push_back(const_cast<char*>("-lpthread"));
 #endif
 				if(verbosity)
 					clang_argv.push_back(const_cast<char*>("-v"));
@@ -1892,6 +2064,12 @@ int main(int argc, char* argv[]) {
 			CallGlobalDestructorsJIT();
 		ExitOnErr(TheJIT->getMainJITDylib().clear());
 		result = return_value;
+#ifdef _WIN32
+		while (!extra_dlls.empty()) {
+			FreeLibrary(extra_dlls.back());
+			extra_dlls.pop_back();
+		}
+#endif
 	}
 	for (auto str: SourceFileNames)
 		free((void*)str);

@@ -61,15 +61,20 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr);
 };
 
+// internal AST node to hold an already (i.e. no more changing) evaluated
+// expression value
+//
 class ConstExprAST : public ExprAST {
-	llvm::Constant* val;
+	llvm::Value* val;
 public:
-	ConstExprAST(llvm::Constant* val) : val(val) {
+	ConstExprAST(llvm::Value* val) : val(val) {
 		if (!val)
 			errs() << "ConstExprAST: no valid value\n";
 		else
 			ft->type = val->getType();
 	}
+	ConstExprAST(SourceLocation Loc, volvoxc::FullType* full_type, llvm::Value* val, bool is_unknown_type = false)
+		: ExprAST(full_type, Loc, is_unknown_type), val(val) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return val; }
 };
 
@@ -147,16 +152,26 @@ inline bool is_ccfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
 	return Proto && (*Proto).size() >= 1 && (*Proto)[0]->getName().c_str()[0] == '_' && (*Proto)[0]->getName().c_str()[1] == 'Z';
 }
 
-// Expressions that can the the LHS of an assignmen: `a = 1`, `b[3] = 4.5`, `s.a = 9`
+// Expressions that can the the LHS of an assignment: `a = 1`, `b[3] = 4.5`, `s.a = 9`
+// However, there are exceptions: LvalueExprAST is base class for IndexExprAST and SelectExprAST
+// but it is possible that the array/struct is in fact an rvalue. These cases need special
+// treatment is the derived classes. Here we provide an option 'silent_fail' for 'codegen_ref()'
+// that makes the method return a type but no pointer in these cases
+//
 class LvalueExprAST : public ExprAST {
+protected:
 	std::pair<llvm::Type*,llvm::Value*> ref_cache = { nullptr, nullptr };
 public:
 	std::string Name;
-	LvalueExprAST(SourceLocation Loc, std::string Name = "") : ExprAST(Loc), Name(Name) {}
+	bool error_already_printed = false;
+	LvalueExprAST(SourceLocation Loc, std::string Name = "")
+		: ExprAST(Loc), Name(std::move(Name)) {}
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
-	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) = 0;
+	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) {
+		return { nullptr, nullptr };
+	}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) {
 		if (ref_cache.first) {
 			if (!ref_cache.second && !silent_fail)
@@ -167,7 +182,7 @@ public:
 	}
 	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	virtual VariableExprAST* getBase() = 0;
+	virtual VariableExprAST* getBase() { return nullptr; }
 	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
 		if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
 			return Builder->CreateLoad(ref.first, ref.second, Name.c_str());
@@ -176,11 +191,25 @@ public:
 	}
 };
 
+// internal AST node to hold an already (i.e. no more changing) evaluated
+// lvalue expression value
+//
+class ConstLvalueAST : public LvalueExprAST {
+public:
+	ConstLvalueAST(SourceLocation Loc, volvoxc::FullType* _ft, llvm::Type* type, llvm::Value* ref_val, std::string Name = "")
+		: LvalueExprAST(Loc, std::move(Name))
+		{
+			ref_cache.first = type;
+			ref_cache.second = ref_val;
+			ft = _ft;
+		}
+};
+
 /// VariableExprAST - Expression class for referencing a variable, like "a".
 class VariableExprAST : public LvalueExprAST {
 
 public:
-	FullVar* full_var; // and if it's global
+	FullVar* full_var; // description in local or global database
 	VariableExprAST(SourceLocation Loc, const std::string &Name)
 		: LvalueExprAST(Loc, Name), full_var(lookup_var(Name.c_str())) {
 		if (full_var) {
@@ -188,9 +217,9 @@ public:
 			if (ft->type_attr & A_untyped)
 				is_unknown_type = true;
 		}
-		// if the variable name has not found in the database we don't generate
+		// if the variable name has not found in the databases we don't generate
 		// an error message here because this VariableExprAST could be the LHS of
-		// an initialization e.g. `a := 42`
+		// an initialization e.g. `a = 42`
 	}
 	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv)
 		: LvalueExprAST(Loc, Name), full_var(fv) {
@@ -414,6 +443,8 @@ public:
 	}
 };
 
+extern std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident);
+
 // IndexExprAST - Expressions like x[2] or y["key"]
 class IndexExprAST : public LvalueExprAST {
 
@@ -572,7 +603,7 @@ public:
 				for (unsigned i = 0; i < order; i++)
 					ft->type = llvm::ArrayType::get(ft->type, 0);
 			} else {
-				errs() << "undefined element type\n";
+				errs() << Loc << ": unable to determine element type of fixed array\n";
 				ft = nullptr;
 			}
 		}
@@ -702,7 +733,7 @@ public:
 	OpClass opclass = OpNormal;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, unsigned, bool, OpClass,
-	              const char*> res_t = { llvm::Type::getVoidTy(Context), false, false, OpDeclAssign, nullptr })
+	              const char*> res_t = { llvm::Type::getVoidTy(Context), 0, false, OpDeclAssign, nullptr })
 		: ExprAST(std::get<0>(res_t), std::get<1>(res_t), Loc,
 		          std::get<2>(res_t)),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
@@ -710,6 +741,21 @@ public:
 			strcpy(Op, _Op);
 			if (opclass == OpDeclAssign)
 				LHS->ft = RHS->ft;
+			if (opclass == OpRange && ft && ft->type) {
+				auto limits_type_name = lex.get_type_name(ft->type, (bool)(ft->type_attr & A_signed));
+				if (limits_type_name) {
+#define RANGE_PREFIX "__range_"
+#define RANGE_PREFIX_SIZE ARRAY_SIZE(RANGE_PREFIX) /* including terminating 0 */
+					auto range_type_name = (char*)alloca(ARRAY_SIZE(RANGE_PREFIX) + strlen(limits_type_name));
+					strcpy(range_type_name, RANGE_PREFIX);
+					strcpy(range_type_name + (RANGE_PREFIX_SIZE - 1), limits_type_name);
+					ft = lex.get_full_type(range_type_name);
+					if (ft)
+						return;
+				} else
+					ft = nullptr;
+				errs() << Loc << ": cannot create range from types " << *LHS->ft->type << " and " << *RHS->ft->type << "\n";
+			}
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen_atomic_Xassign(llvm::Value* ptr, llvm::Value* val);
@@ -797,6 +843,36 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
+class BranchExprAST : public ExprAST {
+protected:
+	std::vector<std::unique_ptr<ExprAST>> Then, Else;
+	VarTable then_locals_table, else_locals_table;
+	TokenKind if_kind = (TokenKind)0;
+	llvm::BasicBlock* StackRestoreBB0;
+	llvm::Function* TheFunction = nullptr;
+
+public:
+	const char* errmsg; // postponed: result type is just void if branch last values do not match
+	                    // however if a result value is needed by a consumer this message is used
+	std::unique_ptr<ExprAST> Cond;
+	int ThenEndKind; // maybe tok_else, tok_end, tok_return, ...
+	int ElseEndKind;
+	bool always_return = false;
+	BranchExprAST(SourceLocation Loc, llvm::Type* type, unsigned type_attr,
+	              bool is_unknown_type, const char* errmsg,
+	              std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
+	              VarTable _then_locals_table, VarTable _else_locals_table, int ThenEndKind, int ElseEndKind,
+	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
+	              bool always_return = false)
+		: ExprAST(type, type_attr, Loc, is_unknown_type), Then(std::move(_Then)), Else(std::move(_Else)),
+		  then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)),
+		  ThenEndKind(ThenEndKind), ElseEndKind(ElseEndKind), Cond(std::move(_Cond)), if_kind(if_kind),
+		  always_return(always_return), errmsg(errmsg) {}
+	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock* MergeBB,
+		      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse);
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+};
+
 enum CTcond_t : uint8_t {
 	CTcond_false = 0,
 	CTcond_true,
@@ -804,26 +880,18 @@ enum CTcond_t : uint8_t {
 };
 
 /// IfExprAST - Expression class for if/then/else.
-class IfExprAST : public ExprAST {
-	std::unique_ptr<ExprAST> Cond;
-	std::vector<std::unique_ptr<ExprAST>> Then, Else;
-	const char* errmsg = nullptr;
-	TokenKind if_kind = (TokenKind)0;
-	VarTable then_locals_table;
-	VarTable else_locals_table;
+class IfExprAST : public BranchExprAST {
 
 public:
-	int ThenEndKind, ElseEndKind; // maybe tok_else, tok_end, tok_return, ...
-	bool always_return = false;
-
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
-	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if, bool always_return = false)
-		: ExprAST(_Else.size() ? std::get<0>(res_t) : llvm::Type::getVoidTy(Context), std::get<1>(res_t), Loc, std::get<2>(res_t)),
-		  errmsg(std::get<4>(res_t)), Cond(std::move(_Cond)), Then(std::move(_Then)), Else(std::move(_Else)), ThenEndKind(ThenEndKind),
-		  ElseEndKind(ElseEndKind), then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)), if_kind(if_kind),
-		  always_return(always_return)
+	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
+	          bool always_return = false)
+		: BranchExprAST(Loc, std::get<0>(res_t),
+		                std::get<1>(res_t), std::get<2>(res_t), std::get<4>(res_t), std::move(_Then),
+		                std::move(_Else), std::move(_then_locals_table), std::move(_else_locals_table),
+		                ThenEndKind, ElseEndKind, std::move(_Cond), if_kind, always_return)
 		{
 			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
 			if (Then.size() && Then.back()->ft && Then.back()->ft->type && !Then.back()->ft->type->isSingleValueType() && !Then.back()->ft->type->isVoidTy()
@@ -832,8 +900,6 @@ public:
 			if (!ft->type)
 				ft = new_FullType(llvm::Type::getVoidTy(Context), 0);
 		}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock *MergeBB, bool isElse = false);
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
@@ -846,34 +912,59 @@ public:
 #endif
 };
 
-class IteratorAST {
-public:
-	std::unique_ptr<ExprAST> Cond, Iterate, Init, Key, Value;
-	bool skip_1st_check = false;
-	IteratorAST(std::unique_ptr<ExprAST> Cond, std::unique_ptr<ExprAST> Iterate, bool skip_1st_check, std::unique_ptr<ExprAST> Init, std::unique_ptr<ExprAST> Key, std::unique_ptr<ExprAST> Value)
-		: Cond(std::move(Cond)), Iterate(std::move(Iterate)), skip_1st_check(skip_1st_check), Init(std::move(Init)), Key(std::move(Key)), Value(std::move(Value)) {}
-	virtual ~IteratorAST() = default;
+enum new_var_kind : uint8_t {
+	new_var_none = 0,
+	new_var_created,
+	existing_var_returned,
+	generic_lvalue_returned
 };
 
 /// ForExprAST - Expression class for for/in.
-class ForExprAST : public ExprAST {
-	std::string VarName;
-	std::unique_ptr<ExprAST> Start, End, Step, Body;
+class ForExprAST : public BranchExprAST {
+	std::unique_ptr<ExprAST> Iterator;
+	llvm::Value* limit = nullptr;
+	llvm::Value* approx_limit = nullptr; // for float
+	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
+	                                    // value variable there's still an unnamed
+	                                    // control variable pointing to the current elem
+	llvm::Align rvalue_align;
+	std::string KeyName, ValueName;
+	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
+	union {
+		FullVar* KeyFV = nullptr;
+		LvalueExprAST* KeyLval;
+	};
+	union {
+		FullVar* ValueFV = nullptr;
+		LvalueExprAST* ValueLval;
+	};
+	llvm::Value* ValueRef = nullptr;
+	llvm::Type* ValueType = nullptr;
+	volvoxc::FullType* ValueFT;
+	llvm::Value* Step = nullptr;
+	new_var_kind new_Key, new_Value;
 
 public:
-	ForExprAST(const std::string &VarName, std::unique_ptr<ExprAST> Start,
-	           std::unique_ptr<ExprAST> End, std::unique_ptr<ExprAST> Step,
-	           std::unique_ptr<ExprAST> Body, SourceLocation Loc = CurLoc)
-		: ExprAST(Loc), VarName(VarName), Start(std::move(Start)), End(std::move(End)),
-		  Step(std::move(Step)), Body(std::move(Body)) {}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
+	           VarTable else_locals_table, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
+	           std::string _KeyName, std::string _ValueName,
+	           std::vector<std::unique_ptr<ExprAST>> _Body, std::vector<std::unique_ptr<ExprAST>> _Else,
+	           int EndKind, int ElseEndKind, FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
+	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none)
+		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
+		                std::move(_Else), std::move(_locals_table),
+		                std::move(else_locals_table), EndKind, ElseEndKind, nullptr, tok_for),
+		  Iterator(std::move(_Iterator)), Key(std::move(_Key)), Value(std::move(_Value)),
+		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)),
+		  ValueName(std::move(_ValueName)), ValueFT(ValueFT), new_Key(new_Key), new_Value(new_Value) {}
+	bool PrepareIterator();
+	llvm::Value* CreateCondition(bool at_end = false);
+	bool SetupLoop();
+	bool Iterate();
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "for", ind);
-		Start->dump(indent(out, ind) << "Cond:", ind + 1);
-		End->dump(indent(out, ind) << "End:", ind + 1);
-		Step->dump(indent(out, ind) << "Step:", ind + 1);
-		Body->dump(indent(out, ind) << "Body:", ind + 1);
+		ExprAST::dump(out << "for " << KeyName << "," << ValueName, ind);
+		Then[0]->dump(indent(out, ind) << "Body:", ind + 1);
 		return out;
 	}
 #endif

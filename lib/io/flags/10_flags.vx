@@ -2,15 +2,15 @@ import arch.os
 
 # flags for file descriptor open
 #
-pub const APPEND ::= if os.isLinux; 0x0400 else 0x0008 end
-pub const RDONLY ::= 0x0000
-pub const WRONLY ::= 0x0001
-pub const RDWR   ::= 0x0002
-pub const CREAT  ::= if os.isWindows; 0x0100 elif os.isLinux; 0x0040 else 0x0200 end
-pub const TRUNC  ::= if os.isWindows; 0x0200 elif os.isLinux; 0x0080 else 0x0400 end
-pub const EXCL   ::= if os.isWindows; 0x0400 elif os.isLinux; 0x0200 else 0x0800 end
-pub const BINARY ::= if os.isWindows; 0x8000 else 0x0000 end
-pub const CLOEXEC ::= if os.isLinux
+pub const APPEND := if os.isLinux; 0x0400 else 0x0008 end
+pub const RDONLY := 0x0000
+pub const WRONLY := 0x0001
+pub const RDWR   := 0x0002
+pub const CREAT  := if os.isWindows; 0x0100 elif os.isLinux; 0x0040 else 0x0200 end
+pub const TRUNC  := if os.isWindows; 0x0200 elif os.isLinux; 0x0080 else 0x0400 end
+pub const EXCL   := if os.isWindows; 0x0400 elif os.isLinux; 0x0200 else 0x0800 end
+pub const BINARY := if os.isWindows; 0x8000 else 0x0000 end
+pub const CLOEXEC := if os.isLinux
 		0x080000
 	elif os.isOpenBSD
 		0x010000
@@ -27,8 +27,8 @@ pub const CLOEXEC ::= if os.isLinux
 	else
 		0
 	end
-pub const NOINHERIT ::= CLOEXEC # flag's Windows name as alias
-pub const NONBLOCK ::= if os.isLinux
+pub const NOINHERIT := CLOEXEC # flag's Windows name as alias
+pub const NONBLOCK := if os.isLinux
 		0x0800
 	elif os.isHaiku
 		0x0080
@@ -37,17 +37,17 @@ pub const NONBLOCK ::= if os.isLinux
 	end
 
 # for eventfd (only supported by Linux, FreeBSD and NetBSD)
-pub const SEMAPHORE ::= if os.isNetBSD
+pub const SEMAPHORE := if os.isNetBSD
 		2
 	else
 		1
 	end
 
-pub const PRIVATE ::= 0
+pub const PRIVATE := 0
 
-pub const POLLIN   ::= 0x001
-pub const POLLPRI  ::= 0x002
-pub const POLLOUT  ::= 0x004
-pub const POLLERR  ::= 0x008
-pub const POLLHUP  ::= 0x010
-pub const POLLNVAL ::= 0x020
+pub const POLLIN   := 0x001
+pub const POLLPRI  := 0x002
+pub const POLLOUT  := 0x004
+pub const POLLERR  := 0x008
+pub const POLLHUP  := 0x010
+pub const POLLNVAL := 0x020

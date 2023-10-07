@@ -4,7 +4,7 @@ type UnixSocket union {
 	err u32
 }
 
-pub const UNIX_PATH_MAX	::= if os.isWindows || os.isLinux
+pub const UNIX_PATH_MAX	:= if os.isWindows || os.isLinux
 		108
 	elif os.isHaiku
 		126
@@ -18,7 +18,8 @@ type sockaddr_un {
 }
 
 pub inline fn unix UnixSocket
-	s := UnixSocket{}
+	global AF_UNIX, SOCK_STREAM
+	s = UnixSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_UNIX, SOCK_STREAM, 0)
 		if s.handle == -1
@@ -32,7 +33,7 @@ pub inline fn unix UnixSocket
 	end
 	return s
 
-const ENAMETOOLONG ::= if os.isWindows
+const ENAMETOOLONG := if os.isWindows
 		206 # ERROR_FILENAME_EXCED_RANGE
 	elif os.isLinux
 		36
@@ -48,7 +49,7 @@ type ucred {
 	gid u32
 }
 
-const SOL_SOCKET ::= if os.isLinux
+const SOL_SOCKET := if os.isLinux
 		1
 	elif os.isHaiku
 		-1
@@ -56,10 +57,10 @@ const SOL_SOCKET ::= if os.isLinux
 		0xffff
 	end
 
-const IOC_VENDOR ::= 0x18000000
-const IOC_OUT    ::= 0x40000000
+const IOC_VENDOR := 0x18000000
+const IOC_OUT    := 0x40000000
 
-const SO_PEERCRED ::= if os.isLinux
+const SO_PEERCRED := if os.isLinux
 		17
 	elif os.isFreeBSD
 		1
@@ -82,16 +83,17 @@ cdecl fn WSAIoctl(s size_t, dwIoControlCode u32, lpvInBuffer voidptr, cbInBuffer
 cdecl fn getsockopt(sockfd int, level int, optname int, optval voidptr, &optlen u32) int
 
 fn UnixSocket.peer ucred
-	p := ucred{}
-	l := u32
+	global SO_PEERCRED, SOL_SOCKET
+	p = ucred{}
+	l = u32
 	if os.isWindows
-		pid := u32
-		r := WSAIoctl(u64(this.handle), SO_PEERCRED, nil, 0, &pid, u32(sizeof(u32)), l, nil, nil)
+		pid = u32
+		r = WSAIoctl(u64(this.handle), SO_PEERCRED, nil, 0, &pid, u32(sizeof(u32)), l, nil, nil)
 		if r != -1
 			p.pid = pid
 		end
 	else
-		l := u32
-		r := getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l)
+		l = u32
+		r = getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l)
 	end
 	return p

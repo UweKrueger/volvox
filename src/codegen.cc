@@ -16,7 +16,7 @@ const char* last_shadow_saver = nullptr;
 const char* last_shadow_restorer = nullptr;
 const char* last_thread_constructor_caller = nullptr;
 // list of boolean values that indicate that this loop branch is run for the first time
-// this is used to avoid multiple  allocations of variables that are declared inside a then/while/repaet loop
+// this is used to avoid multiple  allocations of variables that are declared inside a then/while/repeat loop
 VarTable* IfWhileVarTable = nullptr;
 llvm::Value* ret_ptr = nullptr; // for sret
 // both in loop bodies and in 'else' blocks array allocation should *not* be done in the entry block
@@ -24,10 +24,19 @@ llvm::Value* ret_ptr = nullptr; // for sret
 // the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
 unsigned condnesting = 0;
 idiv_modes idiv_mode = idiv_mode_undef;
+std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
+std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
 
 //===----------------------------------------------------------------------===//
 // Code Generation
 //===----------------------------------------------------------------------===//
+
+inline llvm::AllocaInst* CreateAlloca(llvm::Value* AllocSize, llvm::Align align,
+                                      const llvm::Twine &Name = "") {
+   unsigned AddrSpace = TheModule->getDataLayout().getAllocaAddrSpace();
+   return Builder->Insert(new llvm::AllocaInst(llvm::Type::getInt8Ty(Context),
+                                               AddrSpace, AllocSize, align), Name);
+}
 
 llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
@@ -135,7 +144,7 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	}
 	const char* inserter;
 	if (ft->elem_type[0].type == llvm::Type::getInt8PtrTy(Context)) // string key type
-		inserter = "_ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiRS2_";
+		inserter = "_ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_";
 	else {
 		errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
 		return nullptr;
@@ -520,7 +529,8 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* array = nullptr;
 			if (expr->needs_target() && !target) {
 				auto [allocsz, valproto, ndim] = expr->alloc_dims();
-				val = Builder->CreateAlloca(llvm::Type::getInt8Ty(Context), allocsz);
+				val = CreateAlloca(allocsz,
+				                   TheModule->getDataLayout().getPrefTypeAlign(llvm_size_type));
 				array = expr->codegen_raw(val);
 				val = Builder->CreateInsertValue(valproto, Builder->CreatePointerCast(val, llvm::cast<llvm::StructType>(valproto->getType())->getElementType(ndim)), ndim);
 			} else {
@@ -782,7 +792,7 @@ static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varn
 	return GV;
 }
 
-static llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
+llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
 	llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 	                                                    false, link_type(sym_kind), initializer, varname, nullptr,
 	                                                    tls_model(sym_kind), 0, false);
@@ -829,7 +839,7 @@ static inline const char* global_kind_str(unsigned flags) {
 }
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
-	bool rhs_is_constexpr = !strcmp(expr->Op, "::=");
+	bool rhs_is_constexpr = !strcmp(expr->Op, ":=");
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
@@ -846,7 +856,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	const std::string& unmangled_name = LHSE->getName();
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
 		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
-		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using '::='\n";
+		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using ':='\n";
 		return cleanupGlobal(nullptr, unmangled_name.c_str(), nullptr);
 	}
 	auto varname = create_mangled_global(unmangled_name);
@@ -908,7 +918,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (rhs_is_constexpr) {
 			initializer = llvm::dyn_cast<llvm::Constant>(Val);
 			if (!initializer) {
-				errs() << expr->RHS->Loc << ": initialization with '::=' requires a compile time const on the RHS\n";
+				errs() << expr->RHS->Loc << ": initialization with ':=' requires a compile time const on the RHS\n";
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 			}
 		}
@@ -995,9 +1005,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			auto theLoc = expr->LHS->Loc;
 			if (!rhs_is_constexpr) {
 				// transform this declaration to an assignment and insert it into "main()"'s expr list
-				// the operator remains '::=' to indicate that no destructor for the old LHS value
+				// the operator remains ':=' to indicate that no destructor for the old LHS value
 				// must be inserted
-				expr->opclass = OpAssign;
+				expr->opclass = OpGlobalDeclAssign;
 				LHSE->full_var = fv;
 				GlobalExprList.push_back(std::move(expr));
 			}
@@ -1086,7 +1096,11 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// Search the JIT for the <setter_name> symbol.
 		auto ExprSymbol = ExitOnErr(TheJIT->lookup(setter_name));
 		// C syntax at its best...
+#if LLVM_VERSION_MAJOR >= 17
+		char* (*PTR)(size_t*) = ExprSymbol.getAddress().toPtr<char* (*)(size_t*)>();
+#else
 		char* (*PTR)(size_t*) = (char* (*)(size_t*))(intptr_t)ExprSymbol.getAddress();
+#endif
 		size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
 		char* varptr = PTR(Dims);
 		if (varptr) {
@@ -1266,7 +1280,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (opclass == OpDeclAssign || opclass == OpAssign || opclass == OpModAssign) {
+	if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign || opclass == OpAssign || opclass == OpModAssign) {
 		bool postpone_valgen = false;
 		std::pair<llvm::Type*,llvm::Value*> Variable = { nullptr, nullptr };
 		const char* varname = nullptr;
@@ -1303,7 +1317,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
 					ft->type, ft->type_attr & (A_signed | A_string | A_map), is_unknown_type, getOpClass(newOp), err_msg });
 		}
-		if (Op[0] != ':' || Op[1] != '=') // opclass might have been changed by HandleGlobalVariable()
+		if (opclass != OpDeclAssign && opclass != OpGlobalDeclAssign)
 			RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
 		uint64_t allocsz = LREF ?
@@ -1414,9 +1428,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				} else {
-					// We should not get here! TODO: Implement 'codegen_dims()' and allocate
-					// space in advance so 'target' is available here
-					//errs() << Loc << ": internal problem - loading large value\n";
 					auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 					if (ValPtr)
 						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
@@ -1457,11 +1468,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 							return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 					} else
 						Builder->CreateStore(Val, Variable.second);
-				// call destructor for OldVal if discarded
-				// it might be that opclass has been changed to OpAssign by HandleGlobalVariable()
-				// in this case Op will still be ':='
-				if (Op[0] == ':')
+				if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign)
+					// declarations have no return type
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+				// call destructor for OldVal if discarded
 				return handle_d(target, OldVal, LHS->ft->type_attr);
 			}
 		}
@@ -1505,14 +1515,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			RHS->codegen_raw(entry->val);
 		} else if (ValPtr) {
 			if (allocsz) {
-				auto align = getAlignment(allocsz);
 				llvm::AllocaInst* Alloca;
 				if (LREF) {
 					entry->ft.type_attr |= A_ptrref;
+					auto align = TheModule->getDataLayout().getPrefTypeAlign(ValPtr->getType());
 					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
 					Builder->CreateAlignedStore(ValPtr, Alloca, align);
 					entry->mark_as_referencing(is_referencing);
 				} else {
+					auto align = getAlignment(allocsz);
 					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
 				}
@@ -2019,18 +2030,34 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 		break;
+	case '.': // range expression 2..5
+		if (ft && ft->type) {
+			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+				result = llvm::UndefValue::get(struct_type);
+				result = Builder->CreateInsertValue(result, L, 0); // min
+				result = Builder->CreateInsertValue(result, R, 1); // max
+				break;
+			}
+		}
+		if (!result)
+			errs() << Loc << ": unable to evaluate range expression\n";
+		break;
 	default:
 		errs() << Loc << ": unexpected operator '" << Op << "' in this context\n";
 	}
 	return handle(target, result);
 }
 
-std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::BasicBlock* MergeBB, bool isElse) {
-	int EndKind = isElse ? ElseEndKind : ThenEndKind;
-	std::vector<std::unique_ptr<ExprAST>>& Branch = isElse ? Else : Then;
+std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm::BasicBlock* MergeBB,
+	      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse) {
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
+	auto for_expr = dynamic_cast<ForExprAST*>(this);
 	if (EndKind == tok_return) {
+		if (for_expr) {
+			errs() << Loc << ": 'return' at end of 'for' loop not allowed - use 'if' instead\n";
+			return { nullptr, nullptr };
+		}
 		if (!theFunction_ret_ft->type->isVoidTy()) {
 			if (Branch.empty()) {
 				errs() << Loc << ": return value value of type " << *theFunction_ret_ft << " required\n";
@@ -2047,8 +2074,24 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 	}
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
-	if (!BranchV && !isElse)
+	if (for_expr && !isElse && EndKind != tok_return) {
+		llvm::Value* cond = for_expr->CreateCondition(true);
+		llvm::BasicBlock* IterateBB = llvm::BasicBlock::Create(Context, "Iterate");
+		firstBreak = Builder->CreateCondBr(cond, IterateBB, MergeBB);
+		if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), IterateBB);
+#else
+			TheFunction->getBasicBlockList().push_back(IterateBB);
+#endif
+			Builder->SetInsertPoint(IterateBB);
+		}
+		for_expr->Iterate();
+		Builder->CreateBr(StackRestoreBB0);
+	}
+	if (!BranchV && !isElse && !for_expr) {
 		return { nullptr, nullptr };
+	}
 	if (EndKind == tok_return) {
 		if (!Branch.empty())
 			if (auto lastif = dynamic_cast<IfExprAST*>(Branch.back().get()))
@@ -2077,7 +2120,7 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		else if (!BranchV)
 			BranchV = llvm::Constant::getNullValue(ft->type);
-		if (MergeBB)
+		if (MergeBB && !(for_expr && !isElse))
 			firstBreak = Builder->CreateBr(MergeBB);
 	}
 	return { BranchV, firstBreak };
@@ -2085,21 +2128,21 @@ std::pair<llvm::Value*, llvm::Instruction*> IfExprAST::createCondBranch(llvm::Ba
 
 std::pair<llvm::Type*, llvm::Value*> merge_values(
 	llvm::Type* typA, llvm::Value* valA, llvm::BasicBlock* caseA, llvm::Instruction* lastA, 
-	llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB, llvm::Instruction* lastB, llvm::Instruction* firstWhile, llvm::BasicBlock* enterBB) {
+	llvm::Type* typB, llvm::Value* valB, llvm::BasicBlock* caseB, llvm::Instruction* lastB,
+	llvm::Instruction* firstWhile, llvm::BasicBlock* enterBB, SourceLocation locA,
+	SourceLocation locB, const char* unmangled_name = nullptr) {
+	auto MergeBB = Builder->GetInsertBlock();
 	if (!valA || !typA) {
 		if (!valB || !typB) {
-			errs() << "error merging variables from if/while/else branches\n";
-			return { nullptr, nullptr };
+			goto uncompatible_types;
 		}
 		return { typB, valB };
 	} else if (!valB || !typB) {
 		return { typA, valA };
 	}
-	auto MergeBB = Builder->GetInsertBlock();
 	if (typA == typB) {
 		if (valA->getType() != valB->getType()) {
-			errs() << "internal error: types of if-branches do not match: " << *valA->getType() << " vs. " << *valB->getType() << "\n";
-			return { nullptr, nullptr };
+			goto uncompatible_types;
 		}
 		llvm::PHINode* PN = Builder->CreatePHI(valA->getType(), 2, "iftmp");
 		llvm::PHINode* PNW;
@@ -2136,8 +2179,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		unsigned n_vardims_B;
 		auto array_tB = llvm::dyn_cast<llvm::ArrayType>(typB);
 		if (!array_tB) {
-			errs() << "error: array / scalar mismatch\n";
-			return { nullptr, nullptr };
+			goto uncompatible_types;
 		}
 		Builder->SetInsertPoint(lastB);
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(valB->getType())) {
@@ -2169,38 +2211,31 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 					if (nA)
 						dimA = getSize(nA);
 					else
-						if (iA < n_vardims_A) {
+						if (iA < n_vardims_A)
 							dimA = Builder->CreateExtractValue(valA, iA++);
-						} else {
-							errs() << "error: mismatch in array value structure\n";
-							return { nullptr, nullptr };
-						}
+						else
+							goto uncompatible_types;
 					varDimsA.push_back(dimA);
 					llvm::Value* dimB;
 					Builder->SetInsertPoint(lastB);
 					if (nB)
 						dimB = getSize(nB);
 					else
-						if (iB < n_vardims_B) {
+						if (iB < n_vardims_B)
 							dimB = Builder->CreateExtractValue(valB, iB++);
-						} else {
-							errs() << "error: mismatch in array value structure\n";
-							return { nullptr, nullptr };
-						}
+						else
+							goto uncompatible_types;
 					varDimsB.push_back(dimB);
 				}
 				typA = elem_tA;
 				typB = elem_tB;
 			} else {
-				errs() << "incompatible types\n";
-				return { nullptr, nullptr };
+				goto uncompatible_types;
 			}
 			array_tB = llvm::dyn_cast<llvm::ArrayType>(typB);
 		} while ((array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)));
-		if (typA != typB) {
-			errs() << "mismatch in array element types " << *typA << " vs. " << *typB << '\n';
-			return { nullptr, nullptr };
-		}
+		if (typA != typB)
+			goto uncompatible_types;
 		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : typA->getPointerTo();
 		Builder->SetInsertPoint(lastA);
 		Aptr = Builder->CreatePointerCast(Aptr, ptr_t);
@@ -2222,10 +2257,8 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 				structIdx++;
 			}
 		}
-		if (structIdx != varDimsA.size() || structIdx != varDimsB.size()) {
-			errs() << "internal error: could not create merge value\n";
-			return { nullptr, nullptr };
-		}
+		if (structIdx != varDimsA.size() || structIdx != varDimsB.size())
+			goto uncompatible_types;
 		Builder->SetInsertPoint(lastB);
 		llvm::Value* the_structB = llvm::UndefValue::get(struct_type);
 		the_structB = Builder->CreateInsertValue(the_structB, Bptr, varDimsB.size());
@@ -2245,18 +2278,215 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		PN->addIncoming(firstWhile ? PNW : the_structA, caseA);
 		PN->addIncoming(the_structB, caseB);
 		return { resultT, PN };
-	} else {
-		errs() << "merge not possible " << *typA << " # " << *typB << '\n';
-		return { nullptr, nullptr };
 	}
+uncompatible_types:
+	if (unmangled_name)
+		errs() << "declaration types for variable '" << unmangled_name << "'";
+	else
+		errs() << "types of final value";
+	errs() << " in conditional branches do not match:\n"
+	       << locA << ": " << *typA << " here vs.\n"
+	       << locB << ": " << *typB << " there\n";
+	return { nullptr, nullptr };
 }
 
-llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
+bool ForExprAST::PrepareIterator() {
+	// integer iterator - initialize with 0
+	if (!ValueFV) {
+		errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
+		return false;
+	}
+	if (Value->ft && Value->ft->type)
+		Iterator->desired_type = Value->ft->type;
+	llvm::Value* iterator = nullptr;
+	llvm::Value* iterator_ref = nullptr;
+	llvm::Type* iterator_type = nullptr;
+	if (auto lval = dynamic_cast<LvalueExprAST*>(Iterator.get())) {
+		std::tie(iterator_type, iterator_ref) = lval->codegen_ref(true);
+		if (!iterator_type)
+			return false;
+	}
+	if (!iterator_ref)
+		iterator = Iterator->codegen();
+	if (!iterator_ref && !iterator)
+		return false;
+	if (!iterator_type)
+		iterator_type = iterator->getType();
+	llvm::Value* initializer = nullptr;
+	if (iterator_type->isSingleValueType()) {
+		if (iterator_ref)
+			iterator = Builder->CreateLoad(iterator_type, iterator_ref);
+		limit = iterator;
+		// The following is somewhat special: Volvox 'for' compares the integer value *before*
+		// incrementing it. So the limit must be the greatest *valid* value. If only one
+		// integer 'n' is given we need 'limit = n-1'
+		if (iterator_type->isIntegerTy()) {
+			Step = llvm::ConstantInt::get(limit->getType(), 1, true);
+			limit = Builder->CreateSub(limit, Step);
+			initializer = llvm::Constant::getNullValue(limit->getType());
+		} else if (iterator_type->isFloatingPointTy()) {
+			Step = llvm::ConstantFP::get(limit->getType(), 1.0);
+			limit = Builder->CreateFSub(limit, Step);
+			initializer = llvm::Constant::getNullValue(limit->getType());
+		} else {
+			errs() << Iterator->Loc << ": unsupported iterator type " << *Iterator->ft << "\n";
+			return false;
+		}
+	} else if (iterator_type->isStructTy()) {
+		// to get polymorphism here we only require that the object has field
+		// elements or methods called 'min' and 'max' that return the same single value type
+		// to achive this we construct SelectExprASTs
+		std::unique_ptr<ExprAST> receiver1;
+		std::unique_ptr<ExprAST> receiver2;
+		if (iterator_ref) {
+			receiver1 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
+			receiver2 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
+		} else {
+			receiver1 = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
+			receiver2 = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
+		}
+		auto selector = std::make_unique<IdentExprAST>(Iterator->Loc, "min");
+		auto min_expr = getSelect(Iterator->Loc, std::move(receiver1), std::move(selector));
+		if (auto method = dynamic_cast<MethodExprAST*>(min_expr.get()))
+			min_expr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(min_expr));
+		// we have to recreate 'receiver' because it has been moved
+		selector = std::make_unique<IdentExprAST>(Iterator->Loc, "max");
+		auto max_expr = getSelect(Iterator->Loc, std::move(receiver2), std::move(selector));
+		if (auto method = dynamic_cast<MethodExprAST*>(max_expr.get()))
+			max_expr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(max_expr));
+		if (!min_expr || !min_expr->ft || !max_expr || !max_expr->ft) {
+			errs() << Iterator->Loc << ": could not find min/max fields of iterator\n";
+			return false;
+		}
+		initializer = min_expr->codegen();
+		limit = max_expr->codegen();
+		if (!initializer || !limit) {
+			errs() << Iterator->Loc << ": could not create code for 'for' range limit\n";
+			return false;
+		}
+		bool signedness_mismatch = (bool)((min_expr->ft->type_attr ^ max_expr->ft->type_attr) & A_signed);
+		if (initializer->getType() != limit->getType() || signedness_mismatch) {
+			errs() << Iterator->Loc << ": types of 'min' (" << *initializer->getType();
+			if (signedness_mismatch)
+				errs() << " - " << (min_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
+			errs() << ") and 'max' (" << *limit->getType();
+			if (signedness_mismatch)
+				errs() << " - " << (max_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
+			errs() << ") do not match\n";
+			return false;
+		}
+	} else if (iterator_type->isArrayTy()) {
+		if (!iterator_ref) {
+			iterator_ref =  StoreValue(iterator, Iterator->ft, nullptr, "");
+		}
+		auto [ElType, Ptr, Dims] = getArrayDims(iterator_ref, iterator_type);
+		Step = llvm::ConstantInt::get(
+			llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
+		// for multi dimentsional array fullElemSize should be the storage size of the sub-tensor
+		unsigned subDims = Dims.size() - 2;
+		for (int i=1; i<=subDims; i++)
+			Step = Builder->CreateMul(Step, Dims[i]);
+		initializer = Ptr;
+		limit = Builder->CreateAdd(
+			Builder->CreatePtrToInt(Ptr, llvm_size_type),
+			Builder->CreateMul(Step, Dims[0]));
+		if (ValueFV->ft.type_attr & A_ptrref) {
+			// The control variable is a reference to the sub tensor
+			ValueFV->val = iterator_ref; // TODO: handle references to variable sized arrays
+		} else {
+			// The control variable is an independent copy of the sub tensor
+			rvalue_align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+			ValueFV->val = CreateAlloca(Step, rvalue_align);
+			ptr_storage = Builder->CreateAlloca(llvm::Type::getInt8PtrTy(Context));
+			Builder->CreateStore(initializer, ptr_storage);
+		}
+	}
+	switch (new_Value) {
+	case new_var_none:
+		errs() << Loc << ": cannot initialize 'for' control variable '" << ValueName << "'\n";
+		return false;
+	case new_var_created:
+	case existing_var_returned:
+		if (!ValueFV->val) {
+			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
+			ValueType = ValueFV->ft.type;
+			goto defstep;
+		}
+		// else: we cannot rely on ValueFV->val. So we get the generic Lvalue...
+		ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
+		// ...and fall though
+	case generic_lvalue_returned:
+		llvm::Type* dummy;
+		std::tie(dummy, ValueRef) = ValueLval->codegen_ref();
+		if (!ValueRef)
+			return false;
+		ValueType = Value->ft->type;
+		if (initializer->getType() != ValueType)
+			initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
+		Builder->CreateStore(initializer, ValueRef);
+		goto defstep;
+	}
+defstep:
+	if (ValueType->isIntegerTy()) {
+		if (!Step)
+			Step = llvm::ConstantInt::get(limit->getType(), 1, true);
+	} else if (ValueType->isFloatingPointTy()) {
+		if (!Step)
+			Step = llvm::ConstantFP::get(limit->getType(), 1.0);
+		// floats accumulate rounding errors so the precise upper limit might not be hit
+		// we define a target intervall [limit-0.5*Step, limit+0.5*Step)
+		llvm::Value* step_half = Builder->CreateFMul(Step, llvm::ConstantFP::get(limit->getType(), .5));
+		// lower boundary:
+		approx_limit = Builder->CreateFSub(limit, step_half);
+	}
+	return true;
+}
+
+llvm::Value* ForExprAST::CreateCondition(bool at_end) {
+	auto ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
+	if (ValueType->isIntegerTy())
+		if (ValueFT->type_attr & A_signed)
+			if (at_end)
+				return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
+			else
+				return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
+		else
+			if (at_end)
+				return Builder->CreateICmpULT(ctrl_var, limit, "for_cond");
+			else
+				return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
+	else
+		if (at_end)
+			return Builder->CreateFCmpOLT(ctrl_var, approx_limit, "for_cond");
+		else
+			// for the start we check the precise limit but allow equality
+			// so 'for x in 2.3..2.3' will have one iteration,
+			// but 'for x in 2.3..2.29999' will only run the 'else' branch if present
+			return Builder->CreateFCmpOLE(ctrl_var, limit, "for_cond");
+}
+
+bool ForExprAST::SetupLoop() {
+	return true;
+}
+
+bool ForExprAST::Iterate() {
+	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
+	if (ValueType->isIntegerTy())
+		ctrl_var = Builder->CreateAdd(ctrl_var, Step);
+	else
+		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
+	Builder->CreateStore(ctrl_var, ValueRef);
+	return true;
+}
+
+llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	auto if_expr = dynamic_cast<IfExprAST*>(this);
+	auto for_expr = dynamic_cast<ForExprAST*>(this);
 	auto enterBB = Builder->GetInsertBlock();
-	llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
+	TheFunction = enterBB ? enterBB->getParent() : nullptr;
 	llvm::PHINode* condPN;
 	llvm::PHINode* savedStack;
 	llvm::BasicBlock* CondBB = nullptr;
@@ -2274,27 +2504,39 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		loopBBName = "repeat";
 		contName = "repeatcont";
 		break;
+	case tok_for:
+		loopBBName = "for";
+		contName = "forcont";
+		break;
 	default:
 		loopBBName = "loop";
 		contName = "whilecont";
 	}
 	llvm::BasicBlock* ThenBB = (TheFunction && if_kind != tok_if) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
 	llvm::Instruction* firstWhile = nullptr;
-	if (if_kind == tok_while) {
-		CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "while");
-		Builder->CreateBr(CondBBstart);
-		if (TheFunction) {
-#if LLVM_VERSION_MAJOR >= 16
-			TheFunction->insert(TheFunction->end(), CondBB);
-#else
-			TheFunction->getBasicBlockList().push_back(CondBB);
-#endif
+	if (if_kind == tok_while || if_kind == tok_for) {
+		if (if_kind == tok_while)
+			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "whilecond");
+		else {
+			if (!for_expr->PrepareIterator())
+				return nullptr;
+			// CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "forcond");
 		}
-		Builder->SetInsertPoint(CondBB);
-		condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
-		savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
-		condPN->addIncoming(Builder->getInt8(2), enterBB);
-		savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
+		if (!for_expr) {
+			Builder->CreateBr(CondBBstart);
+			if (TheFunction) {
+#if LLVM_VERSION_MAJOR >= 16
+				TheFunction->insert(TheFunction->end(), CondBB);
+#else
+				TheFunction->getBasicBlockList().push_back(CondBB);
+#endif
+			}
+			Builder->SetInsertPoint(CondBB);
+			condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
+			savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
+			condPN->addIncoming(Builder->getInt8(2), enterBB);
+			savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
+		}
 	} else if (if_kind == tok_repeat) {
 		CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "until"); // will be filled at end
 		condPN = nullptr;
@@ -2302,13 +2544,19 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		CondBB = nullptr;
 		condPN = nullptr;
 	}
-	Cond->desired_type = llvm::Type::getInt1Ty(Context);
+	ExprAST* Cond;
+	if (if_expr) {
+		Cond = if_expr->Cond.get();
+		Cond->desired_type = llvm::Type::getInt1Ty(Context);
+	} else {
+		Cond = nullptr;
+	}
 	// Create blocks for the then and else cases.  Insert the 'then' block at the
 	// end of the function.
 	llvm::BasicBlock* ElseBB = (if_kind == tok_repeat || if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "else");
 	llvm::BasicBlock* MergeBB = (always_return || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, contName);
 	llvm::BasicBlock* StackSaveBB = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stacksave");
-	llvm::BasicBlock* StackRestoreBB = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
+	llvm::BasicBlock* StackRestoreBB = StackRestoreBB0 = (if_kind == tok_if || !TheFunction) ? nullptr : llvm::BasicBlock::Create(Context, "stackrestore");
 	llvm::BasicBlock* EntryBBend;
 	llvm::BasicBlock* ThenBBstart;
 	llvm::BasicBlock* ElseBBstart;
@@ -2318,7 +2566,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		// 1st iteration: save stack
 		Builder->CreateBr(StackSaveBB);
 	} else {
-		CondV = Cond->codegen();
+		if (for_expr)
+			CondV = for_expr->CreateCondition();
+		else
+			CondV = Cond->codegen();
 		if (!CondV)
 			return nullptr;
 		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
@@ -2347,12 +2598,12 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 		}
-		if (if_kind == tok_if) {
+		if (if_kind == tok_if || if_kind == tok_for) {
 			EntryBBend = Builder->GetInsertBlock();
 			ThenBBstart = ThenBB;
 			ElseBBstart = ElseBB;
 		} else {
-			// save stack at 1st run and restore at followind runs
+			// save stack at 1st run and restore at following runs
 			llvm::Value* CondVV = Builder->CreateIntCast(CondV, llvm::Type::getInt8Ty(Context), false, "expandcond");
 			llvm::Value* switchVal = Builder->CreateOr(condPN, CondVV, "switchval");
 			llvm::MDNode* branch_weights = MDBuilder->createBranchWeights({10,75,5,10});
@@ -2386,7 +2637,10 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (if_kind == tok_repeat)
 			savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 1, "savedstack");
-		StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
+		if (if_kind == tok_for)
+			StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack0);
+		else
+			StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
 		Builder->CreateBr(ThenBB);
 		StackRestoreBB = Builder->GetInsertBlock();
 	}
@@ -2404,21 +2658,28 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			Builder->SetInsertPoint(ThenBB);
 		}
 		if (if_kind == tok_while || if_kind == tok_repeat) {
-			savedStack1 =  Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack1");
+			savedStack1 = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack1");
 			savedStack1->addIncoming(savedStack0, StackSaveBB);
 			savedStack1->addIncoming(savedStack, StackRestoreBB);
 		}
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
 		condnesting++;
-		std::tie(ThenV, thenLast) = createCondBranch(CondBBstart ? CondBBstart : MergeBB, false);
+		llvm::BasicBlock* BlockToJump;
+		if (if_kind == tok_for)
+			BlockToJump = MergeBB;
+		else if(CondBBstart)
+			BlockToJump = CondBBstart;
+		else
+			BlockToJump = MergeBB;
+		std::tie(ThenV, thenLast) = createCondBranch(BlockToJump, Then, ThenEndKind, false);
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		condnesting--;
 		then_locals_table = std::move(locals_table.back());
 		locals_table.pop_back();
 		if (!ThenV) {
-			errs() << Loc << ": if expression - 'then' block did not compile\n";
+			errs() << Loc << ": conditional expression - then/for/while/repeat block did not compile\n";
 			return nullptr;
 		}
 		// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
@@ -2480,7 +2741,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
-			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, true);
+			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, Else, ElseEndKind, true);
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
 			if (CTcond == CTcond_undef)
@@ -2496,9 +2757,9 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			ElseBB = Builder->GetInsertBlock();
 		}
 	}
-	if (if_kind == tok_if) {
+	if (if_kind == tok_if || if_kind == tok_for) {
 		Builder->SetInsertPoint(EntryBBend);
-		if (CTcond != CTcond_undef) { // at least one branch can be removed
+		if (CTcond != CTcond_undef && if_kind != tok_for) { // at least one branch can be removed
 			if (thenConstV && ThenEndKind == tok_else && !ft->type->isVoidTy()) {
 				if (TheFunction) {
 #if LLVM_VERSION_MAJOR >= 16
@@ -2506,6 +2767,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 #else
 					TheFunction->getBasicBlockList().push_back(MergeBB);
 #endif
+					if (ThenBBstart)
+						Builder->CreateBr(ThenBBstart);
 					Builder->SetInsertPoint(MergeBB);
 				}
 				return thenConstV;
@@ -2516,6 +2779,8 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 #else
 					TheFunction->getBasicBlockList().push_back(MergeBB);
 #endif
+					if (ElseBBstart)
+						Builder->CreateBr(ElseBBstart);
 					Builder->SetInsertPoint(MergeBB);
 				}
 				return elseConstV;
@@ -2531,7 +2796,7 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 				errs() << Loc << ": inconsistency (constexpr expected but expr not const?)\n";
 				return nullptr;
 			}
-			Builder->CreateCondBr(CondV, ThenBBstart, ElseBBstart);
+			Builder->CreateCondBr(CondV, if_kind == tok_for ? StackSaveBB : ThenBBstart, ElseBBstart);
 		}
 	}
 	if (always_return)
@@ -2551,19 +2816,66 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (else_var) {
-				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
-				                          else_var->ft.type, else_var->val, ElseBB, elseLast, firstWhile, enterBB);
+				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ?
+				                          CondBB : (if_kind == tok_for) ? thenLast->getParent() : ThenBB, thenLast,
+				                          else_var->ft.type, else_var->val, ElseBB, elseLast, firstWhile, enterBB,
+				                          then_var->decl_loc, else_var->decl_loc, then_node.getKey());
 				if (!merge.second)
 					return nullptr;
 				auto mergeVal = merge.second;
-				FullVar* entry = locals_table.back()[then_node.getKey()];
+				FullVar* entry;
+				if (locals_table.empty()) {
+					entry = lex.module->globals_table[then_node.getKey()];
+				} else {
+					entry = locals_table.back()[then_node.getKey()];
+				}
 				if (!entry) {
 					errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
 					abort();
 				}
 				entry->ft.type = merge.first;
 				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
-				entry->val = mergeVal;
+				if (comp_mode == comp_jit && !do_test && locals_table.empty()) {
+					std::string var_name = then_node.getKey();
+					if (merge.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(merge.first) > 0) {
+						entry->storage_type = merge.first;
+						entry->ft.type_attr |= A_mainvar;
+						entry->mangled_name = strdup(var_name.c_str());
+						auto initializer = llvm::Constant::getNullValue(merge.first);
+						auto GV = GetGlobalHandle(merge.first, var_name, entry->ft.type_attr);
+						pending_globals.push_back({ initializer, std::move(var_name), entry->ft.type_attr });
+						auto align = TheModule->getDataLayout().getPrefTypeAlign(merge.first);
+						auto sz = TheModule->getDataLayout().getTypeAllocSize(merge.first);
+						Builder->CreateMemCpy(GV, align, mergeVal, align, sz);
+					} else {
+						auto struct_type = llvm::dyn_cast<llvm::StructType>(mergeVal->getType());
+						auto [el_type, data_ptr, Dims] = getArrayDims(mergeVal, merge.first);
+						if (el_type && struct_type) {
+							// find out memory size of array in bytes: get element size and multiply witch each dimension
+							llvm::Value* ElemSz = getSize(TheModule->getDataLayout().getTypeAllocSize(el_type));
+							llvm::Value* Sz = getSize(1);
+							for (auto Dim: Dims)
+								Sz = Builder->CreateMul(Sz, Dim);
+							auto align = TheModule->getDataLayout().getPrefTypeAlign(el_type);
+							auto mal_inst = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), llvm_size_type,
+							                                             llvm::Type::getInt8Ty(Context), ElemSz, Sz,
+							                                             nullptr, var_name);
+							llvm::Value* Ptr = Builder->Insert(mal_inst);
+							auto num_dims = struct_type->getNumElements(); // +1 for pointer
+							auto dim_array = malloc(sizeof(size_t)*num_dims);
+							llvm::Constant* DimArray = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(
+								llvm::ConstantInt::get(llvm_size_type, (uintptr_t)dim_array),
+								struct_type->getPointerTo()));
+							Builder->CreateStore(mergeVal, DimArray);
+							pending_arrays.push_back({dim_array, &entry->val, struct_type});
+						} else {
+							errs() << Loc << ": declaring variable size array '" << then_node.getKey() << "', "
+							       << *mergeVal << " " << *merge.first << " in global scopy from conditional branches not supported, yet (sorry)\n";
+						}
+					}
+				} else {
+					entry->val = mergeVal;
+				}
 				else_var->ft.type_attr |= A_merged; // mark as merged to avoid destructor call below
 				then_var->ft.type_attr |= A_merged;
 			}
@@ -2607,8 +2919,9 @@ llvm::Value* IfExprAST::codegen_raw(llvm::Value* target) {
 			return handle(target, ThenV);
 		else if (CTcond == CTcond_false)
 			return handle(target, ElseV);
-		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while) ? CondBB : ThenBB, thenLast,
-		                          Else.back()->ft->type, ElseV, ElseBB, elseLast, firstWhile, enterBB);
+		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while || if_kind == tok_for) ?
+		                          CondBB : ThenBB, thenLast, Else.back()->ft->type, ElseV, ElseBB, elseLast,
+		                          firstWhile, enterBB, Then.back()->Loc, Else.back()->Loc);
 		if (ft->type != merge.first) {
 			ft = new_FullType(*ft);
 			ft-> type = merge.first;
@@ -2641,129 +2954,17 @@ void CallGlobalDestructorsJIT() {
 	ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 	InitializeModuleAndPassManager();
 	auto ExprSymbol = ExitOnErr(TheJIT->lookup(destr_name));
+#if LLVM_VERSION_MAJOR >= 17
+	bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
+#else
 	bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
 	bool b;
 	if (jit_extra_thread)
 		b = spawn_bool_expr(BOOL);
 	else
 		b = BOOL();
 	ExitOnErr(RT->remove());
-}
-
-// Output for-loop as:
-//   var = alloca double
-//   ...
-//   start = startexpr
-//   store start -> var
-//   goto loop
-// loop:
-//   ...
-//   bodyexpr
-//   ...
-// loopend:
-//   step = stepexpr
-//   endcond = endexpr
-//
-//   curvar = load var
-//   nextvar = curvar + step
-//   store nextvar -> var
-//   br endcond, loop, endloop
-// outloop:
-llvm::Value *ForExprAST::codegen_raw(llvm::Value* target) {
-	llvm::Function *TheFunction = Builder->GetInsertBlock()->getParent();
-
-	// Create an alloca for the variable in the entry block.
-	llvm::Type* AllocaT = llvm::Type::getInt32Ty(Context);
-	unsigned AllocaF = A_signed;
-	llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(AllocaT, VarName, TheFunction);
-
-	if (comp_mode == comp_dbg) {
-		KSDbgInfo.emitLocation(this);
-	}
-	// Emit the start code first, without 'variable' in scope.
-	llvm::Value *StartVal = Start->codegen();
-	if (!StartVal)
-		return nullptr;
-
-	// Store the value into the alloca.
-	Builder->CreateStore(StartVal, Alloca);
-
-	// Make the new basic block for the loop header, inserting after current
-	// block.
-	llvm::BasicBlock *LoopBB = llvm::BasicBlock::Create(Context, "loop", TheFunction);
-
-	// Insert an explicit fall through from the current block to the LoopBB.
-	Builder->CreateBr(LoopBB);
-
-	// Start insertion in LoopBB.
-	Builder->SetInsertPoint(LoopBB);
-
-	// Within the loop, the variable is defined equal to the PHI node.  If it
-	// shadows an existing variable, we have to restore it, so save it now.
-	FullVar* OldValPtr = locals_table.back()[VarName.c_str()];
-	llvm::Value *OldVal = OldValPtr ? OldValPtr->val : nullptr;
-	if (OldVal) {
-		OldVal = Alloca;
-	} else {
-		FullVar fv = {
-			.val = Alloca,
-			.ft = {
-				.type = AllocaT,
-				.type_attr = AllocaF
-			},
-		};
-		locals_table.back().insert(VarName.c_str(), fv);
-	}
-	// Emit the body of the loop.  This, like any other expr, can change the
-	// current BB.  Note that we ignore the value computed by the body, but don't
-	// allow an error.
-	if (!Body->codegen())
-		return nullptr;
-
-	// Emit the step value.
-	llvm::Value *StepVal = nullptr;
-	if (Step) {
-		StepVal = Step->codegen();
-		if (!StepVal)
-			return nullptr;
-	} else {
-		// If not specified, use 1.0.
-		StepVal = llvm::ConstantFP::get(Context, llvm::APFloat(1.0));
-	}
-
-	// Compute the end condition.
-	llvm::Value *EndCond = End->codegen();
-	if (!EndCond)
-		return nullptr;
-
-	// Reload, increment, and restore the alloca.  This handles the case where
-	// the body of the loop mutates the variable.
-	llvm::Value *CurVar = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), Alloca,
-	                                          VarName.c_str());
-	llvm::Value *NextVar = Builder->CreateFAdd(CurVar, StepVal, "nextvar");
-	Builder->CreateStore(NextVar, Alloca);
-
-	// Convert condition to a bool by comparing non-equal to 0.0.
-	EndCond = Builder->CreateFCmpONE(
-		EndCond, llvm::ConstantFP::get(Context, llvm::APFloat(0.0)), "loopcond");
-
-	// Create the "after loop" block and insert it.
-	llvm::BasicBlock *AfterBB =
-		llvm::BasicBlock::Create(Context, "afterloop", TheFunction);
-
-	// Insert the conditional branch into the end of LoopEndBB.
-	Builder->CreateCondBr(EndCond, LoopBB, AfterBB);
-
-	// Any new code will be inserted in AfterBB.
-	Builder->SetInsertPoint(AfterBB);
-
-	// Restore the unshadowed variable.
-	if (OldVal)
-		OldValPtr->val = OldVal;
-	else
-		locals_table.back().erase(VarName.c_str());
-	// for expr always returns 0.0.
-	return llvm::Constant::getNullValue(llvm::Type::getDoubleTy(Context));
 }
 
 llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {

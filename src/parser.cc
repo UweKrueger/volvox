@@ -27,9 +27,11 @@ FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
 ProtoListElem* anon_protos = nullptr;
 ProtoListElem** anon_protos_end = &anon_protos;
+bool local_var_may_shadow_func_and_mod = false;
 
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
+bool inside_branch = false;
 
 Token& getNextToken(eXpect expect, int terminator) {
 	CurTok = lex.gettok(expect, terminator);
@@ -173,7 +175,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 						} else {
 							// we are parsing a pure type - like "[5][][7]f64"
 							// in this case the dimensions ("5", "7") must be compile time consts
-							// and we can calculate ther values now
+							// and we can calculate their values now
 							auto VLen = e->codegen();
 							if (!VLen) {
 								errs() << "cannot generate code for dimension\n";
@@ -182,7 +184,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 							if (auto Len = llvm::dyn_cast<llvm::ConstantInt>(VLen)) {
 								int64_t len = Len->getSExtValue();
 								if (len <= 0) {
-									errs() << "dimension must be a positive int (not " << len << "\n";
+									errs() << "dimension must be a positive int (not " << len << ")\n";
 									return nullptr;
 								} else {
 									lens.push_back((uint64_t)len);
@@ -270,7 +272,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			MapNode* fields = map_string_new_map();
 			for (int i=0; i<FieldNames.size(); i++) {
 				MapNode* replace = nullptr;
-				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = &FieldTypes[i] }, sizeof(void*), replace);
+				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = &FieldTypes[i] }, sizeof(void*), &replace);
 				if (replace) {
 					errs() << "Duplicate field name '" << FieldNames[i] << "' in struct declaration\n";
 					return nullptr;
@@ -396,7 +398,7 @@ no_attribute:
 	return { name, ParseType(attribs, eComma, terminator, nullptr, nullptr, nullptr, false, resolve_ref) };
 }
 
-/// numberexpr ::= number
+/// numberexpr := number
 static std::unique_ptr<ExprAST> ParseNumberExpr(int terminator = 0) {
 	auto Result = std::make_unique<LiteralExprAST>(std::move(CurTok));
 	getNextToken(eBinOp, terminator); // consume the number
@@ -415,7 +417,7 @@ static std::unique_ptr<ExprAST> ParsePointerExpr(int terminator = 0) {
 	return Result;
 }
 
-/// parenexpr ::= '(' expression ')'
+/// parenexpr := '(' expression ')'
 static std::unique_ptr<ExprAST> ParseParenExpr(int terminator = 0) {
 	getNextToken(); // eat (.
 	auto V = ParseExpression(')');
@@ -434,8 +436,8 @@ static std::unique_ptr<ExprAST> ParseIdent(int terminator = 0) {
 }
 
 /// identifierexpr
-///   ::= identifier
-///   ::= identifier '(' expression* ')'
+///   := identifier
+///   := identifier '(' expression* ')'
 static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 	std::string IdName = IdentifierStr;
 
@@ -731,7 +733,7 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 							case '{':
 								idx = key->getZExtValue();
 								if (idx < Elements.size()) {
-									errs() << elem->Loc << ": value for index " << idx << " already defined\n";
+									errs() << bin_expr->LHS->Loc << ": index '" << idx << "' invalid (should be > " << Elements.size()-1 << " - indices must be in ascending order)\n";
 									struct_err = true;
 									return {};
 								} else {
@@ -837,15 +839,21 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 		return nullptr;
 	if (kind != tok_repeat) {
 		auto condclose = TokenKind(';');
-		if (!Expect(condclose))
+		if (!Expect(condclose)) {
+			errs() << CurLoc << ": <newline> or ';' expected after "
+			       << ((kind == tok_in) ? "iterator\n" : "condition\n");
 			return nullptr;
+		}
 	}
-	if (kind == tok_if || kind == tok_while)
+	if (kind == tok_if || kind == tok_while || kind == tok_in)
 		prompt_indent++;
 	return Cond;
 }
 
-/// ifexpr ::= 'if' expression 'then' expression 'else' expression
+static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,bool,bool> ParseElse(
+	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
+
+/// if..., elif..., while...[elif...]else...end, repeat...until
 static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	SourceLocation IfLoc = CurLoc;
 	auto kind = TokenKind(CurTok.kind); // to remember if it's 'if', 'while' or 'repeat'
@@ -858,16 +866,54 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			return nullptr;
 	}
 	locals_table.emplace_back();
+	auto old_inside_branch = inside_branch;
+	inside_branch = true;
 	auto Then = ParseExprList();
+	if (!Then.second && Then.first.empty())
+		return nullptr;
+	inside_branch = old_inside_branch;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
+	auto [Else, else_locals_table, have_else, success] = ParseElse(then_locals_table, IfLoc, kind, Then.second);
+	if (!success)
+		return nullptr;
+	if (kind == tok_repeat) {
+		if (!Expect(tok_until))
+			return nullptr;
+		Cond = ParseCondition(kind, terminator);
+		if (!Cond)
+			return nullptr;
+	} else {
+		if (have_else && Else.second == tok_end && Then.second != tok_elif || !have_else && Then.second == tok_end)
+			if (!Expect(tok_end, eBinOp)) {
+				errs() << CurLoc << ": 'end' expected\n";
+				return nullptr;
+			}
+	}
+	bool always_return = Then.second == tok_return && have_else && Else.second == tok_return;
+	auto res_t = ((kind == tok_if || kind == tok_elif) && Else.first.size() && Else.first.back()->ft->type &&
+	              !Else.first.back()->ft->type->isVoidTy() && Then.first.back()->ft->type &&
+	              !Then.first.back()->ft->type->isVoidTy() &&
+	              !(Then.second == tok_return || have_else && Else.second == tok_return)) ?
+		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
+		           Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
+		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
+		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context),
+		                                                                 0, false, OpNormal, nullptr };
+	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
+	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
+}
+
+static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,bool,bool> ParseElse(
+	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
+{
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
 	bool have_else = false;
-	if (Then.second == tok_else || Then.second == tok_elif) {
+	if (ThenEndkind == tok_else || ThenEndkind == tok_elif) {
 		have_else = true;
-		if (Then.second != tok_elif)
+		if (ThenEndkind != tok_elif)
 			getNextToken();
-	} else if (Then.second == tok_return) {
+	} else if (ThenEndkind == tok_return) {
 		while (CurTok.kind == ';')
 			getNextToken();
 		if (CurTok.kind == tok_end) {
@@ -879,21 +925,26 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			have_else = true;
 		} else {
 			errs() << CurLoc << ": 'else', 'elif' or 'end' expected\n";
-			return nullptr;
+			return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+					std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 		}
 	}
 	if (have_else) {
 		if (kind == tok_repeat) {
 			errs() << CurLoc << ": 'else' not allowed with 'repeat'\n";
-			return nullptr;
+			return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+					std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 		}
 		locals_table.emplace_back();
+		auto old_inside_branch = inside_branch;
+		inside_branch = true;
 		if (CurTok.kind == tok_elif) {
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
 			if (!elifif_expr) {
 				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
-				return nullptr;
+				return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+						std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 			}
 			auto end_k = elifif_expr->always_return ? tok_return : tok_end;
 			std::vector<std::unique_ptr<ExprAST>> l;
@@ -901,6 +952,9 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			Else = { std::move(l), end_k };
 		} else {
 			Else = ParseExprList();
+			if (!Else.second && Else.first.empty())
+				return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+						std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 			if (Else.second == tok_return) {
 				while (CurTok.kind == ';')
 					getNextToken();
@@ -908,10 +962,12 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 					getNextToken();
 				} else {
 					errs() << CurLoc << ": 'end' expected\n";
-					return nullptr;
+					return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+							std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 				}
 			}
 		}
+		inside_branch = old_inside_branch;
 	} else {
 		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
 	}
@@ -922,8 +978,9 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 				MapValue* node = then_node.getValue();
 				auto then_var = (FullVar*)((char*)node + node->offset);
 				if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
-					errs() << IfLoc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-					return nullptr;
+					errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
+					return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+							std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 				}
 			}
 		}
@@ -933,107 +990,259 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				FullVar* else_var = else_locals_table[then_node.getKey()];
 				if (else_var) {
-					if (!locals_table.back().insert(then_node.getKey(), *else_var)) {
-						errs() << IfLoc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-						return nullptr;
+					bool success = false;
+					if (locals_table.empty()) {
+						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
+							fv->ft.type_attr |= A_mainvar;
+							success = true;
+						}
+					} else {
+						success = locals_table.back().insert(then_node.getKey(), *else_var);
+					}
+					if (!success) {
+						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
+						return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
+								std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{}, false, false };
 					}
 				}
 			}
 		}
 	}
-	if (kind == tok_repeat) {
-		if (!Expect(tok_until))
-			return nullptr;
-		Cond = ParseCondition(kind, terminator);
-		if (!Cond)
-			return nullptr;
+	return { std::move(Else), std::move(else_locals_table), have_else, true };
+}
+
+// try to add new variable to current context's database
+//
+static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_ptr<ExprAST>* RHS,
+                               llvm::Type* LHS_type, llvm::Type* RHS_type, unsigned LHS_attr,
+                               unsigned RHS_attr, SourceLocation& BinLoc, bool LHS_is_unknown_type,
+                               bool RHS_is_unknown_type, bool ref_allowed = true, bool is_iterator = false)
+{
+	if (!RHS_type || RHS_type->isVoidTy()) {
+		errs() << BinLoc << ": RHS of declaration is " << (RHS_type ? "of void type\n" : "indeterminate\n");
+		if (RHS_type)
+			if (auto branch_expr = dynamic_cast<BranchExprAST*>((*RHS).get()))
+				if (branch_expr->errmsg)
+					errs() << branch_expr->Loc << ": in conditional expression: " << branch_expr->errmsg;
+		return { nullptr, new_var_none };
+	}
+	ReferenceExprAST* RefL;
+	VariableExprAST* VarL = nullptr;
+	if (auto v = dynamic_cast<VariableExprAST*>(LHS.get())) {
+		if (v->full_var)
+			return { v->full_var, existing_var_returned };
+		VarL = v;
+	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
+		if (inside_function && local_var_may_shadow_func_and_mod) { // local variable will shadow function name
+			LHS = std::make_unique<VariableExprAST>(function->Loc, function->Name, nullptr);
+			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+		} else {
+			errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
+			return { nullptr, new_var_none };
+		}
+	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
+		if (inside_function && local_var_may_shadow_func_and_mod) {
+			LHS = std::make_unique<VariableExprAST>(mod->Loc, mod->Name, nullptr);
+			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+		} else {
+			errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
+			return { nullptr, new_var_none };
+		}
+	}
+	if (VarL)
+		RefL = nullptr;
+	else
+		if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get()))) {
+			if (!ref_allowed) {
+				errs() << LHS->Loc << ": reference not allowed "
+				       << (is_iterator ? " with this iterator\n" : "in this case\n");
+				return { nullptr, new_var_none };
+			}
+			if ((VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get()))) {
+				if (VarL->full_var)
+					return { VarL->full_var, existing_var_returned };
+				if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
+					// LHS is function pointer; signature of RHS will be used to select overloaded function
+					if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
+						errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
+						return { nullptr, new_var_none };
+					} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
+						errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
+						return { nullptr, new_var_none };
+					}
+					*RHS = std::make_unique<FunctionExprAST>(call_expr);
+					RHS_type = (*RHS)->ft ? (*RHS)->ft->type : nullptr;
+					RHS_attr = 0;
+					RHS_is_unknown_type = false;
+					LHS = std::move(RefL->Operand);
+					RefL = nullptr;
+					LHS_type = LHS->ft ? LHS->ft->type : nullptr;
+					LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
+					LHS_is_unknown_type = LHS->is_unknown_type;
+					VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+				}
+			}
+		}
+	if (!VarL) {
+		if (auto lval = dynamic_cast<LvalueExprAST*>(LHS.get()))
+			// in AST.h:ForExprAST Key/Value FV/Lval are declared as unions - here we do a dirty conversion
+			return { (FullVar*)lval, generic_lvalue_returned };
+		else {
+			errs() << LHS->Loc << ": left operand of assignment/declaration must be an lvalue\n";
+			return { nullptr, new_var_none };
+		}
 	} else {
-		if (have_else && Else.second == tok_end && Then.second != tok_elif || !have_else && Then.second == tok_end)
-			if (!Expect(tok_end, eBinOp))
-				return nullptr;
+		auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
+		FullVar fv = {
+			.val = nullptr,
+			.decl_loc = LHS->Loc,
+			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{}
+		};
+		fv.ft.type = type;
+		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
+		if (is_signed)
+			fv.ft.type_attr |= A_signed;
+		else
+			fv.ft.type_attr &= ~A_signed;
+		if (RefL)
+			if (dynamic_cast<LvalueExprAST*>(LHS.get()))
+				fv.ft.type_attr = (fv.ft.type_attr | A_ptrref) & ~A_destructor; // references need no destructors
+			else {
+				errs() << (RHS ? (*RHS)->Loc : CurLoc) << ": RHS of reference declaration must be an lvalue\n";
+				return { nullptr, new_var_none };
+			}
+		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
+			fv.ft.type_attr |= A_destructor;
+		}
+		if (inside_function || inside_branch) {
+			if (auto entry = locals_table.back().insert(VarL->Name.c_str(), fv)) {
+				VarL->full_var = nullptr; // in case a global with the same name had been found
+				return { entry, new_var_created };
+			} else {
+				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
+				return { nullptr, new_var_none };
+			}
+		} else {
+			fv.ft.type_attr |= A_mainvar;
+			if (auto entry = lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
+				return { entry, new_var_created};
+			} else {
+				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
+				return { nullptr, new_var_none };
+			}
+			// errs() << VarL->Loc << ": inserted " << VarL->Name << ", " << fv.ft.type_attr << " in mainvars\n";
+		}
 	}
-	bool always_return = Then.second == tok_return && have_else && Else.second == tok_return;
-	auto res_t = ((kind == tok_if || kind == tok_elif) && Else.first.size() && Else.first.back()->ft->type && !Else.first.back()->ft->type->isVoidTy()
-	              && Then.first.back()->ft->type && !Then.first.back()->ft->type->isVoidTy() && !(Then.second == tok_return || have_else && Else.second == tok_return)) ?
-		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
-		          Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
-		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
-		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context), 0, false, OpNormal, nullptr };
-	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
-/// forexpr ::= 'for' identifier '=' expr ',' expr (',' expr)? 'in' expression
+/// for...in...;...[elif...]else...end
 static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
-	getNextToken(); // eat the for.
-
-	if (CurTok.kind != tok_identifier) {
-		errs() << "expected identifier after for\n";
+	SourceLocation ForLoc = CurLoc;
+	getNextToken(); // eat for.
+	// condition - expect bool.
+	locals_table.emplace_back();
+	auto old_inside_branch = inside_branch;
+	inside_branch = true;
+	auto KeyVal = ParseExpression(tok_in);
+	if (!Expect(tok_in, eNone)) {
+		errs() << CurLoc << ": 'in' expected!\n";
 		return nullptr;
 	}
-
-	std::string IdName = IdentifierStr;
-	getNextToken(eBinOp); // eat identifier.
-
-	if (CurTok.kind != tok_assign) {
-		errs() << "expected '=' after for\n";
+	std::unique_ptr<ExprAST> Key;
+	std::unique_ptr<ExprAST> Value;
+	BinaryExprAST* bin_expr;
+	if ((bin_expr = dynamic_cast<BinaryExprAST*>(KeyVal.get())) && bin_expr->Op[0] == ',' && !bin_expr->Op[1]) {
+		Key = std::move(bin_expr->LHS);
+		Value = std::move(bin_expr->RHS);
+	} else {
+		Value = std::move(KeyVal);
+	}
+	if (!Key && !Value) {
+		errs() << CurLoc << ": at least one control variable must be declared for 'for' loop\n";
 		return nullptr;
 	}
-	getNextToken(); // eat '='.
-
-	auto Start = ParseExpression();
-	if (!Start)
-		return nullptr;
-	if (CurTok.kind != ',') {
-		errs() << "expected ',' after for start value\n";
-		return nullptr;
-	}
-	getNextToken();
-
-	auto End = ParseExpression();
-	if (!End)
-		return nullptr;
-
-	// The step value is optional.
-	std::unique_ptr<ExprAST> Step;
-	if (CurTok.kind == ',') {
-		getNextToken();
-		Step = ParseExpression();
-		if (!Step)
+	std::string KeyName;
+	std::string ValueName;
+	auto Iterator = ParseCondition(tok_in);
+	auto [KeyFt, ValueFt, IteratorTy] = getKeyValueIteratorTypes(Iterator->ft, Iterator->Loc);
+	FullVar* KeyFV = nullptr;
+	FullVar* ValueFV = nullptr;
+	new_var_kind key_kind = new_var_none, value_kind = new_var_none;
+	if (Key) {
+		if (!KeyFt) {
+			errs() << Iterator->Loc << ": unable to determine type of 'for' key control variable\n";
 			return nullptr;
+		}
+		if (auto lvalKey = dynamic_cast<LvalueExprAST*>(Key.get())) {
+			std::tie(KeyFV, key_kind) = DeclareNewVariable(
+				Key, nullptr, Key->ft->type, KeyFt->type, Key->ft->type_attr,
+				KeyFt->type_attr, Key->Loc, Key->is_unknown_type,
+				Iterator->is_unknown_type, false, true);
+			if (key_kind == new_var_none) {
+				errs() << lvalKey->Loc << ": unable to declare key control variable '"
+				       << lvalKey->Name << "'\n";
+				return nullptr;
+			}
+		} else {
+			errs() << Key->Loc << ": 'for' key control variable must be an Lvalue\n";
+			return nullptr;
+		}
 	}
-
-	if (CurTok.kind != tok_in) {
-		errs() << "expected 'in' after for\n";
-		return nullptr;
+	if (Value) {
+		if (!ValueFt) {
+			errs() << Iterator->Loc << ": unable to determine type of 'for' value control variable\n";
+			return nullptr;
+		}
+		if (auto lvalValue = dynamic_cast<LvalueExprAST*>(Value.get())) {
+			std::tie(ValueFV, value_kind) = DeclareNewVariable(
+				Value, nullptr, Value->ft->type, ValueFt->type, ValueFt->type_attr,
+				ValueFt->type_attr, Value->Loc, Value->is_unknown_type,
+				Iterator->is_unknown_type, false, true);
+			if (value_kind == new_var_none) {
+				errs() << lvalValue->Loc << ": unable to declare value control variable '"
+				       << lvalValue->Name << "'\n";
+				return nullptr;
+			}
+		} else {
+			errs() << Value->Loc << ": 'for' key control variable must be an Lvalue\n";
+			return nullptr;
+		}
 	}
-	getNextToken(); // eat 'in'.
-
-	auto Body = ParseExpression();
-	if (!Body)
+	auto Body = ParseExprList();
+	if (!Body.second && Body.first.empty())
 		return nullptr;
-
-	return std::make_unique<ForExprAST>(IdName, std::move(Start), std::move(End),
-	                                    std::move(Step), std::move(Body));
+	inside_branch = old_inside_branch;
+	VarTable then_locals_table = std::move(locals_table.back());
+	locals_table.pop_back();
+	auto [Else, else_locals_table, have_else, success] = ParseElse(then_locals_table, ForLoc, tok_for, Body.second);
+	if (!success)
+		return nullptr;
+	if (have_else && Else.second == tok_end && Body.second != tok_elif || !have_else && Body.second == tok_end)
+		if (!Expect(tok_end, eBinOp)) {
+			errs() << CurLoc << ": 'end' expected\n";
+			return nullptr;
+		}
+	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
+	                                    std::move(else_locals_table), std::move(Key), std::move(Value),
+	                                    std::move(KeyName), std::move(ValueName), std::move(Body.first),
+	                                    std::move(Else.first), Body.second, Else.second, ValueFV, KeyFV,
+	                                    ValueFt, key_kind, value_kind);
 }
-
-std::vector<std::vector<std::string>> captured_variables;
 
 static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {
 	auto FnLoc = CurLoc;
-	captured_variables.push_back(std::vector<std::string>{});
 	unsigned visibility = A_closure;
 	auto ast = ParseDefinition(visibility);
 	return std::make_unique<FunctionExprAST>(FnLoc, std::move(ast));
 }
 
 /// primary
-///   ::= identifierexpr
-///   ::= numberexpr
-///   ::= parenexpr
-///   ::= ifexpr
-///   ::= forexpr
-///   ::= varexpr
+///   := identifierexpr
+///   := numberexpr
+///   := parenexpr
+///   := ifexpr
+///   := forexpr
+///   := varexpr
 static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	switch ((int)CurTok.kind) {
 	case tok_eof:
@@ -1081,10 +1290,10 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator = 0);
 
 /// unary
-///   ::= primary
-///   ::= '!' unary
+///   := primary
+///   := '!' unary
 static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
-	// If the current token is not an operator, it must be a primary expr.
+	// If the current token is not an unary prefix operator, it must be a primary expr.
 	auto kind = CurTok.kind;
 	if (kind != tok_unary && kind != tok_ref && kind != tok_optional && kind != tok_task)
 		return ParsePrimary(terminator);
@@ -1120,8 +1329,17 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	return nullptr;
 }
 
+std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident) {
+	if (LHS->ft->mangled_name) {
+		auto proto = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
+		if (proto != MethodProtos.end())
+			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &proto->second);
+	}
+	return std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
+}
+
 /// binoprhs
-///   ::= ('+' unary)*
+///   := ('+' unary)*
 static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<ExprAST> LHS, int terminator) {
 	// If this is a binop, find its precedence.
 	while (true) {
@@ -1142,7 +1360,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		if (LHS->ft->type && (LHS->ft->type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			// make this a call expression even without '()' if the following if followed by a usual operand
 			// (';' and '\n' are handled above or below. The ',' case will need special handling if used inside LHS
-			// of decl-assign but this can only be done later when the ':=' operator has been seen
+			// of decl-assign but this can only be done later when the '=' operator has been seen
 			if (BinKind == tok_selector && BinOp != "(" || BinKind >= tok_mult && BinKind < tok_colon || BinKind == tok_comma) {
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 				continue;
@@ -1179,9 +1397,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		// the pending operator take RHS as its LHS.
 		if (TokPrec <= NextTokPrecedence()) {
 			RHS = ParseBinOpRHS(TokPrec, std::move(RHS), terminator);
-			if (!RHS || !RHS->ft)
-				return nullptr;
 		}
+		if (!RHS || !RHS->ft)
+			return nullptr;
 		if (RHS->ft->type && RHS->ft->type->isFunctionTy())
 			RHS = std::make_unique<CallExprAST>(RHS->Loc, std::move(RHS), std::vector<std::unique_ptr<ExprAST>>{});
 		// Merge LHS/RHS.
@@ -1192,98 +1410,14 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		auto RHS_type = RHS->ft ? RHS->ft->type : nullptr;
 		auto RHS_attr = RHS->ft ? RHS->ft->type_attr : 0;
 		auto RHS_is_unknown_type = RHS->is_unknown_type;
-		if (BinOp == ":=" || BinOp == "::=") {
-			if (!RHS_type || RHS_type->isVoidTy()) {
-				errs() << BinLoc << ": RHS of declaration is " << (RHS_type ? "of void type\n" : "indeterminate\n");
+		bool is_decl = false;
+		if (BinOp == "=" || BinOp == ":=") {
+			auto [new_fv, new_kind] = DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
+			                                 BinLoc, LHS_is_unknown_type, RHS_is_unknown_type);
+			if (new_kind == new_var_none)
 				return nullptr;
-			}
-			ReferenceExprAST* RefL;
-			VariableExprAST* VarL = nullptr;
-			if (auto v = dynamic_cast<VariableExprAST*>(LHS.get())) {
-				VarL = v;
-			} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
-				if (inside_function) { // local variable will shadow function name
-					LHS = std::make_unique<VariableExprAST>(function->Loc, function->Name, nullptr);
-					VarL = dynamic_cast<VariableExprAST*>(LHS.get());
-				} else {
-					errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
-					return nullptr;
-				}
-			} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
-				if (inside_function) {
-					LHS = std::make_unique<VariableExprAST>(mod->Loc, mod->Name, nullptr);
-					VarL = dynamic_cast<VariableExprAST*>(LHS.get());
-				} else {
-					errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
-					return nullptr;
-				}
-			}
-			if (VarL)
-				RefL = nullptr;
-			else
-				if ((RefL = dynamic_cast<ReferenceExprAST*>(LHS.get()))) {
-					VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
-					if (auto call_expr = dynamic_cast<CallExprAST*>(RHS.get())) {
-						if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
-							errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
-							return nullptr;
-						} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
-							errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
-							return nullptr;
-						}
-						RHS = std::make_unique<FunctionExprAST>(call_expr);
-						RHS_type = RHS->ft ? RHS->ft->type : nullptr;
-						RHS_attr = 0;
-						RHS_is_unknown_type = false;
-						LHS = std::move(RefL->Operand);
-						RefL = nullptr;
-						LHS_type = LHS->ft ? LHS->ft->type : nullptr;
-						LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
-						LHS_is_unknown_type = LHS->is_unknown_type;
-						VarL = dynamic_cast<VariableExprAST*>(LHS.get());
-					}
-				}
-			if (!VarL) {
-				errs() << LHS->Loc << ": left operand of \":=\" must be a variable\n";
-				return nullptr;
-			} else {
-				auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
-				FullVar fv = {
-					.val = nullptr,
-					.ft = *RHS->ft
-				};
-				fv.ft.type = type;
-				fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
-				if (is_signed)
-					fv.ft.type_attr |= A_signed;
-				else
-					fv.ft.type_attr &= ~A_signed;
-				if (RefL)
-					if (dynamic_cast<LvalueExprAST*>(LHS.get()))
-						fv.ft.type_attr = (fv.ft.type_attr | A_ptrref) & ~A_destructor; // references need no destructors
-					else {
-						errs() << RHS->Loc << ": RHS of reference declaration must be an lvalue\n";
-						return nullptr;
-					}
-				else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
-					fv.ft.type_attr |= A_destructor;
-				}
-				if (inside_function) {
-					if (locals_table.back().insert(VarL->Name.c_str(), fv)) {
-						VarL->full_var = nullptr; // in case a global with the same name had been found
-					} else {
-						errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
-						return nullptr;
-					}
-				} else {
-					fv.ft.type_attr |= A_mainvar;
-					if (!lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
-						errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
-						return nullptr;
-					}
-					// errs() << VarL->Loc << ": inserted " << VarL->Name << ", " << fv.ft.type_attr << " in mainvars\n";
-				}
-			}
+			is_decl = (new_kind == new_var_created);
+			// TODO: store returned 'new_fv' instead of discarding here and re-evaluating in codegen.cc
 		} else if (LHS_type && (LHS_type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			if (BinOp[0] == '(' || BinOp[0] == '\0') {
 				auto Args = SplitExprList(std::move(RHS));
@@ -1298,7 +1432,15 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			}
 		} else if (is_index) {
 			if (!LHS->ft || !LHS->ft->type) {
-				errs() << LHS->Loc << ": undefined expression - array expected\n";
+				errs() << LHS->Loc << ": ";
+				if (auto lval = dynamic_cast<LvalueExprAST*>(LHS.get()))
+					if (!lval->Name.empty()) {
+						errs() << "unknown identifier '" << lval->Name << "'";
+						goto have_varname2;
+					}
+				errs() << "undefined expression";
+			have_varname2:
+				errs() << " - array expected\n";
 				return nullptr;
 			}
 			LHS = std::make_unique<IndexExprAST>(LHS->Loc, std::move(LHS), std::move(RHS));
@@ -1306,7 +1448,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		} else if (is_dotselect) {
 			auto ident = dynamic_cast<IdentExprAST*>(RHS.get());
 			if (!ident) {
-				errs() << RHS->Loc << ": identifier expected\n";
+				errs() << RHS->Loc << ": selector name expected\n";
 				return nullptr;
 			}
 			auto Ident = std::unique_ptr<IdentExprAST>(ident);
@@ -1338,32 +1480,52 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					}
 				}
 			} else if (LHS->ft && LHS->ft->type) {
-				if (LHS->ft->mangled_name) {
-					auto proto = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
-					if (proto != MethodProtos.end()) {
-						LHS = std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &proto->second);
-						continue;
-					}
-				}
-				LHS = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
+				// create temporary to work around MSVC problem
+				auto LL = LHS->Loc;
+				LHS = getSelect(LL, std::move(LHS), std::move(Ident));
 				continue;
 			} else {
-				errs() << LHS->Loc << ": LHS of '.' is neither a module nor a known variable nor a struct literal\n";
+				errs() << LHS->Loc << ": ";
+				if (auto lval = dynamic_cast<LvalueExprAST*>(LHS.get()))
+					if (!lval->Name.empty()) {
+						errs() << "'" << lval->Name << "'";
+						goto have_varname;
+					}
+				errs() << "LHS of '.'";
+			have_varname:
+				errs() << " is neither a module nor a known variable nor a struct literal\n";
 				return nullptr;
 			}
 		}
-		auto res_t = getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
-		                        LHS_is_unknown_type, RHS_is_unknown_type);
+		auto res_t = is_decl ? std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{
+			nullptr, 0, false, OpDeclAssign, nullptr } :
+			getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
+			           LHS_is_unknown_type, RHS_is_unknown_type);
 		if (std::get<4>(res_t)) {
 			errs() << BinLoc << ": " << llvm::format(std::get<4>(res_t), BinOp.c_str());
 			return nullptr;
 		}
 		if ((!RHS_type || RHS_type->isVoidTy()) && !dynamic_cast<ListExprAST*>(RHS.get())) {
-			if (BinOp == ",")
-				if (auto bin_rhs = dynamic_cast<BinaryExprAST*>(RHS.get()))
+			if (BinOp == ",") {
+				if (auto bin_rhs = dynamic_cast<BinaryExprAST*>(RHS.get())) {
 					if (!strcmp(bin_rhs->Op, ",") || !strcmp(bin_rhs->Op, ":"))
 						goto valid_void;
+				} else {
+					goto valid_void; // TODO: more sophisticated check if this is allowed,
+					                 // e.g. "global a, b, c", "x, y = f()", ...
+				}
+				if (!RHS_type && terminator == tok_in)
+					goto valid_void; // allow declaration of control variables
+			}
+			if (auto lval = dynamic_cast<LvalueExprAST*>(RHS.get()))
+				if (!lval->Name.empty())
+					errs() << lval->Loc << ": unknown identifier '" << lval->Name << "'\n";
 			errs() << BinLoc << ": RHS of '" << BinOp << "' is " << (RHS_type ? "of void type\n" : "indeterminate\n");
+			if (RHS_type)
+				if (auto branch_expr = dynamic_cast<BranchExprAST*>((RHS).get()))
+					if (branch_expr->errmsg)
+						errs() << branch_expr->Loc << ": in conditional expression: " << branch_expr->errmsg;
+
 			return nullptr;
 		}
 	valid_void:
@@ -1372,7 +1534,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 }
 
 /// expression
-///   ::= unary binoprhs
+///   := unary binoprhs
 ///
 std::unique_ptr<ExprAST> ParseExpression(int terminator) {
 	auto LHS = ParseUnary(terminator);
@@ -1383,6 +1545,32 @@ std::unique_ptr<ExprAST> ParseExpression(int terminator) {
 		return nullptr;
 	}
 	return LHS;
+}
+
+static bool MarkAsGlobalVar(ExprAST* expr) {
+	if (auto var_expr = dynamic_cast<VariableExprAST*>(expr)) {
+		if (var_expr->full_var) {
+			errs() << var_expr->Loc << "'" << var_expr->Name << "' is already in use as "
+			       << (var_expr->full_var->global ? "reference to global\n" : "local variable\n");
+			return false;
+		}
+		if (auto global_fv = lookup_var(var_expr->Name.c_str(), true)) {
+			FullVar fv = {
+				.global = global_fv,
+				// we use the position in the function's global statements here
+				// if the original location is needed, .global can be dereferenced
+				.decl_loc = expr->Loc
+			};
+			locals_table.back().insert(var_expr->Name.c_str(), fv);
+			return true;
+		} else {
+			errs() << var_expr->Loc << ": there is no known global variable '" << var_expr->Name << "'\n";
+			return false;
+		}
+	} else {
+		errs() << expr->Loc << ": comma separated list of variable names expected\n";
+		return false;
+	}
 }
 
 static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
@@ -1397,6 +1585,26 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 			else
 				return { ParseExpression(), kind };
 		}
+		else
+			return { nullptr, kind };
+	} else if (kind == tok_global) {
+		if (!inside_function) {
+			errs() << CurLoc << ": global list useless outside functions\n";
+			return { nullptr, 0 };
+		}
+		getNextToken();
+		auto globals_list = ParseExpression();
+		while (auto bin_expr = dynamic_cast<BinaryExprAST*>(globals_list.get())) {
+			if (bin_expr->Op[0] != ',') {
+				errs() << bin_expr->Loc << ": ',' expected as separator in 'global' list\n";
+				return { nullptr, 0 };
+			}
+			if (!MarkAsGlobalVar(bin_expr->RHS.get()))
+				return { nullptr, 0 };
+			globals_list = std::move(bin_expr->LHS);
+		}
+		if (!MarkAsGlobalVar(globals_list.get()))
+			return { nullptr, 0 };
 		else
 			return { nullptr, kind };
 	} else {
@@ -1416,15 +1624,20 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 					if (I->ThenEndKind == tok_return && I->ElseEndKind == tok_return)
 						end_kind = tok_return;
 			expr_list.push_back(std::move(expr.first));
+		} else {
+			if (!end_kind)
+				return { std::vector<std::unique_ptr<ExprAST>>{}, 0 };
+			if (end_kind == tok_global)
+				end_kind = 0;
 		}
 	}
 	return { std::move(expr_list), end_kind };
 }
 
 /// prototype
-///   ::= id '(' id* ')'
-///   ::= binary LETTER number? (id, id)
-///   ::= unary LETTER (id)
+///   := id '(' id* ')'
+///   := binary LETTER number? (id, id)
+///   := unary LETTER (id)
 static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	std::string FnName;
 	volvoxc::FullType* ReceiverType = nullptr;
@@ -1649,7 +1862,7 @@ static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& prot
 
 #define TEST_FN_PREFIX "test_"
 
-/// definition ::= 'fn' prototype expression
+/// definition := 'fn' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
 		getNextToken(eSemi); // eat fn.
@@ -1668,6 +1881,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
 		FullVar fv = {
+			.decl_loc = Proto->ArgPos[i],
 			.ft = *Proto->ArgTypes[i]
 		};
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);
@@ -1719,6 +1933,8 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			return nullptr;
 	}
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList();
+	if (!Elist.second && Elist.first.empty())
+		return nullptr;
 	prompt_indent = 0;
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second, std::move(unmangledName));
 }
@@ -1730,7 +1946,7 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 				if (B->err_msg)
 					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->err_msg);
 				if (B->opclass == OpDeclAssign) {
-					if (!strcmp(B->Op, "::="))
+					if (!strcmp(B->Op, ":="))
 						sym_kind |= A_rvalue;
 					if ((comp_mode == comp_jit && !do_test) || (sym_kind & A_globally_visible)) {
 						auto uB = std::unique_ptr<BinaryExprAST>(B);
@@ -1740,12 +1956,6 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 					else
 						return E;
 				}
-				if (!strcmp(B->Op, "="))
-					if (auto leftVar = dynamic_cast<VariableExprAST*>(B->LHS.get()))
-						if (!leftVar->full_var) {
-							errs() << "unknown variable name '" << leftVar->getName() << "' - did you mean ':='?\n";
-							return nullptr;
-						}
 				errs() << E->Loc << ' ' << B->Op << ": Cannot evaluate expression\n";
 				return nullptr;
 			} else {
@@ -1764,7 +1974,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 	if (comp_mode == comp_jit)
 		finishFunctionOrModule();
 	// Make an anonymous proto.
-	volvoxc::FullType* TheType = lex.get_full_type(have_return ? "int" : "bool");
+	volvoxc::FullType* TheType = have_return ? integer_type : bool_type;
 	auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 	                                            std::vector<std::string>(),
 	                                            A_c_api | A_pub,
@@ -1830,7 +2040,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName), return_val_idx);
 }
 
-/// external ::= 'extern' prototype
+/// external := 'extern' prototype
 std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
 	getNextToken(eSemi); // eat fn.
 	visibility |= (A_extern | A_pub);

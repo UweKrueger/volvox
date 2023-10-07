@@ -5,7 +5,7 @@ type StopWatch {
 	finish i64
 }
 
-# default constructor, e.g. "z := StopWatch{}" creates stop watch
+# default constructor, e.g. "z = StopWatch{}" creates stop watch
 # started at current time
 #
 pub fn StopWatch
@@ -29,6 +29,7 @@ pub fn StopWatch.stop
 # get time when stop watch was paused or current time in seconds
 #
 pub fn StopWatch.elapsed f64
+	global tick_period
 	if this.finish == 0
 		return f64(i64(get - this.begin)) * tick_period
 	else
@@ -48,4 +49,5 @@ pub fn StopWatch.cont
 # or import of 'time' module
 #
 pub inline fn elapsed f64
+	global tick_period
 	return f64(get) * tick_period

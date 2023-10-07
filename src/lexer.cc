@@ -53,7 +53,7 @@ static char prompt[1024];
 std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid after files have been processed
 
 #ifdef MONOCHROME_PROMPT
-// OpendBSD's version of editline does not support colors
+// OpenBSD's version of editline does not support colors
 #define VOLVOX_PROMPT "%04d> "
 #elif defined(_WIN32)
 // our patched version of wineditline recognizes ANSI escape sequences
@@ -81,12 +81,25 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    kept_buf = *lineptr;
 				    kept_bufsize = *n;
 			    }
-			    *lineptr = readline(prompt);
-			    if (!*lineptr) {
+			    int max_fail = 2;
+			    for(;;) {
+#ifndef _WIN32
+				    errno = 0;
+#endif
+				    *lineptr = readline(prompt);
+				    if (*lineptr)
+					    break;
 #if !defined (_MSC_VER)
 				    outs() << "\n";
 #endif
-				    return -1;
+				    if (
+#ifndef _WIN32
+					    errno == EINTR &&
+#endif
+					    max_fail > 0)
+					    errs() << "Press Crtl-C " << max_fail-- << "x again to exit...\n";
+				    else
+					    return -1;
 			    }
 			    *n = strlen(*lineptr);
 			    if (*n)
@@ -539,16 +552,6 @@ startanalysis:
 				IdentifierStr = ":=";
 				CurChar = advance();
 				return tok_assign;
-			} else if (CurChar == ':') {
-				CurChar = advance();
-				if (CurChar == '=') {
-					IdentifierStr = "::=";
-					CurChar = advance();
-					return tok_assign;
-				} else {
-					IdentifierStr = "::";
-					return tok_error;
-				}
 			} else {
 				IdentifierStr = ":";
 				return tok_colon;
@@ -887,4 +890,3 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, eXpect expect) {
 		return out << "### internal error ###";
 	}
 }
-

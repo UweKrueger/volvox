@@ -14,7 +14,7 @@
 #define A_unique (1U<<3)
 #define A_atomic (1U<<4)
 #define A_ref    (1U<<5) // function arg is reference
-#define A_ptrref (1U<<6) // reference that is a represented as pointer internally
+#define A_ptrref (1U<<6) // reference that is a (mutable) pointer internally
 #define A_map    (1U<<7) // llvm-type is key type
 #define A_signed_key (1U<<8) //for maps with integer key
 #define A_fn     (1U<<9) // function (or function pointer)
@@ -38,7 +38,7 @@
 #define A_merged (1U<<26) // helper flag for processing merge of then/else branches
 #define A_rvalue (1U<<27) // pseudo FullVar that has not storage location
 #define A_closure (1U<<28)
-#define A_untyped (1U<<29) 
+#define A_untyped (1U<<29)
 
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)

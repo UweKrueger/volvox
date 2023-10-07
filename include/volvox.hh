@@ -5,7 +5,9 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #include <llvm/ADT/APFloat.h>
+#if LLVM_VERSION_MAJOR <= 16
 #include <llvm/ADT/Optional.h>
+#endif
 #include <llvm/ADT/STLExtras.h>
 #include <llvm/ADT/SmallString.h>
 #include <llvm/Analysis/BasicAliasAnalysis.h>
@@ -29,7 +31,11 @@
 #include <llvm/IR/Type.h>
 #include <llvm/IR/Verifier.h>
 #include <llvm/Support/FileSystem.h>
+#if LLVM_VERSION_MAJOR <= 16
 #include <llvm/Support/Host.h>
+#else
+#include <llvm/TargetParser/Host.h>
+#endif
 #include <llvm/Support/raw_ostream.h>
 #if LLVM_VERSION_MAJOR >= 14
 #include <llvm/MC/TargetRegistry.h>
