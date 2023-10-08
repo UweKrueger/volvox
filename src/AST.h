@@ -927,6 +927,9 @@ class ForExprAST : public BranchExprAST {
 	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
 	                                    // value variable there's still an unnamed
 	                                    // control variable pointing to the current elem
+	llvm::Value* iterator = nullptr;
+	llvm::Value* iterator_ref = nullptr;
+	llvm::Type* iterator_type = nullptr;
 	llvm::Align rvalue_align;
 	std::string KeyName, ValueName;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;

@@ -198,7 +198,11 @@ std::tuple<llvm::Type*,llvm::Value*,std::vector<llvm::Value*>> getArrayDims(
 			Dims.push_back(Dim);
 			array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type);
 		} while (array_type);
-		return { elem_type, Builder->CreateExtractValue(val, idx), Dims };
+		if (val->getType()->isStructTy())
+			return { elem_type, Builder->CreateExtractValue(val, idx), Dims };
+		else
+			// either pointer to constant size allocation or rvalue array
+			return { elem_type, val, Dims };
 	} else {
 		return { nullptr, nullptr, Dims };
 	}

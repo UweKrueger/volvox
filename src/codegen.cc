@@ -2331,9 +2331,6 @@ bool ForExprAST::PrepareIterator() {
 	}
 	if (Value->ft && Value->ft->type)
 		Iterator->desired_type = Value->ft->type;
-	llvm::Value* iterator = nullptr;
-	llvm::Value* iterator_ref = nullptr;
-	llvm::Type* iterator_type = nullptr;
 	if (auto lval = dynamic_cast<LvalueExprAST*>(Iterator.get())) {
 		std::tie(iterator_type, iterator_ref) = lval->codegen_ref(true);
 		if (!iterator_type)
@@ -2409,29 +2406,36 @@ bool ForExprAST::PrepareIterator() {
 			return false;
 		}
 	} else if (iterator_type->isArrayTy()) {
-		if (!iterator_ref) {
-			iterator_ref =  StoreValue(iterator, Iterator->ft, nullptr, "");
-		}
-		auto [ElType, Ptr, Dims] = getArrayDims(iterator_ref, iterator_type);
-		Step = llvm::ConstantInt::get(
-			llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
-		// for multi dimentsional array fullElemSize should be the storage size of the sub-tensor
-		unsigned subDims = Dims.size() - 2;
-		for (int i=1; i<=subDims; i++)
-			Step = Builder->CreateMul(Step, Dims[i]);
-		initializer = Ptr;
-		limit = Builder->CreateAdd(
-			Builder->CreatePtrToInt(Ptr, llvm_size_type),
-			Builder->CreateMul(Step, Dims[0]));
-		if (ValueFV->ft.type_attr & A_ptrref) {
-			// The control variable is a reference to the sub tensor
-			ValueFV->val = iterator_ref; // TODO: handle references to variable sized arrays
+		auto [ElType, Ptr, Dims] = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);
+		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Ptr->getType())) {
+			// const size rvalue array - iterate over index
+			Step = llvm::ConstantInt::get(llvm_size_type, 1, true);
+			ptr_storage = CreateEntryBlockAlloca(llvm_size_type, "");
+			Builder->CreateStore(llvm::ConstantInt::get(llvm_size_type, 0, true), ptr_storage);
+			initializer = Builder->CreateExtractElement(Ptr, (uint64_t)0);
+			limit = Builder->CreateSub(Dims[0], Step);
+			errs() << Loc << ": const array\n";
 		} else {
-			// The control variable is an independent copy of the sub tensor
-			rvalue_align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-			ValueFV->val = CreateAlloca(Step, rvalue_align);
-			ptr_storage = Builder->CreateAlloca(llvm::Type::getInt8PtrTy(Context));
-			Builder->CreateStore(initializer, ptr_storage);
+			Step = llvm::ConstantInt::get(
+				llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
+			// for multi dimentsional array fullElemSize should be the storage size of the sub-tensor
+			unsigned subDims = Dims.size() - 2;
+			for (int i=1; i<=subDims; i++)
+				Step = Builder->CreateMul(Step, Dims[i]);
+			initializer = Ptr;
+			limit = Builder->CreateAdd(
+				Builder->CreatePtrToInt(Ptr, llvm_size_type),
+				Builder->CreateMul(Step, Dims[0]));
+			if (ValueFV->ft.type_attr & A_ptrref) {
+				// The control variable is a reference to the sub tensor
+				ValueFV->val = iterator_ref; // TODO: handle references to variable sized arrays
+			} else {
+				// The control variable is an independent copy of the sub tensor
+				rvalue_align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+				ValueFV->val = CreateAlloca(Step, rvalue_align);
+				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+				Builder->CreateStore(initializer, ptr_storage);
+			}
 		}
 	}
 	switch (new_Value) {
@@ -2476,8 +2480,10 @@ defstep:
 }
 
 llvm::Value* ForExprAST::CreateCondition(bool at_end) {
-	auto ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
-	if (ValueType->isIntegerTy())
+	auto ctrl_var = ptr_storage ?
+		Builder->CreateLoad(llvm_size_type, ptr_storage) :
+		Builder->CreateLoad(ValueType, ValueRef);
+	if (ctrl_var->getType()->isIntegerTy())
 		if (ValueFT->type_attr & A_signed)
 			if (at_end)
 				return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
@@ -2503,12 +2509,22 @@ bool ForExprAST::SetupLoop() {
 }
 
 bool ForExprAST::Iterate() {
-	llvm::Value*  ctrl_var = Builder->CreateLoad(ValueType, ValueRef);
+	llvm::Value* ctrl_var = ptr_storage ?
+		Builder->CreateLoad(llvm_size_type, ptr_storage) :
+		Builder->CreateLoad(ValueType, ValueRef);
 	if (ValueType->isIntegerTy())
 		ctrl_var = Builder->CreateAdd(ctrl_var, Step);
 	else
 		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
-	Builder->CreateStore(ctrl_var, ValueRef);
+	if (ptr_storage) {
+		Builder->CreateStore(ctrl_var, ptr_storage);
+		if (!iterator_ref) {
+			auto val = Builder->CreateExtractElement(iterator, ctrl_var);
+			Builder->CreateStore(val, ValueRef);
+		}
+	} else {
+		Builder->CreateStore(ctrl_var, ValueRef);
+	}
 	return true;
 }
 
