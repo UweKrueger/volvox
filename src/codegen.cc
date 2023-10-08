@@ -2414,7 +2414,10 @@ bool ForExprAST::PrepareIterator() {
 			Builder->CreateStore(llvm::ConstantInt::get(llvm_size_type, 0, true), ptr_storage);
 			initializer = Builder->CreateExtractElement(Ptr, (uint64_t)0);
 			limit = Builder->CreateSub(Dims[0], Step);
-			errs() << Loc << ": const array\n";
+			if (!iterator_ref) {
+				iterator_ref = CreateEntryBlockAlloca(Ptr->getType(), "");
+				Builder->CreateStore(Ptr, iterator_ref);
+			}
 		} else {
 			Step = llvm::ConstantInt::get(
 				llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
@@ -2518,10 +2521,11 @@ bool ForExprAST::Iterate() {
 		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
 	if (ptr_storage) {
 		Builder->CreateStore(ctrl_var, ptr_storage);
-		if (!iterator_ref) {
-			auto val = Builder->CreateExtractElement(iterator, ctrl_var);
-			Builder->CreateStore(val, ValueRef);
-		}
+		llvm::Value* elem = Builder->CreateLoad(
+			ValueType, Builder->CreateGEP(
+				ValueType, Builder->CreatePointerCast(iterator_ref, ValueType->getPointerTo()),
+				ctrl_var));
+		Builder->CreateStore(elem, ValueRef);
 	} else {
 		Builder->CreateStore(ctrl_var, ValueRef);
 	}
