@@ -2467,10 +2467,10 @@ bool ForExprAST::PrepareIterator() {
 		goto defstep;
 	}
 defstep:
-	if (ValueType->isIntegerTy()) {
+	if (limit->getType()->isIntegerTy()) {
 		if (!Step)
 			Step = llvm::ConstantInt::get(limit->getType(), 1, true);
-	} else if (ValueType->isFloatingPointTy()) {
+	} else if (limit->getType()->isFloatingPointTy()) {
 		if (!Step)
 			Step = llvm::ConstantFP::get(limit->getType(), 1.0);
 		// floats accumulate rounding errors so the precise upper limit might not be hit
@@ -2515,7 +2515,7 @@ bool ForExprAST::Iterate() {
 	llvm::Value* ctrl_var = ptr_storage ?
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);
-	if (ValueType->isIntegerTy())
+	if (ctrl_var->getType()->isIntegerTy())
 		ctrl_var = Builder->CreateAdd(ctrl_var, Step);
 	else
 		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
