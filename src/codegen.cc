@@ -2343,6 +2343,7 @@ bool ForExprAST::PrepareIterator() {
 	if (!iterator_type)
 		iterator_type = iterator->getType();
 	llvm::Value* initializer = nullptr;
+	llvm::Value* Ptr = nullptr;
 	if (iterator_type->isSingleValueType()) {
 		if (iterator_ref)
 			iterator = Builder->CreateLoad(iterator_type, iterator_ref);
@@ -2406,7 +2407,8 @@ bool ForExprAST::PrepareIterator() {
 			return false;
 		}
 	} else if (iterator_type->isArrayTy()) {
-		auto [ElType, Ptr, Dims] = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);
+		auto [ElType, Ptr0, Dims] = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);
+		Ptr = Ptr0;
 		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Ptr->getType())) {
 			// const size rvalue array - iterate over index
 			Step = llvm::ConstantInt::get(llvm_size_type, 1, true);
@@ -2421,24 +2423,21 @@ bool ForExprAST::PrepareIterator() {
 		} else {
 			Step = llvm::ConstantInt::get(
 				llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
-			// for multi dimentsional array fullElemSize should be the storage size of the sub-tensor
-			unsigned subDims = Dims.size() - 2;
+			// for multi dimentsional array Step should be the storage size of the sub-tensor
+			unsigned subDims = Dims.size() - 1;
 			for (int i=1; i<=subDims; i++)
 				Step = Builder->CreateMul(Step, Dims[i]);
-			initializer = Ptr;
+			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Ptr->getType()))
+				initializer = Builder->CreateExtractValue(Ptr, struct_type->getNumElements() - 1);
+			else
+				initializer = Ptr;
 			limit = Builder->CreateAdd(
 				Builder->CreatePtrToInt(Ptr, llvm_size_type),
-				Builder->CreateMul(Step, Dims[0]));
-			if (ValueFV->ft.type_attr & A_ptrref) {
-				// The control variable is a reference to the sub tensor
-				ValueFV->val = iterator_ref; // TODO: handle references to variable sized arrays
-			} else {
-				// The control variable is an independent copy of the sub tensor
-				rvalue_align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-				ValueFV->val = CreateAlloca(Step, rvalue_align);
-				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
-				Builder->CreateStore(initializer, ptr_storage);
-			}
+				Builder->CreateMul(Step, Builder->CreateSub(
+					                   Dims[0], llvm::ConstantInt::get(llvm_size_type, 1, true))));
+			// The control variable is an independent copy of the sub tensor
+			ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+			Builder->CreateStore(initializer, ptr_storage);
 		}
 	}
 	switch (new_Value) {
@@ -2448,6 +2447,12 @@ bool ForExprAST::PrepareIterator() {
 	case new_var_created:
 	case existing_var_returned:
 		if (!ValueFV->val) {
+			if (iterator_type->isArrayTy() && Ptr->getType()->isStructTy()) {
+				if (ValueFV->ft.type_attr & A_ptrref) {
+					ValueRef = ValueFV->val = ptr_storage;
+					goto defstep;
+				}
+			}
 			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
 			ValueType = ValueFV->ft.type;
 			goto defstep;
@@ -2519,7 +2524,10 @@ bool ForExprAST::Iterate() {
 		ctrl_var = Builder->CreateAdd(ctrl_var, Step);
 	else
 		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
-	if (ptr_storage) {
+	if (ValueFV->ft.type_attr & A_ptrref) {
+		Builder->CreateStore(ctrl_var, ValueRef);
+		Builder->CreateStore(ctrl_var, ptr_storage);
+	} else if (ptr_storage) {
 		Builder->CreateStore(ctrl_var, ptr_storage);
 		llvm::Value* elem = Builder->CreateLoad(
 			ValueType, Builder->CreateGEP(

@@ -65,3 +65,15 @@ fn test_for_over_int_array_lit bool
 		s += x
 	end
 	return s == 10
+
+global uugf94 = 7
+
+fn test_for_over_f64_array bool
+	global uugf94
+	s = 0.
+	a = [uugf94]f64{ 1, 7, 9.5, 6: 45.75 }
+	for &t in a
+		s += t
+		# printf("%f\n", t)
+	end
+	return s == 63.25

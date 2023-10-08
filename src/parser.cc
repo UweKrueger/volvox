@@ -1061,25 +1061,27 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 			if ((VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get()))) {
 				if (VarL->full_var)
 					return { VarL->full_var, existing_var_returned };
-				if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
-					// LHS is function pointer; signature of RHS will be used to select overloaded function
-					if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
-						errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
-						return { nullptr, new_var_none };
-					} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
-						errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
-						return { nullptr, new_var_none };
+				if (RHS) {
+					if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
+						// LHS is function pointer; signature of RHS will be used to select overloaded function
+						if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
+							errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
+							return { nullptr, new_var_none };
+						} else if (auto method = dynamic_cast<MethodExprAST*>(call_expr->Callee.get())) {
+							errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
+							return { nullptr, new_var_none };
+						}
+						*RHS = std::make_unique<FunctionExprAST>(call_expr);
+						RHS_type = (*RHS)->ft ? (*RHS)->ft->type : nullptr;
+						RHS_attr = 0;
+						RHS_is_unknown_type = false;
+						LHS = std::move(RefL->Operand);
+						RefL = nullptr;
+						LHS_type = LHS->ft ? LHS->ft->type : nullptr;
+						LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
+						LHS_is_unknown_type = LHS->is_unknown_type;
+						VarL = dynamic_cast<VariableExprAST*>(LHS.get());
 					}
-					*RHS = std::make_unique<FunctionExprAST>(call_expr);
-					RHS_type = (*RHS)->ft ? (*RHS)->ft->type : nullptr;
-					RHS_attr = 0;
-					RHS_is_unknown_type = false;
-					LHS = std::move(RefL->Operand);
-					RefL = nullptr;
-					LHS_type = LHS->ft ? LHS->ft->type : nullptr;
-					LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
-					LHS_is_unknown_type = LHS->is_unknown_type;
-					VarL = dynamic_cast<VariableExprAST*>(LHS.get());
 				}
 			}
 		}
@@ -1197,7 +1199,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			std::tie(ValueFV, value_kind) = DeclareNewVariable(
 				Value, nullptr, Value->ft->type, ValueFt->type, ValueFt->type_attr,
 				ValueFt->type_attr, Value->Loc, Value->is_unknown_type,
-				Iterator->is_unknown_type, false, true);
+				Iterator->is_unknown_type, true, true);
 			if (value_kind == new_var_none) {
 				errs() << lvalValue->Loc << ": unable to declare value control variable '"
 				       << lvalValue->Name << "'\n";
