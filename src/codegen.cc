@@ -2528,9 +2528,18 @@ bool ForExprAST::Iterate() {
 		Builder->CreateStore(ctrl_var, ptr_storage);
 	} else if (ptr_storage) {
 		Builder->CreateStore(ctrl_var, ptr_storage);
-		llvm::Value* elem = Builder->CreateLoad(
+		llvm::Value* ptr;
+		if (iterator_ref->getType()->isPointerTy())
+			ptr = iterator_ref;
+		else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(iterator_ref->getType()))
+			ptr = Builder->CreateExtractValue(iterator_ref, struct_type->getNumElements() - 1);
+		else {
+			errs() << Loc << ": internal error - cannot iterate\n";
+			return false;
+		}
+		llvm::Value* elem = Builder->CreateLoad( 
 			ValueType, Builder->CreateGEP(
-				ValueType, Builder->CreatePointerCast(iterator_ref, ValueType->getPointerTo()),
+				ValueType, Builder->CreatePointerCast(ptr, ValueType->getPointerTo()),
 				ctrl_var));
 		Builder->CreateStore(elem, ValueRef);
 	} else {

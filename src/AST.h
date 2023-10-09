@@ -921,7 +921,7 @@ enum new_var_kind : uint8_t {
 
 /// ForExprAST - Expression class for for/in.
 class ForExprAST : public BranchExprAST {
-	std::unique_ptr<ExprAST> Iterator;
+	std::unique_ptr<ExprAST> Iterator = nullptr;
 	llvm::Value* limit = nullptr;
 	llvm::Value* approx_limit = nullptr; // for float
 	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
@@ -930,7 +930,7 @@ class ForExprAST : public BranchExprAST {
 	llvm::Value* iterator = nullptr;
 	llvm::Value* iterator_ref = nullptr;
 	llvm::Type* iterator_type = nullptr;
-	llvm::Align rvalue_align;
+	llvm::Value* Ptr = nullptr;
 	std::string KeyName, ValueName;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
 	FullVar* KeyFV = nullptr;
@@ -939,8 +939,9 @@ class ForExprAST : public BranchExprAST {
 	LvalueExprAST* ValueLval = nullptr;
 	llvm::Value* ValueRef = nullptr;
 	llvm::Type* ValueType = nullptr;
-	volvoxc::FullType* ValueFT;
+	volvoxc::FullType* ValueFT = nullptr;
 	llvm::Value* Step = nullptr;
+	llvm::Align rvalue_align;
 	new_var_kind new_Key, new_Value;
 
 public:
