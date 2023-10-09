@@ -2446,7 +2446,7 @@ bool ForExprAST::PrepareIterator() {
 		return false;
 	case new_var_created:
 	case existing_var_returned:
-		if (!ValueFV->val) {
+		if (ValueFV && !ValueFV->val) {
 			if (iterator_type->isArrayTy() && Ptr->getType()->isPointerTy()) {
 				if (ValueFV->ft.type_attr & A_ptrref) {
 					ValueRef = ValueFV->val = ptr_storage;
@@ -2458,9 +2458,9 @@ bool ForExprAST::PrepareIterator() {
 			goto defstep;
 		}
 		// else: we cannot rely on ValueFV->val. So we get the generic Lvalue...
-		ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
 		// ...and fall though
 	case generic_lvalue_returned:
+		ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
 		llvm::Type* dummy;
 		std::tie(dummy, ValueRef) = ValueLval->codegen_ref();
 		if (!ValueRef)

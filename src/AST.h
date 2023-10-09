@@ -933,14 +933,10 @@ class ForExprAST : public BranchExprAST {
 	llvm::Align rvalue_align;
 	std::string KeyName, ValueName;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
-	union {
-		FullVar* KeyFV = nullptr;
-		LvalueExprAST* KeyLval;
-	};
-	union {
-		FullVar* ValueFV = nullptr;
-		LvalueExprAST* ValueLval;
-	};
+	FullVar* KeyFV = nullptr;
+	LvalueExprAST* KeyLval = nullptr;
+	FullVar* ValueFV = nullptr;
+	LvalueExprAST* ValueLval = nullptr;
 	llvm::Value* ValueRef = nullptr;
 	llvm::Type* ValueType = nullptr;
 	volvoxc::FullType* ValueFT;

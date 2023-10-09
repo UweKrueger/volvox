@@ -1026,7 +1026,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 					errs() << branch_expr->Loc << ": in conditional expression: " << branch_expr->errmsg;
 		return { nullptr, new_var_none };
 	}
-	ReferenceExprAST* RefL;
+	ReferenceExprAST* RefL = nullptr;
 	VariableExprAST* VarL = nullptr;
 	if (auto v = dynamic_cast<VariableExprAST*>(LHS.get())) {
 		if (v->full_var)
