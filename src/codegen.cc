@@ -2447,7 +2447,7 @@ bool ForExprAST::PrepareIterator() {
 	case new_var_created:
 	case existing_var_returned:
 		if (!ValueFV->val) {
-			if (iterator_type->isArrayTy() && Ptr->getType()->isStructTy()) {
+			if (iterator_type->isArrayTy() && Ptr->getType()->isPointerTy()) {
 				if (ValueFV->ft.type_attr & A_ptrref) {
 					ValueRef = ValueFV->val = ptr_storage;
 					goto defstep;
@@ -2525,7 +2525,6 @@ bool ForExprAST::Iterate() {
 	else
 		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
 	if (ValueFV->ft.type_attr & A_ptrref) {
-		Builder->CreateStore(ctrl_var, ValueRef);
 		Builder->CreateStore(ctrl_var, ptr_storage);
 	} else if (ptr_storage) {
 		Builder->CreateStore(ctrl_var, ptr_storage);
