@@ -930,6 +930,7 @@ class ForExprAST : public BranchExprAST {
 	llvm::Value* iterator = nullptr;
 	llvm::Value* iterator_ref = nullptr;
 	llvm::Type* iterator_type = nullptr;
+	llvm::Type* ElType = nullptr;
 	llvm::Value* Ptr = nullptr;
 	std::string KeyName, ValueName;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;

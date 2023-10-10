@@ -2407,38 +2407,29 @@ bool ForExprAST::PrepareIterator() {
 			return false;
 		}
 	} else if (iterator_type->isArrayTy()) {
-		auto [ElType, Ptr0, Dims] = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);
-		Ptr = Ptr0;
-		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Ptr->getType())) {
+		auto [ElType0, Ptr0, Dims] = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);
+		ElType = ElType0;
+		Step = llvm::ConstantInt::get(
+			llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
+		// for multi dimentsional array Step should be the storage size of the sub-tensor
+		unsigned subDims = Dims.size() - 1;
+		for (int i=1; i<=subDims; i++)
+			Step = Builder->CreateMul(Step, Dims[i]);
+		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Ptr0->getType())) {
 			// const size rvalue array - iterate over index
-			Step = llvm::ConstantInt::get(llvm_size_type, 1, true);
-			ptr_storage = CreateEntryBlockAlloca(llvm_size_type, "");
-			Builder->CreateStore(llvm::ConstantInt::get(llvm_size_type, 0, true), ptr_storage);
-			initializer = Builder->CreateExtractElement(Ptr, (uint64_t)0);
-			limit = Builder->CreateSub(Dims[0], Step);
-			if (!iterator_ref) {
-				iterator_ref = CreateEntryBlockAlloca(Ptr->getType(), "");
-				Builder->CreateStore(Ptr, iterator_ref);
-			}
+			Ptr = CreateEntryBlockAlloca(Ptr0->getType(), "");
+			Builder->CreateStore(Ptr0, Ptr);
 		} else {
-			Step = llvm::ConstantInt::get(
-				llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
-			// for multi dimentsional array Step should be the storage size of the sub-tensor
-			unsigned subDims = Dims.size() - 1;
-			for (int i=1; i<=subDims; i++)
-				Step = Builder->CreateMul(Step, Dims[i]);
-			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Ptr->getType()))
-				initializer = Builder->CreateExtractValue(Ptr, struct_type->getNumElements() - 1);
-			else
-				initializer = Ptr;
-			limit = Builder->CreateAdd(
-				Builder->CreatePtrToInt(Ptr, llvm_size_type),
-				Builder->CreateMul(Step, Builder->CreateSub(
-					                   Dims[0], llvm::ConstantInt::get(llvm_size_type, 1, true))));
+			Ptr = Ptr0;
+			// lvalue array iterator - iterate over element addresses
 			// The control variable is an independent copy of the sub tensor
-			ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
-			Builder->CreateStore(initializer, ptr_storage);
+			//ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+			//Builder->CreateStore(initializer, ptr_storage);
 		}
+		limit = Builder->CreateAdd(
+			Builder->CreatePtrToInt(Ptr, llvm_size_type),
+			Builder->CreateMul(Step, Builder->CreateSub(
+				                   Dims[0], llvm::ConstantInt::get(llvm_size_type, 1, true))));
 	}
 	switch (new_Value) {
 	case new_var_none:
@@ -2446,15 +2437,29 @@ bool ForExprAST::PrepareIterator() {
 		return false;
 	case new_var_created:
 	case existing_var_returned:
-		if (ValueFV && !ValueFV->val) {
-			if (iterator_type->isArrayTy() && Ptr->getType()->isPointerTy()) {
-				if (ValueFV->ft.type_attr & A_ptrref) {
-					ValueRef = ValueFV->val = ptr_storage;
-					goto defstep;
+		if (!ValueFV) {
+			errs() << Loc << ": internal error - 'for' control variable neither declared not pre existing\n";
+			return false;
+		}
+		if (!ValueFV->val) {
+			if (iterator_type->isArrayTy()) {
+				if (!llvm::isa<llvm::PointerType>(Ptr->getType())) {
+					errs() << Loc << ": internal error - array pointer " << *Ptr << " (no pointer)\n";
+					return false;
 				}
+				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+				Builder->CreateStore(Ptr, ptr_storage);
+				if (ValueFV->ft.type_attr & A_ptrref) {
+					ValueFV->val = ptr_storage;
+				} else {
+					auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+					ValueRef = ValueFV->val = CreateAlloca(Step, align);
+					Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
+				}
+			} else {
+				ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
+				ValueType = ValueFV->ft.type;
 			}
-			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
-			ValueType = ValueFV->ft.type;
 			goto defstep;
 		}
 		// else: we cannot rely on ValueFV->val. So we get the generic Lvalue...
@@ -2466,6 +2471,16 @@ bool ForExprAST::PrepareIterator() {
 		if (!ValueRef)
 			return false;
 		ValueType = Value->ft->type;
+		if (iterator_type->isArrayTy()) {
+			if (ValueFV->ft.type_attr & A_ptrref) {
+				ptr_storage = ValueFV->val;
+			} else {
+				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+				ValueRef = ValueFV->val;
+			}
+			Builder->CreateStore(Ptr, ptr_storage);
+			goto defstep;
+		}
 		if (initializer->getType() != ValueType)
 			initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
 		Builder->CreateStore(initializer, ValueRef);
@@ -2524,24 +2539,13 @@ bool ForExprAST::Iterate() {
 		ctrl_var = Builder->CreateAdd(ctrl_var, Step);
 	else
 		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
-	if (ValueFV->ft.type_attr & A_ptrref) {
+	if (ptr_storage) {
 		Builder->CreateStore(ctrl_var, ptr_storage);
-	} else if (ptr_storage) {
-		Builder->CreateStore(ctrl_var, ptr_storage);
-		llvm::Value* ptr;
-		if (iterator_ref->getType()->isPointerTy())
-			ptr = iterator_ref;
-		else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(iterator_ref->getType()))
-			ptr = Builder->CreateExtractValue(iterator_ref, struct_type->getNumElements() - 1);
-		else {
-			errs() << Loc << ": internal error - cannot iterate\n";
-			return false;
+		if (!(ValueFV->ft.type_attr & A_ptrref)) {
+			auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm::Type::getInt8PtrTy(Context)), align, Step);
 		}
-		llvm::Value* elem = Builder->CreateLoad( 
-			ValueType, Builder->CreateGEP(
-				ValueType, Builder->CreatePointerCast(ptr, ValueType->getPointerTo()),
-				ctrl_var));
-		Builder->CreateStore(elem, ValueRef);
+		Builder->CreateStore(ctrl_var, ptr_storage);
 	} else {
 		Builder->CreateStore(ctrl_var, ValueRef);
 	}
