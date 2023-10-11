@@ -2491,8 +2491,9 @@ bool ForExprAST::PrepareIterator() {
 				ptr_storage = ValueFV->val;
 			} else {
 				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
-				ValueRef = ValueFV->val;
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ValueRef->getType()))
+					ValueRef = Builder->CreateExtractValue(ValueRef, struct_type->getNumElements() - 1);
 				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
 			}
 			Builder->CreateStore(Ptr, ptr_storage);
