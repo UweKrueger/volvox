@@ -944,6 +944,7 @@ class ForExprAST : public BranchExprAST {
 	llvm::Value* Step = nullptr;
 	llvm::Align rvalue_align;
 	new_var_kind new_Key, new_Value;
+	bool descending;
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
@@ -951,13 +952,13 @@ public:
 	           std::string _KeyName, std::string _ValueName,
 	           std::vector<std::unique_ptr<ExprAST>> _Body, std::vector<std::unique_ptr<ExprAST>> _Else,
 	           int EndKind, int ElseEndKind, FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
-	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none)
+	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
 		                std::move(_Else), std::move(_locals_table),
 		                std::move(else_locals_table), EndKind, ElseEndKind, nullptr, tok_for),
 		  Iterator(std::move(_Iterator)), Key(std::move(_Key)), Value(std::move(_Value)),
-		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)),
-		  ValueName(std::move(_ValueName)), ValueFT(ValueFT), new_Key(new_Key), new_Value(new_Value) {}
+		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)), ValueName(std::move(_ValueName)),
+		  ValueFT(ValueFT), new_Key(new_Key), new_Value(new_Value), descending(descending) {}
 	bool PrepareIterator();
 	llvm::Value* CreateCondition(bool at_end = false);
 	bool SetupLoop();
