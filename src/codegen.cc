@@ -2344,7 +2344,14 @@ bool ForExprAST::PrepareIterator() {
 		iterator_type = iterator->getType();
 	llvm::Value* initializer = nullptr;
 	llvm::Value* Ptr = nullptr;
-	if (iterator_type->isSingleValueType()) {
+	if (iterator_type->isPointerTy()) {
+		if (Iterator->ft->type_attr & A_map) {
+			if (!iterator)
+				iterator = Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), iterator_ref);
+			ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+			Builder->CreateStore(iterator_ref, ptr_storage);
+		}
+	} else if (iterator_type->isSingleValueType()) {
 		if (iterator_ref)
 			iterator = Builder->CreateLoad(iterator_type, iterator_ref);
 		limit = iterator;

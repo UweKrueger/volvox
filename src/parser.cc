@@ -1237,7 +1237,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	                                    std::move(else_locals_table), std::move(Key), std::move(Value),
 	                                    std::move(KeyName), std::move(ValueName), std::move(Body.first),
 	                                    std::move(Else.first), Body.second, Else.second, ValueFV, KeyFV,
-	                                    ValueFt, key_kind, value_kind, descending);
+	                                    ValueFt, KeyFt, key_kind, value_kind, descending);
 }
 
 static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {
