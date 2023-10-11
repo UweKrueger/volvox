@@ -101,3 +101,16 @@ fn test_existing_val_for_over_f64_array bool
 		t += s
 	end
 	return s == 63.25 && a[2] == 9.5
+
+global sjj2 = 0.
+bjj2 = 27.3
+ajj2 = [4, 8, 9, 2.5, 4.25]
+
+for bjj2 in ajj2
+	sjj2 += bjj2
+	# printf("%g\n", bjj2)
+end
+
+fn test_global_scope_for_1 bool
+	global sjj2
+	return sjj2 == 27.75
