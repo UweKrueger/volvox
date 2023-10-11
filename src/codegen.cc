@@ -2349,7 +2349,22 @@ bool ForExprAST::PrepareIterator() {
 			if (!iterator)
 				iterator = Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), iterator_ref);
 			ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
-			Builder->CreateStore(iterator_ref, ptr_storage);
+			std::string map_min_name = "_ZN6volvox3map3MinEPNS0_4NodeE";
+			std::string map_max_name = "_ZN6volvox3map3MaxEPNS0_4NodeE";
+			auto min_proto = (*lex.findProtos(map_min_name))[0].get();
+			auto max_proto = (*lex.findProtos(map_max_name))[0].get();
+			auto min_fn = getFunction(min_proto);
+			auto max_fn = getFunction(max_proto);
+			initializer = Builder->CreateCall(min_proto->FT, min_fn, { iterator });
+			limit = Builder->CreateCall(max_proto->FT, max_fn, { iterator });
+			if (descending) {
+				llvm::Value* tmp = initializer;
+				initializer = limit;
+				limit = tmp;
+			}
+		} else {
+			errs() << Iterator->Loc << ": unsupported iterator type " << *Iterator->ft << "\n";
+			return false;
 		}
 	} else if (iterator_type->isSingleValueType()) {
 		if (iterator_ref)
@@ -2439,9 +2454,7 @@ bool ForExprAST::PrepareIterator() {
 		} else {
 			Ptr = Ptr0;
 			// lvalue array iterator - iterate over element addresses
-			// The control variable is an independent copy of the sub tensor
-			//ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
-			//Builder->CreateStore(initializer, ptr_storage);
+			// The control variable 'ptr_storage' is an independent copy of the sub tensor
 		}
 		limit = Builder->CreateAdd(
 			Builder->CreatePtrToInt(Ptr, llvm_size_type),
@@ -2477,6 +2490,12 @@ bool ForExprAST::PrepareIterator() {
 					auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
 					ValueRef = ValueFV->val = CreateAlloca(Step, align);
 					Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
+				}
+			} else if (iterator_type->isPointerTy()) {
+				if (Iterator->ft->type_attr & A_map) {
+					ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+					Builder->CreateStore(initializer, ptr_storage);
+					ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
 				}
 			} else {
 				ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
@@ -2530,9 +2549,13 @@ defstep:
 }
 
 llvm::Value* ForExprAST::CreateCondition(bool at_end) {
-	auto ctrl_var = ptr_storage ?
+	llvm::Value* ctrl_var = ptr_storage ?
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);
+	if (llvm::isa<llvm::PointerType>(limit->getType())) // map iteration
+		return Builder->CreateICmpNE(
+			ctrl_var,
+			Builder->CreatePtrToInt(limit, llvm_size_type));
 	if (descending)
 		if (ctrl_var->getType()->isIntegerTy())
 			if (ValueFT->type_attr & A_signed)
@@ -2576,6 +2599,41 @@ llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 }
 
 bool ForExprAST::SetupLoop() {
+	if (iterator_type->isPointerTy()) {
+		if (Iterator->ft->type_attr & A_map) {
+			llvm::Value* node_ptr = Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), ptr_storage);
+			llvm::Value* key_ptr = Builder->CreateIntToPtr(
+				Builder->CreateAdd(
+					Builder->CreatePtrToInt(node_ptr, llvm_size_type),
+					llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, key))),
+				llvm::Type::getInt8PtrTy(Context));
+			llvm::Value* value_ptr;
+			if (ValueFT->type_attr & A_string) {
+				llvm::Value* offset_ptr = Builder->CreateIntToPtr(
+					Builder->CreateAdd(
+						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
+						llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, value.offset))),
+					llvm::Type::getInt8PtrTy(Context), "mapnode_offset");
+				llvm::Value* Offset = Builder->CreateLoad(llvm_int_type, offset_ptr);
+				value_ptr = Builder->CreateIntToPtr(
+					Builder->CreateAdd(
+						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
+						Builder->CreateIntCast(Offset, llvm_size_type, false)),
+					llvm::Type::getInt8PtrTy(Context), "val_ptr");
+			} else {
+				value_ptr = Builder->CreateIntToPtr(
+					Builder->CreateAdd(
+						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
+						llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, value))),
+					llvm::Type::getInt8PtrTy(Context), "val_ptr");
+			}
+			if (ValueRef) {
+				llvm::Value* val = Builder->CreateLoad(ValueFT->type, value_ptr);
+				Builder->CreateStore(val, ValueRef);
+			} else
+				errs() << "No ValueRef\n";
+		}
+	}
 	return true;
 }
 
@@ -2583,6 +2641,18 @@ bool ForExprAST::Iterate() {
 	llvm::Value* ctrl_var = ptr_storage ?
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);
+	if (llvm::isa<llvm::PointerType>(limit->getType())) { // map iteration
+		std::string iterate_fn_name = descending ?
+			"_ZN6volvox3map9iter_downEPNS0_4NodeE" :
+			"_ZN6volvox3map7iter_upEPNS0_4NodeE";
+		auto iterate_proto = (*lex.findProtos(iterate_fn_name))[0].get();
+		auto iterate_fn = getFunction(iterate_proto);
+		ctrl_var = Builder->CreateCall(
+			iterate_proto->FT, iterate_fn,
+			{ Builder->CreateIntToPtr(ctrl_var, llvm::Type::getInt8PtrTy(Context)) });
+		Builder->CreateStore(ctrl_var, ptr_storage);
+		return true;
+	}
 	if (ctrl_var->getType()->isIntegerTy())
 		if (descending)
 			ctrl_var = Builder->CreateSub(ctrl_var, Step);
@@ -2793,8 +2863,10 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		locals_table.push_back(std::move(then_locals_table));
 		condnesting++;
 		llvm::BasicBlock* BlockToJump;
-		if (if_kind == tok_for)
+		if (if_kind == tok_for) {
+			for_expr->SetupLoop();
 			BlockToJump = MergeBB;
+		}
 		else if(CondBBstart)
 			BlockToJump = CondBBstart;
 		else
