@@ -35,9 +35,11 @@ void insert_token_into_map(int token) {
 }
 
 void init_token_map() {
-	// first fix two exceptions in token array
+	// first fix some exceptions in token array
 	// tokens[tok_end - 1 - tok_1st_keyword] = ".";
 	tokens[tok_invisible - 1 - tok_1st_keyword] = "<invisible operator>";
+	tokens[tok_reverse_in - 1 - tok_1st_keyword] = "~in";
+	tokens[tok_not_in - 1 - tok_1st_keyword] = "!in";
 	// now fill token map with those tokens that correspond to ASCII-keywords (not operators)
 	for (int token = tok_1st_keyword + 1; token < tok_last_keyword; token++) {
 		insert_token_into_map(token);

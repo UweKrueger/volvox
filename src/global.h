@@ -1141,6 +1141,7 @@ public:
 	Token purge_line();
 	char peek();
 	char peek_strict();
+	std::pair<char,bool> peek2_strict();
 	char look_back_strict();
 	bool next_input_file();
 	bool push_state(std::vector<std::string> _import_path, std::string as, std::map<std::string, SourceLocation> fromlist);

@@ -444,17 +444,19 @@ int Lexer::advance() {
 }
 
 // get next character in current line that belongs to a token - blanks are ignored
+// is_last_char (if != NULL) returns if the char is the last of the token
+//
 char Lexer::peek() {
 	if (CurChar & 0xff00)
 		return '\0';
 	char c = CurChar & 0xff;
-	if (isblank(c)) {
-		int max_i = linelen - Loc.Col + (use_readline ? 1 : 0);
-		for (int i = 0; i < max_i; i++) {
-			c = linebuf[Loc.Col + i];
-			if (!isblank(c))
-				break;
-		}
+	if (!isblank(c))
+		return c;
+	int max_i = linelen - Loc.Col + (use_readline ? 1 : 0);
+	for (int i = 0; i < max_i; i++) {
+		c = linebuf[Loc.Col + i];
+		if (!isblank(c))
+			break;
 	}
 	return c;
 }
@@ -465,8 +467,16 @@ char Lexer::peek() {
 char Lexer::peek_strict() {
 	if (CurChar & 0xff00)
 		return '\0';
-	else
-		return CurChar & 0xff;
+	return CurChar & 0xff;
+}
+
+std::pair<char,bool> Lexer::peek2_strict() {
+	if ((CurChar & 0xff00) || !CurChar || (linebuf[Loc.Col] & 0xff00) || !linebuf[Loc.Col])
+		return { '\0', false };
+	char c = linebuf[Loc.Col];
+	bool is_last_char = c && !isalpha(linebuf[Loc.Col+1]) && linebuf[Loc.Col+1] != '_';
+	return { c, is_last_char };
+	
 }
 
 // get the character strictly before the current token in the same line
@@ -576,10 +586,32 @@ startanalysis:
 				IdentifierStr = "!=";
 				CurChar = advance();
 				return tok_cmp;
-			} else {
-				IdentifierStr = '!';
-				return tok_error;
+			} else if (CurChar == 'i') {
+				auto [next_char, is_last] = peek2_strict();
+				if (next_char == 'n' && is_last) {
+					CurChar = advance();
+					CurChar = advance();
+					IdentifierStr = "!in";
+					return tok_not_in;
+				}
 			}
+			IdentifierStr = '!';
+			// we were expecting a binary operator but got a unary one
+			return tok_error;
+		case '~':
+			CurChar = advance();
+if (CurChar == 'i') {
+				auto [next_char, is_last] = peek2_strict();
+				if (next_char == 'n' && is_last) {
+					CurChar = advance();
+					CurChar = advance();
+					IdentifierStr = "~in";
+					return tok_reverse_in;
+				}
+			}
+			IdentifierStr = '~';
+			// we were expecting a binary operator but got a unary one
+			return tok_error;
 		case '>':
 		case '<':
 		case '|':

@@ -18,6 +18,8 @@ TOKEN(return) \
 TOKEN(repeat) \
 TOKEN(while) \
 TOKEN(in) \
+TOKEN(reverse_in) /* '~in' - descending 'for' */ \
+TOKEN(not_in) /* '!in' - element membership test */ \
 TOKEN(for) \
 TOKEN(else) \
 TOKEN(elif) \
