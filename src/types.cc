@@ -870,6 +870,14 @@ llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned t
 		else
 			return out << "<anonymous struct>";
 	}
+	if (llvm::isa<llvm::PointerType>(type)) {
+		if (type_attr & A_map)
+			return out << "map[" << ft_elem_type[0] << "]" << ft_elem_type[1];
+		else if (type_attr & A_string)
+			return out << "string";
+		else if (type_attr & A_cstring)
+			return out << "cstring";
+	}
 	return out << *type;
 }
 
