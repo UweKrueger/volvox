@@ -2430,6 +2430,11 @@ bool ForExprAST::PrepareIterator() {
 			Builder->CreatePtrToInt(Ptr, llvm_size_type),
 			Builder->CreateMul(Step, Builder->CreateSub(
 				                   Dims[0], llvm::ConstantInt::get(llvm_size_type, 1, true))));
+		if (descending) {
+			llvm::Value* tmp = Ptr;
+			Ptr = Builder->CreateIntToPtr(limit, llvm::Type::getInt8PtrTy(Context));
+			limit = Builder->CreatePtrToInt(tmp, llvm_size_type);
+		}
 	}
 	switch (new_Value) {
 	case new_var_none:
@@ -2497,7 +2502,9 @@ defstep:
 		// we define a target intervall [limit-0.5*Step, limit+0.5*Step)
 		llvm::Value* step_half = Builder->CreateFMul(Step, llvm::ConstantFP::get(limit->getType(), .5));
 		// lower boundary:
-		approx_limit = Builder->CreateFSub(limit, step_half);
+		approx_limit = descending ?
+			Builder->CreateFAdd(limit, step_half) :
+			Builder->CreateFSub(limit, step_half);
 	}
 	return true;
 }
@@ -2506,25 +2513,46 @@ llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 	auto ctrl_var = ptr_storage ?
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);
-	if (ctrl_var->getType()->isIntegerTy())
-		if (ValueFT->type_attr & A_signed)
-			if (at_end)
-				return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
+	if (descending)
+		if (ctrl_var->getType()->isIntegerTy())
+			if (ValueFT->type_attr & A_signed)
+				if (at_end)
+					return Builder->CreateICmpSGT(ctrl_var, limit, "for_cond");
+				else
+					return Builder->CreateICmpSGE(ctrl_var, limit, "for_cond");
 			else
-				return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
+				if (at_end)
+					return Builder->CreateICmpUGT(ctrl_var, limit, "for_cond");
+				else
+					return Builder->CreateICmpUGE(ctrl_var, limit, "for_cond");
 		else
 			if (at_end)
-				return Builder->CreateICmpULT(ctrl_var, limit, "for_cond");
+				return Builder->CreateFCmpOGT(ctrl_var, approx_limit, "for_cond");
 			else
-				return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
+				// for the start we check the precise limit but allow equality
+				// so 'for x in 2.3..2.3' will have one iteration,
+				// but 'for x in 2.3..2.29999' will only run the 'else' branch if present
+				return Builder->CreateFCmpOGE(ctrl_var, limit, "for_cond");
 	else
-		if (at_end)
-			return Builder->CreateFCmpOLT(ctrl_var, approx_limit, "for_cond");
+		if (ctrl_var->getType()->isIntegerTy())
+			if (ValueFT->type_attr & A_signed)
+				if (at_end)
+					return Builder->CreateICmpSLT(ctrl_var, limit, "for_cond");
+				else
+					return Builder->CreateICmpSLE(ctrl_var, limit, "for_cond");
+			else
+				if (at_end)
+					return Builder->CreateICmpULT(ctrl_var, limit, "for_cond");
+				else
+					return Builder->CreateICmpULE(ctrl_var, limit, "for_cond");
 		else
-			// for the start we check the precise limit but allow equality
-			// so 'for x in 2.3..2.3' will have one iteration,
-			// but 'for x in 2.3..2.29999' will only run the 'else' branch if present
-			return Builder->CreateFCmpOLE(ctrl_var, limit, "for_cond");
+			if (at_end)
+				return Builder->CreateFCmpOLT(ctrl_var, approx_limit, "for_cond");
+			else
+				// for the start we check the precise limit but allow equality
+				// so 'for x in 2.3..2.3' will have one iteration,
+				// but 'for x in 2.3..2.29999' will only run the 'else' branch if present
+				return Builder->CreateFCmpOLE(ctrl_var, limit, "for_cond");
 }
 
 bool ForExprAST::SetupLoop() {
@@ -2536,9 +2564,15 @@ bool ForExprAST::Iterate() {
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);
 	if (ctrl_var->getType()->isIntegerTy())
-		ctrl_var = Builder->CreateAdd(ctrl_var, Step);
+		if (descending)
+			ctrl_var = Builder->CreateSub(ctrl_var, Step);
+		else
+			ctrl_var = Builder->CreateAdd(ctrl_var, Step);
 	else
-		ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
+		if (descending)
+			ctrl_var = Builder->CreateFSub(ctrl_var, Step);
+		else
+			ctrl_var = Builder->CreateFAdd(ctrl_var, Step);
 	if (ptr_storage) {
 		Builder->CreateStore(ctrl_var, ptr_storage);
 		if (!(ValueFV->ft.type_attr & A_ptrref)) {
