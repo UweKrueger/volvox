@@ -2492,6 +2492,8 @@ bool ForExprAST::PrepareIterator() {
 			} else {
 				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
 				ValueRef = ValueFV->val;
+				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
 			}
 			Builder->CreateStore(Ptr, ptr_storage);
 			goto defstep;
