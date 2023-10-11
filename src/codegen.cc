@@ -2363,6 +2363,11 @@ bool ForExprAST::PrepareIterator() {
 			errs() << Iterator->Loc << ": unsupported iterator type " << *Iterator->ft << "\n";
 			return false;
 		}
+		if (descending) {
+			llvm::Value* tmp = initializer;
+			initializer = limit;
+			limit = tmp;
+		}
 	} else if (iterator_type->isStructTy()) {
 		// to get polymorphism here we only require that the object has field
 		// elements or methods called 'min' and 'max' that return the same single value type
@@ -2405,6 +2410,11 @@ bool ForExprAST::PrepareIterator() {
 				errs() << " - " << (max_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
 			errs() << ") do not match\n";
 			return false;
+		}
+		if (descending) {
+			llvm::Value* tmp = initializer;
+			initializer = limit;
+			limit = tmp;
 		}
 	} else if (iterator_type->isArrayTy()) {
 		auto [ElType0, Ptr0, Dims] = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);
