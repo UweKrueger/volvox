@@ -2471,40 +2471,33 @@ bool ForExprAST::PrepareIterator() {
 		errs() << Loc << ": cannot initialize 'for' control variable '" << ValueName << "'\n";
 		return false;
 	case new_var_created:
-	case existing_var_returned:
-		if (!ValueFV) {
-			errs() << Loc << ": internal error - 'for' control variable neither declared not pre existing\n";
-			return false;
-		}
-		if (!ValueFV->val) {
-			if (iterator_type->isArrayTy()) {
-				if (!llvm::isa<llvm::PointerType>(Ptr->getType())) {
-					errs() << Loc << ": internal error - array pointer " << *Ptr << " (no pointer)\n";
-					return false;
-				}
-				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
-				Builder->CreateStore(Ptr, ptr_storage);
-				if (ValueFV->ft.type_attr & A_ptrref) {
-					ValueFV->val = ptr_storage;
-				} else {
-					auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-					ValueRef = ValueFV->val = CreateAlloca(Step, align);
-					Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
-				}
-			} else if (iterator_type->isPointerTy()) {
-				if (Iterator->ft->type_attr & A_map) {
-					ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
-					Builder->CreateStore(initializer, ptr_storage);
-					ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
-				}
-			} else {
-				ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
-				ValueType = ValueFV->ft.type;
+		// we have to create an allocation for the new variable
+		if (iterator_type->isArrayTy()) {
+			if (!llvm::isa<llvm::PointerType>(Ptr->getType())) {
+				errs() << Loc << ": internal error - array pointer " << *Ptr << " (no pointer)\n";
+				return false;
 			}
-			goto defstep;
+			ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+			Builder->CreateStore(Ptr, ptr_storage);
+			if (ValueFV->ft.type_attr & A_ptrref) {
+				ValueFV->val = ptr_storage;
+			} else {
+				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+				ValueRef = ValueFV->val = CreateAlloca(Step, align);
+				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
+			}
+		} else if (iterator_type->isPointerTy()) {
+			if (Iterator->ft->type_attr & A_map) {
+				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+				Builder->CreateStore(initializer, ptr_storage);
+				ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
+			}
+		} else {
+			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
+			ValueType = ValueFV->ft.type;
 		}
-		// else: we cannot rely on ValueFV->val. So we get the generic Lvalue...
-		// ...and fall though
+		break;
+	case existing_var_returned:
 	case generic_lvalue_returned:
 		ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
 		llvm::Type* dummy;
@@ -2523,12 +2516,12 @@ bool ForExprAST::PrepareIterator() {
 				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
 			}
 			Builder->CreateStore(Ptr, ptr_storage);
-			goto defstep;
+		} else {
+			if (initializer->getType() != ValueType)
+				initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
+			Builder->CreateStore(initializer, ValueRef);
 		}
-		if (initializer->getType() != ValueType)
-			initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
-		Builder->CreateStore(initializer, ValueRef);
-		goto defstep;
+		break;
 	}
 defstep:
 	if (limit->getType()->isIntegerTy()) {
@@ -2544,6 +2537,24 @@ defstep:
 		approx_limit = descending ?
 			Builder->CreateFAdd(limit, step_half) :
 			Builder->CreateFSub(limit, step_half);
+	}
+	switch (new_Key) {
+	case new_var_none:
+		break;
+	case new_var_created:
+		// we have to create an allocation for the new variable
+		KeyType = KeyFV->ft.type;
+		KeyRef = KeyFV->val = CreateEntryBlockAlloca(KeyType);
+		break;
+	case existing_var_returned:
+	case generic_lvalue_returned:
+		auto KeyLval = dynamic_cast<LvalueExprAST*>(Value.get());
+		llvm::Type* dummy;
+		std::tie(KeyType, KeyRef) = KeyLval->codegen_ref();
+		if (!KeyRef)
+			return false;
+		// Builder->CreateStore(key_initializer, KeyRef);
+		break;
 	}
 	return true;
 }
