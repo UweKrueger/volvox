@@ -94,126 +94,126 @@ namespace volvox {
 		DEFINE_NEW_NODE_FOR(f32)
 		DEFINE_NEW_NODE_FOR(f64)
 
-		static Node* rotLeft(Node* a, Node* b) {
-			/*
-			 *      a                   b
-			 *     / \                 / \
-			 *    X   b      =>       a   Y
-			 *       / \             / \
-			 *      c   Y           X   c
-			 */	  
-			Node* c = b->leftChild;
-			a->rightChild = c;
-			if (c)
-				SET_PARENT(c, a);
-			b->leftChild = a;
-			SET_PARENT(a, b);
-			if (b->bf == 0) {
-				a->bf = 1;
-				b->bf = -1;
-			} else {
-				a->bf = 0;
-				b->bf = 0;
-			}
-			return b;
-		}
-
-		static Node* rotRight(Node* a, Node* b) {
-			/*
-			 *        a              b
-			 *       / \            / \
-			 *      b   Y    =>    X   a
-			 *     / \                / \
-			 *    X   c              c   Y
-			 */	  
-			Node* c = b->rightChild;
-			a->leftChild = c;
-			if (c)
-				SET_PARENT(c, a);
-			b->rightChild = a;
-			SET_PARENT(a, b);
-			if (b->bf == 0) {
-				a->bf = -1;
-				b->bf = 1;
-			} else {
-				a->bf = 0;
-				b->bf = 0;
-			}
-			return b;
-		}
-
-		static Node* rotRightLeft(Node* a, Node* b) {
+		static Node* rotLeft(Node* a, Node* c) {
 			/*
 			 *      a                   c
 			 *     / \                 / \
-			 *    X   b               /   \
-			 *       / \     =>      /     \
-			 *      c   Y           a       b
-			 *     / \             / \     / \
-			 *    d   e           X   d   e   Y
+			 *    X   c      =>       a   Y
+			 *       / \             / \
+			 *      b   Y           X   b
 			 */	  
-			Node* c = b->leftChild;
-			Node* d = c->leftChild;
-			Node* e = c->rightChild;
+			Node* b = c->leftChild;
+			a->rightChild = b;
+			if (b)
+				SET_PARENT(b, a);
 			c->leftChild = a;
 			SET_PARENT(a, c);
-			a->rightChild = d;
+			if (c->bf == 0) {
+				a->bf = 1;
+				c->bf = -1;
+			} else {
+				a->bf = 0;
+				c->bf = 0;
+			}
+			return c;
+		}
+
+		static Node* rotRight(Node* c, Node* a) {
+			/*
+			 *        c              a
+			 *       / \            / \
+			 *      a   Y    =>    X   c
+			 *     / \                / \
+			 *    X   b              b   Y
+			 */	  
+			Node* b = a->rightChild;
+			c->leftChild = b;
+			if (b)
+				SET_PARENT(b, c);
+			a->rightChild = c;
+			SET_PARENT(c, a);
+			if (a->bf == 0) {
+				c->bf = -1;
+				a->bf = 1;
+			} else {
+				c->bf = 0;
+				a->bf = 0;
+			}
+			return a;
+		}
+
+		static Node* rotRightLeft(Node* a, Node* e) {
+			/*
+			 *      a                   c
+			 *     / \                 / \
+			 *    X   e               /   \
+			 *       / \     =>      /     \
+			 *      c   Y           a       e
+			 *     / \             / \     / \
+			 *    b   d           X   b   d   Y
+			 */	  
+			Node* c = e->leftChild;
+			Node* b = c->leftChild;
+			Node* d = c->rightChild;
+			c->leftChild = a;
+			SET_PARENT(a, c);
+			a->rightChild = b;
+			if (b)
+				SET_PARENT(b, a);
+			c->rightChild = e;
+			SET_PARENT(e, c);
+			e->leftChild = d;
 			if (d)
-				SET_PARENT(d, a);
-			c->rightChild = b;
-			SET_PARENT(b, c);
-			b->leftChild = e;
-			if (e)
-				SET_PARENT(e, b);
+				SET_PARENT(d, e);
 			if (c->bf == 0) {
 				a->bf = 0;
-				b->bf = 0;
+				e->bf = 0;
 			} else {
 				if (c->bf < 0) {
 					a->bf = 0;
-					b->bf = 1;
+					e->bf = 1;
 				} else {
 					a->bf = -1;
-					b->bf = 0;
+					e->bf = 0;
 				}
 			}
 			c->bf = 0;
 			return c;
 		}
 
-		static Node* rotLeftRight(Node* a, Node* b) {
+		static Node* rotLeftRight(Node* e, Node* a) {
 			/*
-			 *          a                   c
+			 *          e                   c
 			 *         / \                 / \
-			 *        b   Y               /   \
+			 *        a   Y               /   \
 			 *       / \         =>      /     \
-			 *      X   c               b       a
+			 *      X   c               a       e
 			 *         / \             / \     / \
-			 *        e   d           X   e   d   Y
+			 *        b   d           X   b   d   Y
 			 */	  
-			Node* c = b->rightChild;
+			Node* c = a->rightChild;
 			Node* d = c->rightChild;
-			Node* e = c->leftChild;
-			c->rightChild = a;
-			SET_PARENT(a, c);
-			a->leftChild = d;
+			Node* b = c->leftChild;
+			c->rightChild = e;
+			SET_PARENT(e, c);
+			e->leftChild = d;
 			if (d)
-				SET_PARENT(d, a);
-			c->leftChild = b;
-			SET_PARENT(b, c);
-			b->rightChild = e;
-			if (e)
-				SET_PARENT(e, b);
+				SET_PARENT(d, e);
+			c->leftChild = a;
+			SET_PARENT(a, c);
+			a->rightChild = b;
+			if (b)
+				SET_PARENT(b, a);
 			if (c->bf == 0) {
+				e->bf = 0;
 				a->bf = 0;
-				b->bf = 0;
 			} else {
 				if (c->bf > 0) {
-					a->bf = 0;
-					b->bf = -1;
+					e->bf = 0;
+					a->bf = -1;
 				} else {
-					a->bf = 1;
-					b->bf = 0;
+					e->bf = 1;
+					a->bf = 0;
 				}
 			}
 			c->bf = 0;
