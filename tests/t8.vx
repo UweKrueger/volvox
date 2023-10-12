@@ -114,3 +114,48 @@ end
 fn test_global_scope_for_1 bool
 	global sjj2
 	return sjj2 == 27.75
+
+fn test_map_iteration_1 bool
+	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
+	s = 0.
+	for i ~in hjhg7
+		s += i
+		# printf("Value: >%g<\n", i)
+	end
+	return s == 13.1875
+
+global ffsd93 = 0
+hjhg9 = map[string]int{ "ggs": 12, "ABd": -123, "doDe": 2, "kkqw": 1000 }
+
+for zew78 in hjhg9
+	ffsd93 += zew78
+	# printf("Value: >%d<\n", zwe78)
+end
+
+fn test_map_iteration_2 bool
+	global ffsd93
+	return ffsd93 == 891
+
+fn test_map_iteration_3 bool
+	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
+	s = 0.
+	for i in hjhg7
+		s += i
+		# printf("Value: >%g<\n", i)
+	else
+		i = 0.
+	end
+	# i should be the greatest value
+	return s == 13.1875 && i == 12
+
+fn test_map_iteration_4 bool
+	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
+	s = 0.
+	for i ~in hjhg7
+		s += i
+		# printf("Value: >%g<\n", i)
+	else
+		i = 0.
+	end
+	# i should be the least value
+	return s == 13.1875 && i == -1.0625
