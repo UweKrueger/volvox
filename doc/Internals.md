@@ -44,4 +44,4 @@ The Address of the reference counter may be lower if the string is part of a lar
 ## Resizable Shared Heap Arrays
 
 
-There is <span style="color: red;">text</span> <span style="background-color: linen; color: #227744;">text</span>
+There is text $\textcolor{red}{\mathrm{text}}$ $\textcolor{green}{\mathsf{Even \small More Text}}$ $x^2$ $\sqrt{x^5}$
