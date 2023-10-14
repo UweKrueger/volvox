@@ -44,4 +44,10 @@ The Address of the reference counter may be lower if the string is part of a lar
 ## Resizable Shared Heap Arrays
 
 
-There is text $\textcolor{red}{\mathrm{text}}$ $\textcolor{green}{\mathsf{Even \small More Text}}$ $x^2$ $\sqrt{x^5}$
+There is text $\textcolor{red}{\mathrm{text}}$ $\textcolor{green}{More~Text}$
+
+$\textcolor{green}{\mathsf{Even\ More~Text}}$
+
+$x^2$ $\sqrt{x^5}$
+
+$\textcolor{green}{\mathrm{Even\ More~Text}}$
