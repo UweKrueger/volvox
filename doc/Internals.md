@@ -8,12 +8,12 @@
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{green}{\lfloor a-s\rfloor-2b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Atomic\ Reference\ Counter}}$
+$\textcolor{green}{\lfloor a-s\rfloor-2b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Atomic\\ Reference\\ Counter}}$
 $\textcolor{red}{\lfloor a-s\rfloor -b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Mutex}}$
 \|p-s\| | s | Array Data
 \|p-s\|+s | s%b | Padding
 p | b | Array Size $s$, i.e. Number of Elements
-$\textcolor{violet}{p+b}$ | $\textcolor{purple}{b}$ | $\textcolor{violet}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
+$\textcolor{violet}{p+b}$ | $\textcolor{purple}{b}$ | $\textcolor{violet}{\mathsf{Address\\ of\\ Reference\\ Counter,\\ Address\\ to}\\ \mathtt{free()}}$
 
 A unique heap array does not include the reference counter nor the mutex or the address of the reference counter (the parts marked green). This allows it to be moved to a C function (as address of the array data) and be freed by that.
 
