@@ -2,18 +2,20 @@
 ## Shared Heap Array
 - $a$ &ndash; address referring the object
 - $b$ &ndash; pointer size in bytes (8 on 64-Bit- and 4 on 32-Bit-Systems)
-- $n$ &ndash; String length (number of ASCII characters &mdash; UTF-8 multibyte characters count as number of bytes they consist of)
-- $s$ &ndash; Array Length including terminating '\\0', i.e. $n+1$
-- $\lfloor x\rfloor$ &ndash; $x$ aligned to pointer size by setting last bits to $0$, i.e. $x-(x\\,\\%\\,b)$ or $x\\,\\&\sim(b-1)$
+- $n$ &ndash; string length (number of ASCII characters &mdash; UTF-8 multibyte characters count as number of bytes they consist of)
+- $d$ &ndash; aligned size of possible additional data
+- $s$ &ndash; array length including terminating '\\0', i.e. $n+1$
+- $\lfloor x\rfloor$ &ndash; value $x$ aligned to pointer size by setting last bits to $0$, i.e. $x-(x\\,\\%\\,b)$ or $x\\,\\&\sim(b-1)$
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{green}{\lfloor a-s\rfloor-2b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Atomic\\ Reference\\ Counter}}$
-$\textcolor{red}{\lfloor a-s\rfloor -b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Mutex}}$
-\|p-s\| | s | Array Data
-\|p-s\|+s | s%b | Padding
-p | b | Array Size $s$, i.e. Number of Elements
-$\textcolor{violet}{p+b}$ | $\textcolor{purple}{b}$ | $\textcolor{violet}{\mathsf{Address\\ of\\ Reference\\ Counter,\\ Address\\ to}\\ \mathtt{free()}}$
+$\textcolor{green}{\lfloor a-s\rfloor-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{\textcolor{violet}{(}Atomic\textcolor{violet}{)}\\ Reference\\ Counter}}$
+$\textcolor{violet}{\lfloor a-s\rfloor -b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
+$\textcolor{blue}{\lfloor a-s\rfloor-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\textsf{Other\ Data}}$
+$\lfloor a-s\rfloor$ | $s$ | Array Data
+$\lfloor a-s\rfloor +s$ | $s\\,\\%\\,b$ | Padding
+$p$ | $b$ | Array Size $s$, i.e. Number of Elements
+$\textcolor{green}{p+b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\\ of\\ Reference\\ Counter,\\ Address\\ to}\\ \mathtt{free()}}$
 
 A unique heap array does not include the reference counter nor the mutex or the address of the reference counter (the parts marked green). This allows it to be moved to a C function (as address of the array data) and be freed by that.
 
