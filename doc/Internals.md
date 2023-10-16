@@ -1,5 +1,20 @@
 # Internals and C compatibility
-## Shared Heap Array
+## Data Layout of Heap Object
+Volvox supports three kinds of heap objects:
+1. `unique` objects: There is only one pointer at any time that points
+   to the object &mdash; corresponding to C++'s
+   `std::unique_ptr<type>`. When the pointer gets out of scope the
+   automatically called destructor frees the memory space. Neither a
+   mutex nor a reference counter are needed.
+2. `const` objects: "create once, read everywhere" objects. There may
+   be several pointers at the same time &mdash; even in different
+   threads. When a pointer gets out of scope the reference counter is
+   atomically decremented. If it was zero[^1] the object is freed.
+3. `shared` objects:
+
+[^1]: The reference counter starts with 0 when there is only one pointer. This way `atomic_sub_value()` returns 0 when the last destructor is called indicating that the memory block must be freed.
+
+### Shared Heap Array
 - $a$ &ndash; address referring the object
 - $b$ &ndash; pointer size in bytes (8 on 64-Bit- and 4 on 32-Bit-Systems)
 - $n$ &ndash; string length (number of ASCII characters &mdash; UTF-8 multi byte characters count as number of bytes they consist of)
