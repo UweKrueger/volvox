@@ -5,13 +5,13 @@
 - $n$ &ndash; string length (number of ASCII characters &mdash; UTF-8 multi byte characters count as number of bytes they consist of)
 - $d$ &ndash; aligned size of possible additional data
 - $s$ &ndash; array length including terminating '\\0', i.e. $n+1$
-- $\lfloor x\rfloor$ &ndash; value $x$ aligned to pointer size by setting last bits to $0$, i.e. $x-(x\,\%\,b)$ or $x\,\&\sim(b-1)$
+- $\lfloor x\rfloor$ &ndash; value $x$ aligned to pointer size by setting last bits to $0$, i.e. $x-(x\mod b)$ which can be calculated more efficiently using bitwise logic as $x\land\neg(b-1)$
 
 Address | Size | Function
 :---: | :---: | ---
 $\textcolor{green}{\lfloor a-s\rfloor-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{\textcolor{violet}{(}Atomic\textcolor{violet}{)}\ Reference\ Counter}}$
 $\textcolor{violet}{\lfloor a-s\rfloor -b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
-$\textcolor{blue}{\lfloor a-s\rfloor-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\textsf{Other\ Data}}$
+$\textcolor{blue}{\lfloor a-s\rfloor-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $\lfloor a-s\rfloor$ | $s$ | Array Data
 $\lfloor a-s\rfloor +s$ | $s\,\%\,b$ | Padding
 $p$ | $b$ | Array Size $s$, i.e. Number of Elements
