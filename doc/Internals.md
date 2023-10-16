@@ -1,26 +1,51 @@
 # Internals and C compatibility
 ## Data Layout of Heap Object
+
 Volvox supports three kinds of heap objects:
+
 1. `unique` objects: There is only one pointer at any time that points
    to the object &mdash; corresponding to C++'s
    `std::unique_ptr<type>`. When the pointer gets out of scope the
    automatically called destructor frees the memory space. Neither a
-   mutex nor a reference counter are needed.
-2. `const` objects: "create once, read everywhere" objects. There may
-   be several pointers at the same time &mdash; even in different
-   threads. When a pointer gets out of scope the reference counter is
-   atomically decremented. If it was zero[^1] the object is freed.
-3. `shared` objects:
+   mutex nor a reference counter are needed. A unique object may be
+   transferred to another thread.
+2. `obj`: Several pointers may refer to the object but only in one thread.
+   When a pointer gets out of scope a reference counter is decremented
+   decremented. If it was zero[^1] the object is freed.
+3. `const` objects: “create once, read everywhere” &mdash; a const object
+   may be transferred to another thread. The reference counter is modified
+   atomically. 
+4. `shared` objects: like `obj` but with an additional mutex that has to be
+   locked when the object is accessed. The reference counter is atomic.
 
 [^1]: The reference counter starts with 0 when there is only one pointer. This way `atomic_sub_value()` returns 0 when the last destructor is called indicating that the memory block must be freed.
 
-### Shared Heap Array
+For the following tables of detailed data layouts definitions are used:
+
 - $a$ &ndash; address referring the object
 - $b$ &ndash; pointer size in bytes (8 on 64-Bit- and 4 on 32-Bit-Systems)
-- $n$ &ndash; string length (number of ASCII characters &mdash; UTF-8 multi byte characters count as number of bytes they consist of)
+- $n$ &ndash; number of array elements; string length (number of ASCII
+  characters &mdash; UTF-8 multi byte characters count as number of bytes they
+  consist of)
 - $d$ &ndash; aligned size of possible additional data
-- $s$ &ndash; array length including terminating '\\0', i.e. $n+1$
-- $\lfloor x\rfloor$ &ndash; value $x$ aligned to pointer size by setting last bits to $0$, i.e. `x - (x % b)` which can be calculated more efficiently using bitwise logic as `x & ~(b-1)`
+- $s$ &ndash; array size in bytes - string length including terminating '\\0',
+  i.e. $n+1$
+- $\lfloor x\rfloor$ &ndash; value $x$ aligned to pointer size by setting last
+  bits to $0$, i.e. `x - (x % b)` which can be calculated more efficiently
+  using bitwise logic as `x & ~(b-1)`
+
+### Struct Objects
+
+Address | Size | Function
+:---: | :---: | ---
+$\textcolor{green}{a-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{\textcolor{violet}{(}Atomic\textcolor{violet}{)}\ Reference\ Counter}}$
+$\textcolor{violet}{a-b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
+$\textcolor{blue}{a-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
+$a$ | $s$ | Struct Data
+$a+s$ | $(b-s\,\%\,b)\,\%\,b$ | Padding
+$\textcolor{green}{\lfloor a+s+b-1\rfloor}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
+
+### Heap Array
 
 Address | Size | Function
 :---: | :---: | ---
