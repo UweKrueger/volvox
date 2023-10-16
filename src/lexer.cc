@@ -12,13 +12,7 @@
    <editline/readline.h> for libedit - but not on all. So we include <readline.h> here (if
    available) and make sure the correct version is used by setting CPPEXTRAFLAGS in Makefile
  */
-#if defined(__OpenBSD__)
-// OpenBSD has no 'readline.h' header for libedit - so just declare the functions
-// we need, here...
-extern "C" char* readline(const char* p);
-extern "C" int add_history(const char *line);
-extern "C" int rl_initialize(void);
-#elif defined(USE_EDITLINE)
+#if defined(USE_EDITLINE)
 #include <editline.h>
 #else // Linux, NetBSD, Dragonfly BSD, Windows
 // let CPP's '-I...' point to libedit's version of readline.h (see Makefile)

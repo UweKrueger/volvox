@@ -17,9 +17,14 @@ ifeq ($(shell test -x /usr/local/bin/llvm-config17 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := 17
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config16 && echo -n true),true)
+ifeq ($(shell test -x /usr/local/bin/llvm-config-16 && echo -n true),true)
 	PREFIX := /usr/local
-	SUFFIX := 16
+	SUFFIX := -16
+	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm16/lib -lreadline
+# readline on OpenBSD is GPLv2 - if you want a pure non-GPL build you can
+# use (a very old) libedit by using the following line and adding
+# "-DMONOCHROME_PROMPT=1" to CPPEXTRAFLAGS below 
+#	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm16/lib -ledit
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
 	PREFIX := /usr/local
@@ -75,7 +80,7 @@ ifeq ($(shell uname),NetBSD)
 	EDITLINEOBJS := # we use system provided BSD editline
 else
 ifeq ($(shell uname),OpenBSD)
-	CPPEXTRAFLAGS := -Wno-reorder-init-list -DMONOCHROME_PROMPT
+	CPPEXTRAFLAGS := -Wno-reorder-init-list -I/usr/include/readline -DNEED_HISTORY_H=1
 	EXTRAOBJS :=
 	EDITLINEOBJS := # we use system provided BSD editline
 else
