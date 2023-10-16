@@ -42,7 +42,7 @@ $\textcolor{green}{a-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textc
 $\textcolor{violet}{a-b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 $\textcolor{blue}{a-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $a$ | $s$ | Struct Data
-$a+s$ | $(b-s\,\%\,b)\,\%\,b$ | Padding
+$a+s$ | $-s\mod b$ | Padding
 $\textcolor{green}{\lfloor a+s+b-1\rfloor}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 
 ### Heap Array
@@ -53,7 +53,7 @@ $\textcolor{green}{\lfloor a-s\rfloor-\textcolor{violet}{2\cdot}b}\textcolor{blu
 $\textcolor{violet}{\lfloor a-s\rfloor -b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 $\textcolor{blue}{\lfloor a-s\rfloor-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $\lfloor a-s\rfloor$ | $s$ | Array Data
-$\lfloor a-s\rfloor +s$ | $s\,\%\,b$ | Padding
+$\lfloor a-s\rfloor +s$ | $s\mod b$ | Padding
 $p$ | $b$ | Array Size $s$, i.e. Number of Elements
 $\textcolor{green}{p+b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 
