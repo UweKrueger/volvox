@@ -5,7 +5,7 @@
 - $n$ &ndash; string length (number of ASCII characters &mdash; UTF-8 multi byte characters count as number of bytes they consist of)
 - $d$ &ndash; aligned size of possible additional data
 - $s$ &ndash; array length including terminating '\\0', i.e. $n+1$
-- $\lfloor x\rfloor$ &ndash; value $x$ aligned to pointer size by setting last bits to $0$, i.e. $x-(x\mod b)$ which can be calculated more efficiently using bitwise logic as $x\land\neg(b-1)$
+- $\lfloor x\rfloor$ &ndash; value $x$ aligned to pointer size by setting last bits to $0$, i.e. `x - (x % b)` which can be calculated more efficiently using bitwise logic as `x & ~(b-1)`
 
 Address | Size | Function
 :---: | :---: | ---
