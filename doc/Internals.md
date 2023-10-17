@@ -9,13 +9,13 @@ Volvox supports three kinds of heap objects:
    automatically called destructor frees the memory space. Neither a
    mutex nor a reference counter are needed. A unique object may be
    transferred to another thread.
-2. `obj`: Several pointers may refer to the object but only in one thread.
+2. $\textcolor{green}{\texttt{obj}}$: Several pointers may refer to the object but only in one thread.
    When a pointer gets out of scope a reference counter is decremented
    decremented. If it was zero[^1] the object is freed.
-3. `const` objects: “create once, read everywhere” &mdash; a const object
+3. $\textcolor{red}{\texttt{const}}$ objects: “create once, read everywhere” &mdash; a const object
    may be transferred to another thread. The reference counter is modified
    atomically. 
-4. `shared` objects: like `obj` but with an additional mutex that has to be
+4. $\textcolor{violet}{\texttt{shared}}$ objects: like `obj` but with an additional mutex that has to be
    locked when the object is accessed. The reference counter is atomic.
 
 [^1]: The reference counter starts with 0 when there is only one pointer. This way `atomic_sub_value()` returns 0 when the last destructor is called indicating that the memory block must be freed.
@@ -38,24 +38,23 @@ For the following tables of detailed data layouts definitions are used:
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{green}{a-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{\textcolor{violet}{(}Atomic\textcolor{violet}{)}\ Reference\ Counter}}$
-$\textcolor{violet}{a-b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
-$\textcolor{blue}{a-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
+$\textcolor{green}{a-2\cdot b \textcolor{violet}{-b}}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
+$\textcolor{violet}{a-2\cdot b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
+$\textcolor{blue}{a-b-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
+$\textcolor{green}{a-b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 $a$ | $s$ | Struct Data
-$a+s$ | $-s\mod b$ | Padding
-$\textcolor{green}{\lfloor a+s+b-1\rfloor}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 
 ### Heap Array
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{green}{\lfloor a-s\rfloor-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{\textcolor{violet}{(}Atomic\textcolor{violet}{)}\ Reference\ Counter}}$
+$\textcolor{green}{\lfloor a-s\rfloor-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
 $\textcolor{violet}{\lfloor a-s\rfloor -b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 $\textcolor{blue}{\lfloor a-s\rfloor-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $\lfloor a-s\rfloor$ | $s$ | Array Data
-$\lfloor a-s\rfloor +s$ | $s\mod b$ | Padding
-$p$ | $b$ | Array Size $s$, i.e. Number of Elements
-$\textcolor{green}{p+b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
+$\lfloor a-s\rfloor +s$ | $-s\mod b$ | Padding
+$a$ | $b$ | Array Size $s$, i.e. Number of Elements
+$\textcolor{green}{a+b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 
 A unique heap array does not include the reference counter nor the mutex or the address of the reference counter (the parts marked green). This allows it to be moved to a C function (as address of the array data) and be freed by that.
 
