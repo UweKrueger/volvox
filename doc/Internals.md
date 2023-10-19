@@ -1,5 +1,6 @@
-# Internals and C compatibility
-## Data Layout of Heap Object
+# Internals
+## Heap Object
+### Heap Object Types
 
 Volvox supports three kinds of heap objects:
 
@@ -8,8 +9,10 @@ Volvox supports three kinds of heap objects:
    `std::unique_ptr<type>`. When the pointer gets out of scope the
    automatically called destructor frees the memory space. Neither a
    mutex nor a reference counter are needed. A unique object may be
-   transferred to another thread.
-2. $\textcolor{green}{\texttt{obj}}$: Several pointers may refer to the object but only in one thread.
+   transferred to another thread. It may also be passed to a C function
+   that expects a pointer to a `struct`.
+2. $\textcolor{green}{\texttt{obj}}$: Several pointers may refer to the object
+   but only in one thread.
    When a pointer gets out of scope a reference counter is decremented
    decremented. If it was zero[^1] the object is freed.
 3. $\textcolor{red}{\texttt{const}}$ objects: “create once, read everywhere” &mdash; a const object
@@ -19,6 +22,72 @@ Volvox supports three kinds of heap objects:
    locked when the object is accessed. The reference counter is atomic.
 
 [^1]: The reference counter starts with 0 when there is only one pointer. This way `atomic_sub_value()` returns 0 when the last destructor is called indicating that the memory block must be freed.
+
+### C Interoperability
+
+It is possible to pass an object declared `unique`, `const`, `obj` or `shared` to
+a C function that expects a pointer to a `struct`:
+
+```C
+// Declaration C Header File
+
+typedef struct S {
+	double d;
+	int i;
+} S;
+
+extern int f(S* x);
+extern int g(const S* x);
+
+// This function will call "free()" for the passed pointer
+// In C++ this would correspond to passing a unique_ptr<S> as argument
+extern int h(S* x);
+```
+
+To use these functions in Volvox code we have to declare the type `S` and
+functions `f` and `g` with a matching signatures:
+
+```Python
+# Declare type
+
+type S {
+	d f64
+	i int
+}
+
+# Declare external C Functions
+
+cdecl f(&x S) int
+cdecl g(const x S)
+
+# Create some heap objects
+
+unique a = S{}
+obj b = S{}
+const c = S{ d: 12.5, i: 3 }
+shared d = S{}
+
+# Call functions "borrowing" the objects, i.e. reference counters are not touched
+
+w = f(a)
+# "a" is still valid here
+x = f(b)
+# For the const object c we can only call g 
+y = g(c)
+# The C function does no know about the mutex so we have to lock it
+z = lock d
+	f(d)
+end
+```
+
+The function `h()` can only be called with `a` as argument:
+
+```Python
+cdecl h(unique S x)
+
+v = h(a)
+# a has been moved an is not valid any more
+```
 
 For the following tables of detailed data layouts definitions are used:
 
