@@ -2,7 +2,7 @@
 ## Heap Object
 ### Heap Object Types
 
-Volvox supports three kinds of heap objects:
+Volvox supports four kinds of heap objects:
 
 1. `unique` objects: There is only one pointer at any time that points
    to the object &mdash; corresponding to C++'s
@@ -10,7 +10,8 @@ Volvox supports three kinds of heap objects:
    automatically called destructor frees the memory space. Neither a
    mutex nor a reference counter are needed. A unique object may be
    transferred to another thread. It may also be passed to a C function
-   that expects a pointer to a `struct`.
+   that expects a pointer to a `struct`, but a distiction must be made between
+   a *borrow* and a *move* (see below).
 2. $\textcolor{green}{\texttt{obj}}$: Several pointers may refer to the object
    but only in one thread.
    When a pointer gets out of scope a reference counter is decremented
