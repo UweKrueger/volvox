@@ -41,14 +41,14 @@ extern int f(S* x);
 extern int g(const S* x);
 
 // This function will call "free()" for the passed pointer
-// In C++ this would correspond to passing a unique_ptr<S> as argument
+// In C++ this would correspond to passing a std::unique_ptr<S> as argument
 extern int h(S* x);
 ```
 
 To use these functions in Volvox code we have to declare the type `S` and
 functions `f` and `g` with a matching signatures:
 
-```Python
+```Nim
 # Declare type
 
 type S {
@@ -83,11 +83,11 @@ end
 
 The function `h()` can only be called with `a` as argument:
 
-```Python
+```Nim
 cdecl h(unique S x)
 
 v = h(a)
-# a has been moved an is not valid any more
+# a has been moved and is not valid any more
 ```
 
 For the following tables of detailed data layouts definitions are used:
@@ -114,7 +114,7 @@ $\textcolor{blue}{a-b-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Ot
 $\textcolor{green}{a-b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 $a$ | $s$ | Struct Data
 
-### Heap Array
+### Constant Size Heap Array
 
 Address | Size | Function
 :---: | :---: | ---
@@ -134,25 +134,19 @@ There are two types of strings:
 - `cstring`: a simple memory pointer that should only be used for C interoperability
 - `string`: a Volvox native string — pointer to the size field of the data structure below
 
-### Data Layout
-- p: address in pointer referring the object
-- b: pointer size in bytes (8 on 64-Bit- and 4 on 32-Bit-Systems)
-- n: String Length
-- s: Array Length including terminating '\\0', i.e. n+1
-- \|x\|: x aligned to pointer size by setting last bits to 0, i.e x-(x%b) or x&~(b-1)
-
-| Address | Size | Function |
-| :---: | :---: | --- |
-| $\textcolor{green}{\mathsf{\|p-s\|-b}}$ | $\textcolor{green}{\mathsf{b}}$ | $\textcolor{green}{\mathsf{Reference~Counter}}$ |
-| \|p-s\| | n | String Characters |
-| \|p-s\|+n | 1 | '\\0' String Terminator |
-| \|p-s\|+s | s%b | Padding |
-| p | b | n+1, i.e. Size of Array |
-$\textcolor{green}{\mathsf{p+b}}$ | $\textcolor{green}{\mathsf{b}}$ | $\textcolor{green}{\mathsf{Address~of~Reference~Counter,~Address~to~free()}}$ |
-
-The Address of the reference counter may be lower if the string is part of a larger structure. In any case it is the base address of the heap memory block.
-
 ## Resizable Shared Heap Arrays
+
+### Control Block
+
+Address | Size | Function
+:---: | :---: | ---
+$\textcolor{green}{a-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
+$\textcolor{violet}{a-b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
+$\textcolor{blue}{a-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
+$a$ | $b$ | Pointer to Memory Block
+$a+b$ | $b$ | Array Size $s$, i.e. Number of Elements
+$a+2\cdot b$ | $b$ | Capacity of Memory Block
+$\textcolor{green}{a+3\cdot b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 
 
 There is text $\textcolor{red}{\mathrm{text}}$ $\textcolor{green}{More~Text}$
