@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE language>
+<language name="Volvox" version="1" kateversion="5.0" indenter="lua" section="Sources" extensions="*.vx;" mimetype="text/x-volvox" author="Uwe Krüger (uwe_debbug@arcor.de)" license="MIT">
+  <highlighting>
+    <list name="keywords">
+      <item>chan</item>
+      <item>set</item>
+      <item>map</item>
+      <item>self</item>
+      <item>packed</item>
+      <item>union</item>
+      <item>const</item>
+      <item>unique</item>
+      <item>shared</item>
+      <item>atomic</item>
+      <item>global</item>
+      <item>in</item>
+      <item>~in</item>
+      <item>pub</item>
+      <item>cpub</item>
+      <item>as</item>
+      <item>from</item>
+      <item>import</item>
+      <item>type</item>
+      <item>ctype</item>
+      <item>interface</item>
+      <item>decl</item>
+      <item>cdecl</item>
+      <item>inline</item>
+      <item>fn</item>
+    </list>
+
+    <list name="control">
+      <item>until</item>
+      <item>return</item>
+      <item>repeat</item>
+      <item>while</item>
+      <item>for</item>
+      <item>else</item>
+      <item>elif</item>
+      <item>if</item>
+      <item>lock</item>
+      <item>end</item>
+    </list>
+
+    <list name="startcontrol">
+      <item>for</item>
+      <item>if</item>
+      <item>repeat</item>
+      <item>lock</item>
+    </list>
+
+    <list name="elsecontrol">
+      <item>else</item>
+      <item>elif</item>
+    </list>
+
+    <list name="endcontrol">
+      <item>until</item>
+      <item>return</item>
+      <item>end</item>
+    </list>
+	
+    <list name="operators">
+      <item>++</item>
+      <item>--</item>
+      <item>^</item>
+      <item>+</item>
+      <item>-</item>
+      <item>!</item>
+      <item>~</item>
+      <item>&lt;-</item>
+      <item>*</item>
+      <item>/</item>
+      <item>%</item>
+      <item>&lt;&lt;</item>
+      <item>>&gt;&gt;</item>
+      <item>>&gt;&lt;</item>
+      <item>&gt;=</item>
+      <item>&gt;</item>
+      <item>==</item>
+      <item>!=</item>
+      <item>&lt;=</item>
+      <item>&lt;</item>
+      <item>&amp;&amp;</item>
+      <item>&amp;</item>
+      <item>||</item>
+      <item>|</item>
+      <item>...</item>
+      <item>..</item>
+      <item>;</item>
+      <item>,</item>
+    </list>
+
+    <list name="types">
+      <item>int</item>
+      <item>unsigned</item>
+      <item>ssize_t</item>
+      <item>real</item>
+      <item>bool</item>
+      <item>i8</item>
+      <item>i16</item>
+      <item>i32</item>
+      <item>i64</item>
+      <item>u8</item>
+      <item>u16</item>
+      <item>u32</item>
+      <item>u64</item>
+      <item>f16</item>
+      <item>f32</item>
+      <item>f64</item>
+      <item>string</item>
+      <item>cstring</item>
+      <item>voidptr</item>
+    </list>
+
+    <list name="constants">
+      <item>true</item>
+      <item>false</item>
+      <item>nil</item>
+    </list>
+
+    <list name="builtinfuncs">
+	  <item>dim</item>
+	  <item>order</item>
+	  <item>abs</item>
+	  <item>min</item>
+	  <item>max</item>
+	  <item>exit</item>
+	  <item>sizeof</item>
+	  <item>panic</item>
+	</list>
+
+    <contexts>
+      <context name="Normal" attribute="Normal Text" lineEndContext="#stay" name="Normal">
+		<DetectChar attribute="Comment" context="HashComment" char="#"/>
+		<DetectChar attribute="Character" context="Character" char="'"/>
+		<DetectChar attribute="String" context="String" char="&quot;"/>
+        <keyword attribute="Keyword" context="#stay" String="keywords"/>
+        <keyword attribute="Operator" context="#stay" String="operators"/>
+        <keyword attribute="Type" context="#stay" String="types"/>
+        <keyword attribute="Constant" context="#stay" String="constants"/>
+        <keyword attribute="BuiltinFunction" context="#stay" String="builtinfuncs"/>
+		<Int attribute="Integer" context="#stay"/>
+		<Float attribute="Real" context="#stay"/>
+      </context>
+
+      <context attribute="String" lineEndContext="#stay" name="String">
+        <DetectChar attribute="String" context="#pop" char="&quot;"/>
+      </context>
+
+      <context attribute="Character" lineEndContext="#stay" name="Character">
+        <DetectChar attribute="Character" context="#pop" char="'"/>
+      </context>
+
+      <context attribute="Comment" lineEndContext="#pop" name="HashComment">
+      </context>
+    </contexts>
+
+    <itemDatas>
+      <itemData name="Normal Text" defStyleNum="dsNormal"/>
+      <itemData name="Keyword" defStyleNum="dsKeyword"/>
+      <itemData name="Operator" defStyleNum="dsKeyword"/>
+      <itemData name="Type" defStyleNum="dsDataType"/>
+      <itemData name="Integer" defStyleNum="dsBaseN"/>
+      <itemData name="Real" defStyleNum="dsFloat"/>
+      <itemData name="Constant" defStyleNum="dsDecVal"/>
+      <itemData name="String" defStyleNum="dsString"/>
+      <itemData name="Character" defStyleNum="dsChar"/>
+      <itemData name="BuiltinFunction" defStyleNum="dsFunction"/>
+      <itemData name="Comment" defStyleNum="dsComment"/>
+    </itemDatas>
+  </highlighting>
+
+  <general>
+    <keywords casesensitive="1" weakDeliminator="."/>
+  </general>
+</language>
+<!-- kate: replace-tabs off; tab-width 4; indent-width 4; -->
