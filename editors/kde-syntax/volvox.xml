@@ -1,8 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE language>
-<language name="Volvox" version="1" kateversion="5.0" indenter="lua" section="Sources" extensions="*.vx;" mimetype="text/x-volvox" author="Uwe Krüger (uwe_debbug@arcor.de)" license="MIT">
+<language name="Volvox" version="1" kateversion="5.0" indenter="python"
+		  section="Sources" extensions="*.vx;" mimetype="text/x-volvox"
+		  author="Uwe Krüger (uwe_debbug@arcor.de)" license="MIT">
+
   <highlighting>
-    <list name="keywords">
+
+	<list name="keywords">
       <item>chan</item>
       <item>set</item>
       <item>map</item>
@@ -14,8 +18,6 @@
       <item>shared</item>
       <item>atomic</item>
       <item>global</item>
-      <item>in</item>
-      <item>~in</item>
       <item>pub</item>
       <item>cpub</item>
       <item>as</item>
@@ -27,23 +29,10 @@
       <item>decl</item>
       <item>cdecl</item>
       <item>inline</item>
-      <item>fn</item>
-    </list>
-
-    <list name="control">
-      <item>until</item>
-      <item>return</item>
-      <item>repeat</item>
-      <item>while</item>
-      <item>for</item>
-      <item>else</item>
-      <item>elif</item>
-      <item>if</item>
-      <item>lock</item>
-      <item>end</item>
-    </list>
+	</list>
 
     <list name="startcontrol">
+      <item>fn</item>
       <item>for</item>
       <item>if</item>
       <item>repeat</item>
@@ -60,14 +49,16 @@
       <item>return</item>
       <item>end</item>
     </list>
-	
-    <list name="operators">
+
+	<list name="operators">
       <item>++</item>
       <item>--</item>
       <item>^</item>
       <item>+</item>
       <item>-</item>
       <item>!</item>
+	  <item>~in</item>
+      <item>in</item>
       <item>~</item>
       <item>&lt;-</item>
       <item>*</item>
@@ -90,11 +81,12 @@
       <item>..</item>
       <item>;</item>
       <item>,</item>
-    </list>
+	</list>
 
-    <list name="types">
+	<list name="types">
       <item>int</item>
       <item>unsigned</item>
+      <item>size_t</item>
       <item>ssize_t</item>
       <item>real</item>
       <item>bool</item>
@@ -112,13 +104,13 @@
       <item>string</item>
       <item>cstring</item>
       <item>voidptr</item>
-    </list>
+	</list>
 
-    <list name="constants">
+	<list name="constants">
       <item>true</item>
       <item>false</item>
       <item>nil</item>
-    </list>
+	</list>
 
     <list name="builtinfuncs">
 	  <item>dim</item>
@@ -131,16 +123,19 @@
 	  <item>panic</item>
 	</list>
 
-    <contexts>
-      <context name="Normal" attribute="Normal Text" lineEndContext="#stay" name="Normal">
+	<contexts>
+	  <context name="Normal" attribute="Normal Text" lineEndContext="#stay">
 		<DetectChar attribute="Comment" context="HashComment" char="#"/>
 		<DetectChar attribute="Character" context="Character" char="'"/>
 		<DetectChar attribute="String" context="String" char="&quot;"/>
         <keyword attribute="Keyword" context="#stay" String="keywords"/>
-        <keyword attribute="Operator" context="#stay" String="operators"/>
+		<keyword attribute="Operator" context="#stay" String="operators"/>
         <keyword attribute="Type" context="#stay" String="types"/>
         <keyword attribute="Constant" context="#stay" String="constants"/>
         <keyword attribute="BuiltinFunction" context="#stay" String="builtinfuncs"/>
+		<keyword attribute="Keyword" context="#stay" beginRegion="CondRegion" String="startcontrol"/>
+		<keyword attribute="Keyword" context="#stay" endRegion="CondRegion" String="endcontrol"/>
+		<keyword attribute="Keyword" context="#stay" endRegion="CondRegion" beginRegion="CondRegion" String="elsecontrol"/>
 		<Int attribute="Integer" context="#stay"/>
 		<Float attribute="Real" context="#stay"/>
       </context>
@@ -160,9 +155,9 @@
     <itemDatas>
       <itemData name="Normal Text" defStyleNum="dsNormal"/>
       <itemData name="Keyword" defStyleNum="dsKeyword"/>
-      <itemData name="Operator" defStyleNum="dsKeyword"/>
+      <itemData name="Operator" defStyleNum="dsOther"/>
       <itemData name="Type" defStyleNum="dsDataType"/>
-      <itemData name="Integer" defStyleNum="dsBaseN"/>
+      <itemData name="Integer" defStyleNum="dsDecVal"/>
       <itemData name="Real" defStyleNum="dsFloat"/>
       <itemData name="Constant" defStyleNum="dsDecVal"/>
       <itemData name="String" defStyleNum="dsString"/>
@@ -171,9 +166,11 @@
       <itemData name="Comment" defStyleNum="dsComment"/>
     </itemDatas>
   </highlighting>
-
+  
   <general>
-    <keywords casesensitive="1" weakDeliminator="."/>
+    <keywords casesensitive="1"/>
+	<folding indentationsensitive="true"/>
   </general>
+  
 </language>
 <!-- kate: replace-tabs off; tab-width 4; indent-width 4; -->
