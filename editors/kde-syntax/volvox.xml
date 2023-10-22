@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE language>
-<language name="Volvox" version="1" kateversion="5.0" indenter="python"
+<language name="Volvox" version="1" kateversion="5.53" indenter="normal" style="volvox"
 		  section="Sources" extensions="*.vx;" mimetype="text/x-volvox"
 		  author="Uwe Krüger (uwe_debbug@arcor.de)" license="MIT">
 
@@ -125,6 +125,7 @@
 
 	<contexts>
 	  <context name="Normal" attribute="Normal Text" lineEndContext="#stay">
+		<DetectSpaces/>
 		<DetectChar attribute="Comment" context="HashComment" char="#"/>
 		<DetectChar attribute="Character" context="Character" char="'"/>
 		<DetectChar attribute="String" context="String" char="&quot;"/>
@@ -155,21 +156,23 @@
     <itemDatas>
       <itemData name="Normal Text" defStyleNum="dsNormal"/>
       <itemData name="Keyword" defStyleNum="dsKeyword"/>
-      <itemData name="Operator" defStyleNum="dsOther"/>
+      <itemData name="Operator" defStyleNum="dsOperator"/>
       <itemData name="Type" defStyleNum="dsDataType"/>
       <itemData name="Integer" defStyleNum="dsDecVal"/>
       <itemData name="Real" defStyleNum="dsFloat"/>
       <itemData name="Constant" defStyleNum="dsDecVal"/>
       <itemData name="String" defStyleNum="dsString"/>
       <itemData name="Character" defStyleNum="dsChar"/>
-      <itemData name="BuiltinFunction" defStyleNum="dsFunction"/>
+      <itemData name="BuiltinFunction" defStyleNum="dsBuiltIn"/>
       <itemData name="Comment" defStyleNum="dsComment"/>
     </itemDatas>
   </highlighting>
   
   <general>
+    <comments>
+      <comment name="singleLine" start="#"/>
+    </comments>
     <keywords casesensitive="1"/>
-	<folding indentationsensitive="true"/>
   </general>
   
 </language>
