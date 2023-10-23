@@ -1955,6 +1955,11 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
 		}
+	} else if (Elist.second == tok_end) {
+		getNextToken();
+	} else {
+		errs() << CurLoc << ": 'return' or 'end' expected\n";
+		return nullptr;
 	}
 	prompt_indent = 0;
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second, std::move(unmangledName));

@@ -149,7 +149,6 @@ cdecl fn GetLastError() u32
 inline fn panic(s string)
 	printstr(2, s)
 	abort
-	return
 end
 
 inline fn __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
@@ -158,7 +157,6 @@ inline fn __check_array_index(index size_t, length size_t, srcfile cstring, line
 			srcfile, line, col, index, length-1)
 		raise(6) # SIGABRT on all known systems
 	end
-	return
 end
 
 inline fn __i32_pow(b i32, e i32) i32
