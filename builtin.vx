@@ -150,6 +150,7 @@ inline fn panic(s string)
 	printstr(2, s)
 	abort
 	return
+end
 
 inline fn __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
 	if index >= length
@@ -158,6 +159,7 @@ inline fn __check_array_index(index size_t, length size_t, srcfile cstring, line
 		raise(6) # SIGABRT on all known systems
 	end
 	return
+end
 
 inline fn __i32_pow(b i32, e i32) i32
 	if b == 1 || e == 0
@@ -187,6 +189,7 @@ inline fn __i32_pow(b i32, e i32) i32
 		return 1
 	end
 	return 0
+end
 
 # specialized version for constant exponents - all conditions are resolved at compile time
 inline fn __i32_pow_constexp(b i32, e i32) i32
@@ -215,6 +218,7 @@ inline fn __i32_pow_constexp(b i32, e i32) i32
 		return t * t
 	end
 	return __i32_pow(b, e)
+end
 
 inline fn __i64_pow(b i64, e i32) i64
 	if b == 1 || e == 0
@@ -244,6 +248,7 @@ inline fn __i64_pow(b i64, e i32) i64
 		return 1
 	end
 	return 0
+end
 
 inline fn __i64_pow_constexp(b i64, e i32) i64
 	if e == 0
@@ -271,3 +276,4 @@ inline fn __i64_pow_constexp(b i64, e i32) i64
 		return t * t
 	end
 	return __i64_pow(b, e)
+end

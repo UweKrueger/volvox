@@ -1946,6 +1946,16 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList();
 	if (!Elist.second && Elist.first.empty())
 		return nullptr;
+	if (Elist.second == tok_return) {
+		while (CurTok.kind == ';')
+			getNextToken();
+		if (CurTok.kind == tok_end) {
+			getNextToken();
+		} else {
+			errs() << CurLoc << ": 'end' expected\n";
+			return nullptr;
+		}
+	}
 	prompt_indent = 0;
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second, std::move(unmangledName));
 }
