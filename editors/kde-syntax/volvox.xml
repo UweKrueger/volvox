@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE language>
-<language name="Volvox" version="1" kateversion="5.53" indenter="normal" style="volvox"
+<language name="Volvox" version="1" kateversion="5.53" indenter="volvox" style="volvox"
           section="Sources" extensions="*.vx;" mimetype="text/x-volvox"
           author="Uwe Krüger (uwe_debbug@arcor.de)" license="MIT">
 
@@ -35,6 +35,7 @@
       <item>fn</item>
       <item>for</item>
       <item>if</item>
+      <item>while</item>
       <item>repeat</item>
       <item>lock</item>
     </list>
@@ -109,9 +110,9 @@
         <keyword attribute="Keyword" context="#stay" endRegion="CondRegion" String="endcontrol"/>
         <keyword attribute="Keyword" context="#stay" endRegion="CondRegion" beginRegion="CondRegion" String="elsecontrol"/>
         <HlCHex attribute="Hex" context="#stay"/>
-        <Int attribute="Integer" context="#stay"/>
         <Float attribute="Real" context="#stay"/>
         <HlCOct attribute="Oct" context="#stay"/>
+        <Int attribute="Integer" context="#stay"/>
       </context>
 
       <context attribute="String" lineEndContext="#stay" name="String">
