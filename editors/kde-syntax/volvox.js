@@ -1,7 +1,7 @@
 var katescript = {
-    "name": "volvox",
+    "name": "Volvox",
     "author": "Uwe Krüger <uwe_debbug@arcor.de>",
-    "license": "BSSD",
+    "license": "BSD",
     "revision": 1,
     "kate-version": "5.1"
 }; // kate-script-header, must be at the start of the file without comments, pure json
