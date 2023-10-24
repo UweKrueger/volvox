@@ -1243,8 +1243,10 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {
 	auto FnLoc = CurLoc;
 	unsigned visibility = A_closure;
-	auto ast = ParseDefinition(visibility);
-	return std::make_unique<FunctionExprAST>(FnLoc, std::move(ast));
+	if (auto ast = ParseDefinition(visibility))
+		return std::make_unique<FunctionExprAST>(FnLoc, std::move(ast));
+	else
+		return nullptr;
 }
 
 /// primary
