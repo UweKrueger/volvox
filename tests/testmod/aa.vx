@@ -10,12 +10,13 @@ type Olgj {
 
 fn Olgj
 	this.s -= 2.25
-	return
+end
 
 fn Olgj(r f64)
 	this.s = 2*r
 	return
+end
 
 fn Olgj(r i32)
 	this.j = r+7
-	return
+end

@@ -14,6 +14,7 @@ fn u [5]f64
 	global r542p
 	p = [3.3, 1.2, -4.5 + r542p, 6.75, 8.08e12]
 	return p
+end
 
 a0 = u
 
@@ -21,19 +22,23 @@ fn fv f64
 	global a0
 	z = 3
 	return a0[3] + z
+end
 
 fn test_global_array_element_get bool
 	rx = fv
 	return rx == 9.75
+end
 
 fn g f64
 	t = [-17.2, 4.5, -3.125, 9.34, 18.23e27, -5.0625, 4.3, -17.45, 19.4]
 	t[3] = t[2] + t[5]
 	return t[3]
+end
 
 fn test_local_array_get_and_set bool
 	rx = g
 	return rx == -8.1875
+end
 
 
 fn h [5]f64
@@ -42,34 +47,40 @@ fn h [5]f64
 	r542p = 3.5
 	q = v
 	return q
+end
 
 fn test_function_literal bool
 	la = h
 	return la[2] == -1 && la[3] == 6.75
+end
 
 fn v [5]i32
 	p = [3, 8, -17, 123, -1074]
 	return p
+end
 
 fn test_return_local_array bool
 	z = v
 	return z[0] == 3 && z[4] == -1074
+end
 
 
 fn r(x [5]f64) f64
 	w = x[3]
 	return w
+end
 
 fn test_nested_call_with_array_result bool
 	wq = r(u)
 	return wq == 6.75
+end
 
 global pp = 12.4375
 
 fn kk
 	global pp
 	pp=pp + 0.25
-	return
+end
 
 global l = true
 
@@ -83,12 +94,14 @@ if l; kk; end
 fn test_if_then_no_else bool
 	global pp
 	return pp == 12.6875
+end
 
 if l; kk else kk; kk end
 
 fn test_if_else_1 bool
 	global pp
 	return pp == 13.1875
+end
 
 l = true
 
@@ -97,13 +110,16 @@ if l; kk else kk; kk end
 fn test_if_else_2 bool
 	global pp
 	return pp == 13.4375
+end
 
 pp = if l; 22.75 else 56.3 end
 
 fn test_if_else_3 bool
 	global pp
 	return pp == 22.75
+end
 
 fn test_type_propagation_1 bool
 	pr = 2.3f64 * ((4000000000u32 - 13i32) + 0.1f32)
 	return pr < 9199999970.33001 && pr > 9199999970.32999
+end
