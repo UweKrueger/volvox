@@ -5,6 +5,7 @@ fn test_built_in_consts bool
 	global __OS_Idx, __CPU_Idx
 	x = __OS_Idx
 	return x > 0 && __CPU_Idx > 0
+end
 
 fn test_exactly_one_os_is_defined bool
 	n = 0
@@ -30,6 +31,7 @@ fn test_exactly_one_os_is_defined bool
 		n++
 	end
 	return n == 1
+end
 
 fn test_exactly_one_cpu_is_defined bool
 	m = 0
@@ -49,12 +51,15 @@ fn test_exactly_one_cpu_is_defined bool
 		m++
 	end
 	return m == 1
+end
 
 fn p7_1 string
 	return "Hallo"
+end
 
 fn q7_1 int
 	return 7
+end
 
 global x7_1 = 2
 
@@ -66,6 +71,7 @@ fn test_incompatible_branches_1 bool
 		q7_1
 	end
 	return true
+end
 
 fn test_incompatible_branches_2 bool
 	global x7_1
@@ -75,6 +81,7 @@ fn test_incompatible_branches_2 bool
 		q7_1
 	end
 	return true
+end
 
 fn test_incompatible_branches_3 bool
 	if 2 > 3
@@ -83,6 +90,7 @@ fn test_incompatible_branches_3 bool
 		q7_1
 	end
 	return true
+end
 
 fn test_incompatible_branches_4 bool
 	if 2 > 1
@@ -91,45 +99,55 @@ fn test_incompatible_branches_4 bool
 		q7_1
 	end
 	return true
+end
 
 fn test_array_value_attrib_1 bool
 	a = [[4,5,6],[2,3,6]].order
 	return a == 2
+end
 
 fn test_array_value_attrib_2 bool
 	a = [[4,5,6],[2,3,6]].size
 	return a == 6
+end
 
 fn test_array_value_attrib_3 bool
 	a = [3][4]f64{}.size
 	return a == 12
+end
 
 fn test_array_value_attrib_4 bool
 	a = [3][4]f64{}.order
 	return a == 2
+end
 
 fn test_array_value_attrib_5 bool
 	f = 7
 	a = [3][f][4]f64{}.order
 	return a == 3
+end
 
 fn test_array_value_attrib_6 bool
 	f = 13
 	g2 = 5
 	a = [f][7][g2]f64{}.size
 	return a == 455
+end
 
 fn test_array_dim_1 bool
 	return [3][7][5]f64{}.dim(1) == 7
+end
 
 fn test_array_dim_2 bool
 	f = 13
 	return [3][f][5]f64{}.dim(1) == 13
+end
 
 fn test_array_dim_3 bool
 	f = 13
 	n = 1
 	return [3][f][5]f64{}.dim(n) == 13
+end
 
 global ffddff := [3][13][5]f64{}
 
@@ -137,6 +155,7 @@ fn test_array_dim_4 bool
 	global ffddff
 	n = 1
 	return ffddff.dim(n) == 13
+end
 
 asd99 = 17
 
@@ -147,23 +166,29 @@ global eqwef3 = ffkld3.dim(1) + 4
 fn test_array_dim_5 bool
 	global eqwef3
 	return eqwef3 == 21
+end
 
 fn test_string_size_1 bool
 	return "hjdrt56".size == 8
+end
 
 fn test_string_len_1 bool
 	return "hjdrt56".len == 7
+end
 
 fn test_string_len_2 bool
 	a = "vbhgf"
 	return a.len == 5
+end
 
 fn test_string_len_3 bool
 	a = "vbhgf" + "c543"
 	return a.len == 9
+end
 
 fn test_string_len_4 bool
 	return ("fgjhhgf" + "12").len == 9
+end
 
 type RtzRi {
 	x f64
@@ -176,6 +201,7 @@ fn ggg(a [4]u64) u64
 	s += a[0]
 	s += 3*a[2]
 	return s
+end
 
 fn ggg(b f64, a RtzRi) f64
 	s = 0.
@@ -183,19 +209,24 @@ fn ggg(b f64, a RtzRi) f64
 	s *= a.y
 	s += b + a.z
 	return s
+end
 
 fn ggg(a int) int
 	return a*a
+end
 
 fn test_anonynous_array_1 bool
 	return ggg({2,5,7,13}) == 23
+end
 
 fn test_anonynous_struct_1 bool
 	return ggg(5, {y: 3, x: 23.75, z: 10}) == 86.25
+end
 
 fn test_unsigned_from_untyped_1 bool
 	b = 0x7fffffff
 	return u64(b) < 0xfffffffffffffffe
+end
 
 pub const SEMVMX1 := 0xfffffffffffffffd
 const ppeer := false
@@ -209,6 +240,7 @@ fn test_unsigned_from_untyped_2 bool
 	global SEMVMX2
 	b = 511
 	return !(b < 0 || u64(b) > SEMVMX2)
+end
 
 import limits
 
@@ -224,6 +256,7 @@ fn test_unsigned_from_untyped_3 bool
 	global SEMVMX
 	b = 511
 	return !(b < 0 || u64(b) > SEMVMX)
+end
 
 #const b5532 := 0xfffffaff57fffffe
 const b5532 := 0x57fffffe
@@ -233,6 +266,7 @@ global a3297t5 = b5532
 fn test_int_from_untyped_1 bool
 	global a3297t5
 	return a3297t5 == 0x57fffffe
+end
 
 fn for_loop_1 int
 	k = 2
@@ -240,9 +274,11 @@ fn for_loop_1 int
 		k += (n + 1)
 	end
 	return k
+end
 
 fn test_int_for_1 bool
 	return for_loop_1 == 17
+end
 
 fn for_loop_2(mx int) int
 	z := 10
@@ -252,14 +288,17 @@ fn for_loop_2(mx int) int
 		n = -19
 	end
 	return z + 100 * n
+end
 
 fn test_int_for_2 bool
 	res = for_loop_2(3)
 	return res == 216
+end
 
 fn test_int_for_3 bool
 	res = for_loop_2(-5)
 	return res == -1890
+end
 
 xxsd = 2
 global cprr = 3
@@ -271,6 +310,7 @@ end
 fn test_int_for_4 bool
 	global cprr
 	return cprr == 4953
+end
 
 cprr = 0
 
@@ -281,6 +321,7 @@ end
 fn test_int_for_5 bool
 	global cprr
 	return cprr == 7
+end
 
 fn test_int_for_6 bool
 	paenz = [2, 8, 4, 9, 1]
@@ -289,6 +330,7 @@ fn test_int_for_6 bool
 		t += paenz[2]
 	end
 	return t == 136 && paenz[2] == 16
+end
 
 global hjssq9 = RtzRi { y: 4 }
 
@@ -299,6 +341,7 @@ fn test_int_for_7 bool
 		t += (hjssq9.y + 1)
 	end
 	return t == 28 && hjssq9.y == 6
+end
 
 fn test_int_for_8 bool
 	res = 0
@@ -308,6 +351,7 @@ fn test_int_for_8 bool
 		t = -17
 	end
 	return res == 27 && t == 7 
+end
 
 type Qhddf {
 	s int
@@ -315,9 +359,11 @@ type Qhddf {
 
 fn Qhddf.min int
 	return this.s / 2
+end
 
 fn Qhddf.max int
 	return this.s + this.s
+end
 
 fn test_int_for_9 bool
 	res = 0
@@ -328,6 +374,7 @@ fn test_int_for_9 bool
 		t = -17
 	end
 	return res == 75 && t == 12
+end
 
 # for iteration with float ranges should run up to approximately the max value
 # so we test this with two versions...
@@ -340,6 +387,7 @@ fn test_int_for_10 bool
 		q = -17.3
 	end
 	return res == 28.5 && q == 7.25
+end
 
 fn test_int_for_11 bool
 	res = 0.
@@ -349,6 +397,7 @@ fn test_int_for_11 bool
 		q = -17.3
 	end
 	return res == 28.5 && q == 7.25
+end
 
 global ffwed7 = 4
 
@@ -360,12 +409,15 @@ end
 fn test_declaration_in_global_if bool
 	global ffwed7
 	return ffwed7 == 13
+end
 
 fn bool_func_1 bool
 	return true
+end
 
 fn int_func_1 int
 	return 7
+end
 
 fn float_func_1 f64
 	if true
@@ -374,8 +426,10 @@ fn float_func_1 f64
 		int_func_1
 	end
 	return 12.75
+end
 
 4
 
 fn test_void_if bool
 	return float_func_1 == 12.75
+end
