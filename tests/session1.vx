@@ -11,6 +11,7 @@ a
 fn f() [3][4]f64
 	x = [3][4]f64{{1.2, 4.5}, {2: -17.3}}
 	return x
+end
 
 0
 
@@ -20,15 +21,18 @@ fn q0() f64
 	v = [4][5][3]f64{2: {1: {2: 23.7}}}
 	x = v[2][1][2]
 	return x
+end
 
-y7 = 4
-z7 = 5
-w7 = 3
+global y7 = 4
+global z7 = 5
+global w7 = 3
 
 fn q1() f64
+	global y7, z7, w7
 	v = [y7][z7][w7]f64{2: {1: {2: -17.3}}}
 	x = v[2][1][2]
 	return x
+end
 
 q0()
 
@@ -38,5 +42,6 @@ fn jk() [3]f64
 	vv = [4][5][3]f64{2: {1: {2: 41.25}}}
 	x = vv[2][1]
 	return x
+end
 
 jk()

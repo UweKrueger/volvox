@@ -10,6 +10,7 @@ fn fib(x u64) u64
 	    fib(x - 2) + fib(x - 1)
 	end
 	return t
+end
 
 fib(12)
 
