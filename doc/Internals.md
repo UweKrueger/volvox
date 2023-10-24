@@ -104,7 +104,7 @@ For the following tables of detailed data layouts definitions are used:
   bits to $0$, i.e. `x - (x % b)` which can be calculated more efficiently
   using bitwise logic as `x & ~(b-1)`
 
-### Struct Objects
+### Struct Object
 
 Address | Size | Function
 :---: | :---: | ---
@@ -128,13 +128,10 @@ $\textcolor{green}{a+b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{A
 
 A unique heap array does not include the reference counter nor the mutex or the address of the reference counter (the parts marked green). This allows it to be moved to a C function (as address of the array data) and be freed by that.
 
-## String
-There are two types of strings:
+## Resizable Heap Array
 
-- `cstring`: a simple memory pointer that should only be used for C interoperability
-- `string`: a Volvox native string — pointer to the size field of the data structure below
-
-## Resizable Shared Heap Arrays
+Resizable Arrays need a data block for the elements that may be resized
+using `realloc()`. Since this might change the address of the block an additional fixed-size control block is needed.
 
 ### Control Block
 
@@ -147,6 +144,18 @@ $a$ | $b$ | Pointer to Memory Block
 $a+b$ | $b$ | Array Size $s$, i.e. Number of Elements
 $a+2\cdot b$ | $b$ | Capacity of Memory Block
 $\textcolor{green}{a+3\cdot b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
+
+### Data Block
+
+Address | Size | Function
+ :---: | :---: | :---
+$a$ | $s$ | Array Data
+
+## String
+There are two types of strings:
+
+- `cstring`: a simple memory pointer that should only be used for C interoperability
+- `string`: a Volvox native string — pointer to the size field of the data structure above
 
 
 There is text $\textcolor{red}{\mathrm{text}}$ $\textcolor{green}{More~Text}$
