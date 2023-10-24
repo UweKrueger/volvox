@@ -22,6 +22,7 @@ inline fn do_bind(handle ssize_t, &saddr sockaddr_any, size u32) Socket
 		end
 	end
 	return s
+end
 
 pub inline fn UnixSocket.bind(path string) Socket
 	global UNIX_PATH_MAX, ENAMETOOLONG, AF_UNIX
@@ -40,6 +41,7 @@ pub inline fn UnixSocket.bind(path string) Socket
 	end
 	memcpy(&saddr.sockaddr_un.sun_path, path, path.len)
 	return do_bind(this.handle, saddr, u32(path.len) + 2)
+end
 
 pub inline fn IpSocket.bind(ownaddr in_addr, ownport u16) Socket
 	global AF_INET
@@ -54,16 +56,20 @@ pub inline fn IpSocket.bind(ownaddr in_addr, ownport u16) Socket
 		saddr.sockaddr.family = AF_INET
 	end
 	return do_bind(this.handle, saddr, u32(sizeof(sockaddr_in)))
+end
 
 pub inline fn IpSocket.bind(ownaddr u32, ownport u16) Socket
 	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport)
+end
 
 pub inline fn IpSocket.bind(ownaddr [4]u8, ownport u16) Socket
 	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport)
+end
 
 pub inline fn IpSocket.bind(ownport u16) Socket
 	global in_any
 	return this.bind(in_any, ownport)
+end
 
 pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 	global AF_INET6, in6_any
@@ -78,10 +84,12 @@ pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 		saddr.sockaddr.family = AF_INET6
 	end
 	return do_bind(this.handle, saddr, u32(sizeof(sockaddr_in6)))
+end
 
 pub inline fn Ip6Socket.bind(ownport u16) Socket
 	global in6_any
 	return this.bind(in6_any, ownport)
+end
 
 cdecl fn listen(s int, backlog int) int
 cdecl(listen) fn win_listen(s size_t, backlog int) int
@@ -109,39 +117,49 @@ pub inline fn Socket.listen(backlog int) ListeningSocket
 		return ListeningSocket{ handle: -1, err: err }
 	end
 	return ListeningSocket{ handle: this.handle, err: 0 }
+end
 
 const SOMAXCONN := 0x7fffffff
 
 pub inline fn Socket.listen ListeningSocket
 	global SOMAXCONN
 	return this.listen(SOMAXCONN)
+end
 
 pub inline fn IpSocket.listen(ownaddr in_addr, ownport u16, backlog int) ListeningSocket
 	return this.bind(ownaddr, ownport).listen(backlog)
+end
 
 pub inline fn IpSocket.listen(ownaddr in_addr, ownport u16) ListeningSocket
 	global SOMAXCONN
 	return this.bind(ownaddr, ownport).listen(SOMAXCONN)
+end
 
 pub inline fn IpSocket.listen(ownaddr u32, ownport u16, backlog int) ListeningSocket
 	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport).listen(backlog)
+end
 
 pub inline fn IpSocket.listen(ownaddr u32, ownport u16) ListeningSocket
 	global SOMAXCONN
 	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport).listen(SOMAXCONN)
+end
 
 pub inline fn IpSocket.listen(ownaddr [4]u8, ownport u16, backlog int) ListeningSocket
 	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport).listen(backlog)
+end
 
 pub inline fn IpSocket.listen(ownaddr [4]u8, ownport u16) ListeningSocket
 	global SOMAXCONN
 	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport).listen(SOMAXCONN)
+end
 
 pub inline fn IpSocket.listen(ownport u16, backlog int) ListeningSocket
 	global in_any
 	return this.bind(in_any, ownport).listen(backlog)
+end
 
 pub inline fn IpSocket.listen(ownport u16) ListeningSocket
 	global SOMAXCONN, in_any
 	return this.bind(in_any, ownport).listen(SOMAXCONN)
+end
 

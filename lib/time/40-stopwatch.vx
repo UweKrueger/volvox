@@ -11,20 +11,20 @@ type StopWatch {
 pub fn StopWatch
 	this.begin = get
 	this.finish = 0
-	return
+end
 
 # set time to 0 and (re)start stop watch
 #
 pub fn StopWatch.start
 	this.begin = get
 	this.finish = 0
-	return
+end
 
 # pause stop watch
 #
 pub fn StopWatch.stop
 	this.finish = get
-	return
+end
 
 # get time when stop watch was paused or current time in seconds
 #
@@ -35,6 +35,7 @@ pub fn StopWatch.elapsed f64
 	else
 		return f64(i64(this.finish - this.begin)) * tick_period
 	end
+end
 
 # continue accumulating time
 #
@@ -43,7 +44,7 @@ pub fn StopWatch.cont
 		this.begin += get - this.finish
 		this.finish = 0
 	end
-	return
+end
 
 # calculate elapsed time in seconds since program start
 # or import of 'time' module
@@ -51,3 +52,4 @@ pub fn StopWatch.cont
 pub inline fn elapsed f64
 	global tick_period
 	return f64(get) * tick_period
+end

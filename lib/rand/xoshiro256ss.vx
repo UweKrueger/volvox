@@ -22,6 +22,7 @@ from limits import *
 
 inline fn rotl(x u64, k int) u64
 	return (x << k) | (x >> (64 - k))
+end
 
 type State4 {
 	s [4]u64
@@ -34,7 +35,7 @@ fn State4
 	this.s[1] = splitmix64
 	this.s[2] = splitmix64
 	this.s[3] = splitmix64
-	return
+end
 
 # thread local state
 #
@@ -57,4 +58,5 @@ pub inline fn U64 u64
 	s.s[2] ><= t
 	s.s[3] = rotl(s.s[3], 45)
 	return result
+end
 

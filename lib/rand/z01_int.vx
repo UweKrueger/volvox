@@ -1,23 +1,30 @@
 pub inline fn I64 i64
 	return i64(U64)
+end
 
 pub inline fn U32 u32
 	return u32(U64)
+end
 
 pub inline fn I32 i32
 	return i32(U64)
+end
 
 pub inline fn U16 u16
 	return u16(U64)
+end
 
 pub inline fn I16 i16
 	return i16(U64)
+end
 
 pub inline fn U8 u8
 	return u8(U64)
+end
 
 pub inline fn I8 i8
 	return i8(U64)
+end
 
 # overloaded function that take a maximum value
 
@@ -33,6 +40,7 @@ pub inline fn n(max u64) u64
 		res = U64 & mask
 	until res <= max
 	return res
+end
 
 pub inline fn n(max u32) u32
 	mask = max
@@ -45,6 +53,7 @@ pub inline fn n(max u32) u32
 		res = u32(U64) & mask
 	until res <= max
 	return res
+end
 
 pub inline fn n(max u16) u16
 	mask = max
@@ -56,6 +65,7 @@ pub inline fn n(max u16) u16
 		res = u16(U64) & mask
 	until res <= max
 	return res
+end
 
 pub inline fn n(max u8) u8
 	mask = max
@@ -66,6 +76,7 @@ pub inline fn n(max u8) u8
 		res = u8(U64) & mask
 	until res <= max
 	return res
+end
 
 # The functions above take an unsigned argument, i.e. none of
 # them would be selected in case of a signed argument.
@@ -75,28 +86,36 @@ pub inline fn n(max u8) u8
 
 pub inline fn n(max i64) i64
 	return i64(n(u64(max)))
+end
 
 pub inline fn n(max i32) i32
 	return i32(n(u32(max)))
+end
 
 pub inline fn n(max i16) i16
 	return i16(n(u16(max)))
+end
 
 pub inline fn n(max i8) i8
 	return i8(n(u8(max)))
+end
 
 pub inline fn n(min i64, max i64) i64
 	delta = u64(max - min)
 	return min + n(delta)
+end
 
 pub inline fn n(min i32, max i32) i32
 	delta = u32(max - min)
 	return min + n(delta)
+end
 
 pub inline fn n(min i16, max i16) i16
 	delta = u16(max - min)
 	return min + n(delta)
+end
 
 pub inline fn n(min i8, max i8) i8
 	delta = u8(max - min)
 	return min + n(delta)
+end

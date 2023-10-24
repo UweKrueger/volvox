@@ -13,13 +13,14 @@ type Duration {
 
 pub fn Duration(seconds f64)
 	this.i64 = i64(seconds * 10000000)
-	return
+end
 
 pub inline fn Duration.timespec timespec
 	return timespec{
 		sec: ssize_t(this.i64 / 10000000)
 		nsec: 100 * ssize_t(this.i64 % 10000000)
 	}
+end
 
 pub fn sleep(t Duration)
 	if t.i64 <= 0
@@ -49,12 +50,12 @@ pub fn sleep(t Duration)
 			end
 		until res != EINTR
 	end
-	return
+end
 
 pub inline fn sleep(t int)
 	sleep(Duration{ i64: t * 10000000 })
-	return
+end
 
 pub inline fn sleep(t f64)
 	sleep(Duration(t))
-	return
+end

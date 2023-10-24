@@ -17,6 +17,7 @@ fn test_rand_F64 bool
 	p = 4. * s / n_pi
 	# printf("approximation for pi: %.5f\n", p)
 	return p > 3.140 && p < 3.143
+end
 
 import time
 
@@ -27,6 +28,7 @@ fn test_sleep bool
 	e = s.elapsed
 	# printf("elapsed time: %.5f\n", e)
 	return e >= 0.35 && e < 0.38
+end
 
 import sync
 
@@ -35,6 +37,7 @@ fn test_semaphore_1 bool
 	success = s.wait && s.wait && s.wait
 	s.close
 	return success
+end
 
 fn test_semaphore_2 bool
 	s = sync.semaphore
@@ -46,5 +49,6 @@ fn test_semaphore_2 bool
 	success = a && b && !c && s.err == 0
 	s.close
 	return success
+end
 
 import io.socket

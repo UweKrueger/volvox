@@ -11,6 +11,7 @@ pub inline fn htons(x u16) u16
 	else
 		return x
 	end
+end
 
 pub inline fn htonl(x u32) u32
 	if arch.isLittleEndian
@@ -18,6 +19,7 @@ pub inline fn htonl(x u32) u32
 	else
 		return x
 	end
+end
 
 type in_addr union {
 	__s4_addr [4]u8
@@ -46,6 +48,7 @@ pub inline fn tcp IpSocket
 		end
 	end
 	return s
+end
 
 pub inline fn udp IpSocket
 	global AF_INET, SOCK_DGRAM
@@ -62,6 +65,7 @@ pub inline fn udp IpSocket
 		end
 	end
 	return s
+end
 
 pub const in_any       := in_addr{ __s4_addr: { 0, 0, 0, 0 } }
 pub const in_broadcast := in_addr{ __s4_addr: { 255, 255, 255, 255 } }

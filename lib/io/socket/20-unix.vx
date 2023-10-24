@@ -32,6 +32,7 @@ pub inline fn unix UnixSocket
 		end
 	end
 	return s
+end
 
 const ENAMETOOLONG := if os.isWindows
 		206 # ERROR_FILENAME_EXCED_RANGE
@@ -97,3 +98,4 @@ fn UnixSocket.peer ucred
 		r = getsockopt(int(this.handle), SOL_SOCKET, SO_PEERCRED, &p, l)
 	end
 	return p
+end

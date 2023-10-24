@@ -14,6 +14,7 @@ global uttw2_sz = sizeof(uttw2)
 fn test_outer_scope_branch_declaration_1 bool
 	global uttw2_val, uttw2_sz
 	return uttw2_val == 13 && uttw2_sz == 2
+end
 
 i93 = 7
 
@@ -39,6 +40,7 @@ global LPPG2 = LPPQ[1][2][3]
 fn test_outer_scope_branch_declaration_2 bool
 	global LPPG1, LPPG2
 	return LPPG1 == 7.25 && LPPG2 == -23.75
+end
 
 global yn210 = 15
 global wn2 = 7
@@ -51,6 +53,7 @@ fn test_var_array_multi_level_ref bool
 	x = pph[2][5][2]
 	y = pph[1][12][0]
 	return x == -17.125 && y == 78.25 && pph.dim(1) == 13 && pph.dim(2) == 7
+end
 
 fn test_for_over_float_array_lit bool
 	s = 0.
@@ -58,6 +61,7 @@ fn test_for_over_float_array_lit bool
 		s += x
 	end
 	return s == 11.375
+end
 
 fn test_for_over_int_array_lit bool
 	s = 0
@@ -65,6 +69,7 @@ fn test_for_over_int_array_lit bool
 		s += x
 	end
 	return s == 10
+end
 
 global uugf94 = 7
 
@@ -78,6 +83,7 @@ fn test_ref_for_over_f64_array bool
 		# printf("%f\n", t)
 	end
 	return s == 63.25 && a[2] == 27
+end
 
 fn test_val_for_over_f64_array bool
 	global uugf94
@@ -89,6 +95,7 @@ fn test_val_for_over_f64_array bool
 		# printf("%f\n", t)
 	end
 	return s == 63.25 && a[2] == 9.5
+end
 
 fn test_existing_val_for_over_f64_array bool
 	global uugf94
@@ -101,6 +108,7 @@ fn test_existing_val_for_over_f64_array bool
 		t += s
 	end
 	return s == 63.25 && a[2] == 9.5
+end
 
 global sjj2 = 0.
 bjj2 = 27.3
@@ -114,6 +122,7 @@ end
 fn test_global_scope_for_1 bool
 	global sjj2
 	return sjj2 == 27.75
+end
 
 fn test_map_iteration_1 bool
 	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
@@ -123,6 +132,7 @@ fn test_map_iteration_1 bool
 		# printf("Value: >%g<\n", i)
 	end
 	return s == 13.1875
+end
 
 global ffsd93 = 0
 hjhg9 = map[string]int{ "ggs": 12, "ABd": -123, "doDe": 2, "kkqw": 1000 }
@@ -135,6 +145,7 @@ end
 fn test_map_iteration_2 bool
 	global ffsd93
 	return ffsd93 == 891
+end
 
 fn test_map_iteration_3 bool
 	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
@@ -147,6 +158,7 @@ fn test_map_iteration_3 bool
 	end
 	# i should be the greatest value
 	return s == 13.1875 && i == 12
+end
 
 fn test_map_iteration_4 bool
 	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
@@ -159,3 +171,4 @@ fn test_map_iteration_4 bool
 	end
 	# i should be the least value
 	return s == 13.1875 && i == -1.0625
+end

@@ -111,9 +111,11 @@ pub fn semaphore(init_val int) Semaphore
 		end
 	end
 	return sem
+end
 
 pub fn semaphore Semaphore
 	return semaphore(0)
+end
 
 pub fn Semaphore.close
 	if os.isWindows
@@ -132,11 +134,12 @@ pub fn Semaphore.close
 	else
 		this.handle = 0
 	end
-	return
+end
 
 pub inline fn Semaphore.max u64
 	global SEMVMX
 	return SEMVMX
+end
 
 cdecl fn ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voidptr) bool
 
@@ -174,9 +177,11 @@ pub fn Semaphore.post(n int) bool
 		end
 	end
 	return success
+end
 
 pub inline fn Semaphore.post bool
 	return this.post(1)
+end
 
 type pollfd {
 	fd int
@@ -236,6 +241,7 @@ pub fn Semaphore.wait bool
 		until success
 	end
 	return success
+end
 
 pub fn Semaphore.timedwait(timeout time.Duration) bool
 	global POLLIN, EAGAIN
@@ -306,9 +312,11 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 		until success || res == 0
 	end
 	return success
+end
 
 pub fn Semaphore.timedwait(timeout f64) bool
 	return this.timedwait(time.Duration(timeout))
+end
 
 pub fn Semaphore.trywait bool
 	global POLLIN, EAGAIN
@@ -360,3 +368,4 @@ pub fn Semaphore.trywait bool
 		end
 	end
 	return success
+end

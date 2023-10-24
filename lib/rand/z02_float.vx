@@ -31,3 +31,4 @@ pub inline fn F64 f64
 	else
 		return u64(U64 & ((1 << 53) - 1)) * 0x1.0p-53
 	end
+end

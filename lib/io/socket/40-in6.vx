@@ -32,6 +32,7 @@ pub inline fn tcp6 Ip6Socket
 		end
 	end
 	return s
+end
 
 pub inline fn udp6 Ip6Socket
 	global AF_INET6, SOCK_DGRAM
@@ -48,6 +49,7 @@ pub inline fn udp6 Ip6Socket
 		end
 	end
 	return s
+end
 
 pub const in6_any      := in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0} }
 pub const in6_loopback := in6_addr{ __s6_addr: {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1} }

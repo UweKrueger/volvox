@@ -27,6 +27,7 @@ fn get_robust_mutex_attr mutex_attr
 		end
 	end
 	return m
+end
 
 const default_mutex_attr = get_robust_mutex_attr
 
@@ -60,7 +61,7 @@ pub fn mutex
 		global default_mutex_attr
 		pthread_mutex_init(this, default_mutex_attr)
 	end
-	return
+end
 
 pub fn ~mutex
 	if os.isWindows
@@ -68,7 +69,7 @@ pub fn ~mutex
 	else
 		pthread_mutex_destroy(this)
 	end
-	return
+end
 
 cdecl fn WaitForSingleObjectEx(hHandle size_t, dwMilliseconds u32, bAlertable bool) u32
 cdecl fn pthread_mutex_timedlock(&m mutex, &abs_timeout time.timespec) int
@@ -109,6 +110,7 @@ pub inline fn mutex.lock int
 		end
 	end
 	return res
+end
 
 pub inline fn mutex.trylock int
 	global EOWNERDEAD
@@ -132,6 +134,7 @@ pub inline fn mutex.trylock int
 		end
 	end
 	return res
+end
 
 pub inline fn mutex.timedlock(timeout time.Duration) int
 	global EOWNERDEAD
@@ -156,6 +159,7 @@ pub inline fn mutex.timedlock(timeout time.Duration) int
 		end
 	end
 	return res
+end
 
 cdecl fn ReleaseMutex(m size_t) bool
 cdecl fn pthread_mutex_unlock(&m mutex) int
@@ -211,3 +215,4 @@ pub inline fn mutex.unlock int
 		end
 		return pthread_mutex_unlock(this)
 	end
+end
