@@ -517,9 +517,7 @@ fn nested_if_return_1(a int, b int) f64
 			return 9.125
 		else
 			return -2.75
-		end
-	end
-end
+end	+	+
 
 fn test_nested_if_1 bool
 	return nested_if_return_1(7, 6) == 12.0625

@@ -1118,6 +1118,7 @@ class Lexer : public SourceLocState {
 public:
 	std::vector<SourceLocState> source_stack = {};
 	eXpect Expected; // only used for error messages
+	bool end_plus = false;
 	Lexer() = default;
 	Lexer(int* _inputfd, const char* _input_file_name, size_t _bufsize = 100)
 		: SourceLocState(SourceLocation{ _input_file_name, 0, 0 }, 0, _bufsize,

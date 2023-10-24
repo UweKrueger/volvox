@@ -425,6 +425,7 @@ int Lexer::advance() {
 				strcat(prompt, "    ");
 		}
 		linelen = fdgetline(&linebuf, &bufsize);
+		end_plus = false;
 		if (linelen < 0 || !use_readline && linelen <= 0) {
 			return EOF;
 		}
@@ -515,8 +516,22 @@ startanalysis:
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
-		if (auto tok_val = map_string_get(keyword_toks, IdentifierStr.c_str()))
+		if (auto tok_val = map_string_get(keyword_toks, IdentifierStr.c_str())) {
+			if (tok_val->i32 == tok_end) {
+				// look for '+' in same line
+				int j = Loc.Col;
+				while (!(j > linelen || !use_readline && j >= linelen)) {
+					if (linebuf[j] == '+') {
+						end_plus = true;
+						break;
+					} else if (linebuf[j] != ' ' && linebuf[j] != '\t') {
+						break;
+					}
+					j++;
+				}
+			}
 			return Token(tok_val->i32);
+		}
 		if (expect == eBinOp) {
 			KeepIdentifierStr = IdentifierStr;
 			IdentifierStr = "";
@@ -525,6 +540,22 @@ startanalysis:
 		return Token(tok_identifier);
 	}
 	// Binary Operators
+	if (CurChar == '+' && end_plus) {
+		int j = Loc.Col;
+		end_plus = false;
+		while (!(j > linelen || !use_readline && j >= linelen)) {
+			if (linebuf[j] == '+') {
+				end_plus = true;
+				break;
+			} else if (linebuf[j] != ' ' && linebuf[j] != '\t') {
+				break;
+			}
+			j++;
+		}
+		IdentifierStr = "+";
+		CurChar = advance();
+		return tok_end;
+	}
 	if (expect == eBinOp) {
 	binopswitch:
 		switch(CurChar) {
@@ -877,11 +908,6 @@ if (CurChar == 'i') {
 			}
 		} else {
 			return tok_selector;
-			// char nextchar = this->peek_strict();
-			// if (isalpha(nextchar) || nextchar == '_' || nextchar == '.')
-			// 	return tok_selector;
-			// else
-			// 	return tok_end;
 		}
 	case '<':
 		if (linebuf[Loc.Col] == '-') {
