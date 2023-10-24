@@ -48,7 +48,7 @@ extern int h(S* x);
 To use these functions in Volvox code we have to declare the type `S` and
 functions `f` and `g` with a matching signatures:
 
-```Nim
+```Volvox
 # Declare type
 
 type S {
@@ -83,7 +83,7 @@ end
 
 The function `h()` can only be called with `a` as argument:
 
-```Nim
+```Volvox
 cdecl h(unique S x)
 
 v = h(a)
@@ -108,8 +108,8 @@ For the following tables of detailed data layouts definitions are used:
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{green}{a-2\cdot b \textcolor{violet}{-b}}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
-$\textcolor{violet}{a-2\cdot b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
+$\textcolor{blue}{\textcolor{violet}{\textcolor{green}{a-2\cdot b}-b}-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
+$\textcolor{blue}{\textcolor{violet}{a-2\cdot b}-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 $\textcolor{blue}{a-b-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $\textcolor{green}{a-b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 $a$ | $s$ | Struct Data
@@ -118,8 +118,8 @@ $a$ | $s$ | Struct Data
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{green}{\lfloor a-s\rfloor-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
-$\textcolor{violet}{\lfloor a-s\rfloor -b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
+$\textcolor{blue}{\textcolor{green}{\lfloor a-s\rfloor-\textcolor{violet}{2\cdot \textcolor{green}{b}}}-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
+$\textcolor{blue}{\textcolor{violet}{\lfloor a-s\rfloor -b}-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 $\textcolor{blue}{\lfloor a-s\rfloor-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $\lfloor a-s\rfloor$ | $s$ | Array Data
 $\lfloor a-s\rfloor +s$ | $-s\mod b$ | Padding
@@ -140,8 +140,8 @@ There are two types of strings:
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{green}{a-\textcolor{violet}{2\cdot}b}\textcolor{blue}{-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
-$\textcolor{violet}{a-b}\textcolor{blue}{-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
+$\textcolor{blue}{\textcolor{green}{a-\textcolor{violet}{2\cdot \textcolor{green}{b}}}-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
+$\textcolor{blue}{\textcolor{violet}{a-b}-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 $\textcolor{blue}{a-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $a$ | $b$ | Pointer to Memory Block
 $a+b$ | $b$ | Array Size $s$, i.e. Number of Elements

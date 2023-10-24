@@ -15,6 +15,7 @@
       <item>union</item>
       <item>const</item>
       <item>unique</item>
+      <item>obj</item>
       <item>shared</item>
       <item>atomic</item>
       <item>global</item>
