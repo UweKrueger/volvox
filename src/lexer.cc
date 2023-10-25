@@ -492,6 +492,21 @@ Token Lexer::purge_line() {
 	return ';';
 }
 
+void Lexer::check_end_plus() {
+	// special handling of "end +   +   +"
+	int j = Loc.Col;
+	end_plus = false;
+	while (!(j > linelen || !use_readline && j >= linelen)) {
+		if (linebuf[j] == '+') {
+			end_plus = true;
+			break;
+		} else if (linebuf[j] != ' ' && linebuf[j] != '\t') {
+			break;
+		}
+		j++;
+	}
+}
+
 Token Lexer::gettok(eXpect expect, int terminator) {
 	Expected = expect; // for error messages in parser, etc.
 	if (KeepIdentifierStr != "") {
@@ -517,19 +532,8 @@ startanalysis:
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
 		if (auto tok_val = map_string_get(keyword_toks, IdentifierStr.c_str())) {
-			if (tok_val->i32 == tok_end) {
-				// look for '+' in same line
-				int j = Loc.Col;
-				while (!(j > linelen || !use_readline && j >= linelen)) {
-					if (linebuf[j] == '+') {
-						end_plus = true;
-						break;
-					} else if (linebuf[j] != ' ' && linebuf[j] != '\t') {
-						break;
-					}
-					j++;
-				}
-			}
+			if (tok_val->i32 == tok_end)
+				check_end_plus();
 			return Token(tok_val->i32);
 		}
 		if (expect == eBinOp) {
@@ -540,22 +544,6 @@ startanalysis:
 		return Token(tok_identifier);
 	}
 	// Binary Operators
-	if (CurChar == '+' && end_plus) {
-		int j = Loc.Col;
-		end_plus = false;
-		while (!(j > linelen || !use_readline && j >= linelen)) {
-			if (linebuf[j] == '+') {
-				end_plus = true;
-				break;
-			} else if (linebuf[j] != ' ' && linebuf[j] != '\t') {
-				break;
-			}
-			j++;
-		}
-		IdentifierStr = "+";
-		CurChar = advance();
-		return tok_end;
-	}
 	if (expect == eBinOp) {
 	binopswitch:
 		switch(CurChar) {
@@ -637,11 +625,18 @@ if (CurChar == 'i') {
 			IdentifierStr = '~';
 			// we were expecting a binary operator but got a unary one
 			return tok_error;
+		case '+':
+			if (end_plus) {
+				IdentifierStr = CurChar;
+				check_end_plus();
+				CurChar = advance();
+				return tok_end;
+			}
+			// else fallthrough
 		case '>':
 		case '<':
 		case '|':
 		case '&':
-		case '+':
 		case '-':
 		case '*':
 		case '/':
@@ -887,6 +882,13 @@ if (CurChar == 'i') {
 		CurChar = advance();
 		return tok_optional;
 	case '+':
+		if (end_plus) {
+			IdentifierStr = CurChar;
+			check_end_plus();
+			CurChar = advance();
+			return tok_end;
+		}
+		// else fallthrough
 	case '-':
 	case '!':
 	case '~':

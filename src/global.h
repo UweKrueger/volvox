@@ -1138,6 +1138,7 @@ public:
 		free(linebuf);
 	}
 	int advance();
+	void check_end_plus();
 	Token gettok(eXpect expect = eNone, int terminator = 0);
 	Token purge_line();
 	char peek();
