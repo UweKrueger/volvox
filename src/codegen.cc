@@ -2444,8 +2444,12 @@ bool ForExprAST::PrepareIterator() {
 		Step = llvm::ConstantInt::get(
 			llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
 		// for multi dimentsional array Step should be the storage size of the sub-tensor
+		if (Dims.empty()) {
+			errs() << Iterator->Loc << ": internal error - tensor without dimensions\n";
+			abort();
+		}
 		unsigned subDims = Dims.size() - 1;
-		for (int i=1; i<=subDims; i++)
+		for (unsigned i=1; i<=subDims; i++)
 			Step = Builder->CreateMul(Step, Dims[i]);
 		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Ptr0->getType())) {
 			// const size rvalue array - iterate over index
@@ -2523,7 +2527,6 @@ bool ForExprAST::PrepareIterator() {
 		}
 		break;
 	}
-defstep:
 	if (limit->getType()->isIntegerTy()) {
 		if (!Step)
 			Step = llvm::ConstantInt::get(limit->getType(), 1, true);
@@ -2549,7 +2552,6 @@ defstep:
 	case existing_var_returned:
 	case generic_lvalue_returned:
 		auto KeyLval = dynamic_cast<LvalueExprAST*>(Value.get());
-		llvm::Type* dummy;
 		std::tie(KeyType, KeyRef) = KeyLval->codegen_ref();
 		if (!KeyRef)
 			return false;
