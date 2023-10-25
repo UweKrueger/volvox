@@ -869,7 +869,10 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				llvm::Value* expr = Args[0]->codegen_raw();
 				auto conv = getConv(expr->getType(), ft->type, Loc, (bool)(Args[0]->ft->type_attr & A_signed),
 				                    (bool)(ft->type_attr & A_signed), true, false, nullptr);
-				return conv(expr);
+				if (conv)
+					return conv(expr);
+				else
+					return nullptr;
 			}
 		}
 		errs() << Loc << ": no known function prototype for call\n";

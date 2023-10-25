@@ -18,11 +18,12 @@ volvoxc::FTListElem** anon_types_end = &anon_types;
 
 void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                    bool expr_is_signed, bool desired_is_signed, const char* reason, bool is_explicit) {
-	errs() << Loc << "cannot " << (is_explicit ? "" : "automatically ") << "convert "
-	       << lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_is_signed ? A_signed : 0))) << "/"
-	       << lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_is_signed ? A_signed : 0))) << ' ';
+	auto expr_type_name = lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_is_signed ? A_signed : 0)));
+	auto desired_type_name = lex.get_type_name((llvm::Type*)((uintptr_t)desired_type | (desired_is_signed ? A_signed : 0)));
+	errs() << Loc << ": cannot " << (is_explicit ? "" : "automatically ") << "convert "
+	       << expr_type_name << "/" << desired_type_name;
 	if (reason)
-		errs() << reason;
+		errs() <<  ": " << reason;
 	errs() << "\n";
 }
 
@@ -126,6 +127,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 				if (convFN)
 					return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
 			}
+			return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no conversion defined");
 		}
 	}
 no_explicit_constructor:
@@ -149,7 +151,7 @@ no_explicit_constructor:
 		if (convFN)
 			return [=](llvm::Value* v) { return Builder->CreateCall(convFN, { v }); };
 		else
-			return nullptr;
+			return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no conversion defined");
 	}
 	if (auto expr_array = llvm::dyn_cast<llvm::ArrayType>(expr_type)) {
 		auto desired_array = llvm::dyn_cast<llvm::ArrayType>(desired_type);
@@ -198,7 +200,7 @@ no_explicit_constructor:
 				return [=](llvm::Value* v) { return Builder->CreateFPCast(v, desired_type, "convfptmp"); };
 			else
 				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "float truncation");
-		else
+		else if (llvm::isa<llvm::IntegerType>(expr_type))
 			if (is_explicit || is_unknown_type || desired_bitwidth >= expr_bitwidth
 			    || desired_bitwidth >= 53) // always allow conversion to f64
 				if (expr_is_signed)
@@ -207,7 +209,9 @@ no_explicit_constructor:
 					return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, desired_type, "convufptmp"); };
 			else
 				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "int->float would lose precision");
-	else
+		else
+			return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "conversion to float not possible");
+	else if (expr_type->isIntegerTy() || expr_type->isFloatTy() || expr_type->isDoubleTy())
 		if (float_expr)
 			if (is_explicit)
 				if (desired_is_signed)
@@ -262,6 +266,13 @@ no_explicit_constructor:
 							return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "would truncate/reinterpret upper bits");
 					else
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandstmp"); };
+	else if (expr_type->isPointerTy())
+		if (desired_type == llvm_size_type)
+			return [=](llvm::Value* v) { return Builder->CreatePtrToInt(v, desired_type, "ptrtoint"); };
+		else
+			return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no known conversion");
+	else
+		return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no known conversion");
 }
 
 inline static unsigned Max(unsigned a, unsigned b) { return (a > b) ? a : b; }

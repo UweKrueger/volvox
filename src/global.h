@@ -1192,16 +1192,18 @@ public:
 			ft = source_stack.front().module->type_table.get_full(_key);
 		return ft;
 	}
-	const char* get_type_name(llvm::Type* type) {
-		auto name = module->type_table.get_name(type);
-		if (!name && source_stack.size())
-			name = source_stack.front().module->type_table.get_name(type);
-		return name;
-	}
-	const char* get_type_name(llvm::Type* type, bool is_signed) {
+	const char* get_type_name(llvm::Type* type, bool is_signed = false) {
 		auto name = module->type_table.get_name(type, is_signed);
 		if (!name && source_stack.size())
 			name = source_stack.front().module->type_table.get_name(type, is_signed);
+		if (!name) {
+			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(type))
+				name = "struct";
+			else if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(type))
+				name = "array";
+			else
+				name = "unnamed type";
+		}
 		return name;
 	}
 	std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& prefix, const std::string& unmangledName) {
