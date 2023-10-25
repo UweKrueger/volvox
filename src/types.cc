@@ -87,9 +87,11 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false, bool
 // return an error if not possible or no explicit conversion
 // is requested but precision would be lost
 std::function<llvm::Value*(llvm::Value*)> getConv(
-	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc, bool expr_is_signed,
-	bool desired_is_signed, bool is_explicit, bool is_unknown_type, bool* exact_match)
+	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc, unsigned expr_attr,
+	unsigned desired_attr, bool is_explicit, bool is_unknown_type, bool* exact_match)
 {
+	bool expr_is_signed = expr_attr & A_signed;
+	bool desired_is_signed = desired_attr & A_signed;
 	if (!expr_type)
 		return nullptr;
 	if (expr_type == desired_type && (expr_is_signed == desired_is_signed || !expr_type->isIntegerTy())) {

@@ -364,8 +364,8 @@ static inline std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_ty
 }
 extern OpClass getOpClass(const char* Op);
 extern std::function<llvm::Value*(llvm::Value*)> getConv(
-	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc = CurLoc, bool expr_is_signed = false,
-	bool desired_is_signed = false, bool is_explicit = false, bool is_unknown_type = false, bool* exact_match = nullptr);
+	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc = CurLoc, unsigned expr_attr = 0,
+	unsigned desired_attr = 0, bool is_explicit = false, bool is_unknown_type = false, bool* exact_match = nullptr);
 extern std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(
 	llvm::Type* res_type, llvm::Type* desired_res,
 	llvm::Type* left_type, llvm::Type* right_type, OpClass opclass, bool res_min_is_signed,

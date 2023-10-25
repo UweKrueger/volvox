@@ -173,7 +173,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 						conv = NoConversion;
 					else
 						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
-						               fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
+						               fnargs[i].argtype_attr, proto->ArgTypes[i]->type_attr,
 						               false, false, &arg_matches_exactly);
 				}
 				if (arg_matches_exactly) {
@@ -192,7 +192,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 							convs3[i] = conv;
 					} else {
 						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
-						               fnargs[i].arg_signed(), (bool)(proto->ArgTypes[i]->type_attr & A_signed),
+						               fnargs[i].argtype_attr, proto->ArgTypes[i]->type_attr,
 						               false, true, nullptr);
 						if (conv) {
 							if (!cands2)
