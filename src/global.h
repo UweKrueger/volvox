@@ -1091,26 +1091,26 @@ struct SourceLocState {
 	ssize_t linelen = 0;
 	size_t bufsize = 0;
 	char* linebuf = nullptr;
-	int input_fd = 0;
+	FILE* input_file = stdin;
 	bool use_readline = false;
 	std::string as = "";
 	std::map<std::string, SourceLocation> fromlist = {};
 	SourceLocState() = default;
 	SourceLocState(SourceLocState* old):
 		Loc(old->Loc), module(std::move(old->module)), linelen(old->linelen), bufsize(old->bufsize), linebuf(old->linebuf),
-		input_fd(old->input_fd), use_readline(old->use_readline), as(std::move(old->as)), fromlist(std::move(old->fromlist))
+		input_file(old->input_file), use_readline(old->use_readline), as(std::move(old->as)), fromlist(std::move(old->fromlist))
 		{
 			old->linebuf = nullptr;
 			old->bufsize = 0;
 			old->as = "";
 			old->fromlist = {};
-			old->input_fd = -1;
+			old->input_file = nullptr;
 		}
-	SourceLocState(SourceLocation Loc, ssize_t linelen, size_t bufsize, char* linebuf, int* _input_fd = nullptr, bool use_readline = false) :
-		Loc(Loc), linelen(linelen), bufsize(bufsize), linebuf(linebuf), input_fd(_input_fd ? *_input_fd : -1), use_readline(use_readline)
+	SourceLocState(SourceLocation Loc, ssize_t linelen, size_t bufsize, char* linebuf, FILE** _input_file = nullptr, bool use_readline = false) :
+		Loc(Loc), linelen(linelen), bufsize(bufsize), linebuf(linebuf), input_file(_input_file ? *_input_file : nullptr), use_readline(use_readline)
 		{
-			if (_input_fd)
-				*_input_fd = -1; // to prevent 'next_input_file()' from calling 'close()'
+			if (_input_file)
+				*_input_file = nullptr; // to prevent 'next_input_file()' from calling 'close()'
 		}
 };
 
@@ -1120,9 +1120,9 @@ public:
 	eXpect Expected; // only used for error messages
 	bool end_plus = false;
 	Lexer() = default;
-	Lexer(int* _inputfd, const char* _input_file_name, size_t _bufsize = 100)
+	Lexer(FILE** _inputfile, const char* _input_file_name, size_t _bufsize = 100)
 		: SourceLocState(SourceLocation{ _input_file_name, 0, 0 }, 0, _bufsize,
-		                 _bufsize ? nullptr : (char*)malloc(_bufsize), _inputfd), CurChar(' ')
+		                 _bufsize ? nullptr : (char*)malloc(_bufsize), _inputfile), CurChar(' ')
 		{
 			std::string patterntail = "builtin.vx";
 			std::vector<std::string> _import_path = {};
@@ -1365,7 +1365,7 @@ struct DebugInfo {
 };
 
 extern DebugInfo KSDbgInfo;
-extern int builtin_input_fd;
+extern FILE* builtin_input_file;
 extern std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind = 0);
 extern void InitializeModuleAndPassManager();
 extern bool finishFunctionOrModule(llvm::Function* F = nullptr, unsigned dumpLevel = 1,
@@ -1380,7 +1380,6 @@ extern std::vector<int> source_index;
 extern std::vector<const char*> SourceFileNames;
 extern bool jit_repl;
 extern bool jit_extra_thread;
-extern int builtin_input_fd;
 extern void CallGlobalDestructorsJIT();
 extern int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
                        std::vector<FnArg>& fnargs, SourceLocation Loc = {0});

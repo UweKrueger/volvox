@@ -1111,7 +1111,7 @@ extern "C" DLLEXPORT void printadr(double* X) {
 //===----------------------------------------------------------------------===//
 
 const char* builtin_file_name = "builtin.vx";
-int builtin_input_fd = -1;
+FILE* builtin_input_file = nullptr;
 bool dump_opt = true;
 bool dump_raw = false;
 uint64_t stacksize = 10485760; // 10MB as safe fallback
@@ -1172,29 +1172,29 @@ CTRL_C_HANDLER_DECL CtrlCHandler(CTRL_C_HANDLER_EVENT_TY event) {
 
 static void usage(const char* prog) {
 	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
-	errs() << " -h ........... print this help screen\n";
-	errs() << " -v ........... verbose output (may be repeated for even more verbosity)\n";
-	errs() << " -d ........... dump generated LLVM IR-code (repeat to dump more code)\n";
-	errs() << " -D ........... dump raw IR in addition to optimized IR (repeat to dump only raw)\n";
-	errs() << " -c ........... compile to optimized object file\n";
-	errs() << " -fPIC ........ generate position independent code\n";
-	errs() << " -fdiv-floored  signed division is floored, remainder gets sign of divisor\n"; 
-	errs() << " -fdiv-c99 .... signed division rounds towards 0, remainder gets sign of divident\n"; 
-	errs() << " -fno-idx-chk . do not check array indices to be within bounds\n"; 
-	errs() << " -g ........... compile with debug information\n";
-	errs() << " -On[m] ....... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
-	errs() << "                m: optional separate level machine specific codegen (default: n)\n";
-	errs() << " -r ........... run compiled program\n";
-	errs() << " -j ........... use JIT to run file(s)\n";
-	errs() << " -J ........... use JIT to run file(s) and start interactive session\n";
-	errs() << " -i file ...... include \"file\" in advance\n";
-	errs() << " -o file ...... output compiled result to \"file\"\n";
-	errs() << " -s size ...... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
-	errs() << "                default: `ulimit -s` if finite or 10MB otherwise\n";
-	errs() << " -m<target> ... platform target option, e.g. '-mingw' or '-msvc' on Windows\n";
-	errs() << " -t ........... compile/run all \"fn test_*() bool\" functions from given file(s)\n";
-	errs() << " -C n,g,b ..... prompt colors (#, >, background; ANSI-256, default: 30,100,236)\n";
-	errs() << " file ......... file(s) to compile (default: interactive session is started)\n";
+	errs() << " -h .......... print this help screen\n";
+	errs() << " -v .......... verbose output (may be repeated for even more verbosity)\n";
+	errs() << " -d .......... dump generated LLVM IR-code (repeat to dump more code)\n";
+	errs() << " -D .......... dump raw IR in addition to optimized IR (repeat to dump only raw)\n";
+	errs() << " -c .......... compile to optimized object file\n";
+	errs() << " -fPIC ....... generate position independent code\n";
+	errs() << " -fdiv-floored signed division is floored, remainder gets sign of divisor (default)\n";
+	errs() << " -fdiv-c99 ... signed division rounds towards 0, remainder gets sign of divident\n";
+	errs() << " -fno-idx-chk  do not check array indices to be within bounds\n";
+	errs() << " -g .......... compile with debug information\n";
+	errs() << " -On[m] ...... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
+	errs() << "               m: optional separate level machine specific codegen (default: n)\n";
+	errs() << " -r .......... run compiled program\n";
+	errs() << " -j .......... use JIT to run file(s)\n";
+	errs() << " -J .......... use JIT to run file(s) and start interactive session\n";
+	errs() << " -i file ..... include \"file\" in advance\n";
+	errs() << " -o file ..... output compiled result to \"file\"\n";
+	errs() << " -s size ..... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
+	errs() << "               default: `ulimit -s` if finite or 10MB otherwise\n";
+	errs() << " -m<target> .. platform target option, e.g. '-mingw' or '-msvc' on Windows\n";
+	errs() << " -t .......... compile/run all \"fn test_*() bool\" functions from given file(s)\n";
+	errs() << " -C n,g,b .... prompt colors (#, >, background; ANSI-256, default: 30,100,236)\n";
+	errs() << " file ........ file(s) to compile (default: interactive session is started)\n";
 	exit(1);
 }
 
@@ -1655,14 +1655,20 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	// always read builtin definitions first
-	builtin_input_fd = open(builtin_file_name, O_CLOEXEC);
-	if (builtin_input_fd < 0) {
+	builtin_input_file = fopen(builtin_file_name,
+#ifdef _WIN32
+	                           "rb"
+#else
+	                           "re"
+#endif
+		);
+	if (!builtin_input_file) {
 		errs() << llvm::format("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
 		exit(1);
 	}
-	lex = Lexer(&builtin_input_fd, builtin_file_name);
+	lex = Lexer(&builtin_input_file, builtin_file_name);
 	// Lexer::Lexer() above invalidates 'builtin_input_fd' so restore it
-	builtin_input_fd = lex.input_fd;
+	builtin_input_file = lex.input_file;
 	CurLoc = lex.Loc;
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		llvm::InitializeNativeTarget();

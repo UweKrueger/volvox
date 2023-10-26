@@ -1286,4 +1286,29 @@ _DECL unsigned GetLastError() {
 	return errno;
 }
 
+#else
+
+// BSD and Linux have this function in libc
+// provide a version for Windows here
+//
+_DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
+	size_t n = 0;
+	if (!*buf || !*sz) {
+		*sz = 120;
+		if (*buf)
+			*buf = realloc(*buf, *sz);
+		else
+			*buf = malloc(*sz);
+	}
+	for(;;) {
+		if (!*buf || !fgets((*buf)+n, *sz, f))
+			return -1;
+		for ( ; (*buf)[n]; n++)
+			if ((*buf)[n] == '\n')
+				return n+1;
+		*sz = *sz + (*sz >> 1) + 100;
+		*buf = realloc(*buf, *sz);
+	}
+}
+
 #endif

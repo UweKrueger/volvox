@@ -66,94 +66,82 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 	    *lineptr = (char*)malloc(*n);
     }
     for (;;) {
-	    int c;
-	    do {
-		    if (lex.use_readline) {
-			    if (kept_buf) {
-				    free(*lineptr);
-			    } else {
-				    kept_buf = *lineptr;
-				    kept_bufsize = *n;
-			    }
-			    int max_fail = 2;
-			    for(;;) {
-#ifndef _WIN32
-				    errno = 0;
-#endif
-				    *lineptr = readline(prompt);
-				    if (*lineptr)
-					    break;
-#if !defined (_MSC_VER)
-				    outs() << "\n";
-#endif
-				    if (
-#ifndef _WIN32
-					    errno == EINTR &&
-#endif
-					    max_fail > 0)
-					    errs() << "Press Crtl-C " << max_fail-- << "x again to exit...\n";
-				    else
-					    return -1;
-			    }
-			    *n = strlen(*lineptr);
-			    if (*n)
-				    add_history(*lineptr);
-			    (*n)++;
-			    return *n - 1;
-		    }
+	    if (lex.use_readline) {
 		    if (kept_buf) {
 			    free(*lineptr);
-			    *lineptr = kept_buf;
-			    *n = kept_bufsize;
-			    kept_buf = nullptr;
-			    kept_bufsize = 0;
+		    } else {
+			    kept_buf = *lineptr;
+			    kept_bufsize = *n;
 		    }
-		    c = 0;
-		    int m = read(lex.input_fd, &c, 1);
-		    if (m != 1 || c == '\004' || c == '\032') { // different incarnations of "End of File"
-			    static bool tests_prepared = false;
-			    if ((do_test || do_repl_test) && !tests_prepared) {
-				    // This was just the initialization file for builtins
-				    // now switch to real input
-				    // this had to wait until definitions in 'builtin.vx' have been processed
-				    PrepareTestFramework();
-				    tests_prepared = true;
-			    }
-			    if (!lex.next_input_file()) {
-				    c = EOF;
-				    if (lex.input_fd == 0)
-					    outs() << "\n";
-				    return -1;
-			    }
-			    if (comp_mode == comp_jit && lex.input_fd == 0) {
-#ifdef MONOCHROME_PROMPT
-				    sprintf(prompt, VOLVOX_PROMPT, lex.Loc.Line + 1);
-#else
-				    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, lex.Loc.Line + 1, p_col.greater);
-#endif
-				    for (int i=0; i<prompt_indent && i<200; i++)
-					    strcat(prompt, "    ");
-				    lex.use_readline = true;
+		    int max_fail = 2;
+		    for(;;) {
 #ifndef _WIN32
-				    rl_initialize();
+			    errno = 0;
 #endif
-			    }
-			    c = '\r'; // abuse Windows logic to repeat read
+			    *lineptr = readline(prompt);
+			    if (*lineptr)
+				    break;
+#if !defined (_MSC_VER)
+			    outs() << "\n";
+#endif
+			    if (
+#ifndef _WIN32
+				    errno == EINTR &&
+#endif
+				    max_fail > 0)
+				    errs() << "Press Crtl-C " << max_fail-- << "x again to exit...\n";
+			    else
+				    return -1;
 		    }
-	    } while (c == '\r');
-	    if (offset + 1 >= *n) {
-		    do
-			    *n += 50 + *n / 2;
-		    while (offset + 1 >= *n);
-		    *lineptr = (char*)realloc(*lineptr, *n);
+		    *n = strlen(*lineptr);
+		    if (*n)
+			    add_history(*lineptr);
+		    (*n)++;
+		    return *n - 1;
 	    }
-	    *(*lineptr + offset++) = c;
-	    if (c == '\n') {
-		    break;
+	    if (kept_buf) {
+		    free(*lineptr);
+		    *lineptr = kept_buf;
+		    *n = kept_bufsize;
+		    kept_buf = nullptr;
+		    kept_bufsize = 0;
+	    }
+	    ssize_t m = getline(lineptr, n, lex.input_file);
+	    if (m >= 0)
+		    return m;
+	    else { // either EOF or error
+		    if (ferror(lex.input_file)) {
+			    errs() << llvm::format("Error reading from file \"%s\": %s\n", lex.Loc.File, strerror(errno));
+			    exit(1);
+		    }
+		    static bool tests_prepared = false;
+		    if ((do_test || do_repl_test) && !tests_prepared) {
+			    // This was just the initialization file for builtins
+			    // now switch to real input
+			    // this had to wait until definitions in 'builtin.vx' have been processed
+			    PrepareTestFramework();
+			    tests_prepared = true;
+		    }
+		    if (!lex.next_input_file()) {
+			    if (lex.input_file == stdin)
+				    outs() << "\n";
+			    return -1;
+		    }
+		    if (comp_mode == comp_jit && lex.input_file == stdin) {
+#ifdef MONOCHROME_PROMPT
+			    sprintf(prompt, VOLVOX_PROMPT, lex.Loc.Line + 1);
+#else
+			    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, lex.Loc.Line + 1, p_col.greater);
+#endif
+			    for (int i=0; i<prompt_indent && i<200; i++)
+				    strcat(prompt, "    ");
+			    lex.use_readline = true;
+#ifndef _WIN32
+			    rl_initialize();
+#endif
+		    }
 	    }
     }
-    *(*lineptr + offset) = '\0';
-    return offset;
 }
 
 SourceLocation CurLoc;
@@ -195,14 +183,14 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 	auto new_module = Modules.try_emplace(patterntail, std::move(_import_path));
 	if (new_module.second) {
 		modulestack.push_back(std::move(new_mod));
-		int old_input_fd = input_fd;
+		FILE* old_input_file = input_file;
 		auto oldbs = bufsize;
 		source_stack.emplace_back(this);
 		module = &new_module.first->second;
 		linelen = 0;
 		bufsize = 100;
 		linebuf = (char*)malloc(bufsize);
-		if (old_input_fd != builtin_input_fd)
+		if (old_input_file != builtin_input_file)
 			use_readline = false;
 		if (module->import_path.size()) {
 			source_files.push_back({});
@@ -363,7 +351,7 @@ void Lexer::pop_state() {
 	bufsize = source_stack.back().bufsize;
 	linebuf = source_stack.back().linebuf;
 	source_stack.back().linebuf = nullptr;
-	input_fd = source_stack.back().input_fd;
+	input_file = source_stack.back().input_file;
 	use_readline = source_stack.back().use_readline;
 	as = std::move(source_stack.back().as);
 	fromlist = std::move(source_stack.back().fromlist);
@@ -376,9 +364,9 @@ void Lexer::pop_state() {
 
 bool Lexer::next_input_file() {
 	last_defined_type = nullptr;
-	if (input_fd > 0) {
-		if (input_fd == builtin_input_fd) {
-			builtin_input_fd = -1;
+	if (input_file && input_file != stdin) {
+		if (input_file == builtin_input_file) {
+			builtin_input_file = nullptr;
 			auto keep_linebuf = linebuf;
 			linebuf = nullptr;
 			auto res = push_state({}, "", {});
@@ -386,13 +374,19 @@ bool Lexer::next_input_file() {
 			linebuf = keep_linebuf;
 			return res;
 		} else {
-			close(input_fd);
+			fclose(input_file);
 		}
 	}
 	if (source_index.back() < source_files.back().size()) {
 		Loc.File = source_files.back()[source_index.back()++];
-		input_fd = open(Loc.File, O_CLOEXEC);
-		if (input_fd < 0) {
+		input_file = fopen(Loc.File,
+#ifdef _WIN32
+		                   "rb"
+#else
+		                   "re"
+#endif
+			);
+		if (!input_file) {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
 			errs() << SourceFileNames[0] << ' ' << SourceFileNames[2] << source_files.size() << ' ' << source_files.back()[2] << ' ' << source_files.back().size() << '\n';
 			exit(1);
@@ -400,8 +394,8 @@ bool Lexer::next_input_file() {
 	} else if (source_stack.size() > 1) {
 		pop_state();
 		return true;
-	} else if ((jit_repl || !source_index.back()) && input_fd != 0) {
-		input_fd = 0;
+	} else if ((jit_repl || !source_index.back()) && input_file != stdin) {
+		input_file = stdin;
 		Loc.File = "<stdin>";
 	} else {
 		return false;
