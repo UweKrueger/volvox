@@ -69,7 +69,7 @@ end
 # create new file for read/write
 # - if file name already exists do nothing and return error
 #
-pub inline fn newfile(filename cstring) Fd
+pub inline fn new(filename cstring) Fd
 	global CREAT, RDWR, EXCL, BINARY, CLOEXEC
 	return openfile(filename, CREAT | RDWR | EXCL | BINARY | CLOEXEC, 0666)
 end
