@@ -1657,9 +1657,9 @@ int main(int argc, char* argv[]) {
 	// always read builtin definitions first
 	builtin_input_file = fopen(builtin_file_name,
 #ifdef _WIN32
-	                           "r"
+	                           "rb" // 'b' -> BINARY, no 'N' -> not iNherited
 #else
-	                           "re"
+	                           "re" // 'e' -> CLOEXEC
 #endif
 		);
 	if (!builtin_input_file) {

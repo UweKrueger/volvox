@@ -381,9 +381,9 @@ bool Lexer::next_input_file() {
 		Loc.File = source_files.back()[source_index.back()++];
 		input_file = fopen(Loc.File,
 #ifdef _WIN32
-		                   "r"
+		                   "rb" // 'b' -> BINARY, no 'N' -> not iNherited
 #else
-		                   "re"
+		                   "re" // 'e' -> CLOEXEC
 #endif
 			);
 		if (!input_file) {

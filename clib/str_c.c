@@ -1303,8 +1303,17 @@ _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 		if (!*buf || !fgets((*buf)+n, (*sz - n), f))
 			return -1;
 		for ( ; (*buf)[n]; n++)
-			if ((*buf)[n] == '\n')
-				return n+1;
+			if ((*buf)[n] == '\n') {
+				if (n>0 && (*buf)[n-1] == '\r') {
+					// In Volvox we do not want to distinguish between "text files" and "binary files"
+					// So files are always opened in "binary" mode. But since DOS-type text files
+					// are still in use on Windows we must do the "translation" here manually when necessary
+					(*buf)[n-1] = '\n';
+					(*buf)[n] = '\0';
+					return n;
+				} else
+					return n+1;
+			}
 		*sz = *sz + (*sz >> 1) + 100;
 		*buf = realloc(*buf, *sz);
 	}
