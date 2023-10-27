@@ -62,7 +62,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 	static ssize_t kept_bufsize = 0;
 	size_t offset = 0;
     if (!(*lineptr)) {
-	    *n = 100;
+	    *n = 120;
 	    *lineptr = (char*)malloc(*n);
     }
     for (;;) {
@@ -107,7 +107,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 		    kept_bufsize = 0;
 	    }
 	    ssize_t m = getline(lineptr, n, lex.input_file);
-	    if (m >= 0)
+	    if (m > 0)
 		    return m;
 	    else { // either EOF or error
 		    if (ferror(lex.input_file)) {
@@ -381,9 +381,9 @@ bool Lexer::next_input_file() {
 		Loc.File = source_files.back()[source_index.back()++];
 		input_file = fopen(Loc.File,
 #ifdef _WIN32
-		                   "rb"
+		                   "rb" // 'b' -> BINARY, no 'N' -> not iNherited
 #else
-		                   "re"
+		                   "re" // 'e' -> CLOEXEC
 #endif
 			);
 		if (!input_file) {
