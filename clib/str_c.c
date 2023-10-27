@@ -514,6 +514,16 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 			for (unsigned n = 0; n < order; n++)
 				prtstring(s, cap, pos, "]");
 		}
+	} else if (elem_type->ID == VOLVOX_PointerTyID) {
+		if (!(flags & A_packed))
+			elem_ptr = ptr_align(elem_ptr, sizeof(size_t));
+		if (elem_type->type_attr & A_cstring)
+			prtstring(s, cap, pos, *(char**)elem_ptr);
+		else if (elem_type->type_attr & A_string)
+			prtstring(s, cap, pos, volvox2cstr(*(char**)elem_ptr));
+		else
+			prt_int(s, cap, pos, *cap - *pos, *(size_t*)elem_ptr, 8*sizeof(size_t), w, p, 0);
+		elem_ptr += sizeof(size_t);
 	} else {
 		prtstring(s, cap, pos, "<unsupported type>");
 	}
