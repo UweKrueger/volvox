@@ -1657,7 +1657,7 @@ int main(int argc, char* argv[]) {
 	// always read builtin definitions first
 	builtin_input_file = fopen(builtin_file_name,
 #ifdef _WIN32
-	                           "rb"
+	                           "r"
 #else
 	                           "re"
 #endif

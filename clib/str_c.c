@@ -14,7 +14,6 @@
 #include <mbstring.h>
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
-typedef SSIZE_T ssize_t;
 #endif
 #else
 #include <unistd.h>
@@ -1293,7 +1292,7 @@ _DECL unsigned GetLastError() {
 //
 _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 	size_t n = 0;
-	if (!*buf || !*sz) {
+	if (!*sz) {
 		*sz = 120;
 		if (*buf)
 			*buf = realloc(*buf, *sz);
@@ -1301,7 +1300,7 @@ _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 			*buf = malloc(*sz);
 	}
 	for(;;) {
-		if (!*buf || !fgets((*buf)+n, *sz, f))
+		if (!*buf || !fgets((*buf)+n, (*sz - n), f))
 			return -1;
 		for ( ; (*buf)[n]; n++)
 			if ((*buf)[n] == '\n')
