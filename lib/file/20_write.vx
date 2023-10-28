@@ -3,11 +3,7 @@ cdecl fn strlen(s cstring) size_t
 
 pub inline fn File.write(s string)
 	l = strlen(s)
-	f = this.voidptr
-	printf("FILE: %p\n", f)
-	n = fwrite("Klöäüßt\n", 1, 12, f)
-	printf("Wrote %d bytes\n", n)
-	if n < 12
+	if fwrite(s, 1, l, this.voidptr) < l
 		this.err = GetLastError
 	end
 end
