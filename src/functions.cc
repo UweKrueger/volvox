@@ -1326,8 +1326,18 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 			} else {
 				if (RetVal->getType()->isPointerTy())
 					InsertDestructors(RetVal);
-				else
-					InsertDestructors(nullptr);
+				else {
+					llvm::Value* re_ptr = nullptr;
+					if (!Body.empty())
+						if (auto lval = dynamic_cast<LvalueExprAST*>(Body.back().get())) {
+							llvm::Type* dummy;
+							std::tie(dummy, re_ptr) = lval->codegen_ref(lval);
+							if (dummy && re_ptr)
+								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
+									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);
+						}
+					InsertDestructors(re_ptr);
+				}
 				Builder->CreateRet(CheckTailCall(RetVal));
 				if (!ArgIdx && Body.size() == 1 && TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
 					if (auto const_ret = llvm::dyn_cast<llvm::Constant>(RetVal))

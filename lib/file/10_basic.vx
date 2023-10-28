@@ -10,9 +10,9 @@ type File {
 	err u32
 }
 
-# pub inline fn ~File
-# 	fclose(this.voidptr)
-# end
+pub inline fn ~File
+	fclose(this.voidptr)
+end
 
 pub inline fn File.is_valid bool
 	return size_t(this.voidptr) != 0
