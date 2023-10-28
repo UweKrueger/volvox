@@ -1,10 +1,10 @@
 all: volvox
 
-# do 'make distclean' when changing optimization options or compiler version
+# do 'make clean' when changing optimization options or compiler version
 
 .PHONY: debug
 debug:
-	cd src && $(MAKE) CC=gcc OPT="-O0 -ggdb"
+	cd src && $(MAKE) OPT="-O0 -glldb"
 
 volvox: srcdir
 
@@ -15,10 +15,6 @@ srcdir:
 .PHONY: clean
 clean:
 	cd src && $(MAKE) clean
-
-.PHONY: distclean
-distclean:
-	cd src && $(MAKE) distclean
 
 .PHONY: depend
 depend:

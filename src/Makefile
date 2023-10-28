@@ -1,4 +1,4 @@
-# do 'make distclean' when changing optimization options or compiler version
+# do 'make clean' when changing optimization options or compiler version
 
 OPT = -O2
 
@@ -208,10 +208,6 @@ $(PROG): $(OBJS) $(LIBVOLVOX)
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS) $(LIBOBJS)
-
-.PHONY: distclean
-distclean:
 	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS)  $(LIBCOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) $(LIBVOLVOXLINK) *~ ../include/*~ ../include/*.gch .depend
 
 .depend:

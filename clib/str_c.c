@@ -4,6 +4,7 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #include <stdio.h>
+#include <limits.h>
 #include <inttypes.h>
 #include "types.h"
 #include "str.h"
