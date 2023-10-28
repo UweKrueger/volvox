@@ -2,16 +2,21 @@ import arch
 import arch.os
 import limits
 
+cdecl fn fopen(filename cstring, mode cstring) voidptr
+cdecl fn fclose(f voidptr) int
+
 type File {
 	voidptr # FILE*
 	err u32
 }
 
+pub inline fn ~File
+	fclose(this.voidptr)
+end
+
 pub inline fn File.is_valid bool
 	return size_t(this.voidptr) != 0
 end
-
-cdecl fn fopen(filename cstring, mode cstring) voidptr
 
 # open file for read/write (like '>' in shell scripts)
 # - if file name exists truncate it to size 0
@@ -19,9 +24,9 @@ cdecl fn fopen(filename cstring, mode cstring) voidptr
 #
 pub inline fn create(filename cstring) File
 	if os.isWindows
-		mode = "w+b"
+		mode = "wb"
 	else
-		mode = "w+e"
+		mode = "we"
 	end
 	f = File{}
 	f.voidptr = fopen(filename, mode)
@@ -53,9 +58,9 @@ end
 #
 pub inline fn new(filename cstring) File
 	if os.isWindows
-		mode = "w+xb"
+		mode = "wxb"
 	else
-		mode = "w+xe"
+		mode = "wxe"
 	end
 	f = File{}
 	f.voidptr = fopen(filename, mode)
@@ -74,9 +79,9 @@ end
 #
 pub inline fn append(filename cstring) File
 	if os.isWindows
-		mode = "a+b"
+		mode = "ab"
 	else
-		mode = "a+e"
+		mode = "ae"
 	end
 	f = File{}
 	f.voidptr = fopen(filename, mode)
@@ -86,9 +91,10 @@ pub inline fn append(filename cstring) File
 	return f
 end
 
-cdecl fn fclose(f voidptr) int
-
 pub inline fn File.close
-	if fclose(this.voidptr) != 0
-		this.err = GetLastError
+	if size_t(this.voidptr) != 0
+		if fclose(this.voidptr) != 0
+			this.err = GetLastError
+		end
+		this.voidptr = voidptr(0)
 end +
