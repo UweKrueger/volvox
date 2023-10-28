@@ -397,10 +397,10 @@ static inline int Max(int a, int b) {
 }
 
 // similar to strcat but assures enough space
-static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str) {
+static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str, int w) {
 	int space = *cap - *pos;
 	for (int n = 0;;) {
-		int m = snprintf(*s + *pos, space, "%s", str + n);
+		int m = snprintf(*s + *pos, space, "%*s", w, str + n);
 		if (m >= space) {
 			n += space - 1;
 			*cap += (*cap >> 1) + (m - space) + 1;
@@ -441,6 +441,17 @@ static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double 
 static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned long long vall,
                     unsigned bits, int w, int p, unsigned flags);
 
+static void prt_pointer(char** s, unsigned* cap, unsigned* pos, const char* ptr, unsigned w, unsigned attr) {
+	if (!ptr)
+		prtstring(s, cap, pos, "nil", w);
+	else if (attr & A_cstring)
+		prtstring(s, cap, pos, ptr, w);
+	else if (attr & A_string)
+		prtstring(s, cap, pos, volvox2cstr(ptr), w);
+	else
+		prt_int(s, cap, pos, *cap - *pos, (size_t)ptr, 8*sizeof(size_t), w, 10, FMT_ZEROPAD | FMT_DISPLAY_HEX | FMT_UNSIGNED);
+}
+
 static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, const char* FieldName,
                                       const VOLVOX_RtType* elem_type, const char* elem_ptr, int indent,
                                       int w, int p, unsigned flags)
@@ -450,11 +461,11 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 		indentbuf[0] = '\n';
 		memset(indentbuf + 1, ' ', indent);
 		indentbuf[indent + 1] = '\0';
-		prtstring(s, cap, pos, indentbuf);
+		prtstring(s, cap, pos, indentbuf, w);
 	}
 	if (FieldName) {
-		prtstring(s, cap, pos, FieldName);
-		prtstring(s, cap, pos, ": ");
+		prtstring(s, cap, pos, FieldName, w);
+		prtstring(s, cap, pos, ": ", w);
 	}
 	const char* pre = nullptr;
 	if (elem_type->ID == VOLVOX_FloatTyID) {
@@ -509,22 +520,17 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 			elem_ptr += subsz[0];
 		} else {
 			for (unsigned n = 0; n < order; n++)
-				prtstring(s, cap, pos, "[");
+				prtstring(s, cap, pos, "[", 0);
 			for (unsigned n = 0; n < order; n++)
-				prtstring(s, cap, pos, "]");
+				prtstring(s, cap, pos, "]", 0);
 		}
 	} else if (elem_type->ID == VOLVOX_PointerTyID) {
 		if (!(flags & A_packed))
 			elem_ptr = ptr_align(elem_ptr, sizeof(size_t));
-		if (elem_type->type_attr & A_cstring)
-			prtstring(s, cap, pos, *(char**)elem_ptr);
-		else if (elem_type->type_attr & A_string)
-			prtstring(s, cap, pos, volvox2cstr(*(char**)elem_ptr));
-		else
-			prt_int(s, cap, pos, *cap - *pos, *(size_t*)elem_ptr, 8*sizeof(size_t), w, p, 0);
+		prt_pointer(s, cap, pos, *(char**)elem_ptr, elem_type->type_attr, w);
 		elem_ptr += sizeof(size_t);
 	} else {
-		prtstring(s, cap, pos, "<unsupported type>");
+		prtstring(s, cap, pos, "<unsupported type>", w);
 	}
 	return elem_ptr;
 }
@@ -533,11 +539,11 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
                          unsigned num_fields, int indent, int w, int p, unsigned flags)
 {
 	if (indent < 0)
-		prtstring(s, cap, pos, " ");
+		prtstring(s, cap, pos, " ", 0);
 	if (struct_type->name)
-		prtstring(s, cap, pos, struct_type->name);
+		prtstring(s, cap, pos, struct_type->name, w);
 	if (num_fields) { // should empty structs be allowed? not sure...
-		prtstring(s, cap, pos, "{");
+		prtstring(s, cap, pos, "{", 0);
 		if (struct_type->type_attr & A_packed)
 			flags |= A_packed;
 		for (unsigned n=0; n<num_fields; ++n) {
@@ -552,12 +558,12 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
 			memset(indentbuf + 1, ' ', indent);
 			indentbuf[indent + 1] = '}';
 			indentbuf[indent + 2] = '\0';
-			prtstring(s, cap, pos, indentbuf);
+			prtstring(s, cap, pos, indentbuf, 0);
 		} else {
-			prtstring(s, cap, pos, "\n}");
+			prtstring(s, cap, pos, "\n}", 0);
 		}
 	} else {
-		prtstring(s, cap, pos, "{}");
+		prtstring(s, cap, pos, "{}", 0);
 	}
 }
 
@@ -592,7 +598,7 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 	}
 	for (int i = 0; i < dims[0]; i++) {
 		const char* pre = i ? pre1 : pre0;
-		prtstring(s, cap, pos, pre);
+		prtstring(s, cap, pos, pre, 0);
 		if (suborder) {
 			print_array(s, cap, pos, elem_type, elem_ptr, &dims[1], &subsz[1], suborder, indent, w, p, flags);
 			elem_ptr += subsz[1];
@@ -600,7 +606,7 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 			elem_ptr = prt_aggregate_elem(s, cap, pos, nullptr, elem_type, elem_ptr, -1, w, p, flags);
 		}
 	}
-	prtstring(s, cap, pos, " ]");
+	prtstring(s, cap, pos, " ]", 0);
 }
 
 static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double val, int w, int p, unsigned flags) {
@@ -623,7 +629,7 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned 
 		if (bits < 32) {
 			if (bits == 1) {
 				// bool
-				prtstring(s, cap, pos, val & 1 ? "true" : "false");
+				prtstring(s, cap, pos, val & 1 ? "true" : "false", w);
 				return;
 			}
 			// extend upper bits according to signedness
@@ -653,7 +659,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 		*s = (char*)realloc(*s, *cap);
 	}
 	if (pre)
-		prtstring(s, cap, pos, volvox2cstr(pre));
+		prtstring(s, cap, pos, volvox2cstr(pre), 0);
 	int space = *cap - *pos;
 	const VOLVOX_RtType* ft = va_arg(ap, const VOLVOX_RtType*);
 	while (ft) {
@@ -712,9 +718,9 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 				print_array(s, cap, pos, ft->elem_type, elem_ptr, dims, subsz, order, 0, w, p, flags);
 			} else {
 				for (unsigned n = 0; n < order; n++)
-					prtstring(s, cap, pos, "[");
+					prtstring(s, cap, pos, "[", 0);
 				for (unsigned n = 0; n < order; n++)
-					prtstring(s, cap, pos, "]");
+					prtstring(s, cap, pos, "]", 0);
 			}
 		}
 			break;
@@ -723,7 +729,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
-			prtstring(s, cap, pos, volvox2cstr(str));
+			prt_pointer(s, cap, pos, str, w, ft->type_attr);
 		}
 			break;
 		case VOLVOX_FunctionTyID: {
@@ -759,7 +765,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			abort();
 		const char* post = va_arg(ap, char*);
 		if (post) {
-			prtstring(s, cap, pos, post);
+			prtstring(s, cap, pos, post, 0);
 			space = *cap - *pos;
 		}
 		ft = va_arg(ap, const VOLVOX_RtType*);
