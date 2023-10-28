@@ -16,6 +16,7 @@ MainVars jit_main_variables;
 llvm::DISubprogram *SP;
 llvm::DIFile *Unit;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
+bool theFunction_struct_ret = false;
 std::vector<FullVar> expr_temps; // to call destructors immediatelly after expr
 #ifdef _WIN32
 std::vector<HMODULE> extra_dlls; // loaded by '__link_extra' at runtime in JIT mode
@@ -1212,7 +1213,8 @@ bool FunctionAST::prepare_codegen() {
 	ArgIdx = 0;
 	ret_ft = (Proto->visibility & A_constructor) ? void_type : Proto->RetType;
 	theFunction_ret_ft = ret_ft; // global variable used by IfExprAST to return from branches
-	if (Proto->IsStructRet && !(Proto->visibility & A_constructor))
+	theFunction_struct_ret = Proto->IsStructRet && !(Proto->visibility & A_constructor);
+	if (theFunction_struct_ret)
 		ret_ptr = this_ret_ptr = TheFunction->getArg(ArgIdx++);
 	else
 		ret_ptr = this_ret_ptr = nullptr;
@@ -1318,7 +1320,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 		} else {
 			// auto ret_type = RetVal->getType();
 			//type = ret_type; // TODO: hande conversion if != proto->type;
-			if (Proto->IsStructRet) {
+			if (theFunction_struct_ret) {
 				if (!RetVal->getType()->isVoidTy())
 					Builder->CreateStore(RetVal, ret_ptr);
 				InsertDestructors(ret_ptr);

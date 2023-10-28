@@ -2143,7 +2143,19 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 					errs() << (Branch.empty() ? Loc : Branch.back()->Loc) << ": return value cold not be generated\n";
 					return { nullptr, nullptr };
 				}
-				InsertDestructors(nullptr);
+				if (BranchV->getType()->isPointerTy())
+					InsertDestructors(BranchV);
+				else {
+					llvm::Value* re_ptr = nullptr;
+					if (auto lval = dynamic_cast<LvalueExprAST*>(Branch.back().get())) {
+						llvm::Type* dummy;
+							std::tie(dummy, re_ptr) = lval->codegen_ref(lval);
+							if (dummy && re_ptr)
+								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
+									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);
+					}
+					InsertDestructors(re_ptr);
+				}
 				Builder->CreateRet(CheckTailCall(BranchV));
 			}
 		}
