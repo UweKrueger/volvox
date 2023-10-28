@@ -11,7 +11,9 @@ type File {
 }
 
 pub inline fn ~File
-	fclose(this.voidptr)
+	if size_t(this.voidptr) != 0
+	   fclose(this.voidptr)
+	end
 end
 
 pub inline fn File.is_valid bool
