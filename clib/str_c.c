@@ -400,7 +400,11 @@ static inline int Max(int a, int b) {
 static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str, int w) {
 	int space = *cap - *pos;
 	for (int n = 0;;) {
-		int m = snprintf(*s + *pos, space, "%*s", w, str + n);
+		int m;
+		if (w == INT_MIN)
+			m = snprintf(*s + *pos, space, "\"%s\"", str + n);
+		else
+			m = snprintf(*s + *pos, space, "%*s", w, str + n);
 		if (m >= space) {
 			n += space - 1;
 			*cap += (*cap >> 1) + (m - space) + 1;
@@ -443,13 +447,14 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned 
 
 static void prt_pointer(char** s, unsigned* cap, unsigned* pos, const char* ptr, unsigned w, unsigned attr) {
 	if (!ptr)
-		prtstring(s, cap, pos, "nil", w);
+		prtstring(s, cap, pos, "nil", w == INT_MIN ? 0 : w);
 	else if (attr & A_cstring)
 		prtstring(s, cap, pos, ptr, w);
 	else if (attr & A_string)
 		prtstring(s, cap, pos, volvox2cstr(ptr), w);
 	else
-		prt_int(s, cap, pos, *cap - *pos, (size_t)ptr, 8*sizeof(size_t), w, 10, FMT_ZEROPAD | FMT_DISPLAY_HEX | FMT_UNSIGNED);
+		prt_int(s, cap, pos, *cap - *pos, (size_t)ptr, 8*sizeof(size_t),
+		        w == INT_MIN ? 0 : w, 10, FMT_ZEROPAD | FMT_DISPLAY_HEX | FMT_UNSIGNED);
 }
 
 static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, const char* FieldName,
@@ -527,7 +532,7 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 	} else if (elem_type->ID == VOLVOX_PointerTyID) {
 		if (!(flags & A_packed))
 			elem_ptr = ptr_align(elem_ptr, sizeof(size_t));
-		prt_pointer(s, cap, pos, *(char**)elem_ptr, elem_type->type_attr, w);
+		prt_pointer(s, cap, pos, *(char**)elem_ptr, INT_MIN, elem_type->type_attr);
 		elem_ptr += sizeof(size_t);
 	} else {
 		prtstring(s, cap, pos, "<unsupported type>", w);
