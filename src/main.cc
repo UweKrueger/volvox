@@ -882,7 +882,7 @@ void CallTestFunction(bool immediately = false) {
 		char* buf;
 		char* volvoxstrTestFunction;
 		size_t lalloc;
-		cstr2volvoxstr(volvoxstrTestFunction, lalloc, buf, TestFunction, alloca);
+		cstr2volvoxstr(volvoxstrTestFunction, lalloc, buf, TestFunction, alloca, 0);
 		showtestres(1, 79, volvoxstrTestFunction, b);
 		return;
 	}

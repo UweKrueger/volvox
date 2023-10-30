@@ -663,12 +663,12 @@ llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &N
 	char* stra;
 	char* tmpres;
 	size_t l_alloc;
-	cstr2volvoxstr_l(tmpres, l_alloc, stra, str, alloca, Len);
+	cstr2volvoxstr_l(tmpres, l_alloc, stra, str, alloca, Len, 0);
 	auto llvmstr = llvm::ConstantDataArray::getString(Context, llvm::StringRef(stra, l_alloc), false);
 	auto GV = new llvm::GlobalVariable(*TheModule, llvmstr->getType(), true, llvm::GlobalValue::PrivateLinkage,
 	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
 	GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 	GV->setAlignment(llvm::Align(target_bytes));
-	llvm::Constant* Indices[] = {Builder->getInt32(0), Builder->getInt32(l_alloc - target_bytes)};
+	llvm::Constant* Indices[] = {Builder->getInt32(0), Builder->getInt32(l_alloc - 2*target_bytes)};
 	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
 }

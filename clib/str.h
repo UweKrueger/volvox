@@ -59,9 +59,9 @@ typedef int ssize_t;
 
 #ifndef volvox2cstr
 #define SIZE_T_BITS ((sizeof(size_t) == 8) ? 64 : (sizeof(size_t) == 4) ? 32 : 16)
-#define volvox_string_len(v) ((*(size_t*)v & ~((size_t)1 << (SIZE_T_BITS-1))) - 1)
+#define volvox_string_len(v) (*(size_t*)v - 1)
 // an LLVM implementation of this function is available as Volvox2CStr()
-#define volvox2cstr(v) (char*)((uintptr_t)(v - *(size_t*)v) & ~(((size_t)1 << (SIZE_T_BITS-1)) | (sizeof(size_t)-1)))
+#define volvox2cstr(v) (char*)((uintptr_t)(v - volvox_string_len(v)) & ~((sizeof(size_t)-1)))
 #endif
 #ifndef STR_WRITE
 #define STR_WRITE(s) s, sizeof(s)-1
@@ -97,21 +97,15 @@ _CDECL ssize_t getline(char** buf, size_t* sz, FILE* f);
 #endif
 
 #ifndef cstr2volvoxstr
-#define cstr2volvoxstr_l(result, lalloc, target, cstr, allocfn, _l)	  \
-	lalloc = (_l+1+target_bytes+(target_bytes-1)) & ~(size_t)(target_bytes-1); /* add space for \0 and one aligend size_t */ \
+#define cstr2volvoxstr_l(result, lalloc, target, cstr, allocfn, _l, cap)	  \
+	lalloc = (_l+3*target_bytes) & ~(size_t)(target_bytes-1); /* add space for \0 and two aligend size_t */ \
 	target = (char*)allocfn(lalloc); /* create target_bytes-byte aligned space */ \
-	memcpy(target, cstr, _l); \
-	for (size_t n = _l; n < lalloc-target_bytes; n++) \
-		target[n]=0; /* make sure padding is zerored */ \
-	result = target + lalloc - target_bytes; \
-	if (target_bytes == 8) \
-		*(uint64_t*)result = _l + 1; /* store size including terminating 0 - make calculation of start easier */ \
-	else if (target_bytes == 4) \
-		*(uint32_t*)result = _l + 1; \
-	else \
-		*(uint16_t*)result = _l + 1
+	memcpy(target, cstr, _l+1); \
+	result = target + lalloc - 2*target_bytes; \
+	*(size_t*)result = _l + 1; /* store size including terminating 0 - make calculation of start easier */ \
+	*((size_t*)result + 1) = cap
 
-#define cstr2volvoxstr(result, lalloc, target, cstr, allocfn)	  \
+#define cstr2volvoxstr(result, lalloc, target, cstr, allocfn, cap)	  \
 	size_t _l = strlen(cstr); \
-	cstr2volvoxstr_l(result, lalloc, target, cstr, allocfn, _l)
+	cstr2volvoxstr_l(result, lalloc, target, cstr, allocfn, _l, cap)
 #endif

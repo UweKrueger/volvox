@@ -516,7 +516,10 @@ llvm::Value* Volvox2CStr1(llvm::Value* v) {
 
 llvm::Value* Volvox2CStr2(llvm::Value* v, llvm::Value* subtrahend) {
 	llvm::Value* cstr = Builder->CreateSub(Builder->CreatePtrToInt(v, llvm_size_type), subtrahend);
-	cstr = Builder->CreateAnd(cstr, ((uint64_t)(-1LL) >> (64 - target_bits)) & ~((1ULL << (target_bits - 1)) | (target_bytes - 1)));
+	uint64_t mask = (uint64_t)(int64_t)(-1);
+	if (target_bits != 64)
+		mask = (1ULL << target_bits) - 1;
+	cstr = Builder->CreateAnd(cstr, mask & ~(uint64_t)(target_bytes - 1));
 	return Builder->CreateIntToPtr(cstr, llvm::Type::getInt8PtrTy(Context));
 }
 

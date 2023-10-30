@@ -826,8 +826,8 @@ _DECL bool enableColorANSI(int fd) {
 }
 
 _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
-	if (width < 6)
-		width = 6;
+	if (width < 20)
+		width = 20;
 	bool have_color = enableColorANSI(fd);
 
 	char* buf = (char*)alloca(width + (have_color ? 11 : 2));
@@ -1115,12 +1115,14 @@ _DECL void modstr(char* s, int idx, char c) {
 	sc[idx] = c;
 }
 
-#define __string_heap_flag ((size_t)1 << (SIZE_T_BITS-1))
-#define __string_heap_mask (~__string_heap_flag)
+// size including terminating '\0'
 #define __string_raw_size(s) *(size_t*)(s)
-#define __string_is_heap(s) (bool)(__string_raw_size(s) & __string_heap_flag)
-#define __string_allocsize(len) ((len + 2*sizeof(size_t)) & ~(sizeof(size_t)-1))
-#define __raw_offset(alloc) (alloc - sizeof(size_t))
+
+// allocation size including metadata
+#define __string_raw_cap(s) *((size_t*)(s) + 1)
+#define __string_is_heap(s) (bool)__string_raw_cap(s)
+#define __string_allocsize(len) ((len + 3*sizeof(size_t)) & ~(sizeof(size_t)-1))
+#define __raw_offset(alloc) (alloc - 2*sizeof(size_t))
 #define __x_min(a, b) (((a) <= (b)) ? (a) : (b))
 
 static char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
@@ -1149,7 +1151,8 @@ static char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
 	}
 	n[new_l] = 0;
 	char* res = n + __raw_offset(new_alloc);
-	*(size_t*)res = ((new_l + 1) | __string_heap_flag);
+	*(size_t*)res = (new_l + 1);
+	*((size_t*)res + 1) = new_alloc;
 	return res;
 }
 
@@ -1187,7 +1190,8 @@ static char* __string_mult_general(size_t m, char* a, bool is_mult_assign) {
 	}
 	n[new_l] = 0;
 	char* volvox_str = n + __raw_offset(new_alloc);
-	__string_raw_size(volvox_str) = ((new_l + 1) | __string_heap_flag);
+	__string_raw_size(volvox_str) = (new_l + 1);
+	__string_raw_cap(volvox_str) = new_alloc;
 	return volvox_str;
 }
 
@@ -1206,7 +1210,8 @@ _DECL char* __string_make_writable(char** SizeRef) {
 	size_t offset = __raw_offset(alloc_l);
 	memcpy(cstr, *SizeRef - offset, offset);
 	char* volvox_str = cstr + offset;
-	__string_raw_size(volvox_str) = len | __string_heap_flag;
+	__string_raw_size(volvox_str) = len;
+	__string_raw_cap(volvox_str) = alloc_l;
 	return volvox_str;
 }
 
@@ -1229,7 +1234,8 @@ _DECL char* __string_resize(char** SizeRef, size_t new_len) {
 		cstr = new_cstr;
 	}
 	*SizeRef = cstr + __raw_offset(new_alloc);
-	__string_raw_size(*SizeRef) = new_len | __string_heap_flag;
+	__string_raw_size(*SizeRef) = new_len;
+	__string_raw_cap(*SizeRef) = new_alloc;
 	return cstr;
 }
 
@@ -1264,7 +1270,7 @@ _DECL char* __cstr2volvoxstr(const char* c_str, size_t len) {
 	char* res;
 	size_t l;
 	char* targ;
-	cstr2volvoxstr_l(res, l, targ, c_str, malloc, len);
+	cstr2volvoxstr_l(res, l, targ, c_str, malloc, len, l);
 	return res;
 }
 
@@ -1273,17 +1279,11 @@ _DECL char* __transformcstr2volvox(char* c_str) {
 	size_t l;
 	char* targ;
 	size_t _l = strlen(c_str);
-	l = (_l+2*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
-	targ = (char*)(((size_t)realloc(c_str, l + sizeof(size_t) - 1) + sizeof(size_t) - 1) & ~(size_t)(sizeof(size_t) - 1));
-	for (size_t n = _l; n < l-sizeof(size_t); n++)
-		targ[n]=0;
-	res = targ + l - sizeof(size_t);
-	if (sizeof(size_t) == 8)
-		*(uint64_t*)res = _l + 1;
-	else if (sizeof(size_t) == 4)
-		*(uint32_t*)res = _l + 1;
-	else
-		*(uint16_t*)res = _l + 1;
+	l = (_l+3*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
+	targ = (char*)realloc(c_str, l);
+	res = targ + l - 2*sizeof(size_t);
+	*(size_t*)res = _l+1;
+	*((size_t*)res + 1) = l;
 	return res;
 }
 
