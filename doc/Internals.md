@@ -4,14 +4,14 @@
 
 Volvox supports four kinds of heap objects:
 
-1. `unique` objects: There is only one pointer at any time that points
+1. $\textcolor{blue}{\texttt{unique}}$ objects: There is only one pointer at any time that points
    to the object &mdash; corresponding to C++'s
    `std::unique_ptr<type>`. When the pointer gets out of scope the
    automatically called destructor frees the memory space. Neither a
    mutex nor a reference counter are needed. A unique object may be
    transferred to another thread. It may also be passed to a C function
-   that expects a pointer to a `struct`, but a distiction must be made between
-   a *borrow* and a *move* (see below).
+   that expects a pointer to a `struct`, but a distiction must be made
+   between a *borrow* and a *move* (see below).
 2. $\textcolor{green}{\texttt{obj}}$: Several pointers may refer to the object
    but only in one thread.
    When a pointer gets out of scope a reference counter is decremented
@@ -97,7 +97,6 @@ For the following tables of detailed data layouts definitions are used:
 - $n$ &ndash; number of array elements; string length (number of ASCII
   characters &mdash; UTF-8 multi byte characters count as number of bytes they
   consist of)
-- $d$ &ndash; aligned size of possible additional data
 - $s$ &ndash; array size in bytes - string length including terminating '\\0',
   i.e. $n+1$
 - $\lfloor x\rfloor$ &ndash; value $x$ aligned to pointer size by setting last
@@ -108,25 +107,23 @@ For the following tables of detailed data layouts definitions are used:
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{blue}{\textcolor{violet}{\textcolor{green}{a-2\cdot b}-b}-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
-$\textcolor{blue}{\textcolor{violet}{a-2\cdot b}-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
-$\textcolor{blue}{a-b-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
-$\textcolor{green}{a-b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
 $a$ | $s$ | Struct Data
+$\textcolor{green}{\lfloor a+s+b-1\rfloor}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
+$\textcolor{violet}{\lfloor a+s+b-1\rfloor+b}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 
 ### Constant Size Heap Array
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{blue}{\textcolor{green}{\lfloor a-s\rfloor-\textcolor{violet}{2\cdot \textcolor{green}{b}}}-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
-$\textcolor{blue}{\textcolor{violet}{\lfloor a-s\rfloor -b}-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
-$\textcolor{blue}{\lfloor a-s\rfloor-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $\lfloor a-s\rfloor$ | $s$ | Array Data
 $\lfloor a-s\rfloor +s$ | $-s\mod b$ | Padding
 $a$ | $b$ | Array Size $s$, i.e. Number of Elements
-$\textcolor{green}{a+b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
+$\textcolor{green}{a+b}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}\ /\ \textcolor{blue}{Capacity}}$
+$\textcolor{violet}{a+2 \cdot b}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 
 A unique heap array does not include the reference counter nor the mutex or the address of the reference counter (the parts marked green). This allows it to be moved to a C function (as address of the array data) and be freed by that.
+
+Also a “constant size” `unique` heap array can in principle be resized using `realloc()` if an lvalue handle is accessible. This is only used with strings (see below).
 
 ## Resizable Heap Array
 
@@ -137,13 +134,11 @@ using `realloc()`. Since this might change the address of the block an additiona
 
 Address | Size | Function
 :---: | :---: | ---
-$\textcolor{blue}{\textcolor{green}{a-\textcolor{violet}{2\cdot \textcolor{green}{b}}}-d}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
-$\textcolor{blue}{\textcolor{violet}{a-b}-d}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
-$\textcolor{blue}{a-d}$ | $\textcolor{blue}{d}$ | $\textcolor{blue}{\mathsf{Other\ Data}}$
 $a$ | $b$ | Pointer to Memory Block
 $a+b$ | $b$ | Array Size $s$, i.e. Number of Elements
 $a+2\cdot b$ | $b$ | Capacity of Memory Block
-$\textcolor{green}{a+3\cdot b}$ | $\textcolor{green}{b}$ | $\textcolor{green}{\mathsf{Address\ of\ Reference\ Counter,\ Address\ to}\ \mathtt{free()}}$
+$\textcolor{green}{a+3\cdot b}$ | $\textcolor{green}{b}$ | $\textsf{\textcolor{red}{Atomic}\ \textcolor{green}{Reference\ Counter}}$
+$\textcolor{violet}{a+4\cdot b}$ | $\textcolor{violet}{b}$ | $\textcolor{violet}{\mathsf{Mutex}}$
 
 ### Data Block
 
@@ -157,6 +152,7 @@ There are two types of strings:
 - `cstring`: a simple memory pointer that should only be used for C interoperability
 - `string`: a Volvox native string — pointer to the size field of the data structure above
 
+A `string` is a implicitely `unique` constant size heap array of `u8`.
 
 There is text $\textcolor{red}{\mathrm{text}}$ $\textcolor{green}{More~Text}$
 
