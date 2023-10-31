@@ -100,10 +100,11 @@ _CDECL ssize_t getline(char** buf, size_t* sz, FILE* f);
 #define cstr2volvoxstr_l(result, lalloc, target, cstr, allocfn, _l, cap)	  \
 	lalloc = (_l+3*target_bytes) & ~(size_t)(target_bytes-1); /* add space for \0 and two aligend size_t */ \
 	target = (char*)allocfn(lalloc); /* create target_bytes-byte aligned space */ \
-	memcpy(target, cstr, _l+1); \
 	result = target + lalloc - 2*target_bytes; \
+	*((size_t*)result - 1) = 0; \
 	*(size_t*)result = _l + 1; /* store size including terminating 0 - make calculation of start easier */ \
-	*((size_t*)result + 1) = cap
+	*((size_t*)result + 1) = cap; \
+	memcpy(target, cstr, _l)
 
 #define cstr2volvoxstr(result, lalloc, target, cstr, allocfn, cap)	  \
 	size_t _l = strlen(cstr); \
