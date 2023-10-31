@@ -514,10 +514,20 @@ llvm::Value* Volvox2CStr1(llvm::Value* v) {
 	return subtrahend;
 }
 
+llvm::Value* getArrayCap(llvm::Value* v) {
+	// LLVM implementation of macro '#define volvox2cstr(v)
+	auto vp = Builder->CreatePointerCast(v, llvm_size_type->getPointerTo());
+	auto cp = Builder->CreateConstGEP1_32(llvm_size_type, vp, 1);
+	llvm::Value* cap = Builder->CreateLoad(llvm_size_type, cp);
+	return cap;
+}
+
 llvm::Value* Volvox2CStr2(llvm::Value* v, llvm::Value* subtrahend) {
 	llvm::Value* cstr = Builder->CreateSub(Builder->CreatePtrToInt(v, llvm_size_type), subtrahend);
-	uint64_t mask = (uint64_t)(int64_t)(-1);
-	if (target_bits != 64)
+	uint64_t mask;
+	if (target_bits == 64)
+		mask = (uint64_t)(int64_t)(-1);
+	else
 		mask = (1ULL << target_bits) - 1;
 	cstr = Builder->CreateAnd(cstr, mask & ~(uint64_t)(target_bytes - 1));
 	return Builder->CreateIntToPtr(cstr, llvm::Type::getInt8PtrTy(Context));
@@ -533,7 +543,7 @@ void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB->getParent();
 	auto subtrahend = Volvox2CStr1(v);
-	llvm::Value* destructflag = Builder->CreateAnd(subtrahend, 1ULL << (target_bits - 1));
+	llvm::Value* destructflag = getArrayCap(v);
 	destructflag = Builder->CreateIsNotNull(destructflag);
 	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "stringdestr");
 	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "contdestr");
