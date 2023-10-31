@@ -1130,26 +1130,15 @@ static char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
 	for (size_t i = 0; i<m; i++)
 		new_l += volvox_string_len(a[i]);
 	size_t new_alloc = __string_allocsize(new_l);
-	char* n;
-	size_t offset;
-	size_t idx;
-	if (is_add_assign && __string_is_heap(a[0])) {
-		char* cstr0 = volvox2cstr(a[0]);
-		n = realloc(cstr0, new_alloc);
-		idx = 1;
-		offset = volvox_string_len(a[0]);
-	} else {
-		n = malloc(new_alloc);
-		idx = 0;
-		offset = 0;
-	}
-	for ( ; idx < m; idx++) {
+	char* n = malloc(new_alloc);
+	char* offset = n;
+	for (size_t idx=0; idx < m; idx++) {
 		char* cstr = volvox2cstr(a[idx]);
 		size_t len = volvox_string_len(a[idx]);
-		memcpy(n + offset, cstr, len);
+		memcpy(offset, cstr, len);
 		offset += len;
 	}
-	n[new_l] = 0;
+	*offset = 0;
 	char* res = n + __raw_offset(new_alloc);
 	*(size_t*)res = (new_l + 1);
 	*((size_t*)res + 1) = new_alloc;
@@ -1208,7 +1197,7 @@ _DECL char* __string_make_writable(char** SizeRef) {
 	size_t alloc_l = __string_allocsize(len - 1);
 	char* cstr = malloc(alloc_l);
 	size_t offset = __raw_offset(alloc_l);
-	memcpy(cstr, *SizeRef - offset, offset);
+	memcpy(cstr, *SizeRef - offset, len);
 	char* volvox_str = cstr + offset;
 	__string_raw_size(volvox_str) = len;
 	__string_raw_cap(volvox_str) = alloc_l;
@@ -1266,11 +1255,15 @@ _DECL void printu64(uint64_t X) {
 
 #define target_bytes sizeof(size_t)
 
-_DECL char* __cstr2volvoxstr(const char* c_str, size_t len) {
+_DECL char* __cstr2volvoxstr(const char* c_str, size_t len, bool mark_as_heap) {
 	char* res;
 	size_t l;
 	char* targ;
-	cstr2volvoxstr_l(res, l, targ, c_str, malloc, len, l);
+	if (mark_as_heap) {
+		cstr2volvoxstr_l(res, l, targ, c_str, malloc, len, l);
+	} else {
+		cstr2volvoxstr_l(res, l, targ, c_str, malloc, len, 0);
+	}
 	return res;
 }
 
