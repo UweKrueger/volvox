@@ -1204,45 +1204,6 @@ _DECL char* __string_make_writable(char** SizeRef) {
 	return volvox_str;
 }
 
-_DECL char* __string_resize(char** SizeRef, size_t new_len) {
-	if ((ssize_t)new_len < 0) {
-		write(2, STR_WRITE("Error: attempt to create string with negative size\n"));
-		abort();
-	}
-	size_t old_len = volvox_string_len(*SizeRef);
-	size_t old_alloc = __string_allocsize(old_len);
-	char* cstr = *SizeRef - __raw_offset(old_alloc);
-	size_t new_alloc = __string_allocsize(new_len);
-	if (__string_is_heap(*SizeRef)) { // already heap allocated
-		if (new_alloc != old_alloc)
-			cstr = realloc(cstr, new_alloc);
-	} else {
-		char* new_cstr = malloc(new_alloc);
-		size_t bytes_to_copy = __raw_offset(__x_min(old_alloc, new_alloc));
-		memcpy(new_cstr, cstr, bytes_to_copy);
-		cstr = new_cstr;
-	}
-	*SizeRef = cstr + __raw_offset(new_alloc);
-	__string_raw_size(*SizeRef) = new_len;
-	__string_raw_cap(*SizeRef) = new_alloc;
-	return cstr;
-}
-
-struct __cstr_len {
-	char* cstr;
-	size_t len;
-};
-
-_DECL struct __cstr_len __string_resize_rel(char** SizeRef, ssize_t delta) {
-	ssize_t old_len = (ssize_t)volvox_string_len(*SizeRef);
-	ssize_t new_len = old_len + delta;
-	char* cstr = __string_resize(SizeRef, (size_t)new_len);
-	return (struct __cstr_len){
-		.cstr = __string_resize(SizeRef, new_len),
-		.len = new_len
-	};
-}
-
 /// printd - printf that takes a double prints it as "%f\n", returning 0.
 _DECL void printd(double X) {
 	fprintf(stderr, "%g\n", X);
