@@ -1150,9 +1150,9 @@ _DECL char* __string_add(char* a, char* b) {
 	return __string_accumulate(2, x, false);
 }
 
-_DECL char* __string_add_assign(char* a, char* b) {
-	char* x[2] = { a, b };
-	return __string_accumulate(2, x, true);
+_DECL void __string_add_assign(char** a, char* b) {
+	char* x[2] = { *a, b };
+	 *a = __string_accumulate(2, x, true);
 }
 
 static char* __string_mult_general(size_t m, char* a, bool is_mult_assign) {
@@ -1188,8 +1188,8 @@ _DECL char* __string_mult(size_t m, char* a) {
 	return __string_mult_general(m, a, false);
 }
 
-_DECL char* __string_mult_assign(size_t m, char* a) {
-	return __string_mult_general(m, a, true);
+_DECL void __string_mult_assign(char** a, size_t m) {
+	*a = __string_mult_general(m, *a, true);
 }
 
 _DECL char* __string_make_writable(char** SizeRef) {

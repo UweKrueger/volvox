@@ -1288,6 +1288,27 @@ llvm::Value* BinaryExprAST::codegen_atomic_Xassign(llvm::Value* ptr, llvm::Value
 	}
 }
 
+std::tuple<llvm::FunctionType*,llvm::Function*,llvm::Type*> findModAssign(
+	const char* Op, volvoxc::FullType* LHS_ft, volvoxc::FullType* RHS_ft)
+{
+	const char* func_name = nullptr;
+	llvm::FunctionType* func_ty = nullptr;
+	llvm::Function* func = nullptr;
+	llvm::Type* des_ty = LHS_ft->type;
+	if (LHS_ft->type->isPointerTy() && (LHS_ft->type_attr & A_string)) {
+		if (!strcmp(Op, "+=") && RHS_ft->type->isPointerTy() &&
+		    (RHS_ft->type_attr & (A_string | A_cstring))) {
+			func_name = "__string_add_assign";
+		}
+	}
+	if (func_name) {
+		auto func_proto = (*lex.findProtos(func_name))[0].get();
+		func_ty = func_proto->FT;
+		func = getFunction(func_proto);
+	}
+	return { func_ty, func, des_ty };
+}
+
 llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -1321,6 +1342,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (opclass == OpModAssign) { // +=, <<=, ...
 			auto new_LHS = std::make_unique<RefExprAST>(LHS->Loc, LHS->ft, LHSE->getBase(), Variable.second, LHSE->Name);
+			auto [mod_func_t, mod_fn, des_rhs] = findModAssign(Op, LHS->ft, RHS->ft);
+			if (mod_fn) {
+				RHS->desired_type = des_rhs;
+				return Builder->CreateCall(mod_func_t, mod_fn, std::vector<llvm::Value*>({ Variable.second, RHS->codegen() }));
+			}
 			char newOp[4];
 			int m=0;
 			for ( ; Op[m] != '='; m++)
