@@ -464,6 +464,8 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 			err_msg = "RHS of operator '%s' must be an integer as LHS is a string\n";
 		else
 			err_msg = "LHS of operator '%s' must be an integer as RHS is a string\n";
+	} else if (!strcmp(Op, "+=") && (left_attr & A_string)) {
+		return { llvm::Type::getVoidTy(Context), 0, false, opclass, nullptr };
 	} else if (opclass == OpColon || opclass == OpDeclAssign || opclass == OpComma)
 		return { nullptr, 0, false, opclass, nullptr };
 	else if (opclass == OpComparison)
