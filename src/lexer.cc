@@ -137,7 +137,11 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 				    strcat(prompt, "    ");
 			    lex.use_readline = true;
 #ifndef _WIN32
-			    rl_initialize();
+			    static bool rl_initialized = false;
+			    if (!rl_initialized) {
+				    rl_initialize();
+				    rl_initialized = true;
+			    }
 #endif
 		    }
 	    }
