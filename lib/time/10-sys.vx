@@ -13,7 +13,7 @@ import arch.os
 # Unix timestamp in 1ns resolution
 #
 type timespec {
-	sec ssize_t  # seconds
+	sec i64  # seconds
     nsec ssize_t # nanoseconds
 }
 

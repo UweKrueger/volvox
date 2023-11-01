@@ -1,0 +1,17 @@
+# emutls uses memory blocks that contain "EXTRA_ALIGN_PTR_BYTES"
+# below the region pointed to, to emulate aligned malloc() - unless
+# EMUTLS_USE_POSIX_MEMALIGN is set. The latter is not the default
+# on most platforms but we can safely suppress the corresponding
+# On FreeBSD valgrind generates an Error
+# "Address 0x4 is not stack'd, malloc'd or (recently) free'd"
+# whenever clock_nanosleep() is called - even in a simple C program
+#
+# You can suppress this error message using the flag
+# "--suppressions=valgrind/clock_nanosleep.supp"
+{
+   clock_nanosleep/freebsd_1
+   Memcheck:Param
+   clock_nanosleep(rqtp)
+   fun:__sys_clock_nanosleep
+   obj:*
+}
