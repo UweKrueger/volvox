@@ -129,6 +129,22 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 	}
 }
 
+#ifdef _WIN32
+#define DLLEXPORT __declspec(dllexport)
+#else
+#define DLLEXPORT
+#endif
+
+// in interactive JIT mode we must keep handles to heap memory blocks
+// allocated from global context, so we can free them when the interpreter
+// finishes and make Valgrind happy...
+//
+extern "C" DLLEXPORT void* __jit_managed_malloc(size_t s) {
+	void* adr = malloc(s);
+	jit_main_variables.emplace_back((char*)adr);
+	return adr;
+}
+
 static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, llvm::Type* elem_type,
                                                             std::vector<llvm::Value*>& Dims, const llvm::Twine& Name = "") {
 	auto ElemSize = getSize(TheModule->getDataLayout().getTypeAllocSize(elem_type));
@@ -154,22 +170,38 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			if (inside_function || comp_mode != comp_jit || do_test)
 				ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
 			else {
-				ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-				                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
-				                                          ElemSize, Len,
-				                                          nullptr, Name);
-				ArrayAlloc = Builder->Insert(ArrayAlloc);
+				if (comp_mode != comp_jit || do_test) {
+					ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
+					                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
+					                                          ElemSize, Len,
+					                                          nullptr, Name);
+					ArrayAlloc = Builder->Insert(ArrayAlloc);
+				} else {
+					const char* jit_malloc = "__jit_managed_malloc";
+					auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();
+					auto jit_malloc_fn = getFunction(jit_malloc_proto);
+					llvm::Value* Sz = Builder->CreateMul(ElemSize, Len);
+					ArrayAlloc = Builder->CreateCall(jit_malloc_proto->FT, jit_malloc_fn, std::vector<llvm::Value*>({ Sz }));
+				}
 			}
 		}
 	} else {
 		if (inside_function || comp_mode != comp_jit || do_test)
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 		else {
-			ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-			                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
-			                                          ElemSize, Len,
-			                                          nullptr, Name);
-			ArrayAlloc = Builder->Insert(ArrayAlloc);
+			if (comp_mode != comp_jit || do_test) {
+				ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
+				                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
+				                                          ElemSize, Len,
+				                                          nullptr, Name);
+				ArrayAlloc = Builder->Insert(ArrayAlloc);
+			} else {
+				const char* jit_malloc = "__jit_managed_malloc";
+				auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();
+				auto jit_malloc_fn = getFunction(jit_malloc_proto);
+				llvm::Value* Sz = Builder->CreateMul(ElemSize, Len);
+				ArrayAlloc = Builder->CreateCall(jit_malloc_proto->FT, jit_malloc_fn, std::vector<llvm::Value*>({ Sz }));
+			}
 		}
 	}
 	ArrayPtr = Builder->CreatePointerCast(ArrayAlloc, elem_type->getPointerTo());

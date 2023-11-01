@@ -11,6 +11,7 @@ cdecl fn strncmp(s1 cstring, s2 cstring, len size_t) i32
 cdecl fn printf(s cstring, ...) int
 cdecl fn __printerr()
 cdecl fn err_printf(s cstring, ...)
+cdecl fn __jit_managed_malloc(s size_t) voidptr
 cdecl fn raise(signal int)
 
 # pseudo functions for compiler

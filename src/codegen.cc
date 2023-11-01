@@ -1119,7 +1119,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		size_t* Dims = ndim ? (size_t*)alloca(ndim * sizeof(size_t)) : nullptr;
 		char* varptr = PTR(Dims);
 		if (varptr) {
-			jit_main_variables.emplace_back(varptr);
 			if (ndim) {
 				std::vector<llvm::Type*> struct_type_el(ndim + 1, llvm_size_type);
 				struct_type_el[ndim] = array_ptr_ty;
@@ -3080,11 +3079,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 							llvm::Value* Sz = getSize(1);
 							for (auto Dim: Dims)
 								Sz = Builder->CreateMul(Sz, Dim);
-							auto align = TheModule->getDataLayout().getPrefTypeAlign(el_type);
-							auto mal_inst = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(), llvm_size_type,
-							                                             llvm::Type::getInt8Ty(Context), ElemSz, Sz,
-							                                             nullptr, var_name);
-							llvm::Value* Ptr = Builder->Insert(mal_inst);
 							auto num_dims = struct_type->getNumElements(); // +1 for pointer
 							auto dim_array = malloc(sizeof(size_t)*num_dims);
 							llvm::Constant* DimArray = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(
