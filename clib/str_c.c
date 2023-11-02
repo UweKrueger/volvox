@@ -1122,6 +1122,7 @@ _DECL void modstr(char* s, int idx, char c) {
 #define __string_raw_cap(s) *((size_t*)(s) + 1)
 #define __string_is_heap(s) (bool)__string_raw_cap(s)
 #define __string_allocsize(len) ((len + 3*sizeof(size_t)) & ~(sizeof(size_t)-1))
+#define __string_c_ptr(s, raw_sz) (char*)((uintptr_t)(s - raw_sz) & ~((sizeof(size_t)-1)))
 #define __raw_offset(alloc) (alloc - 2*sizeof(size_t))
 #define __x_min(a, b) (((a) <= (b)) ? (a) : (b))
 
@@ -1151,8 +1152,30 @@ _DECL char* __string_add(char* a, char* b) {
 }
 
 _DECL void __string_add_assign(char** a, char* b) {
-	char* x[2] = { *a, b };
-	 *a = __string_accumulate(2, x, true);
+	size_t sz_a = __string_raw_size(*a);
+	char* c_a = __string_c_ptr(*a, sz_a);
+	size_t cap_a = __string_raw_cap(*a);
+	size_t sz_b = __string_raw_size(b);
+	char* c_b = __string_c_ptr(b, sz_b);
+	size_t new_sz = sz_a + sz_b - 1; // terminating '\0' only once
+	size_t min_cap = (new_sz + 3*sizeof(size_t) - 1) & ~(sizeof(size_t)-1);
+	char* new_a;
+	if (cap_a < min_cap) {
+		min_cap = min_cap + (min_cap >> 1) + 32; // exponential + linear growth
+		if (cap_a)
+			new_a = (char*)realloc(c_a, min_cap);
+		else {
+			new_a = (char*)malloc(min_cap);
+			memcpy(new_a, c_a, sz_a - 1);
+		}
+		c_a = new_a;
+		cap_a = min_cap;
+	}
+	memcpy(c_a + sz_a - 1, c_b, sz_b);
+	char* res = (char*)((uintptr_t)(c_a + new_sz + sizeof(size_t) - 1) & ~(sizeof(size_t)-1));
+	*(size_t*)res = new_sz;
+	*((size_t*)res + 1) = cap_a;
+	*a = res;
 }
 
 static char* __string_mult_general(size_t m, char* a, bool is_mult_assign) {
