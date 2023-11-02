@@ -1151,12 +1151,10 @@ _DECL char* __string_add(char* a, char* b) {
 	return __string_accumulate(2, x, false);
 }
 
-_DECL void __string_add_assign(char** a, char* b) {
+_DECL void __string_add_assign_gen(char** a, char* c_b, size_t sz_b) {
 	size_t sz_a = __string_raw_size(*a);
 	char* c_a = __string_c_ptr(*a, sz_a);
 	size_t cap_a = __string_raw_cap(*a);
-	size_t sz_b = __string_raw_size(b);
-	char* c_b = __string_c_ptr(b, sz_b);
 	size_t new_sz = sz_a + sz_b - 1; // terminating '\0' only once
 	size_t min_cap = (new_sz + 3*sizeof(size_t) - 1) & ~(sizeof(size_t)-1);
 	char* new_a;
@@ -1176,6 +1174,17 @@ _DECL void __string_add_assign(char** a, char* b) {
 	*(size_t*)res = new_sz;
 	*((size_t*)res + 1) = cap_a;
 	*a = res;
+}
+
+_DECL void __string_add_assign(char** a, char* b) {
+	size_t sz_b = __string_raw_size(b);
+	char* c_b = __string_c_ptr(b, sz_b);
+	__string_add_assign_gen(a, c_b, sz_b);
+}
+
+_DECL void __string_add_c_assign(char** a, char* c_b) {
+	size_t sz_b = strlen(c_b) + 1;
+	__string_add_assign_gen(a, c_b, sz_b);
 }
 
 static char* __string_mult_general(size_t m, char* a, bool is_mult_assign) {

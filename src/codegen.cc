@@ -926,7 +926,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			Val = expr->RHS->codegen(true);
 		}
 	}
-	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_map) : (A_signed | A_string | A_map | A_destructor));
+	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map) : (A_signed | A_string | A_cstring | A_map | A_destructor));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
 	if (Val) {
@@ -1295,14 +1295,23 @@ std::tuple<llvm::FunctionType*,llvm::Function*,llvm::Type*> findModAssign(
 	llvm::FunctionType* func_ty = nullptr;
 	llvm::Function* func = nullptr;
 	llvm::Type* des_ty = LHS_ft->type;
-	if (LHS_ft->type->isPointerTy() && (LHS_ft->type_attr & A_string)) {
-		if (!strcmp(Op, "+=") && RHS_ft->type->isPointerTy() &&
-		    (RHS_ft->type_attr & (A_string | A_cstring))) {
-			func_name = "__string_add_assign";
+	if (LHS_ft->type->isPointerTy()) {
+		if (!strcmp(Op, "+=")) {
+			if (LHS_ft->type_attr & A_string) {
+				if (RHS_ft->type_attr & A_string)
+					func_name = "__string_add_assign";
+				else if (RHS_ft->type_attr & A_cstring)
+					func_name = "__string_add_c_assign";
+			}
 		}
 	}
 	if (func_name) {
 		auto func_proto = (*lex.findProtos(func_name))[0].get();
+		if (!func_proto) {
+			errs() << "internal compiler error: builtin function "
+			       << func_name << "() not declared\n";
+			abort();
+		}
 		func_ty = func_proto->FT;
 		func = getFunction(func_proto);
 	}

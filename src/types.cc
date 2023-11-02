@@ -451,9 +451,9 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	auto opclass = getOpClass(Op);
 	const char* err_msg = nullptr;
 	if (!strcmp(Op, "+") || !strcmp(Op, "=")) {
-		if (left_attr & right_attr & A_string)
+		if (left_attr & right_attr & (A_string | A_cstring))
 			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
-		if (!(left_attr & A_string))
+		if (!(left_attr & (A_string | A_cstring)))
 			err_msg = "LHS of operator '%s' is no string (but RHS is)\n";
 		else
 			err_msg = "RHS of operator '%s' is no string (but LHS is)\n";
@@ -483,7 +483,7 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type)
 {
-	if ((left_attr & A_string) || (right_attr & A_string))
+	if ((left_attr & (A_string | A_cstring)) || (right_attr & (A_string | A_cstring)))
 		return getStringRes(left_type, right_type, Op, left_attr, right_attr);
 	bool left_is_signed = left_attr & A_signed;
 	bool right_is_signed = right_attr & A_signed;
