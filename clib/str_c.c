@@ -1123,6 +1123,7 @@ _DECL void modstr(char* s, int idx, char c) {
 #define __string_is_heap(s) (bool)__string_raw_cap(s)
 #define __string_allocsize(len) ((len + 3*sizeof(size_t)) & ~(sizeof(size_t)-1))
 #define __string_c_ptr(s, raw_sz) (char*)((uintptr_t)(s - raw_sz) & ~((sizeof(size_t)-1)))
+#define __string_min_cap(raw_sz) ((raw_sz + 3*sizeof(size_t) - 1) & ~(sizeof(size_t)-1))
 #define __raw_offset(alloc) (alloc - 2*sizeof(size_t))
 #define __x_min(a, b) (((a) <= (b)) ? (a) : (b))
 
@@ -1151,12 +1152,23 @@ _DECL char* __string_add(char* a, char* b) {
 	return __string_accumulate(2, x, false);
 }
 
+_DECL char* __string_dup(char* s) {
+	size_t sz = __string_raw_size(s);
+	char* s_c = __string_c_ptr(s, sz);
+	size_t min_cap = __string_min_cap(sz);
+	char* new_str = (char*)malloc(min_cap);
+	memcpy(new_str, s_c, min_cap - sizeof(size_t));
+	char* res = new_str + __raw_offset(min_cap);
+	*((size_t*)res + 1) = min_cap;
+	return res;
+}
+
 _DECL void __string_add_assign_gen(char** a, char* c_b, size_t sz_b) {
 	size_t sz_a = __string_raw_size(*a);
 	char* c_a = __string_c_ptr(*a, sz_a);
 	size_t cap_a = __string_raw_cap(*a);
 	size_t new_sz = sz_a + sz_b - 1; // terminating '\0' only once
-	size_t min_cap = (new_sz + 3*sizeof(size_t) - 1) & ~(sizeof(size_t)-1);
+	size_t min_cap = __string_min_cap(new_sz);
 	char* new_a;
 	if (cap_a < min_cap) {
 		min_cap = min_cap + (min_cap >> 1) + 32; // exponential + linear growth
@@ -1258,6 +1270,17 @@ _DECL char* __cstr2volvoxstr(const char* c_str, size_t len, bool mark_as_heap) {
 		cstr2volvoxstr_l(res, l, targ, c_str, malloc, len, 0);
 	}
 	return res;
+}
+
+_DECL char* __cstr2volvox(const char* c_str) {
+	size_t l = strlen(c_str);
+	return __cstr2volvoxstr(c_str, l, true);
+}
+
+_DECL char* __volvox2cstr(const char* v) {
+	size_t sz = __string_raw_size(v);
+	const char* s_c = __string_c_ptr(v, sz);
+	return strdup(s_c);
 }
 
 _DECL char* __transformcstr2volvox(char* c_str) {

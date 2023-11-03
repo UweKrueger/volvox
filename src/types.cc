@@ -451,7 +451,7 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	auto opclass = getOpClass(Op);
 	const char* err_msg = nullptr;
 	if (!strcmp(Op, "+") || !strcmp(Op, "=")) {
-		if (left_attr & right_attr & (A_string | A_cstring))
+		if ((left_attr & (A_string | A_cstring)) && (right_attr & (A_string | A_cstring)))
 			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
 		if (!(left_attr & (A_string | A_cstring)))
 			err_msg = "LHS of operator '%s' is no string (but RHS is)\n";

@@ -1447,7 +1447,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	use_val:
 		if (allocsz <= 16 && !is_constructor_call) {
-			if (RHS->ft->type_attr & (A_use_target /* | A_string */)) {
+			if (RHS->ft->type_attr & A_use_target) {
 				postpone_valgen = true;
 			} else {
 				if (RHS->ft->type_attr & A_string)
