@@ -1954,15 +1954,11 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (Elist.second == tok_return) {
 		while (CurTok.kind == ';')
 			getNextToken();
-		if (CurTok.kind == tok_end) {
-			getNextToken();
-		} else {
+		if (CurTok.kind != tok_end) {
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
 		}
-	} else if (Elist.second == tok_end) {
-		getNextToken();
-	} else {
+	} else if (Elist.second != tok_end) {
 		errs() << CurLoc << ": 'return' or 'end' expected\n";
 		return nullptr;
 	}

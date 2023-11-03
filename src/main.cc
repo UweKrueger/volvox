@@ -1020,6 +1020,7 @@ static void MainLoop() {
 					CallTestFunction(true);
 				TestFunction = nullptr;
 			}
+			getNextToken();
 			goto startmainloop;
 		case tok_cdecl:
 			sym_kind |= A_c_api;
