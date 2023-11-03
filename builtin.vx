@@ -9,6 +9,7 @@ cdecl fn exit(n int)
 cdecl fn strcmp(s1 cstring, s2 cstring) i32
 cdecl fn strncmp(s1 cstring, s2 cstring, len size_t) i32
 cdecl fn printf(s cstring, ...) int
+cdecl fn strtod(s cstring, endptr voidptr) f64
 cdecl fn __printerr()
 cdecl fn err_printf(s cstring, ...)
 cdecl fn __jit_managed_malloc(s size_t) voidptr
