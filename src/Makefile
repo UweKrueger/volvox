@@ -105,7 +105,7 @@ ifneq ($(wildcard /usr/include/editline/.*),)
 	CPPEXTRAFLAGS := -I/usr/include/editline
 else
 	CPPEXTRAFLAGS := -DUSE_EDITLINE
-	LINKEXTRAFLAGS := -leditline -lpthread
+	LINKEXTRAFLAGS := -leditline -lpthread -rdynamic
 endif
 	EXTRAOBJS :=
 	EDITLINEOBJS :=
