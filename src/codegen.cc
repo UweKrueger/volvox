@@ -319,7 +319,7 @@ llvm::Value* VariableExprAST::codegen(bool suppress_destructor) {
 	return convert_raw(rawV);
 }
 
-std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fail) {
+std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fail, bool constref) {
 	if (!full_var) {
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
 		return { nullptr, nullptr };
@@ -432,13 +432,14 @@ llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, llvm::Type* exp
 	}
 }
 
-std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref_(bool silent_fail) {
+std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref_(
+	bool silent_fail, bool constref) {
 	if (!ft || !ft->type)
 		return { nullptr, nullptr }; // error message was already generated in AST
 	if (Struct->ft->type->isArrayTy() || Struct->ft->type->isPointerTy())
 		goto failure;
 	if (auto LV = dynamic_cast<LvalueExprAST*>(Struct.get())) {
-		auto struct_ref = LV->codegen_ref(silent_fail);
+		auto struct_ref = LV->codegen_ref(silent_fail, constref);
 		if (struct_ref.second) {
 			if (Struct->ft->type_attr & A_union)
 				return { ft->type, Builder->CreatePointerCast(struct_ref.second, ft->type->getPointerTo()) };
@@ -2183,7 +2184,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 					llvm::Value* re_ptr = nullptr;
 					if (auto lval = dynamic_cast<LvalueExprAST*>(Branch.back().get())) {
 						llvm::Type* dummy;
-							std::tie(dummy, re_ptr) = lval->codegen_ref(lval);
+							std::tie(dummy, re_ptr) = lval->codegen_ref(true);
 							if (dummy && re_ptr)
 								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
 									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);

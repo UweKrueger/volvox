@@ -1347,7 +1347,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 					if (!Body.empty())
 						if (auto lval = dynamic_cast<LvalueExprAST*>(Body.back().get())) {
 							llvm::Type* dummy;
-							std::tie(dummy, re_ptr) = lval->codegen_ref(lval);
+							std::tie(dummy, re_ptr) = lval->codegen_ref(true);
 							if (dummy && re_ptr)
 								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
 									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);

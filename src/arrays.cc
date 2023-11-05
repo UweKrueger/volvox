@@ -488,7 +488,7 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 			return nullptr;
 		res = fieldval;
 	} else if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get())) {
-		auto elem = lval->codegen_ref();
+		auto elem = lval->codegen_ref(false, const_ref);
 		ml_field_type = Field->ft->type;
 		res = elem.second;
 		var_dims_to_process = 0;
@@ -538,7 +538,9 @@ llvm::Value* IndexExprAST::codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::T
 	return res;
 }
 
-std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(bool silent_fail) {
+std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
+	bool silent_fail, bool constref) {
+	const_ref = constref;
 	llvm::Value* NumElem = nullptr;
 	if (!Field->ft || !Field->ft->type) {
 		errs() << Field->Loc << ": unknown type\n";

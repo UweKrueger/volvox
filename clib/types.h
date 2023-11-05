@@ -28,7 +28,8 @@
 #define A_pub    (1U<<16)
 #define A_mainvar (1U<<17) // global for LLVM
 #define A_global (1U<<18) // in jit jit all main symbols are global for LLVM, so an additional flag for logical visibility is needed
-#define A_inline (1U<<19)
+#define A_inline (1U<<19) // function
+#define A_modified (1U<<19) // variable
 #define A_c_api  (1U<<20)
 #define A_destructor (1U<<21) // fn is destructor or type has destructor
 #define A_constructor (1U<<22) // fn is default c. or type has default c.

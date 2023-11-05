@@ -156,7 +156,8 @@ inline bool is_ccfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
 // However, there are exceptions: LvalueExprAST is base class for IndexExprAST and SelectExprAST
 // but it is possible that the array/struct is in fact an rvalue. These cases need special
 // treatment is the derived classes. Here we provide an option 'silent_fail' for 'codegen_ref()'
-// that makes the method return a type but no pointer in these cases
+// that makes the method return a type but no pointer in these cases.
+// Usually generating the reference of an expression
 //
 class LvalueExprAST : public ExprAST {
 protected:
@@ -169,16 +170,18 @@ public:
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
-	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) {
+	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(
+		bool silent_fail = false, bool constref = false) {
 		return { nullptr, nullptr };
 	}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref(bool silent_fail = false) {
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref(
+		bool silent_fail = false, bool constref = false) {
 		if (ref_cache.first) {
 			if (!ref_cache.second && !silent_fail)
 				errs() << Loc << ": cannot get reference\n";
 			return ref_cache;
 		}
-		return codegen_ref_(silent_fail);
+		return codegen_ref_(silent_fail, constref);
 	}
 	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
@@ -234,7 +237,7 @@ public:
 	const std::string &getName() const { return Name; }
 	VariableExprAST* getBase() override { return this; }
 	// create reference to this variable - second result is the storage_type
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen(bool suppress_destructor = false) override;
 #ifndef NDEBUG
@@ -257,7 +260,7 @@ public:
 			ft->type_attr |= A_ref;
 		}
 	}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override {
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override {
 		return { ft->type, ref };
 	}
 	VariableExprAST* getBase() override { return var; }
@@ -434,7 +437,7 @@ public:
 				ft = nullptr;
 			}
 		}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	VariableExprAST* getBase() override {
 		if (auto lval = dynamic_cast<LvalueExprAST*>(Struct.get()))
@@ -452,6 +455,7 @@ public:
 	std::unique_ptr<ExprAST> Field, Index;
 	llvm::Type* ml_elem_type = nullptr;
 	int num_dims_to_strip_from_val = 0;
+	bool const_ref;
 	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
 	             std::unique_ptr<ExprAST> Index_) :
 		LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_))
@@ -478,7 +482,7 @@ public:
 		llvm::Type* elem_type, std::vector<llvm::Value*>& Idxs,
 		llvm::Value* Dims, int idx_idx, int dim_idx);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type);
 	VariableExprAST* getBase() override {
 		if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get()))
@@ -708,8 +712,8 @@ public:
 		}
 		return handle(target, Builder->CreatePointerCast(ptr, llvm::Type::getInt8PtrTy(Context)));
 	}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false) override {
-		auto pair = Operand->codegen_ref(silent_fail);
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override {
+		auto pair = Operand->codegen_ref(silent_fail, false);
 		ft->type = pair.first;
 		return pair;
 	}
