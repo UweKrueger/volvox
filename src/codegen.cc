@@ -265,7 +265,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
-	auto V = codegen_ref();
+	auto V = codegen_ref(false, true);
 	if (V.first && V.second)
 		// Load the value.
 		return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()));
@@ -280,7 +280,7 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 	if (full_var->ft.type_attr & A_rvalue) {
 		return full_var->val;
 	}
-	auto V = codegen_ref();
+	auto V = codegen_ref(false, true);
 	if (V.first && V.second) {
 		// Load the value.
 		if (full_var->ft.type_attr & A_atomic)
@@ -332,6 +332,8 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 			return { nullptr, nullptr };
 		}
 	}
+	if (!constref)
+		full_var->ft.type_attr |= A_modified;
 	llvm::Value* V;
 	llvm::Type* storage_type;
 	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && (comp_mode == comp_jit && !do_test)) {

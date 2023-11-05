@@ -1046,9 +1046,10 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	for (unsigned i = 0; i < Args.size(); ++i) {
+		bool by_val = false;
 		bool is_address = (i+arg_offs) < Proto->Args.size()
 			&& (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
-			    || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef));
+			    || (by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)));
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
 			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= Proto->Args.size() || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
@@ -1086,12 +1087,13 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			if (!arg) {
 				if (is_address) {
 					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
-						auto argref = lval->codegen_ref(true);
+						auto argref = lval->codegen_ref(true, by_val);
 						if (!argref.first) {
 							errs() << Args[i]->Loc << ": cannot generate reference function argument\n";
 							return nullptr;
 						}
 						if (argref.second)
+							// TODO: handle valiable sized arrays
 							arg = Builder->CreatePointerCast(argref.second, argref.first->getPointerTo());
 					}
 					if (!arg) {
