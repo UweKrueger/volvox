@@ -180,7 +180,7 @@ fn test_int_frac_exponentiation_1 bool
 	return z > 4.568777715957600 && z < 4.568777715957606
 end
 
-import tests.testmod
+import testmod
 
 fn fqq(x i32) i32
 	return x+x

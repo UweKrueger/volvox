@@ -1529,13 +1529,13 @@ int main(int argc, char* argv[]) {
 			usage(argv[0]);
 		}
 	}
+	for (;optind < argc; optind++)
+		source_files.front().push_back(SourceFileNames.emplace_back(strdup(argv[optind])));
 	if (verbosity >= 2) {
 		errs() << "Path of Volvox Binary: >" << getThisExePath() << "<\n";
 		errs() << "Lib: >" << volvox_lib() << "<\n";
 		errs() << "Volvox Root: >" << volvox_root() << "<\n";
 	}
-	for (;optind < argc; optind++)
-		source_files.front().push_back(SourceFileNames.emplace_back(strdup(argv[optind])));
 	if (!comp_mode) {
 		if (source_files.front().size())
 			comp_mode = comp_obj;

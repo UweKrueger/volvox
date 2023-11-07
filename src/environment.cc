@@ -166,8 +166,25 @@ const char* volvox_lib() {
 	if (lib)
 		return lib;
 	static const char* project = getenv(VOLVOX_PROJECT);
-	if (!project)
-		project = ".";
+	char* local_project = nullptr;
+	if (!project) {
+		if (!source_files.empty() && !source_files[0].empty()) {
+			local_project = strdup(source_files[0][0]);
+			char* last_slash = (char*)strrchr(local_project, '/');
+#ifdef _WIN32
+			char* last_slash2 = (char*)strrchr(local_project, '\\');
+			if (last_slash2)
+				if (!last_slash || last_slash2 > last_slash2)
+					last_slash = last_slash2;
+#endif
+			if (last_slash) {
+				*last_slash = '\0';
+				project = local_project;
+			}
+		}
+		if (!project)
+			project = ".";
+	}
 	// get root and append 'lib'
 	const char* root = volvox_root();
 	size_t l = strlen(root);
@@ -182,5 +199,6 @@ const char* volvox_lib() {
 	lib_from_root[l++] = PATHLISTSEP;
 	memcpy(lib_from_root + l, project, pl + 1);
 	lib = lib_from_root;
+	free(local_project);
 	return lib;
 }

@@ -1,5 +1,5 @@
-import tests.testmod.subb
-import tests.testmod.suba
+import testmod.subb
+import testmod.suba
 
 global hjggd = subb.CCv{
 	w: {
