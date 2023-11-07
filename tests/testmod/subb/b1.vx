@@ -1,5 +1,5 @@
-import tests.testmod as lop
-from tests.testmod.suba import QQrt
+import .. as lop
+from ...testmod.suba import QQrt
 
 type CCv {
 	w QQrt

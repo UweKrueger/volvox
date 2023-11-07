@@ -17,10 +17,10 @@
 #include <sys/sysctl.h>
 #elif defined(__linux__)
 #define THISEXELINK "/proc/self/exe"
-#elif defined(__OpenBSD__) || defined(__HAIKU__)
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#else // defined(__OpenBSD__) || defined(__HAIKU__)
 // needs probably fiddling with argv[0]/KERN_PROC_ARGS, PATH, realpath(), ...
-#else
-// what else - MacOS?
 #endif
 
 /* get the full path of the current executable
@@ -80,8 +80,37 @@ const char* getThisExePath() {
 	} while (res >= bufsize);
 	volvox_exe_path[res] = '\0';
 	return volvox_exe_path;
+#elif defined(__APPLE)
+	uint32_t bufsz = 256;
+	int res;
+	do {
+		volvox_exe_path = realloc(volvox_exe_path, bufsz);
+		res = _NSGetExecutablePath(volvox_exe_path, &bufsz);
+	} while(res < 0);
+	return volvox_exe_path;
 #elif defined(__OpenBSD__) || defined(__HAIKU__)
+	// there is no "official" way to get the executable path
+	// if the program has been called with a relative path
+	// we append that to `pwd` - otherwise
 	// we rely on environment variables and hard coded paths for now
+	if (strrchr(argv0, '/')) {
+		if (argv0[0] == '/') {
+			volvox_exe_path = (char*)argv0;
+			return volvox_exe_path;
+		}
+		size_t sz1 = strlen(argv0);
+		volvox_exe_path = (char*)malloc(PATH_MAX + sz1 + 1);
+		if (!getcwd(volvox_exe_path, PATH_MAX)) {
+			free(volvox_exe_path);
+			volvox_exe_path = nullptr;
+			return nullptr;
+		}
+		size_t idx = strlen(volvox_exe_path);
+		volvox_exe_path[idx] = '/';
+		memcpy(volvox_exe_path + idx + 1, argv0, sz1);
+		volvox_exe_path[idx + 1 + sz1] = '\0';
+		return volvox_exe_path;
+	}
 	return nullptr;
 #else
 #error "this operating system is no supported (yet)"
@@ -98,11 +127,19 @@ const char* volvox_root() {
 	root = getenv(VOLVOX_ROOT);
 	if (root)
 		return root;
-#if defined(__OpenBSD__)
-	// getThisExePath() does not work - return supposed installation directory
-	return "/usr/local";
-#else
 	const char* exe_path = getThisExePath();
+	if (!exe_path) {
+		errs()
+#if defined(__OpenBSD__) || defined(__HAIKU__)
+			<< "Your operating system lacks a method to get the path of the running executable\n"
+			<< "(KERN_PROC_PATHNAME sysctl or similar).\n"
+#else
+			<< "Unable to get the path of this executable even though your operating system should\n"
+			<< "support this.\n"
+#endif
+			<< "Please set the environment variable " VOLVOX_ROOT " to point to your installation\n";
+		exit(1);
+	}
 	size_t l = strlen(exe_path);
 	// cut off last element
 	for (l -= 1; l && exe_path[l] != '/' && exe_path[l] != '\\'; l--);
@@ -119,7 +156,6 @@ const char* volvox_root() {
 	root_from_exe[l] = '\0';
 	root = root_from_exe;
 	return root;
-#endif
 }
 
 const char* volvox_lib() {

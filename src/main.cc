@@ -46,6 +46,7 @@ OS_Type_t os_idx;
 signalhandler_t old_abort = nullptr;
 signalhandler_t old_flt = nullptr;
 signalhandler_t old_intr = nullptr;
+const char* argv0;
 #ifdef _WIN32
 #define THREAD_HANDLE_TY HANDLE
 #else
@@ -1309,6 +1310,7 @@ unsigned old_input_cp;
 #endif
 
 int main(int argc, char* argv[]) {
+	argv0 = argv[0];
 #if defined (_WIN32)
 	old_cp = GetConsoleOutputCP();
 	old_input_cp = GetConsoleCP();
@@ -1656,7 +1658,8 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	// always read builtin definitions first
-	builtin_input_file = fopen(builtin_file_name,
+	auto builtin_fn = std::string(volvox_root()) + '/' + builtin_file_name;
+	builtin_input_file = fopen(builtin_fn.c_str(),
 #ifdef _WIN32
 	                           "rb" // 'b' -> BINARY, no 'N' -> not iNherited
 #else
@@ -1664,7 +1667,7 @@ int main(int argc, char* argv[]) {
 #endif
 		);
 	if (!builtin_input_file) {
-		errs() << llvm::format("Cannot open definition file for builtins\"%s\": %s\n", builtin_file_name, strerror(errno));
+		errs() << llvm::format("Cannot open definition file for builtins \"%s\": %s\n", builtin_fn.c_str(), strerror(errno));
 		exit(1);
 	}
 	lex = Lexer(&builtin_input_file, builtin_file_name);

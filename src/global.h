@@ -169,6 +169,7 @@ struct promptcolor_t {
 };
 
 extern promptcolor_t p_col;
+extern const char* argv0;
 
 // the following output streams only output on stderr if one or more '-v' options were given  
 extern int verbosity;
