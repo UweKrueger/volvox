@@ -881,8 +881,24 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			if (Args.size() == 1) {
 				Args[0]->desired_type = ft->type;
 				llvm::Value* expr = Args[0]->codegen_raw();
-				auto conv = getConv(expr->getType(), ft->type, Loc, (bool)(Args[0]->ft->type_attr & A_signed),
-				                    (bool)(ft->type_attr & A_signed), true, false, nullptr);
+				std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
+				if (expr->getType()->isPointerTy()) {
+					// special handling for string types
+					if ((Args[0]->ft->type_attr & A_string)
+					    && (ft->type_attr & A_cstring)) {
+						conv = Volvox2CStr;
+					} else if ((Args[0]->ft->type_attr & A_cstring)
+					         && (ft->type_attr & A_string)) {
+						auto converter_name = "__cstr2volvox";
+						auto converter_proto = (*lex.findProtos(converter_name))[0].get();
+						auto converter = getFunction(converter_proto);
+						return Builder->CreateCall(converter_proto->FT, converter, std::vector<llvm::Value*>({ expr }));
+					} else {
+						conv = NoConversion;
+					}
+				} else
+					conv = getConv(expr->getType(), ft->type, Loc, (bool)(Args[0]->ft->type_attr & A_signed),
+					               (bool)(ft->type_attr & A_signed), true, false, nullptr);
 				if (conv)
 					return conv(expr);
 				else
