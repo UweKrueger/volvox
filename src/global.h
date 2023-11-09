@@ -349,6 +349,8 @@ enum OpClass : uint8_t {
 };
 
 extern llvm::Value* Volvox2CStr(llvm::Value* v);
+extern llvm::Value* StringDup(llvm::Value* str);
+
 extern void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                           bool expr_is_signed, bool desired_is_signed, const char* reason, bool is_explicit);
 static inline std::nullptr_t AutoErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,

@@ -772,6 +772,13 @@ llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
 	return llvm::Constant::getNullValue(ft->type);
 }
 
+llvm::Value* StringDup(llvm::Value* str) {
+	auto converter_name = "__cstring_dup";
+	auto converter_proto = (*lex.findProtos(converter_name))[0].get();
+	auto converter = getFunction(converter_proto);
+	return Builder->CreateCall(converter_proto->FT, converter, std::vector<llvm::Value*>({ str }));
+}
+
 llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	bool is_error = Proto && Proto->Name == "__error";
 	if (is_error || Proto && Proto->Name == "__link_extra") {
