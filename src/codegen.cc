@@ -927,6 +927,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				if (expr->RHS->ft->type->isIntegerTy())
 					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
 			Val = expr->RHS->codegen(true);
+			allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
+			// if (!allocsz)
+			// 	Val = nullptr;
 		}
 	}
 	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map) : (A_signed | A_string | A_cstring | A_map | A_destructor));
@@ -1053,6 +1056,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				else
 					Builder->CreateStore(Val, GV);
 			} else { // variable size array
+				errs() << expr->LHS->Loc << ": var size ";
+				if (Val)
+					errs() << *Val;
+				errs() << "\n";
 				auto retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
 					ndim = struct_type->getNumElements() - 1;
@@ -1428,6 +1435,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 						ValPtr = Builder->CreateExtractValue(ValR.second, struct_type->getNumElements() - 1);
 					else
 						ValPtr = ValR.second;
+					errs() << LHS->Loc << ": ### " << *Struct << "\n";
 				} else {
 					errs() << "variable sized objects of type " << *RHS_Lval->ft->type << " not implemented\n";
 					return nullptr;
