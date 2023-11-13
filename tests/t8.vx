@@ -195,3 +195,18 @@ fn test_string_by_val bool
 	d = string_by_val(a)
 	return d == 3570 && a == "3.57e3"
 end
+
+pfhl4 = 4
+
+xkj56 = [pfhl4]f64{3.75, 6.25, 8, 7.125}
+
+oxgh4 = xkj56
+
+oxgh4[1] = -17.25
+
+global uuzzt67 = xkj56[1] == 6.25 && oxgh4[1] == -17.25 && oxgh4[3] == 7.125
+
+fn test_main_array_copy_constructor bool
+	global uuzzt67
+	return uuzzt67
+end
