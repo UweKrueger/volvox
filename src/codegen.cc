@@ -281,7 +281,7 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 		return full_var->val;
 	}
 	auto V = codegen_ref(false, true);
-	if (V.first && V.second) {
+	if (V.first && V.second && V.second->getType()->isPointerTy()) {
 		// Load the value.
 		if (full_var->ft.type_attr & A_atomic)
 			return handle(target, CreateAtomicLoad(V.first, V.second, Name.c_str()));
@@ -928,8 +928,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
 			Val = expr->RHS->codegen(true);
 			allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
-			// if (!allocsz)
-			// 	Val = nullptr;
 		}
 	}
 	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map) : (A_signed | A_string | A_cstring | A_map | A_destructor));
@@ -943,7 +941,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 			}
 		}
-	} else if (!use_target && !initialization_from_main) {
+	} else if (!use_target && !initialization_from_main && !dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 		errs() << expr->Loc << ": cannot generate code for RHS\n";
 		return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 	}
@@ -1044,6 +1042,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		llvm::Type* array_ptr_ty = nullptr;
 		llvm::Value* ptrRet = nullptr;
 		unsigned ndim = 0;
+		llvm::StructType* struct_type = nullptr;
 		if (needs_store || use_target) {
 			if (comp_mode != comp_jit) {
 				errs() << expr->Loc << ": internal error - non-global main variable '" << varname
@@ -1055,13 +1054,61 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 					expr->RHS->codegen_raw(GV);
 				else
 					Builder->CreateStore(Val, GV);
-			} else { // variable size array
-				errs() << expr->LHS->Loc << ": var size ";
-				if (Val)
-					errs() << *Val;
-				errs() << "\n";
-				auto retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
-				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType())) {
+			} else {
+				llvm::Value* retVal = nullptr;
+				if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
+					// variable size array variable
+					auto r_ref = RHS_Lval->codegen_ref(false, true);
+					auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type);
+					if (!array_type || !r_ref.second) {
+						errs() << expr->LHS->Loc << ": internal error - cannot generate RHS reference\n";
+						cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
+						return nullptr;
+					}
+					std::vector<llvm::Value*> Dims;
+					std::vector<llvm::Value*> returnDims;
+					auto elem_type = getArrayDims(r_ref.second, array_type, Dims, returnDims);
+					size_t el_allocsz = elem_type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(elem_type) : 0;
+					if (!el_allocsz) {
+						errs() << "array element type must be sized\n";
+						cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
+						return nullptr;
+					}
+					llvm::Value* Len = getSize(1);
+					for (auto dim: Dims)
+						Len = Builder->CreateMul(Len, dim);
+					llvm::Value* ValPtr;
+					if ((struct_type = llvm::dyn_cast<llvm::StructType>(r_ref.second->getType())))
+						ValPtr = Builder->CreateExtractValue(r_ref.second, struct_type->getNumElements() - 1);
+					else
+						ValPtr = r_ref.second;
+					llvm::Value* ArrayAlloc = nullptr;
+					auto ElemSize = getSize(el_allocsz);
+					llvm::Value* Sz = Builder->CreateMul(ElemSize, Len);
+					if (inside_function || comp_mode != comp_jit || do_test)
+						ArrayAlloc = Builder->CreateAlloca(elem_type, Len, varname);
+					else {
+						if (comp_mode != comp_jit || do_test) {
+							ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
+							                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
+							                                          ElemSize, Len,
+							                                          nullptr, varname);
+							ArrayAlloc = Builder->Insert(ArrayAlloc);
+						} else {
+							const char* jit_malloc = "__jit_managed_malloc";
+							auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();
+							auto jit_malloc_fn = getFunction(jit_malloc_proto);
+							ArrayAlloc = Builder->CreateCall(jit_malloc_proto->FT, jit_malloc_fn, std::vector<llvm::Value*>({ Sz }));
+						}
+					}
+					auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
+					retVal = r_ref.second;
+					ptrRet = Builder->CreateMemCpy(ArrayAlloc, align, ValPtr, align, Sz);
+				} else { // variable size array literal
+					retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
+					struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType());
+				}
+				if (struct_type) {
 					ndim = struct_type->getNumElements() - 1;
 					for (unsigned dim = 0; ; ) {
 						Builder->CreateStore(Builder->CreateExtractValue(retVal, dim), Arg);
@@ -1070,7 +1117,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 						Arg = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Arg, llvm_size_type),
 						                                                 getSize(target_bytes)), Arg->getType());
 					}
-					ptrRet = Builder->CreateExtractValue(retVal, ndim);
+					if (!ptrRet)
+						ptrRet = Builder->CreateExtractValue(retVal, ndim);
 					array_ptr_ty = ptrRet->getType();
 				} else if (auto array_type = llvm::dyn_cast<llvm::PointerType>(retVal->getType())) {
 					array_ptr_ty = retVal->getType();
@@ -1435,7 +1483,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 						ValPtr = Builder->CreateExtractValue(ValR.second, struct_type->getNumElements() - 1);
 					else
 						ValPtr = ValR.second;
-					errs() << LHS->Loc << ": ### " << *Struct << "\n";
 				} else {
 					errs() << "variable sized objects of type " << *RHS_Lval->ft->type << " not implemented\n";
 					return nullptr;

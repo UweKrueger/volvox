@@ -170,6 +170,7 @@ public:
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
+	// constref = true means generated reference is not used to modify object
 	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(
 		bool silent_fail = false, bool constref = false) {
 		return { nullptr, nullptr };

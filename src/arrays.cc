@@ -75,6 +75,10 @@ llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	if (!Sizes.size()) {
 		return ini;
 	} else {
+		// array literal "value" has special format:
+		// struct { dim, dim, ..., min-tensor }
+		// dim: run-time sized dimensions
+		// min-tensor: retangular initializer - will be extended with zeros
 		std::vector<llvm::Type*> struct_type_el(Sizes.size() + 1, llvm_size_type);
 		struct_type_el[Sizes.size()] = ini->getType();
 		llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
