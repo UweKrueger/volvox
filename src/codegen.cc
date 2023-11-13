@@ -1043,6 +1043,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		llvm::Value* ptrRet = nullptr;
 		unsigned ndim = 0;
 		llvm::StructType* struct_type = nullptr;
+		llvm::Value* retVal = nullptr;
 		if (needs_store || use_target) {
 			if (comp_mode != comp_jit) {
 				errs() << expr->Loc << ": internal error - non-global main variable '" << varname
@@ -1055,7 +1056,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				else
 					Builder->CreateStore(Val, GV);
 			} else {
-				llvm::Value* retVal = nullptr;
 				if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 					// variable size array variable
 					auto r_ref = RHS_Lval->codegen_ref(false, true);
@@ -1103,7 +1103,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 					}
 					auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
 					retVal = r_ref.second;
-					ptrRet = Builder->CreateMemCpy(ArrayAlloc, align, ValPtr, align, Sz);
+					Builder->CreateMemCpy(ArrayAlloc, align, ValPtr, align, Sz);
+					ptrRet = ArrayAlloc;
 				} else { // variable size array literal
 					retVal = StoreValue(Val, expr->RHS->ft, nullptr, varname);
 					struct_type = llvm::dyn_cast<llvm::StructType>(retVal->getType());
