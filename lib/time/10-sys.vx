@@ -13,7 +13,7 @@ import arch.os
 # Unix timestamp in 1ns resolution
 #
 type timespec {
-	sec i64  # seconds
+	sec i64      # seconds - might be i32 on some archs, but see below
     nsec ssize_t # nanoseconds
 }
 
@@ -37,7 +37,19 @@ pub const CLOCK_MONOTONIC := if os.isLinux
 
 # Unix function to get precise time from a specific clock
 #
-pub cdecl fn clock_gettime(clockid int, &tp timespec) int
+cdecl(clock_gettime) fn _clock_gettime(clockid int, &tp timespec) int
+# on NetBSD-10-RC1 32-bit the function is renamed for 64-bit seconds,
+# clock_gettime uses 32 bit seconds there - this might be a bug in NetBSD
+# so this workaround here might become obsolete in the future
+# this is the renamed function:
+cdecl fn __clock_gettime50(clockid int, &tp timespec) int
+
+pub inline fn clock_gettime(clockid int, &tp timespec) int
+	if os.isNetBSD && arch.bitwidth == 32
+		return __clock_gettime50(clockid, tp)
+	else
+		return _clock_gettime50(clockid, tp)
+end	+
 
 # In Volvox time intervals are be measured in "ticks" which are 1n intervals on Unix
 # and whatever QueryPerformanceFrequency() reports on Windows.

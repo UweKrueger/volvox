@@ -9,7 +9,7 @@ type sockaddr_any union {
 inline fn do_bind(handle ssize_t, &saddr sockaddr_any, size u32) Socket
 	s = Socket{ handle: handle }
 	if os.isWindows
-		res = win_bind(u64(s.handle), saddr.sockaddr, size)
+		res = win_bind(size_t(s.handle), saddr.sockaddr, size)
 		if res != 0
 			s.handle = -1
 			s.err = u32(WSAGetLastError)

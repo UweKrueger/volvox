@@ -89,7 +89,7 @@ fn UnixSocket.peer ucred
 	l = u32
 	if os.isWindows
 		pid = u32
-		r = WSAIoctl(u64(this.handle), SO_PEERCRED, nil, 0, &pid, u32(sizeof(u32)), l, nil, nil)
+		r = WSAIoctl(size_t(this.handle), SO_PEERCRED, nil, 0, &pid, u32(sizeof(u32)), l, nil, nil)
 		if r != -1
 			p.pid = pid
 		end

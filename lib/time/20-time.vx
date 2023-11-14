@@ -8,7 +8,7 @@ pub fn TimeStamp.timespec timespec
 end
 
 pub fn timespec.time_t time_t
-	return time_t{ sec: this.sec }
+	return time_t{ sec: ssize_t(this.sec) }
 end
 
 pub fn TimeStamp.time_t time_t

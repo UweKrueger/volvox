@@ -1,7 +1,7 @@
 
 cdecl fn Sleep(ms u32)
 cdecl fn nanosleep(&rqtp timespec, &rmtp timespec) int
-cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
+pub cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
 
 const EINTR := 4
 
