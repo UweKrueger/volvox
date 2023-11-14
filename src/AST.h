@@ -458,8 +458,8 @@ public:
 	int num_dims_to_strip_from_val = 0;
 	bool const_ref;
 	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
-	             std::unique_ptr<ExprAST> Index_) :
-		LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_))
+	             std::unique_ptr<ExprAST> Index_, bool const_ref = false) :
+		LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_)), const_ref(const_ref)
 		{
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
 				llvm::Type* elem_type = array_type->getElementType();
