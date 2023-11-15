@@ -48,7 +48,7 @@ pub inline fn clock_gettime(clockid int, &tp timespec) int
 	if os.isNetBSD && arch.bitwidth == 32
 		return __clock_gettime50(clockid, tp)
 	else
-		return _clock_gettime50(clockid, tp)
+		return _clock_gettime(clockid, tp)
 end	+
 
 # In Volvox time intervals are be measured in "ticks" which are 1n intervals on Unix
