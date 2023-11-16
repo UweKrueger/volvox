@@ -56,19 +56,36 @@ pub fn tm.year(m int) int
 	return old + 1900
 end
 
-cdecl fn gmtime_r(&t i64, &res tm) voidptr
+cdecl(gmtime_r) fn gmtime_r32(&t i32, &res tm) voidptr
+cdecl(gmtime_r) fn gmtime_r64(&t i64, &res tm) voidptr
+cdecl fn __gmtime_r50(&t i64, &res tm) voidptr
+cdecl fn __gmtime64_r(&t i64, &res tm) voidptr
 cdecl fn _gmtime64_s(&res tm, &t i64) int
-cdecl fn localtime_r(&t ssize_t, &res tm) voidptr
+cdecl(localtime_r) fn localtime_r32(&t i32, &res tm) voidptr
+cdecl(localtime_r) fn localtime_r64(&t i64, &res tm) voidptr
 cdecl fn _localtime64_s(&res tm, &t i64) int
-cdecl fn _localtime32_s(&res tm, &t i32) int
+cdecl fn __localtime_r50(&t i64, &res tm) voidptr
+cdecl fn __localtime64_r(&t i64, &res tm) voidptr
 
 pub inline fn time_t.gm tm
 	res = tm{}
 	if os.isWindows
 		_gmtime64_s(res, this.i64)
-	else
-		gmtime_r(this.i64, res)
+		return res
 	end
+	if arch.bitwidth == 32
+		if os.isNetBSD
+			__gmtime_r50(this.i64, res)
+			return res
+		elif os.isLinux
+			__gmtime64_r(this.i64, res)
+			return res
+		elif os.isFreeBSD || os.isHaiku
+			t = i32(this.i64)
+			gmtime_r32(t, res)
+			return res
+	end	+
+	gmtime_r64(this.i64, res)
 	return res
 end
 
@@ -76,9 +93,21 @@ pub inline fn time_t.local tm
 	res = tm{}
 	if os.isWindows
 		_localtime64_s(res, this.i64)
-	else
-		localtime_r(this.i64, res)
+		return res
 	end
+	if arch.bitwidth == 32
+		if os.isNetBSD
+			__localtime_r50(this.i64, res)
+			return res
+		elif os.isLinux
+			__localtime64_r(this.i64, res)
+			return res
+		elif os.isFreeBSD || os.isHaiku
+			t = i32(this.i64)
+			localtime_r32(t, res)
+			return res
+	end	+
+	localtime_r64(this.i64, res)
 	return res
 end
 
