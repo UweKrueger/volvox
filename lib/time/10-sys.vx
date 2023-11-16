@@ -17,6 +17,14 @@ type timespec {
     nsec ssize_t # nanoseconds
 }
 
+# Only for 32-bit FreeBSD and 32-bit Haiku
+# all other systems have some kind of 64-bit-time_t
+#
+type timespec32 {
+	sec i32  # seconds
+	nsec i32 # nanoseconds
+}
+
 # "REALTIME" and "MONOTONIC" clocks on Unix systems
 
 pub const CLOCK_REALTIME := if os.isHaiku
@@ -37,19 +45,38 @@ pub const CLOCK_MONOTONIC := if os.isLinux
 
 # Unix function to get precise time from a specific clock
 #
-cdecl(clock_gettime) fn _clock_gettime(clockid int, &tp timespec) int
-# on NetBSD-10-RC1 32-bit the function is renamed for 64-bit seconds,
-# clock_gettime uses 32 bit seconds there - this might be a bug in NetBSD
-# so this workaround here might become obsolete in the future
-# this is the renamed function:
-cdecl fn __clock_gettime50(clockid int, &tp timespec) int
+# POSIX versions - uses 32-bit-time_t on 32-bit-FreeBSD, -Haiku
+#
+cdecl(clock_gettime) fn clock_gettime64(clockid int, &tp timespec) int
+cdecl(clock_gettime) fn clock_gettime32(clockid int, &tp timespec32) int
 
+# Non-POSIX 64-bit-time_t versions for selected 32 bit OSs
+#
+# NetBSD-10
+cdecl fn __clock_gettime50(clockid int, &tp timespec) int
+#
+# Linux - corresponds to -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+cdecl fn __clock_gettime64(clockid int, &tp timespec) int
+
+# POSIX clock_gettime - always uses 64-bit-time_t
 pub inline fn clock_gettime(clockid int, &tp timespec) int
-	if os.isNetBSD && arch.bitwidth == 32
-		return __clock_gettime50(clockid, tp)
-	else
-		return _clock_gettime(clockid, tp)
-end	+
+	if arch.bitwidth == 32
+		if os.isNetBSD
+			return __clock_gettime50(clockid, tp)
+		elif os.isLinux
+			return __clock_gettime64(clockid, tp)
+		elif os.isFreeBSD || os.isHaiku
+			# these OSs do not have a 64-bit-time_t
+			# we make the call with the 32-bit cersion - will work until 2038
+			tp32 = timespec32
+			res = clock_gettime32(clockid, tp32)
+			tp.sec = tp32.sec
+			tp.nsec = tp32.nsec
+			return res
+	end	+
+	# all other OSs (including 32-bit-OpenBSD) default to 64-bit-time_t
+	return clock_gettime64(clockid, tp)
+end
 
 # In Volvox time intervals are be measured in "ticks" which are 1n intervals on Unix
 # and whatever QueryPerformanceFrequency() reports on Windows.
@@ -214,25 +241,35 @@ pub inline fn now() TimeStamp
 	return ft.TimeStamp
 end
 
+# POSIX versions
+cdecl(time) fn time32(nn voidptr) i32
+cdecl(time) fn time64(nn voidptr) i64
 
-cdecl(time) fn _time(nn size_t) ssize_t
-cdecl fn _time64(nn size_t) i64
-cdecl fn _time32(nn size_t) i32
+# Windows version
+cdecl fn _time64(nn voidptr) i64
 
+# Linux 32 bit - with -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+cdecl fn __time64(nn voidptr) i64
+
+# NetBSD 32 bit
+cdecl fn __time50(nn voidptr) i64
+
+# to avoid the year 2038 problem we always use a 64 bit time_t
 type time_t {
-	sec ssize_t
+	i64
 }
 
 pub inline fn time() time_t
-	t = time_t{}
 	if os.isWindows
-		if arch.bitwidth == 32
-			t.sec = ssize_t(_time32(0))
-		else
-			t.sec = ssize_t(_time64(0))
+		return time_t{ i64: _time64(0) }
+	elif arch.bitwidth == 32
+		if os.isLinux
+			return time_t{ i64: __time64(0) }
+		elif os.isNetBSD
+			return time_t{ i64: __time50(0) }
+		elif os.isFreeBSD || os.isHaiku
+			return time_t{ i64: time32(0) } # this will not work from 2038 on
 		end
-	else
-		t.sec = _time(0)
 	end
-	return t
+	return time_t{ i64: time64(0) }
 end
