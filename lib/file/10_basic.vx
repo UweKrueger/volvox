@@ -3,6 +3,7 @@ import arch.os
 import limits
 
 cdecl fn fopen(filename cstring, mode cstring) voidptr
+cdecl fn fopen64(filename cstring, mode cstring) voidptr
 cdecl fn fclose(f voidptr) int
 
 type File {
@@ -33,7 +34,11 @@ pub inline fn create(filename cstring) File
 		mode = "we"
 	end
 	f = File{}
-	f.voidptr = fopen(filename, mode)
+	if arch.bitwidth == 32 && os.isLinux
+		f.voidptr = fopen64(filename, mode)
+	else
+		f.voidptr = fopen(filename, mode)
+	end
 	if !f.is_valid
 		f.err = GetLastError
 	end
@@ -50,7 +55,11 @@ pub inline fn open(filename cstring) File
 		mode = "re"
 	end
 	f = File{}
-	f.voidptr = fopen(filename, mode)
+	if arch.bitwidth == 32 && os.isLinux
+		f.voidptr = fopen64(filename, mode)
+	else
+		f.voidptr = fopen(filename, mode)
+	end
 	if !f.is_valid
 		f.err = GetLastError
 	end
@@ -67,7 +76,11 @@ pub inline fn new(filename cstring) File
 		mode = "wxe"
 	end
 	f = File{}
-	f.voidptr = fopen(filename, mode)
+	if arch.bitwidth == 32 && os.isLinux
+		f.voidptr = fopen64(filename, mode)
+	else
+		f.voidptr = fopen(filename, mode)
+	end
 	if !f.is_valid
 		f.err = GetLastError
 	end
@@ -88,7 +101,11 @@ pub inline fn append(filename cstring) File
 		mode = "ae"
 	end
 	f = File{}
-	f.voidptr = fopen(filename, mode)
+	if arch.bitwidth == 32 && os.isLinux
+		f.voidptr = fopen64(filename, mode)
+	else
+		f.voidptr = fopen(filename, mode)
+	end
 	if !f.is_valid
 		f.err = GetLastError
 	end

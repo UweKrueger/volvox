@@ -1,0 +1,58 @@
+# POSIX seek functions using off_t = int64_t
+cdecl fn fseeko(f voidptr, offset i64, whence int) int
+cdecl fn ftello(f voidptr) i64
+
+# Linux 32 versions
+cdecl fn fseeko64(f voidptr, offset i64, whence int) int
+cdecl fn ftello64(f voidptr) i64
+
+# Windows version
+cdecl fn _fseeki64(f voidptr, offset i64, origin int) int
+cdecl fn _ftelli64(f voidptr)
+
+pub const SEEK_SET := 0
+pub const SEEK_CUR := 1
+pub const SEEK_END := 2
+
+inline fn __fseek(f voidptr, offset i64, whence int) int
+	if os.isWindows
+		return _fseeki64(f, offset, whence)
+	elif arch.bitwidth == 32 && os.isLinux
+		return fseeko64(f, offset, whence)
+	else
+		return fseeko(f, offset, whence)
+end	+
+
+pub fn File.seek(offset i64, whence int) bool
+	if __fseek(this.voidptr, offset, whence) == 0
+		return true
+	end
+	this.err = GetLastError
+	return false
+end
+
+89.99
+
+pub fn File.seek_set(offset i64) bool
+	global SEEK_SET
+	return this.seek(offset, SEEK_SET)
+end
+
+pub fn File.seek_cur(offset i64) bool
+	global SEEK_CUR
+	return this.seek(offset, SEEK_CUR)
+end
+
+pub fn File.seek_end(offset i64) bool
+	global SEEK_END
+	return this.seek(offset, SEEK_END)
+end
+
+pub fn File.tell i64
+	if os.isWindows
+		return _ftelli64(this.voidptr)
+	elif arch.bitwidth == 32 && os.isLinux
+		return ftello64(this.voidptr)
+	else
+		return ftello(this.voidptr)
+end	+
