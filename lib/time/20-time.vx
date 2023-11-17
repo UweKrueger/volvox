@@ -7,6 +7,15 @@ pub fn TimeStamp.timespec timespec
 	return ts
 end
 
+fn TimeStamp.timespec32 timespec32
+	global epoch_offset
+	ts32 = timespec32 {
+		sec: i32(this.u64 / 10000000 - epoch_offset)
+		nsec: ssize_t((this.u64 % 10000000) * 100)
+	}
+	return ts32
+end
+
 pub fn timespec.time_t time_t
 	return time_t{ i64: this.sec }
 end

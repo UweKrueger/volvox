@@ -2,6 +2,7 @@
 cdecl fn Sleep(ms u32)
 cdecl fn nanosleep(&rqtp timespec, &rmtp timespec) int
 pub cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
+cdecl(clock_nanosleep) fn clock_nanosleep32(clockid int, flags int, &rqtp timespec32, &rmtp timespec32) int
 
 const EINTR := 4
 
@@ -22,17 +23,35 @@ pub inline fn Duration.timespec timespec
 	}
 end
 
+inline fn Duration.timespec32 timespec32
+	return timespec32{
+		sec: i32(this.i64 / 10000000)
+		nsec: 100 * ssize_t(this.i64 % 10000000)
+	}
+end
+
 pub fn sleep(t Duration)
+	global CLOCK_MONOTONIC, EINTR
 	if t.i64 <= 0
 		return
 	end
 	if os.isWindows
 		Sleep(u32(t.i64 / 10000))
+	elif arch.bitwidth == 32 && (os.isFreeBSD || os.isHaiku)
+		ts32 = t.timespec32
+		t_remaining32 = timespec32{}
+		sw = false
+		repeat
+			if sw
+				res = clock_nanosleep32(CLOCK_MONOTONIC, 0, t_remaining32, ts32)
+			else
+				res = clock_nanosleep32(CLOCK_MONOTONIC, 0, ts32, t_remaining32)
+			end
+		until res != EINTR
 	else
 		ts = t.timespec
 		t_remaining = timespec{}
 		sw = false
-		global CLOCK_MONOTONIC, EINTR
 		repeat
 			if sw
 				if os.isOpenBSD
