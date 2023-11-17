@@ -18,15 +18,15 @@ end
 
 pub inline fn Duration.timespec timespec
 	return timespec{
-		sec: ssize_t(this.i64 / 10000000)
-		nsec: 100 * ssize_t(this.i64 % 10000000)
+		sec: this.i64 / 10000000
+		nsec: 100 * (this.i64 % 10000000)
 	}
 end
 
 inline fn Duration.timespec32 timespec32
 	return timespec32{
 		sec: i32(this.i64 / 10000000)
-		nsec: 100 * ssize_t(this.i64 % 10000000)
+		nsec: 100 * i32(this.i64 % 10000000)
 	}
 end
 

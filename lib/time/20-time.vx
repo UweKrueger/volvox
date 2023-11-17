@@ -11,7 +11,7 @@ fn TimeStamp.timespec32 timespec32
 	global epoch_offset
 	ts32 = timespec32 {
 		sec: i32(this.u64 / 10000000 - epoch_offset)
-		nsec: ssize_t((this.u64 % 10000000) * 100)
+		nsec: i32((this.u64 % 10000000) * 100)
 	}
 	return ts32
 end
