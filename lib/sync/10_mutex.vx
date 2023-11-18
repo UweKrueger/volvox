@@ -83,15 +83,7 @@ cdecl fn pthread_mutex_trylock(&m mutex) int
 cdecl fn pthread_mutex_consistent(&m mutex) int
 cdecl fn GetLastError() u32
 
-const EOWNERDEAD := if os.isFreeBSD
-		96
-	elif os.isLinux
-		130
-	elif os.isWindows
-		0x00000080 # WAIT_ABANDONED
-	else
-		-1 # other OSs do not support robust mutexes :-(
-	end
+from error import EOWNERDEAD, ETIMEDOUT, EPERM, EBUSY, EINVAL, EAGAIN, ERROR_TOO_MANY_POSTS
 
 pub inline fn mutex.lock int
 	global EOWNERDEAD
@@ -168,22 +160,6 @@ end
 
 cdecl fn ReleaseMutex(m size_t) bool
 cdecl fn pthread_mutex_unlock(&m mutex) int
-
-const ETIMEDOUT := if os.isWindows
-		0x00000102 # WAIT_TIMEOUT
-	elif os.isLinux
-		110
-	else
-		60
-	end
-
-const EPERM := if os.isWindows
-		288 # ERROR_NOT_OWNER
-	else
-		1
-	end
-
-const EBUSY := 16
 
 # In non-REPL case 'mutex.unlock()' is a simple inline wrapper for the OSs function.
 # In the REPL case a new thread is created for each top level expression so there is always

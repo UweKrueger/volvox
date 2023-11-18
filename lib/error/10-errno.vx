@@ -4,6 +4,13 @@ import limits
 # Interrupted system call
 pub const EINTR := 4
 
+# Try again
+pub const EAGAIN := if os.isLinux
+	11
+else
+	35
+end
+
 # File name too long
 pub const ENAMETOOLONG := if os.isWindows
 		206 # ERROR_FILENAME_EXCED_RANGE

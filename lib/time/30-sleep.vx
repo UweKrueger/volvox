@@ -4,7 +4,7 @@ cdecl fn nanosleep(&rqtp timespec, &rmtp timespec) int
 pub cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
 cdecl(clock_nanosleep) fn clock_nanosleep32(clockid int, flags int, &rqtp timespec32, &rmtp timespec32) int
 
-const EINTR := 4
+from error import EINTR
 
 # duration in 100ns ticks
 #

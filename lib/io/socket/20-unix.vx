@@ -34,15 +34,7 @@ pub inline fn unix UnixSocket
 	return s
 end
 
-const ENAMETOOLONG := if os.isWindows
-		206 # ERROR_FILENAME_EXCED_RANGE
-	elif os.isLinux
-		36
-	elif os.isHaiku
-		limits.min_int + 0x6000 + 4
-	else
-		63
-	end
+from error import ENAMETOOLONG
 
 type ucred {
 	pid u32
