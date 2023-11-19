@@ -19,7 +19,7 @@ end
 pub inline fn Duration.timespec timespec
 	return timespec{
 		sec: this.i64 / 10000000
-		nsec: 100 * (this.i64 % 10000000)
+		nsec: 100 * i32(this.i64 % 10000000)
 	}
 end
 
