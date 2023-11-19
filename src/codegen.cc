@@ -204,6 +204,8 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i]) {
 				llvm::Value* ini = initializers[i]->codegen();
+				if (!ini)
+					return nullptr;
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(ini->getType())) {
 					llvm::ArrayType* array_type = nullptr;
 					if (initializers[i]->ft->type)
