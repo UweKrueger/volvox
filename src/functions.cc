@@ -509,8 +509,10 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 
 llvm::Value* Volvox2CStr1(llvm::Value* v) {
 	// LLVM implementation of macro '#define volvox2cstr(v)
-	auto vp = Builder->CreatePointerCast(v, llvm_size_type->getPointerTo());
-	llvm::Value* subtrahend = Builder->CreateLoad(llvm_size_type, vp);
+#if LLVM_VERSION_MAJOR < 15
+	v = Builder->CreatePointerCast(v, llvm_size_type->getPointerTo());
+#endif
+	llvm::Value* subtrahend = Builder->CreateLoad(llvm_size_type, v);
 	return subtrahend;
 }
 

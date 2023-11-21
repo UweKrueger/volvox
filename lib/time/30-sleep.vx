@@ -1,8 +1,9 @@
 
 cdecl fn Sleep(ms u32)
 cdecl fn nanosleep(&rqtp timespec, &rmtp timespec) int
-pub cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
+cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
 cdecl(clock_nanosleep) fn clock_nanosleep32(clockid int, flags int, &rqtp timespec32, &rmtp timespec32) int
+cdecl fn __clock_nanosleep_time64(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
 
 from error import EINTR
 
@@ -46,6 +47,17 @@ pub fn sleep(t Duration)
 				res = clock_nanosleep32(CLOCK_MONOTONIC, 0, t_remaining32, ts32)
 			else
 				res = clock_nanosleep32(CLOCK_MONOTONIC, 0, ts32, t_remaining32)
+			end
+		until res != EINTR
+	elif arch.bitwidth == 32 && os.isLinux
+		ts = t.timespec
+		t_remaining = timespec{}
+		sw = false
+		repeat
+			if sw
+				res = __clock_nanosleep_time64(CLOCK_MONOTONIC, 0, t_remaining, ts)
+			else
+				res = __clock_nanosleep_time64(CLOCK_MONOTONIC, 0, ts, t_remaining)
 			end
 		until res != EINTR
 	else
