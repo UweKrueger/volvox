@@ -183,13 +183,13 @@
 Start a new script from `volvox-template'.  Read help pages for DOS commands
 with `volvox-cmd-help'.  Navigate between sections using `imenu'.
 Run script using `volvox-run' and `volvox-run-args'.\n"
-  (setq-local comment-start "# ")
-  (setq-local comment-start-skip "#[ \t]+")
+  (setq comment-start "# ")
+  (setq comment-start-skip "#[ \t]+")
   ; (setq-local syntax-propertize-function volvox--syntax-propertize)
-  (setq-local font-lock-defaults
+  (setq font-lock-defaults
        '(volvox-font-lock-keywords nil nil)) ; case-sensitive keywords
-  (setq-local imenu-generic-expression '((nil "^:[^:].*" 0)))
-  (setq-local outline-regexp ":[^:]"))
+  (setq imenu-generic-expression '((nil "^:[^:].*" 0)))
+  (setq outline-regexp ":[^:]"))
 
 (provide 'volvox-mode)
 
