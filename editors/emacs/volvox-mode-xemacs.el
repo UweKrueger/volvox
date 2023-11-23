@@ -65,29 +65,24 @@
 ;; 3  Internal variables
 
 (defvar volvox-font-lock-keywords
-  (eval-when-compile
-    (let ((COMMANDS
-           '("cstring" "f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union" "voidptr"))
-          (CONTROLFLOW
-           '("atomic" "const" "global" "elif" "else" "end" "fn" "if" "inline" "repeat" "return" "shared" "until" "while"))
-          (UNIX
-           '("cdecl" "decl" "from" "import" "pub" "type")))
-      `(("^:[^:].*"
-         . 'volvox-label-face)
-		("\\_<0x[[:xdigit:]]+[iu]\\(8\\|16\\|32\\|64\\)?\\_>" . font-lock-constant-face)
-		("\\_<0x[[:xdigit:]]+\\_>\\(\\.\\_<[[:xdigit:]]*\\)?\\([Pp][\\+\\-]?[0-9]+\\)?\\(f\\(16\\|32\\|64\\)\\_>\\)?" . font-lock-constant-face)
-		("\\_<[0-9]+\\_>\\.[0-9]*\\([Ee][\\+\\-]?[0-9]+\\)?\\(f\\(16\\|32\\|64\\)\\_>\\)?" . font-lock-constant-face)
-		("\\.\\_<[0-9]+\\([Ee][\\+\\-]?[0-9]+\\)?\\(f\\(16\\|32\\|64\\)\\_>\\)?" . font-lock-constant-face)
-		("\\_<[0-9]+\\([Ee][\\+\\-]?[0-9]+\\(f\\(16\\|32\\|64\\)\\_>\\)?\\|\\([iu]\\(8\\|16\\|32\\|64\\)?\\_>?\\)\\)?" . font-lock-constant-face)
-        (,(concat "\\_<" (regexp-opt COMMANDS) "\\_>") . font-lock-builtin-face)
-        (,(concat "\\_<" (regexp-opt CONTROLFLOW) "\\_>")
-         . font-lock-keyword-face)
-        (,(concat "\\_<" (regexp-opt UNIX) "\\_>")
-         . font-lock-warning-face)
-		("\\_<[_A-Za-z][_0-9A-Za-z]*\\_>\\(\\.[_A-Za-z][_0-9A-Za-z]*\\)?" . font-lock-variable-name-face)
-		("\\." . font-lock-keyword-face)
-		))))
-
+  (let ((COMMANDS (mapconcat 'identity
+           '("cstring" "f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union" "voidptr")
+	   "\\|"))
+	(CONTROLFLOW (mapconcat 'identity
+           '("elif" "else" "end" "fn" "if" "repeat" "return" "shared" "until" "while")
+	   "\\|"))
+	(UNIX (mapconcat 'identity
+           '("inline" "atomic" "const" "global" "cdecl" "decl" "from" "import" "pub" "type")
+	   "\\|"))
+    )
+  (list
+   '("^[ \t]*\\(#.+\\)" 1 'font-lock-decorators-face)
+   (list (concat "\\<\\(" COMMANDS "\\)\\>") 1 'font-lock-keyword-face)
+   (list (concat "\\<\\(" CONTROLFLOW "\\)\\>") 1
+	 'font-lock-keyword-face)
+   (list (concat "\\<\\(" UNIX "\\)\\>") 1 'font-lock-builtin-face)
+   ))
+  "Expressions to hilight in Volvox mode.")
 ;(defvar volvox-menu
 ;  '("Volvox"
 ;    ["Run" volvox-run :help "Run script"]
