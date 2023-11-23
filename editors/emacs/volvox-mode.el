@@ -106,43 +106,6 @@
 ;    (define-key map [?\C-c ?\C-v] 'volvox-run)
 ;    map))
 
-(defvar volvox-mode-syntax-table
-  (let ((table (make-syntax-table)))
-    (modify-syntax-entry ?\# "<" table)
-    (modify-syntax-entry ?\n ">#" table)
-    (modify-syntax-entry ?\" "\"\"" table)
-	(modify-syntax-entry ?' "\"'" table)
-    ;; Some people say `w' should not be used for non-alphabetic chars.
-	;; However, in Volvox '_' behaves just like any other character and
-	;; defining it as `w' allows selecting identifiers by double clicking.
-    (modify-syntax-entry ?_ "w" table)
-    (modify-syntax-entry ?: "." table)
-    (modify-syntax-entry ?< "." table)
-    (modify-syntax-entry ?> "." table)
-    (modify-syntax-entry ?& "." table)
-    (modify-syntax-entry ?| "." table)
-    (modify-syntax-entry ?% "." table)
-    (modify-syntax-entry ?= "." table)
-    (modify-syntax-entry ?/ "." table)
-    (modify-syntax-entry ?+ "." table)
-    (modify-syntax-entry ?* "." table)
-    (modify-syntax-entry ?- "." table)
-    (modify-syntax-entry ?^ "." table)
-    (modify-syntax-entry ?! "." table)
-    (modify-syntax-entry ?~ "." table)
-    (modify-syntax-entry ?\; "." table)
-    (modify-syntax-entry ?\( "()" table)
-    (modify-syntax-entry ?\) ")(" table)
-    (modify-syntax-entry ?\{ "(}" table)
-    (modify-syntax-entry ?\} "){" table)
-    (modify-syntax-entry ?\[ "(]" table)
-    (modify-syntax-entry ?\] ")[" table)
-    table))
-
-;(defconst volvox--syntax-propertize
-;  (syntax-propertize-rules
-;   ("^[ \t]*\\(?:\\(@?r\\)em\\_>\\|\\(?1::\\):\\).*" (1 "<"))))
-
 ;; 4  User functions
 
 (defun volvox-cmd-help (cmd)
@@ -169,26 +132,56 @@
   (interactive)
   (goto-char (point-min)) (insert "#\n# Program\n# Author\n\n"))
 
-;;;###autoload
-(add-to-list 'auto-mode-alist '("\\.\\(volvox\\|vx\\)\\'" . volvox-mode))
-
 ;; 5  Main function
 
-;;;###autoload
-(define-derived-mode volvox-mode fundamental-mode "Volvox"
+(defun volvox-mode ()
   "Major mode for editing Volvox files.
-Start a new script from `volvox-template'.  Read help pages for DOS commands
-with `volvox-cmd-help'.  Navigate between sections using `imenu'.
-Run script using `volvox-run' and `volvox-run-args'.\n"
-  (setq comment-start "# ")
-  (setq comment-start-skip "#[ \t]+")
-  ; (setq-local syntax-propertize-function volvox--syntax-propertize)
-  (setq font-lock-defaults
+"
+  (interactive)
+  (let ((switches nil)
+	s)
+    (kill-all-local-variables)
+    (setq major-mode 'volvox-mode)
+    (setq mode-name "Volvox")
+    (setq comment-start "# ")
+    (setq comment-start-skip "#[ \t]+")
+    (setq font-lock-defaults
        '(volvox-font-lock-keywords nil nil)) ; case-sensitive keywords
-  (setq imenu-generic-expression '((nil "^:[^:].*" 0)))
-  (setq outline-regexp ":[^:]")
-  (setq tab-width 4))
+    (setq imenu-generic-expression '((nil "^:[^:].*" 0)))
+    (setq outline-regexp ":[^:]")
+    (setq tab-width 4)
+    (set-syntax-table (copy-syntax-table))
+    (modify-syntax-entry ?\# "<")
+    (modify-syntax-entry ?\n ">#")
+    (modify-syntax-entry ?\" "\"\"")
+    (modify-syntax-entry ?' "\"'")
+    (modify-syntax-entry ?_ "w")
+    (modify-syntax-entry ?: ".")
+    (modify-syntax-entry ?< ".")
+    (modify-syntax-entry ?> ".")
+    (modify-syntax-entry ?& ".")
+    (modify-syntax-entry ?| ".")
+    (modify-syntax-entry ?% ".")
+    (modify-syntax-entry ?= ".")
+    (modify-syntax-entry ?/ ".")
+    (modify-syntax-entry ?+ ".")
+    (modify-syntax-entry ?* ".")
+    (modify-syntax-entry ?- ".")
+    (modify-syntax-entry ?^ ".")
+    (modify-syntax-entry ?! ".")
+    (modify-syntax-entry ?~ ".")
+    (modify-syntax-entry ?\; ".")
+    (modify-syntax-entry ?\( "()")
+    (modify-syntax-entry ?\) ")(")
+    (modify-syntax-entry ?\{ "(}")
+    (modify-syntax-entry ?\} "){")
+    (modify-syntax-entry ?\[ "(]")
+    (modify-syntax-entry ?\] ")[")
+    ))
 
 (provide 'volvox-mode)
+
+;;;###autoload
+(add-to-list 'auto-mode-alist '("\\.\\(volvox\\|vx\\)\\'" . volvox-mode))
 
 ;;; volvox-mode.el ends here
