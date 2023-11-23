@@ -6,7 +6,8 @@
 ;; Author: Uwe Krüger <arnima@hafro.is>
 ;; Keywords: languages
 
-;; This file is derived from files of GNU Emacs.
+;; This file is derived from files of GNU Emacs - mostly lua-mode.el
+;; of XEmacs-21.4.22
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -83,6 +84,7 @@
     (setq outline-regexp ":[^:]")
     (setq tab-width 4)
     (set-syntax-table (copy-syntax-table))
+    (set (make-local-variable 'found-token) nil)
     (modify-syntax-entry ?\# "<")
     (modify-syntax-entry ?\n ">#")
     (modify-syntax-entry ?\" "\"\"")
@@ -173,9 +175,9 @@ ignored, nil otherwise."
 (defconst volvox-block-regexp
   (concat
    "\\(\\<"
-   ;;(regexp-opt '("do" "function" "repeat" "then"
-   ;;		   "else" "elseif" "end" "until") t)
-   "\\(do\\|e\\(?:lse\\(?:if\\)?\\|nd\\)\\|function\\|repeat\\|then\\|until\\)"
+   ;;(regexp-opt '("if" "fn" "repeat" "while"
+   ;;		   "else" "elif" "end" "until") t)
+   "\\(if\\|while\\|else\\|elif\\|end\\|fn\\|repeat\\|until\\)"
    "\\>\\)\\|"
    "\\([]()[{}]\\)"
    ))
@@ -192,18 +194,17 @@ Return nil if not successful."
   ;; The absence of "else" is deliberate. This construct in a way both
   ;; opens and closes a block. As a result, it is difficult to handle
   ;; cleanly. It is also ambiguous - if we are looking for the match
-  ;; of "else", should we look backward for "then/elseif" or forward
+  ;; of "else", should we look backward for "if/elif" or forward
   ;; for "end"?
   ;; Maybe later we will find a way to handle it.
-  '(("do"       "\\<end\\>"                                   open)
-    ("function" "\\<end\\>"                                   open)
+  '(("fn"       "\\<end\\>"                                   open)
     ("repeat"   "\\<until\\>"                                 open)
-    ("then"     "\\<\\(e\\(lseif\\|nd\\)\\)\\>"               open)
+    ("if"       "\\<\\(e\\(lif\\|nd\\)\\)\\>"                 open)
     ("{"        "}"                                           open)
     ("["        "]"                                           open)
     ("("        ")"                                           open)
-    ("elseif"   "\\<then\\>"                                  close)
-    ("end"      "\\<\\(do\\|function\\|then\\)\\>"            close)
+    ("elif"     "\\<\\(if\\while\\)\\>"                       close)
+    ("end"      "\\<\\(if\\|fn\\|while\\)\\>"                 close)
     ("until"    "\\<repeat\\>"                                close)
     ("}"        "{"                                           close)
     ("]"        "\\["                                         close)
@@ -217,13 +218,13 @@ Return nil if not successful."
    "\\(\\<"
    ;; n.b. "local function" is a bit of a hack, allowing only a single space
    ;;(regexp-opt '("do" "local function" "function" "repeat" "then") t)
-   "\\(do\\|function\\|local function\\|repeat\\|then\\)"
+   "\\(if\\|fn\\|repeat\\|while\\)"
    "\\>\\|"
    ;;(regexp-opt '("{" "(" "["))
    "[([{]"
    "\\)\\|\\(\\<"
-   ;;(regexp-opt '("elseif" "end" "until") t)
-   "\\(e\\(?:lseif\\|nd\\)\\|until\\)"
+   ;;(regexp-opt '("elif" "end" "until") t)
+   "\\(e\\(?:if\\|nd\\)\\|until\\)"
    "\\>\\|"
    ;;(regexp-opt '("]" ")" "}"))
    "[])}]"
@@ -477,8 +478,8 @@ one."
 (defconst volvox-left-shift-regexp-1
   (concat "\\("
 	  "\\(\\<"
-	  ;;(regexp-opt '("else" "elseif" "until") t)
-	  "\\(else\\(?:if\\)?\\|until\\)"
+	  ;;(regexp-opt '("else" "elif" "until") t)
+	  "\\(else\\|elif\\|until\\)"
 	  "\\>\\)\\($\\|\\s +\\)"
 	  "\\)"))
 
@@ -488,7 +489,7 @@ one."
 	  "\\>\\)"))
 
 (defconst volvox-left-shift-regexp
-  ;; ("else", "elseif", "until" followed by whitespace, or "end"/closing
+  ;; ("else", "elif", "until" followed by whitespace, or "end"/closing
   ;; brackets followed by
   ;; whitespace, punctuation, or closing parentheses)
   (concat volvox-left-shift-regexp-1
