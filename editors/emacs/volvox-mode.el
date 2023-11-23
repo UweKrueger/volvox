@@ -1,11 +1,12 @@
 ;;; volvox-mode.el --- Major mode for editing Volvox files  -*- lexical-binding: t -*-
 
 ;; Copyright (C) 2003, 2008-2022 Free Software Foundation, Inc.
+;; Copyright (C) 2023 Uwe Krüger
 
-;; Author: Arni Magnusson <arnima@hafro.is>
+;; Author: Uwe Krüger <arnima@hafro.is>
 ;; Keywords: languages
 
-;; This file is part of GNU Emacs.
+;; This file is derived from files of GNU Emacs.
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
@@ -20,49 +21,9 @@
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
 
-;;; Commentary:
-;;
-;; Major mode for editing DOS/Windows scripts (batch files).  Provides syntax
-;; highlighting, a basic template, access to DOS help pages, imenu/outline
-;; navigation, and the ability to run scripts from within Emacs.  The syntax
-;; groups for highlighting are:
-;;
-;; Face                          Example
-;; volvox-label-face             :LABEL
-;; font-lock-comment-face        rem
-;; font-lock-builtin-face        copy
-;; font-lock-keyword-face        goto
-;; font-lock-warning-face        cp
-;; font-lock-constant-face       [call] prog
-;; font-lock-variable-name-face  %var%
-;; font-lock-type-face           -option
-;;
-;; Usage:
-;;
-;; See documentation of function `volvox-mode'.
-;;
-;; Separate package `dos-indent' (Matthew Fidler) provides rudimentary
-;; indentation, see https://www.emacswiki.org/emacs/dos-indent.el.
-;;
-;; Acknowledgements:
-;;
-;; Inspired by `batch-mode' (Agnar Renolen) and `cmd-mode' (Tadamegu Furukawa).
-
-;;; Code:
-
-;; 1  Preamble
-
-(defgroup volvox-mode nil
-  "Major mode for editing DOS/Windows batch files."
-  :link '(custom-group-link :tag "Font Lock Faces group" font-lock-faces)
+(defgroup volvox nil
+  "Major mode for editing Volvox files."
   :group 'languages)
-
-;; 2  User variables
-
-(defface volvox-label-face '((t (:weight bold)))
-  "Font Lock mode face used to highlight labels in Volvox files.")
-
-;; 3  Internal variables
 
 (defvar volvox-font-lock-keywords
   (let ((COMMANDS (mapconcat 'identity
@@ -85,54 +46,11 @@
    '("\\<\\([0-9]+\\(\\.\\([0-9]*\\)?\\)?\\([eE][+-]?[0-9]+\\)?f?\\)\\>" 1 'font-lock-constant-face)
    ))
   "Expressions to hilight in Volvox mode.")
-;(defvar volvox-menu
-;  '("Volvox"
-;    ["Run" volvox-run :help "Run script"]
-;    ["Run with Args" volvox-run-args :help "Run script with args"]
-;    "--"
-;    ["Imenu" imenu :help "Navigate with imenu"]
-;    "--"
-;    ["Template" volvox-template :help "Insert template"]
-;    "--"
-;    ["Help (Command)" volvox-cmd-help :help "Show help page for DOS command"]))
 
-;(defvar volvox-mode-map
-;  (let ((map (make-sparse-keymap)))
-;    (easy-menu-define nil map nil volvox-menu)
-;    (define-key map [?\C-c ?\C-/] 'volvox-cmd-help) ;FIXME: Why not C-c C-? ?
-;    (define-key map [?\C-c ?\C-a] 'volvox-run-args)
-;    (define-key map [?\C-c ?\C-c] 'volvox-run)
-;    (define-key map [?\C-c ?\C-t] 'volvox-template)
-;    (define-key map [?\C-c ?\C-v] 'volvox-run)
-;    map))
-
-;; 4  User functions
-
-(defun volvox-cmd-help (cmd)
-  "Show help for volvoxch file command CMD."
-  (interactive "sHelp: ")
-  (if (string-equal cmd "net")
-      ;; FIXME: liable to quoting nightmare.  Use call-process?
-      (shell-command "net /?") (shell-command (concat "help " cmd))))
-
-(defun volvox-run ()
-  "Run a volvoxch file."
-  (interactive)
-  ;; FIXME: liable to quoting nightmare.  Use call/start-process?
-  (save-buffer) (shell-command buffer-file-name))
-
-(defun volvox-run-args (args)
-  "Run a volvoxch file with ARGS."
-  (interactive "sArgs: ")
-  ;; FIXME: Use `compile'?
-  (shell-command (concat buffer-file-name " " args)))
-
-(defun volvox-template ()
-  "Insert minimal volvox file template."
-  (interactive)
-  (goto-char (point-min)) (insert "#\n# Program\n# Author\n\n"))
-
-;; 5  Main function
+(defcustom volvox-mode-hook nil
+  "*Hooks called when volvox mode fires up."
+  :type 'hook
+  :group 'volvox)
 
 (defun volvox-mode ()
   "Major mode for editing Volvox files.
@@ -177,11 +95,8 @@
     (modify-syntax-entry ?\} "){")
     (modify-syntax-entry ?\[ "(]")
     (modify-syntax-entry ?\] ")[")
-    ))
+    (run-hooks 'volvox-mode-hook)))
 
 (provide 'volvox-mode)
 
-;;;###autoload
 (add-to-list 'auto-mode-alist '("\\.\\(volvox\\|vx\\)\\'" . volvox-mode))
-
-;;; volvox-mode.el ends here
