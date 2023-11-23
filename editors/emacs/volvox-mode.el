@@ -63,6 +63,16 @@
   :type 'hook
   :group 'volvox)
 
+(defvar volvox-mode-abbrev-table nil
+  "Abbreviation table used in `volvox-mode' buffers.")
+
+(define-abbrev-table 'volvox-mode-abbrev-table
+  '(
+        ("end" "end" volvox-indent-line 0)
+        ("else" "else" volvox-indent-line 0)
+        ("elif" "elif" volvox-indent-line 0)
+        ))
+
 (defconst volvox-indent-whitespace " \t"
   "Character set that constitutes whitespace for indentation in Volvox.")
 
@@ -82,6 +92,8 @@
        '(volvox-font-lock-keywords nil nil)) ; case-sensitive keywords
     (setq imenu-generic-expression '((nil "^:[^:].*" 0)))
     (setq outline-regexp ":[^:]")
+    (setq local-abbrev-table volvox-mode-abbrev-table)
+    (abbrev-mode 1)
     (setq tab-width 4)
     (set-syntax-table (copy-syntax-table))
     (set (make-local-variable 'found-token) nil)
