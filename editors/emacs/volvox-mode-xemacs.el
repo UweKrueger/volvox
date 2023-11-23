@@ -189,7 +189,8 @@ Run script using `volvox-run' and `volvox-run-args'.\n"
   (setq font-lock-defaults
        '(volvox-font-lock-keywords nil nil)) ; case-sensitive keywords
   (setq imenu-generic-expression '((nil "^:[^:].*" 0)))
-  (setq outline-regexp ":[^:]"))
+  (setq outline-regexp ":[^:]")
+  (setq tab-width 4))
 
 (provide 'volvox-mode)
 
