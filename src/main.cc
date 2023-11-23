@@ -378,10 +378,12 @@ void InitializeModuleAndPassManager() {
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
-	// else {
-	// 	TheModule->setPICLevel(llvm::PICLevel::NotPIC);
-	// 	TheModule->setPIELevel(llvm::PIELevel::Default);
-	// }
+	else {
+		if (gen_pic)
+			TheModule->setPICLevel(llvm::PICLevel::BigPIC);
+		if (gen_pie)
+			TheModule->setPIELevel(llvm::PIELevel::Large);
+	}
 	static bool already_run = false;
 	// Create a new builder for the module.
 	if (!already_run) {
@@ -1217,6 +1219,7 @@ bool do_repl_test = false;
 bool jit_repl = false;
 bool jit_extra_thread = false;
 bool gen_pic = false;
+bool gen_pie = false;
 bool run_program = false;
 promptcolor_t p_col = { 30, 100, 236 };
 const char* TestFunction = nullptr;
@@ -1710,7 +1713,10 @@ int main(int argc, char* argv[]) {
 		TargetTriple = "x86_64-pc-windows-gnu";
 	else
 		TargetTriple = llvm::sys::getDefaultTargetTriple();
-
+	if (strstr(TargetTriple.c_str(), "-alpine-"))
+		gen_pie = true;
+	if (gen_pie)
+		gen_pic = true;
 	std::string Error;
 	auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
 	// Print an error and exit if we couldn't find the requested target.

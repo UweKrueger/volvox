@@ -173,6 +173,8 @@ extern const char* argv0;
 
 // the following output streams only output on stderr if one or more '-v' options were given  
 extern int verbosity;
+extern bool gen_pic;
+extern bool gen_pie;
 
 // hints to possibe problems that might be interesting for debugging the program being compiled
 inline llvm::raw_ostream& hints() {
