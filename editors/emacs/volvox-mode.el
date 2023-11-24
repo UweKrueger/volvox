@@ -58,10 +58,19 @@
    ))
   "Expressions to hilight in Volvox mode.")
 
+(defvar volvox-mode-map nil
+  "Keymap used with `volvox-mode'.")
+
+(defvar volvox-prefix-key "\C-c"
+  "Prefix for all `volvox-mode' commands.")
+
 (defcustom volvox-mode-hook nil
   "*Hooks called when volvox mode fires up."
   :type 'hook
   :group 'volvox)
+
+(defvar volvox-mode-menu (make-sparse-keymap "Volvox")
+  "Keymap for `volvox-mode's menu.")
 
 (defvar volvox-mode-abbrev-table nil
   "Abbreviation table used in `volvox-mode' buffers.")
@@ -96,6 +105,9 @@
     (abbrev-mode 1)
     (setq tab-width 4)
     (set-syntax-table (copy-syntax-table))
+    (or volvox-mode-map
+	(volvox-setup-keymap))
+    (use-local-map volvox-mode-map)
     (set (make-local-variable 'found-token) nil)
     (modify-syntax-entry ?\# "<")
     (modify-syntax-entry ?\n ">#")
@@ -124,6 +136,31 @@
     (modify-syntax-entry ?\[ "(]")
     (modify-syntax-entry ?\] ")[")
     (run-hooks 'volvox-mode-hook)))
+
+(defun volvox-setup-keymap ()
+  "Set up keymap for volvox mode.
+If the variable `volvox-prefix-key' is nil, the bindings go directly
+to `volvox-mode-map', otherwise they are prefixed with `volvox-prefix-key'."
+  (setq volvox-mode-map (make-sparse-keymap))
+  (define-key volvox-mode-map [menu-bar volvox-mode]
+    (cons "Volvox" volvox-mode-menu))
+  (define-key volvox-mode-map "}" 'volvox-electric-match)
+  (define-key volvox-mode-map "]" 'volvox-electric-match)
+  (define-key volvox-mode-map ")" 'volvox-electric-match)
+  (let ((map (if volvox-prefix-key
+		 (make-sparse-keymap)
+	       volvox-mode-map)))
+    (define-key map "\C-c" 'comment-region)
+    (if volvox-prefix-key
+	(define-key volvox-mode-map volvox-prefix-key map))
+    ))
+
+(defun volvox-electric-match (arg)
+  "Insert character and adjust indentation."
+  (interactive "P")
+  (insert-char last-command-char (prefix-numeric-value arg))
+  (volvox-indent-line)
+  (blink-matching-open))
 
 (defun volvox-syntax-status ()
   "Return the syntactic status of the character after the point."
