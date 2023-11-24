@@ -158,7 +158,10 @@ to `volvox-mode-map', otherwise they are prefixed with `volvox-prefix-key'."
 (defun volvox-electric-match (arg)
   "Insert character and adjust indentation."
   (interactive "P")
-  (insert-char last-command-char (prefix-numeric-value arg))
+  (insert-char
+   (if volvox-using-xemacs
+       last-command-char last-command-event)
+   (prefix-numeric-value arg))
   (volvox-indent-line)
   (blink-matching-open))
 
