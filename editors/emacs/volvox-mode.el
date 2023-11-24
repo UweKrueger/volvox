@@ -41,10 +41,10 @@
            '("cstring" "f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union" "voidptr")
 	   "\\|"))
 	(CONTROLFLOW (mapconcat 'identity
-           '("elif" "else" "end" "fn" "if" "repeat" "return" "shared" "until" "while")
+           '("elif" "else" "end" "fn" "if" "repeat" "return" "until" "while" "for")
 	   "\\|"))
 	(UNIX (mapconcat 'identity
-           '("inline" "atomic" "const" "global" "cdecl" "decl" "from" "import" "pub" "type")
+           '("inline" "atomic" "shared" "const" "global" "cdecl" "decl" "from" "import" "pub" "type")
 	   "\\|"))
     )
   (list
@@ -229,7 +229,7 @@ ignored, nil otherwise."
    "\\(\\<"
    ;;(regexp-opt '("if" "fn" "repeat" "while"
    ;;		   "else" "elif" "end" "until") t)
-   "\\(if\\|while\\|else\\|elif\\|end\\|fn\\|repeat\\|until\\)"
+   "\\(if\\|while\\|for\\|else\\|elif\\|end\\|fn\\|repeat\\|until\\)"
    "\\>\\)\\|"
    "\\([]()[{}]\\)"
    ))
@@ -252,11 +252,13 @@ Return nil if not successful."
   '(("fn"       "\\<end\\>"                                   open)
     ("repeat"   "\\<until\\>"                                 open)
     ("if"       "\\<\\(e\\(lif\\|nd\\)\\)\\>"                 open)
+    ("while"    "\\<\\(e\\(lif\\|nd\\)\\)\\>"                 open)
+    ("for"      "\\<\\(e\\(lif\\|nd\\)\\)\\>"                 open)
     ("{"        "}"                                           open)
     ("["        "]"                                           open)
     ("("        ")"                                           open)
-    ("elif"     "\\<\\(if\\while\\)\\>"                       close)
-    ("end"      "\\<\\(if\\|fn\\|while\\)\\>"                 close)
+    ("elif"     "\\<\\(if\\while\\|for\\)\\>"                       close)
+    ("end"      "\\<\\(if\\|fn\\|while\\|for\\)\\>"                 close)
     ("until"    "\\<repeat\\>"                                close)
     ("}"        "{"                                           close)
     ("]"        "\\["                                         close)
@@ -270,13 +272,13 @@ Return nil if not successful."
    "\\(\\<"
    ;; n.b. "local function" is a bit of a hack, allowing only a single space
    ;;(regexp-opt '("do" "local function" "function" "repeat" "then") t)
-   "\\(if\\|fn\\|repeat\\|while\\)"
+   "\\(if\\|fn\\|repeat\\|while\\|for\\)"
    "\\>\\|"
    ;;(regexp-opt '("{" "(" "["))
    "[([{]"
    "\\)\\|\\(\\<"
    ;;(regexp-opt '("elif" "end" "until") t)
-   "\\(e\\(?:if\\|nd\\)\\|until\\)"
+   "\\(e\\(?:lif\\|nd\\)\\|until\\)"
    "\\>\\|"
    ;;(regexp-opt '("]" ")" "}"))
    "[])}]"
@@ -354,7 +356,7 @@ Return the point, or nil if it reached the beginning of the buffer."
   (concat
    "\\(\\<"
    ;;(regexp-opt '("and" "or" "not" "in" "for" "while" "local" "function") t)
-   "\\(and\\|f\\(?:or\\|unction\\)\\|in\\|local\\|not\\|or\\|while\\)"
+   "\\(f\\(?:or\\|n\\)\\|while\\)"
    "\\>\\|"
    "\\(^\\|[^" volvox-operator-class "]\\)"
    ;;(regexp-opt '("+" "-" "*" "/" "^" ".." "==" "=" "<" ">" "<=" ">=" "~=") t)
@@ -436,7 +438,7 @@ dosomething(d +
 (defun volvox-make-indentation-info-pair ()
   "This is a helper function to `volvox-calculate-indentation-info'.
 Don't use standalone."
-  (cond ((string-equal found-token "function")
+  (cond ((string-equal found-token "fn")
 	 ;; this is the location where we need to start searching for the
 	 ;; matching opening token, when we encounter the next closing token.
 	 ;; It is primarily an optimization to save some searchingt ime.
@@ -453,7 +455,7 @@ Don't use standalone."
 	((string-equal found-token "end")
 	 (save-excursion
 	   (volvox-goto-matching-block-token nil found-pos)
-	   (if (looking-at "\\<function\\>")
+	   (if (looking-at "\\<fn\\>")
 	       (cons 'absolute
 		     (+ (current-indentation)
 			(volvox-calculate-indentation-block-modifier
