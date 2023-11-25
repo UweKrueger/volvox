@@ -11,12 +11,13 @@ var katescript = {
 // required katepart js libraries
 require ("range.js");
 
-var BlockStart = /^\s*(fn|if|while|for|lock|repeat|loop)\b/;
-var BlockElse = /^\s*(else|elif)\b/;
-var BlockEnd = /\bend\b/;
+var BlockStart = /\s*([\(\{\[]|(fn|if|while|for|lock|repeat|loop)\b)/;
+var BlockElse = /\s*(else|elif)\b/;
+var BlockEnd = /([\)\]\}]|\bend\b)/;
 var indent_width = 4;
 
-triggerCharacters = "{}:;#";
+triggerCharacters = "{}[]():;#";
+
 function indent(line, indentWidth, ch)
 {
 	var oldline = line;
