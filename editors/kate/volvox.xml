@@ -48,7 +48,6 @@
 
     <list name="endcontrol">
       <item>until</item>
-      <item>return</item>
       <item>end</item>
     </list>
 
