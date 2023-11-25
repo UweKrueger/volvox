@@ -109,6 +109,8 @@
         <keyword attribute="Keyword" context="#stay" beginRegion="CondRegion" String="startcontrol"/>
         <keyword attribute="Keyword" context="#stay" endRegion="CondRegion" String="endcontrol"/>
         <keyword attribute="Keyword" context="#stay" endRegion="CondRegion" beginRegion="CondRegion" String="elsecontrol"/>
+        <DetectChar attribute="Symbols" context="#stay" beginRegion="data" char="{"/>
+        <DetectChar attribute="Symbols" context="#stay" endRegion="data" char="}"/>
         <HlCHex attribute="Hex" context="#stay"/>
         <Float attribute="Real" context="#stay"/>
         <HlCOct attribute="Oct" context="#stay"/>
