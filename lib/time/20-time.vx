@@ -143,3 +143,28 @@ end
 pub inline fn local tm
 	return time.local
 end
+
+cdecl strftime(buf cstring, sz size_t, format cstring, &ts tm) size_t
+
+pub fn tm.strf(format string) string
+	size_guess = 2 * format.size + (arch.bitwidth >> 2) + 128
+	buf = cstring(__malloc(size_guess))
+	sz = strftime(buf, size_guess, format, this)
+	if (sz > 0)
+		return __transformcstr2volvox(buf, size_guess)
+	else
+		__free voidptr buf
+		return ""
+end end
+
+pub fn tm.str string
+	return this.strf("%F %T")
+end
+
+pub fn tm.date_str string
+	return this.strf("%F")
+end
+
+pub fn tm.time_str string
+	return this.strf("%T")
+end

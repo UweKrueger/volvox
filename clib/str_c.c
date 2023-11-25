@@ -1283,16 +1283,21 @@ _DECL char* __volvox2cstr(const char* v) {
 	return strdup(s_c);
 }
 
-_DECL char* __transformcstr2volvox(char* c_str) {
+_DECL char* __transformcstr2volvox(char* c_str, size_t cap) {
 	char* res;
-	size_t l;
+	size_t min_cap;
 	char* targ;
 	size_t _l = strlen(c_str);
-	l = (_l+3*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
-	targ = (char*)realloc(c_str, l);
-	res = targ + l - 2*sizeof(size_t);
+	min_cap = (_l+3*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
+	if (min_cap > cap) {
+		cap = min_cap;
+		targ = (char*)realloc(c_str, cap);
+	} else {
+		targ = c_str;
+	}
+	res = targ + min_cap - 2*sizeof(size_t);
 	*(size_t*)res = _l+1;
-	*((size_t*)res + 1) = l;
+	*((size_t*)res + 1) = cap;
 	return res;
 }
 
