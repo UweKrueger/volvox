@@ -34,9 +34,9 @@ type Fd {
 from .flags import APPEND, RDONLY, WRONLY, RDWR, CREAT, TRUNC, EXCL, BINARY, CLOEXEC, NOINHERIT
 
 # POSIX systems' open function 
-cdecl fn open(filename cstring, flags int, mode int) int
+cdecl open(filename cstring, flags int, mode int) int
 # Windows naming convention
-cdecl fn _open(filename cstring, flags int, mode int) int
+cdecl _open(filename cstring, flags int, mode int) int
 
 # general function to open an unbuffered file - essentially the POSIX version
 #
@@ -83,8 +83,8 @@ pub inline fn append(filename cstring) Fd
 	return openfile(filename, CREAT | WRONLY | APPEND | BINARY | CLOEXEC, 0666)
 end
 
-cdecl fn close(fd int) int
-cdecl fn _close(fd int) int
+cdecl close(fd int) int
+cdecl _close(fd int) int
 
 pub inline fn Fd.close int
 	fd = this.fd
@@ -96,8 +96,8 @@ pub inline fn Fd.close int
 	end
 end
 
-cdecl fn _write(fd int, buf cstring, count u32) int
-cdecl fn write(fd int, buf cstring, count size_t) ssize_t
+cdecl _write(fd int, buf cstring, count u32) int
+cdecl write(fd int, buf cstring, count size_t) ssize_t
 
 fn win64_write(fd int, buf cstring, count size_t) ssize_t
 	# The Windows _write() can only handle max_int bytes but size_t might exceed this value
@@ -141,7 +141,7 @@ pub inline fn Fd._write(buf cstring, count size_t) ssize_t
 	end
 end
 
-cdecl fn strlen(s cstring) size_t
+cdecl strlen(s cstring) size_t
 
 pub inline fn Fd.write(buf cstring) ssize_t
 	len = strlen(buf)

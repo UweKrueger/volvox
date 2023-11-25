@@ -1,5 +1,5 @@
-cdecl fn fprintf(file voidptr, fmt cstring, ...) int
-cdecl fn strlen(s cstring) size_t
+cdecl fprintf(file voidptr, fmt cstring, ...) int
+cdecl strlen(s cstring) size_t
 
 pub inline fn File.write(s string)
 	l = strlen(s)

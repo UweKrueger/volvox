@@ -8,7 +8,7 @@ const __MUTEX_ATTR_SIZE := if os.isLinux
 		arch.bitwidth >> 3
 	end
 
-cdecl fn pthread_mutexattr_destroy(attr voidptr) int
+cdecl pthread_mutexattr_destroy(attr voidptr) int
 
 type mutex_attr union {
 	voidptr
@@ -20,8 +20,8 @@ fn ~mutex_attr
 	pthread_mutexattr_destroy(&this)
 end
 
-cdecl fn pthread_mutexattr_init(&attr mutex_attr) int
-cdecl fn pthread_mutexattr_setrobust(&attr mutex_attr, robustness int) int
+cdecl pthread_mutexattr_init(&attr mutex_attr) int
+cdecl pthread_mutexattr_setrobust(&attr mutex_attr, robustness int) int
 
 fn get_robust_mutex_attr mutex_attr
 	m = mutex_attr{}
@@ -48,10 +48,10 @@ const __MUTEX_SIZE := if os.isLinux
 
 type mutex
 
-cdecl fn CreateMutexA(lpMutexAttributes voidptr, bInitialOwner bool, lpName cstring) size_t
-cdecl fn CloseHandle(size_t) bool
-cdecl fn pthread_mutex_init(&m mutex, &attr mutex_attr) int
-cdecl fn pthread_mutex_destroy(&m mutex) int
+cdecl CreateMutexA(lpMutexAttributes voidptr, bInitialOwner bool, lpName cstring) size_t
+cdecl CloseHandle(size_t) bool
+cdecl pthread_mutex_init(&m mutex, &attr mutex_attr) int
+cdecl pthread_mutex_destroy(&m mutex) int
 
 type mutex union {
 	voidptr
@@ -76,12 +76,12 @@ pub fn ~mutex
 	end
 end
 
-cdecl fn WaitForSingleObjectEx(hHandle size_t, dwMilliseconds u32, bAlertable bool) u32
-cdecl fn pthread_mutex_timedlock(&m mutex, &abs_timeout time.timespec) int
-cdecl fn pthread_mutex_lock(&m mutex) int
-cdecl fn pthread_mutex_trylock(&m mutex) int
-cdecl fn pthread_mutex_consistent(&m mutex) int
-cdecl fn GetLastError() u32
+cdecl WaitForSingleObjectEx(hHandle size_t, dwMilliseconds u32, bAlertable bool) u32
+cdecl pthread_mutex_timedlock(&m mutex, &abs_timeout time.timespec) int
+cdecl pthread_mutex_lock(&m mutex) int
+cdecl pthread_mutex_trylock(&m mutex) int
+cdecl pthread_mutex_consistent(&m mutex) int
+cdecl GetLastError() u32
 
 from error import EOWNERDEAD, ETIMEDOUT, EPERM, EBUSY, EINVAL, EAGAIN, ERROR_TOO_MANY_POSTS
 
@@ -158,8 +158,8 @@ pub inline fn mutex.timedlock(timeout time.Duration) int
 	return res
 end
 
-cdecl fn ReleaseMutex(m size_t) bool
-cdecl fn pthread_mutex_unlock(&m mutex) int
+cdecl ReleaseMutex(m size_t) bool
+cdecl pthread_mutex_unlock(&m mutex) int
 
 # In non-REPL case 'mutex.unlock()' is a simple inline wrapper for the OSs function.
 # In the REPL case a new thread is created for each top level expression so there is always

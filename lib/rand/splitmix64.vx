@@ -17,13 +17,13 @@ import arch.os
 
 # OS specific functions to get 8 "really" random bytes to seed this RND
 #
-cdecl fn getrandom(&buf u64, n size_t, flags u32) ssize_t
-cdecl fn arc4random_buf(&buf u64, n size_t)
+cdecl getrandom(&buf u64, n size_t, flags u32) ssize_t
+cdecl arc4random_buf(&buf u64, n size_t)
 type FILETIME {
 	dwLowDateTime u32
 	dwHighDateTime u32
 }
-cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
+cdecl GetSystemTimePreciseAsFileTime(&time FILETIME)
 
 x0 = 0u64
 t = FILETIME{}

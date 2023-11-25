@@ -32,9 +32,9 @@ type WSAData64 {
 	szSystemStatus [WSASYS_STATUS_LEN+1]u8
 }
 
-cdecl(WSAStartup) fn WSAStartup32(wVersionRequested u16, &lpWSAData WSAData32) int
-cdecl(WSAStartup) fn WSAStartup64(wVersionRequested u16, &lpWSAData WSAData64) int
-cdecl fn WSACleanup() int
+cdecl(WSAStartup) WSAStartup32(wVersionRequested u16, &lpWSAData WSAData32) int
+cdecl(WSAStartup) WSAStartup64(wVersionRequested u16, &lpWSAData WSAData64) int
+cdecl WSACleanup() int
 
 type WsockProto {
 	int

@@ -1,28 +1,28 @@
 # C functions for "double"
-pub cdecl fn sin(x f64) f64
-pub cdecl fn cos(x f64) f64
-pub cdecl fn tan(x f64) f64
-pub cdecl fn asin(x f64) f64
-pub cdecl fn acos(x f64) f64
-pub cdecl fn atan(x f64) f64
-pub cdecl fn atan2(y f64, x f64) f64
-pub cdecl fn sinh(x f64) f64
-pub cdecl fn cosh(x f64) f64
-pub cdecl fn tanh(x f64) f64
-pub cdecl fn asinh(x f64) f64
-pub cdecl fn acosh(x f64) f64
-pub cdecl fn atanh(x f64) f64
+pub cdecl sin(x f64) f64
+pub cdecl cos(x f64) f64
+pub cdecl tan(x f64) f64
+pub cdecl asin(x f64) f64
+pub cdecl acos(x f64) f64
+pub cdecl atan(x f64) f64
+pub cdecl atan2(y f64, x f64) f64
+pub cdecl sinh(x f64) f64
+pub cdecl cosh(x f64) f64
+pub cdecl tanh(x f64) f64
+pub cdecl asinh(x f64) f64
+pub cdecl acosh(x f64) f64
+pub cdecl atanh(x f64) f64
 # C functions for "float"
-pub cdecl(sinf) fn sin(x f32) f32
-pub cdecl(cosf) fn cos(x f32) f32
-pub cdecl(tanf) fn tan(x f32) f32
-pub cdecl(asinf) fn asin(x f32) f32
-pub cdecl(acosf) fn acos(x f32) f32
-pub cdecl(atanf) fn atan(x f32) f32
-pub cdecl(atan2f) fn atan2(y f32, x f32) f32
-pub cdecl(sinhf) fn sinh(x f32) f32
-pub cdecl(coshf) fn cosh(x f32) f32
-pub cdecl(tanhf) fn tanh(x f32) f32
-pub cdecl(asinhf) fn asinh(x f32) f32
-pub cdecl(acoshf) fn acosh(x f32) f32
-pub cdecl(atanhf) fn atanh(x f32) f32
+pub cdecl(sinf) sin(x f32) f32
+pub cdecl(cosf) cos(x f32) f32
+pub cdecl(tanf) tan(x f32) f32
+pub cdecl(asinf) asin(x f32) f32
+pub cdecl(acosf) acos(x f32) f32
+pub cdecl(atanf) atan(x f32) f32
+pub cdecl(atan2f) atan2(y f32, x f32) f32
+pub cdecl(sinhf) sinh(x f32) f32
+pub cdecl(coshf) cosh(x f32) f32
+pub cdecl(tanhf) tanh(x f32) f32
+pub cdecl(asinhf) asinh(x f32) f32
+pub cdecl(acoshf) acosh(x f32) f32
+pub cdecl(atanhf) atanh(x f32) f32

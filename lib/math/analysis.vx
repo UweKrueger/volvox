@@ -1,46 +1,46 @@
 
-pub cdecl fn cbrt(x f64) f64
-pub cdecl fn erf(x f64) f64
-pub cdecl fn erfc(x f64) f64
-pub cdecl fn exp(x f64) f64
-pub cdecl fn exp2(x f64) f64
-pub cdecl fn expm1(x f64) f64
-pub cdecl fn hypot(x f64, y f64) f64
-pub cdecl fn ilogb(x f64) i32
-pub cdecl fn j0(x f64) f64
-pub cdecl fn j1(x f64) f64
-pub cdecl fn jn(n i32, x f64) f64
-pub cdecl fn ldexp(x f64) f64
-pub cdecl fn lgamma(x f64) f64
-pub cdecl fn tgamma(x f64) f64
-pub cdecl fn log(x f64) f64
-pub cdecl fn log1p(x f64) f64
-pub cdecl fn log2(x f64) f64
-pub cdecl fn logb(x f64) f64
-pub cdecl fn sqrt(x f64) f64
-pub cdecl fn y0(x f64) f64
-pub cdecl fn y1(x f64) f64
-pub cdecl fn yn(n i32, x f64) f64
+pub cdecl cbrt(x f64) f64
+pub cdecl erf(x f64) f64
+pub cdecl erfc(x f64) f64
+pub cdecl exp(x f64) f64
+pub cdecl exp2(x f64) f64
+pub cdecl expm1(x f64) f64
+pub cdecl hypot(x f64, y f64) f64
+pub cdecl ilogb(x f64) i32
+pub cdecl j0(x f64) f64
+pub cdecl j1(x f64) f64
+pub cdecl jn(n i32, x f64) f64
+pub cdecl ldexp(x f64) f64
+pub cdecl lgamma(x f64) f64
+pub cdecl tgamma(x f64) f64
+pub cdecl log(x f64) f64
+pub cdecl log1p(x f64) f64
+pub cdecl log2(x f64) f64
+pub cdecl logb(x f64) f64
+pub cdecl sqrt(x f64) f64
+pub cdecl y0(x f64) f64
+pub cdecl y1(x f64) f64
+pub cdecl yn(n i32, x f64) f64
 
-pub cdecl(cbrtf) fn cbrt(x f32) f32
-pub cdecl(erff) fn erf(x f32) f32
-pub cdecl(erfcf) fn erfc(x f32) f32
-pub cdecl(expf) fn exp(x f32) f32
-pub cdecl(exp2f) fn exp2(x f32) f32
-pub cdecl(expm1f) fn expm1(x f32) f32
-pub cdecl(hypotf) fn hypot(x f32, y f32) f32
-pub cdecl(ilogbf) fn ilogb(x f32) i32
-pub cdecl(j0f) fn j0(x f32) f32
-pub cdecl(j1f) fn j1(x f32) f32
-pub cdecl(jnf) fn jn(n i32, x f32) f32
-pub cdecl(ldexpf) fn ldexp(x f32) f32
-pub cdecl(lgammaf) fn lgamma(x f32) f32
-pub cdecl(tgammaf) fn tgamma(x f32) f32
-pub cdecl(logf) fn log(x f32) f32
-pub cdecl(log1pf) fn log1p(x f32) f32
-pub cdecl(log2f) fn log2(x f32) f32
-pub cdecl(logbf) fn logb(x f32) f32
-pub cdecl(sqrtf) fn sqrt(x f32) f32
-pub cdecl(y0f) fn y0(x f32) f32
-pub cdecl(y1f) fn y1(x f32) f32
-pub cdecl(ynf) fn yn(n i32, x f32) f32
+pub cdecl(cbrtf) cbrt(x f32) f32
+pub cdecl(erff) erf(x f32) f32
+pub cdecl(erfcf) erfc(x f32) f32
+pub cdecl(expf) exp(x f32) f32
+pub cdecl(exp2f) exp2(x f32) f32
+pub cdecl(expm1f) expm1(x f32) f32
+pub cdecl(hypotf) hypot(x f32, y f32) f32
+pub cdecl(ilogbf) ilogb(x f32) i32
+pub cdecl(j0f) j0(x f32) f32
+pub cdecl(j1f) j1(x f32) f32
+pub cdecl(jnf) jn(n i32, x f32) f32
+pub cdecl(ldexpf) ldexp(x f32) f32
+pub cdecl(lgammaf) lgamma(x f32) f32
+pub cdecl(tgammaf) tgamma(x f32) f32
+pub cdecl(logf) log(x f32) f32
+pub cdecl(log1pf) log1p(x f32) f32
+pub cdecl(log2f) log2(x f32) f32
+pub cdecl(logbf) logb(x f32) f32
+pub cdecl(sqrtf) sqrt(x f32) f32
+pub cdecl(y0f) y0(x f32) f32
+pub cdecl(y1f) y1(x f32) f32
+pub cdecl(ynf) yn(n i32, x f32) f32

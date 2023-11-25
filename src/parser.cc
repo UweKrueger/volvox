@@ -2074,7 +2074,6 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 
 /// external := 'extern' prototype
 std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
-	getNextToken(eSemi); // eat fn.
 	visibility |= (A_extern | A_pub);
 	return ParsePrototype(visibility);
 }

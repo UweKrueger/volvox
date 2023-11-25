@@ -12,23 +12,23 @@ import limits
 # - WinAPI Semaphores: available on Microsoft Windows
 #      support 'WaitForMultipleObjects()' and increasing the value by other values than 1
 #
-cdecl fn eventfd(initval u32, flags int) int
-cdecl fn write(fd int, buf voidptr, count ssize_t) ssize_t
-cdecl fn read(fd int, buf voidptr, count ssize_t) ssize_t
+cdecl eventfd(initval u32, flags int) int
+cdecl write(fd int, buf voidptr, count ssize_t) ssize_t
+cdecl read(fd int, buf voidptr, count ssize_t) ssize_t
 # key is 'long' on most systems but 'int' on Linux - so declare 32 and 64 bit versions here and decide later
-cdecl fn semget(key i32, nsems int, semflg u32) int
-cdecl fn semget(key i64, nsems int, semflg u32) int
-cdecl fn CreateSemaphoreA(lpSemaphoreAttributes voidptr, lInitialCount int, lMaximumCount int, lpName cstring) size_t
-cdecl fn create_sem(count i32, name cstring) i32
-cdecl fn delete_sem(id i32) i32
-cdecl fn acquire_sem(id i32) i32
-cdecl fn acquire_sem_etc(id i32, count i32, flags u32, bigtime_t i64) i32
-cdecl fn release_sem(id i32) i32
-cdecl fn release_sem_etc(id i32, count i32, flags u32) i32
-cdecl fn pipe(&filedes [2]int) int
-cdecl fn pipe2(&filedes [2]int, flags u32) int
-cdecl fn fcntl(fd int, op int, ...) int
-cdecl fn close(fd int) int
+cdecl semget(key i32, nsems int, semflg u32) int
+cdecl semget(key i64, nsems int, semflg u32) int
+cdecl CreateSemaphoreA(lpSemaphoreAttributes voidptr, lInitialCount int, lMaximumCount int, lpName cstring) size_t
+cdecl create_sem(count i32, name cstring) i32
+cdecl delete_sem(id i32) i32
+cdecl acquire_sem(id i32) i32
+cdecl acquire_sem_etc(id i32, count i32, flags u32, bigtime_t i64) i32
+cdecl release_sem(id i32) i32
+cdecl release_sem_etc(id i32, count i32, flags u32) i32
+cdecl pipe(&filedes [2]int) int
+cdecl pipe2(&filedes [2]int, flags u32) int
+cdecl fcntl(fd int, op int, ...) int
+cdecl close(fd int) int
 
 const SETFD := 0x004 # Haiku: set fd flags
 
@@ -55,7 +55,7 @@ type Semaphore {
 	err u32
 }
 
-cdecl fn GetLastError() u32
+cdecl GetLastError() u32
 
 type pipehandle_t union {
 	fds [2]int
@@ -135,7 +135,7 @@ pub inline fn Semaphore.max u64
 	return SEMVMX
 end
 
-cdecl fn ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voidptr) bool
+cdecl ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voidptr) bool
 
 const NOWAIT := 0x800
 
@@ -177,8 +177,8 @@ type pollfd {
 	revents i16
 }
 
-cdecl fn ppoll(&fds pollfd, nfds u32, ?timeout time.timespec, sigmask voidptr) int
-cdecl fn ppoll(&fds pollfd, nfds u64, ?timeout time.timespec, sigmask voidptr) int
+cdecl ppoll(&fds pollfd, nfds u32, ?timeout time.timespec, sigmask voidptr) int
+cdecl ppoll(&fds pollfd, nfds u64, ?timeout time.timespec, sigmask voidptr) int
 
 pub fn Semaphore.wait bool
 	global POLLIN

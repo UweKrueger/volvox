@@ -1,9 +1,9 @@
 
-cdecl fn Sleep(ms u32)
-cdecl fn nanosleep(&rqtp timespec, &rmtp timespec) int
-cdecl fn clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
-cdecl(clock_nanosleep) fn clock_nanosleep32(clockid int, flags int, &rqtp timespec32, &rmtp timespec32) int
-cdecl fn __clock_nanosleep_time64(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
+cdecl Sleep(ms u32)
+cdecl nanosleep(&rqtp timespec, &rmtp timespec) int
+cdecl clock_nanosleep(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
+cdecl(clock_nanosleep) clock_nanosleep32(clockid int, flags int, &rqtp timespec32, &rmtp timespec32) int
+cdecl __clock_nanosleep_time64(clockid int, flags int, &rqtp timespec, &rmtp timespec) int
 
 from error import EINTR
 

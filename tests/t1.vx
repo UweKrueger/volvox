@@ -31,7 +31,7 @@ fn test_const_condition bool
 	return r6zer == 4 && r7zrr == -3.75
 end
 
-cdecl fn function_that_does_not_exist(x f64) f64
+cdecl function_that_does_not_exist(x f64) f64
 
 fn test_branch_elimination_1 bool
 	if 4 > 5

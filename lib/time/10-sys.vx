@@ -47,16 +47,16 @@ pub const CLOCK_MONOTONIC := if os.isLinux
 #
 # POSIX versions - uses 32-bit-time_t on 32-bit-FreeBSD, -Haiku
 #
-cdecl(clock_gettime) fn clock_gettime64(clockid int, &tp timespec) int
-cdecl(clock_gettime) fn clock_gettime32(clockid int, &tp timespec32) int
+cdecl(clock_gettime) clock_gettime64(clockid int, &tp timespec) int
+cdecl(clock_gettime) clock_gettime32(clockid int, &tp timespec32) int
 
 # Non-POSIX 64-bit-time_t versions for selected 32 bit OSs
 #
 # NetBSD-10
-cdecl fn __clock_gettime50(clockid int, &tp timespec) int
+cdecl __clock_gettime50(clockid int, &tp timespec) int
 #
 # Linux - corresponds to -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
-cdecl fn __clock_gettime64(clockid int, &tp timespec) int
+cdecl __clock_gettime64(clockid int, &tp timespec) int
 
 # POSIX clock_gettime - always uses 64-bit-time_t
 pub inline fn clock_gettime(clockid int, &tp timespec) int
@@ -83,11 +83,11 @@ end
 
 # Windows function to get tick frequency of monotonic clock
 #
-cdecl fn QueryPerformanceFrequency(&f i64) bool
+cdecl QueryPerformanceFrequency(&f i64) bool
 
 # Windows function to read monotonic clock
 #
-pub cdecl(QueryPerformanceCounter) fn _QueryPerformanceCounter(&ticks i64) bool
+pub cdecl(QueryPerformanceCounter) _QueryPerformanceCounter(&ticks i64) bool
 
 # for calculations a constexpr might be handy on Unix systems
 const ufrequency := 1000000000
@@ -222,7 +222,7 @@ type _TimeStamp union {
 #
 pub const epoch_offset := 11644473600
 
-cdecl fn GetSystemTimePreciseAsFileTime(&time FILETIME)
+cdecl GetSystemTimePreciseAsFileTime(&time FILETIME)
 
 # get 0.1µs ticks since January 1, 1601 (in field u64)
 #
@@ -241,17 +241,17 @@ pub inline fn now() TimeStamp
 end
 
 # POSIX versions
-cdecl(time) fn time32(nn voidptr) i32
-cdecl(time) fn time64(nn voidptr) i64
+cdecl(time) time32(nn voidptr) i32
+cdecl(time) time64(nn voidptr) i64
 
 # Windows version
-cdecl fn _time64(nn voidptr) i64
+cdecl _time64(nn voidptr) i64
 
 # Linux 32 bit - with -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
-cdecl fn __time64(nn voidptr) i64
+cdecl __time64(nn voidptr) i64
 
 # NetBSD 32 bit
-cdecl fn __time50(nn voidptr) i64
+cdecl __time50(nn voidptr) i64
 
 # to avoid the year 2038 problem we always use a 64 bit time_t
 type time_t {

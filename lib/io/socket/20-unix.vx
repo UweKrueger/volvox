@@ -69,11 +69,11 @@ const SO_PEERCRED := if os.isLinux
 		0
 	end
 
-cdecl fn WSAIoctl(s size_t, dwIoControlCode u32, lpvInBuffer voidptr, cbInBuffer u32,
+cdecl WSAIoctl(s size_t, dwIoControlCode u32, lpvInBuffer voidptr, cbInBuffer u32,
                lpvOutBuffer voidptr, cbOutBuffer u32, &lpcbBytesReturned u32,
 			   lpOverlapped voidptr, lpCompletionRoutine voidptr) int
 
-cdecl fn getsockopt(sockfd int, level int, optname int, optval voidptr, &optlen u32) int
+cdecl getsockopt(sockfd int, level int, optname int, optval voidptr, &optlen u32) int
 
 fn UnixSocket.peer ucred
 	global SO_PEERCRED, SOL_SOCKET

@@ -91,8 +91,8 @@ pub inline fn Ip6Socket.bind(ownport u16) Socket
 	return this.bind(in6_any, ownport)
 end
 
-cdecl fn listen(s int, backlog int) int
-cdecl(listen) fn win_listen(s size_t, backlog int) int
+cdecl listen(s int, backlog int) int
+cdecl(listen) win_listen(s size_t, backlog int) int
 
 type ListeningSocket {
 	handle ssize_t

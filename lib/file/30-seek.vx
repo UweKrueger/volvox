@@ -1,14 +1,14 @@
 # POSIX seek functions using off_t = int64_t
-cdecl fn fseeko(f voidptr, offset i64, whence int) int
-cdecl fn ftello(f voidptr) i64
+cdecl fseeko(f voidptr, offset i64, whence int) int
+cdecl ftello(f voidptr) i64
 
 # Linux 32 versions
-cdecl fn fseeko64(f voidptr, offset i64, whence int) int
-cdecl fn ftello64(f voidptr) i64
+cdecl fseeko64(f voidptr, offset i64, whence int) int
+cdecl ftello64(f voidptr) i64
 
 # Windows version
-cdecl fn _fseeki64(f voidptr, offset i64, origin int) int
-cdecl fn _ftelli64(f voidptr)
+cdecl _fseeki64(f voidptr, offset i64, origin int) int
+cdecl _ftelli64(f voidptr)
 
 pub const SEEK_SET := 0
 pub const SEEK_CUR := 1

@@ -14,6 +14,6 @@ end
 
 fib(12)
 
-cdecl fn write(fd i32, buf cstring, n u32) i32
+cdecl write(fd i32, buf cstring, n u32) i32
 
 write(1, zu, 27)
