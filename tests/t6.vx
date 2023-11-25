@@ -502,8 +502,7 @@ inline fn gfR2 f64
 		return 34.25
 	else
 		return 2.5
-	end
-end
+end end
 
 fn nested_if_return_1(a int, b int) f64
 	if a > b
@@ -517,7 +516,7 @@ fn nested_if_return_1(a int, b int) f64
 			return 9.125
 		else
 			return -2.75
-end	+	+
+end end end
 
 fn test_nested_if_1 bool
 	return nested_if_return_1(7, 6) == 12.0625
@@ -545,8 +544,7 @@ fn nested_if_return_2(a int, b int) f64
 			return -89.375
 		else
 			return 0.75
-		end
-	end
+	end end
 	return 55.375
 end
 

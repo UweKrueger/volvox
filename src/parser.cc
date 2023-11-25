@@ -1304,10 +1304,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	case tok_fn:
 		return ParseFunctionExpr(terminator);
 	default:
-		errs() << CurLoc << ": unexpected token '" << CurTok.str() << "'";
-		if (IdentifierStr != CurTok.str())
-			errs() << " (represented as '" << IdentifierStr << "')";
-		errs() << " when expecting a " << lex.Expected << " or an expression\n";
+		errs() << CurLoc << ": unexpected token '" << CurTok.str() << "' when expecting a " << lex.Expected << " or an expression\n";
 		purgeLine();
 		return nullptr;
 	}

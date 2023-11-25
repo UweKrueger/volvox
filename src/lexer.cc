@@ -423,7 +423,6 @@ int Lexer::advance() {
 				strcat(prompt, "    ");
 		}
 		linelen = fdgetline(&linebuf, &bufsize);
-		end_plus = false;
 		if (linelen < 0 || !use_readline && linelen <= 0) {
 			return EOF;
 		}
@@ -490,21 +489,6 @@ Token Lexer::purge_line() {
 	return ';';
 }
 
-void Lexer::check_end_plus() {
-	// special handling of "end +   +   +"
-	int j = Loc.Col;
-	end_plus = false;
-	while (!(j > linelen || !use_readline && j >= linelen)) {
-		if (linebuf[j] == '+') {
-			end_plus = true;
-			break;
-		} else if (linebuf[j] != ' ' && linebuf[j] != '\t') {
-			break;
-		}
-		j++;
-	}
-}
-
 Token Lexer::gettok(eXpect expect, int terminator) {
 	Expected = expect; // for error messages in parser, etc.
 	if (KeepIdentifierStr != "") {
@@ -530,8 +514,6 @@ startanalysis:
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
 		if (auto tok_val = map_string_get(keyword_toks, IdentifierStr.c_str())) {
-			if (tok_val->i32 == tok_end)
-				check_end_plus();
 			return Token(tok_val->i32);
 		}
 		if (expect == eBinOp) {
@@ -624,13 +606,6 @@ if (CurChar == 'i') {
 			// we were expecting a binary operator but got a unary one
 			return tok_error;
 		case '+':
-			if (end_plus) {
-				IdentifierStr = CurChar;
-				check_end_plus();
-				CurChar = advance();
-				return tok_end;
-			}
-			// else fallthrough
 		case '>':
 		case '<':
 		case '|':
@@ -880,13 +855,6 @@ if (CurChar == 'i') {
 		CurChar = advance();
 		return tok_optional;
 	case '+':
-		if (end_plus) {
-			IdentifierStr = CurChar;
-			check_end_plus();
-			CurChar = advance();
-			return tok_end;
-		}
-		// else fallthrough
 	case '-':
 	case '!':
 	case '~':

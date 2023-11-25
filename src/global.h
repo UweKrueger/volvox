@@ -1124,7 +1124,6 @@ class Lexer : public SourceLocState {
 public:
 	std::vector<SourceLocState> source_stack = {};
 	eXpect Expected; // only used for error messages
-	bool end_plus = false;
 	Lexer() = default;
 	Lexer(FILE** _inputfile, const char* _input_file_name, size_t _bufsize = 100)
 		: SourceLocState(SourceLocation{ _input_file_name, 0, 0 }, 0, _bufsize,
@@ -1144,7 +1143,6 @@ public:
 		free(linebuf);
 	}
 	int advance();
-	void check_end_plus();
 	Token gettok(eXpect expect = eNone, int terminator = 0);
 	Token purge_line();
 	char peek();

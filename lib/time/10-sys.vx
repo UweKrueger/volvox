@@ -73,7 +73,7 @@ pub inline fn clock_gettime(clockid int, &tp timespec) int
 			tp.sec = tp32.sec
 			tp.nsec = tp32.nsec
 			return res
-	end	+
+	end end
 	# all other OSs (including 32-bit-OpenBSD) default to 64-bit-time_t
 	return clock_gettime64(clockid, tp)
 end
@@ -128,8 +128,7 @@ fn get_common_timestamp() common_timestamp
 	else
 		if clock_gettime(CLOCK_MONOTONIC, _tmp_ts.timespec) != 0
 			panic("fatal: cannot query CLOCK_MONOTONIC\n")
-		end
-	end
+	end end
 	return _tmp_ts
 end
 
@@ -269,7 +268,6 @@ pub inline fn time() time_t
 			return time_t{ i64: __time50(0) }
 		elif os.isFreeBSD || os.isHaiku
 			return time_t{ i64: time32(0) } # this will not work from 2038 on
-		end
-	end
+	end end
 	return time_t{ i64: time64(0) }
 end

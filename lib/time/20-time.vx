@@ -93,7 +93,7 @@ pub inline fn time_t.gm tm
 			t = i32(this.i64)
 			gmtime_r32(t, res)
 			return res
-	end	+
+	end end
 	gmtime_r64(this.i64, res)
 	return res
 end
@@ -115,7 +115,7 @@ pub inline fn time_t.local tm
 			t = i32(this.i64)
 			localtime_r32(t, res)
 			return res
-	end	+
+	end end
 	localtime_r64(this.i64, res)
 	return res
 end
