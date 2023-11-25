@@ -257,8 +257,7 @@ Return nil if not successful."
     ("{"        "}"                                           open)
     ("["        "]"                                           open)
     ("("        ")"                                           open)
-    ("elif"     "\\<\\(if\\while\\|for\\)\\>"                       close)
-    ("end"      "\\<\\(if\\|fn\\|while\\|for\\)\\>"                 close)
+    ("end"      "\\<\\(if\\|fn\\|while\\|for\\)\\>"           close)
     ("until"    "\\<repeat\\>"                                close)
     ("}"        "{"                                           close)
     ("]"        "\\["                                         close)
@@ -278,7 +277,7 @@ Return nil if not successful."
    "[([{]"
    "\\)\\|\\(\\<"
    ;;(regexp-opt '("elif" "end" "until") t)
-   "\\(e\\(?:lif\\|nd\\)\\|until\\)"
+   "\\(end\\|until\\)"
    "\\>\\|"
    ;;(regexp-opt '("]" ")" "}"))
    "[])}]"
@@ -438,13 +437,14 @@ dosomething(d +
 (defun volvox-make-indentation-info-pair ()
   "This is a helper function to `volvox-calculate-indentation-info'.
 Don't use standalone."
-  (cond ((string-equal found-token "fn")
-	 ;; this is the location where we need to start searching for the
-	 ;; matching opening token, when we encounter the next closing token.
-	 ;; It is primarily an optimization to save some searchingt ime.
-	 (cons 'absolute (+ (save-excursion (goto-char found-pos)
-					    (current-column))
-			    volvox-indent-level)))
+  (cond
+;	((string-equal found-token "fn")
+;	 ;; this is the location where we need to start searching for the
+;	 ;; matching opening token, when we encounter the next closing token.
+;	 ;; It is primarily an optimization to save some searchingt ime.
+;	 (cons 'absolute (+ (save-excursion (goto-char found-pos)
+;					    (current-column))
+;			    volvox-indent-level)))
 	((string-equal found-token "(")
 	 ;; this is the location where we need to start searching for the
 	 ;; matching opening token, when we encounter the next closing token.
