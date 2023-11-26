@@ -1,17 +1,16 @@
 ;;; volvox-mode.el --- Major mode for editing Volvox files  -*- lexical-binding: t -*-
 
-;; Copyright (C) 2003, 2008-2022 Free Software Foundation, Inc.
-;; Copyright (C) 2023 Uwe Krüger
+;; Copyright (C) 2003, 2008-2023 Free Software Foundation, Inc.
 
-;; Author: Uwe Krüger <arnima@hafro.is>
+;; Author: Uwe Krüger <uwe_debbug@arcor.de>
 ;; Keywords: languages
 
-;; This file is derived from files of GNU Emacs - mostly lua-mode.el
-;; of XEmacs-21.4.22
+;; This file is part of GNU Emacs.
+;; The code is based on lua-mode.el from XEmacs-21.4.22
 
 ;; GNU Emacs is free software: you can redistribute it and/or modify
 ;; it under the terms of the GNU General Public License as published by
-;; the Free Software Foundation, either version 3 of the License, or
+;; the Free Software Foundation, either version 2 of the License, or
 ;; (at your option) any later version.
 
 ;; GNU Emacs is distributed in the hope that it will be useful,
@@ -21,6 +20,16 @@
 
 ;; You should have received a copy of the GNU General Public License
 ;; along with GNU Emacs.  If not, see <https://www.gnu.org/licenses/>.
+
+;; Installation:
+;; Copy this file to a directory that is your (X)Emacs' library search path
+;; e.g. "site-lisp" in the installation
+
+;; Add the following lines to your personal init file (.emacs/init.el,
+;; .xemacs/init.el or .emacs):
+
+;; (autoload 'volvox-mode "volvox-mode")
+;; (add-to-list 'auto-mode-alist '("\\.\\(volvox\\|vx\\)\\'" . volvox-mode))
 
 (defconst volvox-using-xemacs (string-match "XEmacs" emacs-version)
   "Nil unless using XEmacs).")
@@ -438,13 +447,6 @@ dosomething(d +
   "This is a helper function to `volvox-calculate-indentation-info'.
 Don't use standalone."
   (cond
-;	((string-equal found-token "fn")
-;	 ;; this is the location where we need to start searching for the
-;	 ;; matching opening token, when we encounter the next closing token.
-;	 ;; It is primarily an optimization to save some searchingt ime.
-;	 (cons 'absolute (+ (save-excursion (goto-char found-pos)
-;					    (current-column))
-;			    volvox-indent-level)))
 	((string-equal found-token "(")
 	 ;; this is the location where we need to start searching for the
 	 ;; matching opening token, when we encounter the next closing token.
@@ -625,5 +627,3 @@ In usual case return an integer: the column to indent to."
 	  (+ (current-indentation) shift-amt))))))
 
 (provide 'volvox-mode)
-
-(add-to-list 'auto-mode-alist '("\\.\\(volvox\\|vx\\)\\'" . volvox-mode))
