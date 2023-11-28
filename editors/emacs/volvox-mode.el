@@ -356,7 +356,7 @@ Return the point, or nil if it reached the beginning of the buffer."
       (if (bobp) (throw 'found nil))
       (forward-char -1)
       (beginning-of-line)
-      (if (not (looking-at "\\s *\\(--.*\\)?$")) (throw 'found (point))))))
+      (if (not (looking-at "\\s *\\(#.*\\)?$")) (throw 'found (point))))))
 
 (defconst volvox-operator-class "-+*/^.=<>~")
 

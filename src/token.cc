@@ -120,11 +120,12 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	}
 	// try to parse same number as float
 	char* endptr_f;
+	double f = 0;
 	if (*endptr == '.' && *(endptr+1) == '.' && *(endptr+2) != '.') {
 		// don't parse as float if range operator is seen, e.g. '2..7' (but do for '2...7' which is '2. .. 7')
 		*s_ptr = endptr;
 	} else {
-		double f = strtod(*s_ptr, &endptr_f);
+		f = strtod(*s_ptr, &endptr_f);
 		if (errno == 0 && endptr_f > endptr) {
 			if (*endptr == '.' && endptr_f - endptr == 1) {
 				if (isalpha(*endptr_f)) {
@@ -146,40 +147,94 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 		}
 	}
 	// handle explicit typed numeric tokens
-	char t = tolower(**s_ptr);
-	unsigned long bits;
-	if (t == 'f' || t == 'i' || t == 'u') {
-		is_unknown_type = false;
-		++*s_ptr;
-		if (isdigit(**s_ptr)) {
-			bits = strtoul(*s_ptr, s_ptr, 10);
-		} else {
-			bits = 32; // default for int, uint, float
-		}
+	char* eptr = *s_ptr;
+	bool sgn_given = false;
+	unsigned bitw = 0;
+	bool is_flt = gen_type.ID == VOLVOX_DoubleTyID;
+	bool is_int = false;
+	bool is_signed = !is_flt;
+	// we try to interpret directly following letters as explicit type specifiers
+	// if this is not possible we leave the line ptr to allow the letters to be
+	// interpreted as identifier
+	do {
+		char t = tolower(*eptr);
 		switch (t) {
 		case 'f':
-			switch (bits) {
-			case 16: // not really supported, yet
-				gen_type = { .ID = VOLVOX_BFloatTyID };
-				break;
-			case 32:
-				gen_type = { .ID = VOLVOX_FloatTyID };
-				break;
-			case 64:
-				gen_type = { .ID = VOLVOX_DoubleTyID };
-				break;
-			default:
-				errs() << "unsupported bit size " << bits << " for float literal\n";
+			if (bitw)
+				goto do_check;
+			bitw = 32;
+			is_flt = true;
+			break;
+		case 'u':
+			if (sgn_given || is_flt)
+				goto do_check;
+			sgn_given = true;
+			is_signed = false;
+			is_int = true;
+			break;
+		case 'l':
+			if (bitw || is_flt)
+				goto do_check;
+			if (*eptr == *(eptr+1)) {
+				eptr++;
+				bitw = 128;
+			} else {
+				bitw = 64;
 			}
+			is_int = true;
+			break;
+		case 'h':
+			if (bitw || is_flt)
+				goto do_check;
+			if (*eptr == *(eptr+1)) {
+				eptr++;
+				bitw = 8;
+			} else {
+				bitw = 16;
+			}
+			is_int = true;
+			break;
+		case 'z':
+			if (bitw || is_flt)
+				goto do_check;
+			bitw = target_bits;
+			is_int = true;
 			break;
 		case 'i':
-		case 'u':
-			if (bits != 8 && bits != 16 && bits != 32 && bits != 64)
-				errs() << "unsupported bit size " << bits << " for integer literal\n";
-			int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = (unsigned)bits, .is_signed = (t == 'i') };
+			if (is_int)
+				goto do_check;
+			is_flt = true;
+			is_signed = true; // "signed" indicates imaginary for floats
 			break;
+		case 'n':
+			if (bitw)
+				goto do_check;
+			if (is_flt)
+				bitw = 64;
+			else {
+				bitw = 32;
+				is_int = true;
+			}
+			break;
+		default:
+			if (isalnum(*eptr) || *eptr == '_' || eptr == *s_ptr)
+				goto do_check;
+			goto end_loop;
 		}
-	}
+		eptr++;
+	} while (true);
+end_loop:
+	if (is_flt) {
+		Val.Float = f;
+		if (bitw == 32)
+			gen_type = { .ID = VOLVOX_FloatTyID /* , .is_signed = is_signed */ }; // imaginary not support, yet
+		else
+			gen_type = { .ID = VOLVOX_DoubleTyID /* , .is_signed = is_signed */ };
+	} else
+		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = bitw ? bitw : 32, .is_signed = is_signed };
+	is_unknown_type = false;
+	*s_ptr = eptr;
+do_check:
 	if (gen_type.ID == VOLVOX_IntegerTyID && int_type.is_signed && !is_unknown_type && !sign && Val.Int < 0)
 		// TODO: further checks for bit sizes
 		errs() << Val.Uint << " exceeds maximum maximum possible signed value\n";
