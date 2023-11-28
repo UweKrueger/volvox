@@ -1,9 +1,9 @@
 ggwqljj = 7.3
 
 if ggwqljj > 9
-	uttw2 = 45u16
+	uttw2 = 45uH
 else
-	uttw2 = 13u16
+	uttw2 = 13uH
 end
 
 # printf("%hu\n", uttw2)

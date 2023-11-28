@@ -70,29 +70,29 @@ fn test_rotate bool
 end
 
 fn test_f32_exponentiation_f32_exp_1 bool
-	a = 1.25f32
+	a = 1.25f
 	b = a^2.5
 	a = b
 	return a > 1.746927 && a < 1.746929
 end
 
 fn test_f32_exponentiation_int_exp_1 bool
-	a = 1.0625f32
+	a = 1.0625f
 	b = a^5
 	a = b
 	return a > 1.354080 && a < 1.354082
 end
 
 fn test_f32_exponentiation_int_exp_2 bool
-	a = -3.75f32
-	b = a^10u8
+	a = -3.75f
+	b = a^10uhh
 	a = b
 	return a > 549936.63 && a < 549936.72
 end
 
 fn test_f32_exponentiation_int_exp_3 bool
-	a = -2.25f32
-	b = a^7i64
+	a = -2.25f
+	b = a^7L
 	a = b
 	return a < -291.9292 && a > -291.9293
 end
@@ -113,14 +113,14 @@ end
 
 fn test_f64_exponentiation_int_exp_2 bool
 	a = -3.75
-	b = a^6u8
+	b = a^6UHH
 	a = b
 	return a == 2780.914306640625
 end
 
 fn test_f64_exponentiation_int_exp_3 bool
 	a = -2.253674432345796
-	b = a^7i64
+	b = a^7L
 	a = b
 	return a > -295.2828636106025 && a < -295.2828636106015
 end
@@ -140,8 +140,8 @@ fn test_int_int_exponentiation_1 bool
 end
 
 fn test_int_int_exponentiation_2 bool
-	a = -17i64
-	b = 13i8
+	a = -17L
+	b = 13hh
 	c = a^b
 	return c == -9904578032905937
 end
@@ -152,14 +152,14 @@ fn test_int_int_exponentiation_3 bool
 end
 
 fn test_int_int_exponentiation_4 bool
-	a = -7532i64
+	a = -7532L
 	return a^0 == 1 && a^1 == -7532 && a^2 == 56731024 &&
-		a^3 == -427298072768i64 && a^4 == 3218409084088576i64
+		a^3 == -427298072768L && a^4 == 3218409084088576L
 end
 
 fn test_int_int_exponentiation_5 bool
 	a = -5
-	b = -7i64
+	b = -7L
 	c = 17
 	d = 23
 	return a^-1 == 0 && b^-1 == 0 && c^-1 == 0 && d^-1 ==0 && a^-2 == 0 &&
@@ -168,9 +168,9 @@ end
 
 fn test_int_int_exponentiation_6 bool
 	a = -1
-	b = -1i64
+	b = -1L
 	c = 1
-	d = 1i64
+	d = 1L
 	return a^-1 == -1 && b^-1 == -1 && c^-1 == 1 && d^-1 == 1 && a^-2 == 1 &&
 		b^-3 == -1 && a^-7 == -1 && b^-4 == 1 && c^-7 == 1 && d^-9 == 1
 end
@@ -232,7 +232,7 @@ fn test_nested_overloaded_call_3 bool
 end
 
 fn test_nested_overloaded_call_4 bool
-	return fqq(fqq(-7u32)) == -42
+	return fqq(fqq(-7u)) == -42
 end
 
 alp = testmod.Olgj(7.0625)

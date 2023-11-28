@@ -197,7 +197,7 @@ type RtzRi {
 }
 
 fn ggg(a [4]u64) u64
-	s = 0u64
+	s = 0uL
 	s += a[0]
 	s += 3*a[2]
 	return s

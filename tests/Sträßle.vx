@@ -5,7 +5,7 @@ q = 12.3
 
 fn fib(x u64) u64
 	t = if x < 3
-	    1u64
+	    1uL
 	else
 	    fib(x - 2) + fib(x - 1)
 	end

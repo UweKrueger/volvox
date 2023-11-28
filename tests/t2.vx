@@ -120,6 +120,6 @@ fn test_if_else_3 bool
 end
 
 fn test_type_propagation_1 bool
-	pr = 2.3f64 * ((4000000000u32 - 13i32) + 0.1f32)
+	pr = 2.3n * ((4000000000u - 13n) + 0.1f)
 	return pr < 9199999970.33001 && pr > 9199999970.32999
 end

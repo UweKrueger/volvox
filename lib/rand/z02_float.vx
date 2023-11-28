@@ -22,7 +22,7 @@ pub inline fn F64 f64
 		if compensate_for_53rd_bit
 			# the result only contains 52 bits of information i.e. the "last" bit is always 0
 			# we can compensate this by adding epsilon/2 with a probability of 50%
-			mask = 0u64 - (r0 >> 63)
+			mask = 0uL - (r0 >> 63)
 			c = Fu64{ f: 0.5 * epsilon64 }
 			c.u &= mask
 			x.f += c.f

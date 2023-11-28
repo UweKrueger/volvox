@@ -43,7 +43,7 @@ type WsockProto {
 inline fn WsockProto
 	if os.isWindows
 		global __verbose
-		version = 0x0202u16
+		version = 0x0202uH
 		if (arch.bitwidth == 64)
 			data64 = WSAData64{}
 			this.int = WSAStartup64(version, data64)

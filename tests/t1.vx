@@ -1,6 +1,6 @@
 fn fib(x u64) u64
 	t = if x < 3
-		1u64
+		1uL
 	else
 		fib(x - 2) + fib(x - 1)
 	end
@@ -20,7 +20,7 @@ fn factorial(n i64) i64
 end
 
 fn test_factorial bool
-	return factorial(15) == 1307674368000i64
+	return factorial(15) == 1307674368000L
 end
 
 const r6zer := if false || true; 4 else 5 end

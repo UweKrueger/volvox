@@ -95,7 +95,7 @@ const ufrequency := 1000000000
 fn get_system_tick_frequency() int
 	global ufrequency
 	if os.isWindows
-		f = 0i64
+		f = 0L
 		if !QueryPerformanceFrequency(f)
 			panic("fatal: cannot probe system tick frequency\n")
 		end
@@ -106,7 +106,7 @@ fn get_system_tick_frequency() int
 end
 
 pub const tick_frequency = get_system_tick_frequency()
-pub const tick_period = 1.0f64 / tick_frequency
+pub const tick_period = 1.0N / tick_frequency
 
 # monotonic timestamps are of type 'timespec' on Unix and 'LARGE_INTEGER' on Windows
 # to avoid the clumsy timespec structure, Volvox timestamps are i64 on all systems and represent
@@ -173,7 +173,7 @@ end
 pub inline fn get() i64
 	global CLOCK_MONOTONIC, program_start_common_timestamp
 	if os.isWindows
-		t = 0i64
+		t = 0L
 		if !_QueryPerformanceCounter(t)
 			panic("fatal: cannot query system performance counter\n")
 		end

@@ -64,7 +64,7 @@ type QwF packed {
 }
 
 global lfg = QwF{
-	rtt: 34.5f32
+	rtt: 34.5f
 	o2a: 4234
 }
 
