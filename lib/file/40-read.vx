@@ -1,0 +1,122 @@
+cdecl fscanf(file voidptr, fmt cstring, ...) int
+
+# read floating point numbers in decimal representation
+
+pub fn File.readR real
+	r = real
+	fscanf(this.voidptr, " %lg", &r)
+	return r
+end
+
+pub fn File.readF f32
+	f = f32
+	fscanf(this.voidptr, "%g", &f)
+	return f
+end
+
+# read floating point numbers in hexadecimal representation
+
+pub fn File.readRX real
+	r = real
+	fscanf(this.voidptr, " %la", &r)
+	return r
+end
+
+pub fn File.readFX f32
+	f = f32
+	fscanf(this.voidptr, "%a", &f)
+	return f
+end
+
+# read signed integer numbers in any format
+
+pub fn File.readL i64
+	n = i64
+	# we use 'll' (long long) here because that's 64 bit on all platforms
+	fscanf(this.voidptr, " %lli", &n)
+	return n
+end
+
+pub fn File.readN i32
+	n = i32
+	fscanf(this.voidptr, " %i", &n)
+	return n
+end
+
+pub fn File.readH i16
+	n = i16
+	fscanf(this.voidptr, " %hi", &n)
+	return n
+end
+
+pub fn File.readHH i8
+	n = i8
+	fscanf(this.voidptr, " %hhi", &n)
+	return n
+end
+
+# read signed integer numbers in decimal format
+
+pub fn File.readDL i64
+	n = i64
+	# we use 'll' (long long) here because that's 64 bit on all platforms
+	fscanf(this.voidptr, " %lld", &n)
+	return n
+end
+
+pub fn File.readD i32
+	n = i32
+	fscanf(this.voidptr, " %d", &n)
+	return n
+end
+
+pub fn File.readDH i16
+	n = i16
+	fscanf(this.voidptr, " %hd", &n)
+	return n
+end
+
+pub fn File.readDHH i8
+	n = i8
+	fscanf(this.voidptr, " %hhd", &n)
+	return n
+end
+
+# read unsigned numbers
+
+pub fn File.readUL u64
+	n = u64
+	# we use 'll' (long long) here because that's 64 bit on all platforms
+	fscanf(this.voidptr, " %llu", &n)
+	return n
+end
+
+pub fn File.readU u32
+	n = u32
+	fscanf(this.voidptr, " %u", &n)
+	return n
+end
+
+pub fn File.readUH u16
+	n = u16
+	fscanf(this.voidptr, " %hu", &n)
+	return n
+end
+
+pub fn File.readUHH u8
+	n = u8
+	fscanf(this.voidptr, " %hhu", &n)
+	return n
+end
+
+cdecl getline(&buf cstring, &sz size_t, file voidptr) size_t
+
+pub fn File.readS string
+	bufsz = 114uZ
+	buf = cstring(__malloc(114))
+	sz = getline(buf, bufsz, this.voidptr)
+	# printf("Read %p >%s<\n", buf, buf)
+	s = __transformcstr2volvox(buf, bufsz)
+	# printf("converted %p >%s<\n", s, s)
+	return s
+end
