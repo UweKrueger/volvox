@@ -1356,3 +1356,15 @@ _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 }
 
 #endif
+
+_DECL FILE* __get_stdin() {
+	return stdin;
+}
+
+_DECL FILE* __get_stdout() {
+	return stdout;
+}
+
+_DECL FILE* __get_stderr() {
+	return stderr;
+}

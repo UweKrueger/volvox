@@ -6,10 +6,44 @@ cdecl fopen(filename cstring, mode cstring) voidptr
 cdecl fopen64(filename cstring, mode cstring) voidptr
 cdecl fclose(f voidptr) int
 
+# We do not currently support C global variables so we call wrappers
+
+cdecl __get_stdin voidptr
+cdecl __get_stdout voidptr
+cdecl __get_stderr voidptr
+
+const __stdin_ptr = __get_stdin
+const __stdout_ptr = __get_stdout
+const __stderr_ptr = __get_stderr
+
+const __magic := 0xfffff
+
 type File {
 	voidptr # FILE*
 	err u32
 }
+
+pub fn File
+	global __stdin_ptr, __stdout_ptr, __stderr_ptr, __magic
+	if size_t(this.voidptr) == 0
+		# standard file - get file descriptor from err
+		if this.err != 0
+			# hack for std{in,out,err} - code fd in err
+			if this.err == __magic + 0
+				this.voidptr = __stdin_ptr
+			elif this.err == __magic + 1
+				this.voidptr = __stdout_ptr
+			elif this.err == __magic + 2
+				this.voidptr = __stderr_ptr
+			elif this.err != 0
+				panic("Inconsistent file status")
+			end
+			this.err = 0
+end end end
+
+pub fn File(c_file voidptr)
+	this.voidptr = c_file
+end
 
 pub inline fn ~File
 	if size_t(this.voidptr) != 0
@@ -21,6 +55,17 @@ pub inline fn File.is_valid bool
 	return size_t(this.voidptr) != 0
 end
 
+# Having std streams available in all threads but keeping the err part
+# thread local is somewhat tricky.
+# We declare thread-local variables using the constexpr-initialized
+# err as coded file descriptor.
+# The default constructor then assigns the correct file pointer based
+# on this magic code.
+
+pub global stdin := File{ err: __magic + 0 }
+pub global stdout := File{ err: __magic + 1 }
+pub global stderr := File{ err: __magic + 2 }
+
 # open file for read/write (like '>' in shell scripts)
 # - if file name exists truncate it to size 0
 # - create new file otherwise
@@ -31,11 +76,10 @@ pub inline fn create(filename cstring) File
 	else
 		mode = "we"
 	end
-	f = File{}
 	if arch.bitwidth == 32 && os.isLinux
-		f.voidptr = fopen64(filename, mode)
+		f = File fopen64(filename, mode)
 	else
-		f.voidptr = fopen(filename, mode)
+		f = File fopen(filename, mode)
 	end
 	if !f.is_valid
 		f.err = GetLastError
@@ -52,11 +96,10 @@ pub inline fn open(filename cstring) File
 	else
 		mode = "re"
 	end
-	f = File{}
 	if arch.bitwidth == 32 && os.isLinux
-		f.voidptr = fopen64(filename, mode)
+		f = File fopen64(filename, mode)
 	else
-		f.voidptr = fopen(filename, mode)
+		f = File fopen(filename, mode)
 	end
 	if !f.is_valid
 		f.err = GetLastError
@@ -73,11 +116,10 @@ pub inline fn new(filename cstring) File
 	else
 		mode = "wxe"
 	end
-	f = File{}
 	if arch.bitwidth == 32 && os.isLinux
-		f.voidptr = fopen64(filename, mode)
+		f = File fopen64(filename, mode)
 	else
-		f.voidptr = fopen(filename, mode)
+		f = File fopen(filename, mode)
 	end
 	if !f.is_valid
 		f.err = GetLastError
@@ -98,11 +140,10 @@ pub inline fn append(filename cstring) File
 	else
 		mode = "ae"
 	end
-	f = File{}
 	if arch.bitwidth == 32 && os.isLinux
-		f.voidptr = fopen64(filename, mode)
+		f = File fopen64(filename, mode)
 	else
-		f.voidptr = fopen(filename, mode)
+		f = File fopen(filename, mode)
 	end
 	if !f.is_valid
 		f.err = GetLastError
