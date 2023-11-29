@@ -455,10 +455,17 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 // insert destructors for given var table - retp is a pointer to the function return value
 // in case of struct-return - so this one will not be destructed but moved to the caller, instead
 void InsertDestructors(VarTable& t, llvm::Value* retp) {
+	llvm::Value* var_adr = nullptr;
+	if (retp)
+		if (auto load_instr = llvm::dyn_cast<llvm::LoadInst>(retp)) {
+			errs() << "### Found LoadInst for " << *load_instr << '\n';
+			var_adr = load_instr->getPointerOperand();
+		}
 	for (auto var_node = t.first(); var_node; ++var_node) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
-		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && fv->val && fv->val != retp)
+		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && fv->val && fv->val != retp
+		    && (!var_adr || fv->val != var_adr))
 			InsertDestructor(fv);
 	}
 }
