@@ -458,7 +458,6 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	llvm::Value* var_adr = nullptr;
 	if (retp)
 		if (auto load_instr = llvm::dyn_cast<llvm::LoadInst>(retp)) {
-			errs() << "### Found LoadInst for " << *load_instr << '\n';
 			var_adr = load_instr->getPointerOperand();
 		}
 	for (auto var_node = t.first(); var_node; ++var_node) {

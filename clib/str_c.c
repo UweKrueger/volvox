@@ -1283,11 +1283,10 @@ _DECL char* __volvox2cstr(const char* v) {
 	return strdup(s_c);
 }
 
-_DECL char* __transformcstr2volvox(char* c_str, size_t cap) {
+_DECL char* __transformcstr2volvox_l(char* c_str, size_t _l, size_t cap) {
 	char* res;
 	size_t min_cap;
 	char* targ;
-	size_t _l = strlen(c_str);
 	min_cap = (_l+3*sizeof(size_t)) & ~(size_t)(sizeof(size_t)-1);
 	if (min_cap > cap) {
 		cap = min_cap;
@@ -1299,6 +1298,22 @@ _DECL char* __transformcstr2volvox(char* c_str, size_t cap) {
 	*(size_t*)res = _l+1;
 	*((size_t*)res + 1) = cap;
 	return res;
+}
+
+_DECL char* __transformcstr2volvox(char* c_str, size_t cap) {
+	size_t _l = strlen(c_str);
+	return __transformcstr2volvox_l(c_str, _l, cap);
+}
+
+// remove trailing '\n'
+_DECL void __trim_cstring(char* s, size_t* l) {
+	if (*l>0) {
+		size_t l_new = *l-1;
+		if (s[l_new] == '\n') {
+			s[l_new] = '\0';
+			*l = l_new;
+		}
+	}
 }
 
 #undef target_bytes

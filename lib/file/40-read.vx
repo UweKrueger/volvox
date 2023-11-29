@@ -110,13 +110,14 @@ pub fn File.readUHH u8
 end
 
 cdecl getline(&buf cstring, &sz size_t, file voidptr) size_t
+cdecl __transformcstr2volvox_l(s cstring, len size_t, cap size_t) string
+cdecl __trim_cstring(s cstring, &l size_t)
 
-pub fn File.readS string
+pub fn File.readln string
 	bufsz = 114uZ
 	buf = cstring(__malloc(114))
 	sz = getline(buf, bufsz, this.voidptr)
-	# printf("Read %p >%s<\n", buf, buf)
-	s = __transformcstr2volvox(buf, bufsz)
-	# printf("converted %p >%s<\n", s, s)
+	__trim_cstring(buf, sz)
+	s = __transformcstr2volvox_l(buf, sz, bufsz)
 	return s
 end
