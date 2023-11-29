@@ -21,8 +21,6 @@ pub inline fn File.is_valid bool
 	return size_t(this.voidptr) != 0
 end
 
-cdecl fwrite(str cstring, sz size_t, n size_t, voidptr) size_t
-
 # open file for read/write (like '>' in shell scripts)
 # - if file name exists truncate it to size 0
 # - create new file otherwise
@@ -118,4 +116,4 @@ pub inline fn File.close
 			this.err = GetLastError
 		end
 		this.voidptr = voidptr(0)
-end +
+end end

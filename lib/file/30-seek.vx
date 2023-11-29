@@ -21,7 +21,7 @@ inline fn __fseek(f voidptr, offset i64, whence int) int
 		return fseeko64(f, offset, whence)
 	else
 		return fseeko(f, offset, whence)
-end	+
+end	end
 
 pub fn File.seek(offset i64, whence int) bool
 	if __fseek(this.voidptr, offset, whence) == 0
@@ -55,4 +55,4 @@ pub fn File.tell i64
 		return ftello64(this.voidptr)
 	else
 		return ftello(this.voidptr)
-end	+
+end	end
