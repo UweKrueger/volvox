@@ -1305,11 +1305,13 @@ _DECL char* __transformcstr2volvox(char* c_str, size_t cap) {
 	return __transformcstr2volvox_l(c_str, _l, cap);
 }
 
-// remove trailing '\n'
-_DECL void __trim_cstring(char* s, size_t* l) {
+// remove trailing delimiter - or '\r\n' for DOS files
+_DECL void __trim_cstring(char* s, size_t* l, char d) {
 	if (*l>0) {
 		size_t l_new = *l-1;
-		if (s[l_new] == '\n') {
+		if (s[l_new] == d) {
+			if (d == '\n' && l_new > 0 && s[l_new-1] == '\r')
+				l_new = l_new-1;
 			s[l_new] = '\0';
 			*l = l_new;
 		}
@@ -1342,35 +1344,6 @@ _DECL unsigned GetLastError() {
 // BSD and Linux have them in libc - however Windows doesn't
 // So we provide provide Windows versions for here
 //
-_DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
-	size_t n = 0;
-	if (!*sz) {
-		*sz = 120;
-		if (*buf)
-			*buf = realloc(*buf, *sz);
-		else
-			*buf = malloc(*sz);
-	}
-	for(;;) {
-		if (!*buf || !fgets((*buf)+n, (*sz - n), f))
-			return -1;
-		for ( ; (*buf)[n]; n++)
-			if ((*buf)[n] == '\n') {
-				if (n>0 && (*buf)[n-1] == '\r') {
-					// In Volvox we do not want to distinguish between "text files" and "binary files"
-					// So files are always opened in "binary" mode. But since DOS-type text files
-					// are still in use on Windows we must do the "translation" here manually when necessary
-					(*buf)[n-1] = '\n';
-					(*buf)[n] = '\0';
-					return n;
-				} else
-					return n + 1;
-			}
-		*sz = *sz + (*sz >> 1) + 100;
-		*buf = realloc(*buf, *sz);
-	}
-}
-
 _DECL ssize_t getdelim(char** buf, size_t* sz, int delim, FILE* f) {
 	ssize_t n = 0;
 	if (!*sz) {
@@ -1396,6 +1369,10 @@ _DECL ssize_t getdelim(char** buf, size_t* sz, int delim, FILE* f) {
 	_unlock_file(f);
 	buf[n] = '\0';
 	return n;
+}
+
+_DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
+	return getdelim(buf, sz, '\n', f);
 }
 
 #endif

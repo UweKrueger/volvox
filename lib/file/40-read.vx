@@ -118,15 +118,31 @@ pub fn File.readuhh u8
 end
 
 cdecl getline(&buf cstring, &sz size_t, file voidptr) ssize_t
+cdecl getdelim(&buf cstring, &sz size_t, delim i8, file voidptr) ssize_t
 cdecl __transformcstr2volvox_l(s cstring, len ssize_t, cap size_t) string
-cdecl __trim_cstring(s cstring, &l ssize_t)
+cdecl __trim_cstring(s cstring, &l ssize_t, delim i8)
 
-pub fn File.gets string
+pub fn File.getline string
 	bufsz = 114uZ
 	buf = cstring voidptr 0
 	sz = getline(buf, bufsz, this.voidptr)
 	if sz > 0
-		__trim_cstring(buf, sz)
+		__trim_cstring(buf, sz, 10HH)
+		s = __transformcstr2volvox_l(buf, sz, bufsz)
+		return s
+	else
+		if sz < 0
+			this.err = GetLastError
+		end
+		return ""
+end end
+
+pub fn File.getdelim(delimiter i8) string
+	bufsz = 114uZ
+	buf = cstring voidptr 0
+	sz = getdelim(buf, bufsz, delimiter, this.voidptr)
+	if sz > 0
+		__trim_cstring(buf, sz, delimiter)
 		s = __transformcstr2volvox_l(buf, sz, bufsz)
 		return s
 	else
