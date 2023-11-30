@@ -1363,7 +1363,7 @@ _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 					(*buf)[n] = '\0';
 					return n;
 				} else
-					return n+1;
+					return n + 1;
 			}
 		*sz = *sz + (*sz >> 1) + 100;
 		*buf = realloc(*buf, *sz);
@@ -1371,6 +1371,35 @@ _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 }
 
 #endif
+
+// read stream until EOL or EOF is read
+// return number of characters read - maybe 0 if EOF
+// -1 means error
+//
+_DECL ssize_t __purgeline(FILE* f) {
+	size_t nn = 0;
+	const unsigned sz = 96;
+	char buf[sz];
+	for(;;) {
+		if (!fgets(buf, sz, f)) {
+			if (feof(f))
+				return 0;
+			else
+				return -1;
+		}
+		unsigned n;
+		for (n=0; buf[n]; n++)
+			if (buf[n] == '\n') { // EOL
+				if (n>0 && buf[n-1] == '\r') {
+					return nn + n;
+				} else
+					return nn + n + 1;
+			}
+		nn += n;
+		if (n < sz-1)
+			return nn; // EOF
+	}
+}
 
 _DECL FILE* __get_stdin() {
 	return stdin;
