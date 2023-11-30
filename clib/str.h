@@ -88,6 +88,7 @@ namespace volvox {
 
 _CDECL void showtestres(int fd, int width, const char* testcase, bool result);
 _CDECL char* __cstr2volvoxstr(const char* c_str, size_t len, bool mark_as_heap);
+_CDECL uint32_t decode_uft8(const char** s);
 
 #ifdef _WIN32
 

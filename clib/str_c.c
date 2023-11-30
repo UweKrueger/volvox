@@ -1417,3 +1417,40 @@ _DECL FILE* __get_stdout() {
 _DECL FILE* __get_stderr() {
 	return stderr;
 }
+
+
+// read UTF-8 coded characters from string and return Unicode codepoint
+// return -1 on error and set errno
+//
+_DECL uint32_t decode_uft8(const char** s) {
+	const char* endp = nullptr;
+	uint32_t cp = 0;
+	int num_bytes = 0;
+	uint8_t c = *(*s)++;
+	if ((int8_t)c >= 0) {
+		return c;
+	}
+	if ((c & 0b11100000) == 0b11000000) {
+		cp = (c & 0b00011111);
+		num_bytes = 2;
+	} else if ((c & 0b11110000) == 0b11100000) {
+		cp = (c & 0b00001111);
+		num_bytes = 3;
+	} else if ((c & 0b11111000) == 0b11110000) {
+		cp = (c & 0b00000111);
+		num_bytes = 4;
+	} else {
+		goto illegal_sequence;
+	}
+	endp = *s + num_bytes - 1;
+	do {
+		c = *(*s)++;
+		if ((c & 0b11000000) != 0b10000000)
+			goto illegal_sequence;
+		cp = (cp << 6) | (c & 0b00111111);
+	} while (*s < endp);
+	return cp;
+illegal_sequence:
+	errno = EILSEQ;
+	return (uint32_t)(-1);
+}

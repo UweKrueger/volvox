@@ -243,12 +243,19 @@ do_check:
 Token::Token(const std::string& str, bool is_char)
 	: kind(is_char ? tok_number : tok_str_lit) {
 	if (is_char) {
-		if (str.size() != 1) {
+		const char* seq_start = str.c_str();
+		const char* seq = seq_start;
+		uint32_t codepoint = decode_uft8(&seq);
+		if (*seq || codepoint == (uint32_t)(-1)) {
 			kind = TokenKind(tok_error);
 			return;
 		}
-		Val.Int = str[0];
-		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 8, .is_signed = true };
+		bool is_ASCII = (int8_t)*seq_start >= 0;
+		Val.Uint = codepoint;
+		unsigned bits = is_ASCII ? 8 : 32;
+		int_type = { .ID = llvm::Type::IntegerTyID,
+		             .BitWidth = bits,
+		             .is_signed = is_ASCII };
 		return;
 	}
 	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
