@@ -1283,7 +1283,7 @@ _DECL char* __volvox2cstr(const char* v) {
 	return strdup(s_c);
 }
 
-_DECL char* __transformcstr2volvox_l(char* c_str, size_t _l, size_t cap) {
+_DECL char* __transformcstr2volvox_l(char* c_str, ssize_t _l, size_t cap) {
 	char* res;
 	size_t min_cap;
 	char* targ;
@@ -1301,7 +1301,7 @@ _DECL char* __transformcstr2volvox_l(char* c_str, size_t _l, size_t cap) {
 }
 
 _DECL char* __transformcstr2volvox(char* c_str, size_t cap) {
-	size_t _l = strlen(c_str);
+	ssize_t _l = strlen(c_str);
 	return __transformcstr2volvox_l(c_str, _l, cap);
 }
 

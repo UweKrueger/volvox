@@ -117,18 +117,24 @@ pub fn File.readuhh u8
 	return n
 end
 
-cdecl getline(&buf cstring, &sz size_t, file voidptr) size_t
-cdecl __transformcstr2volvox_l(s cstring, len size_t, cap size_t) string
-cdecl __trim_cstring(s cstring, &l size_t)
+cdecl getline(&buf cstring, &sz size_t, file voidptr) ssize_t
+cdecl __transformcstr2volvox_l(s cstring, len ssize_t, cap size_t) string
+cdecl __trim_cstring(s cstring, &l ssize_t)
 
 pub fn File.gets string
 	bufsz = 114uZ
-	buf = cstring(__malloc(114))
+	buf = cstring voidptr 0
 	sz = getline(buf, bufsz, this.voidptr)
-	__trim_cstring(buf, sz)
-	s = __transformcstr2volvox_l(buf, sz, bufsz)
-	return s
-end
+	if sz > 0
+		__trim_cstring(buf, sz)
+		s = __transformcstr2volvox_l(buf, sz, bufsz)
+		return s
+	else
+		if sz < 0
+			this.err = GetLastError
+		end
+		return ""
+end end
 
 cdecl __purgeline(file voidptr) ssize_t
 
