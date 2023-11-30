@@ -1338,8 +1338,9 @@ _DECL unsigned GetLastError() {
 
 #else
 
-// BSD and Linux have this function in libc
-// provide a version for Windows here
+// These functions were originally GNU extensions but are now part of POSIX.
+// BSD and Linux have them in libc - however Windows doesn't
+// So we provide provide Windows versions for here
 //
 _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 	size_t n = 0;
@@ -1368,6 +1369,33 @@ _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 		*sz = *sz + (*sz >> 1) + 100;
 		*buf = realloc(*buf, *sz);
 	}
+}
+
+_DECL ssize_t getdelim(char** buf, size_t* sz, int delim, FILE* f) {
+	ssize_t n = 0;
+	if (!*sz) {
+		*sz = 120;
+		if (*buf)
+			*buf = realloc(*buf, *sz);
+		else
+			*buf = malloc(*sz);
+	}
+	_lock_file(f);
+	do {
+		int c = _fgetc_nolock(f);
+		if (c == EOF) {
+			_unlock_file(f);
+			return -1;
+		}
+		if (*sz <= n+1) {
+			*sz = *sz + (*sz >> 1) + 100;
+			*buf = realloc(*buf, *sz);
+		}
+		buf[n++] = (char)c;
+	} while (c != delim);
+	_unlock_file(f);
+	buf[n] = '\0';
+	return n;
 }
 
 #endif
