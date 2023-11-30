@@ -240,7 +240,17 @@ do_check:
 		errs() << Val.Uint << " exceeds maximum maximum possible signed value\n";
 }
 				
-Token::Token(const std::string& str) : kind(tok_str_lit) {
+Token::Token(const std::string& str, bool is_char)
+	: kind(is_char ? tok_number : tok_str_lit) {
+	if (is_char) {
+		if (str.size() != 1) {
+			kind = TokenKind(tok_error);
+			return;
+		}
+		Val.Int = str[0];
+		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 8, .is_signed = true };
+		return;
+	}
 	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
 	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 	Val.CStr = (char*)malloc(str.size() + 1);

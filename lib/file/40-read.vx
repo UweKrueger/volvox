@@ -123,11 +123,11 @@ cdecl __transformcstr2volvox_l(s cstring, len ssize_t, cap size_t) string
 cdecl __trim_cstring(s cstring, &l ssize_t, delim i8)
 
 pub fn File.getline string
-	bufsz = 114uZ
+	bufsz = 0UZ
 	buf = cstring voidptr 0
 	sz = getline(buf, bufsz, this.voidptr)
 	if sz > 0
-		__trim_cstring(buf, sz, 10HH)
+		__trim_cstring(buf, sz, '\n')
 		s = __transformcstr2volvox_l(buf, sz, bufsz)
 		return s
 	else
@@ -138,7 +138,7 @@ pub fn File.getline string
 end end
 
 pub fn File.getdelim(delimiter i8) string
-	bufsz = 114uZ
+	bufsz = 0UZ
 	buf = cstring voidptr 0
 	sz = getdelim(buf, bufsz, delimiter, this.voidptr)
 	if sz > 0

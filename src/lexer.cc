@@ -738,7 +738,9 @@ if (CurChar == 'i') {
 			errs() << "Invalid '*' in context\n";
 			CurChar = advance();
 		}
+	case '\'':
 	case '"': {
+		char Closing = CurChar;
 		std::string StrLit = "";
 		unsigned sum = 0;
 		unsigned nexpect = 0;
@@ -805,15 +807,19 @@ if (CurChar == 'i') {
 				default:
 					goto add_letter;
 				}
-			case '"':
-				CurChar = advance();
-				return Token(StrLit);
 			case EOF:
 #if defined (_MSC_VER)
 			case 26:
 #endif
 				errs() << "unexpected EOF in string literal\n";
 				return EOF;
+			case '"':
+			case '\'':
+				if (CurChar == Closing) {
+					CurChar = advance();
+					return Token(StrLit, Closing == '\'');
+				}
+				// else fallthrough
 			default:
 			add_letter:
 				StrLit += CurChar;

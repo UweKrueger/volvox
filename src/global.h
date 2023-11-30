@@ -1055,7 +1055,7 @@ public:
 	Token(int _kind = 0);
 	Token(char** s_ptr);
 	Token(void* ptr);
-	Token(const std::string& str);
+	Token(const std::string& str, bool is_char = false);
 	Token(bool truth) : kind(tok_number) {
 		Val.Uint = truth ? 1UL : 0UL;
 		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 1, .is_signed = false };

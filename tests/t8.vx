@@ -210,3 +210,9 @@ fn test_main_array_copy_constructor bool
 	global uuzzt67
 	return uuzzt67
 end
+
+fn test_char_literal bool
+	c1 = '@'
+	c2 = '\n'
+	return c1 == 64 && c2 == 10 && sizeof(c1) == 1 && sizeof(c2) == 1
+end
