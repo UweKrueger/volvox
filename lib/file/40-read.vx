@@ -1,16 +1,24 @@
 cdecl fscanf(file voidptr, fmt cstring, ...) int
+cdecl ferror(file voidptr) int
+
+fn File.__scanf(fmt cstring, v voidptr)
+	global EOF
+	if fscanf(this.voidptr, fmt, v) == EOF
+		if ferror(this.voidptr) != 0
+			this.err = GetLastError
+end end end
 
 # read floating point numbers in decimal representation
 
 pub fn File.readr real
 	r = real
-	fscanf(this.voidptr, " %lg", &r)
+	this.__scanf(" %lg", &r)
 	return r
 end
 
 pub fn File.readf f32
 	f = f32
-	fscanf(this.voidptr, "%g", &f)
+	this.__scanf(" %g", &f)
 	return f
 end
 
@@ -18,13 +26,13 @@ end
 
 pub fn File.readrx real
 	r = real
-	fscanf(this.voidptr, " %la", &r)
+	this.__scanf(" %la", &r)
 	return r
 end
 
 pub fn File.readfx f32
 	f = f32
-	fscanf(this.voidptr, "%a", &f)
+	this.__scanf(" %a", &f)
 	return f
 end
 
@@ -33,25 +41,25 @@ end
 pub fn File.readl i64
 	n = i64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
-	fscanf(this.voidptr, " %lli", &n)
+	this.__scanf(" %lli", &n)
 	return n
 end
 
 pub fn File.readn i32
 	n = i32
-	fscanf(this.voidptr, " %i", &n)
+	this.__scanf(" %i", &n)
 	return n
 end
 
 pub fn File.readh i16
 	n = i16
-	fscanf(this.voidptr, " %hi", &n)
+	this.__scanf(" %hi", &n)
 	return n
 end
 
 pub fn File.readhh i8
 	n = i8
-	fscanf(this.voidptr, " %hhi", &n)
+	this.__scanf(" %hhi", &n)
 	return n
 end
 
@@ -60,25 +68,25 @@ end
 pub fn File.readdl i64
 	n = i64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
-	fscanf(this.voidptr, " %lld", &n)
+	this.__scanf(" %lld", &n)
 	return n
 end
 
 pub fn File.readd i32
 	n = i32
-	fscanf(this.voidptr, " %d", &n)
+	this.__scanf(" %d", &n)
 	return n
 end
 
 pub fn File.readdh i16
 	n = i16
-	fscanf(this.voidptr, " %hd", &n)
+	this.__scanf(" %hd", &n)
 	return n
 end
 
 pub fn File.readdhh i8
 	n = i8
-	fscanf(this.voidptr, " %hhd", &n)
+	this.__scanf(" %hhd", &n)
 	return n
 end
 
@@ -87,25 +95,25 @@ end
 pub fn File.readul u64
 	n = u64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
-	fscanf(this.voidptr, " %llu", &n)
+	this.__scanf(" %llu", &n)
 	return n
 end
 
 pub fn File.readu u32
 	n = u32
-	fscanf(this.voidptr, " %u", &n)
+	this.__scanf(" %u", &n)
 	return n
 end
 
 pub fn File.readuh u16
 	n = u16
-	fscanf(this.voidptr, " %hu", &n)
+	this.__scanf(" %hu", &n)
 	return n
 end
 
 pub fn File.readuhh u8
 	n = u8
-	fscanf(this.voidptr, " %hhu", &n)
+	this.__scanf(" %hhu", &n)
 	return n
 end
 
@@ -124,98 +132,105 @@ end
 
 cdecl __purgeline(file voidptr) ssize_t
 
+pub fn File.eatnl
+	global EMSGSIZE
+	if __purgeline(this.voidptr) != 0
+		if this.err = 0
+			this.err = EMSGSIZE
+end end end
+
 pub fn File.getr real
 	x = this.readr
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getf f32
 	x = this.readf
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getrx real
 	x = this.readrx
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getfx f32
 	x = this.readfx
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getl i64
 	x = this.readl
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getn i32
 	x = this.readn
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.geth i16
 	x = this.readh
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.gethh i8
 	x = this.readhh
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getdl i64
 	x = this.readdl
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getd i32
 	x = this.readd
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getdh i16
 	x = this.readdh
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getdhh i8
 	x = this.readdhh
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getul u64
 	x = this.readul
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getu u32
 	x = this.readu
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getuh u16
 	x = this.readuh
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end
 
 pub fn File.getuhh u8
 	x = this.readuhh
-	__purgeline(this.voidptr)
+	this.eatnl
 	return x
 end

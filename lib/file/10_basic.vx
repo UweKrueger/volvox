@@ -1,7 +1,7 @@
 import arch
 import arch.os
 import limits
-from error import EOF
+from error import EOF, EMSGSIZE
 
 cdecl fopen(filename cstring, mode cstring) voidptr
 cdecl fopen64(filename cstring, mode cstring) voidptr

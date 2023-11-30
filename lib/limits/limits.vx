@@ -2,20 +2,20 @@
 
 # unsigned types (only max values are defined - min value is always 0)
 #
-pub const max_u64 := 0xffffffffffffffffu64
-pub const max_u32 := 0xffffffffu32
-pub const max_u16 := 0xffffu16
-pub const max_u8  := 0xffu8
+pub const max_u64 := 0xffffffffffffffff
+pub const max_u32 := 0xffffffff
+pub const max_u16 := 0xffff
+pub const max_u8  := 0xff
 
 # signed int types max and min values
 #
-pub const max_i64 := 0x7fffffffffffffffi64
+pub const max_i64 := 0x7fffffffffffffff
 pub const min_i64 := -1 - max_i64
-pub const max_i32 := 0x7fffffffi32
+pub const max_i32 := 0x7fffffff
 pub const min_i32 := -1 - max_i32
 pub const max_int := max_i32
 pub const min_int := min_i32
-pub const max_i16 := 0x7fffi16
+pub const max_i16 := 0x7fff
 pub const min_i16 := -1 - max_i16
 pub const max_i8 := 0x7fi8
 pub const min_i8 := -1 - max_i8
@@ -33,6 +33,6 @@ pub const epsilon64 := 0x1.0000000000001 - 1
 
 # 32 bit floats
 #
-pub const min_f32 := 0x1p-126f
-pub const max_f32 := 0x1.fffffep+127f
-pub const epsilon32 := 0x1.000002p0f - 1
+pub const min_f32 := 0x1p-126
+pub const max_f32 := 0x1.fffffep+127
+pub const epsilon32 := 0x1.000002p0 - 1

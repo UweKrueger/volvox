@@ -42,7 +42,7 @@ pub const SEMVMX := if os.isWindows
 		u64(limits.max_int)
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
 		# eventfd
-		limits.max_u64 - 1
+		u64(limits.max_u64 - 1)
 	else
 		# pipe as last resort
 		u64(512)
@@ -144,7 +144,7 @@ pub fn Semaphore.post(n int) bool
 	if this.err != 0
 		return false
 	end
-	if n <= 0 || n > SEMVMX
+	if n <= 0 || n > u64(SEMVMX)
 		this.err = EINVAL
 		return false
 	end
