@@ -2,13 +2,13 @@ cdecl fscanf(file voidptr, fmt cstring, ...) int
 
 # read floating point numbers in decimal representation
 
-pub fn File.readR real
+pub fn File.readr real
 	r = real
 	fscanf(this.voidptr, " %lg", &r)
 	return r
 end
 
-pub fn File.readF f32
+pub fn File.readf f32
 	f = f32
 	fscanf(this.voidptr, "%g", &f)
 	return f
@@ -16,13 +16,13 @@ end
 
 # read floating point numbers in hexadecimal representation
 
-pub fn File.readRX real
+pub fn File.readrx real
 	r = real
 	fscanf(this.voidptr, " %la", &r)
 	return r
 end
 
-pub fn File.readFX f32
+pub fn File.readfx f32
 	f = f32
 	fscanf(this.voidptr, "%a", &f)
 	return f
@@ -30,26 +30,26 @@ end
 
 # read signed integer numbers in any format
 
-pub fn File.readL i64
+pub fn File.readl i64
 	n = i64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
 	fscanf(this.voidptr, " %lli", &n)
 	return n
 end
 
-pub fn File.readN i32
+pub fn File.readn i32
 	n = i32
 	fscanf(this.voidptr, " %i", &n)
 	return n
 end
 
-pub fn File.readH i16
+pub fn File.readh i16
 	n = i16
 	fscanf(this.voidptr, " %hi", &n)
 	return n
 end
 
-pub fn File.readHH i8
+pub fn File.readhh i8
 	n = i8
 	fscanf(this.voidptr, " %hhi", &n)
 	return n
@@ -57,26 +57,26 @@ end
 
 # read signed integer numbers in decimal format
 
-pub fn File.readDL i64
+pub fn File.readdl i64
 	n = i64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
 	fscanf(this.voidptr, " %lld", &n)
 	return n
 end
 
-pub fn File.readD i32
+pub fn File.readd i32
 	n = i32
 	fscanf(this.voidptr, " %d", &n)
 	return n
 end
 
-pub fn File.readDH i16
+pub fn File.readdh i16
 	n = i16
 	fscanf(this.voidptr, " %hd", &n)
 	return n
 end
 
-pub fn File.readDHH i8
+pub fn File.readdhh i8
 	n = i8
 	fscanf(this.voidptr, " %hhd", &n)
 	return n
@@ -84,26 +84,26 @@ end
 
 # read unsigned numbers
 
-pub fn File.readUL u64
+pub fn File.readul u64
 	n = u64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
 	fscanf(this.voidptr, " %llu", &n)
 	return n
 end
 
-pub fn File.readU u32
+pub fn File.readu u32
 	n = u32
 	fscanf(this.voidptr, " %u", &n)
 	return n
 end
 
-pub fn File.readUH u16
+pub fn File.readuh u16
 	n = u16
 	fscanf(this.voidptr, " %hu", &n)
 	return n
 end
 
-pub fn File.readUHH u8
+pub fn File.readuhh u8
 	n = u8
 	fscanf(this.voidptr, " %hhu", &n)
 	return n
@@ -113,11 +113,109 @@ cdecl getline(&buf cstring, &sz size_t, file voidptr) size_t
 cdecl __transformcstr2volvox_l(s cstring, len size_t, cap size_t) string
 cdecl __trim_cstring(s cstring, &l size_t)
 
-pub fn File.readln string
+pub fn File.gets string
 	bufsz = 114uZ
 	buf = cstring(__malloc(114))
 	sz = getline(buf, bufsz, this.voidptr)
 	__trim_cstring(buf, sz)
 	s = __transformcstr2volvox_l(buf, sz, bufsz)
 	return s
+end
+
+cdecl __purgeline(file voidptr) ssize_t
+
+pub fn File.getr real
+	x = this.readr
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getf f32
+	x = this.readf
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getrx real
+	x = this.readrx
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getfx f32
+	x = this.readfx
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getl i64
+	x = this.readl
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getn i32
+	x = this.readn
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.geth i16
+	x = this.readh
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.gethh i8
+	x = this.readhh
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getdl i64
+	x = this.readdl
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getd i32
+	x = this.readd
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getdh i16
+	x = this.readdh
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getdhh i8
+	x = this.readdhh
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getul u64
+	x = this.readul
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getu u32
+	x = this.readu
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getuh u16
+	x = this.readuh
+	__purgeline(this.voidptr)
+	return x
+end
+
+pub fn File.getuhh u8
+	x = this.readuhh
+	__purgeline(this.voidptr)
+	return x
 end

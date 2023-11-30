@@ -1373,7 +1373,7 @@ _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 #endif
 
 // read stream until EOL or EOF is read
-// return number of characters read - maybe 0 if EOF
+// return number of non-end characters read - maybe 0 if EOF or EOL
 // -1 means error
 //
 _DECL ssize_t __purgeline(FILE* f) {
@@ -1391,9 +1391,9 @@ _DECL ssize_t __purgeline(FILE* f) {
 		for (n=0; buf[n]; n++)
 			if (buf[n] == '\n') { // EOL
 				if (n>0 && buf[n-1] == '\r') {
-					return nn + n;
+					return nn + n - 1;
 				} else
-					return nn + n + 1;
+					return nn + n;
 			}
 		nn += n;
 		if (n < sz-1)

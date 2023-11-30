@@ -1,6 +1,7 @@
 import arch
 import arch.os
 import limits
+from error import EOF
 
 cdecl fopen(filename cstring, mode cstring) voidptr
 cdecl fopen64(filename cstring, mode cstring) voidptr

@@ -13,55 +13,55 @@ end
 
 # File name too long
 pub const ENAMETOOLONG := if os.isWindows
-		206 # ERROR_FILENAME_EXCED_RANGE
-	elif os.isLinux
-		36
-	elif os.isHaiku
-		limits.min_int + 0x6000 + 4
-	else
-		63
-	end
+	206 # ERROR_FILENAME_EXCED_RANGE
+elif os.isLinux
+	36
+elif os.isHaiku
+	limits.min_int + 0x6000 + 4
+else
+	63
+end
 
 # Owner dead
 pub const EOWNERDEAD := if os.isFreeBSD
-		96
-	elif os.isLinux
-		130
-	elif os.isWindows
-		0x00000080 # WAIT_ABANDONED
-	else
-		-1 # other OSs do not support robust mutexes :-(
-	end
+	96
+elif os.isLinux
+	130
+elif os.isWindows
+	0x00000080 # WAIT_ABANDONED
+else
+	-1 # other OSs do not support robust mutexes :-(
+end
 
 # Connection/wait timed out
 pub const ETIMEDOUT := if os.isWindows
-		0x00000102 # WAIT_TIMEOUT
-	elif os.isLinux
-		110
-	else
-		60
-	end
+	0x00000102 # WAIT_TIMEOUT
+elif os.isLinux
+	110
+else
+	60
+end
 
 # Operation not permitted
 pub const EPERM := if os.isWindows
-		288 # ERROR_NOT_OWNER
-	else
-		1
-	end
+	288 # ERROR_NOT_OWNER
+else
+	1
+end
 
 # Device or resource busy
 pub const EBUSY := 16
 
 # Invalid argument
 pub const EINVAL := if os.isWindows
-		87 # ERROR_INVALID_PARAMETER
-	else
-		22
-	end
+	87 # ERROR_INVALID_PARAMETER
+else
+	22
+end
 
 # Resource deadlock would occur
 pub const ERROR_TOO_MANY_POSTS := if os.isWindows
-		298
-	else
-		35
-	end
+	298
+else
+	35
+end
