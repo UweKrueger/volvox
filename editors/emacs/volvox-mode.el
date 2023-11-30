@@ -62,8 +62,8 @@
    (list (concat "\\<\\(" CONTROLFLOW "\\)\\>") 1
 	 'font-lock-keyword-face)
    (list (concat "\\<\\(" UNIX "\\)\\>") 1 'font-lock-builtin-face)
-   '("\\<\\(0[Xx][0-9A-Fa-f]+\\(\\.\\([0-9A-Fa-f]*\\)?\\)?\\([pP][+-]?[0-9]+\\)?f?\\)\\>" 1 'font-lock-constant-face)
-   '("\\<\\([0-9]+\\(\\.\\([0-9]*\\)?\\)?\\([eE][+-]?[0-9]+\\)?f?\\)\\>" 1 'font-lock-constant-face)
+   '("\\<\\(0[Xx][0-9A-Fa-f]+\\(\\(\\.\\([0-9A-Fa-f]*\\)?\\)?\\([pP][+-]?[0-9]+\\)?[fF]?\\|[nNuUlLhH]*\\)\\)\\>" 1 'font-lock-constant-face)
+   '("\\<\\([0-9]+\\(\\(\\.\\([0-9]*\\)?\\)?\\([eE][+-]?[0-9]+\\)?[fF]?\\|[nNuUlLhH]*\\)\\)\\>" 1 'font-lock-constant-face)
    ))
   "Expressions to hilight in Volvox mode.")
 
