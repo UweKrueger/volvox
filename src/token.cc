@@ -255,7 +255,7 @@ Token::Token(const std::string& str, bool is_char)
 		unsigned bits = is_ASCII ? 8 : 32;
 		int_type = { .ID = llvm::Type::IntegerTyID,
 		             .BitWidth = bits,
-		             .is_signed = is_ASCII };
+		             .is_signed = false };
 		return;
 	}
 	auto llvmtype = llvm::Type::getInt8PtrTy(Context);

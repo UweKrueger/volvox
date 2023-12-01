@@ -11,7 +11,7 @@ end
 cdecl utf8_encode(cp u32) u32
 
 o0 = 'Q'
-o = utf8_encode(u32 o0)
+o = utf8_encode(o0)
 
 pr_seq(o)
 
