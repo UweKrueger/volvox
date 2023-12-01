@@ -1460,28 +1460,28 @@ union utf8_sequence {
 	uint32_t err;
 };
 
-_DECL union utf8_sequence encode_utf8(uint32_t codepoint) {
-	union utf8_sequence c = {
-		.byte = { 0, 0, 0, 0 }
-	};
+_DECL uint32_t encode_utf8(uint32_t codepoint) {
+	union utf8_sequence c = {0};
 	// optimize for ASCII - directly jump to end with only 1 ckeck
 	if (codepoint & 0xffffff80) {
 		if (codepoint >= 0x00110000) {
 			// not valid unicode
 			errno = EOVERFLOW;
 			c.err = (uint32_t)(-1);
-			return c;
+			return c.err;
 		}
-		signed char mask = (signed char)0b11000000;
+		signed char mask;
+		signed char new_mask = (signed char)0b11000000;
 		do {
 			c.byte[0] = 0b10000000 | (codepoint & 0b00111111);
-			c.err >>= 8;
+			c.err <<= 8;
 			codepoint >>= 6;
-			mask >>= 1; // mask is signed so a 1 is filled in from left
-		} while (codepoint & 0xffffffc000);
+			mask = new_mask;
+			new_mask >>= 1; // mask is signed so a 1 is filled in from left
+		} while (codepoint & new_mask);
 		c.byte[0] = codepoint | mask;
 	} else {
 		c.byte[0] = codepoint;
 	}
-	return c;
+	return c.err;
 }
