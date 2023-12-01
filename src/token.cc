@@ -245,7 +245,7 @@ Token::Token(const std::string& str, bool is_char)
 	if (is_char) {
 		const char* seq_start = str.c_str();
 		const char* seq = seq_start;
-		uint32_t codepoint = decode_uft8(&seq);
+		uint32_t codepoint = utf8_decode(&seq);
 		if (*seq || codepoint == (uint32_t)(-1)) {
 			kind = TokenKind(tok_error);
 			return;

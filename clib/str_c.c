@@ -1422,7 +1422,7 @@ _DECL FILE* __get_stderr() {
 // read UTF-8 coded characters from string and return Unicode codepoint
 // return -1 on error and set errno
 //
-_DECL uint32_t decode_uft8(const char** s) {
+_DECL uint32_t utf8_decode(const char** s) {
 	const char* endp = nullptr;
 	uint32_t cp = 0;
 	int num_bytes = 0;
@@ -1460,7 +1460,7 @@ union utf8_sequence {
 	uint32_t err;
 };
 
-_DECL uint32_t encode_utf8(uint32_t codepoint) {
+_DECL uint32_t utf8_encode(uint32_t codepoint) {
 	union utf8_sequence c = {0};
 	// optimize for ASCII - directly jump to end with only 1 ckeck
 	if (codepoint & 0xffffff80) {

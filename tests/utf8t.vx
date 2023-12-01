@@ -8,24 +8,24 @@ fn pr_seq(t u32)
 	printf("%02x %02x %02x %02x >%.4s<\n", s.byte[0], s.byte[1], s.byte[2], s.byte[3], &s)
 end
 
-cdecl encode_utf8(cp u32) u32
+cdecl utf8_encode(cp u32) u32
 
 o0 = 'Q'
-o = encode_utf8(u32 o0)
+o = utf8_encode(u32 o0)
 
 pr_seq(o)
 
 oo0 = 'ä'
-oo = encode_utf8(oo0)
+oo = utf8_encode(oo0)
 
 pr_seq(oo)
 
 ooo0 = '€'
-ooo = encode_utf8(ooo0)
+ooo = utf8_encode(ooo0)
 
 pr_seq(ooo)
 
 oop0 = '𝄞'
-oop = encode_utf8(oop0)
+oop = utf8_encode(oop0)
 
 pr_seq(oop)
