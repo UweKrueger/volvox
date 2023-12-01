@@ -2,28 +2,28 @@
 
 # unsigned types (only max values are defined - min value is always 0)
 #
-pub const max_u64 := 0xffffffffffffffff
-pub const max_u32 := 0xffffffff
-pub const max_u16 := 0xffff
-pub const max_u8  := 0xff
+pub const u64_max := 0xffffffffffffffff
+pub const u32_max := 0xffffffff
+pub const u16_max := 0xffff
+pub const u8_max  := 0xff
 
 # signed int types max and min values
 #
-pub const max_i64 := 0x7fffffffffffffff
-pub const min_i64 := -1 - max_i64
-pub const max_i32 := 0x7fffffff
-pub const min_i32 := -1 - max_i32
-pub const max_int := max_i32
-pub const min_int := min_i32
-pub const max_i16 := 0x7fff
-pub const min_i16 := -1 - max_i16
-pub const max_i8 := 0x7fi8
-pub const min_i8 := -1 - max_i8
+pub const i64_max := 0x7fffffffffffffff
+pub const i64_min := -1 - i64_max
+pub const i32_max := 0x7fffffff
+pub const i32_min := -1 - i32_max
+pub const int_max := i32_max
+pub const int_min := i32_min
+pub const i16_max := 0x7fff
+pub const i16_min := -1 - i16_max
+pub const i8_max := 0x7fi8
+pub const i8_min := -1 - i8_max
 
 # float type limits - min values refer to minimum positive non-denormal numbers
 #
-pub const min_f64 := 0x1p-1022
-pub const max_f64 := 0x1.fffffffffffffp+1023
+pub const f64_min := 0x1p-1022
+pub const f64_max := 0x1.fffffffffffffp+1023
 
 # difference between smallest number >1 and 1 or the steps betwenn consecutive
 # numbers in the interval [1.0; 2.0)
@@ -33,6 +33,6 @@ pub const epsilon64 := 0x1.0000000000001 - 1
 
 # 32 bit floats
 #
-pub const min_f32 := 0x1p-126
-pub const max_f32 := 0x1.fffffep+127
+pub const f32_min := 0x1p-126
+pub const f32_max := 0x1.fffffep+127
 pub const epsilon32 := 0x1.000002p0 - 1

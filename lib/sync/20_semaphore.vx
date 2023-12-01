@@ -39,10 +39,10 @@ from ..io.flags import CLOEXEC, NONBLOCK, SEMAPHORE, PRIVATE, CREAT, POLLIN
 #
 pub const SEMVMX := if os.isWindows
 		# Windows native semaphores
-		u64(limits.max_int)
+		u64(limits.int_max)
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
 		# eventfd
-		u64(limits.max_u64 - 1)
+		u64(limits.u64_max - 1)
 	else
 		# pipe as last resort
 		u64(512)
@@ -70,7 +70,7 @@ pub fn semaphore(init_val int) Semaphore
 		return sem
 	end
 	if os.isWindows
-		sem.handle = ssize_t(CreateSemaphoreA(voidptr(0), init_val, limits.max_int, cstring(0)))
+		sem.handle = ssize_t(CreateSemaphoreA(voidptr(0), init_val, limits.int_max, cstring(0)))
 		if sem.handle == 0
 			sem.err = GetLastError()
 		end
