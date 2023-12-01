@@ -1454,3 +1454,39 @@ illegal_sequence:
 	errno = EILSEQ;
 	return (uint32_t)(-1);
 }
+
+union utf8_sequence {
+	char byte[4];
+	int32_t err;
+};
+
+_DECL union utf8_sequence encode_utf8(uint32_t codepoint) {
+	union utf8_sequence c = {
+		.byte = { 0, 0, 0, 0 }
+	};
+	if (!(codepoint & 0xffffff80)) {
+		c.byte[0] = codepoint;
+	} else if (!(codepoint & 0xfffff800)) {
+		c.byte[1] = 0b10000000 | (codepoint & 0b00111111);
+		codepoint >>= 6;
+		c.byte[0] = 0b11000000 | codepoint;
+	} else if (!(codepoint & 0xffff0000)) {
+		c.byte[2] = 0b10000000 | (codepoint & 0b00111111);
+		codepoint >>= 6;
+		c.byte[1] = 0b10000000 | (codepoint & 0b00111111);
+		codepoint >>= 6;
+		c.byte[0] = 0b11100000 | codepoint;
+	} else if (codepoint < 0x00110000) {
+		c.byte[3] = 0b10000000 | (codepoint & 0b00111111);
+		codepoint >>= 6;
+		c.byte[2] = 0b10000000 | (codepoint & 0b00111111);
+		codepoint >>= 6;
+		c.byte[1] = 0b10000000 | (codepoint & 0b00111111);
+		codepoint >>= 6;
+		c.byte[0] = 0b11100000 | codepoint;
+	} else {
+		c.err = -1;
+		errno = EOVERFLOW;
+	}
+	return c;
+}
