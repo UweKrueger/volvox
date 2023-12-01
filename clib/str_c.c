@@ -1464,29 +1464,31 @@ _DECL union utf8_sequence encode_utf8(uint32_t codepoint) {
 	union utf8_sequence c = {
 		.byte = { 0, 0, 0, 0 }
 	};
+	unsigned char mask = 0;
 	if (!(codepoint & 0xffffff80)) {
-		c.byte[0] = codepoint;
+	onebyte:
+		c.byte[0] = codepoint | mask;
+		return c;
 	} else if (!(codepoint & 0xfffff800)) {
+	twobytes:
+		mask |= 0b11000000;
 		c.byte[1] = 0b10000000 | (codepoint & 0b00111111);
 		codepoint >>= 6;
-		c.byte[0] = 0b11000000 | codepoint;
+		goto onebyte;
 	} else if (!(codepoint & 0xffff0000)) {
+	threebytes:
+		mask |= 0b11100000;
 		c.byte[2] = 0b10000000 | (codepoint & 0b00111111);
 		codepoint >>= 6;
-		c.byte[1] = 0b10000000 | (codepoint & 0b00111111);
-		codepoint >>= 6;
-		c.byte[0] = 0b11100000 | codepoint;
+		goto twobytes;
 	} else if (codepoint < 0x00110000) {
+		mask |= 0b11110000;
 		c.byte[3] = 0b10000000 | (codepoint & 0b00111111);
 		codepoint >>= 6;
-		c.byte[2] = 0b10000000 | (codepoint & 0b00111111);
-		codepoint >>= 6;
-		c.byte[1] = 0b10000000 | (codepoint & 0b00111111);
-		codepoint >>= 6;
-		c.byte[0] = 0b11100000 | codepoint;
+		goto threebytes;
 	} else {
-		c.err = -1;
 		errno = EOVERFLOW;
+		c.err = -1;
+		return c;
 	}
-	return c;
 }
