@@ -1346,9 +1346,12 @@ _DECL unsigned GetLastError() {
 //
 _DECL ssize_t getdelim(char** buf, size_t* sz, int delim, FILE* f) {
 	size_t n = 0;
-	if (!*buf) {
+	if (!*sz || !*buf) {
 		*sz = 120;
-		*buf = malloc(*sz);
+		if (*buf)
+			*buf = realloc(*buf, *sz);
+		else
+			*buf = malloc(*sz);
 	}
 	_lock_file(f);
 	int c;
@@ -1366,12 +1369,11 @@ _DECL ssize_t getdelim(char** buf, size_t* sz, int delim, FILE* f) {
 		(*buf)[n++] = (char)c;
 	} while (c != delim);
 	_unlock_file(f);
-	buf[n] = '\0';
+	(*buf)[n] = '\0';
 	return n;
 }
 
-_DECL ssize_t _getline(char** buf, size_t* sz, FILE* f) {
-	fprintf(stderr, "Getting line...\n");
+_DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
 	ssize_t n = getdelim(buf, sz, '\n', f);
 	if (n>1)
 		if ((*buf)[n-2] == '\r') {
@@ -1379,40 +1381,11 @@ _DECL ssize_t _getline(char** buf, size_t* sz, FILE* f) {
 			(*buf)[n-1] = '\0';
 			n--;
 		}
-	fprintf(stderr, "Line length: %zd\n", n);
 	return n;
 }
 
-_DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
-	size_t n = 0;
-	if (!*sz) {
-		*sz = 120;
-		if (*buf)
-			*buf = realloc(*buf, *sz);
-		else
-			*buf = malloc(*sz);
-	}
-	for(;;) {
-		if (!*buf || !fgets((*buf)+n, (*sz - n), f))
-			return -1;
-		for ( ; (*buf)[n]; n++)
-			if ((*buf)[n] == '\n') {
-				if (n>0 && (*buf)[n-1] == '\r') {
-					// In Volvox we do not want to distinguish between "text files" and "binary files"
-					// So files are always opened in "binary" mode. But since DOS-type text files
-					// are still in use on Windows we must do the "translation" here manually when necessary
-					(*buf)[n-1] = '\n';
-					(*buf)[n] = '\0';
-					return n;
-				} else
-					return n + 1;
-			}
-		*sz = *sz + (*sz >> 1) + 100;
-		*buf = realloc(*buf, *sz);
-	}
-}
-
 #endif
+
 // read stream until EOL or EOF is read
 // return number of non-end characters read - maybe 0 if EOF or EOL
 // -1 means error
