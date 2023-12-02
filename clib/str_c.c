@@ -1338,6 +1338,10 @@ _DECL unsigned GetLastError() {
 	return errno;
 }
 
+_DECL void SetLastError(unsigned n) {
+	errno = n;
+}
+
 #else
 
 // These functions were originally GNU extensions but are now part of POSIX.

@@ -1,5 +1,6 @@
 import arch
 import arch.os
+from ERROR import ENOSYS
 
 # On most systems there are at least two clocks - earch for a different porpose
 # 1. a "real time" clock that shows wall clock time
@@ -61,6 +62,8 @@ cdecl __clock_gettime64(clockid int, &tp timespec) int
 # POSIX clock_gettime - always uses 64-bit-time_t
 pub inline fn clock_gettime(clockid int, &tp timespec) int
 	if os.isWindows
+		global ENOSYS
+		SetLastError(ENOSYS)
 		return -1
 	elif arch.bitwidth == 32
 		if os.isNetBSD

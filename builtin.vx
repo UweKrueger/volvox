@@ -156,6 +156,7 @@ cdecl printstr(fd int, s string)
 cdecl modstr(s string, idx i32, c u8)
 cdecl abort()
 cdecl GetLastError() u32
+cdecl SetLastError(err u32)
 
 inline fn panic(s string)
 	printstr(2, s)

@@ -76,3 +76,12 @@ elif os.isHaiku
 else
 	40
 end
+
+# Function not implemented
+pub const ENOSYS := if os.isWindows
+	120 # ERROR_CALL_NOT_IMPLEMENTED
+elif os.isLinux
+	38
+else
+	78
+end
