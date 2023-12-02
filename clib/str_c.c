@@ -1306,7 +1306,7 @@ _DECL char* __transformcstr2volvox(char* c_str, size_t cap) {
 }
 
 // remove trailing delimiter - or '\r\n' for DOS files
-_DECL void __trim_cstring(char* s, size_t* l, char d) {
+_DECL void __trim_cstring(char* s, ssize_t* l, char d) {
 	if (*l>0) {
 		size_t l_new = *l-1;
 		if (s[l_new] == d) {
@@ -1378,14 +1378,7 @@ _DECL ssize_t getdelim(char** buf, size_t* sz, int delim, FILE* f) {
 }
 
 _DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
-	ssize_t n = getdelim(buf, sz, '\n', f);
-	if (n>1)
-		if ((*buf)[n-2] == '\r') {
-			(*buf)[n-2] = '\n';
-			(*buf)[n-1] = '\0';
-			n--;
-		}
-	return n;
+	return getdelim(buf, sz, '\n', f);
 }
 
 #endif

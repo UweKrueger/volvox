@@ -90,6 +90,7 @@ _CDECL void showtestres(int fd, int width, const char* testcase, bool result);
 _CDECL char* __cstr2volvoxstr(const char* c_str, size_t len, bool mark_as_heap);
 _CDECL uint32_t utf8_decode(const char** s);
 _CDECL uint32_t utf8_encode(uint32_t codepoint);
+_CDECL void __trim_cstring(char* s, ssize_t* l, char d);
 
 #ifdef _WIN32
 

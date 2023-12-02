@@ -107,7 +107,8 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 		    kept_bufsize = 0;
 	    }
 	    ssize_t m = getline(lineptr, n, lex.input_file);
-	    if (m > 0)
+	    __trim_cstring(*lineptr, &m, '\n');
+	    if (m >= 0)
 		    return m;
 	    else { // either EOF or error
 		    if (ferror(lex.input_file)) {
@@ -194,6 +195,7 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 		linelen = 0;
 		bufsize = 100;
 		linebuf = (char*)malloc(bufsize);
+		linebuf[0] = '\0';
 		if (old_input_file != builtin_input_file)
 			use_readline = false;
 		if (module->import_path.size()) {
@@ -412,7 +414,7 @@ int Lexer::advance() {
 	// unfortunately readline does not return the trailing \n whereas
 	// getline (and fdgetline from above) do. We catch this here by
 	// handling line endings different when use_readline is set
-	if (Loc.Col > linelen || !use_readline && Loc.Col >= linelen) {
+	if (!linebuf || Loc.Col > linelen) {
 		if (use_readline) {
 #ifdef MONOCHROME_PROMPT
 			sprintf(prompt, VOLVOX_PROMPT, Loc.Line + 1);
@@ -423,14 +425,15 @@ int Lexer::advance() {
 				strcat(prompt, "    ");
 		}
 		linelen = fdgetline(&linebuf, &bufsize);
-		if (linelen < 0 || !use_readline && linelen <= 0) {
+		if (linelen < 0) {
+			// TODO: check for errors other than EOF
 			return EOF;
 		}
 		Loc.Line++;
 		Loc.Col = 0;
 	}
 	int c = linebuf[Loc.Col++];
-	if (!c && use_readline)
+	if (!c)
 		c = '\n';
 	return c;
 }
@@ -444,7 +447,7 @@ char Lexer::peek() {
 	char c = CurChar & 0xff;
 	if (!isblank(c))
 		return c;
-	int max_i = linelen - Loc.Col + (use_readline ? 1 : 0);
+	int max_i = linelen - Loc.Col + 1;
 	for (int i = 0; i < max_i; i++) {
 		c = linebuf[Loc.Col + i];
 		if (!isblank(c))
