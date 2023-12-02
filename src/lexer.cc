@@ -193,9 +193,8 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 		source_stack.emplace_back(this);
 		module = &new_module.first->second;
 		linelen = 0;
-		bufsize = 100;
-		linebuf = (char*)malloc(bufsize);
-		linebuf[0] = '\0';
+		bufsize = 0;
+		linebuf = nullptr;
 		if (old_input_file != builtin_input_file)
 			use_readline = false;
 		if (module->import_path.size()) {
