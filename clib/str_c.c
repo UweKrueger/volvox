@@ -1341,11 +1341,50 @@ _DECL unsigned GetLastError() {
 #else
 
 // These functions were originally GNU extensions but are now part of POSIX.
-// BSD and Linux have them in libc - however Windows doesn't
-// So we provide provide Windows versions for here
+// BSD and Linux have them in libc - however Windows doesn't.
+// So we provide provide Windows versions for them here:
 //
 _DECL ssize_t getdelim(char** buf, size_t* sz, int delim, FILE* f) {
-	ssize_t n = 0;
+	size_t n = 0;
+	if (!*buf) {
+		*sz = 120;
+		*buf = malloc(*sz);
+	}
+	_lock_file(f);
+	int c;
+	do {
+		if (*sz <= n+2) {
+			*sz = *sz + (*sz >> 1) + 100;
+			*buf = realloc(*buf, *sz);
+		}
+		c = _fgetc_nolock(f);
+		if (c == EOF) {
+			_unlock_file(f);
+			(*buf)[n] = '\0';
+			return -1;
+		}
+		(*buf)[n++] = (char)c;
+	} while (c != delim);
+	_unlock_file(f);
+	buf[n] = '\0';
+	return n;
+}
+
+_DECL ssize_t _getline(char** buf, size_t* sz, FILE* f) {
+	fprintf(stderr, "Getting line...\n");
+	ssize_t n = getdelim(buf, sz, '\n', f);
+	if (n>1)
+		if ((*buf)[n-2] == '\r') {
+			(*buf)[n-2] = '\n';
+			(*buf)[n-1] = '\0';
+			n--;
+		}
+	fprintf(stderr, "Line length: %zd\n", n);
+	return n;
+}
+
+_DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
+	size_t n = 0;
 	if (!*sz) {
 		*sz = 120;
 		if (*buf)
@@ -1353,38 +1392,36 @@ _DECL ssize_t getdelim(char** buf, size_t* sz, int delim, FILE* f) {
 		else
 			*buf = malloc(*sz);
 	}
-	_lock_file(f);
-	do {
-		int c = _fgetc_nolock(f);
-		if (c == EOF) {
-			_unlock_file(f);
+	for(;;) {
+		if (!*buf || !fgets((*buf)+n, (*sz - n), f))
 			return -1;
-		}
-		if (*sz <= n+1) {
-			*sz = *sz + (*sz >> 1) + 100;
-			*buf = realloc(*buf, *sz);
-		}
-		buf[n++] = (char)c;
-	} while (c != delim);
-	_unlock_file(f);
-	buf[n] = '\0';
-	return n;
-}
-
-_DECL ssize_t getline(char** buf, size_t* sz, FILE* f) {
-	return getdelim(buf, sz, '\n', f);
+		for ( ; (*buf)[n]; n++)
+			if ((*buf)[n] == '\n') {
+				if (n>0 && (*buf)[n-1] == '\r') {
+					// In Volvox we do not want to distinguish between "text files" and "binary files"
+					// So files are always opened in "binary" mode. But since DOS-type text files
+					// are still in use on Windows we must do the "translation" here manually when necessary
+					(*buf)[n-1] = '\n';
+					(*buf)[n] = '\0';
+					return n;
+				} else
+					return n + 1;
+			}
+		*sz = *sz + (*sz >> 1) + 100;
+		*buf = realloc(*buf, *sz);
+	}
 }
 
 #endif
-
 // read stream until EOL or EOF is read
 // return number of non-end characters read - maybe 0 if EOF or EOL
 // -1 means error
 //
+
 _DECL ssize_t __purgeline(FILE* f) {
 	size_t nn = 0;
 	const unsigned sz = 96;
-	char buf[sz];
+	char buf[96];
 	for(;;) {
 		if (!fgets(buf, sz, f)) {
 			if (feof(f))
