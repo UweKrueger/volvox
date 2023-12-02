@@ -1,6 +1,6 @@
 import arch
 import arch.os
-from ERROR import ENOSYS
+from error import ENOSYS
 
 # On most systems there are at least two clocks - earch for a different porpose
 # 1. a "real time" clock that shows wall clock time
