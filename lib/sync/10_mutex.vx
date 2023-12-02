@@ -17,8 +17,9 @@ type mutex_attr union {
 }
 
 fn ~mutex_attr
-	pthread_mutexattr_destroy(&this)
-end
+	if !os.isWindows
+		pthread_mutexattr_destroy(&this)
+end end
 
 cdecl pthread_mutexattr_init(&attr mutex_attr) int
 cdecl pthread_mutexattr_setrobust(&attr mutex_attr, robustness int) int

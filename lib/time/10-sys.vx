@@ -60,7 +60,9 @@ cdecl __clock_gettime64(clockid int, &tp timespec) int
 
 # POSIX clock_gettime - always uses 64-bit-time_t
 pub inline fn clock_gettime(clockid int, &tp timespec) int
-	if arch.bitwidth == 32
+	if os.isWindows
+		return -1
+	elif arch.bitwidth == 32
 		if os.isNetBSD
 			return __clock_gettime50(clockid, tp)
 		elif os.isLinux
