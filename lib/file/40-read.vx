@@ -130,10 +130,9 @@ pub fn File.getline string
 		__trim_cstring(buf, sz, '\n')
 		s = __transformcstr2volvox_l(buf, sz, bufsz)
 		return s
+	elif sz < 0
+		this.err = GetLastError
 	else
-		if sz < 0
-			this.err = GetLastError
-		end
 		return ""
 end end
 
@@ -145,10 +144,9 @@ pub fn File.getdelim(delimiter i8) string
 		__trim_cstring(buf, sz, delimiter)
 		s = __transformcstr2volvox_l(buf, sz, bufsz)
 		return s
+	elif sz < 0
+		this.err = GetLastError
 	else
-		if sz < 0
-			this.err = GetLastError
-		end
 		return ""
 end end
 

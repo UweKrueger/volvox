@@ -151,6 +151,22 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Colors color) {
 	return out.changeColor(color.col, color.bold);
 }
 
+class Tristate {
+	unsigned char state;
+public:
+	Tristate() : state(2) {} // default initialize to undecided
+	Tristate(bool ini) : state(ini ? 1 : 0) {}
+	// The assignment operator returns true for "problematic" assignment
+	// i.e. if the state has not been undecided
+	bool operator=(bool ini) {
+		bool retval = state != 2;
+		state = ini ? 1 : 0;
+		return retval;
+	}
+	operator bool() { return state == 1; };
+	bool undecided() { return state == 2; };
+};
+
 // some handy output stream definitions
 // these just bring LLVM's definitions into the global namespace
 inline llvm::raw_ostream& errs() {

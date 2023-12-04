@@ -93,28 +93,43 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok) {
 	return out << tok.str();
 }
 
+enum tristate : unsigned char {
+	_false,
+	_true,
+	_undecided
+};
+
 Token::Token(char** s_ptr) : kind(tok_number) {
 	is_unknown_type = true;
 	while (isspace(**s_ptr))
 		++(*s_ptr);
-	bool sign = **s_ptr == '-';
+	Tristate sign;
+	if (**s_ptr == '-')
+		sign = true;
+	else if (**s_ptr == '+')
+		sign = false;
 	char* endptr;
 	errno = 0;
+	Tristate int_conversion_out_of_range; 
+	Tristate float_conversion_out_of_range;
 	if (!sign && **s_ptr != '.' || sign && *(*s_ptr + 1) != '.') {
-		if (sign) {
+		errno = 0;
+		if (!sign.undecided()) {
+			// an explicit sign means signed int
 			Val.Int = strtoll(*s_ptr, &endptr, 0);
 		} else {
 			Val.Uint = strtoull(*s_ptr, &endptr, 0);
 		}
-		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
-		if (errno != 0) {
-			Val.Int = errno;
-			// purge rest of line
-			while (**s_ptr)
-				++(*s_ptr);
-			errs() << CurLoc << ": cannot parse numeric token: " << strerror(Val.Int) << '\n';
-			return;
+		if (errno == ERANGE)
+			int_conversion_out_of_range = true;
+		else if (!errno)
+			int_conversion_out_of_range = false;
+		else {
+			// since we definitely have a digit and have set base to 0 we should never get here
+			errs() << CurLoc << ": unexpected error while parsing number literal\n";
+			abort();
 		}
+		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
 	} else {
 		endptr = *s_ptr;
 	}
@@ -150,7 +165,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	char* eptr = *s_ptr;
 	bool sgn_given = false;
 	unsigned bitw = 0;
-	bool is_flt = gen_type.ID == VOLVOX_DoubleTyID;
+	Tristate is_flt = gen_type.ID == VOLVOX_DoubleTyID;
 	bool is_int = false;
 	bool is_signed = !is_flt;
 	// we try to interpret directly following letters as explicit type specifiers
