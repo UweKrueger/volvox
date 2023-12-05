@@ -112,7 +112,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	errno = 0;
 	Tristate int_conversion_out_of_range; 
 	Tristate float_conversion_out_of_range;
-	if (!sign && **s_ptr != '.' || sign && *(*s_ptr + 1) != '.') {
+	if (sign.undecided() && **s_ptr != '.' || !sign.undecided() && *(*s_ptr + 1) != '.') {
 		errno = 0;
 		if (!sign.undecided()) {
 			// an explicit sign means signed int
@@ -136,38 +136,37 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	// try to parse same number as float
 	char* endptr_f;
 	double f = 0;
+	Tristate is_flt;
+	unsigned bitw = 0;
+	Tristate is_signed;
+	if (!sign.undecided())
+		is_signed = true;
+	char* eptr;
 	if (*endptr == '.' && *(endptr+1) == '.' && *(endptr+2) != '.') {
 		// don't parse as float if range operator is seen, e.g. '2..7' (but do for '2...7' which is '2. .. 7')
 		*s_ptr = endptr;
 	} else {
+		errno = 0;
 		f = strtod(*s_ptr, &endptr_f);
-		if (errno == 0 && endptr_f > endptr) {
-			if (*endptr == '.' && endptr_f - endptr == 1) {
-				if (isalpha(*endptr_f)) {
-					int i = 1;
-					while (isalnum(*(endptr_f + i)))
-						i++;
-					if (*(endptr_f + i) == '(') {
-						// method call on integer literal - discard parsed float
-						*s_ptr = endptr;
-						return;
-					}
-				}
+		if (errno == 0 && (endptr_f > endptr || int_conversion_out_of_range)) {
+			if (*endptr == '.' && endptr_f - endptr == 1 && isalpha(*endptr_f)) {
+				if (int_conversion_out_of_range)
+					goto overflow;
+				is_flt = false; // method call on int literal
+			} else {
+				is_flt = true;
 			}
-			gen_type = { .ID = VOLVOX_DoubleTyID };
-			Val.Float = f;
+		}
+		if (is_flt) {
 			*s_ptr = endptr_f;
 		} else {
 			*s_ptr = endptr;
 		}
 	}
 	// handle explicit typed numeric tokens
-	char* eptr = *s_ptr;
-	bool sgn_given = false;
-	unsigned bitw = 0;
-	Tristate is_flt = gen_type.ID == VOLVOX_DoubleTyID;
-	bool is_int = false;
-	bool is_signed = !is_flt;
+	eptr = *s_ptr;
+	if (is_flt)
+		is_signed = false;
 	// we try to interpret directly following letters as explicit type specifiers
 	// if this is not possible we leave the line ptr to allow the letters to be
 	// interpreted as identifier
@@ -175,65 +174,75 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 		char t = tolower(*eptr);
 		switch (t) {
 		case 'f':
-			if (bitw)
-				goto do_check;
-			bitw = 32;
+			if (is_flt.is_false())
+				goto flt_inconsistent;
 			is_flt = true;
+			if (bitw)
+				goto bitwidth_inconsistent;
+			bitw = 32;
+			break;
+		case 'i':
+			if (is_flt.is_false())
+				goto flt_inconsistent;
+			is_flt = true;
+			is_signed = true; // "signed" indicates imaginary for floats
 			break;
 		case 'u':
-			if (sgn_given || is_flt)
-				goto do_check;
-			sgn_given = true;
+			if (is_signed || is_flt)
+				goto signed_inconsistent;
 			is_signed = false;
-			is_int = true;
+			if (is_flt)
+				goto flt_inconsistent;
+			is_flt = false;
 			break;
 		case 'l':
-			if (bitw || is_flt)
-				goto do_check;
-			if (*eptr == *(eptr+1)) {
+			if (is_flt)
+				goto flt_inconsistent;
+			if (bitw)
+				goto bitwidth_inconsistent;
+			if (t == tolower(*(eptr+1))) {
 				eptr++;
 				bitw = 128;
+				errs() << CurLoc << ": 128 bit integers not supported, yet\n";
+				kind = TokenKind(tok_error);
+				return;
 			} else {
 				bitw = 64;
 			}
-			is_int = true;
+			is_flt = false;
 			break;
 		case 'h':
-			if (bitw || is_flt)
-				goto do_check;
-			if (*eptr == *(eptr+1)) {
+			if (is_flt)
+				goto flt_inconsistent;
+			if (bitw)
+				goto bitwidth_inconsistent;
+			if (t == tolower(*(eptr+1))) {
 				eptr++;
 				bitw = 8;
 			} else {
 				bitw = 16;
 			}
-			is_int = true;
+			is_flt = false;
 			break;
 		case 'z':
-			if (bitw || is_flt)
-				goto do_check;
+			if (is_flt)
+				goto flt_inconsistent;
+			if (bitw)
+				goto bitwidth_inconsistent;
 			bitw = target_bits;
-			is_int = true;
-			break;
-		case 'i':
-			if (is_int)
-				goto do_check;
-			is_flt = true;
-			is_signed = true; // "signed" indicates imaginary for floats
+			is_flt = false;
 			break;
 		case 'n':
 			if (bitw)
-				goto do_check;
+				goto bitwidth_inconsistent;
 			if (is_flt)
 				bitw = 64;
 			else {
+				is_flt = false;
 				bitw = 32;
-				is_int = true;
 			}
 			break;
 		default:
-			if (isalnum(*eptr) || *eptr == '_' || eptr == *s_ptr)
-				goto do_check;
 			goto end_loop;
 		}
 		eptr++;
@@ -246,13 +255,28 @@ end_loop:
 		else
 			gen_type = { .ID = VOLVOX_DoubleTyID /* , .is_signed = is_signed */ };
 	} else
-		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = bitw ? bitw : 32, .is_signed = is_signed };
-	is_unknown_type = false;
+		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = bitw ? bitw : 32, .is_signed = !is_signed.is_false() };
+	is_unknown_type = !bitw && (is_signed.undecided() || is_flt);
 	*s_ptr = eptr;
 do_check:
 	if (gen_type.ID == VOLVOX_IntegerTyID && int_type.is_signed && !is_unknown_type && !sign && Val.Int < 0)
 		// TODO: further checks for bit sizes
 		errs() << Val.Uint << " exceeds maximum maximum possible signed value\n";
+	return;
+flt_inconsistent:
+	errs() << CurLoc << ": data type suffix of numeric literal inconclusive (float vs. integer)\n";
+	goto err_ret;
+signed_inconsistent:
+	errs() << CurLoc << ": data type suffix of numeric literal inconclusive (signedness)\n";
+	goto err_ret;
+bitwidth_inconsistent:
+	errs() << CurLoc << ": data type suffix of numeric literal inconclusive (bit width)\n";
+	goto err_ret;
+overflow:
+	errs() << CurLoc << ": numeric literal value is not representable in supposed data type\n";
+err_ret:
+	kind = TokenKind(tok_error);
+	*s_ptr = eptr;
 }
 				
 Token::Token(const std::string& str, bool is_char)
