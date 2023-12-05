@@ -239,7 +239,7 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 			bitw = target_bits;
 			is_flt = false;
 			break;
-		case 'n':
+		case 'd':
 			if (bitw)
 				goto bitwidth_inconsistent;
 			if (is_flt)
