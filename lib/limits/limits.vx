@@ -1,4 +1,5 @@
 # max and min values for different types
+# all values are defined "untyped"
 
 # unsigned types (only max values are defined - min value is always 0)
 #
@@ -17,7 +18,7 @@ pub const int_max := i32_max
 pub const int_min := i32_min
 pub const i16_max := 0x7fff
 pub const i16_min := -1 - i16_max
-pub const i8_max := 0x7fi8
+pub const i8_max := 0x7f
 pub const i8_min := -1 - i8_max
 
 # float type limits - min values refer to minimum positive non-denormal numbers
@@ -29,10 +30,10 @@ pub const f64_max := 0x1.fffffffffffffp+1023
 # numbers in the interval [1.0; 2.0)
 # it is NOT the difference between ANY consecutive numbers nor the smallest representable float number
 #
-pub const epsilon64 := 0x1.0000000000001 - 1
+pub const f64_epsilon := 0x1.0000000000001 - 1
 
 # 32 bit floats
 #
 pub const f32_min := 0x1p-126
-pub const f32_max := 0x1.fffffep+127
-pub const epsilon32 := 0x1.000002p0 - 1
+pub const f32_max := 0x1.fffffp+127
+pub const f32_epsilon := 0x1.000002p0 - 1

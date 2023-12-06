@@ -132,9 +132,9 @@ pub fn File.getline string
 		return s
 	elif sz < 0
 		this.err = GetLastError
-	else
-		return ""
-end end
+	end
+	return ""
+end
 
 pub fn File.getdelim(delimiter i8) string
 	bufsz = 0UZ
@@ -146,9 +146,9 @@ pub fn File.getdelim(delimiter i8) string
 		return s
 	elif sz < 0
 		this.err = GetLastError
-	else
-		return ""
-end end
+	end
+	return ""
+end
 
 cdecl __purgeline(file voidptr) ssize_t
 
