@@ -1965,9 +1965,22 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
 		}
-	} else if (Elist.second != tok_end) {
-		errs() << CurLoc << ": 'return' or 'end' expected\n";
-		return nullptr;
+	} else {
+		if (Elist.second != tok_end) {
+			errs() << CurLoc << ": 'return' or 'end' expected\n";
+			return nullptr;
+		}
+		if (!ProtoRef->RetType->type->isVoidTy()) {
+			if (auto if_expr = dynamic_cast<IfExprAST*>(Elist.first.back().get())) {
+				if (!if_expr->always_return) {
+					errs() << Elist.first.back()->Loc << ": non-void function does not return a value in all branches and has no final return\n";
+					return nullptr;
+				}
+			} else {
+				errs() << Elist.first.back()->Loc << ": no return statement at end of non-void function\n";
+				return nullptr;
+			}
+		}
 	}
 	prompt_indent = 0;
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second, std::move(unmangledName));
