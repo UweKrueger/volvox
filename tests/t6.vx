@@ -232,7 +232,7 @@ fn test_nested_overloaded_call_3 bool
 end
 
 fn test_nested_overloaded_call_4 bool
-	return fqq(fqq(-7u)) == -42
+	return fqq(fqq(- 7u)) == -42
 end
 
 alp = testmod.Olgj(7.0625)

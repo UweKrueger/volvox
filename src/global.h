@@ -163,6 +163,7 @@ public:
 		state = ini ? 1 : 0;
 		return retval;
 	}
+	bool is_false() { return state == 0; }
 	operator bool() { return state == 1; };
 	bool undecided() { return state == 2; };
 };

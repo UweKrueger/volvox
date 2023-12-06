@@ -6,6 +6,7 @@
 #include "../include/volvox.hh"
 #include "global.h"
 #include "AST.h"
+#include <float.h>
 
 #undef TOKEN
 #undef TOKEN_INV
@@ -112,10 +113,19 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 	errno = 0;
 	Tristate int_conversion_out_of_range; 
 	Tristate float_conversion_out_of_range;
-	if (!sign && **s_ptr != '.' || sign && *(*s_ptr + 1) != '.') {
+	char* endptr_f;
+	double f = 0;
+	Tristate is_flt;
+	unsigned bitw = 0;
+	Tristate is_signed;
+	bool is_hex;
+	if (sign.undecided())
+		is_hex = **s_ptr == '0' && tolower(*(*s_ptr+1)) == 'x';
+	else
+		is_hex = *(*s_ptr+1) == '0' && tolower(*(*s_ptr+2)) == 'x';
+	if (sign.undecided() && **s_ptr != '.' || !sign.undecided() && *(*s_ptr + 1) != '.') {
 		errno = 0;
-		if (!sign.undecided()) {
-			// an explicit sign means signed int
+		if (sign) { // negative - so parse as signed
 			Val.Int = strtoll(*s_ptr, &endptr, 0);
 		} else {
 			Val.Uint = strtoull(*s_ptr, &endptr, 0);
@@ -125,49 +135,45 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 		else if (!errno)
 			int_conversion_out_of_range = false;
 		else {
-			// since we definitely have a digit and have set base to 0 we should never get here
-			errs() << CurLoc << ": unexpected error while parsing number literal\n";
-			abort();
+			goto unknown_err;
 		}
 		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 32, .is_signed = true };
 	} else {
 		endptr = *s_ptr;
 	}
 	// try to parse same number as float
-	char* endptr_f;
-	double f = 0;
+	// if (!sign.undecided())
+	// 	is_signed = true;
+	char* eptr;
 	if (*endptr == '.' && *(endptr+1) == '.' && *(endptr+2) != '.') {
 		// don't parse as float if range operator is seen, e.g. '2..7' (but do for '2...7' which is '2. .. 7')
 		*s_ptr = endptr;
 	} else {
+		errno = 0;
 		f = strtod(*s_ptr, &endptr_f);
-		if (errno == 0 && endptr_f > endptr) {
-			if (*endptr == '.' && endptr_f - endptr == 1) {
-				if (isalpha(*endptr_f)) {
-					int i = 1;
-					while (isalnum(*(endptr_f + i)))
-						i++;
-					if (*(endptr_f + i) == '(') {
-						// method call on integer literal - discard parsed float
-						*s_ptr = endptr;
-						return;
-					}
-				}
+		if (errno == 0 && (endptr_f > endptr || int_conversion_out_of_range)) {
+			if (*endptr == '.' && endptr_f - endptr == 1 && isalpha(*endptr_f)) {
+				if (int_conversion_out_of_range)
+					goto overflow;
+				is_flt = false; // method call on int literal
+			} else {
+				is_flt = true;
 			}
-			gen_type = { .ID = VOLVOX_DoubleTyID };
-			Val.Float = f;
+		} else if (errno == ERANGE)
+			goto overflow;
+		else if (errno) {
+			goto unknown_err;
+		}
+		if (is_flt) {
 			*s_ptr = endptr_f;
 		} else {
 			*s_ptr = endptr;
 		}
 	}
 	// handle explicit typed numeric tokens
-	char* eptr = *s_ptr;
-	bool sgn_given = false;
-	unsigned bitw = 0;
-	Tristate is_flt = gen_type.ID == VOLVOX_DoubleTyID;
-	bool is_int = false;
-	bool is_signed = !is_flt;
+	eptr = *s_ptr;
+	if (is_flt)
+		is_signed = false;
 	// we try to interpret directly following letters as explicit type specifiers
 	// if this is not possible we leave the line ptr to allow the letters to be
 	// interpreted as identifier
@@ -175,65 +181,75 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 		char t = tolower(*eptr);
 		switch (t) {
 		case 'f':
-			if (bitw)
-				goto do_check;
-			bitw = 32;
+			if (is_flt.is_false())
+				goto flt_inconsistent;
 			is_flt = true;
+			if (bitw)
+				goto bitwidth_inconsistent;
+			bitw = 32;
+			break;
+		case 'i':
+			if (is_flt.is_false())
+				goto flt_inconsistent;
+			is_flt = true;
+			is_signed = true; // "signed" indicates imaginary for floats
 			break;
 		case 'u':
-			if (sgn_given || is_flt)
-				goto do_check;
-			sgn_given = true;
+			if (is_signed || is_flt)
+				goto signed_inconsistent;
 			is_signed = false;
-			is_int = true;
+			if (is_flt)
+				goto flt_inconsistent;
+			is_flt = false;
 			break;
 		case 'l':
-			if (bitw || is_flt)
-				goto do_check;
-			if (*eptr == *(eptr+1)) {
+			if (is_flt)
+				goto flt_inconsistent;
+			if (bitw)
+				goto bitwidth_inconsistent;
+			if (t == tolower(*(eptr+1))) {
 				eptr++;
 				bitw = 128;
+				errs() << CurLoc << ": 128 bit integers not supported, yet\n";
+				kind = TokenKind(tok_error);
+				return;
 			} else {
 				bitw = 64;
 			}
-			is_int = true;
+			is_flt = false;
 			break;
 		case 'h':
-			if (bitw || is_flt)
-				goto do_check;
-			if (*eptr == *(eptr+1)) {
+			if (is_flt)
+				goto flt_inconsistent;
+			if (bitw)
+				goto bitwidth_inconsistent;
+			if (t == tolower(*(eptr+1))) {
 				eptr++;
 				bitw = 8;
 			} else {
 				bitw = 16;
 			}
-			is_int = true;
+			is_flt = false;
 			break;
 		case 'z':
-			if (bitw || is_flt)
-				goto do_check;
-			bitw = target_bits;
-			is_int = true;
-			break;
-		case 'i':
-			if (is_int)
-				goto do_check;
-			is_flt = true;
-			is_signed = true; // "signed" indicates imaginary for floats
-			break;
-		case 'n':
+			if (is_flt)
+				goto flt_inconsistent;
 			if (bitw)
-				goto do_check;
+				goto bitwidth_inconsistent;
+			bitw = target_bits;
+			is_flt = false;
+			break;
+		case 'd':
+			if (bitw)
+				goto bitwidth_inconsistent;
 			if (is_flt)
 				bitw = 64;
 			else {
+				is_flt = false;
 				bitw = 32;
-				is_int = true;
 			}
 			break;
 		default:
-			if (isalnum(*eptr) || *eptr == '_' || eptr == *s_ptr)
-				goto do_check;
 			goto end_loop;
 		}
 		eptr++;
@@ -241,18 +257,94 @@ Token::Token(char** s_ptr) : kind(tok_number) {
 end_loop:
 	if (is_flt) {
 		Val.Float = f;
-		if (bitw == 32)
+		if (bitw == 32) {
 			gen_type = { .ID = VOLVOX_FloatTyID /* , .is_signed = is_signed */ }; // imaginary not support, yet
-		else
+		} else {
 			gen_type = { .ID = VOLVOX_DoubleTyID /* , .is_signed = is_signed */ };
-	} else
-		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = bitw ? bitw : 32, .is_signed = is_signed };
-	is_unknown_type = false;
+		}
+	} else {
+		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = bitw ? bitw : 32, .is_signed = !is_signed.is_false() };
+	}
+	is_unknown_type = !bitw && (is_signed.undecided() || is_flt);
+	if (!is_flt && !is_signed.is_false() && !sign && Val.Int < 0)
+		// no '-' sign, thus parsed as unsigned - if we have a negative value it's due to overflow
+		// we forbid this for decimal but allow it for hexadecimal numbers
+		if (!is_hex)
+			goto overflow;
 	*s_ptr = eptr;
-do_check:
-	if (gen_type.ID == VOLVOX_IntegerTyID && int_type.is_signed && !is_unknown_type && !sign && Val.Int < 0)
-		// TODO: further checks for bit sizes
-		errs() << Val.Uint << " exceeds maximum maximum possible signed value\n";
+	if (!is_unknown_type) {
+		// checks for number fitting in data type
+		if (is_flt) {
+			if (bitw == 32) {
+				f = (f<0) ? -f : f;
+				if (f>FLT_MAX)
+					goto overflow;
+			}
+		} else {
+			if (is_signed.is_false()) {
+				switch (bitw) {
+				case 8:
+					if (Val.Uint > UCHAR_MAX)
+						goto overflow;
+					break;
+				case 16:
+					if (Val.Uint > USHRT_MAX)
+						goto overflow;
+					break;
+				case 32:
+				default:
+					if (Val.Uint > UINT_MAX)
+						goto overflow;
+					break;
+				case 64:
+					if (Val.Uint > ULLONG_MAX) // should be impossible, but keep for completeness
+						goto overflow;
+					break;
+				}
+			} else {
+				switch (bitw) {
+				case 8:
+					if (Val.Int < CHAR_MIN || Val.Int > CHAR_MAX)
+						goto overflow;
+					break;
+				case 16:
+					if (Val.Int < SHRT_MIN || Val.Int > SHRT_MAX)
+						goto overflow;
+					break;
+				case 32:
+				default:
+					if (Val.Int < INT_MIN || Val.Int > INT_MAX)
+						goto overflow;
+					break;
+				case 64:
+					if (Val.Int < LLONG_MIN || Val.Int > LLONG_MAX)
+						goto overflow;
+					break;
+				}
+			}
+		}
+	}
+	return;
+flt_inconsistent:
+	errs() << CurLoc << ": data type suffix of numeric literal inconclusive (float vs. integer)\n";
+	goto err_ret;
+signed_inconsistent:
+	errs() << CurLoc << ": data type suffix of numeric literal inconclusive (signedness)\n";
+	goto err_ret;
+bitwidth_inconsistent:
+	errs() << CurLoc << ": data type suffix of numeric literal inconclusive (bit width)\n";
+	goto err_ret;
+overflow:
+	errs() << CurLoc << ": numeric literal value is not representable in supposed data type\n";
+err_ret:
+	kind = TokenKind(tok_error);
+	*s_ptr = eptr;
+	return;
+unknown_err:
+	int save_err = errno;
+	// since we definitely have a digit and have set base to 0 we should never get here
+	errs() << CurLoc << ": unexpected error while parsing number literal: " << strerror(save_err) << "\n";
+	abort();
 }
 				
 Token::Token(const std::string& str, bool is_char)

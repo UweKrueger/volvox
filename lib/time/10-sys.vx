@@ -111,7 +111,7 @@ fn get_system_tick_frequency() int
 end
 
 pub const tick_frequency = get_system_tick_frequency()
-pub const tick_period = 1.0N / tick_frequency
+pub const tick_period = 1.0d / tick_frequency
 
 # monotonic timestamps are of type 'timespec' on Unix and 'LARGE_INTEGER' on Windows
 # to avoid the clumsy timespec structure, Volvox timestamps are i64 on all systems and represent
