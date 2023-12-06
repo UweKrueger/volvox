@@ -480,6 +480,8 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 		if (p <= 0)
 			p = F32_DEFAULT_PRECISION;
 		prt_float(s, cap, pos, *cap - *pos, (double)*((float*)elem_ptr), w, p, flags);
+		if (elem_type->type_attr & A_signed)
+			prtstring(s, cap, pos, "i", w);
 		elem_ptr = (const char*)((float*)elem_ptr + 1); // TODO: packed/unpacked?
 	} else if (elem_type->ID == VOLVOX_IntegerTyID && elem_type->SubclassData <= 4*8) {
 		unsigned elem = 0;
@@ -504,6 +506,8 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 		if (p <= 0)
 			p = F64_DEFAULT_PRECISION;
 		prt_float(s, cap, pos, *cap - *pos, *(double*)elem_ptr, w, p, flags);
+		if (elem_type->type_attr & A_signed)
+			prtstring(s, cap, pos, "i", w);
 		elem_ptr = (const char*)((double*)elem_ptr + 1);
 	} else if (elem_type->ID == VOLVOX_StructTyID) {
 		if (!(flags & A_packed))
@@ -687,6 +691,8 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			const char* fmt = getFmtFlt(flags);
 			if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 			prt_float(s, cap, pos, space, val, w, p, flags);
+			if (ft->type_attr & A_signed)
+				prtstring(s, cap, pos, "i", w);
 		}
 			break;
 		case VOLVOX_IntegerTyID: {
