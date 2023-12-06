@@ -258,9 +258,9 @@ end_loop:
 	if (is_flt) {
 		Val.Float = f;
 		if (bitw == 32) {
-			gen_type = { .ID = VOLVOX_FloatTyID /* , .is_signed = is_signed */ }; // imaginary not support, yet
+			int_type = { .ID = llvm::Type::FloatTyID, .is_signed = is_signed }; // signed means imaginary not support
 		} else {
-			gen_type = { .ID = VOLVOX_DoubleTyID /* , .is_signed = is_signed */ };
+			int_type = { .ID = llvm::Type::DoubleTyID, .is_signed = is_signed };
 		}
 	} else {
 		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = bitw ? bitw : 32, .is_signed = !is_signed.is_false() };

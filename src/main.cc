@@ -22,6 +22,8 @@ std::vector<std::string> include_files = {};
 std::vector<std::string> extra_libs;
 std::vector<std::vector<const char*>> source_files = {{}};
 std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
+std::map<unsigned, llvm::Type*> key32_table; // only builtin types
+
 const std::string single_test_result_name = "__test_result";
 const std::string collector_name = "__test_results_collect";
 int include_index = 0;
@@ -147,6 +149,7 @@ void init(const llvm::Triple& triple) {
 		lex.add_type("unsigned", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("unsigned", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 		llvm_int_type = llvm::Type::getInt32Ty(Context);
 		lex.add_type("real", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float) : nullptr);
+		lex.add_type("imaginary", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("imaginary", 64, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
 	}
 	if (target_bits == 32) {
 		lex.add_type("ssize_t", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("ssize_t", 32, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
@@ -175,6 +178,8 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("f16", llvm::Type::getBFloatTy(Context), DBuilder ? DBuilder->createBasicType("f16", 16, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("f32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("f32", 32, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
+	lex.add_type("j32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("j32", 32, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
+	lex.add_type("j64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("j64", 64, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 #if LLVM_VERSION_MAJOR >= 16

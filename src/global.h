@@ -623,14 +623,17 @@ public:
 	}
 };
 
+extern std::map<unsigned, llvm::Type*> key32_table;
+
 class TypeTable : public Table {
 public:
 	TypeTable() = default;
 	~TypeTable() { map_destroy(table, nullptr); }
 	MapNode* add(const char* name, volvoxc::FullType* ft, MapNode*& target) {
 		bool is_int = ft->type && ft->type->isIntegerTy();
-		if ((ft->type_attr & A_signed) && !is_int) {
-			errs() << "non-int type '" << name << "' aka " << *ft->type << " cannot be signed\n";
+		bool is_float = ft->type && (ft->type->isFloatTy() || ft->type->isDoubleTy());
+		if ((ft->type_attr & A_signed) && !is_int && !is_float) {
+			errs() << "non-numeric type '" << name << "' aka " << *ft->type << " cannot be signed\n";
 			return 0;
 		}
 		MapValue val = {
@@ -648,6 +651,8 @@ public:
 		if (ft->type) {
 			if (is_int) {
 				int_type = { .ID = ft->type->getTypeID(), .BitWidth = ft->type->getIntegerBitWidth(), .is_signed = (bool)(ft->type_attr & A_signed) };
+			} else if (is_float) {
+				int_type = { .ID = ft->type->getTypeID(), .is_signed = (bool)(ft->type_attr & A_signed) };
 			} else {
 				gen_type = { .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = ((genType*)ft->type)->SubClassData() };
 			}
@@ -708,9 +713,14 @@ public:
 		};
 		key = _key;
 		auto it = key32_table.find(key);
-		if (it == key32_table.end())
+		if (it == key32_table.end()) {
+			errs() << llvm::format("Internal error: Could not find %p type key 0x%08x\n", &key32_table, key);
 			return nullptr;
-		bool is_signed = (int_type.ID == llvm::Type::IntegerTyID && int_type.is_signed);
+		}
+		bool is_signed = int_type.is_signed && (
+			int_type.ID == llvm::Type::IntegerTyID ||
+			int_type.ID == llvm::Type::FloatTyID ||
+			int_type.ID == llvm::Type::DoubleTyID);
 		return new_FullType(it->second, is_signed ? A_signed : 0);
 	}
 	const char* get_name(llvm::Type* type) {
@@ -732,7 +742,6 @@ public:
 		return get_diType((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
 	}
 protected:
-	std::map<unsigned, llvm::Type*> key32_table;
 	std::map<llvm::Type*, std::pair<const char*, llvm::DIType*>> typeptr_table;
 };
 
