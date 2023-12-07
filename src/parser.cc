@@ -1673,6 +1673,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	std::vector<SourceLocation> ArgPos;
 	bool isVarArgs = false;
 	volvoxc::FullType* tmp_rec_type = nullptr;
+	const char* operators = ".+-*/%^"; // for operator methods - '.' means normal method
+	int operator_idx = -1;
 	if (!(visibility & A_closure)) {
 		if (CurTok.kind != tok_identifier) {
 			errs() << CurLoc << ": identifier expected (function name or receiver type)\n";
@@ -1691,6 +1693,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		// all kinds of methods start with a type name - even destructors as we
 		// have eaten the '~' already in ParseDefinition()
 		tmp_rec_type = lex.get_full_type(IdentifierStr.c_str());
+		auto op_ptr = strchr(operators, lex.peek());
+		if (op_ptr)
+			operator_idx = op_ptr - operators;
 		if (tmp_rec_type) {
 			visibility |= A_method; // 1st token of function name is known type -> must be method
 			if (visibility & A_destructor) {
@@ -1702,8 +1707,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 					return nullptr;
 				}
 				tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
-			} else if (lex.peek() != '.') {
-				visibility |= A_constructor;
+			} else {
+				if (operator_idx < 0)
+					visibility |= A_constructor;
 			}
 			if (visibility & A_c_api) {
 				errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
@@ -1728,7 +1734,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 					return nullptr;
 			}
 		} else {
-			if (lex.peek() == '.' || (visibility & A_destructor)) {
+			if (operator_idx >= 0 || (visibility & A_destructor)) {
 				errs() << CurLoc << ": error in " << ((visibility & A_destructor) ? "destructor" : "method")
 				       << " parsing - '" << IdentifierStr << "' is not a known type\n";
 				return nullptr;
