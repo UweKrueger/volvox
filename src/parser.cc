@@ -1757,17 +1757,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		Kind = 0;
 		getNextToken(eSemi);
 		break;
-	case tok_unary:
-		getNextToken();
-		if (!isascii(CurTok.kind)) {
-			errs() << "Expected unary operator\n";
-			return nullptr;
-		}
-		FnName = "unary";
-		FnName += (char)CurTok.kind;
-		Kind = 1;
-		getNextToken();
-		break;
 	case tok_add:
 	case tok_mult:
 	case tok_pow:
@@ -1865,8 +1854,10 @@ nobrace:
 				return nullptr;
 			}
 			FnName = "unary" + FnName;
+			Kind = 1;
 		} else {
 			FnName = "binary" + FnName;
+			Kind = 2;
 		}
 	}
 	if (visibility & (A_constructor | A_destructor))
