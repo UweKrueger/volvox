@@ -1730,7 +1730,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			ArgPos.push_back(CurLoc);
 			if (!(visibility & (A_destructor | A_constructor))) {
 				getNextToken(eBinOp, eSemi);
-				if (!Expect(tok_selector))
+				if (!operator_idx && !Expect(tok_selector)) // eat '.' for method declarations
 					return nullptr;
 			}
 		} else {
@@ -1768,25 +1768,12 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		Kind = 1;
 		getNextToken();
 		break;
-	case tok_colon: // ... not really
+	case tok_add:
+	case tok_mult:
+	case tok_pow:
+		FnName = IdentifierStr;
 		getNextToken();
-		if (!isascii(CurTok.kind)) {
-			errs() << "Expected binary operator\n";
-			return nullptr;
-		}
-		FnName = "binary";
-		FnName += (char)CurTok.kind;
-		Kind = 2;
-		getNextToken();
-
-		// Read the precedence if present.
-		if (CurTok.kind == tok_number) {
-			if (CurTok.Val.Int < 1 || CurTok.Val.Int > 100) {
-				errs() << "Invalid precedence: must be 1..100\n";
-				return nullptr;
-			}
-			getNextToken();
-		}
+		// errs() << "Operator Method for " << *ReceiverType << " " << FnName << "\n";
 		break;
 	default:
 		errs() << CurLoc << ": expected function name in prototype - got " << CurTok << "\n";
@@ -1866,6 +1853,20 @@ nobrace:
 			// default constructor - set flag in type
 			if (ArgTypes.size() == 1)
 				tmp_rec_type->type_attr |= A_constructor;
+		}
+	} else if (operator_idx > 0) {
+		if (ArgTypes.size() > 2) {
+			errs() << ArgPos[2] << ": operator methods must not have more then one argument\n";
+			return nullptr;
+		}
+		if (ArgTypes.size() == 1) { // cannot be 0 because we have a receiver as 1st arg
+			if (operator_idx > 2) {
+				errs() << ArgPos[0] << ": operators other than '+' or '-' cannot be declared as unary\n";
+				return nullptr;
+			}
+			FnName = "unary" + FnName;
+		} else {
+			FnName = "binary" + FnName;
 		}
 	}
 	if (visibility & (A_constructor | A_destructor))
