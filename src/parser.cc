@@ -1895,7 +1895,8 @@ nobrace:
 			ArgTypes[0] = ArgTypes[1];
 			ArgTypes[1] = ty_tmp;
 			auto pos_tmp = ArgPos[0];
-			ArgTypes[0]->type_attr |= A_ref;
+			if (!(ArgTypes[0]->type_attr & A_ref))
+				ArgTypes[0]->type_attr |= (A_ref | A_by_value);
 			ArgPos[0] = ArgPos[1];
 			ArgPos[1] = pos_tmp;
 		} else {

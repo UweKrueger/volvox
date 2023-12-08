@@ -31,6 +31,7 @@
 #define A_inline (1U<<19) // function
 #define A_modified (1U<<19) // variable
 #define A_c_api  (1U<<20)
+#define A_by_value (1U<<20)
 #define A_destructor (1U<<21) // fn is destructor or type has destructor
 #define A_constructor (1U<<22) // fn is default c. or type has default c.
 #define A_conversion (1U<<23) // fn is "type conversion operator" (in C++ speach)

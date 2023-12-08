@@ -763,13 +763,13 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		llvm::Type* fn_arg_type = argtype->type;
 		size_t argsize = argtype->type->isSized() ?
 			TheModule->getDataLayout().getTypeAllocSize(fn_arg_type) : 0;
-		if (argtype->type_attr & A_ref) {
+		if ((argtype->type_attr & A_ref) && !(argtype->type_attr & A_by_value)) {
 			ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 						llvm::Attribute::getWithByRefType(Context, argtype->type),
 						llvm::Attribute::getWithDereferenceableBytes(Context, argsize) }));
 			fn_arg_type = fn_arg_type->getPointerTo();
 		} else {
-			if (argsize > 16) { // Arguments > 16 bytes are always passed as pointer using copy-on-write
+			if (argsize > 16 || (argtype->type_attr & A_by_value)) { // Arguments > 16 bytes are always passed as pointer using copy-on-write
 				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 							llvm::Attribute::getWithByValType(Context, argtype->type) }));
 				fn_arg_type = fn_arg_type->getPointerTo();
