@@ -1691,7 +1691,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	std::string UnmagledReceiverTypeName;
 	SourceLocation FnLoc = CurLoc;
 
-	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary.
+	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary, 3 reverse binary.
 	std::vector<std::string> ArgNames;
 	std::vector<volvoxc::FullType*> ArgTypes;
 	std::vector<SourceLocation> ArgPos;
@@ -1747,7 +1747,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			// TODO: avoid creating new FullTypes just for adding attributes
 			// This will require ParseType() to return attributes separately
 			// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
-			ReceiverType->type_attr |= A_ref;
+			if (ReceiverType->type->isStructTy())
+				ReceiverType->type_attr |= A_ref;
 			UnmagledReceiverTypeName = std::move(IdentifierStr);
 			ArgNames.push_back("this");
 			ArgTypes.push_back(ReceiverType);
@@ -1812,8 +1813,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		auto [name, ft] = ParseTypedIdent(')', false);
 		if (!ft)
 			return nullptr;
-		bool is_black_ident = ((uintptr_t)ft & 1) || name == "_";
-		ArgNames.push_back(is_black_ident ? " " : name);
+		bool is_blanc_ident = ((uintptr_t)ft & 1) || name == "_";
+		ArgNames.push_back(is_blanc_ident ? " " : name);
 		ArgPos.push_back(ArgLoc);
 		auto type = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL);
 		ArgTypes.push_back(type);
@@ -1886,7 +1887,7 @@ nobrace:
 			}
 		} else if (ArgTypes.size() == 2 && ArgTypes[1]->type->isStructTy()) {
 			FnName = "reverse" + FnName;
-			Kind = 2;
+			Kind = 3;
 			auto nam_tmp = std::move(ArgNames[0]);
 			ArgNames[0] = std::move(ArgNames[1]);
 			ArgNames[1] = std::move(nam_tmp);
@@ -1894,6 +1895,7 @@ nobrace:
 			ArgTypes[0] = ArgTypes[1];
 			ArgTypes[1] = ty_tmp;
 			auto pos_tmp = ArgPos[0];
+			ArgTypes[0]->type_attr |= A_ref;
 			ArgPos[0] = ArgPos[1];
 			ArgPos[1] = pos_tmp;
 		} else {
@@ -1903,7 +1905,7 @@ nobrace:
 	}
 	if (visibility & (A_constructor | A_destructor))
 		visibility |= A_pub;
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind != 0, RetType, ArgTypes, ArgPos, isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind, RetType, ArgTypes, ArgPos, isVarArgs);
 }
 
 

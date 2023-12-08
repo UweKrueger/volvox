@@ -927,17 +927,17 @@ public:
 	SourceLocation retLoc;
 	llvm::FunctionType* FT = nullptr;
 	llvm::Constant* const_result = nullptr;
-	bool IsVarArgs = false;
-	bool IsOperator = false;
-	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
+	unsigned IsOperator = 0;
 	unsigned visibility = 0;
+	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
+	bool IsVarArgs = false;
 	llvm::GlobalValue::LinkageTypes link_typ;
 	int Line;
 	std::string Name;
 	PrototypeAST(const PrototypeAST& proto) = default;
 	PrototypeAST(SourceLocation Loc, const std::string &Name,
 	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
-	             bool IsOperator = false, volvoxc::FullType* RetType_ = nullptr,
+	             unsigned IsOperator = 0, volvoxc::FullType* RetType_ = nullptr,
 	             std::vector<volvoxc::FullType*> ArgTypes = {},
 	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);
 	llvm::Function *codegen();

@@ -748,7 +748,7 @@ llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
 
 PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
                            std::vector<std::string> Args, unsigned visibility, SourceLocation retLoc,
-                           bool IsOperator, volvoxc::FullType* RetType_,
+                           unsigned IsOperator, volvoxc::FullType* RetType_,
                            std::vector<volvoxc::FullType*> _ArgTypes,
                            std::vector<SourceLocation> _ArgPos, bool IsVarArgs)
 		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
