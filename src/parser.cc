@@ -1868,20 +1868,37 @@ nobrace:
 				tmp_rec_type->type_attr |= A_constructor;
 		}
 	} else if (operator_idx > 0) {
-		if (ArgTypes.size() > 2) {
+		if (ArgTypes.size() > 2) { // cannot be 0 because we have a receiver as 1st arg
 			errs() << ArgPos[2] << ": operator methods must not have more then one argument\n";
 			return nullptr;
 		}
-		if (ArgTypes.size() == 1) { // cannot be 0 because we have a receiver as 1st arg
-			if (operator_idx > 2) {
-				errs() << ArgPos[0] << ": operators other than '+' or '-' cannot be declared as unary\n";
-				return nullptr;
+		if (ArgTypes[0]->type->isStructTy()) {
+			if (ArgTypes.size() == 1) {
+				if (operator_idx > 2) {
+					errs() << ArgPos[0] << ": operators other than '+' or '-' cannot be declared as unary\n";
+					return nullptr;
+				}
+				FnName = "unary" + FnName;
+				Kind = 1;
+			} else {
+				FnName = "binary" + FnName;
+				Kind = 2;
 			}
-			FnName = "unary" + FnName;
-			Kind = 1;
-		} else {
-			FnName = "binary" + FnName;
+		} else if (ArgTypes.size() == 2 && ArgTypes[1]->type->isStructTy()) {
+			FnName = "reverse" + FnName;
 			Kind = 2;
+			auto nam_tmp = std::move(ArgNames[0]);
+			ArgNames[0] = std::move(ArgNames[1]);
+			ArgNames[1] = std::move(nam_tmp);
+			auto ty_tmp = ArgTypes[0];
+			ArgTypes[0] = ArgTypes[1];
+			ArgTypes[1] = ty_tmp;
+			auto pos_tmp = ArgPos[0];
+			ArgPos[0] = ArgPos[1];
+			ArgPos[1] = pos_tmp;
+		} else {
+			errs() << ArgPos[0] << ": at least one of receiver or argument must be a declared type\n";
+			return nullptr;
 		}
 	}
 	if (visibility & (A_constructor | A_destructor))
