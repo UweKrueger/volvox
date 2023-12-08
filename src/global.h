@@ -1270,6 +1270,9 @@ public:
 
 extern Lexer lex;
 
+// global function to find method protos
+extern std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName);
+
 inline FullVar* lookup_var(const char* prefix, const char* unmangledName) {
 	auto im = lex.module->ImportedSymbols.find({ prefix, unmangledName });
 	if (im != lex.module->ImportedSymbols.end())

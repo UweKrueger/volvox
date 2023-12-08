@@ -1520,6 +1520,42 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				return nullptr;
 			}
 		}
+		if (LHS_type && RHS_type) {
+			if (auto LHS_struct_ty = llvm::dyn_cast<llvm::StructType>(LHS_type)) {
+				auto fnName = "binary" + BinOp;
+				if (!LHS_struct_ty->hasName()) {
+					errs() << LHS->Loc << ": cannot call operator method for LHS of unnamed type\n";
+					return nullptr;
+				}
+				auto LHS_mangled_type_name = LHS_struct_ty->getName().str();
+				if (auto Protos = findProtos(LHS_mangled_type_name, fnName)) {
+					auto m_ident = std::make_unique<IdentExprAST>(BinLoc, std::move(fnName));
+					auto method = std::make_unique<MethodExprAST>(
+						BinLoc, std::move(LHS), std::move(m_ident), Protos);
+					std::vector<std::unique_ptr<ExprAST>> Arg;
+					Arg.push_back(std::move(RHS));
+					return std::make_unique<CallExprAST>(BinLoc, std::move(method), std::move(Arg));
+				} else {
+					errs() << BinLoc << ": no prototype found for " << LHS_mangled_type_name << '.' << fnName << '\n';
+				}
+			}
+			if (auto RHS_struct_ty = llvm::dyn_cast<llvm::StructType>(RHS_type)) {
+				auto fnName = "reverse" + BinOp;
+				if (!RHS_struct_ty->hasName()) {
+					errs() << RHS->Loc << ": cannot call operator method for RHS of unnamed type\n";
+					return nullptr;
+				}
+				auto RHS_mangled_type_name = RHS_struct_ty->getName().str();
+				if (auto Protos = findProtos(RHS_mangled_type_name, fnName)) {
+					auto m_ident = std::make_unique<IdentExprAST>(BinLoc, std::move(fnName));
+					auto method = std::make_unique<MethodExprAST>(
+						BinLoc, std::move(RHS), std::move(m_ident), Protos);
+					std::vector<std::unique_ptr<ExprAST>> Arg;
+					Arg.push_back(std::move(LHS));
+					return std::make_unique<CallExprAST>(BinLoc, std::move(method), std::move(Arg));
+				}
+			}
+		}
 		auto res_t = is_decl ? std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{
 			nullptr, 0, false, OpDeclAssign, nullptr } :
 			getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
