@@ -1828,6 +1828,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		case is_complex:
 			result = llvm::UndefValue::get(ft->type);
+			R = Builder->CreateFNeg(R);
 			if (left_is_imag) {
 				result = Builder->CreateInsertValue(result, R, 0);
 				result = Builder->CreateInsertValue(result, L, 1);
