@@ -500,6 +500,10 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	bool res_is_unknown_type = left_is_unknown_type & right_is_unknown_type;
 	bool res_is_float = left_is_float || right_is_float;
 	bool res_is_signed = left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type || left_is_signed && right_is_signed;
+	bool left_is_imag = left_is_float & left_is_signed;
+	bool right_is_imag = right_is_float & right_is_signed;
+	bool res_is_complex = left_is_imag || right_is_imag;
+	bool res_is_imag = false;
 	switch (opclass) {
 	case OpComparison:
 		return { llvm::Type::getInt1Ty(Context), 0, false, opclass, nullptr };
@@ -545,8 +549,17 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	if (res_is_float)
 		res_bitwidth = Min(res_bitwidth, 53); // limit to f64
 	unsigned res_attr = 0;
-	if (res_is_signed)
+	if (!res_is_float && res_is_signed || res_is_float && res_is_imag)
 		res_attr |= A_signed;
+	if (res_is_complex) {
+		const char* complex_ty = (res_bitwidth >= 32) ? "complex" : "c32";
+		auto ct = lex.get_full_type(complex_ty);
+		if (!ct) {
+			errs() << "cannot find declaration of builtin type " << complex_ty << "\n";
+			abort();
+		}
+		return { ct->type, 0, false, opclass, nullptr };
+	}
 	return { getFittingType(res_bitwidth, res_is_float), res_attr, res_is_unknown_type, opclass, nullptr };
 }
 

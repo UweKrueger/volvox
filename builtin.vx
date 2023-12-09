@@ -287,3 +287,13 @@ inline fn __i64_pow_constexp(b i64, e i32) i64
 	end
 	return __i64_pow(b, e)
 end
+
+type complex {
+	real
+	imaginary
+}
+
+type c32 {
+	f32
+	j32
+}
