@@ -473,13 +473,10 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	return { nullptr, 0, false, opclass, err_msg };
 }
 
-// get "natural" result type for binary operators, i.e if desired type is not known (yet)
-// this is usually the "biggest" operand type - an error is returned if converting the
-// smaller one would mean precision loss. This error is not printed because once the
-// desire type is known the operation might still turn out to be valid
-//
+// When imaginary objects are involved thiungs are somewhat different
+
 // result_type, result attributes, result is unknown type, Operator Class, errormessage
-std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
+std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getComplexRes(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type)
 {
@@ -560,6 +557,87 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 		}
 		return { ct->type, 0, false, opclass, nullptr };
 	}
+	return { getFittingType(res_bitwidth, res_is_float), res_attr, res_is_unknown_type, opclass, nullptr };
+}
+
+// get "natural" result type for binary operators, i.e if desired type is not known (yet)
+// this is usually the "biggest" operand type - an error is returned if converting the
+// smaller one would mean precision loss. This error is not printed because once the
+// desire type is known the operation might still turn out to be valid
+//
+// result_type, result attributes, result is unknown type, Operator Class, errormessage
+std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
+	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
+	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type)
+{
+	if ((left_attr & (A_string | A_cstring)) || (right_attr & (A_string | A_cstring)))
+		return getStringRes(left_type, right_type, Op, left_attr, right_attr);
+	bool left_is_signed = left_attr & A_signed;
+	bool right_is_signed = right_attr & A_signed;
+	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
+	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
+	auto opclass = getOpClass(Op);
+	if (opclass != OpComma && opclass != OpBitwise && opclass != OpColon) {
+		if (left_bitwidth == 1 && right_bitwidth != 1)
+			return { nullptr, 0, false, opclass, "LHS of type 'bool' cannot be combined with numeric RHS value\n" };
+		if (right_bitwidth == 1 && left_bitwidth != 1)
+			return { nullptr, 0, false, opclass, "RHS of type 'bool' cannot be combined with numeric LHS value\n" };
+	}
+	unsigned res_bitwidth;
+	bool res_is_unknown_type = left_is_unknown_type & right_is_unknown_type;
+	bool res_is_float = left_is_float || right_is_float;
+	bool res_is_signed = left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type || left_is_signed && right_is_signed;
+	bool left_is_imag = left_is_float & left_is_signed;
+	bool right_is_imag = right_is_float & right_is_signed;
+	if (left_is_imag || right_is_imag)
+		return getComplexRes(left_type, right_type, Op, left_attr, right_attr, left_is_unknown_type, right_is_unknown_type);
+	switch (opclass) {
+	case OpComparison:
+		return { llvm::Type::getInt1Ty(Context), 0, false, opclass, nullptr };
+	case OpDeclAssign:
+		// nullptr as type is reserved for this particular case
+		return { nullptr, 0, false, opclass, nullptr };
+	case OpAssign:
+	case OpModAssign:
+		if (!left_is_float && right_is_float)
+			return { nullptr, 0, false, opclass, "LHS of '%s' is of integer type - cannot automatically convert float RHS\n" };
+		if (!left_is_signed && !left_is_float && right_is_signed && !right_is_unknown_type)
+			return { nullptr, 0, false, opclass, "LHS of '%s' is of unsigned type - cannot automatically convert signed RHS\n" };
+		if (left_bitwidth)
+			if (right_bitwidth > left_bitwidth && !right_is_unknown_type && !(left_bitwidth == 1 && !right_is_signed))
+				return { nullptr, 0, false, opclass, "LHS of '%s' has a lower bit width than RHS - automatic conversion not possible\n" };
+		return { left_type, left_is_signed ? A_signed : 0, false, opclass, nullptr };
+	case OpShift:
+		if (res_is_float)
+			return { nullptr, 0, false, opclass, "shift operator '%s' can only be used with integer operands\n" };
+	case OpExponentiation:
+		if (!right_is_unknown_type && right_bitwidth > left_bitwidth && (right_is_float || !left_is_float))
+			res_bitwidth = right_bitwidth;
+		else
+			res_bitwidth = left_bitwidth;
+		res_is_signed = left_is_signed;
+		break;
+	case OpLogical:
+		if (left_is_float || (left_bitwidth != 1 && left_is_signed)
+		    || right_is_float || (right_bitwidth != 1 && right_is_signed))
+			return { nullptr, 0, false, opclass, "logical operator '%s' can only be used with bool or unsigned operands\n" };
+		res_bitwidth = 1;
+		res_is_signed = false;
+		break;
+	case OpBitwise:
+		res_is_signed = false; // default to unsigned for (possibly bitwise) &, |, ><
+		// fallthrough
+	default:
+		res_bitwidth = right_is_unknown_type ?
+		(left_is_unknown_type ? Max(right_bitwidth, left_bitwidth)
+		 : left_bitwidth) :
+		left_is_unknown_type ? right_bitwidth : Max(right_bitwidth, left_bitwidth);;
+	}
+	if (res_is_float)
+		res_bitwidth = Min(res_bitwidth, 53); // limit to f64
+	unsigned res_attr = 0;
+	if (!res_is_float && res_is_signed)
+		res_attr |= A_signed;
 	return { getFittingType(res_bitwidth, res_is_float), res_attr, res_is_unknown_type, opclass, nullptr };
 }
 
