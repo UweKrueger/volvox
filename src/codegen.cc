@@ -1724,6 +1724,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		else
 			errs() << "none\n";
 	}
+	bool right_is_imag = RHS->ft && RHS->ft->type && (RHS->ft->type->isFloatTy() || RHS->ft->type->isDoubleTy()) && (RHS->ft->type_attr & A_imaginary);
+	bool left_is_imag = LHS->ft && LHS->ft->type && (LHS->ft->type->isFloatTy() || LHS->ft->type->isDoubleTy()) && (LHS->ft->type_attr & A_imaginary);
 	llvm::Value *L, *R;
 	L = LHS->codegen();
 	if (!L)
@@ -1748,8 +1750,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
 	TypeClass typeclass = is_unknown;
-	bool right_is_imag = R && (R->getType()->isFloatTy() || R->getType()->isDoubleTy()) && (RHS->ft->type_attr & A_imaginary);
-	bool left_is_imag = false; // set below
 	switch(L->getType()->getTypeID()) {
 	case llvm::Type::IntegerTyID:
 		if (R && R->getType()->getTypeID() == llvm::Type::PointerTyID && RHS->ft && (RHS->ft->type_attr & A_string))
@@ -1762,7 +1762,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::FloatTyID:
 	case llvm::Type::DoubleTyID:
 		typeclass = is_float;
-		left_is_imag = (bool)(LHS->ft->type_attr & A_imaginary);
 		if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 			if (struct_ty->getName() == "complex" || struct_ty->getName() == "c32")
 				typeclass = is_complex;
