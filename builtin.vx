@@ -290,10 +290,16 @@ end
 
 type complex {
 	real
-	imaginary
+	imag f64
 }
 
 type c32 {
-	f32
-	j32
+	real f32
+	imag f32
 }
+
+cdecl __divdc3(ar real, ai real, br real, bi real) complex
+
+fn complex/(d complex) complex
+	return __divdc3(this.real, this.imag, d.real, d.imag)
+end
