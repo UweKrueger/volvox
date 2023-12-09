@@ -525,7 +525,7 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getComplexRes(
 				res_is_complex = true;
 			else
 				res_is_imag = left_is_imag;
-		} else if (!strcmp(Op, "*") || !strcmp(Op, "/")) {
+		} else if (!strcmp(Op, "*") || !strcmp(Op, "/") || Op[0] == '\0') {
 			res_is_imag = left_is_imag ^ right_is_imag;
 		} else {
 			return { nullptr, 0, false, opclass, "operator '%s' not supported with imaginary numbers\n" };

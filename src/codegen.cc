@@ -1748,7 +1748,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
 	TypeClass typeclass = is_unknown;
-	bool right_is_imag = R && R->getType()->isFloatTy() && (RHS->ft->type_attr & A_imaginary);
+	bool right_is_imag = R && (R->getType()->isFloatTy() || R->getType()->isDoubleTy()) && (RHS->ft->type_attr & A_imaginary);
 	bool left_is_imag = false; // set below
 	switch(L->getType()->getTypeID()) {
 	case llvm::Type::IntegerTyID:
@@ -1816,6 +1816,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			return nullptr;
 		}
 		break;
 	case '-':
@@ -1838,6 +1839,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			return nullptr;
 		}
 		break;
 	case '*':
@@ -1848,6 +1850,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		case is_float:
 			result = Builder->CreateFMul(L, R, "multmp");
+			if (left_is_imag && right_is_imag)
+				result = Builder->CreateFNeg(result);
 			break;
 		case is_string: {
 			llvm::Value* theFactor = nullptr;
@@ -1883,6 +1887,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			return nullptr;
 		}
 		break;
 	case '/':
@@ -1902,9 +1907,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		case is_float:
 			result = Builder->CreateFDiv(L, R, "divtmp");
+			if (!left_is_imag && right_is_imag)
+				result = Builder->CreateFNeg(result);
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			return nullptr;
 		}
 		break;
 	case '%':
@@ -1941,6 +1949,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			return nullptr;
 		}
 		break;
 	case '&':
@@ -2069,6 +2078,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 		} else {
 			switch(typeclass) {
@@ -2077,6 +2087,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 		}
 		break;
@@ -2093,6 +2104,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+			return nullptr;
 		}
 		break;
 	case '<':
@@ -2109,6 +2121,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 		} else if (Op[1] == '<') {
 			switch(typeclass) {
@@ -2117,6 +2130,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 			break;
 		} else {
@@ -2132,6 +2146,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 		}
 		break;
@@ -2149,6 +2164,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 		} else if (Op[1] == '>') {
 			switch(typeclass) {
@@ -2160,6 +2176,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 			break;
 		} else if (Op[1] == '<') {
@@ -2169,6 +2186,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 			break;
 		} else {
@@ -2184,6 +2202,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
+				return nullptr;
 			}
 		}
 		break;
@@ -2198,9 +2217,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (!result)
 			errs() << Loc << ": unable to evaluate range expression\n";
+			return nullptr;
 		break;
 	default:
 		errs() << Loc << ": unexpected operator '" << Op << "' in this context\n";
+		return nullptr;
 	}
 	return handle(target, result);
 }
