@@ -288,6 +288,105 @@ inline fn __i64_pow_constexp(b i64, e i32) i64
 	return __i64_pow(b, e)
 end
 
+cdecl(fabs) abs(x f64) f64
+cdecl(fabsf) abs(x f32) f32
+
+inline fn abs(x i8) i8
+	return if x < 0; -x else x end
+end
+
+inline fn abs(x i16) i16
+	return if x < 0; -x else x end
+end
+
+inline fn abs(x i32) i32
+	return if x < 0; -x else x end
+end
+
+inline fn abs(x i64) i64
+	return if x < 0; -x else x end
+end
+
+inline fn max(a f64, b f64) f64
+	return if a>b; a else b end
+end
+
+inline fn max(a f32, b f32) f32
+	return if a>b; a else b end
+end
+
+inline fn max(a i8, b i8) i8
+	return if a>b; a else b end
+end
+
+inline fn max(a i16, b i16) i16
+	return if a>b; a else b end
+end
+
+inline fn max(a i32, b i32) i32
+	return if a>b; a else b end
+end
+
+inline fn max(a i64, b i64) i64
+	return if a>b; a else b end
+end
+
+inline fn max(a u8, b u8) u8
+	return if a>b; a else b end
+end
+
+inline fn max(a u16, b u16) u16
+	return if a>b; a else b end
+end
+
+inline fn max(a u32, b u32) u32
+	return if a>b; a else b end
+end
+
+inline fn max(a u64, b u64) u64
+	return if a>b; a else b end
+end
+
+inline fn min(a f64, b f64) f64
+	return if a<=b; a else b end
+end
+
+inline fn min(a f32, b f32) f32
+	return if a<=b; a else b end
+end
+
+inline fn min(a i8, b i8) i8
+	return if a<=b; a else b end
+end
+
+inline fn min(a i16, b i16) i16
+	return if a<=b; a else b end
+end
+
+inline fn min(a i32, b i32) i32
+	return if a<=b; a else b end
+end
+
+inline fn min(a i64, b i64) i64
+	return if a<=b; a else b end
+end
+
+inline fn min(a u8, b u8) u8
+	return if a<=b; a else b end
+end
+
+inline fn min(a u16, b u16) u16
+	return if a<=b; a else b end
+end
+
+inline fn min(a u32, b u32) u32
+	return if a<=b; a else b end
+end
+
+inline fn min(a u64, b u64) u64
+	return if a<=b; a else b end
+end
+
 type complex {
 	real
 	imag f64
@@ -299,7 +398,6 @@ type c32 {
 }
 
 cdecl __divdc3(ar real, ai real, br real, bi real) complex
-cdecl(fabs) abs(x f64) f64
 
 fn complex/(d complex) complex
 	global __OS_Idx
@@ -325,24 +423,20 @@ fn complex/(d complex) complex
 end end
 
 fn c32/(d c32) c32
-	global __OS_Idx
-	if __OS_Idx == 8 # os.isWindows
-		if abs(d.real) > abs(d.imag)
-			q = d.imag / d.real
-			div = d.real + q*d.imag
-			return c32{
-				real: (this.real + q*this.imag) / div
-				imag: (this.imag - q*this.real) / div
-			}
-		else
-			q = d.real / d.imag
-			div = q*d.real + d.imag
-			printf("q: %f, div: %f\n", q, div)
-			return c32{
-				real: (q*this.real + this.imag) / div
-				imag: (q*this.imag - this.real) / div
-			}
-		end
+	if abs(d.real) > abs(d.imag)
+		q = d.imag / d.real
+		div = d.real + q*d.imag
+		return c32{
+			real: (this.real + q*this.imag) / div
+			imag: (this.imag - q*this.real) / div
+		}
 	else
-		return __divsc3(this.real, this.imag, d.real, d.imag)
-end end
+		q = d.real / d.imag
+		div = q*d.real + d.imag
+		printf("q: %f, div: %f\n", q, div)
+		return c32{
+			real: (q*this.real + this.imag) / div
+			imag: (q*this.imag - this.real) / div
+		}
+	end
+end
