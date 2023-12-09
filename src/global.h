@@ -1334,8 +1334,17 @@ public:
 	ExprAST(SourceLocation Loc) : ft(new_FullType(nullptr, 0)), Loc(Loc) {}
 	ExprAST(llvm::Type* type = llvm::Type::getVoidTy(Context), unsigned type_attr = 0,
 	        SourceLocation Loc = CurLoc, bool is_unknown_type = false)
-		: ft(new_FullType(type, type_attr)), Loc(Loc),
-		  is_unknown_type(is_unknown_type) {}
+		: ft(nullptr), Loc(Loc),
+		  is_unknown_type(is_unknown_type)
+		{
+			if (type)
+				if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(type)) {
+					if (struct_ty->hasName())
+						ft = lex.get_full_type(struct_ty->getName().str().c_str());
+				}
+			if (!ft)
+				ft = new_FullType(type, type_attr);
+		}
 	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc)
 		: ft(new_FullType(p.first, p.second)), Loc(Loc) {}
 	// construct from key and attributes. The A_signed flag is already

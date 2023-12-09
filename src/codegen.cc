@@ -723,6 +723,7 @@ enum TypeClass {
 	is_unknown = 0,
 	is_float,
 	is_int,
+	is_complex,
 	is_string,
 	is_other
 };
@@ -1747,6 +1748,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	// for comparisons ExprAST.type is bool, but we have to look at the operands that are in desired
 	TypeClass typeclass = is_unknown;
+	bool right_is_imag = R && R->getType()->isFloatTy() && (RHS->ft->type_attr & A_imaginary);
+	bool left_is_imag = false; // set below
 	switch(L->getType()->getTypeID()) {
 	case llvm::Type::IntegerTyID:
 		if (R && R->getType()->getTypeID() == llvm::Type::PointerTyID && RHS->ft && (RHS->ft->type_attr & A_string))
@@ -1759,6 +1762,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::FloatTyID:
 	case llvm::Type::DoubleTyID:
 		typeclass = is_float;
+		left_is_imag = (bool)(LHS->ft->type_attr & A_imaginary);
+		if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+			if (struct_ty->getName() == "complex" || struct_ty->getName() == "c32")
+				typeclass = is_complex;
+			// else might be range
+		}
 		break;
 	case llvm::Type::PointerTyID:
 		if (LHS->ft->type_attr & A_string) {
@@ -1795,6 +1804,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 			break;
 		}
+		case is_complex:
+			result = llvm::UndefValue::get(ft->type);
+			if (left_is_imag) {
+				result = Builder->CreateInsertValue(result, R, 0);
+				result = Builder->CreateInsertValue(result, L, 1);
+			} else {
+				result = Builder->CreateInsertValue(result, L, 0);
+				result = Builder->CreateInsertValue(result, R, 1);
+			}
+			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 		}
@@ -1806,6 +1825,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		case is_float:
 			result = Builder->CreateFSub(L, R, "subtmp");
+			break;
+		case is_complex:
+			result = llvm::UndefValue::get(ft->type);
+			if (left_is_imag) {
+				result = Builder->CreateInsertValue(result, R, 0);
+				result = Builder->CreateInsertValue(result, L, 1);
+			} else {
+				result = Builder->CreateInsertValue(result, L, 0);
+				result = Builder->CreateInsertValue(result, R, 1);
+			}
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
