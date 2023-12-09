@@ -299,7 +299,27 @@ type c32 {
 }
 
 cdecl __divdc3(ar real, ai real, br real, bi real) complex
+cdecl(fabs) abs(x f64) f64
 
 fn complex/(d complex) complex
-	return __divdc3(this.real, this.imag, d.real, d.imag)
-end
+	global __OS_Idx
+	if __OS_Idx == 8 # os.isWindows
+		if abs(d.real) > abs(d.imag)
+			q = d.imag / d.real
+			div = d.real + q*d.imag
+			return complex{
+				real: (this.real + q*this.imag) / div
+				imag: (this.imag - q*this.real) / div
+			}
+		else
+			q = d.real / d.imag
+			div = q*d.real + d.imag
+			printf("q: %f, div: %f\n", q, div)
+			return complex{
+				real: (q*this.real + this.imag) / div
+				imag: (q*this.imag - this.real) / div
+			}
+		end
+	else
+		return __divdc3(this.real, this.imag, d.real, d.imag)
+end end
