@@ -37,6 +37,11 @@ bool needs_pthread = true; // for now - may be false when not needed, but hard t
 bool support_fp80;
 bool have_return = false;
 int return_value = 0;
+#ifdef _WIN32
+bool target_mingw = true;
+#else
+bool target_mingw = false;
+#endif
 unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
 uint64_t target_mask;
@@ -1338,7 +1343,6 @@ int main(int argc, char* argv[]) {
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
 	char* endptr;
-	bool target_mingw = false;
 	while ((opt = getopt(argc, argv, "vdDcghrjJm:f:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':

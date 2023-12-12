@@ -30,6 +30,8 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <string.h>
 
 #define nullptr ((void*)0)
@@ -876,14 +878,14 @@ _DECL int getTermSize(int fd)
    Even though bubble sort is O(n^2) in worst case it will perform much better here (often O(n)) 
    as the list is already basically sorted.
 */
-static void pathBubblesort(const char** paths, unsigned n) {
+static void pathBubblesort(char** paths, unsigned n) {
 	bool swapped;
 	for(;;) {
 		swapped = false;
 		unsigned m = n - 1;
 		for (unsigned i = 0; i < m; i++)
 			if (_mbscoll((unsigned char*)paths[i], (unsigned char*)paths[i+1]) > 0) {
-				const char* tmp = paths[i];
+				char* tmp = paths[i];
 				paths[i] = paths[i+1];
 				paths[i+1] = tmp;
 				swapped = true;
@@ -1261,7 +1263,7 @@ _DECL void printd(double X) {
 
 /// printu64 - printf that takes a u64 prints it as "%f\n", returning 0.
 _DECL void printu64(uint64_t X) {
-	fprintf(stderr, "%" PRIu64 "\n", X);
+	fprintf(stderr, "%llu\n", X);
 }
 
 #define target_bytes sizeof(size_t)

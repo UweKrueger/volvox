@@ -853,12 +853,16 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						} else {
 							std::string lib;
 #ifdef _WIN32
-							lib = std::string(lit->Val.CStr, lit->Val.Len) + ".lib";
-#else
-							if (!strncmp(lit->Val.CStr, "lib", 3))
+							if (!target_mingw) {
+							  lib = std::string(lit->Val.CStr, lit->Val.Len) + ".lib";
+							} else {
+#endif
+							  if (!strncmp(lit->Val.CStr, "lib", 3))
 								lib = std::string(lit->Val.CStr, lit->Val.Len);
-							else
+							  else
 								lib = std::string("-l") + std::string(lit->Val.CStr, lit->Val.Len);
+#ifdef _WIN32
+							}
 #endif
 							extra_libs.push_back(std::move(lib));
 						}

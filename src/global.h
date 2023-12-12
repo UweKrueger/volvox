@@ -403,6 +403,7 @@ extern const char* volvox_lib();
 // often used types - for faster access
 extern unsigned target_bytes; // size_t, pointer size in bytes
 extern unsigned target_bits; // in bits
+extern bool target_mingw;
 extern uint64_t target_mask;
 extern CPU_Type_t cpu_idx;
 extern OS_Type_t os_idx;
