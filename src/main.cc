@@ -1909,9 +1909,9 @@ int main(int argc, char* argv[]) {
 				if (!linker_exe)
 					linker_exe = const_cast<char*>(MINGW_W64_LINKER);
 #ifdef _WIN32
-				strcat(libpath, "\\libvolvox.dll");
+				strcat(libpath, "\\libvolvox.a");
 #else
-				strcat(libpath, "/libvolvox.dll");
+				strcat(libpath, "/libvolvox.a");
 #endif
 			}
 #if defined(_MSC_VER)
