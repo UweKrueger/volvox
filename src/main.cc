@@ -1289,12 +1289,6 @@ inline bool is_exe(const char* file) {
 #endif
 }
 
-#ifdef _WIN32
-// We have to switch to code page 65001 to enable UTF-8. This
-// value here is used to restore the old state on exit
-unsigned old_cp;
-unsigned old_input_cp;
-#endif
 #if defined (_MSC_VER)
 // glob patterns to search for linker and libraries
 #ifndef LINKER
@@ -1317,14 +1311,7 @@ unsigned old_input_cp;
 
 int main(int argc, char* argv[]) {
 	argv0 = argv[0];
-#if defined (_WIN32)
-	old_cp = GetConsoleOutputCP();
-	old_input_cp = GetConsoleCP();
-	SetConsoleCP(CP_UTF8);
-	SetConsoleOutputCP(CP_UTF8);
-#endif
-	setlocale(LC_CTYPE, "en_US.UTF-8");
-	setlocale(LC_NUMERIC, "en_US.UTF-8");
+	__setup_console();
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
 #ifndef _WIN32
@@ -2093,9 +2080,5 @@ int main(int argc, char* argv[]) {
 		free((void*)str);
 	for (auto str: jit_string_consts)
 		free((void*)str);
-#ifdef _WIN32
-	SetConsoleOutputCP(old_cp);
-	SetConsoleCP(old_input_cp);
-#endif
 	return result;
 }

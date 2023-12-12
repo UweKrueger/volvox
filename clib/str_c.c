@@ -13,6 +13,7 @@
 #include <io.h>
 #include <malloc.h>
 #include <mbstring.h>
+#include <locale.h>
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
 #endif
@@ -1499,4 +1500,30 @@ _DECL uint32_t utf8_encode(uint32_t codepoint) {
 		c.byte[0] = codepoint;
 	}
 	return c.err;
+}
+
+// We have to switch to code page 65001 to enable UTF-8. This
+// value here is used to restore the old state on exit
+static unsigned old_cp = 0;
+static unsigned old_input_cp = 0;
+
+_DECL void __restore_console() {
+#ifdef _WIN32
+	if (old_cp)
+		SetConsoleOutputCP(old_cp);
+	if (old_cp)
+		SetConsoleCP(old_input_cp);
+#endif
+}
+
+_DECL void __setup_console() {
+#ifdef _WIN32
+	old_cp = GetConsoleOutputCP();
+	old_input_cp = GetConsoleCP();
+	SetConsoleCP(CP_UTF8);
+	SetConsoleOutputCP(CP_UTF8);
+#endif
+	setlocale(LC_CTYPE, "en_US.UTF-8");
+	setlocale(LC_NUMERIC, "en_US.UTF-8");
+	atexit(__restore_console);
 }
