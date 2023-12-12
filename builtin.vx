@@ -18,6 +18,7 @@ cdecl __transformcstr2volvox(s cstring, cap size_t) string
 cdecl(malloc) __malloc(n_bytes size_t) voidptr
 cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) __free(buf voidptr)
+cdecl __setup_console
 
 # pseudo functions for compiler
 #
