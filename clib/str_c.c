@@ -13,7 +13,6 @@
 #include <io.h>
 #include <malloc.h>
 #include <mbstring.h>
-#include <locale.h>
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
 #endif
@@ -27,6 +26,7 @@
 #include <alloca.h>
 #endif
 #endif
+#include <locale.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdlib.h>
@@ -1264,7 +1264,7 @@ _DECL void printd(double X) {
 
 /// printu64 - printf that takes a u64 prints it as "%f\n", returning 0.
 _DECL void printu64(uint64_t X) {
-	fprintf(stderr, "%llu\n", X);
+	fprintf(stderr, "%" PRIu64 "\n", X);
 }
 
 #define target_bytes sizeof(size_t)
