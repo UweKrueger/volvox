@@ -372,6 +372,15 @@ bool Lexer::next_input_file() {
 	if (input_file && input_file != stdin) {
 		if (input_file == builtin_input_file) {
 			builtin_input_file = nullptr;
+			if (comp_mode != comp_jit) {
+				std::string consetup = "__setup_console";
+				auto protos = lex.findProtos(consetup);
+				std::unique_ptr<ExprAST> callee = std::make_unique<FunctionExprAST>(
+					SourceLocation{0}, consetup, protos);
+				GlobalExprList.push_back(
+					std::move(std::make_unique<CallExprAST>(
+								  SourceLocation{0}, std::move(callee))));
+			}
 			auto keep_linebuf = linebuf;
 			linebuf = nullptr;
 			auto res = push_state({}, "", {});
