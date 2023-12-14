@@ -249,4 +249,12 @@ enum CPU_Type_t : uint8_t {
 	CPU_x86_64
 };
 
+enum Environment_Type_t : uint8_t {
+	Environment_Unknown = 0,
+	Environment_GNU,
+	Environment_MSVC,
+	Environment_Musl,
+	Environment_Android
+};
+
 #endif

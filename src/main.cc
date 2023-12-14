@@ -50,6 +50,7 @@ std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
 CPU_Type_t cpu_idx;
 OS_Type_t os_idx;
+Environment_Type_t environment_idx;
 signalhandler_t old_abort = nullptr;
 signalhandler_t old_flt = nullptr;
 signalhandler_t old_intr = nullptr;
@@ -277,6 +278,34 @@ void init(const llvm::Triple& triple) {
 	default:
 		cpu_idx = CPU_Unknown;
 	}
+	switch (triple.getEnvironment()) {
+	case llvm::Triple::GNU:
+	case llvm::Triple::GNUABIN32:
+	case llvm::Triple::GNUABI64:
+	case llvm::Triple::GNUEABI:
+	case llvm::Triple::GNUEABIHF:
+	case llvm::Triple::GNUF32:
+	case llvm::Triple::GNUF64:
+	case llvm::Triple::GNUSF:
+	case llvm::Triple::GNUX32:
+	case llvm::Triple::GNUILP32:
+		environment_idx = Environment_GNU;
+		break;
+	case llvm::Triple::Musl:
+	case llvm::Triple::MuslEABI:
+	case llvm::Triple::MuslEABIHF:
+	case llvm::Triple::MuslX32:
+		environment_idx = Environment_Musl;
+		break;
+	case llvm::Triple::MSVC:
+		environment_idx = Environment_MSVC;
+		break;
+	case llvm::Triple::Android:
+		environment_idx = Environment_Android;
+		break;
+	default:
+		environment_idx = Environment_Unknown;
+	}
 	FullVar os_fv = {
 		.val = llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), os_idx),
 		.mangled_name = strdup("__OS_Idx"),
@@ -299,6 +328,18 @@ void init(const llvm::Triple& triple) {
 	};
 	if (!lex.module->globals_table.insert("__CPU_Idx", cpu_fv)) {
 		errs() << "cannot create const " << "__CPU_Idx" << '\n';
+		abort();
+	}
+	FullVar environment_fv = {
+		.val = llvm::ConstantInt::get(llvm::Type::getInt8Ty(Context), environment_idx),
+		.mangled_name = strdup("__Environment_Idx"),
+		.ft = {
+			.type = llvm::Type::getInt8Ty(Context),
+			.type_attr = A_rvalue | A_global | A_const | A_mainvar,
+		}
+	};
+	if (!lex.module->globals_table.insert("__Environment_Idx", environment_fv)) {
+		errs() << "cannot create const " << "__Environment_Idx" << '\n';
 		abort();
 	}
 	FullVar bitwidth_fv = {

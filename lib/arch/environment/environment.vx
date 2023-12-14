@@ -1,0 +1,25 @@
+# Environment or Variant of Operating System
+
+# internal index numbers
+const other   := 0
+const gnu     := 1
+const msvc    := 2
+const musl    := 3
+const android := 4
+
+# public bool expressions
+
+# BSD, Haiku - only one variant exists
+pub const isOther   := __Environment_Idx == other
+
+# Linux + glibc, Windows + mingw
+pub const isGNU     := __Environment_Idx == gnu
+
+# Windows + Microsoft Visual C
+pub const isMSVC    := __Environment_Idx == msvc
+
+# Linux + musl-libc
+pub const isMusl    := __Environment_Idx == musl
+
+# Linux + Bionic (Android)
+pub const isAndroid := __Environment_Idx == android
