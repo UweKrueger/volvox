@@ -284,11 +284,11 @@ void init(const llvm::Triple& triple) {
 	case llvm::Triple::GNUABI64:
 	case llvm::Triple::GNUEABI:
 	case llvm::Triple::GNUEABIHF:
-	case llvm::Triple::GNUF32:
+/*	case llvm::Triple::GNUF32:
 	case llvm::Triple::GNUF64:
 	case llvm::Triple::GNUSF:
 	case llvm::Triple::GNUX32:
-	case llvm::Triple::GNUILP32:
+	case llvm::Triple::GNUILP32: */
 		environment_idx = Environment_GNU;
 		break;
 	case llvm::Triple::Musl:
