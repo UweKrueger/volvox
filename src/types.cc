@@ -549,7 +549,7 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getComplexRes(
 			errs() << "cannot find declaration of builtin type " << complex_ty << "\n";
 			abort();
 		}
-		return { ct->type, 0, false, opclass, nullptr };
+		return { ct->type, A_complex, false, opclass, nullptr };
 	}
 	return { getFittingType(res_bitwidth, true), res_attr, false, opclass, nullptr };
 }

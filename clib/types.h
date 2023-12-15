@@ -10,6 +10,7 @@
 // Type Attributes
 #define A_signed (1U<<0) // only valid for integers
 #define A_imaginary (1U<<0) // only valid for floats
+#define A_complex (1U<<8) // for vectors
 #define A_const  (1U<<1)
 #define A_shared (1U<<2)
 #define A_unique (1U<<3)

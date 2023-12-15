@@ -186,6 +186,7 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("j32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("j32", 32, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
 	lex.add_type("j64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("j64", 64, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
+	lex.add_type("c32", llvm::FixedVectorType::get(llvm::Type::getFloatTy(Context), 2), nullptr, A_complex);
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 #if LLVM_VERSION_MAJOR >= 16
@@ -562,6 +563,15 @@ static void HandleTypeDef(unsigned share_kind) {
 	last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "defined type - ft: " << ft << " " << *ft << ", " << ft->type << " as " << *ft->type << '\n';
+	if (!strcmp(ft->mangled_name, "7complex")) {
+		ft->type_attr |= A_complex;
+		new_node = lex.add_type("c64", ft, replace);
+		ft->mangled_name = strdup(ft->mangled_name);
+		if (replace) {
+			errs() << "internal error: cannot declare 'c64' as alias for 'complex'\n";
+			abort();
+		}
+	}
 }
 
 static void HandleImport() {

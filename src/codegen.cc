@@ -1762,11 +1762,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::FloatTyID:
 	case llvm::Type::DoubleTyID:
 		typeclass = is_float;
-		if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type)) {
-			if (struct_ty->getName() == "complex" || struct_ty->getName() == "c32")
-				typeclass = is_complex;
-			// else might be range
-		}
+		if (ft->type_attr & A_complex)
+			typeclass = is_complex;
 		break;
 	case llvm::Type::PointerTyID:
 		if (LHS->ft->type_attr & A_string) {
