@@ -15,6 +15,11 @@
 #include <mbstring.h>
 #if defined(_MSC_VER)
 #include <BaseTsd.h>
+#define complex_float _Fcomplex
+#define complex_double _Dcomplex
+#else
+#define complex_float complex float
+#define complex_double complex double 
 #endif
 #else
 #include <unistd.h>
@@ -544,9 +549,9 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 				elem_ptr = ptr_align(elem_ptr, sizeof(size_t));
 			if (p <= 0)
 				p = F64_DEFAULT_PRECISION;
-			prt_float(s, cap, pos, *cap - *pos, *(complex float*)elem_ptr, w, p, flags);
-			const char* sp = cimag(*(complex float*)elem_ptr) < 0 ? " - " : " + ";
-			float im = cimag(*(complex float*)elem_ptr) < 0 ? -cimag(*(complex float*)elem_ptr) : cimag(*(complex float*)elem_ptr);
+			prt_float(s, cap, pos, *cap - *pos, crealf(*(complex_float*)elem_ptr), w, p, flags);
+			const char* sp = cimagf(*(complex_float*)elem_ptr) < 0 ? " - " : " + ";
+			float im = cimagf(*(complex_float*)elem_ptr) < 0 ? -cimagf(*(complex_float*)elem_ptr) : cimagf(*(complex_float*)elem_ptr);
 			prtstring(s, cap, pos, sp, w);
 			prt_float(s, cap, pos, 0, im, w, p, flags);
 			prtstring(s, cap, pos, "i", w);
@@ -755,14 +760,14 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			break;
 		case VOLVOX_FixedVectorTyID: {
 			if (true || (ft->type_attr & A_complex)) {
-				complex float c = va_arg(ap, complex float);
+				complex_float c = va_arg(ap, complex_float);
 				int w = va_arg(ap, int);
 				int p = va_arg(ap, int);
 				unsigned flags = va_arg(ap, unsigned);
 				if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
-				prt_float(s, cap, pos, space, creal(c), w, p, flags);
-				const char* sp = cimag(c) < 0 ? " - " : " + ";
-				float im = cimag(c) < 0 ? -cimag(c) : cimag(c);
+				prt_float(s, cap, pos, space, crealf(c), w, p, flags);
+				const char* sp = cimagf(c) < 0 ? " - " : " + ";
+				float im = cimagf(c) < 0 ? -cimagf(c) : cimagf(c);
 				prtstring(s, cap, pos, sp, w);
 				prt_float(s, cap, pos, 0, im, w, p, flags);
 				prtstring(s, cap, pos, "i", w);
