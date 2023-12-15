@@ -34,6 +34,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
+#include <complex.h>
 
 #define nullptr ((void*)0)
 
@@ -537,6 +538,19 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 			for (unsigned n = 0; n < order; n++)
 				prtstring(s, cap, pos, "]", 0);
 		}
+	} else if (elem_type->ID == VOLVOX_FixedVectorTyID) {
+		if (true /* A_complex */) {
+			if (!(flags & A_packed))
+				elem_ptr = ptr_align(elem_ptr, sizeof(size_t));
+			if (p <= 0)
+				p = F64_DEFAULT_PRECISION;
+			prt_float(s, cap, pos, *cap - *pos, *(complex float*)elem_ptr, w, p, flags);
+			const char* sp = cimag(*(complex float*)elem_ptr) < 0 ? " - " : " + ";
+			float im = cimag(*(complex float*)elem_ptr) < 0 ? -cimag(*(complex float*)elem_ptr) : cimag(*(complex float*)elem_ptr);
+			prtstring(s, cap, pos, sp, w);
+			prt_float(s, cap, pos, 0, im, w, p, flags);
+			prtstring(s, cap, pos, "i", w);
+		}
 	} else if (elem_type->ID == VOLVOX_PointerTyID) {
 		if (!(flags & A_packed))
 			elem_ptr = ptr_align(elem_ptr, sizeof(size_t));
@@ -736,6 +750,22 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 					prtstring(s, cap, pos, "[", 0);
 				for (unsigned n = 0; n < order; n++)
 					prtstring(s, cap, pos, "]", 0);
+			}
+		}
+			break;
+		case VOLVOX_FixedVectorTyID: {
+			if (true || (ft->type_attr & A_complex)) {
+				complex float c = va_arg(ap, complex float);
+				int w = va_arg(ap, int);
+				int p = va_arg(ap, int);
+				unsigned flags = va_arg(ap, unsigned);
+				if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
+				prt_float(s, cap, pos, space, creal(c), w, p, flags);
+				const char* sp = cimag(c) < 0 ? " - " : " + ";
+				float im = cimag(c) < 0 ? -cimag(c) : cimag(c);
+				prtstring(s, cap, pos, sp, w);
+				prt_float(s, cap, pos, 0, im, w, p, flags);
+				prtstring(s, cap, pos, "i", w);
 			}
 		}
 			break;
