@@ -1755,7 +1755,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (R && R->getType()->getTypeID() == llvm::Type::PointerTyID && RHS->ft && (RHS->ft->type_attr & A_string))
 			typeclass = is_string;
 		else
-			typeclass = is_int;
+			if (ft->type_attr & A_complex)
+				typeclass = is_complex;
+			else
+				typeclass = is_int;
 		break;
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
@@ -1801,12 +1804,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		}
 		case is_complex: {
-			llvm::StructType* struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type);
-			if (struct_ty->getName().str() == "c32")
+			if (ft->type->isIntegerTy())
 				// MSVC-ABI
-				result = llvm::UndefValue::get(struct_ty->getElementType(0));
+				result = llvm::UndefValue::get(llvm::ArrayType::get(llvm::Type::getFloatTy(Context),2));
 			else {
-				struct_ty = nullptr;
 				result = llvm::UndefValue::get(ft->type);
 			}
 			if (left_is_imag) {
@@ -1816,9 +1817,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateInsertValue(result, L, 0);
 				result = Builder->CreateInsertValue(result, R, 1);
 			}
-			if (struct_ty) {
-				auto res_total = llvm::UndefValue::get(ft->type);
-				result = Builder->CreateInsertValue(res_total, result, 0);
+			if (ft->type->isIntegerTy()) {
+				result = Builder->CreateBitCast(result, llvm::Type::getInt64Ty(Context));
 			}
 		}
 			break;
@@ -1836,12 +1836,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			result = Builder->CreateFSub(L, R, "subtmp");
 			break;
 		case is_complex: {
-			llvm::StructType* struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type);
-			if (struct_ty->getName().str() == "c32")
+			if (ft->type->isIntegerTy())
 				// MSVC-ABI
-				result = llvm::UndefValue::get(struct_ty->getElementType(0));
+				result = llvm::UndefValue::get(llvm::ArrayType::get(llvm::Type::getFloatTy(Context),2));
 			else {
-				struct_ty = nullptr;
 				result = llvm::UndefValue::get(ft->type);
 			}
 			R = Builder->CreateFNeg(R);
@@ -1852,9 +1850,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateInsertValue(result, L, 0);
 				result = Builder->CreateInsertValue(result, R, 1);
 			}
-			if (struct_ty) {
-				auto res_total = llvm::UndefValue::get(ft->type);
-				result = Builder->CreateInsertValue(res_total, result, 0);
+			if (ft->type->isIntegerTy()) {
+				result = Builder->CreateBitCast(result, llvm::Type::getInt64Ty(Context));
 			}
 		}
 			break;

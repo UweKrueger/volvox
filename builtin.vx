@@ -394,10 +394,10 @@ type complex {
 }
 
 # the following declaration is only used for the MSVC-ABI
-type c32 union {
-	cplx [2]f32
-	u64
-}
+# type __c32 union {
+# 	cplx [2]f32
+# 	u64
+# }
 
 cdecl __divdc3(ar real, ai real, br real, bi real) complex
 

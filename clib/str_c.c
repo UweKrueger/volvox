@@ -13,14 +13,6 @@
 #include <io.h>
 #include <malloc.h>
 #include <mbstring.h>
-#if defined(_MSC_VER)
-#include <BaseTsd.h>
-#define complex_float _Fcomplex
-#define complex_double _Dcomplex
-#else
-#define complex_float complex float
-#define complex_double complex double 
-#endif
 #else
 #include <unistd.h>
 #include <sys/ioctl.h>
@@ -30,6 +22,14 @@
 #if defined(__linux__)
 #include <alloca.h>
 #endif
+#endif
+#if defined(_MSC_VER)
+#include <BaseTsd.h>
+#define complex_float _Fcomplex
+#define complex_double _Dcomplex
+#else
+#define complex_float complex float
+#define complex_double complex double
 #endif
 #include <locale.h>
 #include <errno.h>
