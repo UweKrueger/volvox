@@ -725,14 +725,22 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			} else {
 				vall = va_arg(ap, unsigned long long);
 			}
-			if (ft->type_attr & A_complex)
-				fprintf(stderr, "complex %f %f %u\n", *(float*)&vall, *((float*)&vall + 1), ft->SubclassData);
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);
-			if (!(ft->type_attr & A_signed))
-				flags |= FMT_UNSIGNED;
-			prt_int(s, cap, pos, space, vall, ft->SubclassData, w, p, flags);
+			if (ft->type_attr & A_complex) {
+				if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
+				prt_float(s, cap, pos, space, *(float*)&vall, w, p, flags);
+				const char* sp = *((float*)&vall + 1) < 0 ? " - " : " + ";
+				float im = ((float*)&vall + 1) < 0 ? -*((float*)&vall + 1) : *((float*)&vall + 1);
+				prtstring(s, cap, pos, sp, w);
+				prt_float(s, cap, pos, 0, im, w, p, flags);
+				prtstring(s, cap, pos, "i", w);
+			} else {
+				if (!(ft->type_attr & A_signed))
+					flags |= FMT_UNSIGNED;
+				prt_int(s, cap, pos, space, vall, ft->SubclassData, w, p, flags);
+			}
 		}
 			break;
 		case VOLVOX_ArrayTyID: {
