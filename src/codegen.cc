@@ -933,7 +933,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 		}
 	}
-	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map) : (A_signed | A_string | A_cstring | A_map | A_destructor));
+	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
 	if (Val) {
@@ -1803,24 +1803,28 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 			break;
 		}
-		case is_complex: {
-			if (ft->type->isIntegerTy())
-				// MSVC-ABI
-				result = llvm::UndefValue::get(llvm::ArrayType::get(llvm::Type::getFloatTy(Context),2));
-			else {
-				result = llvm::UndefValue::get(ft->type);
-			}
-			if (left_is_imag) {
-				result = Builder->CreateInsertValue(result, R, 0);
-				result = Builder->CreateInsertValue(result, L, 1);
-			} else {
-				result = Builder->CreateInsertValue(result, L, 0);
-				result = Builder->CreateInsertValue(result, R, 1);
-			}
+		case is_complex:
 			if (ft->type->isIntegerTy()) {
-				result = Builder->CreateBitCast(result, llvm::Type::getInt64Ty(Context));
+				// MSVC-ABI
+				llvm::Value* r_int = Builder->CreateZExtOrBitCast(R, llvm::Type::getInt64Ty(Context));
+				llvm::Value* l_int = Builder->CreateZExtOrBitCast(L, llvm::Type::getInt64Ty(Context));
+				if (left_is_imag) {
+					result = Builder->CreateOr(
+						r_int, Builder->CreateShl(l_int, 32));
+				} else {
+					result = Builder->CreateOr(
+						l_int, Builder->CreateShl(r_int, 32));
+				}
+			} else {
+				result = llvm::UndefValue::get(ft->type);
+				if (left_is_imag) {
+					result = Builder->CreateInsertValue(result, R, 0);
+					result = Builder->CreateInsertValue(result, L, 1);
+				} else {
+					result = Builder->CreateInsertValue(result, L, 0);
+					result = Builder->CreateInsertValue(result, R, 1);
+				}
 			}
-		}
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
@@ -1835,25 +1839,29 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		case is_float:
 			result = Builder->CreateFSub(L, R, "subtmp");
 			break;
-		case is_complex: {
-			if (ft->type->isIntegerTy())
-				// MSVC-ABI
-				result = llvm::UndefValue::get(llvm::ArrayType::get(llvm::Type::getFloatTy(Context),2));
-			else {
-				result = llvm::UndefValue::get(ft->type);
-			}
+		case is_complex:
 			R = Builder->CreateFNeg(R);
-			if (left_is_imag) {
-				result = Builder->CreateInsertValue(result, R, 0);
-				result = Builder->CreateInsertValue(result, L, 1);
-			} else {
-				result = Builder->CreateInsertValue(result, L, 0);
-				result = Builder->CreateInsertValue(result, R, 1);
-			}
 			if (ft->type->isIntegerTy()) {
-				result = Builder->CreateBitCast(result, llvm::Type::getInt64Ty(Context));
+				// MSVC-ABI
+				llvm::Value* r_int = Builder->CreateZExtOrBitCast(R, llvm::Type::getInt64Ty(Context));
+				llvm::Value* l_int = Builder->CreateZExtOrBitCast(L, llvm::Type::getInt64Ty(Context));
+				if (left_is_imag) {
+					result = Builder->CreateOr(
+						r_int, Builder->CreateShl(l_int, 32));
+				} else {
+					result = Builder->CreateOr(
+						l_int, Builder->CreateShl(r_int, 32));
+				}
+			} else {
+				result = llvm::UndefValue::get(ft->type);
+				if (left_is_imag) {
+					result = Builder->CreateInsertValue(result, R, 0);
+					result = Builder->CreateInsertValue(result, L, 1);
+				} else {
+					result = Builder->CreateInsertValue(result, L, 0);
+					result = Builder->CreateInsertValue(result, R, 1);
+				}
 			}
-		}
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";

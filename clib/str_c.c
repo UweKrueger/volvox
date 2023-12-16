@@ -725,6 +725,8 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			} else {
 				vall = va_arg(ap, unsigned long long);
 			}
+			if (ft->type_attr & A_complex)
+				fprintf(stderr, "complex %f %f %u\n", *(float*)&vall, *((float*)&vall + 1), ft->SubclassData);
 			int w = va_arg(ap, int);
 			int p = va_arg(ap, int);
 			unsigned flags = va_arg(ap, unsigned);

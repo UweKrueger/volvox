@@ -635,13 +635,13 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	return { getFittingType(res_bitwidth, res_is_float), res_attr, res_is_unknown_type, opclass, nullptr };
 }
 
-std::tuple<llvm::Type*, bool> MakeType(llvm::Type* type, bool is_signed, bool is_unknown_type) {
+std::tuple<llvm::Type*, unsigned> MakeType(llvm::Type* type, unsigned is_signed, bool is_unknown_type) {
 	if(!is_unknown_type)
 		return { type, is_signed };
 	if (type->isIntegerTy())
-		return { llvm::Type::getInt32Ty(Context) , true };
+		return { llvm::Type::getInt32Ty(Context) , A_signed };
 	else
-		return { type, false };
+		return { type, 0 };
 }
 
 // get element type of an array
@@ -701,6 +701,7 @@ volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs) {
 	return res_ft;
 }
 
+// get runtime type, i.e. a description that is is passed at run time along with interface objects
 llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	union {
 		VOLVOX_gen_val_type_t llvmtype;
@@ -772,7 +773,7 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
 		fields.push_back(TypeName);
 		if (llvmtype.ID == VOLVOX_ArrayTyID) {
-			fields.push_back(getRtType(new_FullType(elem_type, ft->type_attr & A_signed)));
+			fields.push_back(getRtType(new_FullType(elem_type, ft->type_attr & (A_signed | A_complex))));
 		} else {
 			fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
 		}

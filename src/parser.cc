@@ -1104,7 +1104,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 			return { nullptr, new_var_none };
 		}
 	} else {
-		auto [type, is_signed] = MakeType(RHS_type, RHS_attr & A_signed, RHS_is_unknown_type);
+		auto [type, is_signed] = MakeType(RHS_type, RHS_attr, RHS_is_unknown_type);
 		FullVar fv = {
 			.val = nullptr,
 			.decl_loc = LHS->Loc,
@@ -1112,10 +1112,12 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 		};
 		fv.ft.type = type;
 		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
-		if (is_signed)
+		if (is_signed & A_signed)
 			fv.ft.type_attr |= A_signed;
 		else
 			fv.ft.type_attr &= ~A_signed;
+		if (is_signed & A_complex)
+			fv.ft.type_attr |= A_complex;
 		if (RefL)
 			if (dynamic_cast<LvalueExprAST*>(LHS.get()))
 				fv.ft.type_attr = (fv.ft.type_attr | A_ptrref) & ~A_destructor; // references need no destructors
