@@ -1800,8 +1800,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 			break;
 		}
-		case is_complex:
-			result = llvm::UndefValue::get(ft->type);
+		case is_complex: {
+			llvm::StructType* struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type);
+			if (struct_ty->getName().str() == "c32")
+				// MSVC-ABI
+				result = llvm::UndefValue::get(struct_ty->getElementType(0));
+			else {
+				struct_ty = nullptr;
+				result = llvm::UndefValue::get(ft->type);
+			}
 			if (left_is_imag) {
 				result = Builder->CreateInsertValue(result, R, 0);
 				result = Builder->CreateInsertValue(result, L, 1);
@@ -1809,6 +1816,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateInsertValue(result, L, 0);
 				result = Builder->CreateInsertValue(result, R, 1);
 			}
+			if (struct_ty) {
+				auto res_total = llvm::UndefValue::get(ft->type);
+				result = Builder->CreateInsertValue(res_total, result, 0);
+			}
+		}
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
@@ -1823,8 +1835,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		case is_float:
 			result = Builder->CreateFSub(L, R, "subtmp");
 			break;
-		case is_complex:
-			result = llvm::UndefValue::get(ft->type);
+		case is_complex: {
+			llvm::StructType* struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type);
+			if (struct_ty->getName().str() == "c32")
+				// MSVC-ABI
+				result = llvm::UndefValue::get(struct_ty->getElementType(0));
+			else {
+				struct_ty = nullptr;
+				result = llvm::UndefValue::get(ft->type);
+			}
 			R = Builder->CreateFNeg(R);
 			if (left_is_imag) {
 				result = Builder->CreateInsertValue(result, R, 0);
@@ -1833,6 +1852,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				result = Builder->CreateInsertValue(result, L, 0);
 				result = Builder->CreateInsertValue(result, R, 1);
 			}
+			if (struct_ty) {
+				auto res_total = llvm::UndefValue::get(ft->type);
+				result = Builder->CreateInsertValue(res_total, result, 0);
+			}
+		}
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";

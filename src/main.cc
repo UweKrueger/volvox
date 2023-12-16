@@ -186,7 +186,9 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("j32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("j32", 32, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
 	lex.add_type("j64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("j64", 64, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
-	lex.add_type("c32", llvm::FixedVectorType::get(llvm::Type::getFloatTy(Context), 2), nullptr, A_complex);
+	if (triple.getEnvironment() != llvm::Triple::MSVC)
+		// for the MSVC-ABI c32 is a struct containing an array and is declared in builtin.vx
+		lex.add_type("c32", llvm::FixedVectorType::get(llvm::Type::getFloatTy(Context), 2), nullptr, A_complex);
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 #if LLVM_VERSION_MAJOR >= 16
@@ -529,10 +531,13 @@ static void HandleTypeDef(unsigned share_kind) {
 	MapValue* val = &new_node->value;
 	volvoxc::FullType* ft = (volvoxc::FullType*)((char*)val + val->offset);
 	llvm::StructType* struct_type;
-	if (replace) { // new_node is actually an old node
+	if (replace) { // new_node is actually an old node, replace is set to (void*)-1
 		struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
 		if (!struct_type || !struct_type->isOpaque()) {
-			errs() << TypeLoc << ": cannot define '" << type_name << "' - type already exists\n";
+			if (type_name == "c32")
+				ft->type_attr |= A_complex;
+			else
+				errs() << TypeLoc << ": cannot define '" << type_name << "' - type already exists\n";
 			return;
 		}
 	} else {
@@ -571,6 +576,8 @@ static void HandleTypeDef(unsigned share_kind) {
 			errs() << "internal error: cannot declare 'c64' as alias for 'complex'\n";
 			abort();
 		}
+	} else if (!strcmp(ft->mangled_name, "3c32")) {
+		ft->type_attr |= A_complex; // we only get here for the MSVC ABI
 	}
 }
 
