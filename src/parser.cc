@@ -1714,6 +1714,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	volvoxc::FullType* tmp_rec_type = nullptr;
 	const char* operators = ".+-*/%^"; // for operator methods - '.' means normal method
 	int operator_idx = -1;
+	std::string TheFn = IdentifierStr;
 	if (!(visibility & A_closure)) {
 		if (CurTok.kind != tok_identifier) {
 			errs() << CurLoc << ": identifier expected (function name or receiver type)\n";
@@ -1754,16 +1755,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
 				return nullptr;
 			}
-			if ((visibility & (A_destructor | A_constructor)) && (!last_defined_type || IdentifierStr != last_defined_type)) {
-				errs() << CurLoc << ": constructor/destructor must refer to type of preceding definition ('" << last_defined_type << "')\n";
-				return nullptr;
-			}
 			ReceiverType = new_FullType(*tmp_rec_type);
 			// TODO: avoid creating new FullTypes just for adding attributes
 			// This will require ParseType() to return attributes separately
 			// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
-			if (ReceiverType->type->isStructTy())
-				ReceiverType->type_attr |= A_ref;
+			ReceiverType->type_attr |= A_ref;
 			UnmagledReceiverTypeName = std::move(IdentifierStr);
 			ArgNames.push_back("this");
 			ArgTypes.push_back(ReceiverType);
@@ -1919,8 +1915,13 @@ nobrace:
 			return nullptr;
 		}
 	}
-	if (visibility & (A_constructor | A_destructor))
+	if (visibility & (A_constructor | A_destructor)) {
+		if (ArgTypes.size() == 1 && (!last_defined_type || TheFn != last_defined_type)) {
+			errs() << CurLoc << ": definition(s) of default constructor / destructor must follow immediately corresponding type declaration ('" << last_defined_type << " / " << TheFn << "')\n";
+			return nullptr;
+		}
 		visibility |= A_pub;
+	}
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind, RetType, ArgTypes, ArgPos, isVarArgs);
 }
 
