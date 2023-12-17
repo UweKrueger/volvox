@@ -457,7 +457,26 @@ failure:
 	return { ft->type, nullptr };
 }
 
+llvm::Value* SelectExprAST::codegen_complex(llvm::Value* target) {
+	auto C = Struct->codegen_raw();
+	if (!C)
+		return nullptr;
+	if (auto int_ty = llvm::dyn_cast<llvm::IntegerType>(C->getType())) {
+		if (FieldIndex)
+			return Builder->CreateTruncOrBitCast(
+				Builder->CreateLShr(C, 32), llvm::Type::getFloatTy(Context));
+		else
+			return Builder->CreateTruncOrBitCast(C, llvm::Type::getFloatTy(Context));
+	} else {
+		return Builder->CreateExtractElement(C, FieldIndex);
+	}
+}
+
 llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
+	if ((Struct->ft->type_attr & A_complex) && Struct->ft->type == llvm_c32_type)
+		// We try to avoid going through codegen_ref() because this
+		// migght be inefficient for a SIMD type
+		return codegen_complex(target);
 	auto V = codegen_ref(true);
 	if (auto val = ref2val(V))
 		return handle(target, val);
