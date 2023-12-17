@@ -1894,6 +1894,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					result = Builder->CreateOr(
 						l_int, Builder->CreateShl(r_int, 32));
 				}
+			} else if (ft->type->isVectorTy()) {
+				result = llvm::UndefValue::get(ft->type);
+				if (left_is_imag) {
+					result = Builder->CreateInsertElement(result, R, (uint64_t)0);
+					result = Builder->CreateInsertElement(result, L, (uint64_t)1);
+				} else {
+					result = Builder->CreateInsertElement(result, L, (uint64_t)0);
+					result = Builder->CreateInsertElement(result, R, (uint64_t)1);
+				}
 			} else {
 				result = llvm::UndefValue::get(ft->type);
 				if (left_is_imag) {
