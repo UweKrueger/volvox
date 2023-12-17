@@ -447,6 +447,11 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref_(
 		if (struct_ref.second) {
 			if (Struct->ft->type_attr & A_union)
 				return { ft->type, Builder->CreatePointerCast(struct_ref.second, ft->type->getPointerTo()) };
+			else if ((Struct->ft->type_attr & A_complex) && Struct->ft->type == llvm_c32_type)
+				return { llvm::Type::getFloatTy(Context),
+					Builder->CreateConstGEP2_32(
+						llvm::ArrayType::get(llvm::Type::getFloatTy(Context), 2),
+						struct_ref.second, 0, FieldIndex) };
 			else
 				return { ft->type, Builder->CreateStructGEP(struct_ref.first, struct_ref.second, FieldIndex) };
 		}
