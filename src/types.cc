@@ -841,7 +841,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(std::move(_ArgTypes)),
 		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs), visibility(visibility), link_typ(link_type(visibility))
 {
-	size_t ret_size = (!(visibility & A_constructor) && RetType->type->isSized()) ?
+	size_t ret_size = ((!(visibility & A_constructor) || !RetType->type->isStructTy()) && RetType->type->isSized()) ?
 		TheModule->getDataLayout().getTypeAllocSize(RetType->type) :
 		0;
 	llvm::Type* llvm_ret_type;
@@ -865,7 +865,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		}
 		LLVMArgTypes.push_back(fn_arg_type);
 	}
-	if (visibility & (A_constructor | A_destructor)) {
+	if ((visibility & (A_constructor | A_destructor)) && RetType->type->isStructTy()) {
 		llvm_ret_type = llvm::Type::getVoidTy(Context);
 	} else if (ret_size <= 16) {
 		llvm_ret_type = RetType->type;

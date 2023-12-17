@@ -1759,11 +1759,14 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			// TODO: avoid creating new FullTypes just for adding attributes
 			// This will require ParseType() to return attributes separately
 			// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
-			ReceiverType->type_attr |= A_ref;
 			UnmagledReceiverTypeName = std::move(IdentifierStr);
-			ArgNames.push_back("this");
-			ArgTypes.push_back(ReceiverType);
-			ArgPos.push_back(CurLoc);
+			if (ReceiverType->type->isStructTy()) {
+				ReceiverType->type_attr |= A_ref;
+				ArgNames.push_back("this");
+				ArgTypes.push_back(ReceiverType);
+				ArgPos.push_back(CurLoc);
+			} else {
+			}
 			if (!(visibility & (A_destructor | A_constructor))) {
 				getNextToken(eBinOp, eSemi);
 				if (!operator_idx && !Expect(tok_selector)) // eat '.' for method declarations
@@ -1878,6 +1881,8 @@ nobrace:
 			// default constructor - set flag in type
 			if (ArgTypes.size() == 1)
 				tmp_rec_type->type_attr |= A_constructor;
+			if (!ReceiverType->type->isStructTy())
+				RetType = ReceiverType;
 		}
 	} else if (operator_idx > 0) {
 		if (ArgTypes.size() > 2) { // cannot be 0 because we have a receiver as 1st arg
