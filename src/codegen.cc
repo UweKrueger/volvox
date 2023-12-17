@@ -462,11 +462,18 @@ llvm::Value* SelectExprAST::codegen_complex(llvm::Value* target) {
 	if (!C)
 		return nullptr;
 	if (auto int_ty = llvm::dyn_cast<llvm::IntegerType>(C->getType())) {
+		if (auto const_val = llvm::dyn_cast<llvm::Constant>(C)) {
+			// code to work around LLVM bug
+			auto tmp_store = CreateEntryBlockAlloca(C->getType());
+			Builder->CreateStore(C, tmp_store);
+			C = Builder->CreateLoad(C->getType(), tmp_store);
+		}
 		if (FieldIndex)
-			return Builder->CreateTruncOrBitCast(
-				Builder->CreateLShr(C, 32), llvm::Type::getFloatTy(Context));
+			return Builder->CreateBitCast(
+				Builder->CreateIntCast(
+					Builder->CreateLShr(C, 32), llvm::Type::getInt32Ty(Context), false), llvm::Type::getFloatTy(Context));
 		else
-			return Builder->CreateTruncOrBitCast(C, llvm::Type::getFloatTy(Context));
+			return Builder->CreateBitCast(Builder->CreateIntCast(C, llvm::Type::getInt32Ty(Context), false), llvm::Type::getFloatTy(Context));
 	} else {
 		return Builder->CreateExtractElement(C, FieldIndex);
 	}
@@ -1825,8 +1832,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		case is_complex:
 			if (ft->type->isIntegerTy()) {
 				// MSVC-ABI
-				llvm::Value* r_int = Builder->CreateZExtOrBitCast(R, llvm::Type::getInt64Ty(Context));
-				llvm::Value* l_int = Builder->CreateZExtOrBitCast(L, llvm::Type::getInt64Ty(Context));
+				llvm::Value* r_int = Builder->CreateIntCast(
+					Builder->CreateBitCast(R, llvm::Type::getInt32Ty(Context)), llvm::Type::getInt64Ty(Context), false);
+				llvm::Value* l_int = Builder->CreateIntCast(
+					Builder->CreateBitCast(L, llvm::Type::getInt32Ty(Context)), llvm::Type::getInt64Ty(Context), false);
 				if (left_is_imag) {
 					result = Builder->CreateOr(
 						r_int, Builder->CreateShl(l_int, 32));
