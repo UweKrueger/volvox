@@ -101,11 +101,13 @@ llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
 llvm::Type* llvm_interface_type;
+llvm::Type* llvm_c32_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
 volvoxc::FullType* char_type;
 volvoxc::FullType* size_type;
 volvoxc::FullType* integer_type;
+volvoxc::FullType* f32_type;
 volvoxc::FullType* interface_type;
 volvoxc::FullType* voidptr_type;
 
@@ -183,14 +185,16 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("u64", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("u64", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	lex.add_type("f16", llvm::Type::getBFloatTy(Context), DBuilder ? DBuilder->createBasicType("f16", 16, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("f32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("f32", 32, llvm::dwarf::DW_ATE_float) : nullptr);
+	f32_type = lex.get_full_type("f32");
 	lex.add_type("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("j32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("j32", 32, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
 	lex.add_type("j64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("j64", 64, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
 	if (triple.getEnvironment() == llvm::Triple::MSVC)
 		// for the MSVC-ABI c32 is a struct containing an array and is declared in builtin.vx
-		lex.add_type("c32", llvm::Type::getInt64Ty(Context), nullptr, A_complex);
+		llvm_c32_type = llvm::Type::getInt64Ty(Context);
 	else
-		lex.add_type("c32", llvm::FixedVectorType::get(llvm::Type::getFloatTy(Context), 2), nullptr, A_complex);
+		llvm_c32_type = llvm::FixedVectorType::get(llvm::Type::getFloatTy(Context), 2);
+	lex.add_type("c32", llvm_c32_type, nullptr, A_complex);
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 #if LLVM_VERSION_MAJOR >= 16

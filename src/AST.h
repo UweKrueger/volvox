@@ -414,6 +414,17 @@ public:
 						errs() << Struct->Loc << ": strings do not have a property '" << FieldName << "'\n";
 						ft = nullptr;
 					}
+				} else if ((Struct->ft->type_attr & A_complex) && Struct->ft->type == llvm_c32_type) {
+					if (!strcmp(FieldName, "real")) {
+						FieldIndex = 0;
+						ft = f32_type;
+					} else if (!strcmp(FieldName, "imag")) {
+						FieldIndex = 1;
+						ft = f32_type;
+					} else {
+						errs() << Struct->Loc << ": c32 objects do not have a property '" << FieldName << "'\n";
+						ft = nullptr;
+					}
 				} else if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type)) {
 					if (!strcmp(FieldName, "size")) {
 						FieldIndex = 0;
