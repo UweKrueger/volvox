@@ -1268,7 +1268,7 @@ bool FunctionAST::prepare_codegen() {
 	}
 	// Record the function arguments in the NamedValues map.
 	ArgIdx = 0;
-	ret_ft = (Proto->visibility & A_constructor) ? void_type : Proto->RetType;
+	ret_ft = Proto->RetType ? Proto->RetType : void_type;
 	theFunction_ret_ft = ret_ft; // global variable used by IfExprAST to return from branches
 	theFunction_struct_ret = Proto->IsStructRet && !(Proto->visibility & A_constructor);
 	if (theFunction_struct_ret)
@@ -1279,14 +1279,14 @@ bool FunctionAST::prepare_codegen() {
 		auto Arg = TheFunction->getArg(ArgIdx);
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
 		if (!mapitem) {
-			errs() << "internal compiler error: arg #" << ArgIdx << " - '" << Arg->getName() << "' not found in table\n";
-			exit(1);
+			errs() << Proto->retLoc << ": internal compiler error: arg #" << ArgIdx << " - '" << Arg->getName() << "' not found in table\n";
+			abort();
 		}
 		if (Arg->hasByValAttr() || Arg->hasByRefAttr()) {
 			mapitem->val = Arg;
 		} else {
 			// Create an alloca for this variable.
-			llvm::AllocaInst *Alloca = CreateEntryBlockAlloca(Proto->LLVMArgTypes[ArgIdx], Arg->getName(), TheFunction);
+			llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(Proto->LLVMArgTypes[ArgIdx], Arg->getName(), TheFunction);
 			// get reference to argument in symbol table
 			// Store the initial value into the alloca.
 			Builder->CreateStore(Arg, Alloca);
@@ -1306,6 +1306,16 @@ bool FunctionAST::prepare_codegen() {
 			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
 			                        Builder->GetInsertBlock());
 		}
+	}
+	if ((Proto->visibility & A_constructor) && !ret_ft->type->isVoidTy()) {
+		FullVar* mapitem = locals_table.back()["this"];
+		if (!mapitem) {
+			errs() << Proto->retLoc << ": internal compiler error: 'this' not found in table\n";
+			abort();
+		}
+		llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(ret_ft->type, "this", TheFunction);
+		Builder->CreateStore(llvm::Constant::getNullValue(ret_ft->type), Alloca);
+		mapitem->val = Alloca;
 	}
 	BB = Builder->GetInsertBlock();
 	RetVal = nullptr;

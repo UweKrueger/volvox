@@ -1988,10 +1988,23 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	else
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, Proto->visibility).c_str();
 	if (visibility & A_constructor)
-		if (Proto->ArgTypes.size() == 1) // default constructor
+		if (Proto->ArgTypes.size() == 1 && Proto->ArgTypes[0]->type->isStructTy() && (!Proto->RetType || Proto->RetType->type->isVoidTy())) // default constructor
 			AutoMethods[Proto->ArgTypes[0]->mangled_name].first = Proto->Name;
-		else
+		else {
 			Conversions[Proto->Name] = Proto->FT;
+			if (Proto->RetType && !Proto->RetType->type->isVoidTy()) {
+				FullVar fv = {
+					.decl_loc = Proto->retLoc,
+					.ft = *Proto->RetType
+				};
+				bool is_new = locals_table.back().insert("this", fv);
+				if (!is_new) {
+					errs() << Proto->retLoc << "cannot declare 'this'\n";
+					prompt_indent = 0;
+					return nullptr;
+				}
+			}
+		}
 	else if (visibility & A_destructor)
 		AutoMethods[Proto->ArgTypes[0]->mangled_name].second = Proto->Name;
 	if (Proto->visibility & A_method) {
