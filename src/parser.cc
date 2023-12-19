@@ -1705,7 +1705,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	volvoxc::FullType* ReceiverType = nullptr;
 	std::string UnmagledReceiverTypeName;
 	SourceLocation FnLoc = CurLoc;
-
+	std::string returnName;
 	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary, 3 reverse binary.
 	std::vector<std::string> ArgNames;
 	std::vector<volvoxc::FullType*> ArgTypes;
@@ -1760,12 +1760,15 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			// This will require ParseType() to return attributes separately
 			// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
 			UnmagledReceiverTypeName = std::move(IdentifierStr);
-			if (ReceiverType->type->isStructTy()) {
+			if (ReceiverType->type->isStructTy() || operator_idx >= 0) {
 				ReceiverType->type_attr |= A_ref;
 				ArgNames.push_back("this");
 				ArgTypes.push_back(ReceiverType);
 				ArgPos.push_back(CurLoc);
 			} else {
+				if (visibility & A_constructor)
+					// this is a base type constructor that returns "this" by value
+					returnName = "this";
 			}
 			if (!(visibility & (A_destructor | A_constructor))) {
 				getNextToken(eBinOp, eSemi);
@@ -1927,7 +1930,7 @@ nobrace:
 		}
 		visibility |= A_pub;
 	}
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind, RetType, ArgTypes, ArgPos, isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind, RetType, ArgTypes, ArgPos, std::move(returnName), isVarArgs);
 }
 
 

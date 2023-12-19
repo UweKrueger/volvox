@@ -836,10 +836,12 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
                            std::vector<std::string> Args, unsigned visibility, SourceLocation retLoc,
                            unsigned IsOperator, volvoxc::FullType* RetType_,
                            std::vector<volvoxc::FullType*> _ArgTypes,
-                           std::vector<SourceLocation> _ArgPos, bool IsVarArgs)
+                           std::vector<SourceLocation> _ArgPos, std::string _returnName,
+                           bool IsVarArgs)
 		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
 		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(std::move(_ArgTypes)),
-		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs), visibility(visibility), link_typ(link_type(visibility))
+		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs), returnName(std::move(_returnName)),
+		  visibility(visibility), link_typ(link_type(visibility))
 {
 	size_t ret_size = ((!(visibility & A_constructor) || !RetType->type->isStructTy()) && RetType->type->isSized()) ?
 		TheModule->getDataLayout().getTypeAllocSize(RetType->type) :

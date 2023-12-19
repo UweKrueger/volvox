@@ -927,6 +927,7 @@ public:
 	std::vector<llvm::AttributeSet> ArgAttrs = {};
 	std::vector<SourceLocation> ArgPos;
 	volvoxc::FullType* RetType = nullptr;
+	std::string returnName; // for named Return or "this" for non-struct constructors
 	SourceLocation retLoc;
 	llvm::FunctionType* FT = nullptr;
 	llvm::Constant* const_result = nullptr;
@@ -942,7 +943,8 @@ public:
 	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
 	             unsigned IsOperator = 0, volvoxc::FullType* RetType_ = nullptr,
 	             std::vector<volvoxc::FullType*> ArgTypes = {},
-	             std::vector<SourceLocation> _ArgPos = {}, bool IsVarArgs = false);
+	             std::vector<SourceLocation> _ArgPos = {}, std::string _returnName = "",
+	             bool IsVarArgs = false);
 	llvm::Function *codegen();
 	const std::string &getName() const { return Name; }
 
