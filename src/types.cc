@@ -282,6 +282,8 @@ inline static unsigned Min(unsigned a, unsigned b) { return (a < b) ? a : b; }
 
 // classification of binary operator with result type calculation in mind
 OpClass getOpClass(const char* Op) {
+	if (!Op[0])
+		return OpNormal;
 	switch (Op[1]) {
 	case '<':
 		if (Op[0] == '>') {
