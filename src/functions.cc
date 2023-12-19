@@ -930,8 +930,6 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 			}
 		}
-		errs() << Loc << ": no known function prototype for call\n";
-		return nullptr;
 	}
 	if (auto selec = dynamic_cast<SelectExprAST*>(Callee.get())) {
 		// usual mehod calls like 's.m(...)' are identified as CallExpr and are handled there
@@ -1008,12 +1006,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			return handle(target, Builder->CreateExtractElement(DimsArray, arg));
 		}
 	}
-	if (Proto->visibility & A_constructor) {
-		auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get()); // explicit constructor call
-		if (!type_expr) {
-			errs() << Loc << ": internal inconsistency - constructor call, but callee is no type\n";
-			abort();
-		}
+	TypeExprAST* type_expr;
+	if (Proto->visibility & A_constructor && (type_expr = dynamic_cast<TypeExprAST*>(Callee.get()))) {
 		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
 		llvm::Value* ret_val = nullptr;
 		if ((!target || (intptr_t)target == -1) && (allocsz > 16 || (type_expr->ft->type_attr & A_constructor)))

@@ -278,7 +278,7 @@ public:
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {});
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	bool needs_target() override { return Proto && (Proto->IsStructRet || (Proto->visibility & A_constructor)); }
+	bool needs_target() override { return Proto && (Proto->IsStructRet || ((Proto->visibility & A_constructor) && Proto->returnName.empty())); }
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "call", ind);

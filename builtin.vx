@@ -393,11 +393,18 @@ type complex {
 	imag f64
 }
 
-# the following declaration is only used for the MSVC-ABI
-# type __c32 union {
-# 	cplx [2]f32
-# 	u64
-# }
+# c32 cannot be declared in the same way is this would not match the ABI of C11 complex float
+# it is a compiler builtin, instead
+
+fn complex(r real, i real)
+	this.real = r
+	this.imag = i
+end
+
+fn c32(r f32, i f32)
+	this = r + i * 1fi
+	return this
+end
 
 cdecl __divdc3(ar real, ai real, br real, bi real) complex
 

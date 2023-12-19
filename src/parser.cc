@@ -2009,7 +2009,12 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (visibility & A_constructor) {
 		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) // default constructor
 			AutoMethods[Proto->ArgTypes[0]->mangled_name].first = Proto->Name;
-		else
+		else if (!(Proto->visibility & A_conversion) && Proto->RetType && !Proto->RetType->type->isVoidTy()) {
+			Proto->visibility &= ~A_method;
+			if (!check_and_add_proto(lex.module->FunctionProtos[unmangledName], std::move(Proto), unmangledName))
+				return nullptr;
+			goto parse_body;
+		} else
 			Conversions[Proto->Name] = Proto->FT;
 	} else if (visibility & A_destructor)
 		AutoMethods[Proto->ArgTypes[0]->mangled_name].second = Proto->Name;
@@ -2037,6 +2042,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		if (!check_and_add_proto(lex.module->FunctionProtos[unmangledName], std::move(Proto), unmangledName))
 			return nullptr;
 	}
+parse_body:
 	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Elist = ParseExprList();
 	if (!Elist.second && Elist.first.empty())
 		return nullptr;
