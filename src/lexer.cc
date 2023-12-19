@@ -382,11 +382,10 @@ bool Lexer::next_input_file() {
 					std::move(std::make_unique<CallExprAST>(
 								  SourceLocation{0}, std::move(callee))));
 			}
-			// auto keep_linebuf = linebuf;
-			// linebuf = nullptr;
+			free(linebuf);
+			linebuf = nullptr;
+			bufsize = 0;
 			auto res = push_state({}, "", {});
-			// free(linebuf);
-			// linebuf = keep_linebuf;
 			return res;
 		} else {
 			fclose(input_file);
