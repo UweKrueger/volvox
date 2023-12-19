@@ -168,6 +168,7 @@ end
 fn test_array_destructor_2 bool
 	call_array_destructor
 	global cntd
+	printf("cntd: %d\n", cntd)
 	return cntd == 63
 end
 

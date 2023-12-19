@@ -1980,6 +1980,22 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			return nullptr;
 		}
 	}
+	if (!Proto->returnName.empty()) {
+		if (Proto->RetType && !Proto->RetType->type->isVoidTy()) {
+			FullVar fv = {
+				.decl_loc = Proto->retLoc,
+				.ft = *Proto->RetType
+			};
+			bool is_new = locals_table.back().insert(Proto->returnName.c_str(), fv);
+			if (!is_new) {
+				errs() << Proto->retLoc << "cannot declare return variable '" << Proto->returnName << "'\n";
+				prompt_indent = 0;
+				return nullptr;
+			}
+		} else {
+			errs() << Proto->retLoc << ": internal error - named return but no return type\n";
+		}
+	}
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	if (visibility & A_c_api)
@@ -1990,25 +2006,12 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	}
 	else
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, Proto->visibility).c_str();
-	if (visibility & A_constructor)
-		if (Proto->ArgTypes.size() == 1 && Proto->ArgTypes[0]->type->isStructTy() && (!Proto->RetType || Proto->RetType->type->isVoidTy())) // default constructor
+	if (visibility & A_constructor) {
+		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) // default constructor
 			AutoMethods[Proto->ArgTypes[0]->mangled_name].first = Proto->Name;
-		else {
+		else
 			Conversions[Proto->Name] = Proto->FT;
-			if (Proto->RetType && !Proto->RetType->type->isVoidTy()) {
-				FullVar fv = {
-					.decl_loc = Proto->retLoc,
-					.ft = *Proto->RetType
-				};
-				bool is_new = locals_table.back().insert("this", fv);
-				if (!is_new) {
-					errs() << Proto->retLoc << "cannot declare 'this'\n";
-					prompt_indent = 0;
-					return nullptr;
-				}
-			}
-		}
-	else if (visibility & A_destructor)
+	} else if (visibility & A_destructor)
 		AutoMethods[Proto->ArgTypes[0]->mangled_name].second = Proto->Name;
 	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type(Proto->ArgTypes[0]->mangled_name);

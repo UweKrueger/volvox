@@ -301,6 +301,7 @@ class FunctionAST {
 	llvm::Value* this_ret_ptr = nullptr;
 	llvm::Value* RetVal = nullptr;
 	llvm::Value* InterRetVal = nullptr;
+	FullVar* RetVar = nullptr;
 public:
 	bool prepare_codegen();
 	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody);

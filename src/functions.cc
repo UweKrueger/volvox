@@ -1231,7 +1231,7 @@ bool FunctionAST::prepare_codegen() {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
 	already_returned = false;
-	if (Proto->visibility & (A_method | A_constructor))
+	if ((Proto->visibility & (A_method | A_constructor)) && Proto->returnName.empty())
 		receiver_ft = Proto->ArgTypes[0];
 	else
 		receiver_ft = nullptr;
@@ -1271,6 +1271,21 @@ bool FunctionAST::prepare_codegen() {
 	ret_ft = Proto->RetType ? Proto->RetType : void_type;
 	theFunction_ret_ft = ret_ft; // global variable used by IfExprAST to return from branches
 	theFunction_struct_ret = Proto->IsStructRet && !(Proto->visibility & A_constructor);
+	if (!Proto->returnName.empty()) {
+		RetVar = locals_table.back()[Proto->returnName.c_str()];
+		if (!RetVar) {
+			errs() << Proto->retLoc << ": internal compiler error - return variable '" << Proto->returnName << "' not found in table\n";
+			abort();
+		}
+		if (theFunction_struct_ret)
+			RetVar->val = TheFunction->getArg(ArgIdx);
+		else {
+			RetVar->val = CreateEntryBlockAlloca(ret_ft->type, Proto->returnName, TheFunction);
+			Builder->CreateStore(llvm::Constant::getNullValue(ret_ft->type), RetVar->val);
+		}
+	}
+	if (RetVar)
+		ret_ptr = this_ret_ptr = RetVar->val;
 	if (theFunction_struct_ret)
 		ret_ptr = this_ret_ptr = TheFunction->getArg(ArgIdx++);
 	else
@@ -1306,16 +1321,6 @@ bool FunctionAST::prepare_codegen() {
 			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),
 			                        Builder->GetInsertBlock());
 		}
-	}
-	if ((Proto->visibility & A_constructor) && !ret_ft->type->isVoidTy()) {
-		FullVar* mapitem = locals_table.back()["this"];
-		if (!mapitem) {
-			errs() << Proto->retLoc << ": internal compiler error: 'this' not found in table\n";
-			abort();
-		}
-		llvm::AllocaInst* Alloca = CreateEntryBlockAlloca(ret_ft->type, "this", TheFunction);
-		Builder->CreateStore(llvm::Constant::getNullValue(ret_ft->type), Alloca);
-		mapitem->val = Alloca;
 	}
 	BB = Builder->GetInsertBlock();
 	RetVal = nullptr;
@@ -1378,7 +1383,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 		if (auto ifexpr = dynamic_cast<IfExprAST*>(Body.back().get()))
 			already_returned = ifexpr->always_return;
 	if (!already_returned) {
-		if (Proto->RetType->type->isVoidTy() || (Proto->visibility & A_constructor)) {
+		if (Proto->RetType->type->isVoidTy() || (Proto->visibility & A_constructor) && !RetVar) {
 			if (Proto->visibility & A_destructor) {
 				insert_field_destructors(receiver_ft, TheFunction->getArg(0));
 			}
@@ -1388,12 +1393,15 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 			// auto ret_type = RetVal->getType();
 			//type = ret_type; // TODO: hande conversion if != proto->type;
 			if (theFunction_struct_ret) {
-				if (!RetVal->getType()->isVoidTy())
+				if (!RetVal->getType()->isVoidTy() && !RetVar)
 					Builder->CreateStore(RetVal, ret_ptr);
 				InsertDestructors(ret_ptr);
 				Builder->CreateRetVoid();
 			} else {
-				if (RetVal->getType()->isPointerTy())
+				if (RetVar) {
+					RetVal = Builder->CreateLoad(ret_ft->type, RetVar->val);
+					InsertDestructors(RetVar->val);
+				} else if (RetVal->getType()->isPointerTy())
 					InsertDestructors(RetVal);
 				else {
 					llvm::Value* re_ptr = nullptr;
