@@ -396,13 +396,14 @@ type complex {
 # c32 cannot be declared in the same way is this would not match the ABI of C11 complex float
 # it is a compiler builtin, instead
 
-fn complex(r real, i real)
+inline fn complex(r real, i real)
 	this.real = r
 	this.imag = i
 end
 
-fn c32(r f32, i f32)
+inline fn c32(r f32, i f32)
 	this = r + i * 1fi
+	# TODO: explicit return should not be necessary
 	return this
 end
 
@@ -440,6 +441,14 @@ end
 
 fn f64*(d complex) complex
 	return d * this
+end
+
+fn c32*(f f32) c32
+	return c32(this.real * f, this.imag * f)
+end
+
+fn f32*(c c32) c32
+	return c32(this * c.real, this * c.imag)
 end
 
 # fn c32/(d c32) c32

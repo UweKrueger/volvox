@@ -110,6 +110,7 @@ volvoxc::FullType* integer_type;
 volvoxc::FullType* f32_type;
 volvoxc::FullType* interface_type;
 volvoxc::FullType* voidptr_type;
+volvoxc::FullType* c32_type;
 
 #ifdef LEGACY_PASS_MANAGER
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM = nullptr;
@@ -195,6 +196,7 @@ void init(const llvm::Triple& triple) {
 	else
 		llvm_c32_type = llvm::FixedVectorType::get(llvm::Type::getFloatTy(Context), 2);
 	lex.add_type("c32", llvm_c32_type, nullptr, A_complex);
+	c32_type = lex.get_full_type("c32");
 	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 #if LLVM_VERSION_MAJOR >= 16

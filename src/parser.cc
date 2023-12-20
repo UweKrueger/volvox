@@ -1536,9 +1536,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			}
 		}
 		if (LHS_type && RHS_type) {
-			if (auto LHS_struct_ty = llvm::dyn_cast<llvm::StructType>(LHS_type)) {
+			if (LHS_type->isStructTy() || (LHS_attr & A_complex)) {
 				auto fnName = "binary" + BinOp;
-				if (auto Protos = findProtos(LHS->ft->mangled_name, fnName)) {
+				const char* mangled_name = LHS_type->isStructTy() ? LHS->ft->mangled_name : "c32";
+				if (auto Protos = findProtos(mangled_name, fnName)) {
 					auto m_ident = std::make_unique<IdentExprAST>(BinLoc, std::move(fnName));
 					auto method = std::make_unique<MethodExprAST>(
 						BinLoc, std::move(LHS), std::move(m_ident), Protos);
@@ -1547,9 +1548,10 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					return std::make_unique<CallExprAST>(BinLoc, std::move(method), std::move(Arg));
 				}
 			}
-			if (auto RHS_struct_ty = llvm::dyn_cast<llvm::StructType>(RHS_type)) {
+			if (RHS_type->isStructTy() || (RHS_attr & A_complex)) {
 				auto fnName = "reverse" + BinOp;
-				if (auto Protos = findProtos(RHS->ft->mangled_name, fnName)) {
+				const char* mangled_name = RHS_type->isStructTy() ? RHS->ft->mangled_name : "c32";
+				if (auto Protos = findProtos(mangled_name, fnName)) {
 					auto m_ident = std::make_unique<IdentExprAST>(BinLoc, std::move(fnName));
 					auto method = std::make_unique<MethodExprAST>(
 						BinLoc, std::move(RHS), std::move(m_ident), Protos);
@@ -1892,7 +1894,7 @@ nobrace:
 			errs() << ArgPos[2] << ": operator methods must not have more then one argument\n";
 			return nullptr;
 		}
-		if (ArgTypes[0]->type->isStructTy()) {
+		if (ArgTypes[0]->type->isStructTy() || (ArgTypes[0]->type_attr & A_complex)) {
 			if (ArgTypes.size() == 1) {
 				if (operator_idx > 2) {
 					errs() << ArgPos[0] << ": operators other than '+' or '-' cannot be declared as unary\n";
@@ -1904,7 +1906,7 @@ nobrace:
 				FnName = "binary" + FnName;
 				Kind = 2;
 			}
-		} else if (ArgTypes.size() == 2 && ArgTypes[1]->type->isStructTy()) {
+		} else if (ArgTypes.size() == 2 && (ArgTypes[1]->type->isStructTy() || (ArgTypes[1]->type_attr & A_complex))) {
 			FnName = "reverse" + FnName;
 			Kind = 3;
 			auto nam_tmp = std::move(ArgNames[0]);
