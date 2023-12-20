@@ -1192,7 +1192,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
 					// C convention: variadic float args must be promoted to double
 					if (!arg->getType()->isFloatTy())
-						arg = Builder->CreateFPCast(arg, llvm::Type::getFloatTy(Context), "convfptmp");
+						arg = Builder->CreateFPCast(arg, llvm::Type::getFloatTy(Context), "convtofptmp");
 					arg = Builder->CreateBitCast(arg, llvm::Type::getInt32Ty(Context));
 				} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(arg->getType())) {
 					// same with short integers
