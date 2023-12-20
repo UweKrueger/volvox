@@ -2059,6 +2059,10 @@ parse_body:
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
 		}
+		if (!ProtoRef->returnName.empty()) {
+			errs() << Elist.first.back()->Loc << ": return statement at end of constructor or function with named return not allowed\n";
+			return nullptr;
+		}
 	} else {
 		if (Elist.second != tok_end) {
 			errs() << CurLoc << ": 'return' or 'end' expected\n";
