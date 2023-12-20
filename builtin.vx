@@ -442,10 +442,6 @@ fn f64*(d complex) complex
 	return d * this
 end
 
-fn int*(d complex) complex
-	return d * f64 this
-end
-
 # fn c32/(d c32) c32
 # 	if abs(d.real) > abs(d.imag)
 # 		q = d.imag / d.real

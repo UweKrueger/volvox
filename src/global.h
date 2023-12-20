@@ -974,6 +974,8 @@ struct ProtoListElem {
 extern ProtoListElem* anon_protos;
 extern ProtoListElem** anon_protos_end;
 
+extern void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name);
+
 inline std::vector<std::unique_ptr<PrototypeAST>>* new_AnonProto(PrototypeAST* proto, SourceLocation Loc) {
 	ProtoListElem* new_node = new ProtoListElem(std::make_unique<PrototypeAST>(*proto));
 	new_node->protos[0]->retLoc = Loc;

@@ -102,7 +102,7 @@ inline static void printCandidates(unsigned candidates[], unsigned num_candidate
 	}
 }
 
-inline static void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
+void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {
 	for (auto& proto: *protos)
 		printCandidate(proto.get(), name);
 }

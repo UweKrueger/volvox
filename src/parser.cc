@@ -1916,6 +1916,10 @@ nobrace:
 			auto pos_tmp = ArgPos[0];
 			if (!(ArgTypes[0]->type_attr & A_ref))
 				ArgTypes[0]->type_attr |= (A_ref | A_by_value);
+			if (!ArgTypes[1]->type->isStructTy())
+				// we pass non-struct LHS by value to allow automatic type conversions like
+				// int * complex -> f64 * complex
+				ArgTypes[1]->type_attr &= ~A_ref;
 			ArgPos[0] = ArgPos[1];
 			ArgPos[1] = pos_tmp;
 		} else {
