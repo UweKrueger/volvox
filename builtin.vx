@@ -403,8 +403,6 @@ end
 
 inline fn c32(r f32, i f32)
 	this = r + i * 1fi
-	# TODO: explicit return should not be necessary
-	return this
 end
 
 cdecl __divdc3(ar real, ai real, br real, bi real) complex

@@ -2064,7 +2064,7 @@ parse_body:
 			errs() << CurLoc << ": 'return' or 'end' expected\n";
 			return nullptr;
 		}
-		if (!ProtoRef->RetType->type->isVoidTy()) {
+		if (!ProtoRef->RetType->type->isVoidTy() && ProtoRef->returnName.empty()) {
 			if (auto if_expr = dynamic_cast<IfExprAST*>(Elist.first.back().get())) {
 				if (!if_expr->always_return) {
 					errs() << Elist.first.back()->Loc << ": non-void function does not return a value in all branches and has no final return\n";
