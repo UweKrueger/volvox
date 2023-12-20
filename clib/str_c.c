@@ -1579,3 +1579,34 @@ _DECL void __setup_console() {
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 	atexit(__restore_console);
 }
+
+#if defined(_MSC_VER)
+
+// libgcc provides these functions but they are missing on MSVC
+// so we provide some simple versions
+
+_DECL _Dcomplex __divdc3(double tr, double ti, double dr, double di) {
+	if (fabs(dr) > fabs(di)) {
+		double q = di / dr;
+		double div = dr + q*di;
+		return _DCOMPLEX_((tr + q*ti) / div, (ti - q*tr) / div);
+	} else {
+		double q = dr / di;
+		double div = q*dr + di;
+		return _DCOMPLEX_((q*tr + ti) / div, (q*ti - tr) / div);
+	}
+}
+
+_DECL _Fcomplex __divsc3(float tr, float ti, float dr, float di) {
+	if (fabs(dr) > fabs(di)) {
+		float q = di / dr;
+		float div = dr + q*di;
+		return _FCOMPLEX_((tr + q*ti) / div, (ti - q*tr) / div);
+	} else {
+		float q = dr / di;
+		float div = q*dr + di;
+		return _FCOMPLEX_((q*tr + ti) / div, (q*ti - tr) / div);
+	}
+}
+
+#endif

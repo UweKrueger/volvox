@@ -408,47 +408,45 @@ inline fn c32(r f32, i f32)
 end
 
 cdecl __divdc3(ar real, ai real, br real, bi real) complex
+cdecl __divsc3(ar f32, ai f32, br f32, bi f32) c32
 
-fn complex/(d complex) complex
-	global __OS_Idx
-	if __OS_Idx == 8 # os.isWindows
-		if abs(d.real) > abs(d.imag)
-			q = d.imag / d.real
-			div = d.real + q*d.imag
-			return complex{
-				real: (this.real + q*this.imag) / div
-				imag: (this.imag - q*this.real) / div
-			}
-		else
-			q = d.real / d.imag
-			div = q*d.real + d.imag
-			printf("q: %f, div: %f\n", q, div)
-			return complex{
-				real: (q*this.real + this.imag) / div
-				imag: (q*this.imag - this.real) / div
-			}
-		end
-	else
-		return __divdc3(this.real, this.imag, d.real, d.imag)
-end end
+inline fn complex/(d complex) complex
+	return __divdc3(this.real, this.imag, d.real, d.imag)
+end
 
-fn complex*(c f64) complex
+inline fn c32/(d c32) c32
+	return __divsc3(this.real, this.imag, d.real, d.imag)
+end
+
+inline fn complex*(c f64) complex
 	return complex{
 		real: c * this.real
 		imag: c * this.imag
 	}
 end
 
-fn f64*(d complex) complex
+inline fn f64*(d complex) complex
 	return d * this
 end
 
-fn c32*(f f32) c32
+inline fn complex*(c complex) complex
+	p = complex(this.real * c.real - this.imag * c.imag,
+		this.real * c.imag + this.imag * c.real)
+	return p
+end
+
+inline fn c32*(f f32) c32
 	return c32(this.real * f, this.imag * f)
 end
 
-fn f32*(c c32) c32
+inline fn f32*(c c32) c32
 	return c32(this * c.real, this * c.imag)
+end
+
+inline fn c32*(c c32) c32
+	p = c32(this.real * c.real - this.imag * c.imag,
+		this.real * c.imag + this.imag * c.real)
+	return p
 end
 
 # fn c32/(d c32) c32
