@@ -416,6 +416,28 @@ inline fn c32/(d c32) c32
 	return __divsc3(this.real, this.imag, d.real, d.imag)
 end
 
+inline fn complex/(d f64) complex
+	q = 1 / d
+	res = complex(q * this.real, q * this.imag)
+	return res
+end
+
+inline fn complex/(d imaginary) complex
+	q = 1i / d
+	res = complex(q * this.imag, -q * this.real)
+	return res
+end
+
+inline fn c32/(d f32) c32
+	q = 1f / d
+	return c32(q * this.real, q * this.imag)
+end
+
+inline fn c32/(d j32) c32
+	q = 1fi / d
+	return c32(q * this.imag, -q * this.real)
+end
+
 inline fn complex*(c f64) complex
 	return complex{
 		real: c * this.real
@@ -446,22 +468,3 @@ inline fn c32*(c c32) c32
 		this.real * c.imag + this.imag * c.real)
 	return p
 end
-
-# fn c32/(d c32) c32
-# 	if abs(d.real) > abs(d.imag)
-# 		q = d.imag / d.real
-# 		div = d.real + q*d.imag
-# 		return c32{
-# 			real: (this.real + q*this.imag) / div
-# 			imag: (this.imag - q*this.real) / div
-# 		}
-# 	else
-# 		q = d.real / d.imag
-# 		div = q*d.real + d.imag
-# 		printf("q: %f, div: %f\n", q, div)
-# 		return c32{
-# 			real: (q*this.real + this.imag) / div
-# 			imag: (q*this.imag - this.real) / div
-# 		}
-# 	end
-# end

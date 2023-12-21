@@ -30,14 +30,14 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 				out << ft->elem_type; // A "native Volvox pointer" - used for unique objects... ;-)
 			}
 		}
-	} else
+	} else {
+		auto is_signed = (bool)(ft->type_attr & A_signed);
 		if (ft->type->isDoubleTy())
-			out << 'd';
+			out << (is_signed ? "Gd" : "d");
 		else if (ft->type->isFloatTy())
-			out << 'f';
+			out << (is_signed ? "Gf" : "f");
 		else if (auto intty = llvm::dyn_cast<llvm::IntegerType>(ft->type)) {
 			auto bitwidth = intty->getBitWidth();
-			auto is_signed = (bool)(ft->type_attr & A_signed);
 			if (bitwidth == 1)
 				out << 'b';
 			else if (bitwidth <= 8)
@@ -62,6 +62,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 			}
 			out << ft->mangled_name;
 		}
+	}
 	return out;
 }
 

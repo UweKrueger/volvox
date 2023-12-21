@@ -1964,7 +1964,7 @@ static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& prot
 	for (auto& p: protos) {
 		if (Proto->Name == p->Name) {
 			errs() << Proto->retLoc << (isMethod ? ": method '" : ": function '") << unmangledName
-			       << "()' with the same signature has already been defined\n";
+			       << "()' with the same signature has already been defined '" << Proto->Name << "\n";
 			prompt_indent = 0;
 			return false;
 		}
