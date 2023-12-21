@@ -71,6 +71,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 	return out;
 }
 
+llvm::SmallString<128> MangleOp(llvm::SmallString<128> buf, const std::string& name, bool unary);
+
 llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path,
                                   const std::string& name, const char* receiver_type_name, unsigned flags) {
 	llvm::raw_svector_ostream mangled(buf);
@@ -96,6 +98,17 @@ llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<
 llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name,
                               std::vector<volvoxc::FullType*>& arg_types, unsigned flags) {
 	llvm::SmallString<128> buf = llvm::StringRef("_Z");
+	char op = name[name.length()-1];
+	bool reverse = false;
+	bool unary = false;
+	bool is_op = false;
+	if (!isalnum(op) && op != '_') {
+		is_op = true;
+		if (name[0] == 'u')
+			unary = true;
+		else if (name[0] == 'r')
+			reverse = true;
+	}
 	const char* rec_tname;
 	if ((flags & A_method) && !(flags & (A_destructor | A_constructor | A_conversion)))
 		rec_tname = arg_types[0]->mangled_name;
