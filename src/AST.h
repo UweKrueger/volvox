@@ -292,7 +292,7 @@ public:
 
 /// FunctionAST - This class represents a function definition itself.
 class FunctionAST {
-	bool already_returned = false; // both branches of 'if ... else ...' end with 'return'
+public:
 	volvoxc::FullType* receiver_ft;
 	llvm::Function* TheFunction;
 	llvm::BasicBlock* BB;
@@ -302,7 +302,7 @@ class FunctionAST {
 	llvm::Value* RetVal = nullptr;
 	llvm::Value* InterRetVal = nullptr;
 	FullVar* RetVar = nullptr;
-public:
+	FunctionAST* old_currentFunction = nullptr;
 	bool prepare_codegen();
 	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody);
 	llvm::Function* finish_codegen(bool finishModule = false, bool getNewModule = false);

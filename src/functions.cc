@@ -17,6 +17,7 @@ llvm::DISubprogram *SP;
 llvm::DIFile *Unit;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
 bool theFunction_struct_ret = false;
+FunctionAST* currentFunction = nullptr;
 std::vector<FullVar> expr_temps; // to call destructors immediatelly after expr
 #ifdef _WIN32
 std::vector<HMODULE> extra_dlls; // loaded by '__link_extra' at runtime in JIT mode
@@ -1224,7 +1225,6 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 bool FunctionAST::prepare_codegen() {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
-	already_returned = false;
 	if ((Proto->visibility & (A_method | A_constructor)) && Proto->returnName.empty())
 		receiver_ft = Proto->ArgTypes[0];
 	else
@@ -1265,6 +1265,8 @@ bool FunctionAST::prepare_codegen() {
 	ret_ft = Proto->RetType ? Proto->RetType : void_type;
 	theFunction_ret_ft = ret_ft; // global variable used by IfExprAST to return from branches
 	theFunction_struct_ret = Proto->IsStructRet && !(Proto->visibility & A_constructor);
+	old_currentFunction = currentFunction;
+	currentFunction = this;
 	if (!Proto->returnName.empty()) {
 		RetVar = locals_table.back()[Proto->returnName.c_str()];
 		if (!RetVar) {
@@ -1366,7 +1368,58 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 	return true;
 }
 
+void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch)
+{
+	bool already_returned = false; // set if both branches of last 'if ... else ...' end with 'return'
+	if (!Branch.empty())
+		if (auto ifexpr = dynamic_cast<IfExprAST*>(Branch.back().get()))
+			already_returned = ifexpr->always_return;
+	if (!already_returned) {
+		if (currentFunction->Proto->RetType->type->isVoidTy()
+		    || (currentFunction->Proto->visibility & A_constructor) && !currentFunction->RetVar) {
+			if (currentFunction->Proto->visibility & A_destructor) {
+				insert_field_destructors(currentFunction->receiver_ft, currentFunction->TheFunction->getArg(0));
+			}
+			InsertDestructors(nullptr);
+			Builder->CreateRetVoid();
+		} else {
+			// auto ret_type = RetVal->getType();
+			//type = ret_type; // TODO: hande conversion if != proto->type;
+			if (theFunction_struct_ret) {
+				if (!currentFunction->RetVal->getType()->isVoidTy() && !currentFunction->RetVar)
+					Builder->CreateStore(currentFunction->RetVal, ret_ptr);
+				InsertDestructors(ret_ptr);
+				Builder->CreateRetVoid();
+			} else {
+				if (currentFunction->RetVar) {
+					currentFunction->RetVal = Builder->CreateLoad(currentFunction->ret_ft->type, currentFunction->RetVar->val);
+					InsertDestructors(currentFunction->RetVar->val);
+				} else if (currentFunction->RetVal->getType()->isPointerTy())
+					InsertDestructors(currentFunction->RetVal);
+				else {
+					llvm::Value* re_ptr = nullptr;
+					if (!Branch.empty())
+						if (auto lval = dynamic_cast<LvalueExprAST*>(Branch.back().get())) {
+							llvm::Type* dummy;
+							std::tie(dummy, re_ptr) = lval->codegen_ref(true);
+							if (dummy && re_ptr)
+								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
+									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);
+						}
+					InsertDestructors(re_ptr);
+				}
+				Builder->CreateRet(CheckTailCall(currentFunction->RetVal));
+				if (!currentFunction->ArgIdx && Branch.size() == 1 && currentFunction->TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
+					if (auto const_ret = llvm::dyn_cast<llvm::Constant>(currentFunction->RetVal))
+						// hack to allow trivial static functions to be used as constexpr
+						currentFunction->Proto->const_result = const_ret;
+			}
+		}
+	}
+}
+
 llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule) {
+	bool already_returned = false;
 	ret_ptr = this_ret_ptr;
 	theFunction_ret_ft = ret_ft;
 	Builder->SetInsertPoint(BB);
@@ -1426,6 +1479,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
 	expr_temps.clear();
+	currentFunction = old_currentFunction;
 	return success ? TheFunction : nullptr;
 }
 
@@ -1440,5 +1494,6 @@ llvm::Function* FunctionAST::cleanup_codegen() {
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
 	expr_temps.clear();
+	currentFunction = old_currentFunction;
 	return nullptr;
 }

@@ -513,6 +513,7 @@ extern llvm::DISubprogram *SP;
 extern llvm::DIFile *Unit;
 extern volvoxc::FullType* theFunction_ret_ft;
 extern bool theFunction_struct_ret;
+extern FunctionAST* currentFunction;
 #ifdef _WIN32
 extern std::vector<HMODULE> extra_dlls;
 #endif
