@@ -1425,51 +1425,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	Builder->SetInsertPoint(BB);
 	if (InterRetVal)
 		RetVal = InterRetVal;
-	// Finish off the function.
-	if (!Body.empty())
-		if (auto ifexpr = dynamic_cast<IfExprAST*>(Body.back().get()))
-			already_returned = ifexpr->always_return;
-	if (!already_returned) {
-		if (Proto->RetType->type->isVoidTy() || (Proto->visibility & A_constructor) && !RetVar) {
-			if (Proto->visibility & A_destructor) {
-				insert_field_destructors(receiver_ft, TheFunction->getArg(0));
-			}
-			InsertDestructors(nullptr);
-			Builder->CreateRetVoid();
-		} else {
-			// auto ret_type = RetVal->getType();
-			//type = ret_type; // TODO: hande conversion if != proto->type;
-			if (theFunction_struct_ret) {
-				if (!RetVal->getType()->isVoidTy() && !RetVar)
-					Builder->CreateStore(RetVal, ret_ptr);
-				InsertDestructors(ret_ptr);
-				Builder->CreateRetVoid();
-			} else {
-				if (RetVar) {
-					RetVal = Builder->CreateLoad(ret_ft->type, RetVar->val);
-					InsertDestructors(RetVar->val);
-				} else if (RetVal->getType()->isPointerTy())
-					InsertDestructors(RetVal);
-				else {
-					llvm::Value* re_ptr = nullptr;
-					if (!Body.empty())
-						if (auto lval = dynamic_cast<LvalueExprAST*>(Body.back().get())) {
-							llvm::Type* dummy;
-							std::tie(dummy, re_ptr) = lval->codegen_ref(true);
-							if (dummy && re_ptr)
-								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
-									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);
-						}
-					InsertDestructors(re_ptr);
-				}
-				Builder->CreateRet(CheckTailCall(RetVal));
-				if (!ArgIdx && Body.size() == 1 && TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
-					if (auto const_ret = llvm::dyn_cast<llvm::Constant>(RetVal))
-						// hack to allow trivial static functions to be used as constexpr
-						Proto->const_result = const_ret;
-			}
-		}
-	}
+	HandleReturn(Body);
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function.
 		KSDbgInfo.LexicalBlocks.pop_back();
