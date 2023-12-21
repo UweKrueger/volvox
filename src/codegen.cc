@@ -2354,39 +2354,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 		return { nullptr, nullptr };
 	}
 	if (EndKind == tok_return) {
-		if (!Branch.empty())
-			if (auto lastif = dynamic_cast<IfExprAST*>(Branch.back().get()))
-				if (lastif->always_return)
-					return { llvm::UndefValue::get(llvm::Type::getVoidTy(Context)), firstBreak };
-		if (theFunction_ret_ft->type->isVoidTy()) {
-			InsertDestructors(nullptr);
-			Builder->CreateRetVoid();
-		} else {
-			if (ret_ptr) {
-				Builder->CreateStore(BranchV, ret_ptr);
-				InsertDestructors(ret_ptr);
-				Builder->CreateRetVoid();
-			} else {
-				if (!BranchV) {
-					errs() << (Branch.empty() ? Loc : Branch.back()->Loc) << ": return value cold not be generated\n";
-					return { nullptr, nullptr };
-				}
-				if (BranchV->getType()->isPointerTy())
-					InsertDestructors(BranchV);
-				else {
-					llvm::Value* re_ptr = nullptr;
-					if (auto lval = dynamic_cast<LvalueExprAST*>(Branch.back().get())) {
-						llvm::Type* dummy;
-							std::tie(dummy, re_ptr) = lval->codegen_ref(true);
-							if (dummy && re_ptr)
-								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
-									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);
-					}
-					InsertDestructors(re_ptr);
-				}
-				Builder->CreateRet(CheckTailCall(BranchV));
-			}
-		}
+		HandleReturn(Branch, BranchV);
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	} else {
 		if (ft->type->isVoidTy())

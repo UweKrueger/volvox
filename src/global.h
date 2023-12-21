@@ -1407,6 +1407,8 @@ public:
 #endif
 };
 
+extern void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch, llvm::Value* RetVal);
+
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::unique_ptr<ExprAST>& expr) {
 	if (expr)
 		out << "expr"; // *expr->codegen();

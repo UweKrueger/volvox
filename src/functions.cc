@@ -1368,7 +1368,7 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 	return true;
 }
 
-void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch)
+void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch, llvm::Value* RetVal)
 {
 	bool already_returned = false; // set if both branches of last 'if ... else ...' end with 'return'
 	if (!Branch.empty())
@@ -1386,16 +1386,16 @@ void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch)
 			// auto ret_type = RetVal->getType();
 			//type = ret_type; // TODO: hande conversion if != proto->type;
 			if (theFunction_struct_ret) {
-				if (!currentFunction->RetVal->getType()->isVoidTy() && !currentFunction->RetVar)
-					Builder->CreateStore(currentFunction->RetVal, ret_ptr);
+				if (!RetVal->getType()->isVoidTy() && !currentFunction->RetVar)
+					Builder->CreateStore(RetVal, ret_ptr);
 				InsertDestructors(ret_ptr);
 				Builder->CreateRetVoid();
 			} else {
 				if (currentFunction->RetVar) {
-					currentFunction->RetVal = Builder->CreateLoad(currentFunction->ret_ft->type, currentFunction->RetVar->val);
+					RetVal = Builder->CreateLoad(currentFunction->ret_ft->type, currentFunction->RetVar->val);
 					InsertDestructors(currentFunction->RetVar->val);
-				} else if (currentFunction->RetVal->getType()->isPointerTy())
-					InsertDestructors(currentFunction->RetVal);
+				} else if (RetVal->getType()->isPointerTy())
+					InsertDestructors(RetVal);
 				else {
 					llvm::Value* re_ptr = nullptr;
 					if (!Branch.empty())
@@ -1408,9 +1408,9 @@ void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch)
 						}
 					InsertDestructors(re_ptr);
 				}
-				Builder->CreateRet(CheckTailCall(currentFunction->RetVal));
+				Builder->CreateRet(CheckTailCall(RetVal));
 				if (!currentFunction->ArgIdx && Branch.size() == 1 && currentFunction->TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
-					if (auto const_ret = llvm::dyn_cast<llvm::Constant>(currentFunction->RetVal))
+					if (auto const_ret = llvm::dyn_cast<llvm::Constant>(RetVal))
 						// hack to allow trivial static functions to be used as constexpr
 						currentFunction->Proto->const_result = const_ret;
 			}
@@ -1425,7 +1425,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	Builder->SetInsertPoint(BB);
 	if (InterRetVal)
 		RetVal = InterRetVal;
-	HandleReturn(Body);
+	HandleReturn(Body, RetVal);
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function.
 		KSDbgInfo.LexicalBlocks.pop_back();
