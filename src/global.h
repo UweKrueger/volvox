@@ -231,11 +231,23 @@ extern std::unique_ptr<llvm::DIBuilder> DBuilder;
 #ifdef LEGACY_PASS_MANAGER
 extern std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 #endif
+
 enum idiv_modes {
 	idiv_mode_undef = 0,
 	idiv_mode_floored,
 	idiv_mode_c99
 };
+
+// What kind of 'return' statement a function expects
+//
+enum return_kind_t : int8_t {
+	return_expr = 0,       // 'return x'
+	return_void,           // 'return' - function returns no value
+	return_variable,       // 'return' - function does return a value but in a pre-declared variable
+	return_constructor,    // 'return' - as above but the variable is implicitly named 'this'
+	return_destructor      // 'return'
+};
+
 extern idiv_modes idiv_mode;
 extern bool support_fp80;
 extern bool needs_libm;
@@ -245,6 +257,7 @@ extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;
 #define Context *TS_Context->getContext()
 extern SourceLocation CurLoc;
 extern bool inside_function;
+extern return_kind_t function_return_kind;
 extern int prompt_indent;
 extern uint64_t stacksize;
 extern const char* last_defined_type;

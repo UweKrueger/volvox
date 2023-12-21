@@ -477,6 +477,7 @@ static void HandleDefinition(unsigned& visibility) {
 	IfWhileVarTable = nullptr;
 	locals_table.push_back(VarTable());
 	bool success = false;
+	return_kind_t old_return_kind = function_return_kind;
 	if (auto FnAST = ParseDefinition(visibility)) {
 		if (auto *FnIR = FnAST->codegen()) {
 			goto cleanup;
@@ -490,6 +491,7 @@ static void HandleDefinition(unsigned& visibility) {
 	purgeLine();
 	TestFunction = nullptr;
 cleanup:
+	function_return_kind = old_return_kind;
 	locals_table[0].clear();
 	locals_table = std::move(std::vector<VarTable>{});
 	inside_function = false;

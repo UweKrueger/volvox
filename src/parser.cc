@@ -32,6 +32,7 @@ bool local_var_may_shadow_func_and_mod = false;
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
 bool inside_branch = false;
+return_kind_t function_return_kind = return_expr; // main function return status value
 
 Token& getNextToken(eXpect expect, int terminator) {
 	CurTok = lex.gettok(expect, terminator);
@@ -1255,7 +1256,12 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {
 	auto FnLoc = CurLoc;
 	unsigned visibility = A_closure;
-	if (auto ast = ParseDefinition(visibility))
+	return_kind_t old_return_kind = function_return_kind;
+	bool old_inside_function = inside_function;
+	auto ast = ParseDefinition(visibility);
+	function_return_kind = old_return_kind;
+	inside_function = old_inside_function;
+	if (ast)
 		return std::make_unique<FunctionExprAST>(FnLoc, std::move(ast));
 	else
 		return nullptr;
@@ -1683,16 +1689,28 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 		auto expr = ParseExprOrReturn();
 		end_kind = expr.second;
 		if (expr.first) {
-			if (!end_kind)
+			if (!end_kind) {
 				if (auto I = dynamic_cast<IfExprAST*>(expr.first.get()))
 					if (I->ThenEndKind == tok_return && I->ElseEndKind == tok_return)
 						end_kind = tok_return;
+			} else if (end_kind == tok_return && function_return_kind != return_expr) {
+				errs() << expr.first->Loc << ": return value for "
+				       << ((function_return_kind == return_variable) ? "function with return variable" :
+				           (function_return_kind == return_constructor) ? "constructor" :
+				           (function_return_kind == return_destructor) ? "destructor" : "void function")
+				       << " unexpected\n";
+				return { std::vector<std::unique_ptr<ExprAST>>{}, 0 };
+			}
 			expr_list.push_back(std::move(expr.first));
 		} else {
 			if (!end_kind)
 				return { std::vector<std::unique_ptr<ExprAST>>{}, 0 };
 			if (end_kind == tok_global)
 				end_kind = 0;
+			else if (function_return_kind == return_expr && end_kind == tok_return) {
+				errs() << CurLoc << ": return value expected for non-void function\n";
+				return { std::vector<std::unique_ptr<ExprAST>>{}, 0 };
+			}
 		}
 	}
 	return { std::move(expr_list), end_kind };
@@ -1967,6 +1985,16 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		}
 	}
 	auto Proto = ParsePrototype(visibility);
+	if ((Proto->visibility & A_constructor) && !(Proto->visibility & A_conversion))
+		function_return_kind = return_constructor;
+	else if (Proto->visibility & A_destructor)
+		function_return_kind = return_destructor;
+	else if (!Proto->RetType || Proto->RetType->type->isVoidTy())
+		function_return_kind = return_void;
+	else if (!Proto->returnName.empty())
+		function_return_kind = return_variable;
+	else
+		function_return_kind = return_expr;
 	prompt_indent++;
 	if (!Proto) {
 		prompt_indent = 0;
