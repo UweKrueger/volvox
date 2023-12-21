@@ -32,7 +32,12 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 		}
 	} else {
 		auto is_signed = (bool)(ft->type_attr & A_signed);
-		if (ft->type->isDoubleTy())
+		if (ft->type_attr & A_complex)
+			if (ft->type->isStructTy())
+				out << "Cd";
+			else
+				out << "Cf";
+		else if (ft->type->isDoubleTy())
 			out << (is_signed ? "Gd" : "d");
 		else if (ft->type->isFloatTy())
 			out << (is_signed ? "Gf" : "f");
