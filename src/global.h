@@ -449,7 +449,8 @@ extern llvm::Function* getConversion(std::string& mangled_name);
 extern llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor = false);
 extern llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path,
                                          const std::string& name, const char* receiver_type_name = nullptr,
-                                         unsigned flags = 0);
+                                         unsigned flags = 0, bool is_op = false, bool reverse = false,
+                                         bool unary = false);
 extern llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name,
                                      std::vector<volvoxc::FullType*>& arg_types, unsigned flags = 0);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned& share_kind);

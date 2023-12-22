@@ -71,23 +71,91 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 	return out;
 }
 
-llvm::SmallString<128> MangleOp(llvm::SmallString<128> buf, const std::string& name, bool unary);
+llvm::SmallString<128> MangleOp(llvm::SmallString<128> buf, const std::string& name, bool reverse, bool unary) {
+	std::string Op;
+	// strip off leading prefix from name ("unary+" -> "+")
+	if (unary)
+		Op = name.substr(5, name.length() - 5);
+	else if (reverse)
+		Op = name.substr(7, name.length() - 7);
+	else  // binary
+		Op = name.substr(6, name.length() - 6);
+	llvm::raw_svector_ostream mangled(buf);
+	if (unary) {
+		if (Op == "+")
+			mangled << "ps";
+		else if (Op == "-")
+			mangled << "ng";
+		else {
+			errs() << "mangler: unexpected unary operator \"" << Op << "\"\n";
+			abort();
+		}
+	} else {
+		if (Op == "+")
+			mangled << "pl";
+		else if (Op == "-")
+			mangled << "mi";
+		else if (Op == "*")
+			mangled << "ml";
+		else if (Op == "/")
+			mangled << "dv";
+		else if (Op == "%")
+			mangled << "rm";
+		else if (Op == "=")
+			mangled << "aS";
+		else if (Op == "+=")
+			mangled << "pL";
+		else if (Op == "-=")
+			mangled << "mI";
+		else if (Op == "*=")
+			mangled << "mL";
+		else if (Op == "/=")
+			mangled << "dV";
+		else if (Op == "%=")
+			mangled << "rM";
+		else if (Op == "==")
+			mangled << "eq";
+		else if (Op == "!=")
+			mangled << "ne";
+		else if (Op == "<")
+			mangled << "lt";
+		else if (Op == ">")
+			mangled << "gt";
+		else if (Op == "<=")
+			mangled << "le";
+		else if (Op == ">=")
+			mangled << "ge";
+		else if (Op == "<=>")
+			mangled << "ss";
+		else {
+			errs() << "mangler: unexpected binary operator \"" << Op << "\"\n";
+			abort();
+		}
+	}
+	return buf;
+}
 
 llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path,
-                                  const std::string& name, const char* receiver_type_name, unsigned flags) {
+                                  const std::string& name, const char* receiver_type_name, unsigned flags,
+                                  bool is_op, bool reverse, bool unary) {
 	llvm::raw_svector_ostream mangled(buf);
 	if (!path.empty() || (flags & A_method)) {
 		mangled << 'N';
 		for (auto& dir : path)
 			mangled << dir.size() << dir;
-		if (receiver_type_name)
+		if (receiver_type_name) {
+			if (!isdigit(receiver_type_name[0]))
+				mangled << strlen(receiver_type_name);
 			mangled << receiver_type_name;
+		}
 	}
 	if (flags & A_destructor)
 		// strip '~' from beginning of unmangled name
 		mangled << name.size()-1 << name.c_str()+1 << "D2";
 	else if (flags & A_constructor)
 		mangled << name.size() << name << "C2";
+	else if (is_op)
+		buf = MangleOp(buf, name, reverse, unary);
 	else
 		mangled << name.size() << name;
 	if (!path.empty() || (flags & A_method) && !(flags & A_conversion))
@@ -111,16 +179,21 @@ llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::s
 	}
 	const char* rec_tname;
 	if ((flags & A_method) && !(flags & (A_destructor | A_constructor | A_conversion)))
-		rec_tname = arg_types[0]->mangled_name;
+		if (reverse)
+			rec_tname = arg_types[1]->mangled_name;
+		else
+			rec_tname = arg_types[0]->mangled_name;
 	else
 		rec_tname = nullptr;
-	buf = MangleBase(buf, path, name, rec_tname, flags);
+	buf = MangleBase(buf, path, name, rec_tname, flags, is_op, reverse, unary);
 	llvm::raw_svector_ostream mangled(buf);
 	if (flags & A_conversion)
 		mangled << "cv";
 	if (arg_types.size() > 0 && !(flags & A_method) || arg_types.size() > 1) {
 		unsigned idx = 0;
-		for (auto type : arg_types) {
+		if (reverse)
+			mangled << arg_types[0];
+		else for (auto type : arg_types) {
 			if (idx++ || !(flags & A_method))
 				mangled << type;
 		}
