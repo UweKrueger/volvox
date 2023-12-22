@@ -21,6 +21,7 @@
 #define A_signed_key (1U<<8) //for maps with integer key
 #define A_fn     (1U<<9) // function (or function pointer)
 #define A_packed (1U<<10) // only set for RtType, otherwise part of llvm::Type
+#define A_constructor_value_return (1U<<10)
 #define A_union  (1U<<11)
 #define A_string (1U<<12)
 #define A_cstring (1U<<13)

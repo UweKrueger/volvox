@@ -2037,9 +2037,12 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	else if ((visibility & A_conversion) && !(visibility & A_constructor)) {
 		std::vector<volvoxc::FullType*> targetType = { Proto->ArgTypes[0], Proto->RetType };
 		Proto->Name = Mangle(lex.module->import_path, unmangledName, targetType, Proto->visibility).c_str();
+	} else {
+		unsigned flags = Proto->visibility;
+		if ((flags & A_constructor) && Proto->RetType && !Proto->RetType->type->isVoidTy())
+			flags |= A_constructor_value_return;
+		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, flags).c_str();
 	}
-	else
-		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, Proto->visibility).c_str();
 	if (visibility & A_constructor) {
 		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) // default constructor
 			AutoMethods[Proto->ArgTypes[0]->mangled_name].first = Proto->Name;

@@ -193,10 +193,11 @@ llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::s
 		unsigned idx = 0;
 		if (reverse)
 			mangled << arg_types[0];
-		else for (auto type : arg_types) {
-			if (idx++ || !(flags & A_method))
-				mangled << type;
-		}
+		else
+			for (auto type : arg_types) {
+				if (idx++ || !(flags & A_method) || (flags & A_constructor_value_return))
+					mangled << type;
+			}
 	} else
 		mangled << 'v';
 	if (flags & A_conversion)
