@@ -1344,7 +1344,9 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 				RetVal = Expr->codegen_raw(this_ret_ptr);
 			} else {
 				llvm::Value* tmp = CreateEntryBlockAlloca(Expr->ft->type);
-				RetVal = Expr->codegen_raw(tmp);
+				if (!Expr->codegen_raw(tmp))
+					return false;
+				RetVal = Builder->CreateLoad(Expr->ft->type, tmp);
 			}
 		} else {
 			RetVal = Expr->codegen();

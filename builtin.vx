@@ -418,14 +418,12 @@ end
 
 inline fn complex/(d f64) complex
 	q = 1 / d
-	res = complex(q * this.real, q * this.imag)
-	return res
+	return complex(q * this.real, q * this.imag)
 end
 
 inline fn complex/(d imaginary) complex
 	q = 1i / d
-	res = complex(q * this.imag, -q * this.real)
-	return res
+	return complex(q * this.imag, -q * this.real)
 end
 
 inline fn c32/(d f32) c32
