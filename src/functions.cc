@@ -1190,11 +1190,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			if (!arg)
 				return nullptr;
 			if ((i+arg_offs) >= Proto->Args.size()) {
-				if (arg->getType()->isFloatingPointTy() && !arg->getType()->isDoubleTy()) {
+				if (arg->getType()->isFloatTy()) {
 					// C convention: variadic float args must be promoted to double
-					if (!arg->getType()->isFloatTy())
-						arg = Builder->CreateFPCast(arg, llvm::Type::getFloatTy(Context), "convtofptmp");
-					arg = Builder->CreateBitCast(arg, llvm::Type::getInt32Ty(Context));
+					arg = Builder->CreateFPCast(arg, llvm::Type::getDoubleTy(Context));
 				} else if (auto intT = llvm::dyn_cast<llvm::IntegerType>(arg->getType())) {
 					// same with short integers
 					if (intT->getBitWidth() < 32)
