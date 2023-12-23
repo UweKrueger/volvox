@@ -952,7 +952,11 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				is_call_expr = true;
 				if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
 					is_constructor_call = true;
-			}
+			} else if (dynamic_cast<BinaryExprAST*>(expr->RHS.get()) ||
+			           dynamic_cast<PostfixExprAST*>(expr->RHS.get()) ||
+			           dynamic_cast<UnaryExprAST*>(expr->RHS.get()) ||
+			           dynamic_cast<BranchExprAST*>(expr->RHS.get()))
+				is_call_expr = true;
 			if (is_constructor_call || allocsz > 16)
 				use_target = true;
 		} else if (expr->RHS->ft->type_attr & A_map)
@@ -1486,7 +1490,12 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				// check that this is not just an explicit basic type conversion like 'f64(i)'
 				if (llvm::isa<llvm::StructType>(type_expr->ft->type))
 					is_constructor_call = true;
-		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
+		} else if (dynamic_cast<BinaryExprAST*>(RHS.get()) ||
+		           dynamic_cast<PostfixExprAST*>(RHS.get()) ||
+		           dynamic_cast<UnaryExprAST*>(RHS.get()) ||
+		           dynamic_cast<BranchExprAST*>(RHS.get()))
+				is_call_expr = true;
+		else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref(true);
 			if (!ValR.second) {
 				if (LREF) {
