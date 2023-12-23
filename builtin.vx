@@ -436,6 +436,22 @@ inline fn c32/(d j32) c32
 	return c32(q * this.imag, -q * this.real)
 end
 
+inline fn f64/(c complex) complex
+	return complex(this, 0) / c
+end
+
+inline fn f32/(c c32) c32
+	return c32(this, 0) / c
+end
+
+inline fn imaginary/(c complex) complex
+	return complex(0, -this * 1i) / c
+end
+
+inline fn j32/(c c32) c32
+	return c32(0, -this * 1fi) / c
+end
+
 inline fn complex*(c f64) complex
 	return complex{
 		real: c * this.real

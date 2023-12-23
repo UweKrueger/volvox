@@ -685,7 +685,7 @@ public:
 	}
 	// method for adding built-in types - no mangling is used
 	MapNode* add(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr) {
-		const char* existing_name = get_name(type);
+		const char* existing_name = get_name(type, (bool)(type_attr & A_signed));
 		// keep only one "canonical name" in FullType - the first one used for this LLVM-type
 		// no "strdup()" is necessary since this is always called with literal constant names
 		const char* canonical_name = existing_name ? existing_name : name;

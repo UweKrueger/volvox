@@ -1987,6 +1987,8 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		}
 	}
 	auto Proto = ParsePrototype(visibility);
+	if (!Proto)
+		return nullptr;
 	if ((Proto->visibility & A_constructor) && !(Proto->visibility & A_conversion))
 		function_return_kind = return_constructor;
 	else if (Proto->visibility & A_destructor)
