@@ -933,6 +933,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	FullVar* is_referencing = nullptr;
 	unsigned attribs = 0;
 	unsigned is_union = expr->RHS->ft->type_attr & A_union;
+	bool is_call_expr = false;
 	bool is_constructor_call = false;
 	bool use_target = false;
 	bool have_array = false;
@@ -948,6 +949,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	} else {
 		if (llvm::isa<llvm::StructType>(expr->RHS->ft->type)) {
 			if (auto callexpr = dynamic_cast<CallExprAST*>(expr->RHS.get())) {
+				is_call_expr = true;
 				if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
 					is_constructor_call = true;
 			}
@@ -955,7 +957,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				use_target = true;
 		} else if (expr->RHS->ft->type_attr & A_map)
 			use_target = true;
-		needs_constructor = !is_constructor_call && (expr->RHS->ft->type_attr & A_constructor);
+		needs_constructor = !is_call_expr && (expr->RHS->ft->type_attr & A_constructor);
 		if (!use_target && (!initialization_from_main || rhs_is_constexpr)) {
 			if (rhs_is_constexpr && (sym_kind & A_const) && expr->RHS->is_unknown_type)
 				if (expr->RHS->ft->type->isIntegerTy())
@@ -1476,8 +1478,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* Struct = nullptr;
 		FullVar* is_referencing = nullptr;
 		std::string* rname = nullptr;
+		bool is_call_expr = false;
 		bool is_constructor_call = false;
 		if (auto callexpr = dynamic_cast<CallExprAST*>(RHS.get())) {
+			is_call_expr = true;
 			if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
 				// check that this is not just an explicit basic type conversion like 'f64(i)'
 				if (llvm::isa<llvm::StructType>(type_expr->ft->type))
@@ -1720,14 +1724,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << "unhandled case\n";
 			return nullptr;
 		}
-		if ((entry->ft.type_attr & A_constructor) && !is_constructor_call) {
+		if ((entry->ft.type_attr & A_constructor) && !is_call_expr) {
 			// no explicit constructor call but there is a default constructor
 			auto F = getConstructorOrDestructor(&entry->ft);
 			if (!F) {
 				errs() << ": internal error - default constructor not found for " << *entry->ft.type << "\n";
 				return nullptr;
-			} else
+			} else {
 				Builder->CreateCall(F, { entry->val });
+			}
 		}
 		ft->type = llvm::Type::getVoidTy(Context);
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));

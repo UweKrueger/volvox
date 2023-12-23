@@ -448,9 +448,8 @@ inline fn f64*(d complex) complex
 end
 
 inline fn complex*(c complex) complex
-	p = complex(this.real * c.real - this.imag * c.imag,
+	return complex(this.real * c.real - this.imag * c.imag,
 		this.real * c.imag + this.imag * c.real)
-	return p
 end
 
 inline fn c32*(f f32) c32
@@ -462,7 +461,6 @@ inline fn f32*(c c32) c32
 end
 
 inline fn c32*(c c32) c32
-	p = c32(this.real * c.real - this.imag * c.imag,
+	return c32(this.real * c.real - this.imag * c.imag,
 		this.real * c.imag + this.imag * c.real)
-	return p
 end
