@@ -1355,15 +1355,17 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 			errs() << Operand->Loc << ": 'task' requires a call expression as operand\n";
 			return nullptr;
 		}
-		if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(Operand->ft->type)) { // operator method
+		bool op_is_struct_ty = llvm::isa<llvm::StructType>(Operand->ft->type);
+		if (op_is_struct_ty || (Operand->ft->type_attr & A_complex)) { // operator method
 			auto fnName = "unary" + Op;
-			if (auto Protos = findProtos(Operand->ft->mangled_name, fnName)) {
+			const char* mangled_name = op_is_struct_ty ? Operand->ft->mangled_name : "c32";
+			if (auto Protos = findProtos(mangled_name, fnName)) {
 				auto m_ident = std::make_unique<IdentExprAST>(Loc, std::move(fnName));
 				auto method = std::make_unique<MethodExprAST>(
 					Loc, std::move(Operand), std::move(m_ident), Protos);
 				return std::make_unique<CallExprAST>(Loc, std::move(method));
 			} else {
-				errs() << Loc << ": unary '" << Op << "' not defined for operand of type " << *struct_ty << "\n";
+				errs() << Loc << ": unary '" << Op << "' not defined for operand of type " << *Operand->ft << "\n";
 				return nullptr;
 			}
 		} else {

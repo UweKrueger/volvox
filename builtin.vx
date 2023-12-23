@@ -464,3 +464,19 @@ inline fn c32*(c c32) c32
 	return c32(this.real * c.real - this.imag * c.imag,
 		this.real * c.imag + this.imag * c.real)
 end
+
+inline fn c32-() c32
+	return c32(-this.real, -this.imag)
+end
+
+inline fn c32+() c32
+	return this
+end
+
+inline fn complex-() complex
+	return complex(-this.real, -this.imag)
+end
+
+inline fn complex+() complex
+	return this
+end
