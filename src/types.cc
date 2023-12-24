@@ -91,9 +91,13 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 	unsigned desired_attr, bool is_explicit, bool is_unknown_type, bool* exact_match)
 {
 	bool expr_is_signed = expr_attr & A_signed;
+	bool expr_is_imag = (expr_attr & A_imaginary) && (expr_type->isFloatTy() || expr_type->isDoubleTy());
 	bool desired_is_signed = desired_attr & A_signed;
+	bool desired_is_imag = (desired_attr & A_imaginary) && (desired_type->isFloatTy() || desired_type->isDoubleTy());
 	if (!expr_type)
 		return nullptr;
+	// if (expr_is_imag != desired_is_imag)
+	// 	return nullptr;
 	if (expr_type == desired_type && (expr_is_signed == desired_is_signed || !expr_type->isIntegerTy())) {
 		if (exact_match)
 			*exact_match = true;
@@ -568,8 +572,8 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 {
 	if ((left_attr & (A_string | A_cstring)) || (right_attr & (A_string | A_cstring)))
 		return getStringRes(left_type, right_type, Op, left_attr, right_attr);
-	bool left_is_signed = left_attr & A_signed;
-	bool right_is_signed = right_attr & A_signed;
+	bool left_is_signed = (left_attr & A_signed);
+	bool right_is_signed = (right_attr & A_signed);
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
 	auto opclass = getOpClass(Op);
@@ -632,7 +636,9 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	if (res_is_float)
 		res_bitwidth = Min(res_bitwidth, 53); // limit to f64
 	unsigned res_attr = 0;
-	if (!res_is_float && res_is_signed)
+	if (res_is_float)
+		res_attr &= ~A_signed;
+	else if (res_is_signed)
 		res_attr |= A_signed;
 	return { getFittingType(res_bitwidth, res_is_float), res_attr, res_is_unknown_type, opclass, nullptr };
 }
