@@ -570,6 +570,17 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* struct_type, const char* elem_ptr,
                          unsigned num_fields, int indent, int w, int p, unsigned flags)
 {
+	if (struct_type->name && !strcmp(struct_type->name, "complex")) {
+		if (p <= 0)
+			p = F64_DEFAULT_PRECISION;
+		prt_float(s, cap, pos, *cap - *pos, *(double*)elem_ptr, w, p, flags);
+		const char* sp = *((double*)elem_ptr + 1) < 0 ? " - " : " + ";
+		double im = *((double*)elem_ptr + 1) < 0 ? -*((double*)elem_ptr + 1) : *((double*)elem_ptr + 1);
+		prtstring(s, cap, pos, sp, w);
+		prt_float(s, cap, pos, 0, im, w, p, flags);
+		prtstring(s, cap, pos, "i", w);
+		return;
+	}
 	if (indent < 0)
 		prtstring(s, cap, pos, " ", 0);
 	if (struct_type->name)
