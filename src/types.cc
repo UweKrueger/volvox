@@ -96,8 +96,8 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 	bool desired_is_imag = (desired_attr & A_imaginary) && (desired_type->isFloatTy() || desired_type->isDoubleTy());
 	if (!expr_type)
 		return nullptr;
-	// if (expr_is_imag != desired_is_imag)
-	// 	return nullptr;
+	if (expr_is_imag != desired_is_imag)
+		return nullptr;
 	if (expr_type == desired_type && (expr_is_signed == desired_is_signed || !expr_type->isIntegerTy())) {
 		if (exact_match)
 			*exact_match = true;
@@ -586,7 +586,7 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	unsigned res_bitwidth;
 	bool res_is_unknown_type = left_is_unknown_type & right_is_unknown_type;
 	bool res_is_float = left_is_float || right_is_float;
-	bool res_is_signed = left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type || left_is_signed && right_is_signed;
+	bool res_is_signed = (left_is_signed && !left_is_unknown_type || right_is_signed && !right_is_unknown_type || left_is_signed && right_is_signed) && !res_is_float;
 	bool left_is_imag = left_is_float & left_is_signed;
 	bool right_is_imag = right_is_float & right_is_signed;
 	if (left_is_imag || right_is_imag)

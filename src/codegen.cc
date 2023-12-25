@@ -3400,10 +3400,18 @@ llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {
 	if (!rawV)
 		return nullptr;
 	if (desired_type && rawV && rawV->getType() != desired_type && !rawV->getType()->isVoidTy()) {
+		unsigned desired_attr = 0;
+		if (ft->type->isIntegerTy()) {
+			if (desired_type->isIntegerTy())
+				if (conv_kind == ConvSigned || conv_kind == ConvImplicit && (ft->type_attr & A_signed))
+					desired_attr |= A_signed;
+		} else if (!desired_type->isIntegerTy())
+			desired_attr = ft->type_attr & A_imaginary;
+		if (((conv_kind == ConvImplicit && (ft->type_attr & A_signed))
+		     || conv_kind == ConvSigned) && !(ft->type->isIntegerTy() && !desired_type->isIntegerTy()))
+			desired_attr = ft->type_attr & A_signed;
 		auto postConv = getConv(rawV->getType(), desired_type, Loc, ft->type_attr,
-		                        conv_kind == ConvImplicit ? (ft->type_attr & A_signed) :
-		                        (conv_kind == ConvSigned ? A_signed : 0),
-		                        conv_kind != ConvImplicit, is_unknown_type);
+		                        desired_attr, is_unknown_type);
 		if (postConv) {
 			llvm::Value* V = postConv(rawV);
 			return V;
