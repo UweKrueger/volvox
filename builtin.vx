@@ -459,8 +459,16 @@ inline fn complex*(c f64) complex
 	}
 end
 
-inline fn f64*(d complex) complex
-	return d * this
+inline fn f64*(c complex) complex
+	return c * this
+end
+
+inline fn complex*(i imaginary) complex
+	return complex(-(i / 1i) * this.imag, (i / 1i) * this.real)
+end
+
+inline fn imaginary*(c complex) complex
+	return c * this
 end
 
 inline fn complex*(c complex) complex
@@ -473,13 +481,103 @@ inline fn c32*(f f32) c32
 end
 
 inline fn f32*(c c32) c32
-	return c32(this * c.real, this * c.imag)
+	return c * this
+end
+
+inline fn c32*(i j32) c32
+	return c32(-(i / 1fi) * this.imag, (i / 1fi) * this.real)
+end
+
+inline fn j32*(c c32) c32
+	return c * this
 end
 
 inline fn c32*(c c32) c32
 	return c32(this.real * c.real - this.imag * c.imag,
 		this.real * c.imag + this.imag * c.real)
 end
+
+inline fn complex+(c complex) complex
+	return complex(this.real + c.real, this.imag + c.imag)
+end
+
+inline fn complex-(c complex) complex
+	return complex(this.real - c.real, this.imag - c.imag)
+end
+
+inline fn complex+(r real) complex
+	return complex(this.real + r, this.imag)
+end
+
+inline fn complex-(r real) complex
+	return complex(this.real - r, this.imag)
+end
+
+inline fn complex+(i imaginary) complex
+	return complex(this.real, this.imag + i / 1i)
+end
+
+inline fn complex-(i imaginary) complex
+	return complex(this.real, this.imag - i / 1i)
+end
+
+inline fn real+(c complex) complex
+	return complex(this + c.real, c.imag)
+end
+
+inline fn real-(c complex) complex
+	return complex(this - c.real, -c.imag)
+end
+
+inline fn imaginary+(c complex) complex
+	return complex(c.real, this / 1i + c.imag)
+end
+
+inline fn imaginary-(c complex) complex
+	return complex(-c.real, this / 1i - c.imag)
+end
+
+inline fn c32+(c c32) c32
+	return c32(this.real + c.real, this.imag + c.imag)
+end
+
+inline fn c32-(c c32) c32
+	return c32(this.real - c.real, this.imag - c.imag)
+end
+
+inline fn c32+(r f32) c32
+	return c32(this.real + r, this.imag)
+end
+
+inline fn c32-(r f32) c32
+	return c32(this.real - r, this.imag)
+end
+
+inline fn c32+(i j32) c32
+	return c32(this.real, this.imag + i / 1if)
+end
+
+inline fn c32-(i j32) c32
+	return c32(this.real, this.imag - i / 1if)
+end
+
+inline fn f32+(c c32) c32
+	return c32(this + c.real, c.imag)
+end
+
+inline fn f32-(c c32) c32
+	return c32(this - c.real, -c.imag)
+end
+
+inline fn j32+(c c32) c32
+	return c32(c.real, this / 1if + c.imag)
+end
+
+inline fn j32-(c c32) c32
+	return c32(-c.real, this / 1if - c.imag)
+end
+
+# unary operators
 
 inline fn c32-() c32
 	return c32(-this.real, -this.imag)
