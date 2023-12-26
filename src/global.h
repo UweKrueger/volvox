@@ -380,6 +380,12 @@ enum OpClass : uint8_t {
 	OpComma
 };
 
+enum conv_match_t : uint8_t {
+	exact_match = 0,
+	conversion_match, // using default type for untyped
+	untyped_match,
+};
+
 extern llvm::Value* Volvox2CStr(llvm::Value* v);
 extern llvm::Value* StringDup(llvm::Value* str);
 
@@ -400,7 +406,7 @@ static inline std::nullptr_t ExplicitErr(SourceLocation Loc, llvm::Type* expr_ty
 extern OpClass getOpClass(const char* Op);
 extern std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc = CurLoc, unsigned expr_attr = 0,
-	unsigned desired_attr = 0, bool is_explicit = false, bool is_unknown_type = false, bool* exact_match = nullptr);
+	unsigned desired_attr = 0, bool is_explicit = false, bool is_unknown_type = false, conv_match_t* match = nullptr);
 extern std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(
 	llvm::Type* res_type, llvm::Type* desired_res,
 	llvm::Type* left_type, llvm::Type* right_type, OpClass opclass, bool res_min_is_signed,

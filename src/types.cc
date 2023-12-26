@@ -88,7 +88,7 @@ static llvm::Type* getFittingType(unsigned bitwidth, bool is_float = false, bool
 // is requested but precision would be lost
 std::function<llvm::Value*(llvm::Value*)> getConv(
 	llvm::Type* expr_type, llvm::Type* desired_type, SourceLocation Loc, unsigned expr_attr,
-	unsigned desired_attr, bool is_explicit, bool is_unknown_type, bool* exact_match)
+	unsigned desired_attr, bool is_explicit, bool is_unknown_type, conv_match_t* match)
 {
 	bool expr_is_signed = expr_attr & A_signed;
 	bool expr_is_imag = (expr_attr & A_imaginary) && (expr_type->isFloatTy() || expr_type->isDoubleTy());
@@ -99,12 +99,12 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 	if (expr_is_imag != desired_is_imag)
 		return nullptr;
 	if (expr_type == desired_type && (expr_is_signed == desired_is_signed || !expr_type->isIntegerTy())) {
-		if (exact_match)
-			*exact_match = true;
+		if (match)
+			*match = exact_match;
 		return NoConversion;
 	}
-	if (exact_match)
-		*exact_match = false;
+	if (match)
+		*match = conversion_match;
 	const char* reason = "";
 	auto desired_descr = getBitWidth(desired_type);
 	unsigned desired_bitwidth = desired_descr.first;
@@ -177,8 +177,8 @@ no_explicit_constructor:
 			desired_array = llvm::dyn_cast<llvm::ArrayType>(desired_elem);
 		} while (expr_array);
 		if (expr_elem == desired_elem && (expr_is_signed == desired_is_signed || !expr_elem->isIntegerTy())) {
-			if (exact_match)
-				*exact_match = true;
+			if (match)
+				*match = exact_match;
 			return NoConversion;
 		} else {
 			return nullptr;
@@ -208,11 +208,15 @@ no_explicit_constructor:
 				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "float truncation");
 		else if (llvm::isa<llvm::IntegerType>(expr_type))
 			if (is_explicit || is_unknown_type || desired_bitwidth >= expr_bitwidth
-			    || desired_bitwidth >= 53) // always allow conversion to f64
+			    || desired_bitwidth >= 53) { // always allow conversion to f64
+				if (desired_bitwidth < 53 && desired_bitwidth < expr_bitwidth)
+					if (match)
+						*match = untyped_match;
 				if (expr_is_signed)
 					return [=](llvm::Value* v) { return Builder->CreateSIToFP(v, desired_type, "convsfptmp"); };
 				else
 					return [=](llvm::Value* v) { return Builder->CreateUIToFP(v, desired_type, "convufptmp"); };
+			}
 			else
 				return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "int->float would lose precision");
 		else
@@ -241,8 +245,11 @@ no_explicit_constructor:
 				else
 					// unsigned -> unsigned
 					if (desired_bitwidth < expr_bitwidth)
-						if (is_explicit || is_unknown_type)
+						if (is_explicit || is_unknown_type) {
+							if (match)
+								*match = untyped_match;
 							return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "trunctmp"); };
+						}
 						else
 							return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "would truncate upper bits");
 					else

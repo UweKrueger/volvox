@@ -110,7 +110,6 @@ void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const ch
 
 int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
                 std::vector<FnArg>& fnargs, SourceLocation Loc) {
-	bool exact_match = false;
 	int noundefcandidate = -1;
 	int candidate = -1;
 	// there are 3 classes of match for a function signature:
@@ -147,7 +146,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		bool with_conv = true;
 		bool with_undefconv = true;
 		for (int i=0; i<fnargs.size(); i++) {
-			bool arg_matches_exactly = false;
+			conv_match_t match_kind = untyped_match;
 			std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
 			if (i >= proto->ArgTypes.size()) {
 				if (candidate < 0)
@@ -158,56 +157,42 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 					    || (fnargs[i].argtype_attr & A_cstring) && (proto->ArgTypes[i]->type_attr & A_cstring)
 					    || !(fnargs[i].argtype_attr & (A_string | A_cstring)) && !(proto->ArgTypes[i]->type_attr & (A_string | A_cstring))) {
 						conv = nullptr;
-						arg_matches_exactly = true;
+						match_kind = exact_match;
 					} else if ((fnargs[i].argtype_attr & A_string) && (proto->ArgTypes[i]->type_attr & A_cstring)) {
 						conv = Volvox2CStr;
-						arg_matches_exactly = false;
+						match_kind = conversion_match;
 					} else {
 						conv = nullptr;
-						arg_matches_exactly = false;
+						match_kind = untyped_match;
 					}
 				} else if (fnargs[i].argtype && fnargs[i].argtype->isPointerTy() && !(fnargs[i].argtype_attr & A_string)
 				           && (proto->ArgTypes[i]->type_attr & A_optional)) {
 					conv = nullptr;
-					arg_matches_exactly = true;
+					match_kind = exact_match;
 				} else {
 					if (fnargs[i].is_anonymous_list && (proto->ArgTypes[i]->type->isStructTy() || proto->ArgTypes[i]->type->isArrayTy()))
 						conv = NoConversion;
 					else
 						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
 						               fnargs[i].argtype_attr, proto->ArgTypes[i]->type_attr,
-						               false, false, &arg_matches_exactly);
+						               false, fnargs[i].arg_unknown_type, &match_kind);
 				}
-				if (arg_matches_exactly) {
+				if (match_kind == exact_match) {
 					if (!cands1)
 						fnargs[i].Conv = nullptr;
 					if (!cands2)
 						convs2[i] = nullptr;
 					if (!cands3)
 						convs3[i] = nullptr;
-				} else if (fnargs[i].arg_unknown_type) {
+				} else if (match_kind == conversion_match) {
 					exact = false;
-					if (conv) {
-						if (!cands2)
-							convs2[i] = conv;
-						if (!cands3)
-							convs3[i] = conv;
-					} else {
-						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
-						               fnargs[i].argtype_attr, proto->ArgTypes[i]->type_attr,
-						               false, true, nullptr);
-						if (conv) {
-							if (!cands2)
-								convs2[i] = conv;
-							if (!cands3)
-								convs3[i] = conv;
-						} else {
-							with_conv = with_undefconv = false;
-							break;
-						}
-					}
+					if (!cands2)
+						convs2[i] = conv;
+					if (!cands3)
+						convs3[i] = conv;
 				} else if (conv || (proto->ArgTypes[i]->type->isStructTy() || proto->ArgTypes[i]->type->isArrayTy()) && fnargs[i].is_anonymous_list) {
-					exact = with_undefconv = false;
+					exact = false;
+					with_conv = false;
 					if (!cands3)
 						convs3[i] = conv;
 				} else {
@@ -219,9 +204,9 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		if (exact) {
 			selected_idx = i_proto; // we are done - this is the best (the only exact) match
 			goto check_selected_proto;
-		} else if (with_undefconv) {
-			candidates_2[cands2++] = i_proto;
 		} else if (with_conv) {
+			candidates_2[cands2++] = i_proto;
+		} else if (with_undefconv) {
 			candidates_3[cands3++] = i_proto;
 		}
 		i_proto++;
