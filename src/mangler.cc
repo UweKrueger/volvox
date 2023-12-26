@@ -101,6 +101,8 @@ llvm::SmallString<128> MangleOp(llvm::SmallString<128> buf, const std::string& n
 			mangled << "dv";
 		else if (Op == "%")
 			mangled << "rm";
+		else if (Op == "^")
+			mangled << "eo";
 		else if (Op == "=")
 			mangled << "aS";
 		else if (Op == "+=")

@@ -445,11 +445,11 @@ inline fn f32/(c c32) c32
 end
 
 inline fn imaginary/(c complex) complex
-	return complex(0, -this * 1i) / c
+	return complex(0, this / 1i) / c
 end
 
 inline fn j32/(c c32) c32
-	return c32(0, -this * 1fi) / c
+	return c32(0, this / 1fi) / c
 end
 
 inline fn complex*(c f64) complex
@@ -593,4 +593,86 @@ end
 
 inline fn complex+() complex
 	return this
+end
+
+cdecl(cabsf) abs(c c32) f32
+cdecl(cabs) abs(c complex) real
+
+cdecl(cpow) __cpow(b complex, e complex) complex
+cdecl(cpowf) __cpow(b c32, e c32) c32
+
+inline fn complex^(e int) complex
+	if e < 16
+		b = this
+		i = u8(e)
+		if i & 1
+			p = b
+		else
+			p = 1+0i
+		end
+		b = b * b
+		if i & 2
+			p = p * b
+		end
+		b = b * b
+		if i & 4
+			p = p * b
+		end
+		b = b * b
+		if i & 8
+			p = p * b
+		end
+		return p
+	else
+		return __cpow(this, complex(e, 0))
+end end
+
+inline fn c32^(e int) c32
+	if e >= 0 && e < 16
+		b = this
+		i = u8(e)
+		if i & 1
+			p = b
+		else
+			p = 1f+0fi
+		end
+		b = b * b
+		if i & 2
+			p = p * b
+		end
+		b = b * b
+		if i & 4
+			p = p * b
+		end
+		b = b * b
+		if i & 8
+			p = p * b
+		end
+		return p
+	else
+		return __cpow(this, c32(f32(e), 0))
+end end
+
+inline fn complex^(e f64) complex
+	return __cpow(this, complex(e, 0))
+end
+
+inline fn c32^(e f32) c32
+	return __cpow(this, c32(e, 0))
+end
+
+inline fn complex^(e j64) complex
+	return __cpow(this, 0 + e)
+end
+
+inline fn c32^(e j32) c32
+	return __cpow(this, 0 + e)
+end
+
+inline fn complex^(e complex) complex
+	return __cpow(this, e)
+end
+
+inline fn c32^(e c32) c32
+	return __cpow(this, e)
 end
