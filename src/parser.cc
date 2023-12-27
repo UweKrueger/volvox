@@ -1546,7 +1546,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		if (LHS_type && RHS_type) {
 			if (LHS_type->isStructTy() || (LHS_attr & A_complex)) {
 				auto fnName = "binary" + BinOp;
-				const char* mangled_name = LHS_type->isStructTy() ? LHS->ft->mangled_name : "c32";
+				const char* mangled_name = LHS_type->isStructTy() ? LHS->ft->mangled_name : "3c32";
 				if (auto Protos = findProtos(mangled_name, fnName)) {
 					auto m_ident = std::make_unique<IdentExprAST>(BinLoc, std::move(fnName));
 					auto method = std::make_unique<MethodExprAST>(
@@ -2060,7 +2060,15 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	} else if (visibility & A_destructor)
 		AutoMethods[Proto->ArgTypes[0]->mangled_name].second = Proto->Name;
 	if (Proto->visibility & A_method) {
-		std::string mangled_receiver_type(Proto->ArgTypes[0]->mangled_name);
+		std::string mangled_receiver_type;
+		if (Proto->ArgTypes[0]->type->isStructTy())
+			mangled_receiver_type = Proto->ArgTypes[0]->mangled_name;
+		else if (Proto->ArgTypes[0]->type_attr & A_complex)
+			mangled_receiver_type = "3c32";
+		else {
+			errs() << Proto->retLoc << ": cannot declare method for type '" << *Proto->ArgTypes[0] << "'\n";
+			return nullptr;
+		}
 		if (!check_and_add_proto(MethodProtos[{mangled_receiver_type, unmangledName}], std::move(Proto), unmangledName, true))
 			return nullptr;
 	} else if (!strncmp(unmangledName.c_str(), TEST_FN_PREFIX, sizeof(TEST_FN_PREFIX)-1)) {

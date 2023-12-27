@@ -182,9 +182,9 @@ llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::s
 	const char* rec_tname;
 	if ((flags & A_method) && !(flags & (A_destructor | A_constructor | A_conversion)))
 		if (reverse)
-			rec_tname = arg_types[1]->mangled_name;
+			rec_tname = (!arg_types[1]->type->isStructTy() && (arg_types[1]->type_attr & A_complex)) ? "3c32" : arg_types[1]->mangled_name;
 		else
-			rec_tname = arg_types[0]->mangled_name;
+			rec_tname = (!arg_types[0]->type->isStructTy() && (arg_types[0]->type_attr & A_complex)) ? "3c32" : arg_types[0]->mangled_name;
 	else
 		rec_tname = nullptr;
 	buf = MangleBase(buf, path, name, rec_tname, flags, is_op, reverse, unary);
