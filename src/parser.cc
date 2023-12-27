@@ -1358,7 +1358,7 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 		bool op_is_struct_ty = llvm::isa<llvm::StructType>(Operand->ft->type);
 		if (op_is_struct_ty || (Operand->ft->type_attr & A_complex)) { // operator method
 			auto fnName = "unary" + Op;
-			const char* mangled_name = op_is_struct_ty ? Operand->ft->mangled_name : "c32";
+			const char* mangled_name = op_is_struct_ty ? Operand->ft->mangled_name : "3c32";
 			if (auto Protos = findProtos(mangled_name, fnName)) {
 				auto m_ident = std::make_unique<IdentExprAST>(Loc, std::move(fnName));
 				auto method = std::make_unique<MethodExprAST>(
@@ -1558,7 +1558,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			}
 			if (RHS_type->isStructTy() || (RHS_attr & A_complex)) {
 				auto fnName = "reverse" + BinOp;
-				const char* mangled_name = RHS_type->isStructTy() ? RHS->ft->mangled_name : "c32";
+				const char* mangled_name = RHS_type->isStructTy() ? RHS->ft->mangled_name : "3c32";
 				if (auto Protos = findProtos(mangled_name, fnName)) {
 					auto m_ident = std::make_unique<IdentExprAST>(BinLoc, std::move(fnName));
 					auto method = std::make_unique<MethodExprAST>(
