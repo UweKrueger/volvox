@@ -669,31 +669,30 @@ llvm::Function *PrototypeAST::codegen() {
 		llvm::Function::Create(FT, link_typ, 0, Name, TheModule.get());
 	// Set names for all arguments.
 	unsigned Idx = 0;
+	unsigned ArgIdx = 0;
 	if (IsStructRet) {
-		if (ArgAttrs[Idx].hasAttributes()) {
 #if LLVM_VERSION_MAJOR >= 14
-			llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx]);
-			F->getArg(Idx)->addAttrs(attr_builder);
+		llvm::AttrBuilder attr_builder(Context, llvm::Attribute::getWithStructRetType(Context, RetType->type));
+		F->getArg(Idx)->addAttrs(attr_builder);
 #else
-			for (auto attr: ArgAttrs[Idx])
-				F->getArg(Idx)->addAttr(attr);
+		F->getArg(Idx)->addAttr(llvm::Attribute::getWithStructRetType(Context, RetType->type));
 #endif
-		}
 		Idx++;
 	}
 	for (auto &Arg : Args) {
 		auto fnarg = F->getArg(Idx);
-		if (ArgAttrs[Idx].hasAttributes()) {
+		if (ArgAttrs[ArgIdx].hasAttributes()) {
 #if LLVM_VERSION_MAJOR >= 14
-			llvm::AttrBuilder attr_builder(Context, ArgAttrs[Idx]);
+			llvm::AttrBuilder attr_builder(Context, ArgAttrs[ArgIdx]);
 			fnarg->addAttrs(attr_builder);
 #else
-			for (auto attr: ArgAttrs[Idx])
+			for (auto attr: ArgAttrs[ArgIdx])
 				fnarg->addAttr(attr);
 #endif
 		}
 		fnarg->setName(Arg);
 		Idx++;
+		ArgIdx++;
 	}
 	if (visibility & A_inline)
 		F->addFnAttr(llvm::Attribute::AlwaysInline);
@@ -996,7 +995,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	if (Proto->visibility & A_constructor && (type_expr = dynamic_cast<TypeExprAST*>(Callee.get()))) {
 		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
 		llvm::Value* ret_val = nullptr;
-		if ((!target || (intptr_t)target == -1) && (allocsz > 16 || (type_expr->ft->type_attr & A_constructor)))
+		if ((!target || (intptr_t)target == -1) && (allocsz > sret_limit || (type_expr->ft->type_attr & A_constructor)))
 			target = ret_val = CreateEntryBlockAlloca(type_expr->ft->type, "");
 		if (target && (intptr_t)target != -1)
 			Builder->CreateStore(llvm::Constant::getNullValue(ft->type), target);
@@ -1022,7 +1021,6 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	if (!theFunction)
 		abort();
 	auto FT = Proto->FT;
-	// If argument mismatch error.
 	unsigned arg_offs = (Proto->visibility & A_method) ? 1 : 0;
 	std::vector<llvm::Value *> ArgsV;
 	llvm::Value* ret_struct = nullptr;
@@ -1046,7 +1044,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 			if (!receiver_ref) {
 				if (method->Receiver->needs_target()) {
-					receiver_ref = Builder->CreateAlloca(method->Receiver->ft->type);
+					receiver_ref = Builder->CreateAlloca(method->Receiver->ft->type, nullptr, "receiver");
 					auto voidval = method->Receiver->codegen_raw(receiver_ref);
 					if (!voidval || !voidval->getType()->isVoidTy()) {
 						errs() << Loc << ": cannot create function call\n";
@@ -1068,30 +1066,30 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	for (unsigned i = 0; i < Args.size(); ++i) {
 		bool by_val = false;
-		bool is_address = (i+arg_offs) < Proto->Args.size()
+		bool is_address = (i+arg_offs) < Proto->ArgAttrs.size()
 			&& (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
 			    || (by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)));
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
-			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= Proto->Args.size() || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
+			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= Proto->ArgAttrs.size() || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
 				arg = Volvox2CStr(arg);
 			ArgsV.push_back(arg);
 		} else {
 			llvm::Type* real_arg_type;
-			if ((i+arg_offs) < Proto->Args.size())
+			if ((i+arg_offs) < Proto->ArgAttrs.size())
 				real_arg_type = Args[i]->desired_type = Proto->ArgTypes[i+arg_offs]->type;
 			else
 				real_arg_type = Args[i]->ft->type;
 			llvm::Value* arg = nullptr;
 			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get()) || dynamic_cast<TypeExprAST*>(Args[i].get());
 			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor))) {
-				arg = Builder->CreateAlloca(Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type);
+				arg = Builder->CreateAlloca(Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type, nullptr, "target");
 				auto voidval = Args[i]->codegen_raw(arg);
 				if (!voidval || !voidval->getType()->isVoidTy()) {
 					errs() << Args[i]->Loc << ": cannot create function call argument\n";
 					return nullptr;
 				}
-				if ((i+arg_offs) < Proto->Args.size() && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
+				if ((i+arg_offs) < Proto->ArgAttrs.size() && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
 					if (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor) {
 						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
 						if (!F) {
@@ -1126,7 +1124,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 								Proto->ArgTypes[i+arg_offs]->type;
 							arg = Builder->CreatePointerCast(Args[i]->codegen_raw(), target_type);
 						} else {
-							arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type);
+							arg = Builder->CreateAlloca(Proto->ArgTypes[i+arg_offs]->type, nullptr, "tmprefarg");
 							//errs() << Loc << ": arg #" << i << " " << *arg << '\n';
 							auto tmparg = Args[i]->codegen_raw();
 							if (!tmparg) {
@@ -1162,7 +1160,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						// Old LLVM versions seem to do illegal optimizations for call by reference
 						// in object code generation mode. These can be suppressed by reloading the
 						// reference after having stored it 'volatile'
-						auto rec_ptr_loc = CreateEntryBlockAlloca(arg->getType());
+						auto rec_ptr_loc = CreateEntryBlockAlloca(arg->getType() "tmp_refarg");
 						Builder->CreateStore(arg, rec_ptr_loc, true);
 						arg = Builder->CreateLoad(arg->getType(), rec_ptr_loc);
 					}
@@ -1174,7 +1172,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 			if (!arg)
 				return nullptr;
-			if ((i+arg_offs) >= Proto->Args.size()) {
+			if ((i+arg_offs) >= Proto->ArgAttrs.size()) {
 				if (arg->getType()->isFloatTy()) {
 					// C convention: variadic float args must be promoted to double
 					arg = Builder->CreateFPCast(arg, llvm::Type::getDoubleTy(Context));
@@ -1274,6 +1272,11 @@ bool FunctionAST::prepare_codegen() {
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
 		if (!mapitem) {
 			errs() << Proto->retLoc << ": internal compiler error: arg #" << ArgIdx << " - '" << Arg->getName() << "' not found in table\n";
+			for (unsigned i=0; i < TheFunction->arg_size(); i++) {
+				auto Arg = TheFunction->getArg(i);
+				errs() << ">" << Arg->getName().str() << "< ";
+			}
+			errs() << "\n";
 			abort();
 		}
 		if (Arg->hasByValAttr() || Arg->hasByRefAttr()) {

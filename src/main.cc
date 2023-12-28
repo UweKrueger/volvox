@@ -46,6 +46,7 @@ unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
 uint64_t target_mask;
 unsigned target_int_bits;
+int sret_limit = 16; // 8 for MSVC
 std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
 CPU_Type_t cpu_idx;
@@ -310,6 +311,7 @@ void init(const llvm::Triple& triple) {
 		break;
 	case llvm::Triple::MSVC:
 		environment_idx = Environment_MSVC;
+		sret_limit = 8;
 		break;
 	case llvm::Triple::Android:
 		environment_idx = Environment_Android;

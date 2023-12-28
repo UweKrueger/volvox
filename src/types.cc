@@ -848,12 +848,12 @@ llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
 }
 
 PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
-                           std::vector<std::string> Args, unsigned visibility, SourceLocation retLoc,
+                           std::vector<std::string> _Args, unsigned visibility, SourceLocation retLoc,
                            unsigned IsOperator, volvoxc::FullType* RetType_,
                            std::vector<volvoxc::FullType*> _ArgTypes,
                            std::vector<SourceLocation> _ArgPos, std::string _returnName,
                            bool IsVarArgs)
-		: Name(Name), Args(Args), IsOperator(IsOperator), retLoc(retLoc),
+	: Name(Name), Args(std::move(_Args)), IsOperator(IsOperator), retLoc(retLoc),
 		  Line(Loc.Line), RetType(RetType_ ? RetType_ : void_type), ArgTypes(std::move(_ArgTypes)),
 		  ArgPos(std::move(_ArgPos)), IsVarArgs(IsVarArgs), returnName(std::move(_returnName)),
 		  visibility(visibility), link_typ(link_type(visibility))
@@ -872,7 +872,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 						llvm::Attribute::getWithDereferenceableBytes(Context, argsize) }));
 			fn_arg_type = fn_arg_type->getPointerTo();
 		} else {
-			if (argsize > 16 || (argtype->type_attr & A_by_value)) { // Arguments > 16 bytes are always passed as pointer using copy-on-write
+			if (argsize > sret_limit || (argtype->type_attr & A_by_value)) { // Arguments > sret_limit bytes are always passed as pointer using copy-on-write
 				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 							llvm::Attribute::getWithByValType(Context, argtype->type) }));
 				fn_arg_type = fn_arg_type->getPointerTo();
@@ -884,14 +884,12 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 	}
 	if ((visibility & (A_constructor | A_destructor)) && RetType->type->isStructTy()) {
 		llvm_ret_type = llvm::Type::getVoidTy(Context);
-	} else if (ret_size <= 16) {
+	} else if (ret_size <= sret_limit) {
 		llvm_ret_type = RetType->type;
 	} else {
 		IsStructRet = true;
 		llvm::Type* struct_ret_type = RetType->type->getPointerTo();
 		LLVMArgTypes.insert(LLVMArgTypes.begin(), struct_ret_type);
-		ArgAttrs.insert(ArgAttrs.begin(), llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
-					llvm::Attribute::getWithStructRetType(Context, RetType->type) }));
 		llvm_ret_type = llvm::Type::getVoidTy(Context);
 	}
 	FT = llvm::FunctionType::get(llvm_ret_type, LLVMArgTypes, IsVarArgs);

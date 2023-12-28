@@ -253,6 +253,7 @@ extern bool support_fp80;
 extern bool needs_libm;
 extern bool have_return;
 extern int return_value;
+extern int sret_limit;
 extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;
 #define Context *TS_Context->getContext()
 extern SourceLocation CurLoc;

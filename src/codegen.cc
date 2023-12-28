@@ -957,7 +957,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			           dynamic_cast<UnaryExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<BranchExprAST*>(expr->RHS.get()))
 				is_call_expr = true;
-			if (is_constructor_call || allocsz > 16)
+			if (is_constructor_call || allocsz > sret_limit)
 				use_target = true;
 		} else if (expr->RHS->ft->type_attr & A_map)
 			use_target = true;
@@ -1023,7 +1023,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// If 'needs_call' is true, this here is part of a module which is going to be
 		// removed later. So in this case it's only a declaration and the 'real'
 		// variable is defined below in a separate module that will stay.
-		if ((sym_kind & A_rvalue) && (sym_kind & A_const) && allocsz && allocsz <= 16 && !needs_call) {
+		if ((sym_kind & A_rvalue) && (sym_kind & A_const) && allocsz && allocsz <= sret_limit && !needs_call) {
 			fv->val = initializer;
 			sym_kind |= A_rvalue;
 			GV = nullptr;
@@ -1536,7 +1536,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 				}
 			} else {
-				if (!LREF && allocsz <= 16 && !is_constructor_call) {
+				if (!LREF && allocsz <= sret_limit && !is_constructor_call) {
 					Val = RHS_Lval->ref2val(ValR);
 					if (!Val)
 						goto use_val;;
@@ -1552,7 +1552,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			}
 		}
 	use_val:
-		if (allocsz <= 16 && !is_constructor_call) {
+		if (allocsz <= sret_limit && !is_constructor_call) {
 			if (RHS->ft->type_attr & A_use_target) {
 				postpone_valgen = true;
 			} else {
@@ -1577,7 +1577,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << LHS->Loc << ": cannot initialize existing variable\n";
 			return nullptr;
 		} else {
-			if (allocsz > 16 || is_constructor_call) {
+			if (allocsz > sret_limit || is_constructor_call) {
 				auto align = getAlignment(allocsz);
 				if (target && (intptr_t)target != -1) {
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
@@ -1718,7 +1718,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					entry->val = Alloca;
 				}
 			}
-		} else if (allocsz > 16 || is_constructor_call) {
+		} else if (allocsz > sret_limit || is_constructor_call) {
 			auto align = getAlignment(allocsz);
 			auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 			auto voidval = RHS->codegen_raw(Alloca);
