@@ -2343,9 +2343,17 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 	}
 	if (Branch.empty()) {
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	} else for (auto& expr : Branch) {
-		BranchV = expr->codegen();
-		InsertDestructors(expr_temps);
+	} else {
+		llvm::Value* ret_target = nullptr;
+		unsigned n_exprs = Branch.size();
+		for (auto& expr : Branch) {
+			if (theFunction_struct_ret && !(--n_exprs))
+				// TODO: handle automatic converstions in this case (?)
+				BranchV = expr->codegen_raw(ret_ptr);
+			else
+				BranchV = expr->codegen();
+			InsertDestructors(expr_temps);
+		}
 	}
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;

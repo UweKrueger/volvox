@@ -624,8 +624,7 @@ inline fn complex^(e int) complex
 		end
 		return p
 	else
-		q = __cpow(this, complex(e, 0))
-		return q
+		return __cpow(this, complex(e, 0))
 end end
 
 inline fn c32^(e int) c32
