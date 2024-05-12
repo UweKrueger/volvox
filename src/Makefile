@@ -13,9 +13,9 @@ ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	NIXTYPE := mingw64
 	LINKEXTRAFLAGS := -ledit -lpthread
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config17 && echo -n true),true)
+ifeq ($(shell test -x /usr/local/bin/llvm-config18 && echo -n true),true)
 	PREFIX := /usr/local
-	SUFFIX := 17
+	SUFFIX := 18
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-16 && echo -n true),true)
 	PREFIX := /usr/local
@@ -135,15 +135,19 @@ endif
 
 CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -std=c++20 -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
 LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
-PRJH = ../include/volvox-$(LLVMVERSION).hh
-
-PCH = $(PRJH:%.hh=%.hh.gch)
+PRJH := ../include/volvox-$(LLVMVERSION).hh
 
 ifeq ($(CC),gcc)
 	CXX := g++
 	INCPCH := -include $(PRJH)
+	PCH := $(PRJH:%.hh=%.hh.gch)
 else
 	CXX := clang++$(SUFFIX)
+ifeq ($(LLVMVERSION),18)
+	PCH := $(PRJH:%.hh=%.hh.pch)
+else
+	PCH := $(PRJH:%.hh=%.hh.gch)
+endif
 	INCPCH := -include-pch $(PCH)
 endif
 
