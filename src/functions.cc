@@ -524,7 +524,7 @@ llvm::Value* Volvox2CStr2(llvm::Value* v, llvm::Value* subtrahend) {
 	else
 		mask = (1ULL << target_bits) - 1;
 	cstr = Builder->CreateAnd(cstr, mask & ~(uint64_t)(target_bytes - 1));
-	return Builder->CreateIntToPtr(cstr, llvm::Type::getInt8PtrTy(Context));
+	return Builder->CreateIntToPtr(cstr, llvm_ptr_type);
 }
 
 llvm::Value* Volvox2CStr(llvm::Value* v) {
@@ -549,7 +549,11 @@ void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 #endif
 	Builder->SetInsertPoint(DestructorBB);
 	auto cstr = Volvox2CStr2(v, subtrahend);
+#if LLVM_VERSION_MAJOR >= 18
+	Builder->Insert(Builder->CreateFree(cstr));
+#else
 	Builder->Insert(llvm::CallInst::CreateFree(cstr, DestructorBB));
+#endif
 	Builder->CreateBr(ContBB);
 #if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), ContBB);
@@ -563,7 +567,7 @@ void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before) {
 	std::string destr = "_ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE";
 	PrototypeAST* destr_proto = (*lex.findProtos(destr))[0].get();
 	auto destr_fn = getFunction(destr_proto);
-	auto elem_destructor = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
+	auto elem_destructor = llvm::ConstantPointerNull::get(llvm_ptr_type);
 	Builder->CreateCall(destr_proto->FT, destr_fn, std::vector<llvm::Value*>{ v, elem_destructor });
 }
 
@@ -742,10 +746,16 @@ llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
 		}
 		i++;
 	}
+#if LLVM_VERSION_MAJOR >= 18
+	llvm::Value* Malloc = Builder->CreateMalloc(
+		llvm_size_type, llvm::Type::getInt8Ty(Context),
+		AllocSz, nullptr, nullptr, "task");
+#else
 	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
 		Builder->GetInsertBlock(),
 		llvm_size_type, llvm::Type::getInt8Ty(Context),
 		AllocSz, nullptr, nullptr, "task");
+#endif
 	Malloc =  Builder->Insert(Malloc);
 	for (unsigned j=0; j<i; j++) {
 		auto [ offs, sz, var_dims, is_ref ] = Alloc[j];

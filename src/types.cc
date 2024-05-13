@@ -465,14 +465,14 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	const char* err_msg = nullptr;
 	if (!strcmp(Op, "+") || !strcmp(Op, "=")) {
 		if ((left_attr & (A_string | A_cstring)) && (right_attr & (A_string | A_cstring)))
-			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
+			return { llvm_ptr_type, A_string, false, opclass, nullptr };
 		if (!(left_attr & (A_string | A_cstring)))
 			err_msg = "LHS of operator '%s' is no string (but RHS is)\n";
 		else
 			err_msg = "RHS of operator '%s' is no string (but LHS is)\n";
 	} else if (!strcmp(Op, "*")) {
 		if (left_type->isIntegerTy() || right_type->isIntegerTy())
-			return { llvm::Type::getInt8PtrTy(Context), A_string, false, opclass, nullptr };
+			return { llvm_ptr_type, A_string, false, opclass, nullptr };
 		if (left_attr & A_string)
 			err_msg = "RHS of operator '%s' must be an integer as LHS is a string\n";
 		else
@@ -763,7 +763,7 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 		if (struct_type->hasName()) {
 			TypeName = Builder->CreateGlobalStringPtr(struct_type->getName(), "", 0, TheModule.get());
 		} else {
-			TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
+			TypeName = llvm::ConstantPointerNull::get(llvm_ptr_type);
 		}
 		fields.push_back(TypeName);
 		auto num_fields = struct_type->getNumElements();
@@ -785,12 +785,12 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 			fields[idx_offs+index] = field;
 		}
 	} else {
-		TypeName = llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context));
+		TypeName = llvm::ConstantPointerNull::get(llvm_ptr_type);
 		fields.push_back(TypeName);
 		if (llvmtype.ID == VOLVOX_ArrayTyID) {
 			fields.push_back(getRtType(new_FullType(elem_type, ft->type_attr & (A_signed | A_complex))));
 		} else {
-			fields.push_back(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+			fields.push_back(llvm::ConstantPointerNull::get(llvm_ptr_type));
 		}
 	}
 	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(Context, fields, true);
@@ -1001,11 +1001,11 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 	if (!IteratorType || !IteratorType->type)
 		return { nullptr, nullptr, nullptr };
 	if (IteratorType->type_attr & A_map)
-		return { &IteratorType->elem_type[0], &IteratorType->elem_type[1], llvm::Type::getInt8PtrTy(Context) };
+		return { &IteratorType->elem_type[0], &IteratorType->elem_type[1], llvm_ptr_type };
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(IteratorType->type))
 		// array could in principle be size_t, but only in rare cases
 		// we default to int - if a 64-bit type is needed, it has to be predefined
-		return { integer_type, IteratorType->elem_type, llvm::Type::getInt8PtrTy(Context) };
+		return { integer_type, IteratorType->elem_type, llvm_ptr_type };
 	if (IteratorType->type->isSingleValueType())
 		// a single int/float 'n' can be used as an iterator for the range 0..(n-1)
 		return { nullptr, IteratorType, nullptr };

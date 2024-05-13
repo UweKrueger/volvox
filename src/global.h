@@ -262,7 +262,11 @@ extern return_kind_t function_return_kind;
 extern int prompt_indent;
 extern uint64_t stacksize;
 extern const char* last_defined_type;
+#if LLVM_VERSION_MAJOR >= 18
+extern llvm::CodeGenOptLevel codegenopt; // backend optimization level
+#else
 extern llvm::CodeGenOpt::Level codegenopt; // backend optimization level
+#endif
 #ifndef LEGACY_PASS_MANAGER
 extern llvm::OptimizationLevel optimization_level; // IR optimization level
 extern llvm::LoopAnalysisManager LAM;
@@ -432,6 +436,11 @@ extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
 extern llvm::Type* llvm_interface_type;
 extern llvm::Type* llvm_c32_type;
+#if LLVM_VERSION_MAJOR >= 18
+extern llvm::PointerType* llvm_ptr_type;
+#else
+extern llvm::Type* llvm_ptr_type;
+#endif
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* bool_type;
 extern volvoxc::FullType* char_type;
@@ -858,7 +867,7 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 		if (before)
 			Builder->SetInsertPoint(oldBB);
 	} else if (fv->ft.type->isPointerTy()) {
-		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? val : Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), val);
+		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? val : Builder->CreateLoad(llvm_ptr_type, val);
 		if (fv->ft.type_attr & A_string) {
 			InsertStringDestructor(v, before);
 		} else if (fv->ft.type_attr & A_map) {

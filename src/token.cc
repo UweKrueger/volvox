@@ -365,7 +365,7 @@ Token::Token(const std::string& str, bool is_char)
 		             .is_signed = false };
 		return;
 	}
-	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
+	auto llvmtype = llvm_ptr_type;
 	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 	Val.CStr = (char*)malloc(str.size() + 1);
 	memcpy(Val.CStr, str.data(), str.size());
@@ -375,7 +375,7 @@ Token::Token(const std::string& str, bool is_char)
 
 Token::Token(void* ptr) : kind(tok_ptr_lit) {
 	Val.Ptr = ptr;
-	auto llvmtype = llvm::Type::getInt8PtrTy(Context);
+	auto llvmtype = llvm_ptr_type;
 	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(),
 	             .SubclassData = ((genType*)llvmtype)->SubClassData()
 	};
@@ -394,7 +394,7 @@ Token::Token(int _kind) {
 		default:
 			kind = tok_ptr_lit;
 			Val.Ptr = (void*)0;
-			auto llvmtype = llvm::Type::getInt8PtrTy(Context);
+			auto llvmtype = llvm_ptr_type;
 			gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(),
 			             .SubclassData = ((genType*)llvmtype)->SubClassData()
 			};

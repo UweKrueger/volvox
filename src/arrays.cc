@@ -175,10 +175,17 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 				ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
 			else {
 				if (comp_mode != comp_jit || do_test) {
+#if LLVM_VERSION_MAJOR >= 18
+					ArrayAlloc = Builder->CreateMalloc(
+						llvm_size_type, llvm::Type::getInt8Ty(Context),
+						ElemSize, Len,
+						nullptr, Name);
+#else
 					ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
 					                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
 					                                          ElemSize, Len,
 					                                          nullptr, Name);
+#endif
 					ArrayAlloc = Builder->Insert(ArrayAlloc);
 				} else {
 					const char* jit_malloc = "__jit_managed_malloc";
@@ -194,10 +201,17 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 		else {
 			if (comp_mode != comp_jit || do_test) {
+#if LLVM_VERSION_MAJOR >= 18
+				ArrayAlloc = Builder->CreateMalloc(
+					llvm_size_type, llvm::Type::getInt8Ty(Context),
+					ElemSize, Len,
+					nullptr, Name);
+#else
 				ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
 				                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
 				                                          ElemSize, Len,
 				                                          nullptr, Name);
+#endif
 				ArrayAlloc = Builder->Insert(ArrayAlloc);
 			} else {
 				const char* jit_malloc = "__jit_managed_malloc";
@@ -607,7 +621,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			return { nullptr, nullptr };
 	key_ok:
 			const char* getter;
-			if (Field->ft->elem_type[0].type == llvm::Type::getInt8PtrTy(Context)) // string key type
+			if (Field->ft->elem_type[0].type == llvm_ptr_type) // string key type
 				getter = "_ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc";
 			else {
 				errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
@@ -692,7 +706,7 @@ llvm::Value* createJITStringConst(const char* str, size_t Len, const llvm::Twine
 	const char* new_cstr = volvox2cstr(v_str);
 	jit_string_consts.push_back(new_cstr);
 	llvm::Constant* iadr = getSize((uintptr_t)v_str);
-	return Builder->CreateIntToPtr(iadr, llvm::Type::getInt8PtrTy(Context));
+	return Builder->CreateIntToPtr(iadr, llvm_ptr_type);
 }
 
 llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name) {

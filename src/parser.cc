@@ -304,7 +304,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			}
 			auto ftpair = new_FullType(*key_ft, 1); // reserve space for 1 additional FullType
 			ftpair[1] = *val_ft;
-			auto ft = new_FullType(llvm::Type::getInt8PtrTy(Context), A_map, nullptr, ftpair);
+			auto ft = new_FullType(llvm_ptr_type, A_map, nullptr, ftpair);
 			return ft;
 		}
 		default:
@@ -559,7 +559,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	volvoxc::FullType* ft;
 	SourceLocation loc = CurLoc;
 	if ((CurTok.kind == tok_map || CurTok.kind == tok_set) &&  lex.peek() == '{') {
-		ft = new_FullType(llvm::Type::getInt8PtrTy(Context), A_map);
+		ft = new_FullType(llvm_ptr_type, A_map);
 		getNextToken();
 	}
 	else

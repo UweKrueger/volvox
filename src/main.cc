@@ -103,6 +103,11 @@ llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
 llvm::Type* llvm_interface_type;
 llvm::Type* llvm_c32_type;
+#if LLVM_VERSION_MAJOR >= 18
+llvm::PointerType* llvm_ptr_type;
+#else
+llvm::Type* llvm_ptr_type;
+#endif
 volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
 volvoxc::FullType* char_type;
@@ -143,7 +148,11 @@ void init(const llvm::Triple& triple) {
 	// only for internal use:
 	lex.add_type("i*", llvm::Type::getInt64Ty(Context), nullptr, A_signed);
 	lex.add_type("f*", llvm::Type::getDoubleTy(Context), nullptr);
-
+#if LLVM_VERSION_MAJOR >= 18
+	llvm_ptr_type = llvm::PointerType::getUnqual(Context);
+#else
+	llvm_ptr_type = llvm::Type::getInt8PtrType(Context);
+#endif
 	if (target_bits == 16) {
 		target_int_bits = 16;
 		lex.add_type("int", llvm::Type::getInt16Ty(Context), DBuilder ? DBuilder->createBasicType("int", 16, llvm::dwarf::DW_ATE_signed) : nullptr, A_signed);
@@ -198,7 +207,7 @@ void init(const llvm::Triple& triple) {
 		llvm_c32_type = llvm::FixedVectorType::get(llvm::Type::getFloatTy(Context), 2);
 	lex.add_type("c32", llvm_c32_type, nullptr, A_complex);
 	c32_type = lex.get_full_type("c32");
-	lex.add_type("string", llvm::Type::getInt8PtrTy(Context),
+	lex.add_type("string", llvm_ptr_type,
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 #if LLVM_VERSION_MAJOR >= 16
 	                                                    std::nullopt,
@@ -206,7 +215,7 @@ void init(const llvm::Triple& triple) {
 	                                                    llvm::None,
 #endif
 	                                                    "string") : nullptr, A_string);
-	lex.add_type("cstring", llvm::Type::getInt8PtrTy(Context),
+	lex.add_type("cstring", llvm_ptr_type,
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 #if LLVM_VERSION_MAJOR >= 16
 	                                                    std::nullopt,
@@ -214,7 +223,7 @@ void init(const llvm::Triple& triple) {
 	                                                    llvm::None,
 #endif
 	                                                    "cstring") : nullptr, A_cstring);
-	lex.add_type("voidptr", llvm::Type::getInt8PtrTy(Context),
+	lex.add_type("voidptr", llvm_ptr_type,
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 #if LLVM_VERSION_MAJOR >= 16
 	                                                    std::nullopt,
@@ -224,7 +233,7 @@ void init(const llvm::Triple& triple) {
 	                                                    "voidptr") : nullptr);
 	voidptr_type = lex.get_full_type("voidptr");
 	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
-	std::vector<llvm::Type*> interface_type_elements = { llvm::Type::getInt8PtrTy(Context), llvm::Type::getInt8PtrTy(Context) };
+	std::vector<llvm::Type*> interface_type_elements = { llvm_ptr_type, llvm_ptr_type };
 	llvm_interface_type = llvm::StructType::create(Context, interface_type_elements, "interface");
 	lex.add_type("interface", llvm_interface_type, nullptr);
 	interface_type = lex.get_full_type("interface");
@@ -825,7 +834,7 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 							llvm::cast<llvm::Constant>(
 								Builder->CreateIntToPtr(
 									llvm::ConstantInt::get(llvm_size_type, ((size_t*)std::get<0>(new_decl))[n_elem]),
-									llvm::Type::getInt8PtrTy(Context))));
+									llvm_ptr_type)));
 						*std::get<1>(new_decl) = llvm::ConstantStruct::get(struct_type, fields);
 						free(std::get<0>(new_decl));
 					}
@@ -1293,7 +1302,11 @@ promptcolor_t p_col = { 30, 100, 236 };
 const char* TestFunction = nullptr;
 char* output_file = nullptr;
 char* exe_file = nullptr;
+#if LLVM_VERSION_MAJOR >= 18
+llvm::CodeGenOptLevel codegenopt = llvm::CodeGenOptLevel::Default;
+#else
 llvm::CodeGenOpt::Level codegenopt = llvm::CodeGenOpt::Default;
+#endif
 #ifndef LEGACY_PASS_MANAGER
 llvm::OptimizationLevel optimization_level = llvm::OptimizationLevel::O2;
 llvm::PassBuilder PB;
@@ -1427,7 +1440,11 @@ int main(int argc, char* argv[]) {
 #ifndef LEGACY_PASS_MANAGER
 			optimization_level = llvm::OptimizationLevel::O0;
 #endif
+#if LLVM_VERSION_MAJOR >= 18
+			codegenopt = llvm::CodeGenOptLevel::None;
+#else
 			codegenopt = llvm::CodeGenOpt::None;
+#endif
 			break;
 		case 'h':
 		case'?':
@@ -1553,18 +1570,34 @@ int main(int argc, char* argv[]) {
 			// a second flag is specified in optarg
 			switch (optarg[1] ? optarg[1] : optarg[0]) {
 			case '0':
+#if LLVM_VERSION_MAJOR >= 18
+				codegenopt = llvm::CodeGenOptLevel::None;
+#else
 				codegenopt = llvm::CodeGenOpt::None;
+#endif
 				break;
 			case '1':
+#if LLVM_VERSION_MAJOR >= 18
+				codegenopt = llvm::CodeGenOptLevel::Less;
+#else
 				codegenopt = llvm::CodeGenOpt::Less;
+#endif
 				break;
 			case 's':
 			case 'z':
 			case '2':
+#if LLVM_VERSION_MAJOR >= 18
+				codegenopt = llvm::CodeGenOptLevel::Default;
+#else
 				codegenopt = llvm::CodeGenOpt::Default;
+#endif
 				break;
 			case '3':
+#if LLVM_VERSION_MAJOR >= 18
+				codegenopt = llvm::CodeGenOptLevel::Aggressive;
+#else
 				codegenopt = llvm::CodeGenOpt::Aggressive;
+#endif
 				break;
 			default:
 				goto optimizationerr;
@@ -1934,8 +1967,11 @@ int main(int argc, char* argv[]) {
 		}
 	  
 		llvm::legacy::PassManager pass;
+#if LLVM_VERSION_MAJOR >= 18
+		auto FileType = llvm::CodeGenFileType::ObjectFile;
+#else
 		auto FileType = llvm::CGFT_ObjectFile;
-	  
+#endif
 		if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
 			errs() << "TheTargetMachine can't emit a file of this type";
 			return 1;

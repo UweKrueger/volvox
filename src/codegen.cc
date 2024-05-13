@@ -71,7 +71,7 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		return handle(target, llvm::ConstantFP::get(ft->type, Val.Float));
 	case llvm::Type::PointerTyID:
 		if (ft->type_attr & A_signed)
-			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm::Type::getInt8PtrTy(Context)));
+			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm_ptr_type));
 		else if (ft->type_attr & A_string)
 		{
 			llvm::Value* theString = createStringConst(Val.CStr, Val.Len);
@@ -143,7 +143,7 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		KSDbgInfo.emitLocation(this);
 	}
 	const char* inserter;
-	if (ft->elem_type[0].type == llvm::Type::getInt8PtrTy(Context)) // string key type
+	if (ft->elem_type[0].type == llvm_ptr_type) // string key type
 		inserter = "_ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_";
 	else {
 		errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
@@ -157,31 +157,31 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	auto inserter_fn = getFunction(inserter_proto);
 	llvm::Value* ptr = ((intptr_t)target == -1) ? nullptr : target;
 	if (!ptr) {
-		ptr = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+		ptr = CreateEntryBlockAlloca(llvm_ptr_type);
 		FullVar tmp = {
 			.val = ptr,
 			.ft = {
-				.type = llvm::Type::getInt8PtrTy(Context),
+				.type = llvm_ptr_type,
 				.type_attr = A_map
 			}
 		};
 		expr_temps.push_back(tmp);
 	}
-	Builder->CreateStore(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), ptr);
-	llvm::Value* do_replace = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+	Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), ptr);
+	llvm::Value* do_replace = CreateEntryBlockAlloca(llvm_ptr_type);
 	for (unsigned i=0; i<keys.size(); i++) {
 		keys[i]->desired_type = ft->elem_type[0].type;
 		llvm::Value* Key = keys[i]->codegen();
 		values[i]->desired_type = ft->elem_type[1].type;
 		llvm::Value* Value = values[i]->codegen();
 		Value = Builder->CreateZExtOrBitCast(Value, llvm::Type::getInt64Ty(Context));
-		Builder->CreateStore(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), do_replace);
+		Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), do_replace);
 		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
 				ptr, Key, Value, Builder->getInt32(0), do_replace });
 	}
 	if (target && (intptr_t)target != -1)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	return Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), ptr);
+	return Builder->CreateLoad(llvm_ptr_type, ptr);
 }
 
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
@@ -786,7 +786,7 @@ llvm::Function* init_setter_fn(std::string& setter_name, std::string& varname, l
 	// the setter after usage
 	finishFunctionOrModule();
 	setter_name = "__global_" + varname + "_setter";
-	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm::Type::getInt8PtrTy(Context),
+	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm_ptr_type,
 	                                                       { llvm_size_type->getPointerTo() }, false);
 	llvm::Function* tmpf = llvm::Function::Create(ptr_fn_t, llvm::Function::ExternalLinkage, setter_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
@@ -1129,10 +1129,14 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 						ArrayAlloc = Builder->CreateAlloca(elem_type, Len, varname);
 					else {
 						if (comp_mode != comp_jit || do_test) {
+#if LLVM_VERSION_MAJOR >= 18
+							ArrayAlloc = Builder->CreateMalloc(llvm_size_type, llvm::Type::getInt8Ty(Context),
+							                                   ElemSize, Len, nullptr, varname);
+#else
 							ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
 							                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
-							                                          ElemSize, Len,
-							                                          nullptr, varname);
+							                                          ElemSize, Len, nullptr, varname);
+#endif
 							ArrayAlloc = Builder->Insert(ArrayAlloc);
 						} else {
 							const char* jit_malloc = "__jit_managed_malloc";
@@ -1191,9 +1195,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>());
 		}
 		if (initializer || !needs_store)
-			Builder->CreateRet(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)));
+			Builder->CreateRet(llvm::ConstantPointerNull::get(llvm_ptr_type));
 		else
-			Builder->CreateRet(Builder->CreatePointerCast(ptrRet, llvm::Type::getInt8PtrTy(Context)));
+			Builder->CreateRet(Builder->CreatePointerCast(ptrRet, llvm_ptr_type));
 		finishFunctionOrModule(tmpf, 2, true, false);
 		auto RT = TheJIT->getMainJITDylib().createResourceTracker();
 		auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
@@ -1846,7 +1850,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				FullVar tmp = {
 					.val = result,
 					.ft = {
-						.type = llvm::Type::getInt8PtrTy(Context),
+						.type = llvm_ptr_type,
 						.type_attr = A_string | A_rvalue
 					}
 				};
@@ -1974,7 +1978,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				FullVar tmp = {
 					.val = result,
 					.ft = {
-						.type = llvm::Type::getInt8PtrTy(Context),
+						.type = llvm_ptr_type,
 						.type_attr = A_string | A_rvalue
 					}
 				};
@@ -2577,8 +2581,8 @@ bool ForExprAST::PrepareIterator() {
 	if (iterator_type->isPointerTy()) {
 		if (Iterator->ft->type_attr & A_map) {
 			if (!iterator)
-				iterator = Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), iterator_ref);
-			ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+				iterator = Builder->CreateLoad(llvm_ptr_type, iterator_ref);
+			ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
 			std::string map_min_name = "_ZN6volvox3map3MinEPNS0_4NodeE";
 			std::string map_max_name = "_ZN6volvox3map3MaxEPNS0_4NodeE";
 			auto min_proto = (*lex.findProtos(map_min_name))[0].get();
@@ -2696,7 +2700,7 @@ bool ForExprAST::PrepareIterator() {
 				                   Dims[0], llvm::ConstantInt::get(llvm_size_type, 1, true))));
 		if (descending) {
 			llvm::Value* tmp = Ptr;
-			Ptr = Builder->CreateIntToPtr(limit, llvm::Type::getInt8PtrTy(Context));
+			Ptr = Builder->CreateIntToPtr(limit, llvm_ptr_type);
 			limit = Builder->CreatePtrToInt(tmp, llvm_size_type);
 		}
 	}
@@ -2711,18 +2715,18 @@ bool ForExprAST::PrepareIterator() {
 				errs() << Loc << ": internal error - array pointer " << *Ptr << " (no pointer)\n";
 				return false;
 			}
-			ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+			ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
 			Builder->CreateStore(Ptr, ptr_storage);
 			if (ValueFV->ft.type_attr & A_ptrref) {
 				ValueFV->val = ptr_storage;
 			} else {
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
 				ValueRef = ValueFV->val = CreateAlloca(Step, align);
-				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
+				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
 			}
 		} else if (iterator_type->isPointerTy()) {
 			if (Iterator->ft->type_attr & A_map) {
-				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+				ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
 				Builder->CreateStore(initializer, ptr_storage);
 				ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
 			}
@@ -2743,11 +2747,11 @@ bool ForExprAST::PrepareIterator() {
 			if (ValueFV->ft.type_attr & A_ptrref) {
 				ptr_storage = ValueFV->val;
 			} else {
-				ptr_storage = CreateEntryBlockAlloca(llvm::Type::getInt8PtrTy(Context));
+				ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ValueRef->getType()))
 					ValueRef = Builder->CreateExtractValue(ValueRef, struct_type->getNumElements() - 1);
-				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm::Type::getInt8PtrTy(Context)), align, Step);
+				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
 			}
 			Builder->CreateStore(Ptr, ptr_storage);
 		} else {
@@ -2844,31 +2848,31 @@ llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 bool ForExprAST::SetupLoop() {
 	if (iterator_type->isPointerTy()) {
 		if (Iterator->ft->type_attr & A_map) {
-			llvm::Value* node_ptr = Builder->CreateLoad(llvm::Type::getInt8PtrTy(Context), ptr_storage);
+			llvm::Value* node_ptr = Builder->CreateLoad(llvm_ptr_type, ptr_storage);
 			llvm::Value* key_ptr = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
 					Builder->CreatePtrToInt(node_ptr, llvm_size_type),
 					llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, key))),
-				llvm::Type::getInt8PtrTy(Context));
+				llvm_ptr_type);
 			llvm::Value* value_ptr;
 			if (ValueFT->type_attr & A_string) {
 				llvm::Value* offset_ptr = Builder->CreateIntToPtr(
 					Builder->CreateAdd(
 						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
 						llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, value.offset))),
-					llvm::Type::getInt8PtrTy(Context), "mapnode_offset");
+					llvm_ptr_type, "mapnode_offset");
 				llvm::Value* Offset = Builder->CreateLoad(llvm_int_type, offset_ptr);
 				value_ptr = Builder->CreateIntToPtr(
 					Builder->CreateAdd(
 						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
 						Builder->CreateIntCast(Offset, llvm_size_type, false)),
-					llvm::Type::getInt8PtrTy(Context), "val_ptr");
+					llvm_ptr_type, "val_ptr");
 			} else {
 				value_ptr = Builder->CreateIntToPtr(
 					Builder->CreateAdd(
 						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
 						llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, value))),
-					llvm::Type::getInt8PtrTy(Context), "val_ptr");
+					llvm_ptr_type, "val_ptr");
 			}
 			if (ValueRef) {
 				llvm::Value* val = Builder->CreateLoad(ValueFT->type, value_ptr);
@@ -2892,7 +2896,7 @@ bool ForExprAST::Iterate() {
 		auto iterate_fn = getFunction(iterate_proto);
 		ctrl_var = Builder->CreateCall(
 			iterate_proto->FT, iterate_fn,
-			{ Builder->CreateIntToPtr(ctrl_var, llvm::Type::getInt8PtrTy(Context)) });
+			{ Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type) });
 		Builder->CreateStore(ctrl_var, ptr_storage);
 		return true;
 	}
@@ -2910,7 +2914,7 @@ bool ForExprAST::Iterate() {
 		Builder->CreateStore(ctrl_var, ptr_storage);
 		if (!(ValueFV->ft.type_attr & A_ptrref)) {
 			auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm::Type::getInt8PtrTy(Context)), align, Step);
+			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, Step);
 		}
 		Builder->CreateStore(ctrl_var, ptr_storage);
 	} else {
@@ -2973,9 +2977,9 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			}
 			Builder->SetInsertPoint(CondBB);
 			condPN = Builder->CreatePHI(llvm::Type::getInt8Ty(Context), 2, "mustsavestack");
-			savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack");
+			savedStack = Builder->CreatePHI(llvm_ptr_type, 2, "savedstack");
 			condPN->addIncoming(Builder->getInt8(2), enterBB);
-			savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm::Type::getInt8PtrTy(Context)), enterBB);
+			savedStack->addIncoming(llvm::ConstantPointerNull::get(llvm_ptr_type), enterBB);
 		}
 	} else if (if_kind == tok_repeat) {
 		CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "until"); // will be filled at end
@@ -3076,7 +3080,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			Builder->SetInsertPoint(StackRestoreBB);
 		}
 		if (if_kind == tok_repeat)
-			savedStack = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 1, "savedstack");
+			savedStack = Builder->CreatePHI(llvm_ptr_type, 1, "savedstack");
 		if (if_kind == tok_for)
 			StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack0);
 		else
@@ -3098,7 +3102,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			Builder->SetInsertPoint(ThenBB);
 		}
 		if (if_kind == tok_while || if_kind == tok_repeat) {
-			savedStack1 = Builder->CreatePHI(llvm::Type::getInt8PtrTy(Context), 2, "savedstack1");
+			savedStack1 = Builder->CreatePHI(llvm_ptr_type, 2, "savedstack1");
 			savedStack1->addIncoming(savedStack0, StackSaveBB);
 			savedStack1->addIncoming(savedStack, StackRestoreBB);
 		}

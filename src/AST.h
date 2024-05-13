@@ -38,7 +38,7 @@ inline static llvm::Value* handle_d(llvm::Value* target, llvm::Value* val, unsig
 			FullVar tmp = {
 				.val = val,
 				.ft = {
-					.type = llvm::Type::getInt8PtrTy(Context),
+					.type = llvm_ptr_type,
 					.type_attr = (attribs & (A_destructor | A_map | A_string)) | A_rvalue
 				}
 			};
@@ -724,7 +724,7 @@ public:
 			errs() << Loc << ": cannot get address of expression\n";
 			return nullptr;
 		}
-		return handle(target, Builder->CreatePointerCast(ptr, llvm::Type::getInt8PtrTy(Context)));
+		return handle(target, Builder->CreatePointerCast(ptr, llvm_ptr_type));
 	}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override {
 		auto pair = Operand->codegen_ref(silent_fail, false);
