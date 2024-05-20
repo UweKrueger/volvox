@@ -659,9 +659,8 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 		if (dump_IR >= dumpLevel && dump_opt)
 			TheModule->print(errs(), nullptr);
 		if (newModule) {
-			llvm::orc::ThreadSafeContext T = TS_Context;
 			ExitOnErr(TheJIT->addModule(
-				          llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T))));
+				          llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context))));
 			InitializeModuleAndPassManager();
 		}
 	}

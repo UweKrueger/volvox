@@ -774,8 +774,7 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-				llvm::orc::ThreadSafeContext T = TS_Context;
-				auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T));
+				auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context));
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 				InitializeModuleAndPassManager();
 				if (!pending_globals.empty()) {
@@ -788,9 +787,8 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 						}
 					}
 					pending_globals.clear();
-					llvm::orc::ThreadSafeContext T2 = TS_Context;
 					ExitOnErr(TheJIT->addModule(
-						          llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T2))));
+						          llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context))));
 					InitializeModuleAndPassManager();
 				}
 				// Search the JIT for the __anon_expr symbol.

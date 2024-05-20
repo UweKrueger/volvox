@@ -1200,8 +1200,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			Builder->CreateRet(Builder->CreatePointerCast(ptrRet, llvm_ptr_type));
 		finishFunctionOrModule(tmpf, 2, true, false);
 		auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-		llvm::orc::ThreadSafeContext T2 = TS_Context;
-		auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T2));
+		auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context));
 		ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 		InitializeModuleAndPassManager();
 		// We want to remove the 'setter' module below but the global variable
@@ -3405,8 +3404,7 @@ void CallGlobalDestructorsJIT() {
 	Builder->CreateRet(Builder->getInt1(true));
 	finishFunctionOrModule(destr_fn, 2, true, false);
 	auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-	llvm::orc::ThreadSafeContext T = TS_Context;
-	auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T));
+	auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context));
 	ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 	InitializeModuleAndPassManager();
 	auto ExprSymbol = ExitOnErr(TheJIT->lookup(destr_name));
