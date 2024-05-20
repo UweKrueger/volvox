@@ -90,7 +90,7 @@ extern "C" int volvox_try_wait(int pid);
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
 
-std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context = nullptr;
+llvm::orc::ThreadSafeContext TS_Context;
 std::unique_ptr<llvm::Module> TheModule = nullptr;
 std::unique_ptr<llvm::IRBuilder<>> Builder = nullptr;
 std::unique_ptr<llvm::MDBuilder> MDBuilder = nullptr;
@@ -103,11 +103,7 @@ llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
 llvm::Type* llvm_interface_type;
 llvm::Type* llvm_c32_type;
-#if LLVM_VERSION_MAJOR >= 18
 llvm::PointerType* llvm_ptr_type;
-#else
-llvm::Type* llvm_ptr_type;
-#endif
 volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
 volvoxc::FullType* char_type;
@@ -151,7 +147,7 @@ void init(const llvm::Triple& triple) {
 #if LLVM_VERSION_MAJOR >= 18
 	llvm_ptr_type = llvm::PointerType::getUnqual(Context);
 #else
-	llvm_ptr_type = llvm::Type::getInt8PtrType(Context);
+	llvm_ptr_type = llvm::Type::getInt8PtrTy(Context);
 #endif
 	if (target_bits == 16) {
 		target_int_bits = 16;
@@ -778,7 +774,8 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
+				llvm::orc::ThreadSafeContext T = TS_Context;
+				auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T));
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 				InitializeModuleAndPassManager();
 				if (!pending_globals.empty()) {
@@ -791,8 +788,9 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 						}
 					}
 					pending_globals.clear();
+					llvm::orc::ThreadSafeContext T2 = TS_Context;
 					ExitOnErr(TheJIT->addModule(
-						          llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get())));
+						          llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T2))));
 					InitializeModuleAndPassManager();
 				}
 				// Search the JIT for the __anon_expr symbol.
@@ -1773,7 +1771,7 @@ int main(int argc, char* argv[]) {
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
 	}
-	TS_Context = std::make_unique<llvm::orc::ThreadSafeContext>(std::move(std::make_unique<llvm::LLVMContext>()));
+	TS_Context = llvm::orc::ThreadSafeContext(std::move(std::make_unique<llvm::LLVMContext>()));
 
 	InitializeModuleAndPassManager();
 #ifndef LEGACY_PASS_MANAGER
@@ -1930,7 +1928,8 @@ int main(int argc, char* argv[]) {
 		if (auto *FnIR = MainFunction->finish_codegen(true)) {
 			if (comp_mode == comp_jit) {
 				// call test_main()
-				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), *TS_Context.get());
+				llvm::orc::ThreadSafeContext T = TS_Context;
+				auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T));
 				ExitOnErr(TheJIT->addModule(std::move(TSM)));
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
 				// Get the symbol's address and cast it to the right type (takes no

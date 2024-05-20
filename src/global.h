@@ -254,8 +254,8 @@ extern bool needs_libm;
 extern bool have_return;
 extern int return_value;
 extern int sret_limit;
-extern std::unique_ptr<llvm::orc::ThreadSafeContext> TS_Context;
-#define Context *TS_Context->getContext()
+extern llvm::orc::ThreadSafeContext TS_Context;
+#define Context *TS_Context.getContext()
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern return_kind_t function_return_kind;
@@ -436,11 +436,7 @@ extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
 extern llvm::Type* llvm_interface_type;
 extern llvm::Type* llvm_c32_type;
-#if LLVM_VERSION_MAJOR >= 18
 extern llvm::PointerType* llvm_ptr_type;
-#else
-extern llvm::Type* llvm_ptr_type;
-#endif
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* bool_type;
 extern volvoxc::FullType* char_type;
