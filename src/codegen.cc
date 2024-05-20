@@ -3068,7 +3068,11 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 #endif
 			Builder->SetInsertPoint(StackSaveBB);
 		}
+#if LLVM_VERSION_MAJOR >= 18
+		savedStack0 = Builder->CreateStackSave("savedstack");
+#else
 		savedStack0 = Builder->CreateIntrinsic(llvm::Intrinsic::stacksave, {}, {}, nullptr, "savedstack");
+#endif
 		Builder->CreateBr(ThenBB);
 		StackSaveBB = Builder->GetInsertBlock();
 		if (TheFunction) {
@@ -3081,10 +3085,19 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (if_kind == tok_repeat)
 			savedStack = Builder->CreatePHI(llvm_ptr_type, 1, "savedstack");
-		if (if_kind == tok_for)
+		if (if_kind == tok_for) {
+#if LLVM_VERSION_MAJOR >= 18
+			StackRestoreInst = Builder->CreateStackRestore(savedStack0);
+#else
 			StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack0);
-		else
+#endif
+		} else {
+#if LLVM_VERSION_MAJOR >= 18
+			StackRestoreInst = Builder->CreateStackRestore(savedStack);
+#else
 			StackRestoreInst = Builder->CreateIntrinsic(llvm::Intrinsic::stackrestore, {}, savedStack);
+#endif
+		}
 		Builder->CreateBr(ThenBB);
 		StackRestoreBB = Builder->GetInsertBlock();
 	}
