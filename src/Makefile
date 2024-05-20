@@ -30,6 +30,9 @@ ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := -devel
 else
+ifeq ($(shell test -x /usr/bin/llvm-config-17 && echo -n true),true)
+	SUFFIX := -17
+else
 ifeq ($(shell test -x /usr/bin/llvm-config-16 && echo -n true),true)
 	SUFFIX := -16
 else
@@ -57,6 +60,7 @@ else
 ifeq ($(shell test -x /usr/pkg/bin/llvm-config && echo -n true),true)
 	PREFIX := /usr/pkg
 	SUFFIX :=
+endif
 endif
 endif
 endif
