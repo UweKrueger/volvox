@@ -174,7 +174,7 @@ fn test_map_iteration_4 bool
 end
 
 fn string_by_ref(&s string) f64
-	d = strtod(s, 0)
+	d = strtod(s, voidptr(0))
 	s = "done"
 	return d
 end

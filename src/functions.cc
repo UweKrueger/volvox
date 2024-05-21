@@ -550,7 +550,7 @@ void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 	Builder->SetInsertPoint(DestructorBB);
 	auto cstr = Volvox2CStr2(v, subtrahend);
 #if LLVM_VERSION_MAJOR >= 18
-	Builder->Insert(Builder->CreateFree(cstr));
+	Builder->CreateFree(cstr);
 #else
 	Builder->Insert(llvm::CallInst::CreateFree(cstr, DestructorBB));
 #endif

@@ -184,6 +184,12 @@ no_explicit_constructor:
 			return nullptr;
 		}
 	}
+	if (desired_type->isPointerTy()) {
+		if (is_explicit) // e.g. voidptr(0)
+			return [=](llvm::Value* v) { return Builder->CreateIntToPtr(v, llvm_ptr_type, "inttoptr"); };
+		else
+			return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "int -> voidptr");
+	}
 	if (desired_bitwidth == 1) {
 		if (expr_bitwidth == 1)
 			return NoConversion;
@@ -867,9 +873,13 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		size_t argsize = argtype->type->isSized() ?
 			TheModule->getDataLayout().getTypeAllocSize(fn_arg_type) : 0;
 		if ((argtype->type_attr & A_ref) && !(argtype->type_attr & A_by_value)) {
-			ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
-						llvm::Attribute::getWithByRefType(Context, argtype->type),
-						llvm::Attribute::getWithDereferenceableBytes(Context, argsize) }));
+			if (argsize)
+				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+							llvm::Attribute::getWithByRefType(Context, argtype->type),
+							llvm::Attribute::getWithDereferenceableBytes(Context, argsize) }));
+			else
+				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+							llvm::Attribute::getWithByRefType(Context, argtype->type) }));
 			fn_arg_type = fn_arg_type->getPointerTo();
 		} else {
 			if (argsize > sret_limit || (argtype->type_attr & A_by_value)) { // Arguments > sret_limit bytes are always passed as pointer using copy-on-write
