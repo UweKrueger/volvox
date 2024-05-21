@@ -13,6 +13,10 @@ ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	NIXTYPE := mingw64
 	LINKEXTRAFLAGS := -ledit -lpthread
 else
+ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
+	PREFIX := /usr/local
+	SUFFIX := -devel
+else
 ifeq ($(shell test -x /usr/local/bin/llvm-config17 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := 17
@@ -25,10 +29,6 @@ ifeq ($(shell test -x /usr/local/bin/llvm-config-16 && echo -n true),true)
 # use (a very old) libedit by using the following line and adding
 # "-DMONOCHROME_PROMPT=1" to CPPEXTRAFLAGS below 
 #	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm16/lib -ledit
-else
-ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
-	PREFIX := /usr/local
-	SUFFIX := -devel
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-17 && echo -n true),true)
 	SUFFIX := -17
@@ -147,7 +147,7 @@ ifeq ($(CC),gcc)
 	PCH := $(PRJH:%.hh=%.hh.gch)
 else
 	CXX := clang++$(SUFFIX)
-ifeq ($(LLVMVERSION),18)
+ifeq ($(shell test $(LLVMVERSION) -ge 18; echo $$?),0)
 	PCH := $(PRJH:%.hh=%.hh.pch)
 else
 	PCH := $(PRJH:%.hh=%.hh.gch)
