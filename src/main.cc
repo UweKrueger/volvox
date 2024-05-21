@@ -774,7 +774,7 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				// Create a ResourceTracker to track JIT'd memory allocated to our
 				// anonymous expression -- that way we can free it after executing.
 				auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-				auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context));
+				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 				ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
 				InitializeModuleAndPassManager();
 				if (!pending_globals.empty()) {
@@ -788,7 +788,7 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 					}
 					pending_globals.clear();
 					ExitOnErr(TheJIT->addModule(
-						          llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context))));
+						          llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context)));
 					InitializeModuleAndPassManager();
 				}
 				// Search the JIT for the __anon_expr symbol.
@@ -1926,8 +1926,7 @@ int main(int argc, char* argv[]) {
 		if (auto *FnIR = MainFunction->finish_codegen(true)) {
 			if (comp_mode == comp_jit) {
 				// call test_main()
-				llvm::orc::ThreadSafeContext T = TS_Context;
-				auto TSM = llvm::orc::cloneToNewContext(llvm::orc::ThreadSafeModule(std::move(TheModule), T));
+				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 				ExitOnErr(TheJIT->addModule(std::move(TSM)));
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
 				// Get the symbol's address and cast it to the right type (takes no
