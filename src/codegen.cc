@@ -2411,6 +2411,8 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		if (valA->getType() != valB->getType()) {
 			goto uncompatible_types;
 		}
+		if (valA == valB)
+			return { typA, valA };
 		llvm::PHINode* PN = Builder->CreatePHI(valA->getType(), 2, "iftmp");
 		llvm::PHINode* PNW;
 		if (firstWhile) {

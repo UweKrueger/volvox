@@ -1,26 +1,34 @@
-# fn QzztrP(k int) int
-# 	if k < 0
-# 		if k > 10
-# 			p = 15
-# 		else
-# 			p = -13
-# 		end
-# 	else
-# 		p = 23
-# 	end
-# 	return p
-# end
+fn QzztrP(k int) int
+	if k < 0
+		if k > 10
+			p = 15
+		else
+			p = -13
+		end
+	else
+		p = 23
+	end
+	return p
+end
 
-# fn QzztrQ(k int) int
-# 	if k < 0
-# 		if k > 10
-# 			p = 15
-# 		else
-# 			p = -13
-# 		end
-# 		return p
-# 	else
-# 		p = 23
-# 		return p
-# 	end
-# end
+fn test_nested_if_1 bool
+	return QzztrP(3) == 23 && QzztrP(-43) == -13
+end
+
+fn QzztrQ(k int) int
+	if k < 0
+		if k > -10
+			p = 15
+		else
+			p = -13
+		end
+		return p
+	else
+		p = 23
+		return p
+	end
+end
+
+fn test_nested_if_2 bool
+	return QzztrQ(3) == 23 && QzztrQ(-5) == 15 && QzztrQ(-17) == -13
+end
