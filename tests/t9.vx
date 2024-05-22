@@ -11,7 +11,7 @@ fn QzztrP(k int) int
 	return p
 end
 
-fn test_nested_if_1 bool
+fn test_nested_if_9 bool
 	return QzztrP(3) == 23 && QzztrP(-43) == -13
 end
 
@@ -29,6 +29,6 @@ fn QzztrQ(k int) int
 	end
 end
 
-fn test_nested_if_2 bool
+fn test_nested_if_10 bool
 	return QzztrQ(3) == 23 && QzztrQ(-5) == 15 && QzztrQ(-17) == -13
 end
