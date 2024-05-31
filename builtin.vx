@@ -20,6 +20,10 @@ cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) __free(buf voidptr)
 cdecl __setup_console()
 
+# create POSIX/Windows Threads - returns -1 on error, 0 on detach and handle for joinable
+cdecl __create_thread(f voidptr, arg voidptr, detached bool) ssize_t
+cdecl __join_thread(tref ssize_t) ssize_t
+
 # pseudo functions for compiler
 #
 cdecl __link_extra(library string, ...)

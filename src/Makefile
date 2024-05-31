@@ -13,13 +13,13 @@ ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	NIXTYPE := mingw64
 	LINKEXTRAFLAGS := -ledit -lpthread
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config18 && echo -n true),true)
-	PREFIX := /usr/local
-	SUFFIX := 18
-else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := -devel
+else
+ifeq ($(shell test -x /usr/local/bin/llvm-config18 && echo -n true),true)
+	PREFIX := /usr/local
+	SUFFIX := 18
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-16 && echo -n true),true)
 	PREFIX := /usr/local
@@ -165,7 +165,7 @@ CCOBJS :=  main.o codegen.o parser.o lexer.o token.o functions.o arrays.o types.
 OBJS := $(CCOBJS) $(EXTRAOBJS) $(EDITLINEOBJS)
 
 LIBOBJS := map.o str.o array.o
-LIBCOBJS := str_c.o
+LIBCOBJS := str_c.o threads_c.o
 
 LIBVOLVOXVERS := 0
 ifeq ($(NIXTYPE),mingw64)
