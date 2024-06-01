@@ -21,7 +21,7 @@ std::vector<unsigned> get_vardims(llvm::Type* ty) {
 	return var_dims;
 }
 
-llvm::Value* TaskExprAST::codegen_raw(llvm::Value* target) {
+llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* AllocSz = Call->alloc_size();
 	// offset, allocsz, var_indices, is_reference
 	std::vector<std::tuple<llvm::Value*,llvm::Value*,std::vector<unsigned>,bool>> Alloc;

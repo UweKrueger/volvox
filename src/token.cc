@@ -45,7 +45,7 @@ void init_token_map() {
 	for (int token = tok_1st_keyword + 1; token < tok_last_keyword; token++) {
 		insert_token_into_map(token);
 	}
-	insert_token_into_map(tok_task);
+	insert_token_into_map(tok_thread);
 }
 
 std::string Token::str() const {

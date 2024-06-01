@@ -662,10 +662,10 @@ public:
 #endif
 };
 
-class TaskExprAST : public ExprAST {
+class ThreadExprAST : public ExprAST {
 	std::unique_ptr<CallExprAST> Call;
 public:
-	TaskExprAST(SourceLocation Loc, std::unique_ptr<CallExprAST> _Call)
+	ThreadExprAST(SourceLocation Loc, std::unique_ptr<CallExprAST> _Call)
 		: ExprAST(_Call->ft->type, _Call->ft->type_attr, Loc), Call(std::move(_Call)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
