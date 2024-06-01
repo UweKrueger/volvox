@@ -646,11 +646,7 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 			PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 			llvm::ModulePassManager MPM;
 			if (optimization_level == llvm::OptimizationLevel::O0)
-				//auto MPM = PB.buildO0DefaultPipeline(optimization_level);
-				// -O0 on IR-Level seems to be severely broken on non-legacy pass manager, so
-				// we force -O1 here. We still save time by setting llvm::CodeGenOpt::None
-				// in the backend
-				MPM = PB.buildPerModuleDefaultPipeline(llvm::OptimizationLevel::O1);
+				MPM = PB.buildModuleSimplificationPipeline(optimization_level, llvm::ThinOrFullLTOPhase::ThinLTOPostLink);
 			else
 				MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
 			MPM.run(*TheModule, MAM);

@@ -50,7 +50,6 @@ ssize_t __create_thread(void* f, void* arg, bool detached) {
 #endif
 }
 
-
 // return <0 for failure or 32 bit return value
 ssize_t __join_thread(ssize_t t) {
 #ifdef _WIN32
