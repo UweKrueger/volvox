@@ -1136,8 +1136,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 							ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
 							                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
 							                                          ElemSize, Len, nullptr, varname);
-#endif
 							ArrayAlloc = Builder->Insert(ArrayAlloc);
+#endif
 						} else {
 							const char* jit_malloc = "__jit_managed_malloc";
 							auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();

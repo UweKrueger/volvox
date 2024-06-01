@@ -185,8 +185,8 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 					                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
 					                                          ElemSize, Len,
 					                                          nullptr, Name);
-#endif
 					ArrayAlloc = Builder->Insert(ArrayAlloc);
+#endif
 				} else {
 					const char* jit_malloc = "__jit_managed_malloc";
 					auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();
@@ -211,8 +211,8 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 				                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
 				                                          ElemSize, Len,
 				                                          nullptr, Name);
-#endif
 				ArrayAlloc = Builder->Insert(ArrayAlloc);
+#endif
 			} else {
 				const char* jit_malloc = "__jit_managed_malloc";
 				auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();

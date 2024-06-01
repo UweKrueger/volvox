@@ -56,14 +56,14 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 #if LLVM_VERSION_MAJOR >= 18
 	llvm::Value* Malloc = Builder->CreateMalloc(
 		llvm_size_type, llvm::Type::getInt8Ty(Context),
-		AllocSz, nullptr, nullptr, "task");
+		AllocSz, nullptr, nullptr, "threadcontext");
 #else
 	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
 		Builder->GetInsertBlock(),
 		llvm_size_type, llvm::Type::getInt8Ty(Context),
-		AllocSz, nullptr, nullptr, "task");
+		AllocSz, nullptr, nullptr, "threadcontext");
+	Malloc = Builder->Insert(Malloc);
 #endif
-	Malloc =  Builder->Insert(Malloc);
 	for (unsigned j=0; j<i; j++) {
 		auto [ offs, sz, var_dims, is_ref ] = Alloc[j];
 		llvm::Value* val = nullptr;
