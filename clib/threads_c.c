@@ -16,7 +16,9 @@ typedef int ssize_t;
 #include <pthread.h>
 #define _DECL
 #define _CDECL extern "C"
+#include <unistd.h>
 #endif
+#include <stdint.h>
 #include <stdbool.h>
 
 ssize_t __create_thread(void* f, void* arg, bool detached) {
