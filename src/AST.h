@@ -668,6 +668,8 @@ public:
 	ThreadExprAST(SourceLocation Loc, std::unique_ptr<CallExprAST> _Call)
 		: ExprAST(_Call->ft->type, _Call->ft->type_attr, Loc), Call(std::move(_Call)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	llvm::Function* get_thread_wrapper();
+	llvm::StructType* args_type;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "task", ind);

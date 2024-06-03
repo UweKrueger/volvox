@@ -10,6 +10,8 @@
 #include <dlfcn.h>
 #endif
 
+static unsigned wrapper_idx = 0;
+
 std::vector<unsigned> get_vardims(llvm::Type* ty) {
 	std::vector<unsigned> var_dims;
 	unsigned idx = 0;
@@ -21,69 +23,59 @@ std::vector<unsigned> get_vardims(llvm::Type* ty) {
 	return var_dims;
 }
 
+llvm::Function* ThreadExprAST::get_thread_wrapper() {
+	auto savedInsertPoint = Builder->GetInsertPoint();
+	std::string wrapper_name = "__thread_wrapper_" + std::to_string(wrapper_idx++);
+	// wrappers are always of type `void* f(void* arg)`
+	llvm::FunctionType* wrapper_fn_t = llvm::FunctionType::get(llvm_ptr_type, { llvm_ptr_type }, false);
+	llvm::Function* wrapper_f = llvm::Function::Create(wrapper_fn_t, llvm::Function::ExternalLinkage, wrapper_name, TheModule.get());
+	auto BB = llvm::BasicBlock::Create(Context, "entry", wrapper_f);
+	Builder->SetInsertPoint(BB);
+	llvm::Value* control_block = wrapper_f->getArg(0);
+	std::vector<llvm::Value*> args;
+	args.reserve(Call->Proto->LLVMArgTypes.size());
+}
+
 llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
-	llvm::Value* AllocSz = Call->alloc_size();
 	// offset, allocsz, var_indices, is_reference
-	std::vector<std::tuple<llvm::Value*,llvm::Value*,std::vector<unsigned>,bool>> Alloc;
-	Alloc.reserve(Call->Args.size());
-	unsigned i = 0;
-	for (auto& arg: Call->Args) {
-		unsigned attr = Call->Proto->ArgTypes[i]->type_attr;
-		llvm::Type* ty = Call->Proto->ArgTypes[i]->type;
-		std::vector<unsigned> var_dims = get_vardims(ty);
-		unsigned n_var_dims = var_dims.size();
-		// align AllocSz to target_bytes
-		AllocSz = Builder->CreateAdd(AllocSz, getSize(target_bytes - 1));
-		AllocSz = Builder->CreateAnd(AllocSz, getSize(-target_bytes));
-		if (n_var_dims)
-			AllocSz = Builder->CreateAdd(AllocSz, getSize(n_var_dims * target_bytes));
-		if (attr & A_ref) {
-			if (attr & (A_unique | A_shared | A_const)) {
-				llvm::Value* sz = getSize(target_bytes);
-				Alloc.push_back({ AllocSz, sz, var_dims, true });
-				AllocSz = Builder->CreateAdd(AllocSz, sz);
-			} else {
-				errs() << arg->Loc << ": reference argument for 'task' only allowed when 'unique', 'shared' or 'const'";
+	llvm::Value* Malloc;
+	if (Call->Proto->LLVMArgTypes.empty()) {
+		args_type = nullptr;
+		Malloc = llvm::ConstantPointerNull::get(llvm_ptr_type);
+	} else {
+		args_type = llvm::StructType::get(Context, Call->Proto->LLVMArgTypes);
+		llvm::Value* AllocSz = getSize(TheModule->getDataLayout().getTypeAllocSize(args_type));
+#if LLVM_VERSION_MAJOR >= 18
+		Malloc = Builder->CreateMalloc(
+			llvm_size_type, llvm::Type::getInt8Ty(Context),
+			AllocSz, nullptr, nullptr, "threadcontext");
+#else
+		Malloc = llvm::CallInst::CreateMalloc(
+			Builder->GetInsertBlock(),
+			llvm_size_type, llvm::Type::getInt8Ty(Context),
+			AllocSz, nullptr, nullptr, "threadcontext");
+		Malloc = Builder->Insert(Malloc);
+#endif
+		unsigned i = 0;
+		for (auto& arg: Call->Args) {
+			unsigned attr = Call->Proto->ArgTypes[i]->type_attr;
+			llvm::Type* ty = Call->Proto->ArgTypes[i]->type;
+			std::vector<unsigned> var_dims = get_vardims(ty);
+			unsigned n_var_dims = var_dims.size();
+			if (n_var_dims) {
+				errs() << arg->Loc << ": variable size array as parameter for 'thread' call not allowed\n";
 				return nullptr;
 			}
-		} else {
-			llvm::Value* sz = arg->alloc_size();
-			Alloc.push_back({ AllocSz, sz, var_dims, false });
-			AllocSz = Builder->CreateAdd(AllocSz, sz);
-		}
-		i++;
-	}
-#if LLVM_VERSION_MAJOR >= 18
-	llvm::Value* Malloc = Builder->CreateMalloc(
-		llvm_size_type, llvm::Type::getInt8Ty(Context),
-		AllocSz, nullptr, nullptr, "threadcontext");
-#else
-	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
-		Builder->GetInsertBlock(),
-		llvm_size_type, llvm::Type::getInt8Ty(Context),
-		AllocSz, nullptr, nullptr, "threadcontext");
-	Malloc = Builder->Insert(Malloc);
-#endif
-	for (unsigned j=0; j<i; j++) {
-		auto [ offs, sz, var_dims, is_ref ] = Alloc[j];
-		llvm::Value* val = nullptr;
-		llvm::Value* ref = nullptr;
-		llvm::Value* Adr;
-		if (!var_dims.empty()) {
-			llvm::Value* IdxOffs = Builder->CreateSub(offs, getSize(var_dims.size() * target_bytes));
-			llvm::Value* IdxsAdr = Builder->CreateGEP(llvm::Type::getInt8Ty(Context), Malloc, IdxOffs);
-			auto dim_vals = Call->Args[j]->codegen_dims();
-			for (unsigned n=0; ; n++) {
-				Adr = Builder->CreateConstGEP1_32(
-					llvm_size_type, Builder->CreatePointerCast(Adr, llvm_size_type->getPointerTo()), n);
-				if (n == var_dims.size())
-					break;
-				Builder->CreateStore(Adr, (*dim_vals.second)[var_dims[n]]);
+			if (attr & A_ref) {
+				if (!(attr & (A_unique | A_shared | A_const))) {
+					errs() << arg->Loc << ": reference argument for 'thread' only allowed when 'unique', 'shared' or 'const'";
+					return nullptr;
+				}
 			}
-		} else {
-			Adr = Builder->CreateGEP(llvm::Type::getInt8Ty(Context), Malloc, offs);
+			llvm::Value* arg_val = Call->Args[i]->codegen();
+			llvm::Value* Adr = Builder->CreateStructGEP(args_type, Malloc, i, Call->Proto->Args[i]);
+			Builder->CreateStore(arg_val, Adr);
 		}
 	}
-	// return Malloc;
-	return llvm::Constant::getNullValue(ft->type);
+	return Malloc;
 }

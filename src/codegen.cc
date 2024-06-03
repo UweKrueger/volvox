@@ -3453,14 +3453,22 @@ llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {
 	return rawV;
 }
 
-llvm::Value* ExprAST::alloc_size() {
-	if (ft->type->isFunctionTy())
+llvm::Value* get_type_alloc_size(llvm::Type* t) {
+	if (t->isVoidTy())
+		return getSize(0);
+	if (t->isFunctionTy())
 		return getSize(target_bytes);
-	if (ft->type->isSized()) {
-		uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(ft->type);
+	if (t->isSized()) {
+		uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(t);
 		if (sz)
 			return getSize(sz);
 	}
+	return nullptr;
+}
+
+llvm::Value* ExprAST::alloc_size() {
+	if (auto a_sz = get_type_alloc_size(ft->type))
+		return a_sz;
 	auto Dims = codegen_dims();
 	if (!Dims.first || !Dims.second)
 		return nullptr;
