@@ -21,51 +21,75 @@ typedef int ssize_t;
 #include <stdint.h>
 #include <stdbool.h>
 
-ssize_t __create_thread(void* f, void* arg, bool detached) {
+// new thread - return handle, (-1) if detached or 0 on error
+void* __create_thread(void* f, void* arg, bool detached) {
 #ifdef _WIN32
 	HANDLE t = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)f, arg, 0, NULL);
 	if (!t)
-		return -1;
+		return NULL;
 	if (detached) {
 		BOOL res = CloseHandle(t);
 		if (!res)
-			return -1;
+			return NULL;
 		else
-			return 0;
+			return (void*)(intptr_t)(-1);;
 	}
-	return (ssize_t)t;
+	return (void*)t;
 #else
 	pthread_t t;
 	pthread_attr_t attr;
 	if (pthread_attr_init(&attr))
-		return -1;
+		return NULL;
 	pthread_attr_setdetachstate(
 		&attr,
 		detached ? PTHREAD_CREATE_DETACHED : PTHREAD_CREATE_JOINABLE);
 	int res = pthread_create(&t, &attr, f, arg);
 	pthread_attr_destroy(&attr);
 	if (res)
-		return -1;
-	return (ssize_t)t;
+		return NULL;
+	return (void*)t;
 #endif
 }
 
-// return <0 for failure or 32 bit return value
-ssize_t __join_thread(ssize_t t) {
+#ifdef _WIN32
+#define MAX_NUM_THREADS 1000
+static void* __thread_return_map[MAX_NUM_THREADS] = {0};
+
+void* __get_thread_return_adr(DWORD idx) {
+	if (idx >= MAX_NUM_THREADS)
+		abort();
+	void* adr = __thread_return_map[idx];
+	__thread_return_map[idx] = NULL;
+	return adr;
+}
+
+DWORD __get_thread_return_idx(void* adr) {
+	for (unsigned i=0; i<MAX_NUM_THREADS; i++) {
+		if (!__thread_return_map[i]) {
+			__thread_return_map[i] = adr;
+			return i;
+		}
+	}
+	abort();
+}
+#endif
+
+// return 0 for failure or 32 bit return value
+void* __join_thread(void* t) {
 #ifdef _WIN32
 	DWORD res = WaitForSingleObject((HANDLE)t, INFINITE);
 	if (res == WAIT_FAILED)
 		return -1;
 	DWORD code;
 	if (GetExitCodeThread((HANDLE)t, &code))
-		return (ssize_t)(size_t)code;
-	return -1;
+		return __get_thread_return_adr(code);
+	return NULL;
 #else
 	void* val;
 	int res = pthread_join((pthread_t)t, &val);
 	if (res)
-		return -res;
-	return (ssize_t)((uintptr_t)val & ~1U);
+		return NULL;
+	return val;
 #endif
 }
 

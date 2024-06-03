@@ -77,5 +77,6 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 			Builder->CreateStore(arg_val, Adr);
 		}
 	}
+	llvm::Function* wrapper = get_thread_wrapper();
 	return Malloc;
 }
