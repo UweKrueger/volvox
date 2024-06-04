@@ -4,20 +4,19 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #ifdef _WIN32
+#define _DECL __declspec(dllexport)
+#define _CDECL extern "C" __declspec(dllexport)
+#else
+#define _DECL
+#define _CDECL extern "C"
+#endif
+
+#if defined(_WIN32) && !defined(__MINGW32__)
 #include <windows.h>
 #include <stdatomic.h>
 #include <processthreadsapi.h>
-#define _DECL __declspec(dllexport)
-#define _CDECL extern "C" __declspec(dllexport)
-#ifdef _WIN64
-typedef long long int ssize_t;
-#else
-typedef int ssize_t;
-#endif
 #else
 #include <pthread.h>
-#define _DECL
-#define _CDECL extern "C"
 #include <unistd.h>
 #endif
 #include <stdint.h>
@@ -25,7 +24,7 @@ typedef int ssize_t;
 
 // new thread - return handle, (-1) if detached or 0 on error
 void* __create_thread(void* f, void* arg, bool detached) {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__)
 	HANDLE t = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)f, arg, 0, NULL);
 	if (!t)
 		return NULL;
@@ -53,7 +52,12 @@ void* __create_thread(void* f, void* arg, bool detached) {
 #endif
 }
 
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__)
+
+// Native Windows threads return a DWORD on join but we want to pass
+// an address. So we maintain an array of 2^MAX_NUM_THREADS_EXP atomic
+// addresses, pass the index and look up the address on the callers side
+
 #define MAX_NUM_THREADS_EXP 8U
 #define MAX_NUM_THREADS (1U << MAX_NUM_THREADS_EXP)
 #define MAX_NUM_THREAD_MASK (MAX_NUM_THREADS - 1U)
@@ -80,7 +84,7 @@ DWORD __get_thread_return_idx(void* adr) {
 
 // return 0 for failure or 32 bit return value
 void* __join_thread(void* t) {
-#ifdef _WIN32
+#if defined(_WIN32) && !defined(__MINGW32__)
 	DWORD res = WaitForSingleObject((HANDLE)t, INFINITE);
 	if (res == WAIT_FAILED)
 		return NULL;
