@@ -171,7 +171,7 @@ typedef union {
   long double f;
 } long_double_bits;
 
-#if __STDC_VERSION__ >= 199901L
+#if __STDC_VERSION__ >= 199901L && !defined(__STDC_NO_COMPLEX__)
 typedef float _Complex Fcomplex;
 typedef double _Complex Dcomplex;
 typedef long double _Complex Lcomplex;
