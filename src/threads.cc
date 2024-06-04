@@ -33,7 +33,37 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 	Builder->SetInsertPoint(BB);
 	llvm::Value* control_block = wrapper_f->getArg(0);
 	std::vector<llvm::Value*> args;
-	args.reserve(Call->Proto->LLVMArgTypes.size());
+	unsigned n_args = args_type->getNumElements();
+	llvm::Type* ret_typ = Call->Proto->RetType->type;
+	size_t ret_sz = TheModule->getDataLayout().getTypeAllocSize(ret_typ);
+	bool do_sret = (ret_sz > sret_limit);
+	llvm::Value* SretAlloc = nullptr;
+	if (do_sret) {
+		SretAlloc = Builder->CreateAlloca(ret_typ, nullptr);
+		args.reserve(n_args+1);
+		args.push_back(SretAlloc);
+	} else {
+		args.reserve(n_args);
+	}
+	for (unsigned i=0; i<n_args; i++) {
+		llvm::Value* el_ptr = Builder->CreateStructGEP(args_type, control_block, i);
+		auto ty = args_type->getElementType(i);
+		llvm::Value* arg = Builder->CreateLoad(ty, el_ptr);
+		args.push_back(arg);
+	}
+	llvm::Value* theFunction = Call->Callee->codegen();
+	if (!theFunction)
+		theFunction = getFunction(Call->Proto);
+	if (!theFunction)
+		abort();
+	auto FT = Call->Proto->FT;
+	llvm::Value* res;
+	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction))
+		res = Builder->CreateCall(FT, F, args);
+	else
+		abort();
+	
+	return nullptr;
 }
 
 llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
