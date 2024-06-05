@@ -24,7 +24,13 @@ std::vector<unsigned> get_vardims(llvm::Type* ty) {
 }
 
 llvm::Function* ThreadExprAST::get_thread_wrapper() {
-	auto savedInsertPoint = Builder->GetInsertPoint();
+	auto savedInsertPoint = Builder->GetInsertBlock();
+	bool finish_module = (comp_mode == comp_jit);
+	std::unique_ptr<llvm::Module> savedModule = nullptr;
+	if (finish_module) {
+		savedModule = std::move(TheModule);
+		InitializeModuleAndPassManager();
+	}
 	std::string wrapper_name = "__thread_wrapper_" + std::to_string(wrapper_idx++);
 	// wrappers are always of type `void* f(void* arg)`
 	llvm::FunctionType* wrapper_fn_t = llvm::FunctionType::get(llvm_ptr_type, { llvm_ptr_type }, false);
@@ -124,7 +130,11 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 			}
 		}
 	}
-	bool fin = finishFunctionOrModule(wrapper_f, 1, false, false);
+	bool fin = finishFunctionOrModule(wrapper_f, 1, finish_module, finish_module);
+	if (finish_module) {
+		TheModule = std::move(savedModule);
+		wrapper_f = llvm::Function::Create(wrapper_fn_t, llvm::Function::ExternalLinkage, wrapper_name, TheModule.get());
+	}
 	Builder->SetInsertPoint(savedInsertPoint);
 	if (fin)
 		return wrapper_f;
@@ -175,6 +185,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* arg_val = Call->Args[i]->codegen();
 			llvm::Value* Adr = Builder->CreateStructGEP(args_type, Malloc, i, Call->Proto->Args[i]);
 			Builder->CreateStore(arg_val, Adr);
+			i++;
 		}
 	}
 	llvm::Function* wrapper = get_thread_wrapper();
