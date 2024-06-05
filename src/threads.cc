@@ -33,17 +33,14 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 	Builder->SetInsertPoint(BB);
 	llvm::Value* control_block = wrapper_f->getArg(0);
 	std::vector<llvm::Value*> args;
-	unsigned n_args = args_type->getNumElements();
-	llvm::Type* ret_typ = Call->Proto->RetType->type;
-	size_t ret_sz = TheModule->getDataLayout().getTypeAllocSize(ret_typ);
-	bool do_sret = (ret_sz > sret_limit);
 	llvm::Value* SretAlloc = nullptr;
+	args.reserve(n_args+do_sret);
 	if (do_sret) {
+		// we use alloca (and not malloc) here to avoid memory leaks in case
+		// of abort(). In case of successful thread termination the value will be
+		// copied in a malloced memory space below.
 		SretAlloc = Builder->CreateAlloca(ret_typ, nullptr);
-		args.reserve(n_args+1);
 		args.push_back(SretAlloc);
-	} else {
-		args.reserve(n_args);
 	}
 	for (unsigned i=0; i<n_args; i++) {
 		llvm::Value* el_ptr = Builder->CreateStructGEP(args_type, control_block, i);
@@ -62,18 +59,86 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		res = Builder->CreateCall(FT, F, args);
 	else
 		abort();
-	
+	PrototypeAST* win_thread_exit_proto = nullptr;
+	llvm::Function* win_thread_exit_fn = nullptr;
+	if (os_idx == OS_Windows && !target_mingw) {
+		win_thread_exit_proto = (*lex.findProtos("__win_exit_thread"))[0].get();
+		win_thread_exit_fn = getFunction(win_thread_exit_proto);
+	}
+	llvm::Value* returnres;
+	if (ret_typ->isVoidTy()) {
+		if (win_thread_exit_fn)
+			Builder->CreateCall(win_thread_exit_proto->FT, win_thread_exit_fn, std::vector<llvm::Value*>{
+					llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0) });
+		Builder->CreateRetVoid();
+	} else {
+		// we try to return the result in the following order
+		// 1. directly as DWORD on Windows native (max 32-Bit)
+		// 2. converted to (void*) as thread result (using table on Windows-native)
+		// 3. address of malloc()ed memory space (using table on Windows-native)
+		if (ret_sz <= 4 && win_thread_exit_fn) {
+			Builder->CreateCall(win_thread_exit_proto->FT, win_thread_exit_fn, std::vector<llvm::Value*>{
+					Builder->CreateBitCast(res, llvm::Type::getInt32Ty(Context)) });
+			Builder->CreateRetVoid();
+		} else if (ret_sz <= target_bytes) {
+			llvm::Value* retval = Builder->CreateIntToPtr(Builder->CreateBitCast(res, llvm_size_type), llvm_ptr_type);
+			if (os_idx == OS_Windows && !target_mingw) {
+				auto return_idx_proto = (*lex.findProtos("__get_thread_return_idx"))[0].get();
+				auto return_idx_fn = getFunction(return_idx_proto);
+				llvm::Value* dword_ret = Builder->CreateCall(return_idx_proto->FT, return_idx_fn,
+				                                             std::vector<llvm::Value*>{ retval });
+				Builder->CreateCall(win_thread_exit_proto->FT, win_thread_exit_fn,
+				                    std::vector<llvm::Value*>{ dword_ret });
+				Builder->CreateRetVoid();
+			} else {
+				Builder->CreateRet(retval);
+			}
+		} else {
+#if LLVM_VERSION_MAJOR >= 18
+			llvm::Value* Malloc = Builder->CreateMalloc(
+				llvm_size_type, llvm::Type::getInt8Ty(Context),
+				getSize(ret_sz), nullptr, nullptr, "threadresult");
+#else
+			llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
+				Builder->GetInsertBlock(),
+				llvm_size_type, llvm::Type::getInt8Ty(Context),
+				getSize(ret_sz), nullptr, nullptr, "threadresult");
+			Malloc = Builder->Insert(Malloc);
+#endif
+			if (do_sret) {
+				auto align = getAlignment(ret_sz);
+				Builder->CreateMemCpy(Malloc, align, SretAlloc, align, ret_sz);
+			} else {
+				Builder->CreateStore(res, Malloc);
+			}
+			if (os_idx == OS_Windows && !target_mingw) {
+				auto return_idx_proto = (*lex.findProtos("__get_thread_return_idx"))[0].get();
+				auto return_idx_fn = getFunction(return_idx_proto);
+				llvm::Value* dword_ret = Builder->CreateCall(return_idx_proto->FT, return_idx_fn,
+				                                             std::vector<llvm::Value*>{ Malloc });
+				Builder->CreateCall(win_thread_exit_proto->FT, win_thread_exit_fn,
+				                    std::vector<llvm::Value*>{ dword_ret });
+				Builder->CreateRetVoid();
+			} else {
+				Builder->CreateRet(Malloc);
+			}
+		}
+	}
 	return nullptr;
 }
 
 llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	// offset, allocsz, var_indices, is_reference
+	ret_typ = Call->Proto->RetType->type;
+	ret_sz = ret_typ->isVoidTy() ? 0 : TheModule->getDataLayout().getTypeAllocSize(ret_typ);
+	do_sret = (ret_sz > sret_limit) ? 1 : 0;
 	llvm::Value* Malloc;
-	if (Call->Proto->LLVMArgTypes.empty()) {
+	n_args = Call->Proto->LLVMArgTypes.size() - do_sret;
+	if (!n_args) {
 		args_type = nullptr;
 		Malloc = llvm::ConstantPointerNull::get(llvm_ptr_type);
 	} else {
-		args_type = llvm::StructType::get(Context, Call->Proto->LLVMArgTypes);
+		args_type = llvm::StructType::get(Context, llvm::ArrayRef(Call->Proto->LLVMArgTypes.data()+do_sret, n_args));
 		llvm::Value* AllocSz = getSize(TheModule->getDataLayout().getTypeAllocSize(args_type));
 #if LLVM_VERSION_MAJOR >= 18
 		Malloc = Builder->CreateMalloc(

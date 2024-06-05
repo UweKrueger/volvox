@@ -670,6 +670,10 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Function* get_thread_wrapper();
 	llvm::StructType* args_type;
+	unsigned do_sret; // 1 if result address is passes as 1st arg, 0 otherwise
+	unsigned n_args;
+	llvm::Type* ret_typ;
+	size_t ret_sz;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "task", ind);
