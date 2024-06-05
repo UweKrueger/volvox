@@ -124,7 +124,12 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 			}
 		}
 	}
-	return nullptr;
+	bool fin = finishFunctionOrModule(wrapper_f, 1, false, false);
+	Builder->SetInsertPoint(savedInsertPoint);
+	if (fin)
+		return wrapper_f;
+	else
+		return nullptr;
 }
 
 llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
@@ -173,5 +178,12 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	llvm::Function* wrapper = get_thread_wrapper();
-	return Malloc;
+	if (!wrapper)
+		return nullptr;
+	auto thread_create_proto = (*lex.findProtos("__create_thread"))[0].get();
+	auto thread_create_fn = getFunction(thread_create_proto);
+	llvm::Value* thr_id =Builder->CreateCall(
+		thread_create_proto->FT, thread_create_fn,
+		std::vector<llvm::Value*>{ wrapper, Malloc, llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), 0) });
+	return thr_id;
 }
