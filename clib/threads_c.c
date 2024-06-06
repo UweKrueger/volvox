@@ -5,13 +5,11 @@
  */
 #ifdef _WIN32
 #define _DECL __declspec(dllexport)
-#define _CDECL extern "C" __declspec(dllexport)
 #else
 #define _DECL
-#define _CDECL extern "C"
 #endif
 
-#if defined(_WIN32) && !defined(__MINGW32__)
+#if defined(_WIN32)
 #include <windows.h>
 #include <stdatomic.h>
 #include <processthreadsapi.h>
@@ -23,8 +21,8 @@
 #include <stdbool.h>
 
 // new thread - return handle, (-1) if detached or 0 on error
-void* __create_thread(void* f, void* arg, bool detached) {
-#if defined(_WIN32) && !defined(__MINGW32__)
+_DECL void* __create_thread(void* f, void* arg, bool detached) {
+#if defined(_WIN32)
 	HANDLE t = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)f, arg, 0, NULL);
 	if (!t)
 		return NULL;
@@ -52,7 +50,7 @@ void* __create_thread(void* f, void* arg, bool detached) {
 #endif
 }
 
-#if defined(_WIN32) && !defined(__MINGW32__)
+#if defined(_WIN32)
 
 // Native Windows threads return a DWORD on join but we want to pass
 // an address. So we maintain an array of 2^MAX_NUM_THREADS_EXP atomic
@@ -64,14 +62,14 @@ void* __create_thread(void* f, void* arg, bool detached) {
 
 static atomic_uintptr_t __thread_return_map[MAX_NUM_THREADS] = {0};
 
-void* __get_thread_return_adr(DWORD idx) {
+_DECL void* __get_thread_return_adr(DWORD idx) {
 	if (idx >= MAX_NUM_THREADS)
 		abort();
 	void* adr = (void*)atomic_exchange(&__thread_return_map[idx], (uintptr_t)0);
 	return adr;
 }
 
-DWORD __get_thread_return_idx(void* adr) {
+_DECL DWORD __get_thread_return_idx(void* adr) {
 	// we rotate through the table until we find a free slot
 	for (unsigned i=0; ; i = ((i+1) & MAX_NUM_THREAD_MASK)) {
 		uintptr_t null = 0;
@@ -83,8 +81,8 @@ DWORD __get_thread_return_idx(void* adr) {
 #endif
 
 // return 0 for failure or 32 bit return value
-void* __join_thread(void* t) {
-#if defined(_WIN32) && !defined(__MINGW32__)
+_DECL void* __join_thread(void* t) {
+#if defined(_WIN32)
 	DWORD res = WaitForSingleObject((HANDLE)t, INFINITE);
 	if (res == WAIT_FAILED)
 		return NULL;

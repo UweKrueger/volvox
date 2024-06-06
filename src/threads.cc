@@ -23,6 +23,14 @@ std::vector<unsigned> get_vardims(llvm::Type* ty) {
 	return var_dims;
 }
 
+static void windows_ret_ptr_as_dword(llvm::Value* retval) {
+	auto return_idx_proto = (*lex.findProtos("__get_thread_return_idx"))[0].get();
+	auto return_idx_fn = getFunction(return_idx_proto);
+	llvm::Value* dword_ret = Builder->CreateCall(return_idx_proto->FT, return_idx_fn,
+	                                             std::vector<llvm::Value*>{ retval });
+	Builder->CreateRet(dword_ret);
+}
+
 llvm::Function* ThreadExprAST::get_thread_wrapper() {
 	auto savedInsertPoint = Builder->GetInsertBlock();
 	bool finish_module = (comp_mode == comp_jit);
@@ -33,7 +41,9 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 	}
 	std::string wrapper_name = "__thread_wrapper_" + std::to_string(wrapper_idx++);
 	// wrappers are always of type `void* f(void* arg)`
-	llvm::FunctionType* wrapper_fn_t = llvm::FunctionType::get(llvm_ptr_type, { llvm_ptr_type }, false);
+	llvm::FunctionType* wrapper_fn_t = llvm::FunctionType::get(
+		(os_idx == OS_Windows) ? llvm_int_type : llvm_ptr_type,
+		{ llvm_ptr_type }, false);
 	llvm::Function* wrapper_f = llvm::Function::Create(wrapper_fn_t, llvm::Function::ExternalLinkage, wrapper_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", wrapper_f);
 	Builder->SetInsertPoint(BB);
@@ -65,40 +75,24 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		res = Builder->CreateCall(FT, F, args);
 	else
 		abort();
-	PrototypeAST* win_thread_exit_proto = nullptr;
-	llvm::Function* win_thread_exit_fn = nullptr;
-	if (os_idx == OS_Windows && !target_mingw) {
-		win_thread_exit_proto = (*lex.findProtos("__win_exit_thread"))[0].get();
-		win_thread_exit_fn = getFunction(win_thread_exit_proto);
-	}
-	llvm::Value* returnres;
 	if (ret_typ->isVoidTy()) {
-		if (win_thread_exit_fn)
-			Builder->CreateCall(win_thread_exit_proto->FT, win_thread_exit_fn, std::vector<llvm::Value*>{
-					llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0) });
-		Builder->CreateRetVoid();
+		if (os_idx == OS_Windows)
+			Builder->CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0));
+		else
+			Builder->CreateRet(llvm::ConstantPointerNull::get(llvm_ptr_type));
 	} else {
 		// we try to return the result in the following order
 		// 1. directly as DWORD on Windows native (max 32-Bit)
 		// 2. converted to (void*) as thread result (using table on Windows-native)
 		// 3. address of malloc()ed memory space (using table on Windows-native)
-		if (ret_sz <= 4 && win_thread_exit_fn) {
-			Builder->CreateCall(win_thread_exit_proto->FT, win_thread_exit_fn, std::vector<llvm::Value*>{
-					Builder->CreateBitCast(res, llvm::Type::getInt32Ty(Context)) });
-			Builder->CreateRetVoid();
+		if (ret_sz <= 4 && os_idx == OS_Windows) {
+			Builder->CreateRet(Builder->CreateBitCast(res, llvm::Type::getInt32Ty(Context)));
 		} else if (ret_sz <= target_bytes) {
 			llvm::Value* retval = Builder->CreateIntToPtr(Builder->CreateBitCast(res, llvm_size_type), llvm_ptr_type);
-			if (os_idx == OS_Windows && !target_mingw) {
-				auto return_idx_proto = (*lex.findProtos("__get_thread_return_idx"))[0].get();
-				auto return_idx_fn = getFunction(return_idx_proto);
-				llvm::Value* dword_ret = Builder->CreateCall(return_idx_proto->FT, return_idx_fn,
-				                                             std::vector<llvm::Value*>{ retval });
-				Builder->CreateCall(win_thread_exit_proto->FT, win_thread_exit_fn,
-				                    std::vector<llvm::Value*>{ dword_ret });
-				Builder->CreateRetVoid();
-			} else {
+			if (os_idx == OS_Windows)
+				windows_ret_ptr_as_dword(retval);
+			else
 				Builder->CreateRet(retval);
-			}
 		} else {
 #if LLVM_VERSION_MAJOR >= 18
 			llvm::Value* Malloc = Builder->CreateMalloc(
@@ -117,17 +111,10 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 			} else {
 				Builder->CreateStore(res, Malloc);
 			}
-			if (os_idx == OS_Windows && !target_mingw) {
-				auto return_idx_proto = (*lex.findProtos("__get_thread_return_idx"))[0].get();
-				auto return_idx_fn = getFunction(return_idx_proto);
-				llvm::Value* dword_ret = Builder->CreateCall(return_idx_proto->FT, return_idx_fn,
-				                                             std::vector<llvm::Value*>{ Malloc });
-				Builder->CreateCall(win_thread_exit_proto->FT, win_thread_exit_fn,
-				                    std::vector<llvm::Value*>{ dword_ret });
-				Builder->CreateRetVoid();
-			} else {
+			if (os_idx == OS_Windows)
+				windows_ret_ptr_as_dword(Malloc);
+			else
 				Builder->CreateRet(Malloc);
-			}
 		}
 	}
 	bool fin = finishFunctionOrModule(wrapper_f, 1, finish_module, finish_module);

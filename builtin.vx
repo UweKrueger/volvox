@@ -24,7 +24,6 @@ cdecl __setup_console()
 cdecl __create_thread(f voidptr, arg voidptr, detached bool) voidptr
 cdecl __join_thread(tref voidptr) voidptr
 # Windows (non Mingw) specific thread functions
-cdecl(ExitThread) __win_exit_thread(retval u32)
 cdecl __get_thread_return_idx(adr voidptr) u32
 
 # pseudo functions for compiler
