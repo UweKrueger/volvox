@@ -2077,8 +2077,8 @@ int main(int argc, char* argv[]) {
 			else {
 				clang_argv.push_back(stack_size); // native Windows
 				clang_argv.push_back(exe_out);
-				clang_argv.push_back(const_cast<char*>("-defaultlib:libcmt"));
-				clang_argv.push_back(const_cast<char*>("-defaultlib:oldnames"));
+				clang_argv.push_back(const_cast<char*>("-defaultlib:ucrt"));
+				clang_argv.push_back(const_cast<char*>("-defaultlib:legacy_stdio_definitions"));
 				clang_argv.push_back(libpath);
 				clang_argv.push_back(libdirs[0]);
 				clang_argv.push_back(libdirs[1]);
