@@ -666,7 +666,7 @@ class ThreadExprAST : public ExprAST {
 	std::unique_ptr<CallExprAST> Call;
 public:
 	ThreadExprAST(SourceLocation Loc, std::unique_ptr<CallExprAST> _Call)
-		: ExprAST(_Call->ft->type, _Call->ft->type_attr, Loc), Call(std::move(_Call)) {}
+		: ExprAST(llvm_ptr_type, 0, Loc), Call(std::move(_Call)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Function* get_thread_wrapper();
 	llvm::StructType* args_type;
