@@ -52,3 +52,5 @@ fn test_semaphore_2 bool
 end
 
 import io.socket
+
+printf("All tests done!\n")

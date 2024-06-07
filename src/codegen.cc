@@ -957,7 +957,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			           dynamic_cast<UnaryExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<BranchExprAST*>(expr->RHS.get()))
 				is_call_expr = true;
-			if (is_constructor_call || allocsz > sret_limit)
+			if (is_constructor_call || ((allocsz > sret_limit) && !rhs_is_constexpr))
 				use_target = true;
 		} else if (expr->RHS->ft->type_attr & A_map)
 			use_target = true;
@@ -973,6 +973,12 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
+	// if (rhs_is_constexpr && !Val) {
+	// 	errs() << expr->RHS->Loc << ": generating value for const expr\n";
+	// 	Val = expr->RHS->codegen(true);
+	// }
+	// if (rhs_is_constexpr && !Val)
+	// 	errs() << expr->RHS->Loc << ": no value for const expr\n";
 	if (Val) {
 		if (rhs_is_constexpr) {
 			initializer = llvm::dyn_cast<llvm::Constant>(Val);
@@ -1023,7 +1029,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// If 'needs_call' is true, this here is part of a module which is going to be
 		// removed later. So in this case it's only a declaration and the 'real'
 		// variable is defined below in a separate module that will stay.
-		if ((sym_kind & A_rvalue) && (sym_kind & A_const) && allocsz && allocsz <= sret_limit && !needs_call) {
+		if ((sym_kind & A_rvalue) && (sym_kind & A_const) && !needs_call) {
 			fv->val = initializer;
 			sym_kind |= A_rvalue;
 			GV = nullptr;
