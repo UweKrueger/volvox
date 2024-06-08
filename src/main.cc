@@ -307,6 +307,8 @@ void init(const llvm::Triple& triple) {
 	case llvm::Triple::GNUX32:
 	case llvm::Triple::GNUILP32: */
 		environment_idx = Environment_GNU;
+		if (os_idx == OS_Windows)
+			sret_limit = 8;
 		break;
 	case llvm::Triple::Musl:
 	case llvm::Triple::MuslEABI:

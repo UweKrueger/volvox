@@ -1172,7 +1172,9 @@ bool FunctionAST::prepare_codegen() {
 	// Record the function arguments in the NamedValues map.
 	ArgIdx = 0;
 	ret_ft = Proto->RetType ? Proto->RetType : void_type;
+	old_theFunction_ret_ft = theFunction_ret_ft;
 	theFunction_ret_ft = ret_ft; // global variable used by IfExprAST to return from branches
+	old_theFunction_struct_ret = theFunction_struct_ret;
 	theFunction_struct_ret = Proto->IsStructRet && !(Proto->visibility & A_constructor);
 	old_currentFunction = currentFunction;
 	currentFunction = this;
@@ -1302,6 +1304,10 @@ void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch, llvm::Value* Re
 			// auto ret_type = RetVal->getType();
 			//type = ret_type; // TODO: hande conversion if != proto->type;
 			if (theFunction_struct_ret) {
+				if (!ret_ptr) {
+					errs() << currentFunction->Proto->Name << ": ### internal error: theFunction_struct_ret but no adr";
+					abort();
+				}
 				if (!RetVal->getType()->isVoidTy() && !currentFunction->RetVar)
 					Builder->CreateStore(RetVal, ret_ptr);
 				InsertDestructors(ret_ptr);
@@ -1352,6 +1358,8 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	theFunction_ret_ft = nullptr;
 	expr_temps.clear();
 	currentFunction = old_currentFunction;
+	theFunction_ret_ft = old_theFunction_ret_ft;
+	theFunction_struct_ret = old_theFunction_struct_ret;
 	return success ? TheFunction : nullptr;
 }
 
@@ -1364,8 +1372,9 @@ llvm::Function* FunctionAST::cleanup_codegen() {
 		KSDbgInfo.LexicalBlocks.pop_back();
 	}
 	ret_ptr = nullptr;
-	theFunction_ret_ft = nullptr;
 	expr_temps.clear();
 	currentFunction = old_currentFunction;
+	theFunction_ret_ft = old_theFunction_ret_ft;
+	theFunction_struct_ret = old_theFunction_struct_ret;
 	return nullptr;
 }

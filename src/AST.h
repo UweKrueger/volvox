@@ -303,6 +303,8 @@ public:
 	llvm::Value* InterRetVal = nullptr;
 	FullVar* RetVar = nullptr;
 	FunctionAST* old_currentFunction = nullptr;
+	volvoxc::FullType* old_theFunction_ret_ft = nullptr;
+	bool old_theFunction_struct_ret = false;
 	bool prepare_codegen();
 	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody);
 	llvm::Function* finish_codegen(bool finishModule = false, bool getNewModule = false);
