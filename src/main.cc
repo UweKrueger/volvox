@@ -38,7 +38,7 @@ bool support_fp80;
 bool have_return = false;
 int return_value = 0;
 #ifdef _WIN32
-bool target_mingw = true;
+bool target_mingw = true; // may be overwitten by "-msvc"
 #else
 bool target_mingw = false;
 #endif
@@ -46,7 +46,7 @@ unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
 uint64_t target_mask;
 unsigned target_int_bits;
-int sret_limit = 16; // 8 for MSVC
+int sret_limit = 16; // will be set to 8 for Windows targets below
 std::string cdecl_rename;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
 CPU_Type_t cpu_idx;
@@ -196,7 +196,7 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("j32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("j32", 32, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
 	lex.add_type("j64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("j64", 64, llvm::dwarf::DW_ATE_imaginary_float) : nullptr, A_signed);
-	if (triple.getEnvironment() == llvm::Triple::MSVC)
+	if (/* triple.getOS() == llvm::Triple::Win32 */ triple.getEnvironment() == llvm::Triple::MSVC)
 		// for the MSVC-ABI c32 is a struct containing an array and is declared in builtin.vx
 		llvm_c32_type = llvm::Type::getInt64Ty(Context);
 	else
@@ -1822,6 +1822,9 @@ int main(int argc, char* argv[]) {
 	// is 'gnueabihf'. We set the 'hard' float abi here as a quick hack
 	if (!strcmp(Target->getName(), "arm"))
 		target_opts.FloatABIType = llvm::FloatABI::Hard;
+	if (target_mingw)
+		// workaround for now - there seems to be an "llvm-mingw" using UCRT and native TLS
+		target_opts.EmulatedTLS = 1;
 #if LLVM_VERSION_MAJOR >= 17
 	auto RM = std::optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
 #else
