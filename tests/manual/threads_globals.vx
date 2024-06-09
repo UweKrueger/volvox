@@ -1,0 +1,40 @@
+from time import sleep
+
+type AALL {
+	r f64
+	x f64
+}
+
+fn AALL
+	this.x += 5
+end
+
+# The destructor should be called 4 times (aa, bb for each thread)
+fn ~AALL
+	printf("Destructor called for AALL.x = %f\n", this.x)
+end
+
+# this should be initialized as aa.x=12 (RHS is constexpr)
+global aa := AALL{ x: 7 }
+
+
+# this should be initialized as bb.x=22 in main thread and as
+# bb.x = 5 in other threads
+global bb = AALL{ x: 17 }
+
+fn do_print(x f64, n i32) f64
+	global aa
+	global bb
+	while n>0
+		sleep 0.25
+		printf("x: %f, Round %d; aa.x: %f, bb.x: %f\n", x, n, aa.x, bb.x)
+		sleep(0.07+x/5)
+		n--
+		aa.x = x + n
+	end
+	return x*x*n
+end
+
+w = thread do_print(2.97, 7)
+
+do_print(3.34, 5)
