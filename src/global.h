@@ -1459,6 +1459,7 @@ extern std::vector<int> source_index;
 extern std::vector<const char*> SourceFileNames;
 extern bool jit_repl;
 extern bool jit_extra_thread;
+extern const char* last_thread_constructor_caller;
 extern void CallGlobalDestructorsJIT();
 extern int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
                        std::vector<FnArg>& fnargs, SourceLocation Loc = {0});

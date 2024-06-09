@@ -912,6 +912,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		return cleanupGlobal(nullptr, unmangled_name.c_str(), nullptr);
 	}
 	auto varname = create_mangled_global(unmangled_name);
+	if (verbosity >= 3)
+		errs() << CurLoc << ": HandleGlobalValiable called for " << varname << "\n";
 	if (sym_kind & A_globally_visible) {
 		auto ins_success = all_global_symbols.insert({varname,false});
 		if (!ins_success.second) {
@@ -1080,6 +1082,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				auto varExpr = std::make_unique<VariableExprAST>(theLoc, unmangled_name, fv);
 				auto constructor_call = std::make_unique<DefaultConstructorCall>(theLoc, std::move(varExpr));
 				GlobalExprList.push_back(std::move(constructor_call));
+				if (sym_kind & A_global)
+					RegisterThreadConstructor(varname, &fv->ft, sym_kind);
 			}
 			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
@@ -1319,6 +1323,8 @@ static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& var
 // and then the constructor of this GV. 'last_thread_constructor_caller' is then replaced by
 // our new function
 static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind) {
+	if (verbosity >= 3)
+		errs() << CurLoc << ": RegisterThreadConstructor called for " << varname << "\n";
 	auto void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
 	auto constructor_caller = std::string("__") + varname + "_constructor_caller";
 	auto newConstructorCaller = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage,

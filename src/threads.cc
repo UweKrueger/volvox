@@ -48,6 +48,12 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 	auto BB = llvm::BasicBlock::Create(Context, "entry", wrapper_f);
 	Builder->SetInsertPoint(BB);
 	llvm::Value* control_block = wrapper_f->getArg(0);
+	if (last_thread_constructor_caller) {
+		auto last_thrconstr_proto = (*lex.findProtos(last_thread_constructor_caller))[0].get();
+		auto last_caller = getFunction(last_thrconstr_proto);
+		Builder->CreateCall(last_thrconstr_proto->FT, last_caller,
+		                    std::vector<llvm::Value*>());
+	}
 	std::vector<llvm::Value*> args;
 	llvm::Value* SretAlloc = nullptr;
 	args.reserve(n_args+do_sret);
