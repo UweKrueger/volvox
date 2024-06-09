@@ -35,6 +35,6 @@ fn do_print(x f64, n i32) f64
 	return x*x*n
 end
 
-w = thread do_print(2.97, 7)
+w = thread do_print(3.34, 5)
 
-do_print(3.34, 5)
+do_print(2.97, 7)
