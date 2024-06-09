@@ -81,6 +81,12 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		res = Builder->CreateCall(FT, F, args);
 	else
 		abort();
+	if (last_thread_destructor_caller) {
+		auto last_thrdestr_proto = (*lex.findProtos(last_thread_destructor_caller))[0].get();
+		auto last_caller = getFunction(last_thrdestr_proto);
+		Builder->CreateCall(last_thrdestr_proto->FT, last_caller,
+		                    std::vector<llvm::Value*>());
+	}
 	if (ret_typ->isVoidTy()) {
 		if (os_idx == OS_Windows)
 			Builder->CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0));

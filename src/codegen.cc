@@ -15,6 +15,7 @@ bool inside_function = false;
 const char* last_shadow_saver = nullptr;
 const char* last_shadow_restorer = nullptr;
 const char* last_thread_constructor_caller = nullptr;
+const char* last_thread_destructor_caller = nullptr;
 // list of boolean values that indicate that this loop branch is run for the first time
 // this is used to avoid multiple  allocations of variables that are declared inside a then/while/repeat loop
 VarTable* IfWhileVarTable = nullptr;
@@ -875,6 +876,7 @@ static std::pair<llvm::Type*,llvm::Value*> GetReference(ExprAST* RHS, FullVar*& 
 
 static void RegisterShadowHandlers(llvm::Constant* initializer, std::string& varname, bool needs_constructor);
 static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind);
+static void RegisterThreadDestructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind);
 
 std::map<std::string,bool> all_global_symbols;
 
@@ -1085,6 +1087,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				if (sym_kind & A_global)
 					RegisterThreadConstructor(varname, &fv->ft, sym_kind);
 			}
+			if (fv->ft.type_attr & A_destructor)
+				RegisterThreadDestructor(varname, &fv->ft, sym_kind);
 			cleanupGlobal(tmpf, nullptr, nullptr);
 			return nullptr;
 		}
@@ -1250,6 +1254,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	if (needs_constructor && (sym_kind & A_global))
 		RegisterThreadConstructor(varname, &fv->ft, sym_kind);
+	if (fv->ft.type_attr & A_destructor)
+		RegisterThreadDestructor(varname, &fv->ft, sym_kind);
 	if (jit_extra_thread && (sym_kind & A_global))
 		RegisterShadowHandlers(initializer, varname, shadow_already_created);
 	return nullptr;
@@ -1348,6 +1354,34 @@ static void RegisterThreadConstructor(std::string& varname, volvoxc::FullType* f
 	// constructor callers must be always accessible so force them into builtin namespace
 	Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
 	module->FunctionProtos[constructor_caller].push_back(std::move(constructor_caller_Proto));
+}
+
+static void RegisterThreadDestructor(std::string& varname, volvoxc::FullType* ft, unsigned sym_kind) {
+	if (verbosity >= 3)
+		errs() << CurLoc << ": RegisterThreadDestructor called for " << varname << "\n";
+	auto void_fn_t = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), {}, false);
+	auto destructor_caller = std::string("__") + varname + "_destructor_caller";
+	auto newDestructorCaller = llvm::Function::Create(void_fn_t, llvm::Function::ExternalLinkage,
+	                                                   destructor_caller, TheModule.get());
+	newDestructorCaller->addFnAttr(llvm::Attribute::AlwaysInline);
+	auto BB = llvm::BasicBlock::Create(Context, "entry", newDestructorCaller);
+	Builder->SetInsertPoint(BB);
+	auto C = getConstructorOrDestructor(ft, true);
+	auto GV = GetGlobalHandle(ft->type, varname, sym_kind);
+	Builder->CreateCall(C, { GV });
+	if (last_thread_destructor_caller) {
+		auto last_thrdestr_proto = (*lex.findProtos(last_thread_destructor_caller))[0].get();
+		auto last_caller = getFunction(last_thrdestr_proto);
+		Builder->CreateCall(last_thrdestr_proto->FT, last_caller,
+		                    std::vector<llvm::Value*>());
+	}
+	Builder->CreateRetVoid();
+	finishFunctionOrModule(newDestructorCaller, 1, jit_repl);
+	auto destructor_caller_Proto = std::make_unique<PrototypeAST>(CurLoc, destructor_caller, std::vector<std::string>(), A_pub);
+	last_thread_destructor_caller = destructor_caller_Proto->Name.c_str();
+	// destructor callers must be always accessible so force them into builtin namespace
+	Module* module = (lex.source_stack.size()) ? lex.source_stack.front().module : lex.module;
+	module->FunctionProtos[destructor_caller].push_back(std::move(destructor_caller_Proto));
 }
 
 // helper function to find out if an expression is fractional
