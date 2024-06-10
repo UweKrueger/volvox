@@ -1897,8 +1897,13 @@ nobrace:
 		return nullptr;
 	} else if (visibility & A_constructor) {
 		if (RetType) {
-			if (ArgTypes.size() != 1) {
-				errs() << CurLoc << ": definition of '" << FnName << "()' - conversions are not allowed to have arguments and constructors are not allowed to have a return value\n";
+			if (RetType->type->isStructTy()) {
+				if (ArgTypes.size() != 1) {
+					errs() << CurLoc << ": function declaration for type identifier '" << FnName << "' is invalid:\n - to be a constructor it cannot have a return type\n - to be a type conversion operator it must not have any call argument\n";
+					return nullptr;
+				}
+			} else {
+				errs() << CurLoc << ": function declaration for type identifier '" << FnName << "' is invalid:\n - to be a constructor it cannot have a return type\n - a type conversion operator cannot be declared for basic types\n";
 				return nullptr;
 			}
 			visibility = (visibility & ~A_constructor) | A_conversion;
