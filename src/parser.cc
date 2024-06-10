@@ -1969,6 +1969,7 @@ nobrace:
 static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& protos, std::unique_ptr<PrototypeAST> Proto,
                                 std::string& unmangledName, bool isMethod = false) {
 	for (auto& p: protos) {
+		errs() << "checking proto " << Proto->Name << " against " << p->Name << "\n";
 		if (Proto->Name == p->Name) {
 			errs() << Proto->retLoc << (isMethod ? ": method '" : ": function '") << unmangledName
 			       << "()' with the same signature has already been defined '" << Proto->Name << "\n";
@@ -1982,6 +1983,22 @@ static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& prot
 
 #define TEST_FN_PREFIX "test_"
 
+void setMangledName(PrototypeAST* Proto, unsigned visibility) {
+	std::string unmangledName = Proto->getName();
+	if (visibility & A_c_api) {
+		if (!cdecl_rename.empty())
+			Proto->Name = cdecl_rename;
+	} else if ((visibility & A_conversion) && !(visibility & A_constructor)) {
+		std::vector<volvoxc::FullType*> targetType = { Proto->ArgTypes[0], Proto->RetType };
+		Proto->Name = Mangle(lex.module->import_path, unmangledName, targetType, Proto->visibility).c_str();
+	} else {
+		unsigned flags = Proto->visibility;
+		if ((flags & A_constructor) && Proto->RetType && !Proto->RetType->type->isVoidTy())
+			flags |= A_constructor_value_return;
+		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, flags).c_str();
+	}
+}
+
 /// definition := 'fn' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
@@ -1991,9 +2008,13 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			getNextToken(eSemi);
 		}
 	}
+	auto theLoc = CurLoc;
 	auto Proto = ParsePrototype(visibility);
-	if (!Proto)
+	if (!Proto) {
+		errs() << theLoc << ": unable to parse declaration\n";
+		prompt_indent = 0;
 		return nullptr;
+	}
 	if ((Proto->visibility & A_constructor) && !(Proto->visibility & A_conversion))
 		function_return_kind = return_constructor;
 	else if (Proto->visibility & A_destructor)
@@ -2005,10 +2026,6 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	else
 		function_return_kind = return_expr;
 	prompt_indent++;
-	if (!Proto) {
-		prompt_indent = 0;
-		return nullptr;
-	}
 	auto sz = Proto->Args.size();
 	// initialize local vars lookup table with function arguments
 	for (int i=0; i<sz; i++) {
@@ -2041,17 +2058,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	}
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
-	if (visibility & A_c_api)
-		Proto->Name = unmangledName;
-	else if ((visibility & A_conversion) && !(visibility & A_constructor)) {
-		std::vector<volvoxc::FullType*> targetType = { Proto->ArgTypes[0], Proto->RetType };
-		Proto->Name = Mangle(lex.module->import_path, unmangledName, targetType, Proto->visibility).c_str();
-	} else {
-		unsigned flags = Proto->visibility;
-		if ((flags & A_constructor) && Proto->RetType && !Proto->RetType->type->isVoidTy())
-			flags |= A_constructor_value_return;
-		Proto->Name = Mangle(lex.module->import_path, unmangledName, Proto->ArgTypes, flags).c_str();
-	}
+	setMangledName(ProtoRef, visibility);
 	if (visibility & A_constructor) {
 		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) // default constructor
 			AutoMethods[Proto->ArgTypes[0]->mangled_name].first = Proto->Name;
