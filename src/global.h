@@ -306,7 +306,8 @@ public:
 
 namespace volvoxc {
 
-	struct FullType {
+	class FullType {
+	public:
 		llvm::Type* type = nullptr; // used by compiler
 		unsigned type_attr = 0; // signed, atomic, shared, iso, ref, num_indices
 		const char* mangled_name = nullptr; // maybe NULL for anonymous types
@@ -963,6 +964,7 @@ public:
 	unsigned visibility = 0;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
 	bool IsVarArgs = false;
+	bool has_definition = false;
 	llvm::GlobalValue::LinkageTypes link_typ;
 	int Line;
 	std::string Name;

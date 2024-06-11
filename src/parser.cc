@@ -1964,18 +1964,33 @@ nobrace:
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind, RetType, ArgTypes, ArgPos, std::move(returnName), isVarArgs);
 }
 
-
 // append prototype to list after checking that it does not already exist
 static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& protos, std::unique_ptr<PrototypeAST> Proto,
                                 std::string& unmangledName, bool isMethod = false) {
+	unsigned i = 0;
 	for (auto& p: protos) {
-		errs() << "checking proto " << Proto->Name << " against " << p->Name << "\n";
 		if (Proto->Name == p->Name) {
-			errs() << Proto->retLoc << (isMethod ? ": method '" : ": function '") << unmangledName
-			       << "()' with the same signature has already been defined '" << Proto->Name << "\n";
-			prompt_indent = 0;
-			return false;
+			if ((Proto->RetType || p->RetType) &&
+			    (!Proto->RetType || !p->RetType || Proto->RetType->type != p->RetType->type ||
+			     Proto->RetType->type_attr != p->RetType->type_attr)) {
+				errs() << Proto->retLoc << (isMethod ? ": method '" : ": function '") << unmangledName
+				       << "()' with return type '" << *Proto->RetType << "' has previously declared with different return type '" << *p->RetType << "' here:\n"
+				       << p->retLoc << "\n";
+				return false;
+			}
+			if (Proto->has_definition) {
+				if (p->has_definition) {
+					errs() << Proto->retLoc << (isMethod ? ": method '" : ": function '") << unmangledName
+					       << "()' with the same signature has already been defined '" << Proto->Name << "\n";
+					prompt_indent = 0;
+					return false;
+				} else {
+					protos[i] = std::move(Proto);
+					return true;
+				}
+			}
 		}
+		i++;
 	}
 	protos.push_back(std::move(Proto));
 	return true;
@@ -2015,6 +2030,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		prompt_indent = 0;
 		return nullptr;
 	}
+	Proto->has_definition = true;
 	if ((Proto->visibility & A_constructor) && !(Proto->visibility & A_conversion))
 		function_return_kind = return_constructor;
 	else if (Proto->visibility & A_destructor)
