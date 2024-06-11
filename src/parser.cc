@@ -1965,25 +1965,38 @@ nobrace:
 }
 
 // return -2 for conflict, -1 for new Proto, 0...n for matching index
-int proto_conflicts(PrototypeAST* Proto, std::vector<std::unique_ptr<PrototypeAST>>& protos) {
+int PrototypeAST::conflicts(std::vector<std::unique_ptr<PrototypeAST>>& protos) {
 	int res = -1;
 	int n = protos.size();
 	for (int i=0; i<n; i++) {
 		auto proto = protos[i].get();
-		auto matching_state = CompareProtos(Proto, proto);
+		auto matching_state = CompareProtos(this, proto);
 		switch (matching_state) {
 		case protos_matching:
 			if (verbosity >= 1)
-				errs() << Proto->retLoc << ": this prototype has been previously declared in a matching way\n"
+				errs() << this->retLoc << ": this prototype has previously been declared in a matching way\n"
 				       << proto->retLoc << ": this is the location of the previous declaration\n";
 			res = i;
-			break;
+			continue;
+		case protos_different:
+			continue;
 		case protos_conflicting:
-			errs() << Proto->retLoc << ": prototype with return type '" << *Proto->RetType << "' has previously been declared in conflicting way\n"
-			       << proto->retLoc << ": this is the location of the declaration with the same signature but return type '" << *proto->RetType << "'\n";
+			errs() << this->retLoc << ": return type '" << *this->RetType << "' conflicts with\n"
+			       << proto->retLoc << ": previous declaration returning '" << *proto->RetType << "'\n";
 			return -2;
-		default:
-			;
+		case protos_conflicting_c_api_A:
+			errs() << this->retLoc << ": conflicting APIs - C-type prototype for function\n"
+			       << proto->retLoc << ": previously declared as native-type here\n";
+			return -2;
+		case protos_conflicting_c_api_B:
+			errs() << this->retLoc << ": conflicting APIs - native-type prototype for function\n"
+			       << proto->retLoc << ": previously declared as C-type here\n";
+			return -2;
+		case protos_conflicting_c_signature:
+			if (verbosity >= 1)
+				errs() << this->retLoc << ": C-type prototype might conflict with previous declaration\n"
+				       << proto->retLoc << ": here with identical external name but different signature\n";
+			continue;
 		}
 	}
 	return res;
@@ -1992,7 +2005,7 @@ int proto_conflicts(PrototypeAST* Proto, std::vector<std::unique_ptr<PrototypeAS
 // append prototype to list after checking that it does not already exist
 static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& protos, std::unique_ptr<PrototypeAST> Proto,
                                 std::string& unmangledName, bool isMethod = false) {
-	int match_idx = proto_conflicts(Proto.get(), protos);
+	int match_idx = Proto->conflicts(protos);
 	switch (match_idx) {
 	case -2:
 		prompt_indent = 0;

@@ -518,7 +518,7 @@ static void HandleExtern(unsigned visibility) {
 			goto cleanup;
 		}
 		auto& protos = lex.module->FunctionProtos[unmangledName];
-		if (proto_conflicts(ProtoAST.get(), protos) == -2)
+		if (ProtoAST->conflicts(protos) == -2)
 			goto cleanup;
 		lex.module->FunctionProtos[unmangledName].push_back(std::move(ProtoAST));
 		return;

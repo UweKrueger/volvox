@@ -912,13 +912,21 @@ ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b) {
 		return protos_different;
 	size_t a_sz = a->ArgTypes.size();
 	if (a_sz != b->ArgTypes.size())
-		return protos_different;
+		goto different;
 	for (unsigned i = 0; i<a_sz; i++)
 		if (FullTypes_differ(a->ArgTypes[i], b->ArgTypes[i]))
-			return protos_different;
+			goto different;;
 	if (FullTypes_differ(a->RetType, b->RetType))
 		return protos_conflicting;
+	if ((a->visibility ^ b->visibility) & A_c_api)
+		return (a->visibility & A_c_api) ?
+			protos_conflicting_c_api_A :
+			protos_conflicting_c_api_B;
 	return protos_matching;
+different:
+	if ((a->visibility & b->visibility & A_c_api) && a->Name == b->Name)
+		return protos_conflicting_c_signature;
+	return protos_different;
 }
 
 void destroy_FV(MapValue* mapval) {

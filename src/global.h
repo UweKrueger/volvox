@@ -993,7 +993,8 @@ public:
 		assert(isUnaryOp() || isBinaryOp());
 		return Name[Name.size() - 1];
 	}
-
+	// return -2 for conflict, -1 for new Proto, 0...n for matching index
+	int conflicts(std::vector<std::unique_ptr<PrototypeAST>>& protos);
 	int getLine() const { return Line; }
 };
 
@@ -1040,13 +1041,13 @@ extern llvm::SmallString<16> createAnonFnName();
 enum ProtoMatchKind : uint8_t {
 	protos_matching,
 	protos_different, // different signatures
-	protos_conflicting // same signature but different return types
+	protos_conflicting, // same signature but different return types
+	protos_conflicting_c_api_A,
+	protos_conflicting_c_api_B,
+	protos_conflicting_c_signature
 };
 
 extern ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b);
-
-// return -2 for conflict, -1 for new Proto, 0...n for matching index
-extern int proto_conflicts(PrototypeAST* Proto, std::vector<std::unique_ptr<PrototypeAST>>& protos);
 
 enum SymbolKind : uint8_t {
 	SymbolType,
