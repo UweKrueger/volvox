@@ -244,6 +244,9 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		 selected_idx = candidates_3[0];
 		 goto check_selected_proto;
 	}
+	if (name && fnargs.size() == 1 && lex.source_stack.front().module->type_table.get(name))
+		// 'name' is a built-in type - so this might be an explicit type conversion
+		return -2;
 	errs() << Loc << ": signature of call to '" << (name ? name : "fn") << '(';
 	printArgTypes(fnargs, (!(*protos)[0]->Args.empty() && (*protos)[0]->Args[0] == "this") ? 1 : 0);
 	errs() << ")' does not match any known candidate - candidates are:\n";
@@ -273,6 +276,7 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	auto method = dynamic_cast<MethodExprAST*>(Callee.get());
 	auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get());
 	auto select_expr = dynamic_cast<SelectExprAST*>(Callee.get());
+do_analyze:
 	if (type_expr) {
 		name = type_expr->Name.c_str();
 		ft = type_expr->ft;
@@ -317,7 +321,16 @@ CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 		int selected_proto = selectProto(protos, name, fn_args, Callee->Loc);
 		if (selected_proto >= 0)
 			Proto = (*protos)[selected_proto].get();
-		else
+		else if (selected_proto == -2) {
+			// explicit basic type conversion
+			auto ft = lex.source_stack.front().module->type_table.get_full(name);
+			if (!ft)
+				return;
+			auto thetype_expr = std::make_unique<TypeExprAST>(Callee->Loc, name, ft);
+			type_expr = thetype_expr.get();
+			Callee = std::move(thetype_expr);
+			goto do_analyze;
+		} else
 			return;
 		if (!type_expr)
 			ft = Proto->RetType;
