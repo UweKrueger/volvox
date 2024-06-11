@@ -32,7 +32,12 @@ end
 
 # overloaded function that take a maximum value
 
-pub inline fn n(max u64) u64
+# we overload builtin conversions so save them before
+inline fn _u64(i u64) u64
+	return u64(i)
+end
+
+pub inline fn u64(max u64)
 	mask = max
 	mask |= (mask >> 1)
 	mask |= (mask >> 2)
@@ -43,10 +48,14 @@ pub inline fn n(max u64) u64
 	repeat
 		res = u64 & mask
 	until res <= max
-	return res
+	this = res
 end
 
-pub inline fn n(max u32) u32
+inline fn _u32(i u64) u32
+	return u32(i)
+end
+
+pub inline fn u32(max u32)
 	mask = max
 	mask |= (mask >> 1)
 	mask |= (mask >> 2)
@@ -54,32 +63,40 @@ pub inline fn n(max u32) u32
 	mask |= (mask >> 8)
 	mask |= (mask >> 16)
 	repeat
-		res = u32(u64) & mask
+		res = _u32(u64) & mask
 	until res <= max
-	return res
+	this = res
 end
 
-pub inline fn n(max u16) u16
+inline fn _u16(i u64) u16
+	return u16(i)
+end
+
+pub inline fn u16(max u16)
 	mask = max
 	mask |= (mask >> 1)
 	mask |= (mask >> 2)
 	mask |= (mask >> 4)
 	mask |= (mask >> 8)
 	repeat
-		res = u16(u64) & mask
+		res = _u16(u64) & mask
 	until res <= max
-	return res
+	this = res
 end
 
-pub inline fn n(max u8) u8
+inline fn _u8(i u64) u8
+	return u8(i)
+end
+
+pub inline fn u8(max u8)
 	mask = max
 	mask |= (mask >> 1)
 	mask |= (mask >> 2)
 	mask |= (mask >> 4)
 	repeat
-		res = u8(u64) & mask
+		res = _u8(u64) & mask
 	until res <= max
-	return res
+	this = res
 end
 
 # The functions above take an unsigned argument, i.e. none of
@@ -88,38 +105,50 @@ end
 # they take a (non-negative) signed argument 'max' value
 # a return a random signed value in the range 0..max (both including).
 
-pub inline fn n(max i64) i64
-	return i64(u64(max))
+inline fn _i64(u u64) i64
+	return i64(u)
 end
 
-pub inline fn n(max i32) i32
-	return i32(n(u32(max)))
+pub inline fn i64(max i64)
+	this = _i64(u64(max))
 end
 
-pub inline fn n(max i16) i16
-	return i16(n(u16(max)))
+inline fn _i32(u u32) i32
+	return i32(u)
 end
 
-pub inline fn n(max i8) i8
-	return i8(n(u8(max)))
+pub inline fn i32(max i32)
+	this = _i32(u32(max))
+end
+
+inline fn _i16(u u16) i16
+	return i16(u)
+end
+
+pub inline fn i16(max i16)
+	this = _i16(u16(max))
+end
+
+inline fn _i8(u u8) i8
+	return i8(u)
+end
+
+pub inline fn i8(max i8)
+	this = _i8(u8(max))
 end
 
 pub inline fn i64(min i64, max i64)
-	delta = u64(max - min)
-	this = min + n(delta)
+	this = min + u64(max - min)
 end
 
 pub inline fn i32(min i32, max i32)
-	delta = u32(max - min)
-	this = min + n(delta)
+	this = min + u32(max - min)
 end
 
 pub inline fn i16(min i16, max i16)
-	delta = u16(max - min)
-	this = min + n(delta)
+	this = min + u16(max - min)
 end
 
 pub inline fn i8(min i8, max i8)
-	delta = u8(max - min)
-	this = min + n(delta)
+	this = min + u8(max - min)
 end

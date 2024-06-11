@@ -29,6 +29,6 @@ pub inline fn f64
 		end
 		this = x.f
 	else
-		this = u64(u64 & ((1 << 53) - 1)) * 0x1.0p-53
+		this = _u64(u64 & ((1 << 53) - 1)) * 0x1.0p-53
 	end
 end
