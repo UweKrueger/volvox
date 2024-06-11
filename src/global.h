@@ -336,6 +336,14 @@ namespace volvoxc {
 
 }
 
+inline bool FullTypes_differ(volvoxc::FullType* a, volvoxc::FullType* b) {
+	return (a || b) && (!a || !b || a->type != b->type || a->type_attr != b->type_attr);
+}
+
+inline bool FullTypes_equal(volvoxc::FullType* a, volvoxc::FullType* b) {
+	return !FullTypes_differ(a, b);
+}
+
 extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(
 	volvoxc::FullType* IteratorType, SourceLocation Loc = {0});
 
@@ -1028,6 +1036,17 @@ inline std::vector<std::unique_ptr<PrototypeAST>>* new_AnonProto(std::unique_ptr
 
 extern std::vector<std::unique_ptr<PrototypeAST>>* int_int_proto;
 extern llvm::SmallString<16> createAnonFnName();
+
+enum ProtoMatchKind : uint8_t {
+	protos_matching,
+	protos_different, // different signatures
+	protos_conflicting // same signature but different return types
+};
+
+extern ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b);
+
+// return -2 for conflict, -1 for new Proto, 0...n for matching index
+extern int proto_conflicts(PrototypeAST* Proto, std::vector<std::unique_ptr<PrototypeAST>>& protos);
 
 enum SymbolKind : uint8_t {
 	SymbolType,

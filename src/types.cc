@@ -905,6 +905,22 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 	FT = llvm::FunctionType::get(llvm_ret_type, LLVMArgTypes, IsVarArgs);
 }
 
+ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b) {
+	if ((a->visibility ^ b->visibility) & (A_method | A_constructor | A_destructor))
+		return protos_different;
+	if ((a->visibility & A_method) && a->LLVMArgTypes[0] != b->LLVMArgTypes[0])
+		return protos_different;
+	size_t a_sz = a->ArgTypes.size();
+	if (a_sz != b->ArgTypes.size())
+		return protos_different;
+	for (unsigned i = 0; i<a_sz; i++)
+		if (FullTypes_differ(a->ArgTypes[i], b->ArgTypes[i]))
+			return protos_different;
+	if (FullTypes_differ(a->RetType, b->RetType))
+		return protos_conflicting;
+	return protos_matching;
+}
+
 void destroy_FV(MapValue* mapval) {
 	auto var = (FullVar*)((char*)mapval + mapval->offset);
 	var->destroy();

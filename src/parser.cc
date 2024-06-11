@@ -1897,7 +1897,7 @@ nobrace:
 		return nullptr;
 	} else if (visibility & A_constructor) {
 		if (RetType) {
-			if (RetType->type->isStructTy()) {
+			if (ReceiverType->type->isStructTy()) {
 				if (ArgTypes.size() != 1) {
 					errs() << CurLoc << ": function declaration for type identifier '" << FnName << "' is invalid:\n - to be a constructor it cannot have a return type\n - to be a type conversion operator it must not have any call argument\n";
 					return nullptr;
@@ -1964,36 +1964,46 @@ nobrace:
 	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind, RetType, ArgTypes, ArgPos, std::move(returnName), isVarArgs);
 }
 
+// return -2 for conflict, -1 for new Proto, 0...n for matching index
+int proto_conflicts(PrototypeAST* Proto, std::vector<std::unique_ptr<PrototypeAST>>& protos) {
+	int res = -1;
+	int n = protos.size();
+	for (int i=0; i<n; i++) {
+		auto proto = protos[i].get();
+		auto matching_state = CompareProtos(Proto, proto);
+		switch (matching_state) {
+		case protos_matching:
+			if (verbosity >= 1)
+				errs() << Proto->retLoc << ": this prototype has been previously declared in a matching way\n"
+				       << proto->retLoc << ": this is the location of the previous declaration\n";
+			res = i;
+			break;
+		case protos_conflicting:
+			errs() << Proto->retLoc << ": prototype with return type '" << *Proto->RetType << "' has previously been declared in conflicting way\n"
+			       << proto->retLoc << ": this is the location of the declaration with the same signature but return type '" << *proto->RetType << "'\n";
+			return -2;
+		default:
+			;
+		}
+	}
+	return res;
+}
+
 // append prototype to list after checking that it does not already exist
 static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& protos, std::unique_ptr<PrototypeAST> Proto,
                                 std::string& unmangledName, bool isMethod = false) {
-	unsigned i = 0;
-	for (auto& p: protos) {
-		if (Proto->Name == p->Name) {
-			if ((Proto->RetType || p->RetType) &&
-			    (!Proto->RetType || !p->RetType || Proto->RetType->type != p->RetType->type ||
-			     Proto->RetType->type_attr != p->RetType->type_attr)) {
-				errs() << Proto->retLoc << (isMethod ? ": method '" : ": function '") << unmangledName
-				       << "()' with return type '" << *Proto->RetType << "' has previously declared with different return type '" << *p->RetType << "' here:\n"
-				       << p->retLoc << "\n";
-				return false;
-			}
-			if (Proto->has_definition) {
-				if (p->has_definition) {
-					errs() << Proto->retLoc << (isMethod ? ": method '" : ": function '") << unmangledName
-					       << "()' with the same signature has already been defined '" << Proto->Name << "\n";
-					prompt_indent = 0;
-					return false;
-				} else {
-					protos[i] = std::move(Proto);
-					return true;
-				}
-			}
-		}
-		i++;
+	int match_idx = proto_conflicts(Proto.get(), protos);
+	switch (match_idx) {
+	case -2:
+		prompt_indent = 0;
+		return false;
+	case -1:
+		protos.push_back(std::move(Proto));
+		return true;
+	default:
+		protos[match_idx] = std::move(Proto);
+		return true;
 	}
-	protos.push_back(std::move(Proto));
-	return true;
 }
 
 #define TEST_FN_PREFIX "test_"

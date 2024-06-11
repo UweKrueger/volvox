@@ -515,13 +515,17 @@ static void HandleExtern(unsigned visibility) {
 		auto already_in_use = all_global_symbols.insert({ProtoAST->Name, true});
 		if (!already_in_use.second && !already_in_use.first->second) {
 			errs() << ProtoAST->retLoc << ": '" << ProtoAST->getName() << "' already in use as global variable\n";
-			return;
+			goto cleanup;
 		}
+		auto& protos = lex.module->FunctionProtos[unmangledName];
+		if (proto_conflicts(ProtoAST.get(), protos) == -2)
+			goto cleanup;
 		lex.module->FunctionProtos[unmangledName].push_back(std::move(ProtoAST));
-	} else {
-		// Skip token for error recovery.
-		purgeLine();
+		return;
 	}
+cleanup:
+	// Skip token for error recovery.
+	purgeLine();
 }
 
 std::map<std::string,volvoxc::FullType*> struct_mangled_ft;
