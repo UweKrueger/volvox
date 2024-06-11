@@ -47,7 +47,7 @@ global s = State4{}
 
 # main RNG producing 64 bits
 #
-pub inline fn U64 u64
+pub inline fn u64
 	global s
 	result = rotl(s.s[1] + (s.s[1] << 2), 7)
 	result += (result << 3)
@@ -58,6 +58,6 @@ pub inline fn U64 u64
 	s.s[0] ><= s.s[3]
 	s.s[2] ><= t
 	s.s[3] = rotl(s.s[3], 45)
-	return result
+	this = result
 end
 

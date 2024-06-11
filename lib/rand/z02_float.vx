@@ -8,11 +8,11 @@ type Fu64 union {
 
 # create an equally distributed random real in the range [0; 1)
 #
-pub inline fn F64 f64
+pub inline fn f64
 	global avoid_multiplication, f64_epsilon, compensate_for_53rd_bit
 	if avoid_multiplication
 		# this code is for CPUs on which multiplications are expensive
-		r0 = U64
+		r0 = u64
 		x = Fu64{ u: r0 }
 		# x.u = r0
 		# this code assumes IEEE-754 representation
@@ -27,8 +27,8 @@ pub inline fn F64 f64
 			c.u &= mask
 			x.f += c.f
 		end
-		return x.f
+		this = x.f
 	else
-		return u64(U64 & ((1 << 53) - 1)) * 0x1.0p-53
+		this = u64(u64 & ((1 << 53) - 1)) * 0x1.0p-53
 	end
 end

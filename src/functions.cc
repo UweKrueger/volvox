@@ -244,7 +244,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		 selected_idx = candidates_3[0];
 		 goto check_selected_proto;
 	}
-	if (name && fnargs.size() == 1 && lex.source_stack.front().module->type_table.get(name))
+	if (name && fnargs.size() == 1 && lex.source_stack.front().module->type_table.get_full(name))
 		// 'name' is a built-in type - so this might be an explicit type conversion
 		return -2;
 	errs() << Loc << ": signature of call to '" << (name ? name : "fn") << '(';

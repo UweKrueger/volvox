@@ -1787,7 +1787,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			// no explicit constructor call but there is a default constructor
 			auto F = getConstructorOrDestructor(&entry->ft);
 			if (!F) {
-				errs() << ": internal error - default constructor not found for " << *entry->ft.type << "\n";
+				errs() << Loc << ": internal error - default constructor not found for " << *entry->ft.type << ".\n";
 				return nullptr;
 			} else {
 				Builder->CreateCall(F, { entry->val });
