@@ -1733,6 +1733,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	std::vector<volvoxc::FullType*> ArgTypes;
 	std::vector<SourceLocation> ArgPos;
 	bool isVarArgs = false;
+	bool this_is_value = false; // TODO: check modules of type/constructor
 	volvoxc::FullType* tmp_rec_type = nullptr;
 	const char* operators = ".+-*/%^"; // for operator methods - '.' means normal method
 	int operator_idx = -1;
@@ -1788,9 +1789,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				ArgTypes.push_back(ReceiverType);
 				ArgPos.push_back(CurLoc);
 			} else {
-				if (visibility & A_constructor)
+				if (visibility & A_constructor) {
 					// this is a base type constructor that returns "this" by value
 					returnName = "this";
+					this_is_value = true;
+				}
 			}
 			if (!(visibility & (A_destructor | A_constructor))) {
 				getNextToken(eBinOp, eSemi);
@@ -1804,7 +1807,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				return nullptr;
 			}
 		}
-		if (last_defined_type && !(visibility & (A_constructor | A_destructor)))
+		if (last_defined_type && !(visibility & (A_constructor | A_destructor)) && !this_is_value)
 			// there is still a destructor/constructor section pending for the last type declaration
 			// which is unrelated - let's finish that before we continue with this definition here
 			finish_constructors_and_destructor();
@@ -1909,10 +1912,14 @@ nobrace:
 			visibility = (visibility & ~A_constructor) | A_conversion;
 		} else {
 			// default constructor - set flag in type
-			if (ArgTypes.size() == 1)
-				tmp_rec_type->type_attr |= A_constructor;
-			if (!ReceiverType->type->isStructTy())
+			if (ReceiverType->type->isStructTy()) {
+				if (ArgTypes.size() == 1)
+					tmp_rec_type->type_attr |= A_constructor;
+			} else {
 				RetType = ReceiverType;
+				if (ArgTypes.size() == 1)
+					visibility = visibility & ~(A_constructor | A_method);
+			}
 		}
 	} else if (operator_idx > 0) {
 		if (ArgTypes.size() > 2) { // cannot be 0 because we have a receiver as 1st arg
@@ -1954,7 +1961,7 @@ nobrace:
 			return nullptr;
 		}
 	}
-	if (visibility & (A_constructor | A_destructor)) {
+	if (!this_is_value && (visibility & (A_constructor | A_destructor))) {
 		if (ArgTypes.size() == 1 && (!last_defined_type || TheFn != last_defined_type)) {
 			errs() << CurLoc << ": definition(s) of default constructor / destructor must follow immediately corresponding type declaration ('" << last_defined_type << " / " << TheFn << "')\n";
 			return nullptr;
