@@ -1,0 +1,7 @@
+decl uio(zz f64)
+
+fn uio(zz f64) i32
+	return 55
+end
+
+uio(5.6)
