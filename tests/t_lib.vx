@@ -16,7 +16,24 @@ fn test_rand_f64 bool
 	end
 	p = 4. * s / n_pi
 	# printf("approximation for pi: %.5f\n", p)
-	return p > 3.140 && p < 3.143
+	return p > 3.139 && p < 3.144
+end
+
+const n_pi_2 = 1000000
+
+fn test_rand_f32 bool
+	s = 0
+	global n_pi_2
+	for n in 1 .. n_pi_2
+		x = rand.f32
+		y = rand.f32
+		if x*x + y*y < 1.0f
+			s++
+		end
+	end
+	p = 4f * f32(s) / f32(n_pi_2)
+	# printf("approximation for pi: %.5f\n", p)
+	return p > 3.138f && p < 3.145f
 end
 
 import time

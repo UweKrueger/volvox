@@ -1,34 +1,90 @@
 const avoid_multiplication := !cpu.isX86_64
-const compensate_for_53rd_bit := cpu.isX86
+const compensate_for_last_bit := false
 
-type Fu64 union {
+type FU64 union {
 	f f64
 	u u64
 }
 
+inline fn _f64(x u64) f64
+	return f64(x)
+end
+
 # create an equally distributed random real in the range [0; 1)
 #
 pub inline fn f64
-	global avoid_multiplication, f64_epsilon, compensate_for_53rd_bit
+	global avoid_multiplication, f64_epsilon, compensate_for_last_bit
 	if avoid_multiplication
 		# this code is for CPUs on which multiplications are expensive
 		r0 = u64
-		x = Fu64{ u: r0 }
+		x = FU64{ u: r0 }
 		# x.u = r0
 		# this code assumes IEEE-754 representation
 		x.u &= (1 << 52) - 1 # mask the mantissa
 		x.u |= 0x3ff << 52
 		x.f -= 1
-		if compensate_for_53rd_bit
+		if compensate_for_last_bit
 			# the result only contains 52 bits of information i.e. the "last" bit is always 0
 			# we can compensate this by adding epsilon/2 with a probability of 50%
-			mask = 0uL - (r0 >> 63)
-			c = Fu64{ f: 0.5 * f64_epsilon }
+			mask = 0UL - (r0 >> 63)
+			c = FU64{ f: 0.5 * f64_epsilon }
 			c.u &= mask
 			x.f += c.f
 		end
 		this = x.f
 	else
-		this = _u64(u64 & ((1 << 53) - 1)) * 0x1.0p-53
+		this = _f64(u64 & ((1 << 53) - 1)) * 0x1.0p-53
 	end
+end
+
+# create an equally distributed random real in the range [0; limit)
+#
+pub inline fn f64(limit f64)
+	this = limit * f64
+end
+
+pub inline fn f64(min f64, limit f64)
+	this = min + f64(limit - min)
+end
+
+type FU32 union {
+	f f32
+	u u32
+}
+
+inline fn _f32(x u32) f32
+	return f32(x)
+end
+
+pub inline fn f32
+	global avoid_multiplication, f32_epsilon, compensate_for_last_bit
+	if avoid_multiplication
+		# this code is for CPUs on which multiplications are expensive
+		r0 = u32
+		x = FU32{ u: r0 }
+		# x.u = r0
+		# this code assumes IEEE-754 representation
+		x.u &= (1 << 23) - 1 # mask the mantissa
+		x.u |= 0x7f << 23
+		x.f -= 1
+		if compensate_for_last_bit
+			# the result only contains 23 bits of information i.e. the "last" bit is always 0
+			# we can compensate this by adding epsilon/2 with a probability of 50%
+			mask = 0U - (r0 >> 31)
+			c = FU32{ f: 0.5f * f32_epsilon }
+			c.u &= mask
+			x.f += c.f
+		end
+		this = x.f
+	else
+		this = _f32(u32 & ((1 << 24) - 1)) * 0x1.0p-24f
+	end
+end
+
+pub inline fn f32(limit f32)
+	this = limit * f32
+end
+
+pub inline fn f32(min f32, limit f32)
+	this = min + f32(limit - min)
 end
