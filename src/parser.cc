@@ -1476,6 +1476,16 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(arglist));
 				continue;
 			}
+		} else if (BinOp == "?=") {
+			if (auto colon_expr = dynamic_cast<BinaryExprAST*>(RHS.get())) {
+				if (strcmp(colon_expr->Op, ":")) {
+					errs() << colon_expr->Loc << ": expected ':' as separator of RHS of '?='\n";
+					return nullptr;
+				}
+			} else {
+				errs() << RHS->Loc << ": expected colon-separated expressions as RHS of '?='\n";
+				return nullptr;
+			}
 		} else if (is_index) {
 			if (!LHS->ft || !LHS->ft->type) {
 				errs() << LHS->Loc << ": ";
