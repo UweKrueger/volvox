@@ -658,9 +658,13 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 			PB.registerLoopAnalyses(LAM);
 			PB.crossRegisterProxies(LAM, FAM, CGAM, MAM);
 			llvm::ModulePassManager MPM;
-			if (optimization_level == llvm::OptimizationLevel::O0)
+			if (optimization_level == llvm::OptimizationLevel::O0) {
+#if LLVM_VERSION_MAJOR < 18
 				MPM = PB.buildModuleSimplificationPipeline(optimization_level, llvm::ThinOrFullLTOPhase::ThinLTOPostLink);
-			else
+#else
+				MPM = PB.buildO0DefaultPipeline(optimization_level);
+#endif
+			} else
 				MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
 			MPM.run(*TheModule, MAM);
 		}
