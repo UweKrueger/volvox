@@ -382,6 +382,7 @@ enum OpClass : uint8_t {
 	OpNormal,
 	OpAssign,
 	OpModAssign,
+	OpCmpExchange, // atomic compare exchange 'a ?= expected : new'
 	OpDeclAssign, // set by ParseBinOpRHS() if LHS is undeclared
 	OpGlobalDeclAssign, // set by HandleGlobalVariable
 	OpComparison,

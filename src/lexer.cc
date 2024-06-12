@@ -570,6 +570,16 @@ startanalysis:
 				IdentifierStr = ":";
 				return tok_colon;
 			}
+		case '?':
+			CurChar = advance();
+			if (CurChar == '=') {
+				IdentifierStr = "?=";
+				CurChar = advance();
+				return tok_assign;
+			} else {
+				IdentifierStr = "?";
+				return tok_error;
+			}
 		case ',':
 			IdentifierStr = CurChar;
 			CurChar = advance();

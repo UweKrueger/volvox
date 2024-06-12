@@ -325,6 +325,8 @@ OpClass getOpClass(const char* Op) {
 			return OpComparison;
 		case ':':
 			return OpDeclAssign;
+		case '?':
+			return OpCmpExchange;
 		default:
 			return OpModAssign; // +=, -=, ...
 		}
@@ -397,11 +399,11 @@ std::tuple<llvm::Type*, llvm::Type*, const char*> getDesiredTypes(llvm::Type* re
 	llvm::Type* desired_right_type = nullptr;
 	switch (opclass) {
 	case OpAssign:
+	case OpCmpExchange:
 	case OpModAssign:
 		desired_left_type = nullptr;
 		desired_right_type = left_type;
 		goto normal_return;
-		return { nullptr, desired_right_type != right_type ? desired_right_type : nullptr, nullptr };
 	case OpDeclAssign:
 		return { nullptr, nullptr, nullptr };
 	case OpComparison:
@@ -534,6 +536,10 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getComplexRes(
 			if (right_bitwidth > left_bitwidth && !right_is_unknown_type)
 				return { nullptr, 0, false, opclass, "LHS of '%s' has a lower bit width than RHS - automatic conversion not possible\n" };
 		return { left_type, left_is_imag ? A_signed : 0, false, opclass, nullptr };
+	case OpCmpExchange:
+		if (left_is_imag != right_is_imag)
+			return { nullptr, 0, false, opclass, "operator '%s': real / imaginary mismatch\n" };
+		return { llvm::Type::getInt1Ty(Context), 0, false, opclass, nullptr };
 	case OpExponentiation:
 		// special cases like constexpr integer exponent mus be handled elsewhere
 		res_is_complex = true;
