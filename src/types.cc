@@ -612,6 +612,7 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 		return getComplexRes(left_type, right_type, Op, left_attr, right_attr, left_is_unknown_type, right_is_unknown_type);
 	switch (opclass) {
 	case OpComparison:
+	case OpCmpExchange:
 		return { llvm::Type::getInt1Ty(Context), 0, false, opclass, nullptr };
 	case OpDeclAssign:
 		// nullptr as type is reserved for this particular case

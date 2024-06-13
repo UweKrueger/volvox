@@ -1405,7 +1405,11 @@ static llvm::Value* compare_strings(llvm::Value* L, llvm::Value* R) {
 			Volvox2CStr(L), Volvox2CStr(R) });
 }
 
-llvm::Value* BinaryExprAST::codegen_atomic_Xassign(llvm::Value* ptr, llvm::Value* val) {
+llvm::Value* BinaryExprAST::codegen_atomic_Xassign(llvm::Type* typ, llvm::Value* ptr) {
+	RHS->desired_type = typ;
+	llvm::Value* val = RHS->codegen();
+	if (!val)
+		return nullptr;
 	switch (Op[0]) {
 	case '=':
 		return CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Xchg, ptr, val);
@@ -1435,6 +1439,28 @@ llvm::Value* BinaryExprAST::codegen_atomic_Xassign(llvm::Value* ptr, llvm::Value
 		errs() << Loc << ": '" << Op << "' not supported for atomics\n";
 		return nullptr;
 	}
+}
+
+llvm::Value* BinaryExprAST::codegen_atomic_CmpExchange(llvm::Type* typ, llvm::Value* ptr) {
+	auto rhs_expr = dynamic_cast<BinaryExprAST*>(RHS.get());
+	if (!rhs_expr || rhs_expr->Op[0] != ':' || rhs_expr->Op[1] != '\0') {
+		errs() << RHS->Loc << ": malformes RHS for '?=' operator\n";
+		return nullptr;
+	}
+	ExprAST* expected = rhs_expr->LHS.get();
+	ExprAST* new_val = rhs_expr->RHS.get();
+	expected->desired_type = typ;
+	new_val->desired_type = typ;
+	llvm::Value* expected_val = expected->codegen();
+	llvm::Value* new_val_val = new_val->codegen();
+	if (!expected_val || !new_val_val)
+		return nullptr;
+	auto align = llvm::Align(TheModule->getDataLayout().getTypeStoreSize(typ));
+	llvm::Value* res = Builder->CreateAtomicCmpXchg(ptr, expected_val, new_val_val, align,
+	                                               llvm::AtomicOrdering::SequentiallyConsistent,
+	                                               llvm::AtomicOrdering::SequentiallyConsistent);
+	// res is a struct { new_val_t, bool } - so get the second part
+	return Builder->CreateExtractValue(res, llvm::ArrayRef<unsigned>{ 1 });
 }
 
 std::tuple<llvm::FunctionType*,llvm::Function*,llvm::Type*> findModAssign(
@@ -1473,7 +1499,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	}
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
-	if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign || opclass == OpAssign || opclass == OpModAssign) {
+	if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign || opclass == OpAssign || opclass == OpModAssign || opclass == OpCmpExchange) {
 		bool postpone_valgen = false;
 		std::pair<llvm::Type*,llvm::Value*> Variable = { nullptr, nullptr };
 		const char* varname = nullptr;
@@ -1492,10 +1518,15 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (!Variable.second)
 				return nullptr;
 			if (LHSE->ft->type_attr & A_atomic) {
-				llvm::Value* rhsval = RHS->codegen();
-				if (!rhsval)
+				if (opclass == OpCmpExchange)
+					return codegen_atomic_CmpExchange(Variable.first, Variable.second);
+				else
+					return codegen_atomic_Xassign(Variable.first, Variable.second);
+			} else {
+				if (opclass == OpCmpExchange) {
+					errs() << LHS->Loc << ": LHS of '?=' operator must be atomic\n";
 					return nullptr;
-				return codegen_atomic_Xassign(Variable.second, rhsval);
+				}
 			}
 		}
 		if (opclass == OpModAssign) { // +=, <<=, ...
@@ -3065,7 +3096,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		if (!CondV)
 			return nullptr;
 		if (CondV->getType() != llvm::Type::getInt1Ty(Context)) {
-			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition\n";
+			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition, not " << *CondV->getType() << "\n";
 			return nullptr;
 		}
 		if (if_kind == tok_while) {
