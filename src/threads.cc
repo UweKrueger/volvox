@@ -197,3 +197,32 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		std::vector<llvm::Value*>{ wrapper, Malloc, llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), 0) });
 	return thr_id;
 }
+
+llvm::Value* CreateReleaseRefC(llvm::Value* ptr) {
+	llvm::Value* last_val = CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Sub, ptr, llvm::ConstantInt::get(llvm_int_type, 1));
+	llvm::Value* was_zero = Builder->CreateICmpEQ(last_val, llvm::ConstantInt::get(llvm_int_type, 0));
+	auto enterBB = Builder->GetInsertBlock();
+	auto TheFunction = enterBB ? enterBB->getParent() : nullptr;
+	if (!TheFunction) {
+		errs() << "*** internal error: no function\n";
+		abort();
+	}
+	auto freeBB = llvm::BasicBlock::Create(Context, "free");
+	auto contBB = llvm::BasicBlock::Create(Context, "cont");
+	Builder->CreateCondBr(was_zero, freeBB, contBB);
+#if LLVM_VERSION_MAJOR >= 16
+	TheFunction->insert(TheFunction->end(), freeBB);
+#else
+	TheFunction->getBasicBlockList().push_back(freeBB);
+#endif
+	Builder->SetInsertPoint(freeBB);
+	Builder->CreateFree(ptr);
+	Builder->CreateBr(contBB);
+#if LLVM_VERSION_MAJOR >= 16
+	TheFunction->insert(TheFunction->end(), contBB);
+#else
+	TheFunction->getBasicBlockList().push_back(contBB);
+#endif
+	Builder->SetInsertPoint(contBB);
+	return was_zero;
+}
