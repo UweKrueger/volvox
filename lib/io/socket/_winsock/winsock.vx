@@ -42,7 +42,7 @@ type WsockProto {
 
 inline fn WsockProto
 	if os.isWindows
-		global __verbose
+		global _verbose
 		version = 0x0202uH
 		if (arch.bitwidth == 64)
 			data64 = WSAData64{}
@@ -57,7 +57,7 @@ inline fn WsockProto
 			printf("WSAStartup returned %d\n", this.int)
 		elif version != 0x0202
 			printf("requested WINSock version 2.2 not available - got version %hu.%hu\n", version >> 8, version & 0xff)
-		elif __verbose
+		elif _verbose
 			printf("got WINSock version %hu.%hu\n", version >> 8, version & 0xff)
 		end
 	else

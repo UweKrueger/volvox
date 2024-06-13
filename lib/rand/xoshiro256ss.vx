@@ -31,11 +31,14 @@ type State4 {
 # defaut constructor that is called for every new thread
 #
 fn State4
+	global _verbose
 	this.s[0] = splitmix64
 	this.s[1] = splitmix64
 	this.s[2] = splitmix64
 	this.s[3] = splitmix64
-	# printf("RNG init: 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n", this.s[0], this.s[1], this.s[2], this.s[3])
+	# if _verbose
+	# 	printf("RNG init: 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n", this.s[0], this.s[1], this.s[2], this.s[3])
+	# end
 end
 
 # thread local state

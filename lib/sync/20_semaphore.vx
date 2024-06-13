@@ -55,8 +55,6 @@ type Semaphore {
 	err u32
 }
 
-cdecl GetLastError() u32
-
 type pipehandle_t union {
 	fds [2]int
 	ssize_t

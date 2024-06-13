@@ -410,6 +410,18 @@ void init(const llvm::Triple& triple) {
 		errs() << "cannot create const " << "__LLVM_REPL" << '\n';
 		abort();
 	}
+	FullVar verbose_fv = {
+		.val = llvm::ConstantInt::getBool(Context, (bool)verbosity),
+		.mangled_name = strdup("__VERBOSE"),
+		.ft = {
+			.type = llvm::Type::getInt1Ty(Context),
+			.type_attr = A_rvalue | A_global | A_const | A_mainvar,
+		}
+	};
+	if (!lex.module->globals_table.insert("__VERBOSE", verbose_fv)) {
+		errs() << "cannot create const " << "__VERBOSE" << '\n';
+		abort();
+	}
 }
 
 #ifdef _WIN32

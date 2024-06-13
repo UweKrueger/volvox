@@ -3,7 +3,7 @@
 # and some are hard coded in the compiler
 
 # use this to trigger informative messages
-global __verbose = false
+const _verbose := __VERBOSE
 
 cdecl exit(n int)
 cdecl strcmp(s1 cstring, s2 cstring) i32
