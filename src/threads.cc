@@ -216,7 +216,11 @@ llvm::Value* CreateReleaseRefC(llvm::Value* ptr) {
 	TheFunction->getBasicBlockList().push_back(freeBB);
 #endif
 	Builder->SetInsertPoint(freeBB);
+#if LLVM_VERSION_MAJOR >= 18
 	Builder->CreateFree(ptr);
+#else
+	Builder->Insert(llvm::CallInst::CreateFree(ptr, freeBB));
+#endif
 	Builder->CreateBr(contBB);
 #if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), contBB);
