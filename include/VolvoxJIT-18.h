@@ -59,7 +59,7 @@ namespace llvm {
 					ES->reportError(std::move(Err));
 			}
 
-			static Expected<std::unique_ptr<VolvoxJIT>> Create() {
+			static Expected<std::unique_ptr<VolvoxJIT>> Create(llvm::CodeGenOpt::Level codegenopt) {
 				auto EPC = SelfExecutorProcessControl::Create();
 				if (!EPC)
 					return EPC.takeError();
@@ -68,7 +68,7 @@ namespace llvm {
 
 				JITTargetMachineBuilder JTMB(
 					ES->getExecutorProcessControl().getTargetTriple());
-
+				JTMB.setCodeGenOptLevel(codegenopt);
 				auto DL = JTMB.getDefaultDataLayoutForTarget();
 				if (!DL)
 					return DL.takeError();

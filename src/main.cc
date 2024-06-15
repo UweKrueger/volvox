@@ -1784,7 +1784,7 @@ int main(int argc, char* argv[]) {
 	}
 
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
-		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create());
+		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create(codegenopt));
 	}
 	TS_Context = llvm::orc::ThreadSafeContext(std::move(std::make_unique<llvm::LLVMContext>()));
 

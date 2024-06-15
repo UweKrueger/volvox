@@ -55,7 +55,7 @@ namespace llvm {
 					ES->reportError(std::move(Err));
 			}
 
-			static Expected<std::unique_ptr<VolvoxJIT>> Create() {
+			static Expected<std::unique_ptr<VolvoxJIT>> Create(CodeGenOpt::Level codegenopt) {
 				auto SSP = std::make_shared<SymbolStringPool>();
 				auto TPC = SelfTargetProcessControl::Create(SSP);
 				if (!TPC)
@@ -64,7 +64,7 @@ namespace llvm {
 				auto ES = std::make_unique<ExecutionSession>(std::move(SSP));
 
 				JITTargetMachineBuilder JTMB((*TPC)->getTargetTriple());
-
+				JTMB.setCodeGenOptLevel(codegenopt);
 				auto DL = JTMB.getDefaultDataLayoutForTarget();
 				if (!DL)
 					return DL.takeError();
