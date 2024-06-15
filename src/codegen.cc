@@ -969,7 +969,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (!use_target && (!initialization_from_main || rhs_is_constexpr)) {
 			if (rhs_is_constexpr && (sym_kind & A_const) && expr->RHS->is_unknown_type)
 				if (expr->RHS->ft->type->isIntegerTy())
-					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
+					expr->RHS->desired_type = llvm::Type::getInt32Ty(Context);
 			Val = expr->RHS->codegen(true);
 			allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 		}
