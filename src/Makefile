@@ -48,6 +48,9 @@ else
 ifeq ($(shell test -x /usr/bin/llvm-config-13 && echo -n true),true)
 	SUFFIX := -13
 else
+ifeq ($(shell test -x /usr/bin/llvm-config && echo -n true),true)
+	SUFFIX :=
+else
 ifeq ($(shell test -x /bin/llvm-config && echo -n true),true)
 	PREFIX := /
 	SUFFIX :=
@@ -55,9 +58,6 @@ ifeq ($(shell test -x /bin/llvm-config && echo -n true),true)
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config && echo -n true),true)
 	PREFIX := /usr/local
-	SUFFIX :=
-else
-ifeq ($(shell test -x /usr/bin/llvm-config && echo -n true),true)
 	SUFFIX :=
 else
 ifeq ($(shell test -x /usr/pkg/bin/llvm-config && echo -n true),true)
