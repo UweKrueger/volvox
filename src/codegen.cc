@@ -281,6 +281,8 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	}
 	if (full_var->ft.type_attr & A_rvalue) {
+		if (is_unknown_type && !desired_type && full_var->val->getType()->isIntegerTy())
+			return Builder->CreateIntCast(full_var->val, llvm_int_type, (bool)(full_var->ft.type_attr & A_signed));
 		return full_var->val;
 	}
 	auto V = codegen_ref(false, true);
@@ -969,7 +971,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (!use_target && (!initialization_from_main || rhs_is_constexpr)) {
 			if (rhs_is_constexpr && (sym_kind & A_const) && expr->RHS->is_unknown_type)
 				if (expr->RHS->ft->type->isIntegerTy())
-					expr->RHS->desired_type = llvm::Type::getInt32Ty(Context);
+					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
 			Val = expr->RHS->codegen(true);
 			allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 		}
