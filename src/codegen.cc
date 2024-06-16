@@ -3524,6 +3524,28 @@ llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {
 		                        desired_attr, is_unknown_type);
 		if (postConv) {
 			llvm::Value* V = postConv(rawV);
+			if (is_unknown_type) {
+				// check for over-/underflow
+				if (auto Vconst = llvm::dyn_cast<llvm::ConstantInt>(V)) {
+					if (auto rawConst = llvm::dyn_cast<llvm::ConstantInt>(rawV)) {
+						if (desired_attr & A_signed) {
+							int64_t VInt = Vconst->getSExtValue();
+							int64_t rawInt = rawConst->getSExtValue();
+							if (VInt != rawInt) {
+								errs() << Loc << ": untyped constexpr value (" << rawInt << ") cannot be represented as an " << *desired_type << "\n";
+								return nullptr;
+							}
+						} else {
+							uint64_t VUint = Vconst->getZExtValue();
+							uint64_t rawUint = rawConst->getZExtValue();
+							if (VUint != rawUint) {
+								errs() << Loc << ": untyped constexpr value (" << rawUint << ") cannot be represented as an " << "unsigned " << *desired_type << "\n";
+								return nullptr;
+							}
+						}
+					}
+				}
+			}
 			return V;
 		}
 		auto raw_array_type = llvm::dyn_cast<llvm::ArrayType>(rawV->getType());
