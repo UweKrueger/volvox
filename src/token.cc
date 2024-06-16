@@ -94,12 +94,6 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Token& tok) {
 	return out << tok.str();
 }
 
-enum tristate : unsigned char {
-	_false,
-	_true,
-	_undecided
-};
-
 Token::Token(char** s_ptr) : kind(tok_number) {
 	is_unknown_type = true;
 	while (isspace(**s_ptr))

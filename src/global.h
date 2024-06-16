@@ -152,20 +152,20 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Colors color) {
 }
 
 class Tristate {
-	unsigned char state;
+	signed char state;
 public:
-	Tristate() : state(2) {} // default initialize to undecided
-	Tristate(bool ini) : state(ini ? 1 : 0) {}
+	Tristate() : state(-1) {} // default initialize to undecided
+	Tristate(bool ini) : state((signed char)ini) {}
 	// The assignment operator returns true for "problematic" assignment
 	// i.e. if the state has not been undecided
 	bool operator=(bool ini) {
-		bool retval = state != 2;
-		state = ini ? 1 : 0;
+		bool retval = state >= 0;
+		state = (signed char)ini;
 		return retval;
 	}
 	bool is_false() { return state == 0; }
-	operator bool() { return state == 1; };
-	bool undecided() { return state == 2; };
+	operator bool() { return state > 0; };
+	bool undecided() { return state < 0; };
 };
 
 // some handy output stream definitions
