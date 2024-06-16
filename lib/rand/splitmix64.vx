@@ -25,7 +25,7 @@ type FILETIME {
 }
 cdecl GetSystemTimePreciseAsFileTime(&time FILETIME)
 
-x0 = 0uL
+x0 = 0UL
 t = FILETIME{}
 if os.isLinux || os.isFreeBSD || os.isDragonFly || os.isNetBSD
 	getrandom(x0, 8, 0)
@@ -42,12 +42,12 @@ elif os.isWindows
 	x0 = t.dwHighDateTime | (t.dwLowDateTime << 32)
 end
 
-atomic x = x0 + 0x9e3779b97f4a7c15UL # The state can be seeded with any value.
+atomic x = x0 + 0x9e3779b97f4a7c15 # The state can be seeded with any value.
 
 pub fn splitmix64 u64
 	global x
-	z = (x += 0x9e3779b97f4a7c15UL)
-	z = (z >< (z >> 30)) * 0xbf58476d1ce4e5b9UL
-	z = (z >< (z >> 27)) * 0x94d049bb133111ebUL
+	z = (x += 0x9e3779b97f4a7c15)
+	z = (z >< (z >> 30)) * 0xbf58476d1ce4e5b9
+	z = (z >< (z >> 27)) * 0x94d049bb133111eb
 	return z >< (z >> 31)
 end
