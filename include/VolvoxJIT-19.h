@@ -59,7 +59,7 @@ namespace llvm {
 					ES->reportError(std::move(Err));
 			}
 
-			static Expected<std::unique_ptr<VolvoxJIT>> Create(llvm::CodeGenOpt::Level codegenopt) {
+			static Expected<std::unique_ptr<VolvoxJIT>> Create(CodeGenOptLevel codegenopt) {
 				auto EPC = SelfExecutorProcessControl::Create();
 				if (!EPC)
 					return EPC.takeError();
