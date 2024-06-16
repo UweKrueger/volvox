@@ -896,6 +896,10 @@ static inline const char* global_kind_str(unsigned flags) {
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, ":=");
+	if (rhs_is_constexpr && !(sym_kind & (A_global | A_const))) {
+		errs() << expr->Loc << ": using ':=' is only valid when declaring 'const' or 'global' variables\n";
+		return nullptr;
+	}
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
 	if (LHSE)
