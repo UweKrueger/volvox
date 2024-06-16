@@ -638,6 +638,13 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 		}
 	} else {
 		// pass by value
+		if (expr->is_unknown_type && expr->ft->type->isIntegerTy()) {
+			// usually untyped int defaults to i32
+			// however, for result printing in interactive REPL we want the full value
+			// so we default to i64 here
+			expr->desired_type = llvm::Type::getInt64Ty(Context);
+			expr->ft = lex.get_full_type((expr->ft->type_attr & A_signed) ? "i64" : "u64");
+		}
 		val = expr->codegen();
 		if (!val)
 			return nullptr;
@@ -647,7 +654,6 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	if (!val)
 		return nullptr;
 	llvm::Constant* rttype_ptr = getRtType(expr->ft);
-	llvm::Type* real_type = expr->ft->type;
 	std::vector<llvm::Type*> types = { rttype_ptr->getType(), val->getType() };
 	llvm::Type* struct_type = llvm::StructType::get(Context, types);
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
