@@ -40,26 +40,18 @@ inline llvm::AllocaInst* CreateAlloca(llvm::Value* AllocSize, llvm::Align align,
 }
 
 static bool ConstexprIntOverflow(SourceLocation& Loc, llvm::ConstantInt* Vconst, uint64_t rawVal, unsigned attr, llvm::ConstantInt* rawConst = nullptr) {
-	if (attr & A_signed) {
-		int64_t VInt = Vconst->getSExtValue();
-		int64_t rawInt = rawConst ? rawConst->getSExtValue() : (int64_t)rawVal;
-		if (VInt != rawInt) {
-			errs() << Loc << ": untyped constexpr value (" << rawInt
-			       << ") cannot be represented in the supposed type "
-			       << *Vconst->getType() << "\n";
-			return true;
-		}
-	} else {
-		uint64_t VUint = Vconst->getZExtValue();
-		uint64_t rawUint = rawConst ? rawConst->getZExtValue() : rawVal;
-		if (VUint != rawUint) {
-			errs() << Loc << ": untyped constexpr value (" << rawUint
-			       << ") cannot be represented in the supposed type "
-			       << "unsigned " << *Vconst->getType() << "\n";
-			return true;
-		}
-	}
-	return false;
+	uint64_t rawUint = rawConst ? rawConst->getZExtValue() : rawVal;
+	uint64_t VUint = Vconst->getZExtValue();
+	int64_t VInt = Vconst->getSExtValue();
+	int64_t rawInt = rawConst ? rawConst->getSExtValue() : (int64_t)rawVal;
+	// we are tolerant concerning signedness - so 0xffffffff can be used as int(-1)
+	if (VInt != rawInt && VUint != rawUint) {
+		errs() << Loc << ": untyped constexpr value (" << ((attr & A_signed) ? rawInt : rawUint)
+		       << llvm::format(" = 0x%016llx), cannot be represented in the supposed type ", rawUint)
+		       << ((attr & A_signed) ? "" : "unsigned ") << *Vconst->getType() << "\n";
+		return true;
+	} else
+		return false;
 }
 
 static bool ConstexprFPOverflow(SourceLocation& Loc, llvm::ConstantFP* Vconst, double rawDouble, llvm::ConstantFP* rawConst = nullptr) {

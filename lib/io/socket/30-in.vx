@@ -68,6 +68,6 @@ pub inline fn udp IpSocket
 end
 
 pub const in_any       := in_addr{ __s4_addr: { 0, 0, 0, 0 } }
-pub const in_broadcast := in_addr{ __s4_addr: { 0xffu, 255u, 255u, 255u } }
-pub const in_none      := in_addr{ __s4_addr: { 255u, 255u, 255u, 255u } }
+pub const in_broadcast := in_addr{ __s4_addr: { 255, 255, 255, 255 } }
+pub const in_none      := in_addr{ __s4_addr: { 255, 255, 255, 255 } }
 pub const in_loopback  := in_addr{ __s4_addr: { 127, 0, 0, 1 } }
