@@ -1028,9 +1028,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				if (expr->RHS->ft->type->isIntegerTy())
 					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
 			Val = expr->RHS->codegen(true);
-			if (!Val)
-				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 			allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
+			if (allocsz && !Val)
+				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 		}
 	}
 	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor));
