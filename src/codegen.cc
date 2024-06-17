@@ -317,8 +317,15 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	}
 	if (full_var->ft.type_attr & A_rvalue) {
-		if (is_unknown_type && !desired_type && full_var->val->getType()->isIntegerTy())
-			return Builder->CreateIntCast(full_var->val, llvm_int_type, (bool)(full_var->ft.type_attr & A_signed));
+		if (is_unknown_type && !desired_type && full_var->val->getType()->isIntegerTy()) {
+			auto rawConst = llvm::dyn_cast<llvm::ConstantInt>(full_var->val);
+			unsigned attr = full_var->ft.type_attr & A_signed;
+			auto V = Builder->CreateIntCast(rawConst, llvm_int_type, (bool)attr);
+			auto Vconst = llvm::dyn_cast<llvm::ConstantInt>(V);
+			if (ConstexprIntOverflow(Loc, Vconst, 0ULL, full_var->ft.type_attr, rawConst))
+				return nullptr;
+			return Vconst;
+		}
 		return full_var->val;
 	}
 	auto V = codegen_ref(false, true);
@@ -333,6 +340,8 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 
 llvm::Value* VariableExprAST::codegen(bool suppress_destructor) {
 	auto rawV = codegen_raw((llvm::Value*)((intptr_t)(-(int)suppress_destructor)));
+	if (!rawV)
+		return nullptr;
 	if (suppress_destructor && is_unknown_type && !desired_type) {
 		if (ft->type->isIntegerTy()) {
 			llvm::Value* V = Builder->CreateIntCast(rawV, ft->type, (bool)(ft->type_attr & A_signed));
@@ -1019,6 +1028,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				if (expr->RHS->ft->type->isIntegerTy())
 					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
 			Val = expr->RHS->codegen(true);
+			if (!Val)
+				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 			allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
 		}
 	}
