@@ -27,7 +27,6 @@ const r6zer := if false || true; 4 else 5 end
 const r7zrr := if true && false; 7.5 else -3.75 end
 
 fn test_const_condition bool
-	global r6zer, r7zrr
 	return r6zer == 4 && r7zrr == -3.75
 end
 

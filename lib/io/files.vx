@@ -54,7 +54,6 @@ end
 # - create new file otherwise
 #
 pub inline fn create(filename cstring) Fd
-	global CREAT, RDWR, TRUNC, BINARY, CLOEXEC
 	return openfile(filename, CREAT | RDWR | TRUNC | BINARY | CLOEXEC, 0666)
 end
 
@@ -62,7 +61,6 @@ end
 # return error otherwise
 #
 pub inline fn open(filename cstring) Fd
-	global RDONLY, BINARY, CLOEXEC
 	return openfile(filename, RDONLY | BINARY | CLOEXEC, 0)
 end
 
@@ -70,7 +68,6 @@ end
 # - if file name already exists do nothing and return error
 #
 pub inline fn new(filename cstring) Fd
-	global CREAT, RDWR, EXCL, BINARY, CLOEXEC
 	return openfile(filename, CREAT | RDWR | EXCL | BINARY | CLOEXEC, 0666)
 end
 
@@ -79,7 +76,6 @@ end
 # - create new file otherwise
 #
 pub inline fn append(filename cstring) Fd
-	global CREAT, WRONLY, APPEND, BINARY, CLOEXEC
 	return openfile(filename, CREAT | WRONLY | APPEND | BINARY | CLOEXEC, 0666)
 end
 

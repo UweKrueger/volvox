@@ -11,7 +11,6 @@ global a0 := [3.4, 6.7, -12.3, 3.1, -13.1]
 global r542p = 0.0
 
 fn u [5]f64
-	global r542p
 	p = [3.3, 1.2, -4.5 + r542p, 6.75, 8.08e12]
 	return p
 end
@@ -19,7 +18,6 @@ end
 a0 = u
 
 fn fv f64
-	global a0
 	z = 3
 	return a0[3] + z
 end
@@ -42,7 +40,6 @@ end
 
 
 fn h [5]f64
-	global r542p
 	&v = u
 	r542p = 3.5
 	q = v
@@ -75,11 +72,10 @@ fn test_nested_call_with_array_result bool
 	return wq == 6.75
 end
 
-global pp = 12.4375
+global ppq = 12.4375
 
 fn kk
-	global pp
-	pp=pp + 0.25
+	ppq=ppq + 0.25
 end
 
 global l = true
@@ -92,15 +88,13 @@ if l; kk end
 if l; kk; end
 
 fn test_if_then_no_else bool
-	global pp
-	return pp == 12.6875
+	return ppq == 12.6875
 end
 
 if l; kk else kk; kk end
 
 fn test_if_else_1 bool
-	global pp
-	return pp == 13.1875
+	return ppq == 13.1875
 end
 
 l = true
@@ -108,15 +102,13 @@ l = true
 if l; kk else kk; kk end
 
 fn test_if_else_2 bool
-	global pp
-	return pp == 13.4375
+	return ppq == 13.4375
 end
 
-pp = if l; 22.75 else 56.3 end
+ppq = if l; 22.75 else 56.3 end
 
 fn test_if_else_3 bool
-	global pp
-	return pp == 22.75
+	return ppq == 22.75
 end
 
 fn test_type_propagation_1 bool

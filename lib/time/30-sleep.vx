@@ -32,7 +32,6 @@ inline fn Duration.timespec32 timespec32
 end
 
 pub fn sleep(t Duration)
-	global CLOCK_MONOTONIC, EINTR
 	if t.i64 <= 0
 		return
 	end

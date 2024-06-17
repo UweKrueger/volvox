@@ -1,19 +1,16 @@
 global qrret2 = 37
 
 fn do_q_1 bool
-	global qrret2
 	qrret2 += 7
 	return true
 end
 
 fn do_q_2 bool
-	global qrret2
 	qrret2 += 13
 	return false
 end
 
 fn test_bitwise_or_1 bool
-	global qrret2
 	x = do_q_1 | do_q_2
 	return x && qrret2 == 57
 end
@@ -21,7 +18,6 @@ end
 qrret2 = -5
 
 fn test_logical_or_1 bool
-	global qrret2
 	x = do_q_1 || do_q_2
 	return x && qrret2 == 2
 end
@@ -29,7 +25,6 @@ end
 qrret2 = 27
 
 fn test_bitwise_and_1 bool
-	global qrret2
 	x = do_q_2 & do_q_1
 	return !x && qrret2 == 47
 end
@@ -37,7 +32,6 @@ end
 qrret2 = 14
 
 fn test_logical_and_1 bool
-	global qrret2
 	x = do_q_2 && do_q_1
 	return !x && qrret2 == 27
 end
@@ -242,7 +236,6 @@ global qqggf = 0.
 qqggf = alp.s
 
 fn test_imported_constructor_1 bool
-	global qqggf
 	return qqggf == 14.125
 end
 
@@ -253,7 +246,6 @@ global qqgga = 0
 qqgga = kkff.j
 
 fn test_imported_constructor_2 bool
-	global qqgga
 	return qqgga == 11
 end
 
@@ -278,14 +270,12 @@ end
 global eewc := QwER{ w: 2 }
 
 fn test_constructor_for_global bool
-	global eewc
 	return eewc.h == 3 && eewc.w == 35
 end
 
 global eewc2 = QwER{ w: 2 }
 
 fn test_constructor_for_global_2 bool
-	global eewc2
 	return eewc2.h == 3 && eewc2.w == 35
 end
 
@@ -338,7 +328,6 @@ end
 global fsdgre = OOWq{ y: 5226454.0625 }
 
 fn test_global_union bool
-	global fsdgre
 	return fsdgre.x == -2080374784 && fsdgre.t == 4707369873292918784 &&
 		fsdgre.q.m == 1096019957 && fsdgre.z[6] == 83 && fsdgre.z[17] == 0
 end
@@ -349,7 +338,6 @@ global f337 = JFzu{ z: [8]u8{ 6, 7, 6, 7, 6 } }
 global hfdsw233 = OOWq{ z: [6, 7] }
 
 fn test_array_field_init bool
-	global hfdsw233, f337
 	return hfdsw233.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
 end
 
@@ -386,7 +374,6 @@ hjhg7["ABd"]
 global hjhg8 = map[string]f64{ "gkgs": 19, "douDe": 2.75, "8ABd": -11.0625 }
 
 fn test_global_map bool
-	global hjhg8
 	return hjhg8["8ABd"] == -11.0625
 end
 
@@ -409,7 +396,6 @@ akd7
 akd5 = akd6 + akd7
 
 fn test_main_string bool
-	global akd5
 	return akd5 == "qwertz123789456hfd"
 end
 
@@ -443,7 +429,6 @@ from math import sqrt
 const urZ := 373491
 
 fn test_const_int bool
-	global urZ
 	return urZ == 373491
 end
 
@@ -454,28 +439,24 @@ const uDfg = sqrt(xe43)
 uDfg
 
 fn test_const_from_non_const bool
-	global uDfg
 	return uDfg == 13.5
 end
 
 global PerteR = xe43 + sqrt(xe43)
 
 fn test_global_from_non_const bool
-	global PerteR
 	return PerteR == 195.75
 end
 
 #exit 0
 
 inline fn PoerAS f64
-	global urZ
 	return urZ + 2.5
 end
 
 const Jd45tz := PoerAS + 0.25
 
 fn test_trivial_const_function bool
-	global Jd45tz
 	return Jd45tz == 373493.75
 end
 

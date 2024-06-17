@@ -34,7 +34,6 @@ type sockaddr_in {
 }
 
 pub inline fn tcp IpSocket
-	global AF_INET, SOCK_STREAM
 	s = IpSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_STREAM, 0)
@@ -51,7 +50,6 @@ pub inline fn tcp IpSocket
 end
 
 pub inline fn udp IpSocket
-	global AF_INET, SOCK_DGRAM
 	s = IpSocket{}
 	if os.isWindows
 		s.handle = win_socket(AF_INET, SOCK_DGRAM, 0)

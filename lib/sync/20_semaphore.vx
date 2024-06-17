@@ -61,7 +61,6 @@ type pipehandle_t union {
 }
 
 pub fn semaphore(init_val int) Semaphore
-	global SEMVMX, EINVAL, NONBLOCK, SEMAPHORE, CLOEXEC, SETFD
 	sem = Semaphore{}
 	if init_val < 0 || u64(init_val) > SEMVMX
 		sem.err = EINVAL
@@ -129,7 +128,6 @@ pub fn Semaphore.close
 end
 
 pub inline fn Semaphore.max u64
-	global SEMVMX
 	return SEMVMX
 end
 
@@ -138,7 +136,6 @@ cdecl ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voi
 const NOWAIT := 0x800
 
 pub fn Semaphore.post(n int) bool
-	global SEMVMX, EINVAL, ERROR_TOO_MANY_POSTS
 	if this.err != 0
 		return false
 	end
@@ -179,7 +176,6 @@ cdecl ppoll(&fds pollfd, nfds u32, ?timeout time.timespec, sigmask voidptr) int
 cdecl ppoll(&fds pollfd, nfds u64, ?timeout time.timespec, sigmask voidptr) int
 
 pub fn Semaphore.wait bool
-	global POLLIN
 	if this.err != 0
 		return false
 	end
@@ -224,7 +220,6 @@ pub fn Semaphore.wait bool
 end
 
 pub fn Semaphore.timedwait(timeout time.Duration) bool
-	global POLLIN, EAGAIN
 	if this.err != 0
 		return false
 	end
@@ -299,7 +294,6 @@ pub fn Semaphore.timedwait(timeout f64) bool
 end
 
 pub fn Semaphore.trywait bool
-	global POLLIN, EAGAIN
 	if this.err != 0
 		return false
 	end

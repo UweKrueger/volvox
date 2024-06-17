@@ -7,7 +7,6 @@ end
 global p32 = -12.25
 
 fn test_call_by_ref_1 bool
-	global p32
 	rrq = call_by_ref_1(p32)
 	return rrq == -12.25 && p32 == -6.125
 end
@@ -69,7 +68,6 @@ global lfg = QwF{
 }
 
 fn test_packed_struct_1 bool
-	global lfg
 	return lfg.pgh == 0. && lfg.o2a == 4234 && lfg.rtt == 34.5
 end
 
@@ -94,7 +92,6 @@ global suo = YYt{
 suo.w.b = -67.25
 
 fn test_struct_1 bool
-	global suo
 	return suo.w.a == 12 && suo.w.b == -67.25 && suo.rz == -345
 end
 
@@ -152,7 +149,6 @@ end
 global ggds = PPl{ b: -65343, t: 24453 }
 
 fn test_small_struct_arg_1 bool
-	global ggds
 	llq = small_struct_arg(ggds)
 	return llq == 24453
 end
@@ -168,13 +164,11 @@ fn big_struct_arg(vb YYt) f64
 end
 
 fn test_big_struct_arg_1 bool
-	global suo
 	llq = big_struct_arg(suo)
 	return llq == -67.25
 end
 
 fn test_big_struct_arg_2 bool
-	global suo
 	return -67.25 == big_struct_arg(suo)
 end
 
@@ -204,7 +198,6 @@ fn ZZu.jjc(x f64) f64
 end
 
 fn test_method_call_1 bool
-	global qql
 	return qql.jjc(12.5) == 156.25
 end
 
@@ -214,7 +207,6 @@ fn ZZu.change(y f64) f64
 end
 
 fn test_method_call_2 bool
-	global qql
 	gghd = qql.change(2.5)
 	return gghd == -1292.5 && qql.aq[0][1] == -17.125
 end

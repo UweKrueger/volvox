@@ -31,7 +31,6 @@ type State4 {
 # defaut constructor that is called for every new thread
 #
 fn State4
-	global _verbose
 	this.s[0] = splitmix64
 	this.s[1] = splitmix64
 	this.s[2] = splitmix64
@@ -51,7 +50,6 @@ global s = State4{}
 # main RNG producing 64 bits
 #
 pub inline fn u64
-	global s
 	result = rotl(s.s[1] + (s.s[1] << 2), 7)
 	result += (result << 3)
 	t = s.s[1] << 17

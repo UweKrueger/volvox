@@ -1629,32 +1629,6 @@ std::unique_ptr<ExprAST> ParseExpression(int terminator) {
 	return LHS;
 }
 
-static bool MarkAsGlobalVar(ExprAST* expr) {
-	if (auto var_expr = dynamic_cast<VariableExprAST*>(expr)) {
-		if (var_expr->full_var) {
-			errs() << var_expr->Loc << "'" << var_expr->Name << "' is already in use as "
-			       << (var_expr->full_var->global ? "reference to global\n" : "local variable\n");
-			return false;
-		}
-		if (auto global_fv = lookup_var(var_expr->Name.c_str(), true)) {
-			FullVar fv = {
-				.global = global_fv,
-				// we use the position in the function's global statements here
-				// if the original location is needed, .global can be dereferenced
-				.decl_loc = expr->Loc
-			};
-			locals_table.back().insert(var_expr->Name.c_str(), fv);
-			return true;
-		} else {
-			errs() << var_expr->Loc << ": there is no known global variable '" << var_expr->Name << "'\n";
-			return false;
-		}
-	} else {
-		errs() << expr->Loc << ": comma separated list of variable names expected\n";
-		return false;
-	}
-}
-
 static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	while (CurTok.kind == ';')
 		getNextToken();
@@ -1669,26 +1643,9 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 		}
 		else
 			return { nullptr, kind };
-	} else if (kind == tok_global) {
-		if (!inside_function) {
-			errs() << CurLoc << ": global list useless outside functions\n";
-			return { nullptr, 0 };
-		}
-		getNextToken();
-		auto globals_list = ParseExpression();
-		while (auto bin_expr = dynamic_cast<BinaryExprAST*>(globals_list.get())) {
-			if (bin_expr->Op[0] != ',') {
-				errs() << bin_expr->Loc << ": ',' expected as separator in 'global' list\n";
-				return { nullptr, 0 };
-			}
-			if (!MarkAsGlobalVar(bin_expr->RHS.get()))
-				return { nullptr, 0 };
-			globals_list = std::move(bin_expr->LHS);
-		}
-		if (!MarkAsGlobalVar(globals_list.get()))
-			return { nullptr, 0 };
-		else
-			return { nullptr, kind };
+	} else if (kind == tok_global || kind == tok_const || kind == tok_atomic) {
+		errs() << CurLoc << ": global/const/atomic cannot be defined inside functions\n";
+		return { nullptr, 0 };
 	} else {
 		return { ParseExpression(), 0 };
 	}

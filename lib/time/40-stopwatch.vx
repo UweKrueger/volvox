@@ -29,7 +29,6 @@ end
 # get time when stop watch was paused or current time in seconds
 #
 pub fn StopWatch.elapsed f64
-	global tick_period
 	if this.finish == 0
 		return f64(i64(get - this.begin)) * tick_period
 	else
@@ -50,6 +49,5 @@ end
 # or import of 'time' module
 #
 pub inline fn elapsed f64
-	global tick_period
 	return f64(get) * tick_period
 end

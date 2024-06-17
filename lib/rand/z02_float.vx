@@ -13,7 +13,6 @@ end
 # create an equally distributed random real in the range [0; 1)
 #
 pub inline fn f64
-	global avoid_multiplication, f64_epsilon, compensate_for_last_bit
 	if avoid_multiplication
 		# this code is for CPUs on which multiplications are expensive
 		r0 = u64
@@ -57,7 +56,6 @@ inline fn _f32(x u32) f32
 end
 
 pub inline fn f32
-	global avoid_multiplication, f32_epsilon, compensate_for_last_bit
 	if avoid_multiplication
 		# this code is for CPUs on which multiplications are expensive
 		r0 = u32
