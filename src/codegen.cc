@@ -3538,16 +3538,31 @@ llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {
 							int64_t VInt = Vconst->getSExtValue();
 							int64_t rawInt = rawConst->getSExtValue();
 							if (VInt != rawInt) {
-								errs() << Loc << ": untyped constexpr value (" << rawInt << ") cannot be represented as an " << *desired_type << "\n";
+								errs() << Loc << ": untyped constexpr value (" << rawInt
+								       << ") cannot be represented as a" << " n "
+								       << *desired_type << "\n";
 								return nullptr;
 							}
 						} else {
 							uint64_t VUint = Vconst->getZExtValue();
 							uint64_t rawUint = rawConst->getZExtValue();
 							if (VUint != rawUint) {
-								errs() << Loc << ": untyped constexpr value (" << rawUint << ") cannot be represented as an " << "unsigned " << *desired_type << "\n";
+								errs() << Loc << ": untyped constexpr value (" << rawUint
+								       << ") cannot be represented as a" << "n unsigned "
+								       << *desired_type << "\n";
 								return nullptr;
 							}
+						}
+					}
+				} else if (auto Vconst = llvm::dyn_cast<llvm::ConstantFP>(V)) {
+					if (auto rawConst = llvm::dyn_cast<llvm::ConstantFP>(rawV)) {
+						if (Vconst->isInfinity() && !rawConst->isInfinity() ||
+						    Vconst->isZero() && !rawConst->isZero() ||
+						    Vconst->isNaN() && !rawConst->isNaN()) {
+							errs() << Loc << ": untyped constexpr value ("
+							       << rawConst->getValue().convertToDouble()
+							       << ") cannot be represented as a" << " " << *desired_type << "\n";
+							return nullptr;
 						}
 					}
 				}

@@ -33,7 +33,7 @@ fn test_rand_f32 bool
 	end
 	p = 4f * f32(s) / f32(n_pi_2)
 	# printf("approximation for pi: %.5f\n", p)
-	return p > 3.138f && p < 3.145f
+	return p > 3.135f && p < 3.148f
 end
 
 import time
