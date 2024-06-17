@@ -39,11 +39,47 @@ inline llvm::AllocaInst* CreateAlloca(llvm::Value* AllocSize, llvm::Align align,
                                                AddrSpace, AllocSize, align), Name);
 }
 
+static bool ConstexprIntOverflow(SourceLocation& Loc, llvm::ConstantInt* Vconst, uint64_t rawVal, unsigned attr, llvm::ConstantInt* rawConst = nullptr) {
+	if (attr & A_signed) {
+		int64_t VInt = Vconst->getSExtValue();
+		int64_t rawInt = rawConst ? rawConst->getSExtValue() : (int64_t)rawVal;
+		if (VInt != rawInt) {
+			errs() << Loc << ": untyped constexpr value (" << rawInt
+			       << ") cannot be represented in the supposed type "
+			       << *Vconst->getType() << "\n";
+			return true;
+		}
+	} else {
+		uint64_t VUint = Vconst->getZExtValue();
+		uint64_t rawUint = rawConst ? rawConst->getZExtValue() : rawVal;
+		if (VUint != rawUint) {
+			errs() << Loc << ": untyped constexpr value (" << rawUint
+			       << ") cannot be represented in the supposed type "
+			       << "unsigned " << *Vconst->getType() << "\n";
+			return true;
+		}
+	}
+	return false;
+}
+
+static bool ConstexprFPOverflow(SourceLocation& Loc, llvm::ConstantFP* Vconst, double rawDouble, llvm::ConstantFP* rawConst = nullptr) {
+	double rawVal = rawConst ? rawConst->getValue().convertToDouble() : rawDouble;
+	if (Vconst->isInfinity() && !isinf(rawVal) ||
+	    Vconst->isZero() && !(rawVal == 0.0) ||
+	    Vconst->isNaN() && !isnan(rawVal)) {
+		errs() << Loc << ": untyped constexpr value (" << rawVal
+		       << ") cannot be represented as a" << " " << *Vconst->getType() << "\n";
+		return true;
+	}
+	return false;
+}
+
 llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	switch (ft->type->getTypeID()) {
+	auto type_id = ft->type->getTypeID();
+	switch (type_id) {
 	case llvm::Type::IntegerTyID:
 	{
 		unsigned bw = 0;
@@ -60,16 +96,24 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 				return handle(target, Builder->getTrue());
 			else
 				return handle(target, Builder->getFalse());
-		else
-			return handle(target, llvm::ConstantInt::get(Context, llvm::APInt(bw, Val.Uint, ft->type_attr & A_signed)));
+		else {
+			auto the_val = llvm::ConstantInt::get(Context, llvm::APInt(bw, Val.Uint, ft->type_attr & A_signed));
+			if (ConstexprIntOverflow(Loc, the_val, Val.Uint, ft->type_attr))
+				return nullptr;
+			return handle(target, the_val);
+		}
 	}
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
 		errs() << "Sorry, 16 bit floats are not supported, yet\n";
 		return nullptr;
 	case llvm::Type::FloatTyID:
-	case llvm::Type::DoubleTyID:
-		return handle(target, llvm::ConstantFP::get(ft->type, Val.Float));
+	case llvm::Type::DoubleTyID: {
+		auto the_val = llvm::ConstantFP::get(ft->type, Val.Float);
+		if (type_id != llvm::Type::DoubleTyID && ConstexprFPOverflow(Loc, llvm::cast<llvm::ConstantFP>(the_val), Val.Float))
+			return nullptr;
+		return handle(target, the_val);
+	}
 	case llvm::Type::PointerTyID:
 		if (ft->type_attr & A_signed)
 			return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm_ptr_type));
@@ -3534,36 +3578,13 @@ llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {
 				// check for over-/underflow
 				if (auto Vconst = llvm::dyn_cast<llvm::ConstantInt>(V)) {
 					if (auto rawConst = llvm::dyn_cast<llvm::ConstantInt>(rawV)) {
-						if (desired_attr & A_signed) {
-							int64_t VInt = Vconst->getSExtValue();
-							int64_t rawInt = rawConst->getSExtValue();
-							if (VInt != rawInt) {
-								errs() << Loc << ": untyped constexpr value (" << rawInt
-								       << ") cannot be represented as a" << " n "
-								       << *desired_type << "\n";
-								return nullptr;
-							}
-						} else {
-							uint64_t VUint = Vconst->getZExtValue();
-							uint64_t rawUint = rawConst->getZExtValue();
-							if (VUint != rawUint) {
-								errs() << Loc << ": untyped constexpr value (" << rawUint
-								       << ") cannot be represented as a" << "n unsigned "
-								       << *desired_type << "\n";
-								return nullptr;
-							}
-						}
+						if (ConstexprIntOverflow(Loc, Vconst, 0ULL, desired_attr, rawConst))
+							return nullptr;
 					}
 				} else if (auto Vconst = llvm::dyn_cast<llvm::ConstantFP>(V)) {
 					if (auto rawConst = llvm::dyn_cast<llvm::ConstantFP>(rawV)) {
-						if (Vconst->isInfinity() && !rawConst->isInfinity() ||
-						    Vconst->isZero() && !rawConst->isZero() ||
-						    Vconst->isNaN() && !rawConst->isNaN()) {
-							errs() << Loc << ": untyped constexpr value ("
-							       << rawConst->getValue().convertToDouble()
-							       << ") cannot be represented as a" << " " << *desired_type << "\n";
+						if (ConstexprFPOverflow(Loc, Vconst, 0.0, rawConst))
 							return nullptr;
-						}
 					}
 				}
 			}

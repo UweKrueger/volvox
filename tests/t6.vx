@@ -354,7 +354,7 @@ fn test_array_field_init bool
 end
 
 fn test_untyped_struct_initializers bool
-	eeg = JFzu{ u: 642, v: 12.500000154 }
+	eeg = JFzu{ u: -126, v: 12.500000154 }
 	return eeg.u == -126 && eeg.v == 12.5
 end
 
