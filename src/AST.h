@@ -671,11 +671,18 @@ public:
 		: ExprAST(llvm_ptr_type, 0, Loc), Call(std::move(_Call)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Function* get_thread_wrapper();
-	llvm::StructType* args_type;
-	unsigned do_sret; // 1 if result address is passes as 1st arg, 0 otherwise
-	unsigned n_args;
-	llvm::Type* ret_typ;
-	size_t ret_sz;
+	llvm::StructType* args_type = nullptr;
+	bool do_sret; // 1 if result address is passes as 1st arg, 0 otherwise
+	bool use_eventfd = false;
+	bool use_pipe = false;
+	unsigned arg_offs = 0;
+	unsigned arg_offs0 = 0;
+	unsigned n_args = 0;
+	llvm::Type* ret_typ = nullptr;
+	size_t ret_sz = 0;
+	llvm::Value* refcount_adr = nullptr;
+	llvm::Value* eventfd_or_piperead_adr = nullptr;
+	llvm::Value* pipewrite_adr = nullptr;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "task", ind);

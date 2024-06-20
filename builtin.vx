@@ -19,6 +19,8 @@ cdecl(malloc) __malloc(n_bytes size_t) voidptr
 cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) __free(buf voidptr)
 cdecl __setup_console()
+cdecl(eventfd) __eventfd(initval int, flags int) int
+cdecl(pipe2) __pipe2(fds voidptr, flags int) int
 
 # create POSIX/Windows Threads - returns -1 on error, 0 on detach and handle for joinable
 cdecl __create_thread(f voidptr, arg voidptr, detached bool) voidptr
@@ -170,13 +172,18 @@ inline fn panic(s string)
 	abort
 end
 
+inline fn _abort_if_negative(res int)
+	if res < 0
+		__printerr
+		abort
+end end
+
 inline fn __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
 	if index >= length
 		err_printf("%s:%d:%d: index (%zd) out of range (0..%zd)\n",
 			srcfile, line, col, index, length-1)
 		raise(6) # SIGABRT on all known systems
-	end
-end
+end end
 
 inline fn __i32_pow(b i32, e i32) i32
 	if b == 1 || e == 0
@@ -196,9 +203,7 @@ inline fn __i32_pow(b i32, e i32) i32
 			b *= b
 			if (e & 1) != 0
 				r *= b
-			end
-		end
-	end
+	end end end
 	if b == -1
 		if (e & 1) != 0
 			return -1
@@ -255,9 +260,7 @@ inline fn __i64_pow(b i64, e i32) i64
 			b *= b
 			if (e & 1) != 0
 				r *= b
-			end
-		end
-	end
+	end end end
 	if b == -1
 		if (e & 1) != 0
 			return -1

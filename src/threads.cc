@@ -40,7 +40,8 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		InitializeModuleAndPassManager();
 	}
 	std::string wrapper_name = "__thread_wrapper_" + std::to_string(wrapper_idx++);
-	// wrappers are always of type `void* f(void* arg)`
+	// wrappers are of type `unsigned f(void* arg)` on Windown
+	// and `void* f(void* arg)` on POSIX systems
 	llvm::FunctionType* wrapper_fn_t = llvm::FunctionType::get(
 		(os_idx == OS_Windows) ? llvm_int_type : llvm_ptr_type,
 		{ llvm_ptr_type }, false);
@@ -55,17 +56,17 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		                    std::vector<llvm::Value*>());
 	}
 	std::vector<llvm::Value*> args;
+	args.reserve(args_type->getNumElements());
 	llvm::Value* SretAlloc = nullptr;
-	args.reserve(n_args+do_sret);
 	if (do_sret) {
 		// we use alloca (and not malloc) here to avoid memory leaks in case
 		// of abort(). In case of successful thread termination the value will be
 		// copied in a malloced memory space below.
-		SretAlloc = Builder->CreateAlloca(ret_typ, nullptr);
+		SretAlloc = Builder->CreateStructGEP(args_type, control_block, arg_offs0);
 		args.push_back(SretAlloc);
 	}
 	for (unsigned i=0; i<n_args; i++) {
-		llvm::Value* el_ptr = Builder->CreateStructGEP(args_type, control_block, i);
+		llvm::Value* el_ptr = Builder->CreateStructGEP(args_type, control_block, i+arg_offs);
 		auto ty = args_type->getElementType(i);
 		llvm::Value* arg = Builder->CreateLoad(ty, el_ptr);
 		args.push_back(arg);
@@ -145,47 +146,99 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	// offset, allocsz, var_indices, is_reference
 	ret_typ = Call->Proto->RetType->type;
 	ret_sz = ret_typ->isVoidTy() ? 0 : TheModule->getDataLayout().getTypeAllocSize(ret_typ);
-	do_sret = (ret_sz > sret_limit) ? 1 : 0;
-	llvm::Value* Malloc;
-	n_args = Call->Proto->LLVMArgTypes.size() - do_sret;
-	if (!n_args) {
-		args_type = nullptr;
-		Malloc = llvm::ConstantPointerNull::get(llvm_ptr_type);
-	} else {
-		args_type = llvm::StructType::get(Context, llvm::ArrayRef(Call->Proto->LLVMArgTypes.data()+do_sret, n_args));
-		llvm::Value* AllocSz = getSize(TheModule->getDataLayout().getTypeAllocSize(args_type));
+	do_sret = (ret_sz > sret_limit);
+	n_args = Call->Proto->LLVMArgTypes.size(); // including sret_pointer as 1st arg
+	arg_offs = 1; // reference counter
+	if (os_idx != OS_Windows) {
+		// We want to 'poll()' the event of a finished thread together with other events.
+		// On Windows we can use 'WaitForMultipleObjects()'
+		// On POSIX systems we add an additional file descriptor which is an
+		// On Linux, FreeBSD and NetBSD we add and additional 'eventfd' file descriptor
+		// On other systems we use a 'pipe' (2 file descriptors - less efficient)
+		if (os_idx == OS_FreeBSD || os_idx == OS_Linux || os_idx == OS_NetBSD) {
+			use_eventfd = true;
+			arg_offs += 1;
+		} else {
+			use_pipe = true;
+			arg_offs += 2;
+		}
+	}
+	arg_offs0 = arg_offs;
+	bool have_ret_val = (bool)ret_sz;
+	if (have_ret_val)
+		arg_offs += 1;
+	std::vector<llvm::Type*> types;
+	std::vector<llvm::Value*> args;
+	types.reserve(arg_offs + n_args); // ref-counter + eventfd + return
+	args.reserve(arg_offs + n_args);
+	for (int m = 0; m < arg_offs0; m++)
+		types.push_back(llvm_int_type);
+	if (have_ret_val)
+		types.push_back(ret_typ);
+	for (auto t: Call->Proto->LLVMArgTypes)
+		types.push_back(t);
+	// TODO: handle vararg
+	args_type = llvm::StructType::get(Context, types);
+	llvm::Value* AllocSz = getSize(TheModule->getDataLayout().getTypeAllocSize(args_type));
 #if LLVM_VERSION_MAJOR >= 18
-		Malloc = Builder->CreateMalloc(
-			llvm_size_type, llvm::Type::getInt8Ty(Context),
-			AllocSz, nullptr, nullptr, "threadcontext");
+	llvm::Value* Malloc = Builder->CreateMalloc(
+		llvm_size_type, llvm::Type::getInt8Ty(Context),
+		AllocSz, nullptr, nullptr, "threadcontext");
 #else
-		Malloc = llvm::CallInst::CreateMalloc(
-			Builder->GetInsertBlock(),
-			llvm_size_type, llvm::Type::getInt8Ty(Context),
-			AllocSz, nullptr, nullptr, "threadcontext");
-		Malloc = Builder->Insert(Malloc);
+	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
+		Builder->GetInsertBlock(),
+		llvm_size_type, llvm::Type::getInt8Ty(Context),
+		AllocSz, nullptr, nullptr, "threadcontext");
+	Malloc = Builder->Insert(Malloc);
 #endif
-		unsigned i = 0;
-		for (auto& arg: Call->Args) {
-			unsigned attr = Call->Proto->ArgTypes[i]->type_attr;
-			llvm::Type* ty = Call->Proto->ArgTypes[i]->type;
-			std::vector<unsigned> var_dims = get_vardims(ty);
-			unsigned n_var_dims = var_dims.size();
-			if (n_var_dims) {
-				errs() << arg->Loc << ": variable size array as parameter for 'thread' call not allowed\n";
+	refcount_adr = Builder->CreateStructGEP(args_type, Malloc, 0);
+	 // reference counter contains number of references - 1
+	CreateAtomicStore(Builder->getInt32(1), refcount_adr);
+	if (use_eventfd || use_pipe) {
+		eventfd_or_piperead_adr = Builder->CreateStructGEP(args_type, Malloc, 1);
+		llvm::Value* fd_res;
+		// we do not cross compile so get flags from host system ...
+		llvm::Value* fd_flags = Builder->getInt32(O_CLOEXEC | O_NONBLOCK);
+		if (use_pipe) {
+			pipewrite_adr = Builder->CreateStructGEP(args_type, Malloc, 2);
+			auto pipe2_proto = (*lex.findProtos("__pipe2"))[0].get();
+			auto pipe2_fn = getFunction(pipe2_proto);
+			fd_res = Builder->CreateCall(
+				pipe2_proto->FT, pipe2_fn, std::vector<llvm::Value*>{
+					eventfd_or_piperead_adr, fd_flags });
+		} else {
+			auto eventfd_proto = (*lex.findProtos("__eventfd"))[0].get();
+			auto eventfd_fn = getFunction(eventfd_proto);
+			// again, we do not cross compile ...
+			constexpr int _flags = O_CLOEXEC | O_NONBLOCK;
+			fd_res = Builder->CreateCall(
+				eventfd_proto->FT, eventfd_fn, std::vector<llvm::Value*>{
+					Builder->getInt32(0), fd_flags });
+		}
+		auto abort_proto = (*lex.findProtos("_abort_if_negative"))[0].get();
+		auto abort_fn = getFunction(abort_proto);
+		Builder->CreateCall(abort_proto->FT, abort_fn, std::vector<llvm::Value*>{ fd_res });
+	}
+	unsigned i = arg_offs0;
+	for (auto& arg: Call->Args) {
+		unsigned attr = Call->Proto->ArgTypes[i]->type_attr;
+		llvm::Type* ty = Call->Proto->ArgTypes[i]->type;
+		std::vector<unsigned> var_dims = get_vardims(ty);
+		unsigned n_var_dims = var_dims.size();
+		if (n_var_dims) {
+			errs() << arg->Loc << ": variable size array as parameter for 'thread' call not allowed\n";
+			return nullptr;
+		}
+		if (attr & A_ref) {
+			if (!(attr & (A_unique | A_shared | A_const))) {
+				errs() << arg->Loc << ": reference argument for 'thread' only allowed when 'unique', 'shared' or 'const'";
 				return nullptr;
 			}
-			if (attr & A_ref) {
-				if (!(attr & (A_unique | A_shared | A_const))) {
-					errs() << arg->Loc << ": reference argument for 'thread' only allowed when 'unique', 'shared' or 'const'";
-					return nullptr;
-				}
-			}
-			llvm::Value* arg_val = Call->Args[i]->codegen();
-			llvm::Value* Adr = Builder->CreateStructGEP(args_type, Malloc, i, Call->Proto->Args[i]);
-			Builder->CreateStore(arg_val, Adr);
-			i++;
 		}
+		llvm::Value* arg_val = Call->Args[i]->codegen();
+		llvm::Value* Adr = Builder->CreateStructGEP(args_type, Malloc, i, Call->Proto->Args[i]);
+		Builder->CreateStore(arg_val, Adr);
+		i++;
 	}
 	llvm::Function* wrapper = get_thread_wrapper();
 	if (!wrapper)
