@@ -65,8 +65,9 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		SretAlloc = Builder->CreateStructGEP(args_type, control_block, arg_offs0);
 		args.push_back(SretAlloc);
 	}
-	for (unsigned i=0; i<n_args; i++) {
-		llvm::Value* el_ptr = Builder->CreateStructGEP(args_type, control_block, i+arg_offs);
+	errs() << Loc << ": args " << arg_offs << " "  << arg_offs0 << " "  << n_args << "\n";
+	for (unsigned i=arg_offs; i < (arg_offs + n_args); i++) {
+		llvm::Value* el_ptr = Builder->CreateStructGEP(args_type, control_block, i);
 		auto ty = args_type->getElementType(i);
 		llvm::Value* arg = Builder->CreateLoad(ty, el_ptr);
 		args.push_back(arg);
@@ -219,7 +220,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		auto abort_fn = getFunction(abort_proto);
 		Builder->CreateCall(abort_proto->FT, abort_fn, std::vector<llvm::Value*>{ fd_res });
 	}
-	unsigned i = arg_offs0;
+	unsigned i = 0;
 	for (auto& arg: Call->Args) {
 		unsigned attr = Call->Proto->ArgTypes[i]->type_attr;
 		llvm::Type* ty = Call->Proto->ArgTypes[i]->type;

@@ -23,8 +23,6 @@ global aa := AALL{ x: 7 }
 global bb = AALL{ x: 17 }
 
 fn do_print(x f64, n i32) f64
-	global aa
-	global bb
 	while n>0
 		sleep 0.25
 		printf("x: %f, Round %d; aa.x: %f, bb.x: %f\n", x, n, aa.x, bb.x)
