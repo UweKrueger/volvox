@@ -58,12 +58,12 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 	std::vector<llvm::Value*> args;
 	args.reserve(args_type->getNumElements());
 	llvm::Value* SretAlloc = nullptr;
-	if (do_sret) {
-		// we use alloca (and not malloc) here to avoid memory leaks in case
-		// of abort(). In case of successful thread termination the value will be
-		// copied in a malloced memory space below.
-		SretAlloc = Builder->CreateStructGEP(args_type, control_block, arg_offs0);
-		args.push_back(SretAlloc);
+	llvm::Value* ret_adr = nullptr;
+	if (ret_sz) {
+		// address for result of real function
+		ret_adr = Builder->CreateStructGEP(args_type, control_block, arg_offs0);
+		if (do_sret)
+			args.push_back(ret_adr);
 	}
 	// errs() << Loc << ": ### args " << arg_offs << " "  << arg_offs0 << " "  << n_args << "\n";
 	for (unsigned i=arg_offs; i < (arg_offs + n_args); i++) {
@@ -84,54 +84,18 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		res = Builder->CreateCall(FT, F, args);
 	else
 		abort();
+	if (ret_sz && !do_sret)
+		Builder->CreateStore(res, ret_adr);
 	if (last_thread_destructor_caller) {
 		auto last_thrdestr_proto = (*lex.findProtos(last_thread_destructor_caller))[0].get();
 		auto last_caller = getFunction(last_thrdestr_proto);
 		Builder->CreateCall(last_thrdestr_proto->FT, last_caller,
 		                    std::vector<llvm::Value*>());
 	}
-	if (ret_typ->isVoidTy()) {
-		if (os_idx == OS_Windows)
-			Builder->CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0));
-		else
-			Builder->CreateRet(llvm::ConstantPointerNull::get(llvm_ptr_type));
-	} else {
-		// we try to return the result in the following order
-		// 1. directly as DWORD on Windows native (max 32-Bit)
-		// 2. converted to (void*) as thread result (using table on Windows-native)
-		// 3. address of malloc()ed memory space (using table on Windows-native)
-		if (ret_sz <= 4 && os_idx == OS_Windows) {
-			Builder->CreateRet(Builder->CreateBitCast(res, llvm::Type::getInt32Ty(Context)));
-		} else if (ret_sz <= target_bytes) {
-			llvm::Value* retval = Builder->CreateIntToPtr(Builder->CreateBitCast(res, llvm_size_type), llvm_ptr_type);
-			if (os_idx == OS_Windows)
-				windows_ret_ptr_as_dword(retval);
-			else
-				Builder->CreateRet(retval);
-		} else {
-#if LLVM_VERSION_MAJOR >= 18
-			llvm::Value* Malloc = Builder->CreateMalloc(
-				llvm_size_type, llvm::Type::getInt8Ty(Context),
-				getSize(ret_sz), nullptr, nullptr, "threadresult");
-#else
-			llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
-				Builder->GetInsertBlock(),
-				llvm_size_type, llvm::Type::getInt8Ty(Context),
-				getSize(ret_sz), nullptr, nullptr, "threadresult");
-			Malloc = Builder->Insert(Malloc);
-#endif
-			if (do_sret) {
-				auto align = getAlignment(ret_sz);
-				Builder->CreateMemCpy(Malloc, align, SretAlloc, align, ret_sz);
-			} else {
-				Builder->CreateStore(res, Malloc);
-			}
-			if (os_idx == OS_Windows)
-				windows_ret_ptr_as_dword(Malloc);
-			else
-				Builder->CreateRet(Malloc);
-		}
-	}
+	if (os_idx == OS_Windows)
+		Builder->CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0));
+	else
+		Builder->CreateRet(llvm::ConstantPointerNull::get(llvm_ptr_type));
 	bool fin = finishFunctionOrModule(wrapper_f, 1, finish_module, finish_module);
 	if (finish_module) {
 		TheModule = std::move(savedModule);
