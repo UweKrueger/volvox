@@ -65,7 +65,7 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		SretAlloc = Builder->CreateStructGEP(args_type, control_block, arg_offs0);
 		args.push_back(SretAlloc);
 	}
-	errs() << Loc << ": ### args " << arg_offs << " "  << arg_offs0 << " "  << n_args << "\n";
+	// errs() << Loc << ": ### args " << arg_offs << " "  << arg_offs0 << " "  << n_args << "\n";
 	for (unsigned i=arg_offs; i < (arg_offs + n_args); i++) {
 		llvm::Value* el_ptr = Builder->CreateStructGEP(args_type, control_block, i);
 		auto ty = args_type->getElementType(i);
@@ -79,7 +79,7 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		abort();
 	auto FT = Call->Proto->FT;
 	llvm::Value* res;
-	errs() << " ### " << args.size() << " call args\n";
+	// errs() << " ### " << args.size() << " call args\n";
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction))
 		res = Builder->CreateCall(FT, F, args);
 	else
@@ -150,7 +150,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	ret_sz = ret_typ->isVoidTy() ? 0 : TheModule->getDataLayout().getTypeAllocSize(ret_typ);
 	do_sret = (ret_sz > sret_limit);
 	n_args = Call->Proto->LLVMArgTypes.size(); // including sret_pointer as 1st arg
-	errs() << Loc << ": ### ret_sz: " << ret_sz << " " << do_sret << "!\n";
+	// errs() << Loc << ": ### ret_sz: " << ret_sz << " " << do_sret << "!\n";
 	arg_offs = 1; // reference counter
 	if (os_idx != OS_Windows) {
 		// We want to 'poll()' the event of a finished thread together with other events.
@@ -182,7 +182,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		types.push_back(t);
 	// TODO: handle vararg
 	args_type = llvm::StructType::get(Context, types);
-	errs() << "### stuct: " << *args_type << "\n";
+	// errs() << "### stuct: " << *args_type << "\n";
 	llvm::Value* AllocSz = getSize(TheModule->getDataLayout().getTypeAllocSize(args_type));
 #if LLVM_VERSION_MAJOR >= 18
 	llvm::Value* Malloc = Builder->CreateMalloc(
@@ -224,14 +224,8 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		Builder->CreateCall(abort_proto->FT, abort_fn, std::vector<llvm::Value*>{ fd_res });
 	}
 	unsigned j = arg_offs0; // j is control block struct elements counter
-	if (have_ret_val) {
+	if (have_ret_val)
 		j++; // skip return value
-		if (do_sret) {
-			auto ret_adr = Builder->CreateStructGEP(args_type, Malloc, j-1, "return_struct");
-			auto sret_adr = Builder->CreateStructGEP(args_type, Malloc, j++, "sret");
-			Builder->CreateStore(ret_adr, sret_adr);
-		}
-	}
 	unsigned i = 0; // i is call argument counter
 	for (auto& arg: Call->Args) {
 		unsigned attr = Call->Proto->ArgTypes[i]->type_attr;
