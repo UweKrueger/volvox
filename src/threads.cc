@@ -31,7 +31,7 @@ static void windows_ret_ptr_as_dword(llvm::Value* retval) {
 	Builder->CreateRet(dword_ret);
 }
 
-llvm::Function* ThreadExprAST::get_thread_wrapper() {
+llvm::Function* ThreadExprAST::get_thread_wrapper(bool have_target) {
 	auto savedInsertPoint = Builder->GetInsertBlock();
 	bool finish_module = (comp_mode == comp_jit);
 	std::unique_ptr<llvm::Module> savedModule = nullptr;
@@ -92,6 +92,21 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 		Builder->CreateCall(last_thrdestr_proto->FT, last_caller,
 		                    std::vector<llvm::Value*>());
 	}
+	if (have_target) {
+		if (use_eventfd || use_pipe) {
+			auto Signal_val = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), 1, false);
+			auto GV = new llvm::GlobalVariable(*TheModule, Signal_val->getType(), true,
+			                                    llvm::GlobalValue::PrivateLinkage, Signal_val);
+			GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+			GV->setAlignment(llvm::Align(8));
+			llvm::Value* fd_ptr = Builder->CreateStructGEP(args_type, control_block, use_pipe ? 2 : 1);
+			llvm::Value* fd = Builder->CreateLoad(llvm_int_type, fd_ptr);
+			auto write_proto = (*lex.findProtos("__write"))[0].get();
+			auto write_fn = getFunction(write_proto);
+			Builder->CreateCall(write_proto->FT, write_fn, std::vector<llvm::Value*>{
+					fd, GV, getSize(8) });
+		}
+	}
 	if (os_idx == OS_Windows)
 		Builder->CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0));
 	else
@@ -109,6 +124,7 @@ llvm::Function* ThreadExprAST::get_thread_wrapper() {
 }
 
 llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
+	errs() << Loc << ": ThreadExpr " << (void*)target << "\n";
 	// offset, allocsz, var_indices, is_reference
 	ret_typ = Call->Proto->RetType->type;
 	ret_sz = ret_typ->isVoidTy() ? 0 : TheModule->getDataLayout().getTypeAllocSize(ret_typ);
@@ -116,7 +132,8 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	n_args = Call->Proto->LLVMArgTypes.size(); // including sret_pointer as 1st arg
 	// errs() << Loc << ": ### ret_sz: " << ret_sz << " " << do_sret << "!\n";
 	arg_offs = 1; // reference counter
-	if (os_idx != OS_Windows) {
+	// !target means the handle is discarded, i.e. the thread is detached
+	if (target && os_idx != OS_Windows) {
 		// We want to 'poll()' the event of a finished thread together with other events.
 		// On Windows we can use 'WaitForMultipleObjects()'
 		// On POSIX systems we add an additional file descriptor which is an
@@ -161,7 +178,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 #endif
 	refcount_adr = Builder->CreateStructGEP(args_type, Malloc, 0);
 	 // reference counter contains number of references - 1
-	CreateAtomicStore(Builder->getInt32(1), refcount_adr);
+	CreateAtomicStore(Builder->getInt32(target ? 1 : 0), refcount_adr);
 	if (use_eventfd || use_pipe) {
 		eventfd_or_piperead_adr = Builder->CreateStructGEP(args_type, Malloc, 1);
 		llvm::Value* fd_res;
@@ -212,7 +229,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		i++;
 		j++;
 	}
-	llvm::Function* wrapper = get_thread_wrapper();
+	llvm::Function* wrapper = get_thread_wrapper((bool)target);
 	if (!wrapper)
 		return nullptr;
 	auto thread_create_proto = (*lex.findProtos("__create_thread"))[0].get();

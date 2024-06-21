@@ -22,6 +22,7 @@ cdecl __setup_console()
 cdecl(eventfd) __eventfd(initval int, flags int) int
 cdecl(pipe2) __pipe2(fds voidptr, flags int) int
 cdecl(close) __close(fd int) int
+cdecl(write) __write(fd int, buf voidptr, count size_t) ssize_t
 
 # create POSIX/Windows Threads - returns -1 on error, 0 on detach and handle for joinable
 cdecl __create_thread(f voidptr, arg voidptr, detached bool) voidptr

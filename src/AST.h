@@ -676,7 +676,7 @@ public:
 			ft->type_attr |= A_thread;
 		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	llvm::Function* get_thread_wrapper();
+	llvm::Function* get_thread_wrapper(bool have_target);
 	llvm::StructType* args_type = nullptr;
 	bool do_sret; // 1 if result address is passes as 1st arg, 0 otherwise
 	bool use_eventfd = false;
