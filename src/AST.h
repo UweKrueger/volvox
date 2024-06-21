@@ -668,7 +668,12 @@ class ThreadExprAST : public ExprAST {
 	std::unique_ptr<CallExprAST> Call;
 public:
 	ThreadExprAST(SourceLocation Loc, std::unique_ptr<CallExprAST> _Call)
-		: ExprAST(llvm_ptr_type, 0, Loc), Call(std::move(_Call)) {}
+		: ExprAST(new_FullType(*lex.source_stack.front().module->type_table.get_full("__thread"), A_thread), Loc),
+		  Call(std::move(_Call))
+		{
+			// new_FullType() only makes a shallow copy so we must not destroy the map "fields"
+			ft->elem_type = Call->ft;
+		}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Function* get_thread_wrapper();
 	llvm::StructType* args_type = nullptr;

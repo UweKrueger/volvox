@@ -38,7 +38,8 @@
 #define A_destructor (1U<<21) // fn is destructor or type has destructor
 #define A_constructor (1U<<22) // fn is default c. or type has default c.
 #define A_conversion (1U<<23) // fn is "type conversion operator" (in C++ speach)
-#define A_method (1U<<24)
+#define A_method (1U<<24) // fn is method
+#define A_thread (1U<<24) // type is thread handle
 #define A_extern (1U<<25)
 #define A_merged (1U<<26) // helper flag for processing merge of then/else branches
 #define A_rvalue (1U<<27) // pseudo FullVar that has not storage location

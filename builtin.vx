@@ -21,12 +21,32 @@ cdecl(free) __free(buf voidptr)
 cdecl __setup_console()
 cdecl(eventfd) __eventfd(initval int, flags int) int
 cdecl(pipe2) __pipe2(fds voidptr, flags int) int
+cdecl(close) __close(fd int) int
 
 # create POSIX/Windows Threads - returns -1 on error, 0 on detach and handle for joinable
 cdecl __create_thread(f voidptr, arg voidptr, detached bool) voidptr
 cdecl __join_thread(tref voidptr) voidptr
 # Windows (non Mingw) specific thread functions
 cdecl __get_thread_return_idx(adr voidptr) u32
+
+type __thread_control_block {
+	# reference_counter int - not part of type but of shared object
+	eventfd_or_pipe_read int
+	pipe_write int
+}
+
+inline fn ~__thread_control_block
+	if __OS_Idx != 8 # not Windows
+		__close(this.eventfd_or_pipe_read)
+		if __OS_Idx != 2 && __OS_Idx != 3 && __OS_Idx != 5
+			# all except FreeBSD, Linux, NetBSD
+			__close(this.pipe_write)
+end end end
+
+type __thread { # LLVM type - FullType is call return type with A_thread
+	&control_block __thread_control_block
+	handle size_t
+}
 
 # pseudo functions for compiler
 #
