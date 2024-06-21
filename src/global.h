@@ -319,6 +319,7 @@ namespace volvoxc {
 			MapNode* fields;     // for structs
 		};
 		void dump(int fd = 2);
+		std::string str();
 		// iterate over struct fields
 		StructFieldType first() { return StructFieldType(map_min(fields)); }
 		StructFieldType last() { return StructFieldType(map_max(fields)); }

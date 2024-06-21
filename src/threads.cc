@@ -217,10 +217,13 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	auto thread_create_proto = (*lex.findProtos("__create_thread"))[0].get();
 	auto thread_create_fn = getFunction(thread_create_proto);
-	llvm::Value* thr_id =Builder->CreateCall(
+	llvm::Value* thr_id = Builder->CreateCall(
 		thread_create_proto->FT, thread_create_fn,
 		std::vector<llvm::Value*>{ wrapper, Malloc, llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), 0) });
-	return thr_id;
+	llvm::Value* thread_handle = llvm::UndefValue::get(ft->type);
+	thread_handle = Builder->CreateInsertValue(thread_handle, Malloc, 0);
+	thread_handle = Builder->CreateInsertValue(thread_handle, thr_id, 1);
+	return thread_handle;
 }
 
 llvm::Value* CreateReleaseRefC(llvm::Value* ptr) {

@@ -773,7 +773,11 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	}
 	llvm::Constant* TypeName;
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
-		if (struct_type->hasName()) {
+		if (ft->type_attr & A_thread) {
+			TypeName = Builder->CreateGlobalStringPtr(
+				"thread[" + ft->elem_type->str() + "]", "", 0, TheModule.get());
+			ft = lex.source_stack.front().module->type_table.get_full("__thread");
+		} else if (struct_type->hasName()) {
 			TypeName = Builder->CreateGlobalStringPtr(struct_type->getName(), "", 0, TheModule.get());
 		} else {
 			TypeName = llvm::ConstantPointerNull::get(llvm_ptr_type);
@@ -813,6 +817,13 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 	llvm::Constant *Indices[] = {Zero, Zero};
 	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV,
 	                                                    Indices);
+}
+
+std::string volvoxc::FullType::str() {
+	std::string buf;
+	llvm::raw_string_ostream out(buf);
+	out << *this;
+	return buf;
 }
 
 void volvoxc::FullType::dump(int fd) {

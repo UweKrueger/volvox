@@ -45,7 +45,7 @@ end end end
 
 type __thread { # LLVM type - FullType is call return type with A_thread
 	&control_block __thread_control_block
-	handle size_t
+	handle voidptr
 }
 
 # pseudo functions for compiler

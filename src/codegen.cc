@@ -1034,7 +1034,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 		}
 	}
-	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor));
+	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex | A_thread) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor | A_thread));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
 	// if (rhs_is_constexpr && !Val) {
