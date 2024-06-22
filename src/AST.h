@@ -393,8 +393,18 @@ public:
 			FieldName = Field->Name.c_str();
 			if (Struct->ft && Struct->ft->type) {
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Struct->ft->type)) {
-					MapValue* mv = map_string_get(Struct->ft->fields, FieldName);
-					if (mv) {
+					if (Struct->ft->type_attr & A_thread) {
+						if (!strcmp(FieldName, "wait")) {
+							FieldIndex = 0;
+							ft = Struct->ft->elem_type;
+						} else if (!strcmp(FieldName, "kill")) {
+							FieldIndex = 1;
+							ft = void_type;
+						} else {
+							errs() << Struct->Loc << ": threads do not have a method '" << FieldName << "'\n";
+							ft = nullptr;
+						}
+					} else if (MapValue* mv = map_string_get(Struct->ft->fields, FieldName)) {
 						FieldIndex = *(unsigned*)((char*)mv + mv->offset);
 						char* adr = (char*)mv + mv->offset + 4;
 						memcpy(&ft, adr, sizeof(void*));
