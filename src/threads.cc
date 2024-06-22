@@ -314,3 +314,31 @@ llvm::Value* CreateReleaseRefC(llvm::Value* ptr, std::function<llvm::Value*(llvm
 	Builder->SetInsertPoint(contBB);
 	return was_zero;
 }
+
+llvm::Value* SelectExprAST::codegen_thread_wait(llvm::Value* control_block, llvm::Value* thread_handle) {
+	auto thread_join_proto = (*lex.findProtos("__join_thread"))[0].get();
+	auto thread_join_fn = getFunction(thread_join_proto);
+	Builder->CreateCall(
+		thread_join_proto->FT, thread_join_fn,
+		std::vector<llvm::Value*>{ thread_handle, control_block });
+	unsigned offs = 1;
+	if (os_idx != OS_Windows) {
+		offs++;
+		if (os_idx != OS_FreeBSD && os_idx != OS_Linux && os_idx != OS_NetBSD)
+			offs++;
+	}
+	std::vector<llvm::Type*> types;
+	types.reserve(offs+1);
+	for (unsigned i=0; i<offs; i++)
+		types.push_back(llvm_int_type);
+	types.push_back(ft->type);
+	llvm::Type* args_type = llvm::StructType::get(Context, types);
+	llvm::Value* ret_adr = Builder->CreateStructGEP(args_type, control_block, offs);
+	return Builder->CreateLoad(ft->type, ret_adr);
+}
+
+llvm::Value* SelectExprAST::codegen_thread_kill(llvm::Value* control_block, llvm::Value* thread_handle) {
+
+	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+}
+

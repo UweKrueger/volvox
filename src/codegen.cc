@@ -491,6 +491,8 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref_(
 		return { nullptr, nullptr }; // error message was already generated in AST
 	if (Struct->ft->type->isArrayTy() || Struct->ft->type->isPointerTy())
 		goto failure;
+	if (Struct->ft->type_attr & A_thread)
+		goto failure;
 	if (auto LV = dynamic_cast<LvalueExprAST*>(Struct.get())) {
 		auto struct_ref = LV->codegen_ref(silent_fail, constref);
 		if (struct_ref.second) {
@@ -531,6 +533,23 @@ llvm::Value* SelectExprAST::codegen_complex(llvm::Value* target) {
 	} else {
 		return Builder->CreateExtractElement(C, FieldIndex);
 	}
+}
+
+llvm::Value* extractStructFieldValue(llvm::Value* Store, llvm::Value* struct_val,
+                                     volvoxc::FullType* StructFt, volvoxc::FullType* ft,
+                                     unsigned FieldIndex)
+{
+	llvm::Value* val;
+	if (Store) {
+		if (StructFt->type_attr & A_union)
+			val = Builder->CreateLoad(ft->type, Builder->CreatePointerCast(Store, ft->type->getPointerTo()));
+		else {
+			auto valptr = Builder->CreateStructGEP(StructFt->type, Store, FieldIndex);
+			val = Builder->CreateLoad(ft->type, valptr);
+		}
+	} else
+		val = Builder->CreateExtractValue(struct_val, FieldIndex);
+	return val;
 }
 
 llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
@@ -590,15 +609,22 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* struct_val = Struct->codegen_raw(Store);
 		if (struct_val) {
 			llvm::Value* val;
-			if (Store) {
-				if (Struct->ft->type_attr & A_union)
-					val = Builder->CreateLoad(ft->type, Builder->CreatePointerCast(Store, ft->type->getPointerTo()));
-				else {
-					auto valptr = Builder->CreateStructGEP(Struct->ft->type, Store, FieldIndex);
-					val = Builder->CreateLoad(ft->type, valptr);
+			if (Struct->ft->type_attr & A_thread) {
+				auto control_block = extractStructFieldValue(Store, struct_val, Struct->ft, ft, 0);
+				auto thread_handle = extractStructFieldValue(Store, struct_val, Struct->ft, ft, 1);
+				switch (FieldIndex) { // pseudo method
+				case 0:
+					val = codegen_thread_wait(control_block, thread_handle);
+					break;
+				case 1:
+					val = codegen_thread_kill(control_block, thread_handle);
+					break;
+				default:
+					abort();
 				}
-			} else
-				val = Builder->CreateExtractValue(struct_val, FieldIndex);
+			} else {
+				val = extractStructFieldValue(Store, struct_val, Struct->ft, ft, FieldIndex);
+			}
 			return handle(target, val);
 		}
 	}

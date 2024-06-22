@@ -27,7 +27,7 @@ cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 
 # create POSIX/Windows Threads - returns -1 on error, 0 on detach and handle for joinable
 cdecl __create_thread(f voidptr, arg voidptr, detached bool) voidptr
-cdecl __join_thread(tref voidptr) voidptr
+cdecl __join_thread(thr voidptr, ctrl_blk voidptr) voidptr
 # Windows (non Mingw) specific thread functions
 cdecl __get_thread_return_idx(adr voidptr) u32
 

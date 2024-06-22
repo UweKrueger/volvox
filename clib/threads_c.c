@@ -16,9 +16,14 @@
 #else
 #include <pthread.h>
 #include <unistd.h>
+#include <poll.h>
+#include <string.h>
+#include <errno.h>
 #endif
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 // new thread - return handle, (-1) if detached or 0 on error
 _DECL void* __create_thread(void* f, void* arg, bool detached) {
@@ -81,7 +86,7 @@ _DECL DWORD __get_thread_return_idx(void* adr) {
 #endif
 
 // return 0 for failure or 32 bit return value
-_DECL void* __join_thread(void* t) {
+_DECL void* __join_thread(void* t, void* cb) {
 #if defined(_WIN32)
 	DWORD res = WaitForSingleObject((HANDLE)t, INFINITE);
 	if (res == WAIT_FAILED)
@@ -91,6 +96,25 @@ _DECL void* __join_thread(void* t) {
 		return __get_thread_return_adr(code);
 	return NULL;
 #else
+	int read_fd = *((int*)cb + 1);
+	struct pollfd pfd = {
+		.fd = read_fd,
+		.events = POLLIN
+	};
+	ssize_t n_read;
+	do {
+		int pollres = poll(&pfd, 1, -1);
+		if (pollres < 0) {
+			fprintf(stderr, "thread join: %s\n", strerror(errno));
+			abort();
+		}
+		if (pfd.revents != POLLIN) {
+			fprintf(stderr, "thread join: unexpected event %hd\n", pfd.revents);
+			abort();
+		}
+		uint64_t buf;
+		n_read = read(read_fd, &buf, 8);
+	} while (n_read < 0 && errno == EAGAIN);
 	void* val;
 	int res = pthread_join((pthread_t)t, &val);
 	if (res)

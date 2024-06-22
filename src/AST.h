@@ -465,6 +465,8 @@ public:
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen_complex(llvm::Value* target = nullptr);
+	llvm::Value* codegen_thread_wait(llvm::Value* control_block, llvm::Value* thread_handle);
+	llvm::Value* codegen_thread_kill(llvm::Value* control_block, llvm::Value* thread_handle);
 	VariableExprAST* getBase() override {
 		if (auto lval = dynamic_cast<LvalueExprAST*>(Struct.get()))
 			return lval->getBase();
