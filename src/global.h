@@ -483,6 +483,9 @@ extern std::unique_ptr<ExprAST> ParseExpression(int terminator = 0);
 extern std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft, int terminator = 0);
 extern std::unique_ptr<PrototypeAST> ParseExtern(unsigned share_kind);
 extern bool spawn_bool_expr(bool (*expr)());
+extern llvm::Value* CreateReleaseRefC(llvm::Value* ptr,
+                                      std::function<llvm::Value*(llvm::Value*)> ValDestructor = nullptr,
+                                      std::function<llvm::Value*(llvm::Value*)> ValKeeper = nullptr);
 
 // classification for next token
 // in general how newline is translated

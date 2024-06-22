@@ -93,19 +93,40 @@ llvm::Function* ThreadExprAST::get_thread_wrapper(bool have_target) {
 		                    std::vector<llvm::Value*>());
 	}
 	if (have_target) {
+		std::function<llvm::Value*(llvm::Value*)> Destructor = nullptr;
+		std::function<llvm::Value*(llvm::Value*)> Keeper = nullptr;
 		if (use_eventfd || use_pipe) {
-			auto Signal_val = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), 1, false);
-			auto GV = new llvm::GlobalVariable(*TheModule, Signal_val->getType(), true,
-			                                    llvm::GlobalValue::PrivateLinkage, Signal_val);
-			GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
-			GV->setAlignment(llvm::Align(8));
-			llvm::Value* fd_ptr = Builder->CreateStructGEP(args_type, control_block, use_pipe ? 2 : 1);
-			llvm::Value* fd = Builder->CreateLoad(llvm_int_type, fd_ptr);
-			auto write_proto = (*lex.findProtos("__write"))[0].get();
-			auto write_fn = getFunction(write_proto);
-			Builder->CreateCall(write_proto->FT, write_fn, std::vector<llvm::Value*>{
-					fd, GV, getSize(8) });
+			Keeper = [=,this](llvm::Value* ptr) {
+				auto Signal_val = llvm::ConstantInt::get(llvm::Type::getInt64Ty(Context), 1, false);
+				auto GV = new llvm::GlobalVariable(*TheModule, Signal_val->getType(), true,
+				                                   llvm::GlobalValue::PrivateLinkage, Signal_val);
+				GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
+				GV->setAlignment(llvm::Align(8));
+				llvm::Value* fd_ptr = Builder->CreateStructGEP(args_type, ptr, use_pipe ? 2 : 1);
+				llvm::Value* fd = Builder->CreateLoad(llvm_int_type, fd_ptr);
+				auto write_proto = (*lex.findProtos("__write"))[0].get();
+				auto write_fn = getFunction(write_proto);
+				return Builder->CreateCall(write_proto->FT, write_fn, std::vector<llvm::Value*>{
+						fd, GV, getSize(8) });
+			};
+			Destructor = [=,this](llvm::Value* ptr) {
+				auto close_proto = (*lex.findProtos("__close"))[0].get();
+				auto close_fn = getFunction(close_proto);
+				llvm::Value* fd_ptr = Builder->CreateStructGEP(args_type, ptr, 1);
+				llvm::Value* fd = Builder->CreateLoad(llvm_int_type, fd_ptr);
+				auto res = Builder->CreateCall(close_proto->FT, close_fn, std::vector<llvm::Value*>{ fd });
+				if (use_pipe) {
+					llvm::Value* fd2_ptr = Builder->CreateStructGEP(args_type, ptr, 2);
+					llvm::Value* fd2 = Builder->CreateLoad(llvm_int_type, fd_ptr);
+					auto res2 =Builder->CreateCall(close_proto->FT, close_fn, std::vector<llvm::Value*>{ fd2 });
+					if (!res2)
+						res = nullptr;
+				}
+				return res;
+			};
 		}
+		if (!CreateReleaseRefC(control_block, Destructor, Keeper))
+			return nullptr;
 	}
 	if (os_idx == OS_Windows)
 		Builder->CreateRet(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0));
@@ -124,8 +145,6 @@ llvm::Function* ThreadExprAST::get_thread_wrapper(bool have_target) {
 }
 
 llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
-	errs() << Loc << ": ThreadExpr " << (void*)target << "\n";
-	// offset, allocsz, var_indices, is_reference
 	ret_typ = Call->Proto->RetType->type;
 	ret_sz = ret_typ->isVoidTy() ? 0 : TheModule->getDataLayout().getTypeAllocSize(ret_typ);
 	do_sret = (ret_sz > sret_limit);
@@ -243,7 +262,13 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	return thread_handle;
 }
 
-llvm::Value* CreateReleaseRefC(llvm::Value* ptr) {
+/* CreateReleaseRefC() gets a pointer to an atomic reference pointer that is the 1st
+ * element in a memory block. If reference counter is decremented and if it has been zero
+ * the optional ValDestructor() function is called and the memory block is freed.
+ * Otherwise the optional ValKeeper() function is called.
+ */
+llvm::Value* CreateReleaseRefC(llvm::Value* ptr, std::function<llvm::Value*(llvm::Value*)> ValDestructor,
+                               std::function<llvm::Value*(llvm::Value*)> ValKeeper) {
 	llvm::Value* last_val = CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Sub, ptr, llvm::ConstantInt::get(llvm_int_type, 1));
 	llvm::Value* was_zero = Builder->CreateICmpEQ(last_val, llvm::ConstantInt::get(llvm_int_type, 0));
 	auto enterBB = Builder->GetInsertBlock();
@@ -253,19 +278,33 @@ llvm::Value* CreateReleaseRefC(llvm::Value* ptr) {
 		abort();
 	}
 	auto freeBB = llvm::BasicBlock::Create(Context, "free");
+	auto keepBB = llvm::BasicBlock::Create(Context, "keep");
 	auto contBB = llvm::BasicBlock::Create(Context, "cont");
-	Builder->CreateCondBr(was_zero, freeBB, contBB);
+	Builder->CreateCondBr(was_zero, freeBB, keepBB);
 #if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), freeBB);
 #else
 	TheFunction->getBasicBlockList().push_back(freeBB);
 #endif
 	Builder->SetInsertPoint(freeBB);
+	if (ValDestructor)
+		if (!ValDestructor(ptr))
+			return nullptr;
 #if LLVM_VERSION_MAJOR >= 18
 	Builder->CreateFree(ptr);
 #else
 	Builder->Insert(llvm::CallInst::CreateFree(ptr, freeBB));
 #endif
+	Builder->CreateBr(contBB);
+#if LLVM_VERSION_MAJOR >= 16
+	TheFunction->insert(TheFunction->end(), keepBB);
+#else
+	TheFunction->getBasicBlockList().push_back(keepBB);
+#endif
+	Builder->SetInsertPoint(keepBB);
+	if (ValKeeper)
+		if (!ValKeeper(ptr))
+			return nullptr;
 	Builder->CreateBr(contBB);
 #if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), contBB);
