@@ -30,9 +30,15 @@ fn do_print(x f64, n i32) f64
 		n--
 		aa.x = x + n
 	end
-	return x*x*n
+	return x*x+100.001
 end
 
 w = thread do_print(3.34, 5)
 
-do_print(2.97, 7)
+# expect 108.8219
+do_print(2.97, 4)
+
+"Waiting for w"
+
+# expect 111.1566
+w.wait

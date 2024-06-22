@@ -182,7 +182,6 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		types.push_back(t);
 	// TODO: handle vararg
 	args_type = llvm::StructType::get(Context, types);
-	// errs() << "### stuct: " << *args_type << "\n";
 	llvm::Value* AllocSz = getSize(TheModule->getDataLayout().getTypeAllocSize(args_type));
 #if LLVM_VERSION_MAJOR >= 18
 	llvm::Value* Malloc = Builder->CreateMalloc(
@@ -214,10 +213,10 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 			auto eventfd_proto = (*lex.findProtos("__eventfd"))[0].get();
 			auto eventfd_fn = getFunction(eventfd_proto);
 			// again, we do not cross compile ...
-			constexpr int _flags = O_CLOEXEC | O_NONBLOCK;
 			fd_res = Builder->CreateCall(
 				eventfd_proto->FT, eventfd_fn, std::vector<llvm::Value*>{
 					Builder->getInt32(0), fd_flags });
+			Builder->CreateStore(fd_res, eventfd_or_piperead_adr);
 		}
 		auto abort_proto = (*lex.findProtos("_abort_if_negative"))[0].get();
 		auto abort_fn = getFunction(abort_proto);
