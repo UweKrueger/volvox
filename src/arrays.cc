@@ -171,10 +171,10 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			// allocated dynamically since it might be of variable size in the other branch
 			ArrayAlloc = Builder->CreateAlloca(alloc_arr_type, nullptr, Name);
 		} else {
-			if (inside_function || comp_mode != comp_jit || do_test)
+			if (inside_function || !jit_repl)
 				ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
 			else {
-				if (comp_mode != comp_jit || do_test) {
+				if (!jit_repl) {
 #if LLVM_VERSION_MAJOR >= 18
 					ArrayAlloc = Builder->CreateMalloc(
 						llvm_size_type, llvm::Type::getInt8Ty(Context),
@@ -197,10 +197,10 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			}
 		}
 	} else {
-		if (inside_function || comp_mode != comp_jit || do_test)
+		if (inside_function || !jit_repl)
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 		else {
-			if (comp_mode != comp_jit || do_test) {
+			if (!jit_repl) {
 #if LLVM_VERSION_MAJOR >= 18
 				ArrayAlloc = Builder->CreateMalloc(
 					llvm_size_type, llvm::Type::getInt8Ty(Context),
@@ -710,7 +710,7 @@ llvm::Value* createJITStringConst(const char* str, size_t Len, const llvm::Twine
 }
 
 llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name) {
-	if (comp_mode == comp_jit && !do_test)
+	if (jit_repl)
 		return createJITStringConst(str, Len, Name);
 	char* stra;
 	char* tmpres;

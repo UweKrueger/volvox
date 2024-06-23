@@ -23,7 +23,7 @@ std::vector<std::string> extra_libs;
 std::vector<std::vector<const char*>> source_files = {{}};
 std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
 std::map<unsigned, llvm::Type*> key32_table; // only builtin types
-
+Tristate do_pres;
 const std::string single_test_result_name = "__test_result";
 const std::string collector_name = "__test_results_collect";
 int include_index = 0;
@@ -1107,10 +1107,12 @@ static void MainLoop() {
 			}
 			HandleDefinition(sym_kind);
 			if (TestFunction) {
-				if (do_test)
-					CallTestFunction();
-				else if (do_repl_test)
-					CallTestFunction(true);
+				if (do_test) {
+					if (jit_repl)
+						CallTestFunction(true);
+					else
+						CallTestFunction();
+				}
 				TestFunction = nullptr;
 			}
 			getNextToken();
@@ -1165,7 +1167,7 @@ static void MainLoop() {
 				finish_constructors_and_destructor();
 			Builder->ClearInsertionPoint();
 			if (auto expr = GetTopLevelExpression(sym_kind)) {
-				if (comp_mode == comp_jit && !do_test) {
+				if (jit_repl) {
 					if (!HandleTopLevelExpression(std::move(expr))) {
 						errs() << "Command aborted...\n";
 					}
@@ -1274,8 +1276,13 @@ static void usage(const char* prog) {
 	errs() << " -fPIC ....... generate position independent code\n";
 	errs() << " -fdiv-floored signed division is floored, remainder gets sign of divisor (default)\n";
 	errs() << " -fdiv-c99 ... signed division rounds towards 0, remainder gets sign of divident\n";
+	errs() << " -fno-index-checks,";
 	errs() << " -fno-idx-chk  do not check array indices to be within bounds\n";
-	errs() << " -g .......... compile with debug information\n";
+	errs() << " -fprint-results,\n";
+	errs() << " -fpres ...... print results of top level expressions (default for -J)\n";
+	errs() << " -fno-print-results,\n";
+	errs() << " -fno-pres ... discard results of top level expressions (default for all but -J)\n";
+	errs() << " -g .......... compile with debug information (not implemented, yet)\n";
 	errs() << " -On[m] ...... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
 	errs() << "               m: optional separate level machine specific codegen (default: n)\n";
 	errs() << " -r .......... run compiled program\n";
@@ -1491,6 +1498,12 @@ int main(int argc, char* argv[]) {
 			} else if (!strcmp(optarg, "no-idx-chk") ||
 			           !strcmp(optarg, "no-index-checks")) {
 				do_range_checks = false;
+			} else if (!strcmp(optarg, "pres") ||
+			           !strcmp(optarg, "print-results")) {
+				do_pres = true;
+			} else if (!strcmp(optarg, "no-pres") ||
+			           !strcmp(optarg, "no-print-results")) {
+				do_pres = false;
 			} else {
 				errs() << "Unknown option '-f" << optarg << "'\n";
 				usage(argv[0]);
@@ -1647,6 +1660,9 @@ int main(int argc, char* argv[]) {
 			jit_repl = true;
 		}
 	}
+	if (do_pres.undecided())
+		do_pres = jit_repl;
+
 #if defined(__linux__) || defined(_WIN32) || defined(__FreeBSD__)
 	if (jit_repl)
 		// We have robust mutexes on these 3 OSs so each top level expression can be
@@ -1677,7 +1693,7 @@ int main(int argc, char* argv[]) {
 		usage(argv[0]);
 	}
 	if (jit_repl && do_test) {
-		do_test = false;
+		// do_test = false;
 		do_repl_test = true;
 	}
 	if (output_file) {
@@ -1907,7 +1923,7 @@ int main(int argc, char* argv[]) {
 			"Volvox Compiler", 0, "", 0);
 	}
 	init(TheTargetMachine->getTargetTriple());
-	if (do_test || comp_mode != comp_jit) {
+	if (!jit_repl) {
 		MainFunction = (do_test && comp_mode == comp_jit) ?
 			PrepareMain("test_main", "bool") :
 			PrepareMain("main", "int");
@@ -1933,7 +1949,8 @@ int main(int argc, char* argv[]) {
 	getNextToken();
 	// Run the main "interpreter loop" now.
 	MainLoop();
-	if (do_test || comp_mode != comp_jit) {
+	int result = 0;
+	if (!jit_repl) {
 		if (do_test)
 			FinishTestRuns();
 		else
@@ -1948,30 +1965,41 @@ int main(int argc, char* argv[]) {
 				// call test_main()
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 				ExitOnErr(TheJIT->addModule(std::move(TSM)));
-				auto ExprSymbol = ExitOnErr(TheJIT->lookup("test_main"));
+				auto ExprSymbol = ExitOnErr(TheJIT->lookup(do_test ? "test_main" : "main"));
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
+				if (do_test) {
 #if LLVM_VERSION_MAJOR >= 17
-				bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
+					bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
 #else
-				bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
+					bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
 #endif
-				bool ret;
-				if (jit_extra_thread)
-					ret = spawn_bool_expr(BOOL);
-				else
-					ret = BOOL();
-				if (ret)
-					errs() << "All test cases passed\n";
-				else
-					errs() << "Some test cases failed\n";
+					bool ret;
+					if (jit_extra_thread)
+						ret = spawn_bool_expr(BOOL);
+					else
+						ret = BOOL();
+					if (ret)
+						errs() << "All test cases passed\n";
+					else
+						errs() << "Some test cases failed\n";
+				} else {
+#if LLVM_VERSION_MAJOR >= 17
+					int (*INT)() = ExprSymbol.getAddress().toPtr<int (*)()>();
+#else
+					int (*INT)() = (int (*)())(intptr_t)ExprSymbol.getAddress();
+#endif
+					if (jit_extra_thread)
+						result = spawn_int_expr(INT);
+					else
+						result = INT();
+				}
 			}
 		} else {
 			errs() << "error generating code for main function\n";
 			exit(1);
 		}
 	}
-	int result = 0;
 	if (comp_mode == comp_obj) {
 		auto Filename = output_file;
 		std::error_code EC;
@@ -2182,7 +2210,7 @@ int main(int argc, char* argv[]) {
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
 	} else if (comp_mode == comp_jit) {
-		if (!do_test)
+		if (jit_repl)
 			CallGlobalDestructorsJIT();
 		ExitOnErr(TheJIT->getMainJITDylib().clear());
 		result = return_value;

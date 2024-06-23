@@ -168,6 +168,8 @@ public:
 	bool undecided() { return state < 0; };
 };
 
+extern Tristate do_prexprs;
+
 // some handy output stream definitions
 // these just bring LLVM's definitions into the global namespace
 inline llvm::raw_ostream& errs() {
@@ -853,6 +855,8 @@ extern void InsertDestructors(std::vector<FullVar>& t);
 extern void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 extern void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 extern llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind);
+extern bool jit_repl;
+extern bool jit_extra_thread;
 
 inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before) {
 	InsertArrayConDestructor(fv->ft.type, fv->ft.elem_type, val, before);
@@ -860,7 +864,7 @@ inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::In
 
 inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before = nullptr) {
 	if (fv->destructor) {
-		if (comp_mode == comp_jit && !do_test)
+		if (jit_repl)
 			fv->destructor = getDestructor(&fv->ft);
 		llvm::BasicBlock* oldBB;
 		if (before) {
@@ -899,7 +903,7 @@ inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nul
 		return;
 	}
 	llvm::Value* V;
-	if ((fv->ft.type_attr & A_mainvar) && comp_mode == comp_jit && !do_test || (fv->ft.type_attr & A_globally_visible)) { // global variable
+	if ((fv->ft.type_attr & A_mainvar) && jit_repl || (fv->ft.type_attr & A_globally_visible)) { // global variable
 		if (fv->ft.type_attr & A_rvalue)
 			return; // constexpr -> nothing to do
 		if (!fv->mangled_name) {
@@ -1474,8 +1478,6 @@ extern std::tuple<llvm::Type*, unsigned> MakeType(llvm::Type* type, unsigned is_
 extern std::vector<std::vector<const char*>> source_files;
 extern std::vector<int> source_index;
 extern std::vector<const char*> SourceFileNames;
-extern bool jit_repl;
-extern bool jit_extra_thread;
 extern const char* last_thread_constructor_caller;
 extern const char* last_thread_destructor_caller;
 extern void CallGlobalDestructorsJIT();

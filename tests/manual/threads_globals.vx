@@ -36,9 +36,9 @@ end
 w = thread do_print(3.34, 5)
 
 # expect 108.8219
-do_print(2.97, 4)
+printf("Result from main thread: %.4f\n", do_print(2.97, 4))
 
-"Waiting for w"
+printf("Waiting for w\n")
 
 # expect 111.1566
-w.wait
+printf("Result from spawned thread: %.4f\n", w.wait)

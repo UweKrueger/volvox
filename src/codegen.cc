@@ -387,7 +387,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 		full_var->ft.type_attr |= A_modified;
 	llvm::Value* V;
 	llvm::Type* storage_type;
-	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && (comp_mode == comp_jit && !do_test)) {
+	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && jit_repl) {
 		// global variable or main var in interactive JIT
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
@@ -873,7 +873,7 @@ llvm::Function* init_setter_fn(std::string& setter_name, std::string& varname, l
 	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
 	Builder->SetInsertPoint(BB);
 	Arg = tmpf->getArg(0);
-	if (last_shadow_restorer && comp_mode == comp_jit && !do_test) {
+	if (last_shadow_restorer && jit_repl) {
 		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
 		auto last_restorer = getFunction(last_restorer_proto);
 		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>());
@@ -989,8 +989,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		errs() << LHSE->Loc << ": LHS of declaration must be a variable name\n";
 		return nullptr;
 	}
-	bool initialization_from_main = (comp_mode != comp_jit || do_test) && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
-	bool prepare_setter_fn = comp_mode == comp_jit && !do_test && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
+	bool initialization_from_main = !jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
+	bool prepare_setter_fn = jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
 	const std::string& unmangled_name = LHSE->getName();
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
 		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
@@ -1225,10 +1225,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 					llvm::Value* ArrayAlloc = nullptr;
 					auto ElemSize = getSize(el_allocsz);
 					llvm::Value* Sz = Builder->CreateMul(ElemSize, Len);
-					if (inside_function || comp_mode != comp_jit || do_test)
+					if (inside_function || !jit_repl)
 						ArrayAlloc = Builder->CreateAlloca(elem_type, Len, varname);
 					else {
-						if (comp_mode != comp_jit || do_test) {
+						if (!jit_repl) {
 #if LLVM_VERSION_MAJOR >= 18
 							ArrayAlloc = Builder->CreateMalloc(llvm_size_type, llvm::Type::getInt8Ty(Context),
 							                                   ElemSize, Len, nullptr, varname);
@@ -3459,7 +3459,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				}
 				entry->ft.type = merge.first;
 				entry->ft.type_attr = then_var->ft.type_attr | else_var->ft.type_attr;
-				if (comp_mode == comp_jit && !do_test && locals_table.empty()) {
+				if (jit_repl && locals_table.empty()) {
 					std::string var_name = then_node.getKey();
 					if (merge.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(merge.first) > 0) {
 						entry->storage_type = merge.first;
@@ -3557,7 +3557,7 @@ void CallGlobalDestructorsJIT() {
 	llvm::Function* destr_fn = llvm::Function::Create(destr_fn_t, llvm::Function::ExternalLinkage, destr_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", destr_fn);
 	Builder->SetInsertPoint(BB);
-	if (last_shadow_restorer && comp_mode == comp_jit && !do_test) {
+	if (last_shadow_restorer && jit_repl) {
 		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
 		auto last_restorer = getFunction(last_restorer_proto);
 		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>());
