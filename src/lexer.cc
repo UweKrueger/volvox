@@ -116,7 +116,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    exit(1);
 		    }
 		    static bool tests_prepared = false;
-		    if ((do_test || do_repl_test) && !tests_prepared) {
+		    if (do_test && !tests_prepared) {
 			    // This was just the initialization file for builtins
 			    // now switch to real input
 			    // this had to wait until definitions in 'builtin.vx' have been processed

@@ -531,7 +531,6 @@ extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 extern void PrepareTestFramework();
 extern const char* TestFunction;
 extern bool do_test;
-extern bool do_repl_test;
 extern void finish_constructors_and_destructor();
 extern llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& VarName = "",
                                                 llvm::Function* TheFunction = nullptr);

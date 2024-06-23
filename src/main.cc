@@ -717,6 +717,13 @@ static THREAD_RETURN anon_expr_wrapper(void* expr_ptr) {
 	return res;
 }
 
+static THREAD_RETURN anon_expr_wrapper_int(void* expr_ptr) {
+	int (*expr)() = (int (*)())expr_ptr;
+	THREAD_RETURN res = (THREAD_RETURN)(uintptr_t)expr();
+	execution_thread = (THREAD_HANDLE_TY)0;
+	return res;
+}
+
 // This starts the main JIT execution thread for each command.
 // We use a separate thread so signals from "inside" (e.g. index out of range)
 // or TerminateThread() from "outside" can kill this thread without
@@ -734,7 +741,7 @@ bool spawn_bool_expr(bool (*expr)()) {
 	return !(!retval);
 }
 int spawn_int_expr(int (*expr)()) {
-	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
+	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper_int, (void*)expr, 0, NULL);
 	WaitForSingleObject(thread, INFINITE);
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
@@ -764,7 +771,7 @@ int spawn_int_expr(int (*expr)()) {
 	pthread_attr_init(&attr);
 	pthread_attr_setstacksize(&attr, stacksize);
 	pthread_t thread;
-	int res = pthread_create(&thread, &attr, anon_expr_wrapper, (void*)expr);
+	int res = pthread_create(&thread, &attr, anon_expr_wrapper_int, (void*)expr);
 	if (res) {
 		errs() << "Error creating execution thread: " << strerror(res) << '\n';
 		abort();
@@ -1312,7 +1319,6 @@ static void debug_mode_conflict(const char* prog) {
 int verbosity = 0;
 unsigned dump_IR = 0;
 bool do_test = false;
-bool do_repl_test = false;
 bool jit_repl = false;
 bool jit_extra_thread = false;
 bool gen_pic = false;
@@ -1692,10 +1698,6 @@ int main(int argc, char* argv[]) {
 		errs() << "Options '-r' makes no sense in JIT mode\n";
 		usage(argv[0]);
 	}
-	if (jit_repl && do_test) {
-		// do_test = false;
-		do_repl_test = true;
-	}
 	if (output_file) {
 		if (comp_mode == comp_jit) {
 			errs() << "output file ('-o ...') not supported for JIT compilation\n";
@@ -1990,9 +1992,9 @@ int main(int argc, char* argv[]) {
 					int (*INT)() = (int (*)())(intptr_t)ExprSymbol.getAddress();
 #endif
 					if (jit_extra_thread)
-						result = spawn_int_expr(INT);
+						return_value = spawn_int_expr(INT);
 					else
-						result = INT();
+						return_value = INT();
 				}
 			}
 		} else {
