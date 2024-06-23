@@ -1179,7 +1179,12 @@ static void MainLoop() {
 						errs() << "Command aborted...\n";
 					}
 				} else {
-					GlobalExprList.push_back(std::move(expr));
+					if (!do_pres || have_return || !expr->ft->type || expr->ft->type->isVoidTy())
+						GlobalExprList.push_back(std::move(expr));
+					else {
+						auto print_cmd = GenerateResultPrint(std::move(expr));
+						GlobalExprList.push_back(std::move(print_cmd));
+					}
 				}
 			}
 			if (have_return)

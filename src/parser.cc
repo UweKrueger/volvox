@@ -2182,6 +2182,33 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 	}
 }
 
+std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E) {
+	std::string mangled_println = "_ZN6volvox7printlnEPKcz";
+	auto println_proto = lex.findProtos(mangled_println);
+	if (!println_proto) {
+		errs() << "Fatal error: could not find 'println' function\n";
+		return nullptr;
+	}
+	long long w = 0LL;
+	auto FnLoc = E->Loc;
+	auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto);
+	std::vector<std::unique_ptr<ExprAST>> PrintArgs;
+	bool is_string = E->ft->type->isPointerTy();
+	if (is_string)
+		// force enclosing ""
+		w = INT_MIN;
+	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
+	PrintArgs.push_back(std::make_unique<InterfaceExprAST>(std::move(E)));
+	// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
+	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(w))));
+	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
+	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
+	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
+	auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
+	return print_call;
+}
+
 std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool suppress_output) {
 	SourceLocation FnLoc = E->Loc;
 	if (comp_mode == comp_jit)
@@ -2213,28 +2240,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 		return_val_idx = ExprList.size() - 1;
 	} else {
-		std::string mangled_println = "_ZN6volvox7printlnEPKcz";
-		auto println_proto = lex.findProtos(mangled_println);
-		if (!println_proto) {
-			errs() << "Fatal error: could not find 'println' function\n";
-			return nullptr;
-		}
-		long long w = 0LL;
-		auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto);
-		std::vector<std::unique_ptr<ExprAST>> PrintArgs;
-		bool is_string = E->ft->type->isPointerTy();
-		if (is_string)
-			// force enclosing ""
-			w = INT_MIN;
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-		PrintArgs.push_back(std::make_unique<InterfaceExprAST>(std::move(E)));
-		// println requires parameters for width, precision and flags - pass 0s (and signed bit) to get defaults
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(w))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-		PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-		auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
+		auto print_call = GenerateResultPrint(std::move(E));
 		ExprList.push_back(std::move(print_call));
 	}
 	if (last_shadow_saver) {
