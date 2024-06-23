@@ -2204,7 +2204,10 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 			ExprList.push_back(std::move(restorer_call));
 		}
 	}
-	if (E->ft->type->isVoidTy() || suppress_output || have_return) {
+	if (!do_pres && !have_return) {
+		ExprList.push_back(std::move(E));
+		ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+	} else if (E->ft->type->isVoidTy() || suppress_output || have_return) {
 		ExprList.push_back(std::move(E));
 		if (!suppress_output && !have_return)
 			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));

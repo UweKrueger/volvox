@@ -168,7 +168,7 @@ public:
 	bool undecided() { return state < 0; };
 };
 
-extern Tristate do_prexprs;
+extern Tristate do_pres;
 
 // some handy output stream definitions
 // these just bring LLVM's definitions into the global namespace
