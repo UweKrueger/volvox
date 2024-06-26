@@ -144,6 +144,11 @@ llvm::Function* ThreadExprAST::get_thread_wrapper(bool have_target) {
 		return nullptr;
 }
 
+#if defined(_MSC_VER)
+#define O_CLOEXEC 0
+#define O_NONBLOCK 0
+#endif
+
 llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	ret_typ = Call->Proto->RetType->type;
 	ret_sz = ret_typ->isVoidTy() ? 0 : TheModule->getDataLayout().getTypeAllocSize(ret_typ);
@@ -174,7 +179,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	std::vector<llvm::Value*> args;
 	types.reserve(arg_offs + n_args); // ref-counter + eventfd + return
 	args.reserve(arg_offs + n_args);
-	for (int m = 0; m < arg_offs0; m++)
+	for (unsigned m = 0; m < arg_offs0; m++)
 		types.push_back(llvm_int_type);
 	if (have_ret_val)
 		types.push_back(ret_typ);

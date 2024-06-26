@@ -281,7 +281,7 @@ extern llvm::TargetMachine* TheTargetMachine;
 #endif
 
 namespace volvoxc {
-	struct FullType;
+	class FullType;
 }
 
 class StructFieldType {
