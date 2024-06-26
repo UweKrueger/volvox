@@ -263,7 +263,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* thread_handle = llvm::UndefValue::get(ft->type);
 	thread_handle = Builder->CreateInsertValue(thread_handle, Malloc, 0);
 	thread_handle = Builder->CreateInsertValue(thread_handle, thr_id, 1);
-	return thread_handle;
+	return handle(target, thread_handle);
 }
 
 /* CreateReleaseRefC() gets a pointer to an atomic reference pointer that is the 1st
