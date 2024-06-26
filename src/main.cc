@@ -102,6 +102,7 @@ llvm::Type* llvm_int_type;
 llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
 llvm::Type* llvm_interface_type;
+llvm::Type* llvm_va_args_type;
 llvm::Type* llvm_c32_type;
 llvm::PointerType* llvm_ptr_type;
 volvoxc::FullType* void_type;
@@ -111,6 +112,7 @@ volvoxc::FullType* size_type;
 volvoxc::FullType* integer_type;
 volvoxc::FullType* f32_type;
 volvoxc::FullType* interface_type;
+volvoxc::FullType* va_args_type;
 volvoxc::FullType* voidptr_type;
 volvoxc::FullType* c32_type;
 

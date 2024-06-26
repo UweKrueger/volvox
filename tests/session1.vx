@@ -28,7 +28,6 @@ global z7 = 5
 global w7 = 3
 
 fn q1() f64
-	global y7, z7, w7
 	v = [y7][z7][w7]f64{2: {1: {2: -17.3}}}
 	x = v[2][1][2]
 	return x
