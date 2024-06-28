@@ -375,11 +375,16 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
 		return { nullptr, nullptr };
 	}
-	if (full_var->ft.type_attr & A_rvalue) {
+	if ((full_var->ft.type_attr & A_rvalue)
+	     || (!constref && (full_var->ft.type_attr & A_immutable)))
+	{
 		if (silent_fail)
 			return { full_var->ft.type, nullptr };
 		else {
-			errs() << Loc << ": const \"variable\" can only be used as rvalue\n";
+			if (full_var->ft.type_attr & A_rvalue)
+				errs() << Loc << ": constexpr '" << Name << "' can only be used as rvalue\n";
+			else
+				errs() << Loc << ": variable '" << Name << "' is immutable\n";
 			return { nullptr, nullptr };
 		}
 	}

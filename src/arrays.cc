@@ -368,7 +368,7 @@ static void CheckArrayIndex(llvm::Value* idx, llvm::Value* Len, SourceLocation L
 
 llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 	// first try to get a reference to the element ...
-	auto V = codegen_ref(true);
+	auto V = codegen_ref(true, true);
 	if (auto val = ref2val(V))
 		return val;
 	if (V.first) {

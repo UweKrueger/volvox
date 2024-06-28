@@ -43,6 +43,7 @@
 #define A_extern (1U<<25)
 #define A_merged (1U<<26) // helper flag for processing merge of then/else branches
 #define A_rvalue (1U<<27) // pseudo FullVar that has not storage location
+#define A_immutable (1U<<28)
 #define A_closure (1U<<28)
 #define A_untyped (1U<<29)
 

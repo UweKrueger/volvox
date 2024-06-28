@@ -2051,6 +2051,9 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			.decl_loc = Proto->ArgPos[i],
 			.ft = *Proto->ArgTypes[i]
 		};
+		if (!fv.ft.type->isSized() || !TheModule->getDataLayout().getTypeAllocSize(fv.ft.type))
+			if (!(fv.ft.type_attr & A_ref))
+				fv.ft.type_attr |= A_immutable;
 		bool is_new = locals_table.back().insert(Proto->Args[i].c_str(), fv);
 		if (!is_new) {
 			errs() << "duplicat function arg '" << Proto->Args[i] << "'\n";

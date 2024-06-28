@@ -34,13 +34,13 @@ fn test_nested_if_10 bool
 end
 
 fn dFkkL(n int, a []f64) f64
-	# a[2] = 6
+	# a[2] = 6 # this should trigger "variable 'a' is immutable"
 	return n * a[n]
 end
 
 ukkL = 5
 
-gggKl = [ukkL]f64{ 1.25, 2.5, 3.75, -4.0625, 5.125}
+gggKl = [ukkL]f64{ 1.25, 2.5, 13.75, -4.0625, 5.125}
 
 global LkfdS = dFkkL(3, gggKl)
 
@@ -49,7 +49,13 @@ fn test_var_array_call_1 bool
 end
 
 fn dFmmJ(n int, &c []f64) f64
-	c[2] = 6
+	c[3] = 7.5
 	return n * c[n]
 end
 
+global qHgDF = dFmmJ(2, gggKl)
+global qHgDG = gggKl[3]
+
+fn test_var_array_call_2 bool
+	return qHgDF == 27.5 && qHgDG == 7.5
+end
