@@ -1013,9 +1013,13 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	for (unsigned i = 0; i < Args.size(); ++i) {
 		bool by_val = false;
+		bool is_var_array = (i+arg_offs) < Proto->ArgAttrs.size()
+			&& Proto->ArgTypes[i+arg_offs]->type->isArrayTy()
+			&& !Proto->FT->getFunctionParamType(i+arg_offs)->isArrayTy();
 		bool is_address = (i+arg_offs) < Proto->ArgAttrs.size()
 			&& (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
-			    || (by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)));
+			    || (by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef))
+			    || is_var_array);
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
 			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= Proto->ArgAttrs.size() || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
@@ -1058,9 +1062,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 							errs() << Args[i]->Loc << ": cannot generate reference function argument\n";
 							return nullptr;
 						}
-						if (argref.second)
-							// TODO: handle valiable sized arrays
-							arg = Builder->CreatePointerCast(argref.second, argref.first->getPointerTo());
+						if (argref.second) {
+							if (is_var_array)
+								arg = argref.second;
+							else
+								arg = Builder->CreatePointerCast(argref.second, argref.first->getPointerTo());
+						}
 					}
 					if (!arg) {
 						auto lit = dynamic_cast<LiteralExprAST*>(Args[i].get());
@@ -1228,7 +1235,7 @@ bool FunctionAST::prepare_codegen() {
 			errs() << "\n";
 			abort();
 		}
-		if (Arg->hasByValAttr() || Arg->hasByRefAttr()) {
+		if (Arg->hasByValAttr() || Arg->hasByRefAttr() || mapitem->ft.type->isArrayTy() && !Arg->getType()->isArrayTy()) {
 			mapitem->val = Arg;
 		} else {
 			// Create an alloca for this variable.

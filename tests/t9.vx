@@ -34,5 +34,15 @@ fn test_nested_if_10 bool
 end
 
 fn dFkkL(n int, a []f64) f64
-	return n # * a[n]
+	return n * a[n]
+end
+
+ukkL = 5
+
+gggKl = [ukkL]f64{ 1.25, 2.5, 3.75, -4.0625, 5.125}
+
+global LkfdS = dFkkL(3, gggKl)
+
+fn test_var_array_call_1 bool
+	return LkfdS == -12.1875
 end
