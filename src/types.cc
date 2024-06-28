@@ -915,14 +915,20 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		size_t argsize = argtype->type->isSized() ?
 			TheModule->getDataLayout().getTypeAllocSize(fn_arg_type) : 0;
 		if ((argtype->type_attr & A_ref) && !(argtype->type_attr & A_by_value)) {
-			if (argsize)
+			if (argsize) {
 				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 							llvm::Attribute::getWithByRefType(Context, argtype->type),
 							llvm::Attribute::getWithDereferenceableBytes(Context, argsize) }));
-			else
-				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
-							llvm::Attribute::getWithByRefType(Context, argtype->type) }));
-			fn_arg_type = fn_arg_type->getPointerTo();
+				fn_arg_type = fn_arg_type->getPointerTo();
+			} else {
+				auto [ ref_type, el_type ] = getReferenceType(fn_arg_type);
+				if (ref_type->isPointerTy())
+					ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+								llvm::Attribute::getWithByRefType(Context, argtype->type) }));
+				else
+					ArgAttrs.push_back(llvm::AttributeSet());
+				fn_arg_type = ref_type;
+			}
 		} else {
 			if (!argsize) {
 				auto [ ref_type, el_type ] = getReferenceType(fn_arg_type);
