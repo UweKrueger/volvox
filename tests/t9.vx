@@ -32,3 +32,7 @@ end
 fn test_nested_if_10 bool
 	return QzztrQ(3) == 23 && QzztrQ(-5) == 15 && QzztrQ(-17) == -13
 end
+
+fn dFkkL(n int, a []f64) f64
+	return n # * a[n]
+end

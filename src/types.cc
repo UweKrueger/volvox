@@ -871,6 +871,30 @@ llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type) {
 	return res_type;
 }
 
+std::pair<llvm::Type*,llvm::Type*> getReferenceType(llvm::Type* nominal_type) {
+	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(nominal_type)) {
+		unsigned n_var_dim = 0;
+		llvm::Type* el_type;
+		do {
+			uint64_t n_elem = array_type->getNumElements();
+			if (!n_elem)
+				n_var_dim++;
+			el_type = array_type->getElementType();
+			array_type = llvm::dyn_cast<llvm::ArrayType>(el_type);
+		} while (array_type);
+		if (n_var_dim) {
+			std::vector<llvm::Type*> ref_el_types(n_var_dim+1, llvm_size_type);
+			ref_el_types[n_var_dim] = el_type->getPointerTo();
+			auto struct_type = llvm::StructType::get(Context, ref_el_types);
+			return { struct_type, el_type };
+		} else {
+			return { el_type->getPointerTo(), el_type };
+		}
+	} else {
+		return { llvm_ptr_type, nullptr };
+	}
+}
+
 PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
                            std::vector<std::string> _Args, unsigned visibility, SourceLocation retLoc,
                            unsigned IsOperator, volvoxc::FullType* RetType_,
@@ -900,7 +924,11 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 							llvm::Attribute::getWithByRefType(Context, argtype->type) }));
 			fn_arg_type = fn_arg_type->getPointerTo();
 		} else {
-			if (argsize > sret_limit || (argtype->type_attr & A_by_value)) { // Arguments > sret_limit bytes are always passed as pointer using copy-on-write
+			if (!argsize) {
+				auto [ ref_type, el_type ] = getReferenceType(fn_arg_type);
+				fn_arg_type = ref_type;
+				ArgAttrs.push_back(llvm::AttributeSet());
+			} else if (argsize > sret_limit || (argtype->type_attr & A_by_value)) { // Arguments > sret_limit bytes are always passed as pointer using copy-on-write
 				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 							llvm::Attribute::getWithByValType(Context, argtype->type) }));
 				fn_arg_type = fn_arg_type->getPointerTo();
