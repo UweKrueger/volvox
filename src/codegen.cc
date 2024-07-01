@@ -570,11 +570,11 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Type* arr_ty = (llvm::Type*)(intptr_t)-1;
 			llvm::Value* arr = nullptr;
 			if (auto array_ast = dynamic_cast<LvalueExprAST*>(Struct.get()))
-				std::tie(arr_ty, arr) = array_ast->codegen_ref(true);
+				std::tie(arr_ty, arr) = array_ast->codegen_ref(true, true);
 			if (!arr && arr_ty)
 				arr = Struct->codegen_raw();
 			if (!arr) {
-				errs() << Loc << ": invalid array\n";
+				errs() << Loc << ": invalid array for method\n";
 				return nullptr;
 			}
 			// update type after codegen

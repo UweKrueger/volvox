@@ -59,3 +59,6 @@ global qHgDG = gggKl[3]
 fn test_var_array_call_2 bool
 	return qHgDF == 27.5 && qHgDG == 7.5
 end
+
+pL2E = [ 2.625, 7.0625, -23.75 ]
+
