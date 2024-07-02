@@ -1738,8 +1738,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				}
 				tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
 			} else {
-				if (operator_idx < 0)
-					visibility |= A_constructor;
+				if (operator_idx < 0) // normal method has operator_idx == 0
+					visibility |= (A_constructor | A_ref);
 			}
 			if (visibility & A_c_api) {
 				errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
@@ -2020,8 +2020,15 @@ void setMangledName(PrototypeAST* Proto, unsigned visibility) {
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
 		getNextToken(eSemi); // eat fn.
-		if (CurTok.kind == tok_unary && IdentifierStr == "~") {
-			visibility |= A_destructor;
+		if (CurTok.kind == tok_unary) {
+			if (IdentifierStr == "~")
+				visibility |= (A_destructor | A_ref);
+			else if (IdentifierStr == "&")
+				visibility |= A_ref;
+			else {
+				errs() << CurLoc << ": invalid operator '" << IdentifierStr << "' in function definition\n";
+				return nullptr;
+			}
 			getNextToken(eSemi);
 		}
 	}
