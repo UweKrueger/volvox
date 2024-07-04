@@ -30,6 +30,7 @@
       <item>decl</item>
       <item>cdecl</item>
       <item>inline</item>
+      <item>thread</item>
     </list>
 
     <list name="startcontrol">
