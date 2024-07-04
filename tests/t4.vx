@@ -201,12 +201,22 @@ fn test_method_call_1 bool
 	return qql.jjc(12.5) == 156.25
 end
 
-fn ZZu.change(y f64) f64
+fn &ZZu.change(y f64) f64
+	this.aq[0][1] = -17.125
+	return y * this.p
+end
+
+fn ZZu.nochange(y f64) f64
 	this.aq[0][1] = -17.125
 	return y * this.p
 end
 
 fn test_method_call_2 bool
+	gghd = qql.nochange(2.5)
+	return gghd == -1292.5 && qql.aq[0][1] == -3.25
+end
+
+fn test_method_call_3 bool
 	gghd = qql.change(2.5)
 	return gghd == -1292.5 && qql.aq[0][1] == -17.125
 end

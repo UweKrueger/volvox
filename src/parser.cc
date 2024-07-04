@@ -1751,7 +1751,12 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
 			UnmagledReceiverTypeName = std::move(IdentifierStr);
 			if (ReceiverType->type->isStructTy() || operator_idx >= 0) {
-				ReceiverType->type_attr |= A_ref;
+				if (visibility & A_ref)
+					ReceiverType->type_attr |= A_ref;
+				else
+					// we use "by-const-reference" even for small receivers to allow
+					// more consistent interface declarations
+					ReceiverType->type_attr |= (A_ref | A_by_value);
 				ArgNames.push_back("this");
 				ArgTypes.push_back(ReceiverType);
 				ArgPos.push_back(CurLoc);
@@ -2020,7 +2025,7 @@ void setMangledName(PrototypeAST* Proto, unsigned visibility) {
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
 		getNextToken(eSemi); // eat fn.
-		if (CurTok.kind == tok_unary) {
+		if (CurTok.kind == tok_unary || CurTok.kind == tok_ref) {
 			if (IdentifierStr == "~")
 				visibility |= (A_destructor | A_ref);
 			else if (IdentifierStr == "&")
