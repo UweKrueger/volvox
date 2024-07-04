@@ -201,12 +201,12 @@ fn test_method_call_1 bool
 	return qql.jjc(12.5) == 156.25
 end
 
-fn &ZZu.change(y f64) f64
+fn ZZu.change(y f64) f64
 	this.aq[0][1] = -17.125
 	return y * this.p
 end
 
-fn ZZu.nochange(y f64) f64
+fn const ZZu.nochange(y f64) f64
 	this.aq[0][1] = -17.125
 	return y * this.p
 end

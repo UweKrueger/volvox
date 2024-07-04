@@ -1751,12 +1751,12 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
 			UnmagledReceiverTypeName = std::move(IdentifierStr);
 			if (ReceiverType->type->isStructTy() || operator_idx >= 0) {
-				if (visibility & A_ref)
-					ReceiverType->type_attr |= A_ref;
-				else
+				if (visibility & A_const)
 					// we use "by-const-reference" even for small receivers to allow
 					// more consistent interface declarations
 					ReceiverType->type_attr |= (A_ref | A_by_value);
+				else
+					ReceiverType->type_attr |= A_ref;
 				ArgNames.push_back("this");
 				ArgTypes.push_back(ReceiverType);
 				ArgPos.push_back(CurLoc);
@@ -2025,11 +2025,11 @@ void setMangledName(PrototypeAST* Proto, unsigned visibility) {
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
 		getNextToken(eSemi); // eat fn.
-		if (CurTok.kind == tok_unary || CurTok.kind == tok_ref) {
-			if (IdentifierStr == "~")
-				visibility |= (A_destructor | A_ref);
-			else if (IdentifierStr == "&")
-				visibility |= A_ref;
+		if (CurTok.kind != tok_identifier) {
+			if (CurTok.kind == tok_const)
+				visibility |= A_const;
+			else if (CurTok.kind == tok_unary && IdentifierStr == "~")
+				visibility |= A_destructor;
 			else {
 				errs() << CurLoc << ": invalid operator '" << IdentifierStr << "' in function definition\n";
 				return nullptr;
