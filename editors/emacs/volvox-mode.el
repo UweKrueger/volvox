@@ -144,6 +144,7 @@
     (modify-syntax-entry ?\} "){")
     (modify-syntax-entry ?\[ "(]")
     (modify-syntax-entry ?\] ")[")
+    (font-lock-mode t)
     (run-hooks 'volvox-mode-hook)))
 
 (defun volvox-setup-keymap ()
