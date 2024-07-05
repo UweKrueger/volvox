@@ -1108,7 +1108,7 @@ static void MainLoop() {
 		case ';': // ignore top-level semicolons.
 			getNextToken();
 			goto startmainloop;
-		case tok_fn:
+		case tok_def:
 			if (share_tok) {
 				errs() << CurLoc << "functions cannot be declared as " << share_tok << '\n';
 				purgeLine();

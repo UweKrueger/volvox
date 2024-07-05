@@ -40,7 +40,7 @@ cdecl _open(filename cstring, flags int, mode int) int
 
 # general function to open an unbuffered file - essentially the POSIX version
 #
-pub inline fn openfile(filename cstring, flags int, mode int) Fd
+pub inline def openfile(filename cstring, flags int, mode int) Fd
 	if os.isWindows
 		fd = _open(filename, flags, mode)
 	else
@@ -53,21 +53,21 @@ end
 # - if file name exists truncate it to size 0
 # - create new file otherwise
 #
-pub inline fn create(filename cstring) Fd
+pub inline def create(filename cstring) Fd
 	return openfile(filename, CREAT | RDWR | TRUNC | BINARY | CLOEXEC, 0666)
 end
 
 # open existing file for read
 # return error otherwise
 #
-pub inline fn open(filename cstring) Fd
+pub inline def open(filename cstring) Fd
 	return openfile(filename, RDONLY | BINARY | CLOEXEC, 0)
 end
 
 # create new file for read/write
 # - if file name already exists do nothing and return error
 #
-pub inline fn new(filename cstring) Fd
+pub inline def new(filename cstring) Fd
 	return openfile(filename, CREAT | RDWR | EXCL | BINARY | CLOEXEC, 0666)
 end
 
@@ -75,14 +75,14 @@ end
 # - if file name exists set file pointer to end
 # - create new file otherwise
 #
-pub inline fn append(filename cstring) Fd
+pub inline def append(filename cstring) Fd
 	return openfile(filename, CREAT | WRONLY | APPEND | BINARY | CLOEXEC, 0666)
 end
 
 cdecl close(fd int) int
 cdecl _close(fd int) int
 
-pub inline fn Fd.close int
+pub inline def Fd.close int
 	fd = this.fd
 	this.fd = -1
 	if os.isWindows
@@ -95,7 +95,7 @@ end
 cdecl _write(fd int, buf cstring, count u32) int
 cdecl write(fd int, buf cstring, count size_t) ssize_t
 
-fn win64_write(fd int, buf cstring, count size_t) ssize_t
+def win64_write(fd int, buf cstring, count size_t) ssize_t
 	# The Windows _write() can only handle int_max bytes but size_t might exceed this value
 	# on 64 bit platforms. So we split the operation into several parts in that case
 	if os.isWindows && arch.bitwidth > 32
@@ -125,7 +125,7 @@ end
 # basically the POSIX 'write()' function - do not use this function directly
 # unless you know what you are doing...
 #
-pub inline fn Fd._write(buf cstring, count size_t) ssize_t
+pub inline def Fd._write(buf cstring, count size_t) ssize_t
 	if os.isWindows
 		if arch.bitwidth > 32
 			return win64_write(this.fd, buf, count)
@@ -139,7 +139,7 @@ end
 
 cdecl strlen(s cstring) size_t
 
-pub inline fn Fd.write(buf cstring) ssize_t
+pub inline def Fd.write(buf cstring) ssize_t
 	len = strlen(buf)
 	return this._write(buf, len)
 end

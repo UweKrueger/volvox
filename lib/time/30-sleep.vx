@@ -13,25 +13,25 @@ type Duration {
 	i64
 }
 
-pub fn Duration(seconds f64)
+pub def Duration(seconds f64)
 	this.i64 = i64(seconds * 10000000)
 end
 
-pub inline fn Duration.timespec timespec
+pub inline def Duration.timespec timespec
 	return timespec{
 		sec: this.i64 / 10000000
 		nsec: 100 * i32(this.i64 % 10000000)
 	}
 end
 
-inline fn Duration.timespec32 timespec32
+inline def Duration.timespec32 timespec32
 	return timespec32{
 		sec: i32(this.i64 / 10000000)
 		nsec: 100 * i32(this.i64 % 10000000)
 	}
 end
 
-pub fn sleep(t Duration)
+pub def sleep(t Duration)
 	if t.i64 <= 0
 		return
 	end
@@ -82,10 +82,10 @@ pub fn sleep(t Duration)
 	end
 end
 
-pub inline fn sleep(t int)
+pub inline def sleep(t int)
 	sleep(Duration{ i64: t * 10000000 })
 end
 
-pub inline fn sleep(t f64)
+pub inline def sleep(t f64)
 	sleep(Duration(t))
 end

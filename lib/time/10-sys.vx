@@ -60,7 +60,7 @@ cdecl __clock_gettime50(clockid int, &tp timespec) int
 cdecl __clock_gettime64(clockid int, &tp timespec) int
 
 # POSIX clock_gettime - always uses 64-bit-time_t
-pub inline fn clock_gettime(clockid int, &tp timespec) int
+pub inline def clock_gettime(clockid int, &tp timespec) int
 	if os.isWindows
 		SetLastError(ENOSYS)
 		return -1
@@ -96,7 +96,7 @@ pub cdecl(QueryPerformanceCounter) _QueryPerformanceCounter(&ticks i64) bool
 # for calculations a constexpr might be handy on Unix systems
 const ufrequency := 1000000000
 
-fn get_system_tick_frequency() int
+def get_system_tick_frequency() int
 	if os.isWindows
 		f = 0L
 		if !QueryPerformanceFrequency(f)
@@ -121,7 +121,7 @@ type common_timestamp union {
 	timespec
 }
 
-fn get_common_timestamp() common_timestamp
+def get_common_timestamp() common_timestamp
 	_tmp_ts = common_timestamp{}
 	if os.isWindows
 		if !_QueryPerformanceCounter(_tmp_ts.i64)
@@ -138,7 +138,7 @@ const program_start_common_timestamp = get_common_timestamp()
 
 # difference of two timespec values in ns
 #
-pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
+pub inline def timespec_diff(&finish timespec, &start timespec) timespec
 	res = timespec {
 		sec: finish.sec - start.sec
 		nsec : finish.nsec - start.nsec
@@ -150,7 +150,7 @@ pub inline fn timespec_diff(&finish timespec, &start timespec) timespec
 	return res
 end
 
-pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
+pub inline def timespec_sum(t1 timespec, t2 timespec) timespec
 	res = timespec{
 		sec: t1.sec + t2.sec
 		nsec: t1.nsec + t2.nsec
@@ -162,14 +162,14 @@ pub inline fn timespec_sum(t1 timespec, t2 timespec) timespec
 	return res
 end
 
-inline fn nanoseconds_since_start(ts timespec) i64
+inline def nanoseconds_since_start(ts timespec) i64
 	d = timespec_diff(ts, program_start_common_timestamp.timespec)
 	return i64(ufrequency) * d.sec + d.nsec
 end
 
 # read a timestamp as ticks since program start
 #
-pub inline fn get() i64
+pub inline def get() i64
 	if os.isWindows
 		t = 0L
 		if !_QueryPerformanceCounter(t)
@@ -187,7 +187,7 @@ end
 
 # calculate difference of two timestamps as float in seconds
 #
-pub inline fn diff(finish i64, start i64) f64
+pub inline def diff(finish i64, start i64) f64
 	return f64(i64(finish - start)) * tick_period
 end
 
@@ -223,7 +223,7 @@ cdecl GetSystemTimePreciseAsFileTime(&time FILETIME)
 
 # get 0.1µs ticks since January 1, 1601 (in field u64)
 #
-pub inline fn now() TimeStamp
+pub inline def now() TimeStamp
 	ft = _TimeStamp{}
 	if os.isWindows
 		GetSystemTimePreciseAsFileTime(ft.FILETIME)
@@ -254,7 +254,7 @@ type time_t {
 	i64
 }
 
-pub inline fn time() time_t
+pub inline def time() time_t
 	if os.isWindows
 		return time_t{ i64: _time64(0) }
 	elif arch.bitwidth == 32

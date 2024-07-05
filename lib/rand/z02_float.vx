@@ -6,13 +6,13 @@ type FU64 union {
 	u u64
 }
 
-inline fn _f64(x u64) f64
+inline def _f64(x u64) f64
 	return f64(x)
 end
 
 # create an equally distributed random real in the range [0; 1)
 #
-pub inline fn f64
+pub inline def f64
 	if avoid_multiplication
 		# this code is for CPUs on which multiplications are expensive
 		r0 = u64
@@ -38,11 +38,11 @@ end
 
 # create an equally distributed random real in the range [0; limit)
 #
-pub inline fn f64(limit f64)
+pub inline def f64(limit f64)
 	this = limit * f64
 end
 
-pub inline fn f64(min f64, limit f64)
+pub inline def f64(min f64, limit f64)
 	this = min + f64(limit - min)
 end
 
@@ -51,11 +51,11 @@ type FU32 union {
 	u u32
 }
 
-inline fn _f32(x u32) f32
+inline def _f32(x u32) f32
 	return f32(x)
 end
 
-pub inline fn f32
+pub inline def f32
 	if avoid_multiplication
 		# this code is for CPUs on which multiplications are expensive
 		r0 = u32
@@ -79,10 +79,10 @@ pub inline fn f32
 	end
 end
 
-pub inline fn f32(limit f32)
+pub inline def f32(limit f32)
 	this = limit * f32
 end
 
-pub inline fn f32(min f32, limit f32)
+pub inline def f32(min f32, limit f32)
 	this = min + f32(limit - min)
 end

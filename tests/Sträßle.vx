@@ -3,7 +3,7 @@ zu = "Für's Café im Sträßle!\n"
 
 q = 12.3
 
-fn fib(x u64) u64
+def fib(x u64) u64
 	t = if x < 3
 	    1uL
 	else

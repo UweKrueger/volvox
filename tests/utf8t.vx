@@ -3,7 +3,7 @@ type utf8_sequence union {
 	err u32
 }
 
-fn pr_seq(t u32)
+def pr_seq(t u32)
 	s = utf8_sequence{ err: t }
 	printf("%02x %02x %02x %02x >%.4s<\n", s.byte[0], s.byte[1], s.byte[2], s.byte[3], &s)
 end

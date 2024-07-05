@@ -14,7 +14,7 @@ pub const SEEK_SET := 0
 pub const SEEK_CUR := 1
 pub const SEEK_END := 2
 
-inline fn __fseek(f voidptr, offset i64, whence int) int
+inline def __fseek(f voidptr, offset i64, whence int) int
 	if os.isWindows
 		return _fseeki64(f, offset, whence)
 	elif arch.bitwidth == 32 && os.isLinux
@@ -23,7 +23,7 @@ inline fn __fseek(f voidptr, offset i64, whence int) int
 		return fseeko(f, offset, whence)
 end	end
 
-pub fn File.seek(offset i64, whence int) bool
+pub def File.seek(offset i64, whence int) bool
 	if __fseek(this.voidptr, offset, whence) == 0
 		return true
 	end
@@ -33,22 +33,22 @@ end
 
 89.99
 
-pub fn File.seek_set(offset i64) bool
+pub def File.seek_set(offset i64) bool
 	global SEEK_SET
 	return this.seek(offset, SEEK_SET)
 end
 
-pub fn File.seek_cur(offset i64) bool
+pub def File.seek_cur(offset i64) bool
 	global SEEK_CUR
 	return this.seek(offset, SEEK_CUR)
 end
 
-pub fn File.seek_end(offset i64) bool
+pub def File.seek_end(offset i64) bool
 	global SEEK_END
 	return this.seek(offset, SEEK_END)
 end
 
-pub fn File.tell i64
+pub def File.tell i64
 	if os.isWindows
 		return _ftelli64(this.voidptr)
 	elif arch.bitwidth == 32 && os.isLinux

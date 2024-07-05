@@ -1,6 +1,6 @@
 global d_gl := [1, -7, 3, 4]
 
-fn test_simple_fixed_array_lit bool
+def test_simple_fixed_array_lit bool
 	return d_gl[0] == 1 && d_gl[1] == -7 && d_gl[2] == 3 && d_gl[3] == 4
 end
 
@@ -8,42 +8,42 @@ global c_gl := [7, 2: -2, 5: 19]
 
 c_gl
 
-fn test_array_lit_with_keys_and_holes bool
+def test_array_lit_with_keys_and_holes bool
 	return c_gl[0] == 7 && c_gl[1] == 0 && c_gl[2] == -2 && c_gl[3] == 0 &
 		c_gl[4] == 0 && c_gl[5] == 19
 end
 
 global b_gl := [1 + 2, 4 * 5, 1 + 2: 9 + 10, 2 * 2 + 1: 7 + 8]
 
-fn test_array_lit_with_expr_keys_and_values bool
+def test_array_lit_with_expr_keys_and_values bool
 	return b_gl[0] == 3 && b_gl[1] == 20 && b_gl[2] == 0 && b_gl[3] == 19 &
 		b_gl[4] == 0 && b_gl[5] == 15
 end
 
 b_gl
 
-fn fc(w i32, x i32, y i32, z i32) i32
+def fc(w i32, x i32, y i32, z i32) i32
 	return w + x + y + z
 end
 
-fn test_fn_call_with_exprs bool
+def test_fn_call_with_exprs bool
 	return fc(1 + 2, 4 * 5, 7 + 8, 9 + 10) == 57
 end
 
-fn test_array_elem_type_1 bool
+def test_array_elem_type_1 bool
 	ar1 = [-2, 9, 67, 7: 5.25]
 	ar1[2] = ar1[2] + 0.75
 	ar1[7] = ar1[7] + 0.125
 	return ar1[2] == 67.75 && ar1[7] == 5.375
 end
 
-fn test_explicit_array_type bool
+def test_explicit_array_type bool
 	ar2 = [12]f64{2, 5, 7}
 	ar2[1] = ar2[2] / ar2[0]
 	return ar2[1] == 3.5
 end
 
-fn test_explicit_array_len bool
+def test_explicit_array_len bool
 	ar3 = [1.25, 2.75, len: 200]
 	return ar3[0] == 1.25 && ar3[1] == 2.75 && ar3[2] == 0. && ar3[101] == 0 && ar3[199] == 0.
 end
@@ -51,23 +51,23 @@ end
 global yy = 17
 global je = 5
 
-fn test_array_lit_var_len_var_idx bool
+def test_array_lit_var_len_var_idx bool
 	return [yy]f64{1.2, 3.5, 5: 17.625, 3.1}[je] == 17.625
 end
 
-fn test_array_lit_var_len_fixed_idx bool
+def test_array_lit_var_len_fixed_idx bool
 	return [yy]f64{1.2, 3.5, 5: 17.625, 3.125}[6] == 3.125
 end
 
-fn test_array_lit_zero_initialization bool
+def test_array_lit_zero_initialization bool
 	return [yy]f64{1.2, 3.5, 5: 17.625, 3.125}[12] == 0.0
 end
 
-fn test_array_lit_fixed_len_fixed_idx bool
+def test_array_lit_fixed_len_fixed_idx bool
 	return [7]f64{1.2, -3.5, 5: 17.625, 3.1}[1] == -3.5
 end
 
-fn test_array_lit_fixed_len_var_idx bool
+def test_array_lit_fixed_len_var_idx bool
 	return [9]f64{1.2, 3.5, 5: -27.0625, 3.1}[je] == -27.0625
 end
 
@@ -75,37 +75,37 @@ global yn209 = 4
 global zn = 5
 global wn = 3
 
-fn test_var_array_multi_level_index_direct bool
+def test_var_array_multi_level_index_direct bool
 	vv = [yn209][zn][wn]f64{2: {1: {2: -17.125}}}
 	x = vv[2][1][2]
 	return x == -17.125 && vv.dim(2) == 3
 end
 
-fn test_var_array_multi_level_index_indirect1 bool
+def test_var_array_multi_level_index_indirect1 bool
 	vv = [4][5][7]f64{2: {1: {2: 41.25}}}
 	x = vv[2][1]
 	return x[2] == 41.25 && x[0] == 0 && x[6] == 0 && vv.order == 3
 end
 
-fn test_var_array_multi_level_cp bool
+def test_var_array_multi_level_cp bool
 	vv = [zn][wn]f64{1: {2: -17.125}}
 	x = vv
 	return x[1][2] == -17.125
 end
 
-fn test_var_array_multi_level_index_indirect bool
+def test_var_array_multi_level_index_indirect bool
 	vv = [yn209][zn][wn]f64{3: {4: {2: -17.125}}}
 	x = vv[3][4]
 	return x[2] == -17.125
 end
 
-fn test_mixed_array_multi_level_index_indirect bool
+def test_mixed_array_multi_level_index_indirect bool
 	vv = [yn209][7][wn]f64{2: {5: {1: 763.0625}}}
 	x = vv[2][5]
 	return x[1] == 763.0625 && vv.dim(1) == 7 && vv.order == 3
 end
 
-fn test_mixed2_array_multi_level_index_indirect bool
+def test_mixed2_array_multi_level_index_indirect bool
 	vv = [5][7][wn]f64{3: {1: {-13.5, 763.0625}}}
 	x = vv[3][1]
 	return x[1] == 763.0625 && x[2] == 0 && x[0] == -13.5

@@ -24,7 +24,7 @@ type File {
 	err u32
 }
 
-pub fn File
+pub def File
 	global __stdin_ptr, __stdout_ptr, __stderr_ptr, __magic
 	if size_t(this.voidptr) == 0
 		# standard file - get file descriptor from err
@@ -42,17 +42,17 @@ pub fn File
 			this.err = 0
 end end end
 
-pub fn File(c_file voidptr)
+pub def File(c_file voidptr)
 	this.voidptr = c_file
 end
 
-pub inline fn ~File
+pub inline def ~File
 	if size_t(this.voidptr) != 0
 	   fclose(this.voidptr)
 	end
 end
 
-pub inline fn File.is_valid bool
+pub inline def File.is_valid bool
 	return size_t(this.voidptr) != 0
 end
 
@@ -71,7 +71,7 @@ pub global stderr := File{ err: __magic + 2 }
 # - if file name exists truncate it to size 0
 # - create new file otherwise
 #
-pub inline fn create(filename cstring) File
+pub inline def create(filename cstring) File
 	if os.isWindows
 		mode = "wb"
 	else
@@ -91,7 +91,7 @@ end
 # open existing file for read
 # return error otherwise
 #
-pub inline fn open(filename cstring) File
+pub inline def open(filename cstring) File
 	if os.isWindows
 		mode = "rb"
 	else
@@ -111,7 +111,7 @@ end
 # create new file for read/write
 # - if file name already exists do nothing and return error
 #
-pub inline fn new(filename cstring) File
+pub inline def new(filename cstring) File
 	if os.isWindows
 		mode = "wxb"
 	else
@@ -135,7 +135,7 @@ end
 # create new file for read/write
 # - if file name already exists do nothing and return error
 #
-pub inline fn append(filename cstring) File
+pub inline def append(filename cstring) File
 	if os.isWindows
 		mode = "ab"
 	else
@@ -152,7 +152,7 @@ pub inline fn append(filename cstring) File
 	return f
 end
 
-pub inline fn File.close
+pub inline def File.close
 	if size_t(this.voidptr) != 0
 		if fclose(this.voidptr) != 0
 			this.err = GetLastError

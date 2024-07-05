@@ -1,7 +1,7 @@
 cdecl fscanf(file voidptr, fmt cstring, ...) int
 cdecl ferror(file voidptr) int
 
-fn File.__scanf(fmt cstring, v voidptr)
+def File.__scanf(fmt cstring, v voidptr)
 	global EOF
 	if fscanf(this.voidptr, fmt, v) == EOF
 		if ferror(this.voidptr) != 0
@@ -10,13 +10,13 @@ end end end
 
 # read floating point numbers in decimal representation
 
-pub fn File.readr real
+pub def File.readr real
 	r = real
 	this.__scanf(" %lg", &r)
 	return r
 end
 
-pub fn File.readf f32
+pub def File.readf f32
 	f = f32
 	this.__scanf(" %g", &f)
 	return f
@@ -24,13 +24,13 @@ end
 
 # read floating point numbers in hexadecimal representation
 
-pub fn File.readrx real
+pub def File.readrx real
 	r = real
 	this.__scanf(" %la", &r)
 	return r
 end
 
-pub fn File.readfx f32
+pub def File.readfx f32
 	f = f32
 	this.__scanf(" %a", &f)
 	return f
@@ -38,26 +38,26 @@ end
 
 # read signed integer numbers in any format
 
-pub fn File.readl i64
+pub def File.readl i64
 	n = i64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
 	this.__scanf(" %lli", &n)
 	return n
 end
 
-pub fn File.readn i32
+pub def File.readn i32
 	n = i32
 	this.__scanf(" %i", &n)
 	return n
 end
 
-pub fn File.readh i16
+pub def File.readh i16
 	n = i16
 	this.__scanf(" %hi", &n)
 	return n
 end
 
-pub fn File.readhh i8
+pub def File.readhh i8
 	n = i8
 	this.__scanf(" %hhi", &n)
 	return n
@@ -65,26 +65,26 @@ end
 
 # read signed integer numbers in decimal format
 
-pub fn File.readdl i64
+pub def File.readdl i64
 	n = i64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
 	this.__scanf(" %lld", &n)
 	return n
 end
 
-pub fn File.readd i32
+pub def File.readd i32
 	n = i32
 	this.__scanf(" %d", &n)
 	return n
 end
 
-pub fn File.readdh i16
+pub def File.readdh i16
 	n = i16
 	this.__scanf(" %hd", &n)
 	return n
 end
 
-pub fn File.readdhh i8
+pub def File.readdhh i8
 	n = i8
 	this.__scanf(" %hhd", &n)
 	return n
@@ -92,26 +92,26 @@ end
 
 # read unsigned numbers
 
-pub fn File.readul u64
+pub def File.readul u64
 	n = u64
 	# we use 'll' (long long) here because that's 64 bit on all platforms
 	this.__scanf(" %llu", &n)
 	return n
 end
 
-pub fn File.readu u32
+pub def File.readu u32
 	n = u32
 	this.__scanf(" %u", &n)
 	return n
 end
 
-pub fn File.readuh u16
+pub def File.readuh u16
 	n = u16
 	this.__scanf(" %hu", &n)
 	return n
 end
 
-pub fn File.readuhh u8
+pub def File.readuhh u8
 	n = u8
 	this.__scanf(" %hhu", &n)
 	return n
@@ -122,7 +122,7 @@ cdecl getdelim(&buf cstring, &sz size_t, delim i8, file voidptr) ssize_t
 cdecl __transformcstr2volvox_l(s cstring, len ssize_t, cap size_t) string
 cdecl __trim_cstring(s cstring, &l ssize_t, delim i8)
 
-pub fn File.getline string
+pub def File.getline string
 	bufsz = 0UZ
 	buf = cstring voidptr 0
 	sz = getline(buf, bufsz, this.voidptr)
@@ -136,7 +136,7 @@ pub fn File.getline string
 	return ""
 end
 
-pub fn File.getdelim(delimiter i8) string
+pub def File.getdelim(delimiter i8) string
 	bufsz = 0UZ
 	buf = cstring voidptr 0
 	sz = getdelim(buf, bufsz, delimiter, this.voidptr)
@@ -152,104 +152,104 @@ end
 
 cdecl __purgeline(file voidptr) ssize_t
 
-pub fn File.eatnl
+pub def File.eatnl
 	global EMSGSIZE
 	if __purgeline(this.voidptr) != 0
 		if this.err = 0
 			this.err = EMSGSIZE
 end end end
 
-pub fn File.getr real
+pub def File.getr real
 	x = this.readr
 	this.eatnl
 	return x
 end
 
-pub fn File.getf f32
+pub def File.getf f32
 	x = this.readf
 	this.eatnl
 	return x
 end
 
-pub fn File.getrx real
+pub def File.getrx real
 	x = this.readrx
 	this.eatnl
 	return x
 end
 
-pub fn File.getfx f32
+pub def File.getfx f32
 	x = this.readfx
 	this.eatnl
 	return x
 end
 
-pub fn File.getl i64
+pub def File.getl i64
 	x = this.readl
 	this.eatnl
 	return x
 end
 
-pub fn File.getn i32
+pub def File.getn i32
 	x = this.readn
 	this.eatnl
 	return x
 end
 
-pub fn File.geth i16
+pub def File.geth i16
 	x = this.readh
 	this.eatnl
 	return x
 end
 
-pub fn File.gethh i8
+pub def File.gethh i8
 	x = this.readhh
 	this.eatnl
 	return x
 end
 
-pub fn File.getdl i64
+pub def File.getdl i64
 	x = this.readdl
 	this.eatnl
 	return x
 end
 
-pub fn File.getd i32
+pub def File.getd i32
 	x = this.readd
 	this.eatnl
 	return x
 end
 
-pub fn File.getdh i16
+pub def File.getdh i16
 	x = this.readdh
 	this.eatnl
 	return x
 end
 
-pub fn File.getdhh i8
+pub def File.getdhh i8
 	x = this.readdhh
 	this.eatnl
 	return x
 end
 
-pub fn File.getul u64
+pub def File.getul u64
 	x = this.readul
 	this.eatnl
 	return x
 end
 
-pub fn File.getu u32
+pub def File.getu u32
 	x = this.readu
 	this.eatnl
 	return x
 end
 
-pub fn File.getuh u16
+pub def File.getuh u16
 	x = this.readuh
 	this.eatnl
 	return x
 end
 
-pub fn File.getuhh u8
+pub def File.getuhh u8
 	x = this.readuhh
 	this.eatnl
 	return x

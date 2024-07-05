@@ -1,61 +1,61 @@
 global qrret2 = 37
 
-fn do_q_1 bool
+def do_q_1 bool
 	qrret2 += 7
 	return true
 end
 
-fn do_q_2 bool
+def do_q_2 bool
 	qrret2 += 13
 	return false
 end
 
-fn test_bitwise_or_1 bool
+def test_bitwise_or_1 bool
 	x = do_q_1 | do_q_2
 	return x && qrret2 == 57
 end
 
 qrret2 = -5
 
-fn test_logical_or_1 bool
+def test_logical_or_1 bool
 	x = do_q_1 || do_q_2
 	return x && qrret2 == 2
 end
 
 qrret2 = 27
 
-fn test_bitwise_and_1 bool
+def test_bitwise_and_1 bool
 	x = do_q_2 & do_q_1
 	return !x && qrret2 == 47
 end
 
 qrret2 = 14
 
-fn test_logical_and_1 bool
+def test_logical_and_1 bool
 	x = do_q_2 && do_q_1
 	return !x && qrret2 == 27
 end
 
-fn test_mod_assign_1 bool
+def test_mod_assign_1 bool
 	z = 12.5
 	ff = z += 3
 	z *= 2.5
 	return ff == 12.5 && z == 38.75
 end
 
-fn test_postfix_1 bool
+def test_postfix_1 bool
 	a = 13
 	b = a++
 	return a == 14 && b == 13
 end
 
-fn test_postfix_2 bool
+def test_postfix_2 bool
 	a = -34.75
 	b = a--
 	return a == -35.75 && b == -34.75
 end
 
-fn test_rotate bool
+def test_rotate bool
 	a = 23
 	b = -17
 	c = 11
@@ -63,95 +63,95 @@ fn test_rotate bool
 	return a == -17 && b == 11 && c == 23
 end
 
-fn test_f32_exponentiation_f32_exp_1 bool
+def test_f32_exponentiation_f32_exp_1 bool
 	a = 1.25f
 	b = a^2.5
 	a = b
 	return a > 1.746927 && a < 1.746929
 end
 
-fn test_f32_exponentiation_int_exp_1 bool
+def test_f32_exponentiation_int_exp_1 bool
 	a = 1.0625f
 	b = a^5
 	a = b
 	return a > 1.354080 && a < 1.354082
 end
 
-fn test_f32_exponentiation_int_exp_2 bool
+def test_f32_exponentiation_int_exp_2 bool
 	a = -3.75f
 	b = a^10uhh
 	a = b
 	return a > 549936.63 && a < 549936.72
 end
 
-fn test_f32_exponentiation_int_exp_3 bool
+def test_f32_exponentiation_int_exp_3 bool
 	a = -2.25f
 	b = a^7L
 	a = b
 	return a < -291.9292 && a > -291.9293
 end
 
-fn test_f64_exponentiation_f64_exp_1 bool
+def test_f64_exponentiation_f64_exp_1 bool
 	a = 17.375
 	b = a^2.625
 	a = b
 	return a > 1798.0536037224490 && a < 1798.0536037224495
 end
 
-fn test_f64_exponentiation_int_exp_1 bool
+def test_f64_exponentiation_int_exp_1 bool
 	a = 1.0625
 	b = a^5
 	a = b
 	return a > 1.3540811538696285 && a < 1.3540811538696295
 end
 
-fn test_f64_exponentiation_int_exp_2 bool
+def test_f64_exponentiation_int_exp_2 bool
 	a = -3.75
 	b = a^6UHH
 	a = b
 	return a == 2780.914306640625
 end
 
-fn test_f64_exponentiation_int_exp_3 bool
+def test_f64_exponentiation_int_exp_3 bool
 	a = -2.253674432345796
 	b = a^7L
 	a = b
 	return a > -295.2828636106025 && a < -295.2828636106015
 end
 
-fn test_f64_exponentiation_int_exp_4 bool
+def test_f64_exponentiation_int_exp_4 bool
 	a = -0.0625
 	b = a^-7
 	a = b
 	return a == -268435456.
 end
 
-fn test_int_int_exponentiation_1 bool
+def test_int_int_exponentiation_1 bool
 	a = 17
 	b = 3
 	c = a^b
 	return c == 4913
 end
 
-fn test_int_int_exponentiation_2 bool
+def test_int_int_exponentiation_2 bool
 	a = -17L
 	b = 13hh
 	c = a^b
 	return c == -9904578032905937
 end
 
-fn test_int_int_exponentiation_3 bool
+def test_int_int_exponentiation_3 bool
 	a = 7
 	return a^0 == 1 && a^1 == 7 && a^2 == 49 && a^3 == 343 && a^4 == 2401
 end
 
-fn test_int_int_exponentiation_4 bool
+def test_int_int_exponentiation_4 bool
 	a = -7532L
 	return a^0 == 1 && a^1 == -7532 && a^2 == 56731024 &&
 		a^3 == -427298072768L && a^4 == 3218409084088576L
 end
 
-fn test_int_int_exponentiation_5 bool
+def test_int_int_exponentiation_5 bool
 	a = -5
 	b = -7L
 	c = 17
@@ -160,7 +160,7 @@ fn test_int_int_exponentiation_5 bool
 		b^-3 ==0 && c^-4 == 0 && d^-7 == 0
 end
 
-fn test_int_int_exponentiation_6 bool
+def test_int_int_exponentiation_6 bool
 	a = -1
 	b = -1L
 	c = 1
@@ -169,63 +169,63 @@ fn test_int_int_exponentiation_6 bool
 		b^-3 == -1 && a^-7 == -1 && b^-4 == 1 && c^-7 == 1 && d^-9 == 1
 end
 
-fn test_int_frac_exponentiation_1 bool
+def test_int_frac_exponentiation_1 bool
 	z = 3.125^(1+1/3)
 	return z > 4.568777715957600 && z < 4.568777715957606
 end
 
 import testmod
 
-fn fqq(x i32) i32
+def fqq(x i32) i32
 	return x+x
 end
 
-fn fqq(x u32) i32
+def fqq(x u32) i32
 	return 3 * x
 end
 
-fn fqq(z testmod.KKljh) f64
+def fqq(z testmod.KKljh) f64
 	return z.d + z.e
 end
 
-fn fqq(po [5][7]testmod.KKljh) f64
+def fqq(po [5][7]testmod.KKljh) f64
 	return po[0][0].d + po[1][2].e
 end
 
-fn fqq(x f64) f64
+def fqq(x f64) f64
 	return x*x
 end
 
-fn test_overloaded_call_float bool
+def test_overloaded_call_float bool
 	pp = 7.5
 	return fqq(pp) == 56.25 && fqq(-3.25) == 10.5625
 end
 
-fn test_overloaded_call_int bool
+def test_overloaded_call_int bool
 	pp = 3
 	return fqq(pp) == 6 && fqq(-7) == -14
 end
 
-fn test_overloaded_call_array_1 bool
+def test_overloaded_call_array_1 bool
 	pp7 = [5][7]testmod.KKljh{
 		{testmod.KKljh{ d: 7, e: -12.25 }}
 		{2: testmod.KKljh{ d: 17, e: -112.625 }}}
 	return fqq(pp7)	 == -105.625
 end
 
-fn test_nested_overloaded_call_1 bool
+def test_nested_overloaded_call_1 bool
 	return fqq(fqq(4.5)) == 410.0625
 end
 
-fn test_nested_overloaded_call_2 bool
+def test_nested_overloaded_call_2 bool
 	return fqq(fqq(-7.)) == 2401
 end
 
-fn test_nested_overloaded_call_3 bool
+def test_nested_overloaded_call_3 bool
 	return fqq(fqq(-7)) == -28
 end
 
-fn test_nested_overloaded_call_4 bool
+def test_nested_overloaded_call_4 bool
 	return fqq(fqq(- 7u)) == -42
 end
 
@@ -235,7 +235,7 @@ global qqggf = 0.
 
 qqggf = alp.s
 
-fn test_imported_constructor_1 bool
+def test_imported_constructor_1 bool
 	return qqggf == 14.125
 end
 
@@ -245,11 +245,11 @@ global qqgga = 0
 
 qqgga = kkff.j
 
-fn test_imported_constructor_2 bool
+def test_imported_constructor_2 bool
 	return qqgga == 11
 end
 
-fn test_imported_constructor_3 bool
+def test_imported_constructor_3 bool
 	x = testmod.Olgj(-3.25)
 	return x.s == -6.5
 end
@@ -259,29 +259,29 @@ type QwER {
 	w i32
 }
 
-fn QwER
+def QwER
 	this.h += 3
 	this.w = (this.w + 3) * 7
 end
 
-fn ~QwER
+def ~QwER
 end
 
 global eewc := QwER{ w: 2 }
 
-fn test_constructor_for_global bool
+def test_constructor_for_global bool
 	return eewc.h == 3 && eewc.w == 35
 end
 
 global eewc2 = QwER{ w: 2 }
 
-fn test_constructor_for_global_2 bool
+def test_constructor_for_global_2 bool
 	return eewc2.h == 3 && eewc2.w == 35
 end
 
 global wef53 = YYt{ rz: 1, w: XXt{ a: 9, b: 66.5 }}
 
-fn big_struct_arg_3(lk YYt) f64
+def big_struct_arg_3(lk YYt) f64
 	lk.w.b = 33.75
 	llqr = big_struct_arg(lk)
 	return llqr
@@ -306,28 +306,28 @@ type OOWq union {
 	t i64
 }
 
-fn test_union_1 bool
+def test_union_1 bool
 	lk = OOWq{ y: -55435476.0625 }
 	return lk.x == -1602224128 && lk.y == -55435476.0625 && lk.z[5] == 111
 end
 
-fn test_union_2 bool
+def test_union_2 bool
 	return OOWq{ y: 45.125 }.t == 4631547596471533568
 end
 
-fn test_union_3 bool
+def test_union_3 bool
 	fww = OOWq{ t: 23136026754243021 }
 	return fww.q.n == 3365325 && fww.q.m == 5386776
 end
 
-fn test_union_4 bool
+def test_union_4 bool
 	fww = OOWq{ q: GFds{ n: 3365325, m: 5386776 }}
 	return fww.t == 23136026754243021
 end
 
 global fsdgre = OOWq{ y: 5226454.0625 }
 
-fn test_global_union bool
+def test_global_union bool
 	return fsdgre.x == -2080374784 && fsdgre.t == 4707369873292918784 &&
 		fsdgre.q.m == 1096019957 && fsdgre.z[6] == 83 && fsdgre.z[17] == 0
 end
@@ -337,26 +337,26 @@ type JFzu { z [8]u8, u i8, v f32 }
 global f337 = JFzu{ z: [8]u8{ 6, 7, 6, 7, 6 } }
 global hfdsw233 = OOWq{ z: [6, 7] }
 
-fn test_array_field_init bool
+def test_array_field_init bool
 	return hfdsw233.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
 end
 
-fn test_untyped_struct_initializers bool
+def test_untyped_struct_initializers bool
 	eeg = JFzu{ u: -126, v: 12.500000154 }
 	return eeg.u == -126 && eeg.v == 12.5
 end
 
-fn test_map_var_1 bool
+def test_map_var_1 bool
 	vv = map[string]f64{ "gfgs": 12.625, "kdDe": -7.5, "QQgre": 13.25, "CCdf": 0.0625 }
 	r2 = vv["QQgre"]
 	return r2 == 13.25
 end
 
-fn test_map_lit_1 bool
+def test_map_lit_1 bool
 	return map[string]i32{ "gfgs": 12, "kdDe": -7, "ABffd": 13 }["kdDe"] == -7
 end
 
-fn test_map_lit_2 bool
+def test_map_lit_2 bool
 	v2 = map[string]f64{ "ggs": 12.125, "doDe": -7.0625, "ABfd": 13.0625 }["ABfd"]
 	return v2 == 13.0625
 end
@@ -373,7 +373,7 @@ hjhg7["ABd"]
 
 global hjhg8 = map[string]f64{ "gkgs": 19, "douDe": 2.75, "8ABd": -11.0625 }
 
-fn test_global_map bool
+def test_global_map bool
 	return hjhg8["8ABd"] == -11.0625
 end
 
@@ -395,11 +395,11 @@ akd7
 
 akd5 = akd6 + akd7
 
-fn test_main_string bool
+def test_main_string bool
 	return akd5 == "qwertz123789456hfd"
 end
 
-fn test_local_string bool
+def test_local_string bool
 	x = "hfqer"
 	y = "Ms239"
 	z = x + y
@@ -410,7 +410,7 @@ end
 
 2 * "tzere" + 5 * "Poert"
 
-fn str_drop
+def str_drop
 	a = "Qkjs67bgfds"
 	b = "ouhesftzgh"
 	c = a + b
@@ -428,7 +428,7 @@ from math import sqrt
 
 const urZ := 373491
 
-fn test_const_int bool
+def test_const_int bool
 	return urZ == 373491
 end
 
@@ -438,29 +438,29 @@ const uDfg = sqrt(xe43)
 
 uDfg
 
-fn test_const_from_non_const bool
+def test_const_from_non_const bool
 	return uDfg == 13.5
 end
 
 global PerteR = xe43 + sqrt(xe43)
 
-fn test_global_from_non_const bool
+def test_global_from_non_const bool
 	return PerteR == 195.75
 end
 
 #exit 0
 
-inline fn PoerAS f64
+inline def PoerAS f64
 	return urZ + 2.5
 end
 
 const Jd45tz := PoerAS + 0.25
 
-fn test_trivial_const_function bool
+def test_trivial_const_function bool
 	return Jd45tz == 373493.75
 end
 
-inline fn gfR f64
+inline def gfR f64
 	x = 0.5
 	if 4>3
 		return 34.25
@@ -470,7 +470,7 @@ inline fn gfR f64
 	return x
 end
 
-fn test_if_else_n1 bool
+def test_if_else_n1 bool
 	return gfR == 34.25
 end
 
@@ -478,14 +478,14 @@ end
 
 global f33h7 = 3
 
-inline fn gfR2 f64
+inline def gfR2 f64
 	if 4 > 3
 		return 34.25
 	else
 		return 2.5
 end end
 
-fn nested_if_return_1(a int, b int) f64
+def nested_if_return_1(a int, b int) f64
 	if a > b
 		if a >= 5
 			return 12.0625
@@ -499,23 +499,23 @@ fn nested_if_return_1(a int, b int) f64
 			return -2.75
 end end end
 
-fn test_nested_if_1 bool
+def test_nested_if_1 bool
 	return nested_if_return_1(7, 6) == 12.0625
 end
 
-fn test_nested_if_2 bool
+def test_nested_if_2 bool
 	return nested_if_return_1(3, 2) == -7.5
 end
 
-fn test_nested_if_3 bool
+def test_nested_if_3 bool
 	return nested_if_return_1(9, 12) == 9.125
 end
 
-fn test_nested_if_4 bool
+def test_nested_if_4 bool
 	return nested_if_return_1(1, 2) == -2.75
 end
 
-fn nested_if_return_2(a int, b int) f64
+def nested_if_return_2(a int, b int) f64
 	if a >= b
 		if a < -2
 			return 1.5625
@@ -529,18 +529,18 @@ fn nested_if_return_2(a int, b int) f64
 	return 55.375
 end
 
-fn test_nested_if_5 bool
+def test_nested_if_5 bool
 	return nested_if_return_2(-4, -5) == 1.5625
 end
 
-fn test_nested_if_6 bool
+def test_nested_if_6 bool
 	return nested_if_return_2(8, 5) == 55.375
 end
 
-fn test_nested_if_7 bool
+def test_nested_if_7 bool
 	return nested_if_return_2(-6, -3) == -89.375
 end
 
-fn test_nested_if_8 bool
+def test_nested_if_8 bool
 	return nested_if_return_2(7, 9) == 0.75
 end

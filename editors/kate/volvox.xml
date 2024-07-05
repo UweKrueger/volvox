@@ -34,7 +34,7 @@
     </list>
 
     <list name="startcontrol">
-      <item>fn</item>
+      <item>def</item>
       <item>for</item>
       <item>if</item>
       <item>while</item>

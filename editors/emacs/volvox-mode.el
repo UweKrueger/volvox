@@ -50,7 +50,7 @@
            '("cstring" "f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union" "voidptr" "thread")
 	   "\\|"))
 	(CONTROLFLOW (mapconcat 'identity
-           '("elif" "else" "end" "fn" "if" "repeat" "return" "until" "while" "for")
+           '("elif" "else" "end" "def" "if" "repeat" "return" "until" "while" "for")
 	   "\\|"))
 	(UNIX (mapconcat 'identity
            '("inline" "atomic" "shared" "const" "global" "cdecl" "decl" "from" "import" "pub" "type")

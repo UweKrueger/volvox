@@ -1,4 +1,4 @@
-pub fn TimeStamp.timespec timespec
+pub def TimeStamp.timespec timespec
 	ts = timespec {
 		sec: this.u64 / 10000000 - epoch_offset
 		nsec: ssize_t((this.u64 % 10000000) * 100)
@@ -6,7 +6,7 @@ pub fn TimeStamp.timespec timespec
 	return ts
 end
 
-fn TimeStamp.timespec32 timespec32
+def TimeStamp.timespec32 timespec32
 	ts32 = timespec32 {
 		sec: i32(this.u64 / 10000000 - epoch_offset)
 		nsec: i32((this.u64 % 10000000) * 100)
@@ -14,11 +14,11 @@ fn TimeStamp.timespec32 timespec32
 	return ts32
 end
 
-pub fn timespec.time_t time_t
+pub def timespec.time_t time_t
 	return time_t{ i64: this.sec }
 end
 
-pub fn TimeStamp.time_t time_t
+pub def TimeStamp.time_t time_t
 	return time_t{ i64: this.u64 / 10000000 - epoch_offset }
 end
 
@@ -44,20 +44,20 @@ type tm {
 
 # access methods that adjust field elements to human expected values
 #
-pub fn tm.mon int
+pub def tm.mon int
 	return this._mon + 1
 end
 
-pub fn tm.mon(m int) int
+pub def tm.mon(m int) int
 	old = this._mon = m - 1
 	return old + 1
 end
 
-pub fn tm.year int
+pub def tm.year int
 	return this._year + 1900
 end
 
-pub fn tm.year(m int) int
+pub def tm.year(m int) int
 	old = this._year = m - 1900
 	return old + 1900
 end
@@ -73,7 +73,7 @@ cdecl _localtime64_s(&res tm, &t i64) int
 cdecl __localtime_r50(&t i64, &res tm) voidptr
 cdecl __localtime64_r(&t i64, &res tm) voidptr
 
-pub inline fn time_t.gm tm
+pub inline def time_t.gm tm
 	res = tm{}
 	if os.isWindows
 		_gmtime64_s(res, this.i64)
@@ -95,7 +95,7 @@ pub inline fn time_t.gm tm
 	return res
 end
 
-pub inline fn time_t.local tm
+pub inline def time_t.local tm
 	res = tm{}
 	if os.isWindows
 		_localtime64_s(res, this.i64)
@@ -117,33 +117,33 @@ pub inline fn time_t.local tm
 	return res
 end
 
-pub inline fn timespec.gm tm
+pub inline def timespec.gm tm
 	return this.time_t.gm
 end
 
-pub inline fn timespec.local tm
+pub inline def timespec.local tm
 	return this.time_t.local
 end
 
-pub inline fn TimeStamp.gm tm
+pub inline def TimeStamp.gm tm
 	return this.time_t.gm
 end
 
-pub inline fn TimeStamp.local tm
+pub inline def TimeStamp.local tm
 	return this.time_t.local
 end
 
-pub inline fn gm tm
+pub inline def gm tm
 	return time.gm
 end
 
-pub inline fn local tm
+pub inline def local tm
 	return time.local
 end
 
 cdecl strftime(buf cstring, sz size_t, format cstring, &ts tm) size_t
 
-pub fn tm.strf(format string) string
+pub def tm.strf(format string) string
 	size_guess = 2 * format.size + (arch.bitwidth >> 2) + 128
 	buf = cstring(__malloc(size_guess))
 	sz = strftime(buf, size_guess, format, this)
@@ -154,14 +154,14 @@ pub fn tm.strf(format string) string
 		return ""
 end end
 
-pub fn tm.str string
+pub def tm.str string
 	return this.strf("%F %T")
 end
 
-pub fn tm.date_str string
+pub def tm.date_str string
 	return this.strf("%F")
 end
 
-pub fn tm.time_str string
+pub def tm.time_str string
 	return this.strf("%T")
 end

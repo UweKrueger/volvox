@@ -35,7 +35,7 @@ TOKEN(ctype) \
 TOKEN(decl) \
 TOKEN(cdecl) \
 TOKEN(inline) \
-TOKEN(fn) \
+TOKEN(def) \
 TOKEN(false) /* built-in values - not exactly keywords */ \
 TOKEN(true) \
 TOKEN(nil) \

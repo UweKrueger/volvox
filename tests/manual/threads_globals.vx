@@ -5,12 +5,12 @@ type AALL {
 	x f64
 }
 
-fn AALL
+def AALL
 	this.x += 5
 end
 
 # The destructor should be called 4 times (aa, bb for each thread)
-fn ~AALL
+def ~AALL
 	printf("Destructor called for AALL.x = %f\n", this.x)
 end
 
@@ -22,7 +22,7 @@ global aa := AALL{ x: 7 }
 # bb.x = 5 in other threads
 global bb = AALL{ x: 17 }
 
-fn do_print(x f64, n i32) f64
+def do_print(x f64, n i32) f64
 	while n>0
 		sleep 0.25
 		printf("x: %f, Round %d; aa.x: %f, bb.x: %f\n", x, n, aa.x, bb.x)

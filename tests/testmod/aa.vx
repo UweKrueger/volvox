@@ -8,15 +8,15 @@ type Olgj {
 	s f64
 }
 
-fn Olgj
+def Olgj
 	this.s -= 2.25
 end
 
-fn Olgj(r f64)
+def Olgj(r f64)
 	this.s = 2*r
 	return
 end
 
-fn Olgj(r i32)
+def Olgj(r i32)
 	this.j = r+7
 end

@@ -6,7 +6,7 @@ type sockaddr_any union {
 	sockaddr_storage
 }
 
-inline fn do_bind(handle ssize_t, &saddr sockaddr_any, size u32) Socket
+inline def do_bind(handle ssize_t, &saddr sockaddr_any, size u32) Socket
 	s = Socket{ handle: handle }
 	if os.isWindows
 		res = win_bind(size_t(s.handle), saddr.sockaddr, size)
@@ -24,7 +24,7 @@ inline fn do_bind(handle ssize_t, &saddr sockaddr_any, size u32) Socket
 	return s
 end
 
-pub inline fn UnixSocket.bind(path string) Socket
+pub inline def UnixSocket.bind(path string) Socket
 	if this.handle == -1
 		return Socket{ handle: this.handle, err: this.err }
 	end
@@ -42,7 +42,7 @@ pub inline fn UnixSocket.bind(path string) Socket
 	return do_bind(this.handle, saddr, u32(path.len) + 2)
 end
 
-pub inline fn IpSocket.bind(ownaddr in_addr, ownport u16) Socket
+pub inline def IpSocket.bind(ownaddr in_addr, ownport u16) Socket
 	saddr = sockaddr_any{
 		sockaddr_in: {
 			sin_port: htons(ownport)
@@ -56,19 +56,19 @@ pub inline fn IpSocket.bind(ownaddr in_addr, ownport u16) Socket
 	return do_bind(this.handle, saddr, u32(sizeof(sockaddr_in)))
 end
 
-pub inline fn IpSocket.bind(ownaddr u32, ownport u16) Socket
+pub inline def IpSocket.bind(ownaddr u32, ownport u16) Socket
 	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport)
 end
 
-pub inline fn IpSocket.bind(ownaddr [4]u8, ownport u16) Socket
+pub inline def IpSocket.bind(ownaddr [4]u8, ownport u16) Socket
 	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport)
 end
 
-pub inline fn IpSocket.bind(ownport u16) Socket
+pub inline def IpSocket.bind(ownport u16) Socket
 	return this.bind(in_any, ownport)
 end
 
-pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
+pub inline def Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 	saddr = sockaddr_any{
 		sockaddr_in6: {
 			sin6_port: htons(ownport)
@@ -82,7 +82,7 @@ pub inline fn Ip6Socket.bind(ownaddr in6_addr, ownport u16) Socket
 	return do_bind(this.handle, saddr, u32(sizeof(sockaddr_in6)))
 end
 
-pub inline fn Ip6Socket.bind(ownport u16) Socket
+pub inline def Ip6Socket.bind(ownport u16) Socket
 	return this.bind(in6_any, ownport)
 end
 
@@ -94,7 +94,7 @@ type ListeningSocket {
 	err int
 }
 
-pub inline fn Socket.listen(backlog int) ListeningSocket
+pub inline def Socket.listen(backlog int) ListeningSocket
 	if this.handle == -1
 		return ListeningSocket{ handle: this.handle, err: this.err }
 	end
@@ -116,39 +116,39 @@ end
 
 const SOMAXCONN := 0x7fffffff
 
-pub inline fn Socket.listen ListeningSocket
+pub inline def Socket.listen ListeningSocket
 	return this.listen(SOMAXCONN)
 end
 
-pub inline fn IpSocket.listen(ownaddr in_addr, ownport u16, backlog int) ListeningSocket
+pub inline def IpSocket.listen(ownaddr in_addr, ownport u16, backlog int) ListeningSocket
 	return this.bind(ownaddr, ownport).listen(backlog)
 end
 
-pub inline fn IpSocket.listen(ownaddr in_addr, ownport u16) ListeningSocket
+pub inline def IpSocket.listen(ownaddr in_addr, ownport u16) ListeningSocket
 	return this.bind(ownaddr, ownport).listen(SOMAXCONN)
 end
 
-pub inline fn IpSocket.listen(ownaddr u32, ownport u16, backlog int) ListeningSocket
+pub inline def IpSocket.listen(ownaddr u32, ownport u16, backlog int) ListeningSocket
 	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport).listen(backlog)
 end
 
-pub inline fn IpSocket.listen(ownaddr u32, ownport u16) ListeningSocket
+pub inline def IpSocket.listen(ownaddr u32, ownport u16) ListeningSocket
 	return this.bind(in_addr{ u32: htonl(ownaddr) }, ownport).listen(SOMAXCONN)
 end
 
-pub inline fn IpSocket.listen(ownaddr [4]u8, ownport u16, backlog int) ListeningSocket
+pub inline def IpSocket.listen(ownaddr [4]u8, ownport u16, backlog int) ListeningSocket
 	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport).listen(backlog)
 end
 
-pub inline fn IpSocket.listen(ownaddr [4]u8, ownport u16) ListeningSocket
+pub inline def IpSocket.listen(ownaddr [4]u8, ownport u16) ListeningSocket
 	return this.bind(in_addr{ __s4_addr: ownaddr }, ownport).listen(SOMAXCONN)
 end
 
-pub inline fn IpSocket.listen(ownport u16, backlog int) ListeningSocket
+pub inline def IpSocket.listen(ownport u16, backlog int) ListeningSocket
 	return this.bind(in_any, ownport).listen(backlog)
 end
 
-pub inline fn IpSocket.listen(ownport u16) ListeningSocket
+pub inline def IpSocket.listen(ownport u16) ListeningSocket
 	return this.bind(in_any, ownport).listen(SOMAXCONN)
 end
 

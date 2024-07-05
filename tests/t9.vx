@@ -1,4 +1,4 @@
-fn QzztrP(k int) int
+def QzztrP(k int) int
 	if k < 0
 		if k > 10
 			p = 15
@@ -11,11 +11,11 @@ fn QzztrP(k int) int
 	return p
 end
 
-fn test_nested_if_9 bool
+def test_nested_if_9 bool
 	return QzztrP(3) == 23 && QzztrP(-43) == -13
 end
 
-fn QzztrQ(k int) int
+def QzztrQ(k int) int
 	if k < 0
 		if k > -10
 			p = 15
@@ -29,11 +29,11 @@ fn QzztrQ(k int) int
 	end
 end
 
-fn test_nested_if_10 bool
+def test_nested_if_10 bool
 	return QzztrQ(3) == 23 && QzztrQ(-5) == 15 && QzztrQ(-17) == -13
 end
 
-fn dFkkL(n int, a []f64) f64
+def dFkkL(n int, a []f64) f64
 	# a[2] = 6 # this should trigger "variable 'a' is immutable"
 	return n * a[n]
 end
@@ -44,11 +44,11 @@ gggKl = [ukkL]f64{ 1.25, 2.5, 13.75, -4.0625, 5.125}
 
 global LkfdS = dFkkL(3, gggKl)
 
-fn test_var_array_call_1 bool
+def test_var_array_call_1 bool
 	return LkfdS == -12.1875
 end
 
-fn dFmmJ(n int, &c []f64) f64
+def dFmmJ(n int, &c []f64) f64
 	c[3] = 7.5
 	return n * c[n]
 end
@@ -56,7 +56,7 @@ end
 global qHgDF = dFmmJ(2, gggKl)
 global qHgDG = gggKl[3]
 
-fn test_var_array_call_2 bool
+def test_var_array_call_2 bool
 	return qHgDF == 27.5 && qHgDG == 7.5
 end
 

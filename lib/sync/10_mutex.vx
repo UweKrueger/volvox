@@ -16,7 +16,7 @@ type mutex_attr union {
 	bytes [__MUTEX_ATTR_SIZE]u8
 }
 
-fn ~mutex_attr
+def ~mutex_attr
 	if !os.isWindows
 		pthread_mutexattr_destroy(&this)
 end end
@@ -24,7 +24,7 @@ end end
 cdecl pthread_mutexattr_init(&attr mutex_attr) int
 cdecl pthread_mutexattr_setrobust(&attr mutex_attr, robustness int) int
 
-fn get_robust_mutex_attr mutex_attr
+def get_robust_mutex_attr mutex_attr
 	m = mutex_attr{}
 	if !os.isWindows
 		pthread_mutexattr_init(m)
@@ -60,7 +60,7 @@ type mutex union {
 	bytes [__MUTEX_SIZE]u8
 }
 
-pub fn mutex
+pub def mutex
 	if os.isWindows
 		this.size_t = CreateMutexA(voidptr(0), false, cstring(0))
 	else
@@ -68,7 +68,7 @@ pub fn mutex
 	end
 end
 
-pub fn ~mutex
+pub def ~mutex
 	if os.isWindows
 		CloseHandle(this.size_t)
 	else
@@ -85,7 +85,7 @@ cdecl GetLastError() u32
 
 from error import EOWNERDEAD, ETIMEDOUT, EPERM, EBUSY, EINVAL, EAGAIN, ERROR_TOO_MANY_POSTS
 
-pub inline fn mutex.lock int
+pub inline def mutex.lock int
 	if os.isWindows
 		res = WaitForSingleObjectEx(this.size_t, u32(-1), true)
 		if res != 0
@@ -108,7 +108,7 @@ pub inline fn mutex.lock int
 	return res
 end
 
-pub inline fn mutex.trylock int
+pub inline def mutex.trylock int
 	if os.isWindows
 		res = WaitForSingleObjectEx(this.size_t, 0, true)
 		if res != 0
@@ -131,7 +131,7 @@ pub inline fn mutex.trylock int
 	return res
 end
 
-pub inline fn mutex.timedlock(timeout time.Duration) int
+pub inline def mutex.timedlock(timeout time.Duration) int
 	if os.isWindows
 		res = WaitForSingleObjectEx(this.size_t, u32(timeout.i64 / 10000), true)
 		if res != 0
@@ -162,7 +162,7 @@ cdecl pthread_mutex_unlock(&m mutex) int
 # In the REPL case a new thread is created for each top level expression so there is always
 # the "owner dead" case and we have to make things consistent first.
 #
-pub inline fn mutex.unlock int
+pub inline def mutex.unlock int
 	if os.isWindows
 		if arch.isREPL
 			res = WaitForSingleObjectEx(this.size_t, 0, true)

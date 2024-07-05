@@ -60,7 +60,7 @@ type pipehandle_t union {
 	ssize_t
 }
 
-pub fn semaphore(init_val int) Semaphore
+pub def semaphore(init_val int) Semaphore
 	sem = Semaphore{}
 	if init_val < 0 || u64(init_val) > SEMVMX
 		sem.err = EINVAL
@@ -104,11 +104,11 @@ pub fn semaphore(init_val int) Semaphore
 	return sem
 end
 
-pub fn semaphore Semaphore
+pub def semaphore Semaphore
 	return semaphore(0)
 end
 
-pub fn Semaphore.close
+pub def Semaphore.close
 	if os.isWindows
 		success = CloseHandle(size_t(this.handle))
 	elif os.isLinux || os.isFreeBSD || os.isNetBSD
@@ -127,7 +127,7 @@ pub fn Semaphore.close
 	end
 end
 
-pub inline fn Semaphore.max u64
+pub inline def Semaphore.max u64
 	return SEMVMX
 end
 
@@ -135,7 +135,7 @@ cdecl ReleaseSemaphore(hSemaphore size_t, lReleaseCount int, lpPreviousCount voi
 
 const NOWAIT := 0x800
 
-pub fn Semaphore.post(n int) bool
+pub def Semaphore.post(n int) bool
 	if this.err != 0
 		return false
 	end
@@ -162,7 +162,7 @@ pub fn Semaphore.post(n int) bool
 	return success
 end
 
-pub inline fn Semaphore.post bool
+pub inline def Semaphore.post bool
 	return this.post(1)
 end
 
@@ -175,7 +175,7 @@ type pollfd {
 cdecl ppoll(&fds pollfd, nfds u32, ?timeout time.timespec, sigmask voidptr) int
 cdecl ppoll(&fds pollfd, nfds u64, ?timeout time.timespec, sigmask voidptr) int
 
-pub fn Semaphore.wait bool
+pub def Semaphore.wait bool
 	if this.err != 0
 		return false
 	end
@@ -219,7 +219,7 @@ pub fn Semaphore.wait bool
 	return success
 end
 
-pub fn Semaphore.timedwait(timeout time.Duration) bool
+pub def Semaphore.timedwait(timeout time.Duration) bool
 	if this.err != 0
 		return false
 	end
@@ -289,11 +289,11 @@ pub fn Semaphore.timedwait(timeout time.Duration) bool
 	return success
 end
 
-pub fn Semaphore.timedwait(timeout f64) bool
+pub def Semaphore.timedwait(timeout f64) bool
 	return this.timedwait(time.Duration(timeout))
 end
 
-pub fn Semaphore.trywait bool
+pub def Semaphore.trywait bool
 	if this.err != 0
 		return false
 	end

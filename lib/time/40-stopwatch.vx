@@ -8,27 +8,27 @@ type StopWatch {
 # default constructor, e.g. "z = StopWatch{}" creates stop watch
 # started at current time
 #
-pub fn StopWatch
+pub def StopWatch
 	this.begin = get
 	this.finish = 0
 end
 
 # set time to 0 and (re)start stop watch
 #
-pub fn StopWatch.start
+pub def StopWatch.start
 	this.begin = get
 	this.finish = 0
 end
 
 # pause stop watch
 #
-pub fn StopWatch.stop
+pub def StopWatch.stop
 	this.finish = get
 end
 
 # get time when stop watch was paused or current time in seconds
 #
-pub fn StopWatch.elapsed f64
+pub def StopWatch.elapsed f64
 	if this.finish == 0
 		return f64(i64(get - this.begin)) * tick_period
 	else
@@ -38,7 +38,7 @@ end
 
 # continue accumulating time
 #
-pub fn StopWatch.cont
+pub def StopWatch.cont
 	if this.finish != 0
 		this.begin += get - this.finish
 		this.finish = 0
@@ -48,6 +48,6 @@ end
 # calculate elapsed time in seconds since program start
 # or import of 'time' module
 #
-pub inline fn elapsed f64
+pub inline def elapsed f64
 	return f64(get) * tick_period
 end

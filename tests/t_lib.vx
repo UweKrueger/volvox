@@ -2,7 +2,7 @@ import rand
 
 const n_pi = 10000000
 
-fn test_rand_f64 bool
+def test_rand_f64 bool
 	n = 0
 	s = 0
 	while n < n_pi
@@ -20,7 +20,7 @@ end
 
 const n_pi_2 = 1000000
 
-fn test_rand_f32 bool
+def test_rand_f32 bool
 	s = 0
 	for n in 1 .. n_pi_2
 		x = rand.f32
@@ -36,7 +36,7 @@ end
 
 import time
 
-fn test_sleep bool
+def test_sleep bool
 	s = time.StopWatch{}
 	time.sleep(0.35)
 	s.stop
@@ -47,14 +47,14 @@ end
 
 import sync
 
-fn test_semaphore_1 bool
+def test_semaphore_1 bool
 	s = sync.semaphore(3)
 	success = s.wait && s.wait && s.wait
 	s.close
 	return success
 end
 
-fn test_semaphore_2 bool
+def test_semaphore_2 bool
 	s = sync.semaphore
 	s.post
 	s.post

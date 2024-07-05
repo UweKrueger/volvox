@@ -20,7 +20,7 @@
 import arch.cpu
 from limits import *
 
-inline fn rotl(x u64, k int) u64
+inline def rotl(x u64, k int) u64
 	return (x << k) | (x >> (64 - k))
 end
 
@@ -30,7 +30,7 @@ type State4 {
 
 # defaut constructor that is called for every new thread
 #
-fn State4
+def State4
 	this.s[0] = splitmix64
 	this.s[1] = splitmix64
 	this.s[2] = splitmix64
@@ -49,7 +49,7 @@ global s = State4{}
 
 # main RNG producing 64 bits
 #
-pub inline fn u64
+pub inline def u64
 	result = rotl(s.s[1] + (s.s[1] << 2), 7)
 	result += (result << 3)
 	t = s.s[1] << 17

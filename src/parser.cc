@@ -1309,7 +1309,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 		return ParseIfExpr(terminator);
 	case tok_for:
 		return ParseForExpr(terminator);
-	case tok_fn:
+	case tok_def:
 		return ParseFunctionExpr(terminator);
 	default:
 		errs() << CurLoc << ": unexpected token '" << CurTok.str() << "' when expecting a " << lex.Expected << " or an expression\n";
@@ -1791,7 +1791,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		Kind = 0;
 		getNextToken(eSemi);
 		break;
-	case tok_fn: // closure
+	case tok_def: // closure
 		FnName = std::string(createAnonFnName());
 		Kind = 0;
 		getNextToken(eSemi);

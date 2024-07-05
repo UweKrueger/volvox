@@ -11,7 +11,7 @@ end
 global uttw2_val = uttw2
 global uttw2_sz = sizeof(uttw2)
 
-fn test_outer_scope_branch_declaration_1 bool
+def test_outer_scope_branch_declaration_1 bool
 	return uttw2_val == 13 && uttw2_sz == 2
 end
 
@@ -36,14 +36,14 @@ end
 global LPPG1 = LPPO[1][2][3]
 global LPPG2 = LPPQ[1][2][3]
 
-fn test_outer_scope_branch_declaration_2 bool
+def test_outer_scope_branch_declaration_2 bool
 	return LPPG1 == 7.25 && LPPG2 == -23.75
 end
 
 global yn210 = 15
 global wn2 = 7
 
-fn test_var_array_multi_level_ref bool
+def test_var_array_multi_level_ref bool
 	vv = [yn210][13][wn2]f64{1: {12: {0: 78.25}}, 2: {5: {2: -17.125}}}
 	# vv = [yn210][13][wn2]f64{2: {5: {2: -17.125}}, 1: {12: {0: 78.25}}}
 	&pph = vv
@@ -52,7 +52,7 @@ fn test_var_array_multi_level_ref bool
 	return x == -17.125 && y == 78.25 && pph.dim(1) == 13 && pph.dim(2) == 7
 end
 
-fn test_for_over_float_array_lit bool
+def test_for_over_float_array_lit bool
 	s = 0.
 	for x in [1.25, 3.5, -7.125, 13.75]
 		s += x
@@ -60,7 +60,7 @@ fn test_for_over_float_array_lit bool
 	return s == 11.375
 end
 
-fn test_for_over_int_array_lit bool
+def test_for_over_int_array_lit bool
 	s = 0
 	for x in [1, 3, -7, 13]
 		s += x
@@ -70,7 +70,7 @@ end
 
 global uugf94 = 7
 
-fn test_ref_for_over_f64_array bool
+def test_ref_for_over_f64_array bool
 	s = 0.
 	a = [uugf94]f64{ 1, 7, 9.5, 6: 45.75 }
 	for &t in a
@@ -81,7 +81,7 @@ fn test_ref_for_over_f64_array bool
 	return s == 63.25 && a[2] == 27
 end
 
-fn test_val_for_over_f64_array bool
+def test_val_for_over_f64_array bool
 	s = 0.
 	a = [uugf94]f64{ 1, 7, 9.5, 6: 45.75 }
 	for t in a
@@ -92,7 +92,7 @@ fn test_val_for_over_f64_array bool
 	return s == 63.25 && a[2] == 9.5
 end
 
-fn test_existing_val_for_over_f64_array bool
+def test_existing_val_for_over_f64_array bool
 	s = 0.
 	t = 3.2
 	a = [uugf94]f64{ 1, 7, 9.5, 6: 45.75 }
@@ -113,11 +113,11 @@ for bjj2 in ajj2
 	# printf("%g\n", bjj2)
 end
 
-fn test_global_scope_for_1 bool
+def test_global_scope_for_1 bool
 	return sjj2 == 27.75
 end
 
-fn test_map_iteration_1 bool
+def test_map_iteration_1 bool
 	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
 	s = 0.
 	for i ~in hjhg7
@@ -135,11 +135,11 @@ for zew78 in hjhg9
 	# printf("Value: >%d<\n", zwe78)
 end
 
-fn test_map_iteration_2 bool
+def test_map_iteration_2 bool
 	return ffsd93 == 891
 end
 
-fn test_map_iteration_3 bool
+def test_map_iteration_3 bool
 	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
 	s = 0.
 	for i in hjhg7
@@ -152,7 +152,7 @@ fn test_map_iteration_3 bool
 	return s == 13.1875 && i == 12
 end
 
-fn test_map_iteration_4 bool
+def test_map_iteration_4 bool
 	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
 	s = 0.
 	for i ~in hjhg7
@@ -165,24 +165,24 @@ fn test_map_iteration_4 bool
 	return s == 13.1875 && i == -1.0625
 end
 
-fn string_by_ref(&s string) f64
+def string_by_ref(&s string) f64
 	d = strtod(s, voidptr(0))
 	s = "done"
 	return d
 end
 
-fn test_string_by_ref bool
+def test_string_by_ref bool
 	a = "-45.625"
 	d = string_by_ref(a)
 	return d == -45.625 && a == "done"
 end
 
-fn string_by_val(s string) f64
+def string_by_val(s string) f64
 	d = strtod(s, 0)
 	return d
 end
 
-fn test_string_by_val bool
+def test_string_by_val bool
 	a = "3.57e3"
 	d = string_by_val(a)
 	return d == 3570 && a == "3.57e3"
@@ -198,11 +198,11 @@ oxgh4[1] = -17.25
 
 global uuzzt67 = xkj56[1] == 6.25 && oxgh4[1] == -17.25 && oxgh4[3] == 7.125
 
-fn test_main_array_copy_constructor bool
+def test_main_array_copy_constructor bool
 	return uuzzt67
 end
 
-fn test_char_literal bool
+def test_char_literal bool
 	c1 = '@'
 	c2 = '\n'
 	return c1 == 64 && c2 == 10 && sizeof(c1) == 1 && sizeof(c2) == 1

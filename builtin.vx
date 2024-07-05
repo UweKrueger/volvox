@@ -37,7 +37,7 @@ type __thread_control_block {
 	pipe_write int
 }
 
-inline fn ~__thread_control_block
+inline def ~__thread_control_block
 	if __OS_Idx != 8 # not Windows
 		__close(this.eventfd_or_pipe_read)
 		if __OS_Idx != 2 && __OS_Idx != 3 && __OS_Idx != 5
@@ -189,25 +189,25 @@ cdecl abort()
 cdecl GetLastError() u32
 cdecl SetLastError(err u32)
 
-inline fn panic(s string)
+inline def panic(s string)
 	printstr(2, s)
 	abort
 end
 
-inline fn _abort_if_negative(res int)
+inline def _abort_if_negative(res int)
 	if res < 0
 		__printerr
 		abort
 end end
 
-inline fn __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
+inline def __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
 	if index >= length
 		err_printf("%s:%d:%d: index (%zd) out of range (0..%zd)\n",
 			srcfile, line, col, index, length-1)
 		raise(6) # SIGABRT on all known systems
 end end
 
-inline fn __i32_pow(b i32, e i32) i32
+inline def __i32_pow(b i32, e i32) i32
 	if b == 1 || e == 0
 		return 1
 	end
@@ -236,7 +236,7 @@ inline fn __i32_pow(b i32, e i32) i32
 end
 
 # specialized version for constant exponents - all conditions are resolved at compile time
-inline fn __i32_pow_constexp(b i32, e i32) i32
+inline def __i32_pow_constexp(b i32, e i32) i32
 	if e == 0
 		return 1
 	end
@@ -264,7 +264,7 @@ inline fn __i32_pow_constexp(b i32, e i32) i32
 	return __i32_pow(b, e)
 end
 
-inline fn __i64_pow(b i64, e i32) i64
+inline def __i64_pow(b i64, e i32) i64
 	if b == 1 || e == 0
 		return 1
 	end
@@ -292,7 +292,7 @@ inline fn __i64_pow(b i64, e i32) i64
 	return 0
 end
 
-inline fn __i64_pow_constexp(b i64, e i32) i64
+inline def __i64_pow_constexp(b i64, e i32) i64
 	if e == 0
 		return 1
 	end
@@ -323,99 +323,99 @@ end
 cdecl(fabs) abs(x f64) f64
 cdecl(fabsf) abs(x f32) f32
 
-inline fn abs(x i8) i8
+inline def abs(x i8) i8
 	return if x < 0; -x else x end
 end
 
-inline fn abs(x i16) i16
+inline def abs(x i16) i16
 	return if x < 0; -x else x end
 end
 
-inline fn abs(x i32) i32
+inline def abs(x i32) i32
 	return if x < 0; -x else x end
 end
 
-inline fn abs(x i64) i64
+inline def abs(x i64) i64
 	return if x < 0; -x else x end
 end
 
-inline fn max(a f64, b f64) f64
+inline def max(a f64, b f64) f64
 	return if a>b; a else b end
 end
 
-inline fn max(a f32, b f32) f32
+inline def max(a f32, b f32) f32
 	return if a>b; a else b end
 end
 
-inline fn max(a i8, b i8) i8
+inline def max(a i8, b i8) i8
 	return if a>b; a else b end
 end
 
-inline fn max(a i16, b i16) i16
+inline def max(a i16, b i16) i16
 	return if a>b; a else b end
 end
 
-inline fn max(a i32, b i32) i32
+inline def max(a i32, b i32) i32
 	return if a>b; a else b end
 end
 
-inline fn max(a i64, b i64) i64
+inline def max(a i64, b i64) i64
 	return if a>b; a else b end
 end
 
-inline fn max(a u8, b u8) u8
+inline def max(a u8, b u8) u8
 	return if a>b; a else b end
 end
 
-inline fn max(a u16, b u16) u16
+inline def max(a u16, b u16) u16
 	return if a>b; a else b end
 end
 
-inline fn max(a u32, b u32) u32
+inline def max(a u32, b u32) u32
 	return if a>b; a else b end
 end
 
-inline fn max(a u64, b u64) u64
+inline def max(a u64, b u64) u64
 	return if a>b; a else b end
 end
 
-inline fn min(a f64, b f64) f64
+inline def min(a f64, b f64) f64
 	return if a<=b; a else b end
 end
 
-inline fn min(a f32, b f32) f32
+inline def min(a f32, b f32) f32
 	return if a<=b; a else b end
 end
 
-inline fn min(a i8, b i8) i8
+inline def min(a i8, b i8) i8
 	return if a<=b; a else b end
 end
 
-inline fn min(a i16, b i16) i16
+inline def min(a i16, b i16) i16
 	return if a<=b; a else b end
 end
 
-inline fn min(a i32, b i32) i32
+inline def min(a i32, b i32) i32
 	return if a<=b; a else b end
 end
 
-inline fn min(a i64, b i64) i64
+inline def min(a i64, b i64) i64
 	return if a<=b; a else b end
 end
 
-inline fn min(a u8, b u8) u8
+inline def min(a u8, b u8) u8
 	return if a<=b; a else b end
 end
 
-inline fn min(a u16, b u16) u16
+inline def min(a u16, b u16) u16
 	return if a<=b; a else b end
 end
 
-inline fn min(a u32, b u32) u32
+inline def min(a u32, b u32) u32
 	return if a<=b; a else b end
 end
 
-inline fn min(a u64, b u64) u64
+inline def min(a u64, b u64) u64
 	return if a<=b; a else b end
 end
 
@@ -427,202 +427,202 @@ type complex {
 # c32 cannot be declared in the same way is this would not match the ABI of C11 complex float
 # it is a compiler builtin, instead
 
-inline fn complex(r real, i real)
+inline def complex(r real, i real)
 	this.real = r
 	this.imag = i
 end
 
-inline fn c32(r f32, i f32)
+inline def c32(r f32, i f32)
 	this = r + i * 1fi
 end
 
 cdecl __divdc3(ar real, ai real, br real, bi real) complex
 cdecl __divsc3(ar f32, ai f32, br f32, bi f32) c32
 
-inline fn complex/(d complex) complex
+inline def complex/(d complex) complex
 	return __divdc3(this.real, this.imag, d.real, d.imag)
 end
 
-inline fn c32/(d c32) c32
+inline def c32/(d c32) c32
 	return __divsc3(this.real, this.imag, d.real, d.imag)
 end
 
-inline fn complex/(d f64) complex
+inline def complex/(d f64) complex
 	q = 1 / d
 	return complex(q * this.real, q * this.imag)
 end
 
-inline fn complex/(d imaginary) complex
+inline def complex/(d imaginary) complex
 	q = 1i / d
 	return complex(q * this.imag, -q * this.real)
 end
 
-inline fn c32/(d f32) c32
+inline def c32/(d f32) c32
 	q = 1f / d
 	return c32(q * this.real, q * this.imag)
 end
 
-inline fn c32/(d j32) c32
+inline def c32/(d j32) c32
 	q = 1fi / d
 	return c32(q * this.imag, -q * this.real)
 end
 
-inline fn f64/(c complex) complex
+inline def f64/(c complex) complex
 	return complex(this, 0) / c
 end
 
-inline fn f32/(c c32) c32
+inline def f32/(c c32) c32
 	return c32(this, 0) / c
 end
 
-inline fn imaginary/(c complex) complex
+inline def imaginary/(c complex) complex
 	return complex(0, this / 1i) / c
 end
 
-inline fn j32/(c c32) c32
+inline def j32/(c c32) c32
 	return c32(0, this / 1fi) / c
 end
 
-inline fn complex*(c f64) complex
+inline def complex*(c f64) complex
 	return complex{
 		real: c * this.real
 		imag: c * this.imag
 	}
 end
 
-inline fn f64*(c complex) complex
+inline def f64*(c complex) complex
 	return c * this
 end
 
-inline fn complex*(i imaginary) complex
+inline def complex*(i imaginary) complex
 	return complex(-(i / 1i) * this.imag, (i / 1i) * this.real)
 end
 
-inline fn imaginary*(c complex) complex
+inline def imaginary*(c complex) complex
 	return c * this
 end
 
-inline fn complex*(c complex) complex
+inline def complex*(c complex) complex
 	return complex(this.real * c.real - this.imag * c.imag,
 		this.real * c.imag + this.imag * c.real)
 end
 
-inline fn c32*(f f32) c32
+inline def c32*(f f32) c32
 	return c32(this.real * f, this.imag * f)
 end
 
-inline fn f32*(c c32) c32
+inline def f32*(c c32) c32
 	return c * this
 end
 
-inline fn c32*(i j32) c32
+inline def c32*(i j32) c32
 	return c32(-(i / 1fi) * this.imag, (i / 1fi) * this.real)
 end
 
-inline fn j32*(c c32) c32
+inline def j32*(c c32) c32
 	return c * this
 end
 
-inline fn c32*(c c32) c32
+inline def c32*(c c32) c32
 	return c32(this.real * c.real - this.imag * c.imag,
 		this.real * c.imag + this.imag * c.real)
 end
 
-inline fn complex+(c complex) complex
+inline def complex+(c complex) complex
 	return complex(this.real + c.real, this.imag + c.imag)
 end
 
-inline fn complex-(c complex) complex
+inline def complex-(c complex) complex
 	return complex(this.real - c.real, this.imag - c.imag)
 end
 
-inline fn complex+(r real) complex
+inline def complex+(r real) complex
 	return complex(this.real + r, this.imag)
 end
 
-inline fn complex-(r real) complex
+inline def complex-(r real) complex
 	return complex(this.real - r, this.imag)
 end
 
-inline fn complex+(i imaginary) complex
+inline def complex+(i imaginary) complex
 	return complex(this.real, this.imag + i / 1i)
 end
 
-inline fn complex-(i imaginary) complex
+inline def complex-(i imaginary) complex
 	return complex(this.real, this.imag - i / 1i)
 end
 
-inline fn real+(c complex) complex
+inline def real+(c complex) complex
 	return complex(this + c.real, c.imag)
 end
 
-inline fn real-(c complex) complex
+inline def real-(c complex) complex
 	return complex(this - c.real, -c.imag)
 end
 
-inline fn imaginary+(c complex) complex
+inline def imaginary+(c complex) complex
 	return complex(c.real, this / 1i + c.imag)
 end
 
-inline fn imaginary-(c complex) complex
+inline def imaginary-(c complex) complex
 	return complex(-c.real, this / 1i - c.imag)
 end
 
-inline fn c32+(c c32) c32
+inline def c32+(c c32) c32
 	return c32(this.real + c.real, this.imag + c.imag)
 end
 
-inline fn c32-(c c32) c32
+inline def c32-(c c32) c32
 	return c32(this.real - c.real, this.imag - c.imag)
 end
 
-inline fn c32+(r f32) c32
+inline def c32+(r f32) c32
 	return c32(this.real + r, this.imag)
 end
 
-inline fn c32-(r f32) c32
+inline def c32-(r f32) c32
 	return c32(this.real - r, this.imag)
 end
 
-inline fn c32+(i j32) c32
+inline def c32+(i j32) c32
 	return c32(this.real, this.imag + i / 1if)
 end
 
-inline fn c32-(i j32) c32
+inline def c32-(i j32) c32
 	return c32(this.real, this.imag - i / 1if)
 end
 
-inline fn f32+(c c32) c32
+inline def f32+(c c32) c32
 	return c32(this + c.real, c.imag)
 end
 
-inline fn f32-(c c32) c32
+inline def f32-(c c32) c32
 	return c32(this - c.real, -c.imag)
 end
 
-inline fn j32+(c c32) c32
+inline def j32+(c c32) c32
 	return c32(c.real, this / 1if + c.imag)
 end
 
-inline fn j32-(c c32) c32
+inline def j32-(c c32) c32
 	return c32(-c.real, this / 1if - c.imag)
 end
 
 # unary operators
 
-inline fn c32-() c32
+inline def c32-() c32
 	return c32(-this.real, -this.imag)
 end
 
-inline fn c32+() c32
+inline def c32+() c32
 	return this
 end
 
-inline fn complex-() complex
+inline def complex-() complex
 	return complex(-this.real, -this.imag)
 end
 
-inline fn complex+() complex
+inline def complex+() complex
 	return this
 end
 
@@ -632,7 +632,7 @@ cdecl(cabs) abs(c complex) real
 cdecl(cpow) __cpow(b complex, e complex) complex
 cdecl(cpowf) __cpow(b c32, e c32) c32
 
-inline fn complex^(e int) complex
+inline def complex^(e int) complex
 	if e < 16
 		b = this
 		i = u8(e)
@@ -658,7 +658,7 @@ inline fn complex^(e int) complex
 		return __cpow(this, complex(e, 0))
 end end
 
-inline fn c32^(e int) c32
+inline def c32^(e int) c32
 	if e >= 0 && e < 16
 		b = this
 		i = u8(e)
@@ -684,26 +684,26 @@ inline fn c32^(e int) c32
 		return __cpow(this, c32(f32(e), 0))
 end end
 
-inline fn complex^(e f64) complex
+inline def complex^(e f64) complex
 	return __cpow(this, complex(e, 0))
 end
 
-inline fn c32^(e f32) c32
+inline def c32^(e f32) c32
 	return __cpow(this, c32(e, 0))
 end
 
-inline fn complex^(e j64) complex
+inline def complex^(e j64) complex
 	return __cpow(this, 0 + e)
 end
 
-inline fn c32^(e j32) c32
+inline def c32^(e j32) c32
 	return __cpow(this, 0 + e)
 end
 
-inline fn complex^(e complex) complex
+inline def complex^(e complex) complex
 	return __cpow(this, e)
 end
 
-inline fn c32^(e c32) c32
+inline def c32^(e c32) c32
 	return __cpow(this, e)
 end

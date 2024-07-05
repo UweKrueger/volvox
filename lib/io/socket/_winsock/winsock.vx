@@ -40,7 +40,7 @@ type WsockProto {
 	int
 }
 
-inline fn WsockProto
+inline def WsockProto
 	if os.isWindows
 		version = 0x0202uH
 		if (arch.bitwidth == 64)
@@ -64,7 +64,7 @@ inline fn WsockProto
 	end
 end
 
-inline fn ~WsockProto
+inline def ~WsockProto
 	if os.isWindows
 		WSACleanup
 	end

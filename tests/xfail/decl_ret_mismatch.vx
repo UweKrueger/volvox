@@ -1,6 +1,6 @@
 decl uio(zz f64)
 
-fn uio(zz f64) i32
+def uio(zz f64) i32
 	return 55
 end
 

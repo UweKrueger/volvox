@@ -2,7 +2,7 @@ cdecl fprintf(file voidptr, fmt cstring, ...) int
 cdecl fwrite(data voidptr, sz size_t, n size_t, f voidptr) size_t
 cdecl strlen(s cstring) size_t
 
-pub inline fn File.write(data voidptr, sz size_t) bool
+pub inline def File.write(data voidptr, sz size_t) bool
 	if fwrite(data, 1, sz, this.voidptr) < sz
 		this.err = GetLastError
 		return false
@@ -10,11 +10,11 @@ pub inline fn File.write(data voidptr, sz size_t) bool
 		return true
 end end
 
-pub inline fn File.write(s cstring) bool
+pub inline def File.write(s cstring) bool
 	return this.write(voidptr(s), strlen(s))
 end
 
-pub inline fn File.write(s string) bool
+pub inline def File.write(s string) bool
 	return this.write(voidptr(cstring(s)), s.len)
 end
 
