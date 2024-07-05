@@ -1051,15 +1051,7 @@ static void MainLoop() {
 		for (;;) {
 			unsigned sharebits = 0;
 			switch (CurTok.kind) {
-			case tok_cpub:
-				sym_kind |= A_c_api;
 			case tok_pub:
-				if (sym_kind & A_pub) {
-					errs() << CurLoc << ": at most one of qualifiers " << tok_pub << " or "
-					       << tok_cpub << " may be given\n";
-					purgeLine();
-					goto startmainloop;
-				}
 				sym_kind |= A_pub;
 				sym_kind |= A_mainvar;
 				break;
@@ -1108,6 +1100,8 @@ static void MainLoop() {
 		case ';': // ignore top-level semicolons.
 			getNextToken();
 			goto startmainloop;
+		case tok_cdef:
+			sym_kind |= A_c_api;
 		case tok_def:
 			if (share_tok) {
 				errs() << CurLoc << "functions cannot be declared as " << share_tok << '\n';

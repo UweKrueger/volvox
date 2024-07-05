@@ -20,7 +20,6 @@
       <item>atomic</item>
       <item>global</item>
       <item>pub</item>
-      <item>cpub</item>
       <item>as</item>
       <item>from</item>
       <item>import</item>
@@ -35,6 +34,7 @@
 
     <list name="startcontrol">
       <item>def</item>
+      <item>cdef</item>
       <item>for</item>
       <item>if</item>
       <item>while</item>
@@ -54,6 +54,7 @@
 
     <list name="operators">
       <item>in</item>
+      <item>return</item>
     </list>
 
     <list name="types">

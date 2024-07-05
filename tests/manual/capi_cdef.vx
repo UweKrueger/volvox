@@ -1,0 +1,14 @@
+global a = 5
+
+pub cdef qwert_z(b int, c f64) f64
+	x = b * a + c
+	return x
+end
+
+cdecl use_capi() bool
+
+res = use_capi
+
+return res
+
+

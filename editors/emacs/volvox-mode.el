@@ -50,10 +50,10 @@
            '("cstring" "f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union" "voidptr" "thread")
 	   "\\|"))
 	(CONTROLFLOW (mapconcat 'identity
-           '("elif" "else" "end" "def" "if" "repeat" "return" "until" "while" "for")
+           '("elif" "else" "end" "def" "cdef" "if" "repeat" "return" "until" "while" "for")
 	   "\\|"))
 	(UNIX (mapconcat 'identity
-           '("inline" "atomic" "shared" "const" "global" "cdecl" "decl" "from" "import" "pub" "type")
+           '("inline" "atomic" "shared" "const" "global" "cdecl" "decl" "from" "import" "pub" "type" "ctype")
 	   "\\|"))
     )
   (list
@@ -237,9 +237,7 @@ ignored, nil otherwise."
 (defconst volvox-block-regexp
   (concat
    "\\(\\<"
-   ;;(regexp-opt '("if" "fn" "repeat" "while"
-   ;;		   "else" "elif" "end" "until") t)
-   "\\(if\\|while\\|for\\|else\\|elif\\|end\\|fn\\|repeat\\|until\\)"
+   "\\(if\\|while\\|for\\|else\\|elif\\|end\\|def\\|cdef\\|repeat\\|until\\)"
    "\\>\\)\\|"
    "\\([]()[{}]\\)"
    ))
@@ -259,19 +257,20 @@ Return nil if not successful."
   ;; of "else", should we look backward for "if/elif" or forward
   ;; for "end"?
   ;; Maybe later we will find a way to handle it.
-  '(("fn"       "\\<end\\>"                                   open)
-    ("repeat"   "\\<until\\>"                                 open)
-    ("if"       "\\<\\(e\\(lif\\|nd\\)\\)\\>"                 open)
-    ("while"    "\\<\\(e\\(lif\\|nd\\)\\)\\>"                 open)
-    ("for"      "\\<\\(e\\(lif\\|nd\\)\\)\\>"                 open)
-    ("{"        "}"                                           open)
-    ("["        "]"                                           open)
-    ("("        ")"                                           open)
-    ("end"      "\\<\\(if\\|fn\\|while\\|for\\)\\>"           close)
-    ("until"    "\\<repeat\\>"                                close)
-    ("}"        "{"                                           close)
-    ("]"        "\\["                                         close)
-    (")"        "("                                           close)))
+  '(("def"       "\\<end\\>"                             open)
+	("cdef"      "\\<end\\>"                             open)
+    ("repeat"   "\\<until\\>"                            open)
+    ("if"       "\\<\\(e\\(lif\\|nd\\)\\)\\>"               open)
+    ("while"    "\\<\\(e\\(lif\\|nd\\)\\)\\>"               open)
+    ("for"      "\\<\\(e\\(lif\\|nd\\)\\)\\>"               open)
+    ("{"        "}"                                      open)
+    ("["        "]"                                      open)
+    ("("        ")"                                      open)
+    ("end"      "\\<\\(if\\|def\\|cdef\\|while\\|for\\)\\>" close)
+    ("until"    "\\<repeat\\>"                           close)
+    ("}"        "{"                                      close)
+    ("]"        "\\["                                    close)
+    (")"        "("                                      close)))
 
 (defconst volvox-indentation-modifier-regexp
   ;; The absence of else is deliberate, since it does not modify the
@@ -281,7 +280,7 @@ Return nil if not successful."
    "\\(\\<"
    ;; n.b. "local function" is a bit of a hack, allowing only a single space
    ;;(regexp-opt '("do" "local function" "function" "repeat" "then") t)
-   "\\(if\\|fn\\|repeat\\|while\\|for\\)"
+   "\\(if\\|def\\|cdef\\|repeat\\|while\\|for\\)"
    "\\>\\|"
    ;;(regexp-opt '("{" "(" "["))
    "[([{]"
@@ -458,7 +457,7 @@ Don't use standalone."
 	((string-equal found-token "end")
 	 (save-excursion
 	   (volvox-goto-matching-block-token nil found-pos)
-	   (if (looking-at "\\<fn\\>")
+	   (if (or (looking-at "\\<def\\>") (looking-at "\\<cdef\\>"))
 	       (cons 'absolute
 		     (+ (current-indentation)
 			(volvox-calculate-indentation-block-modifier

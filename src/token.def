@@ -26,7 +26,6 @@ TOKEN(elif) \
 TOKEN(if) \
 TOKEN(end) \
 TOKEN(pub) \
-TOKEN(cpub) \
 TOKEN(as) \
 TOKEN(from) \
 TOKEN(import) \
@@ -36,6 +35,7 @@ TOKEN(decl) \
 TOKEN(cdecl) \
 TOKEN(inline) \
 TOKEN(def) \
+TOKEN(cdef) \
 TOKEN(false) /* built-in values - not exactly keywords */ \
 TOKEN(true) \
 TOKEN(nil) \
