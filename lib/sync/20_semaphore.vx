@@ -192,7 +192,7 @@ pub def Semaphore.wait bool
 			fd: fd
 			events: POLLIN
 		}
-		err = 0u32
+		err = 0U
 		repeat
 			if os.isLinux
 				res = ppoll(pfd, size_t(1), nil, nil)

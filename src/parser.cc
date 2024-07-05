@@ -595,6 +595,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
 			return nullptr;
 		}
+		if (!init_list)
+			return nullptr;
 		if (!init_list->getNumElements()) {
 			bool is_valid = (Dims.size() > 0);
 			for (int j = 0; j < Dims.size(); j++)
@@ -1604,13 +1606,22 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 					errs() << lval->Loc << ": unknown identifier '" << lval->Name << "'\n";
 			errs() << BinLoc << ": RHS of '" << BinOp << "' is " << (RHS_type ? "of void type\n" : "indeterminate\n");
 			if (RHS_type)
-				if (auto branch_expr = dynamic_cast<BranchExprAST*>((RHS).get()))
+				if (auto branch_expr = dynamic_cast<BranchExprAST*>(RHS.get()))
 					if (branch_expr->errmsg)
 						errs() << branch_expr->Loc << ": in conditional expression: " << branch_expr->errmsg;
 
 			return nullptr;
 		}
 	valid_void:
+		if (BinKind == tok_invisible) {
+			auto lit = dynamic_cast<LiteralExprAST*>(RHS.get());
+			if (!(lit->ft->type_attr & A_string)) {
+				// we forbid 'a 2' instead of '2 a', or '12 34' instead of 408
+				// because usually these are cases of a missing ',' separator ('a, 2'; '12, 34')
+				errs() << lit->Loc << ": literal number as RHS of invisible operator not allowed - maybe you forgot a ',' or an explicit operator\n";
+				return nullptr;
+			}
+		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS), res_t);
 	}
 }
