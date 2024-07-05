@@ -48,6 +48,7 @@ uint64_t target_mask;
 unsigned target_int_bits;
 int sret_limit = 16; // will be set to 8 for Windows targets below
 std::string cdecl_rename;
+const char* MainName = nullptr;
 std::unique_ptr<FunctionAST> MainFunction = nullptr;
 CPU_Type_t cpu_idx;
 OS_Type_t os_idx;
@@ -943,7 +944,7 @@ void PrepareTestFramework() {
 		}
 	};
 	if (!lex.module->globals_table.insert(single_test_result_name.c_str(), fv)) {
-		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"main\" scope\n";
+		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"" << MainName << "\" scope\n";
 		abort();
 	}
 	auto single_res_def = std::make_unique<BinaryExprAST>(
@@ -952,7 +953,7 @@ void PrepareTestFramework() {
 		std::move(std::make_unique<LiteralExprAST>(Token(false))));
 	HandleGlobalVariable(std::move(single_res_def), A_pub | A_global);
 	if (!lex.module->globals_table.insert(collector_name.c_str(), fv)) {
-		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"main\" scope\n";
+		errs() << "fatal error" << ": variable '" << single_test_result_name << "' already exists in \"" << MainName << "\" scope\n";
 		abort();
 	}
 	auto collector_def = std::make_unique<BinaryExprAST>(
@@ -1034,7 +1035,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		if_e->desired_type = llvm_int_type;
 		GlobalExprList.push_back(
 			std::move(if_e));
-		return CreateMain("main", true, "i32");
+		return CreateMain(MainName, true, "i32");
 	}
 }
 
@@ -1281,6 +1282,7 @@ static void usage(const char* prog) {
 	errs() << " -d .......... dump generated LLVM IR-code (repeat to dump more code)\n";
 	errs() << " -D .......... dump raw IR in addition to optimized IR (repeat to dump only raw)\n";
 	errs() << " -c .......... compile to optimized object file\n";
+	errs() << " -M<mainf> ... name to use for main function (default: \"main\")\n";
 	errs() << " -fPIC ....... generate position independent code\n";
 	errs() << " -fdiv-floored signed division is floored, remainder gets sign of divisor (default)\n";
 	errs() << " -fdiv-c99 ... signed division rounds towards 0, remainder gets sign of divident\n";
@@ -1435,7 +1437,7 @@ int main(int argc, char* argv[]) {
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
 	int opt;
 	char* endptr;
-	while ((opt = getopt(argc, argv, "vdDcghrjJm:f:O:i:o:s:tP:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdDcghrjJm:M:f:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -1515,6 +1517,13 @@ int main(int argc, char* argv[]) {
 				errs() << "Unknown option '-f" << optarg << "'\n";
 				usage(argv[0]);
 			}
+			break;
+		case 'M':
+			if (MainName) {
+				errs() << "'-M...' can be specified only once\n";
+				usage(argv[0]);
+			}
+			MainName = optarg;
 			break;
 		case 'i':
 			include_files.push_back(optarg);
@@ -1673,6 +1682,8 @@ int main(int argc, char* argv[]) {
 		errs() << "Lib: >" << volvox_lib() << "<\n";
 		errs() << "Volvox Root: >" << volvox_root() << "<\n";
 	}
+	if (!MainName)
+		MainName = "main";
 	if (!comp_mode) {
 		if (source_files.front().size())
 			comp_mode = comp_obj;
@@ -1943,7 +1954,7 @@ int main(int argc, char* argv[]) {
 	if (!jit_repl) {
 		MainFunction = (do_test && comp_mode == comp_jit) ?
 			PrepareMain("test_main", "bool") :
-			PrepareMain("main", "int");
+			PrepareMain(MainName, "int");
 		if (!MainFunction) {
 			errs() << "error preparing main function\n";
 			abort();
@@ -1982,7 +1993,7 @@ int main(int argc, char* argv[]) {
 				// call test_main()
 				auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
 				ExitOnErr(TheJIT->addModule(std::move(TSM)));
-				auto ExprSymbol = ExitOnErr(TheJIT->lookup(do_test ? "test_main" : "main"));
+				auto ExprSymbol = ExitOnErr(TheJIT->lookup(do_test ? "test_main" : MainName));
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
 				if (do_test) {

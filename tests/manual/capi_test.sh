@@ -1,7 +1,7 @@
 #!/bin/sh
 
 usage() {
-	echo "Usage: $0 [-v] [cc|volvox|clean]" 1>&2
+	echo "Usage: $0 [-v] [cc|ccmain|volvox|clean]" 1>&2
 	exit 1
 }
 
@@ -33,6 +33,11 @@ elif [ "$1" = "cc" ]; then
 	$CC $VERBOSE -c -O2 capi_use.c
 	../../volvox $VERBOSE -c capi_cdef.vx
 	$CC $VERBOSE -o capi capi_use.o capi_cdef.o -L../../lib -Wl,-rpath,../../lib -lvolvox
+elif [ "$1" = "ccmain" ]; then
+	makeclean
+	$CC $VERBOSE -c -O2 capi_use_main.c
+	../../volvox $VERBOSE -c -Mcapi_cdefs_init capi_cdef_nomain.vx
+	$CC $VERBOSE -o capi capi_use_main.o capi_cdef_nomain.o -L../../lib -Wl,-rpath,../../lib -lvolvox
 elif [ "$1" = "clean" ]; then
 	makeclean
 	exit 0

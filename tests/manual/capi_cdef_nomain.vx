@@ -1,0 +1,10 @@
+global a = 5
+
+pub cdef qwert_z(b int, c f64) f64
+	x = b * a + c
+	return x
+end
+
+return 0
+
+
