@@ -35,6 +35,7 @@ elif [ "$1" = "cc" ]; then
 	$CC $VERBOSE -o capi capi_use.o capi_cdef.o -L../../lib -Wl,-rpath,../../lib -lvolvox
 elif [ "$1" = "clean" ]; then
 	makeclean
+	exit 0
 else
 	echo "unexpected parameter \"$1\"" 1>&2
 	usage

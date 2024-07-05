@@ -9,6 +9,6 @@ cdecl use_capi() bool
 
 res = use_capi
 
-return res
+return if res; 0 else 1 end
 
 
