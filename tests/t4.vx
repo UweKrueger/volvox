@@ -220,3 +220,32 @@ def test_method_call_3 bool
 	gghd = qql.change(2.5)
 	return gghd == -1292.5 && qql.aq[0][1] == -17.125
 end
+
+type JdDDeS {
+	x f64
+	y f64
+	z f64
+}
+
+global f8Uid = 0.0
+
+def JdDDeS.change
+	this.y += 12.25
+end
+
+def const JdDDeS.no_change
+	this.change
+	# printf("Inside no_change: %f\n", this.y)
+	f8Uid = this.y
+end
+
+def test_method_call_4 bool
+	z = JdDDeS{ x: 34.5, y:-1.5, z: 89.25 }
+	z.no_change
+	# printf("In test: %f\n", z.y)
+	return z.y == -1.5
+end
+
+def test_method_call_5 bool
+	return f8Uid == 10.75
+end
