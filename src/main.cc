@@ -1652,8 +1652,22 @@ int main(int argc, char* argv[]) {
 			usage(argv[0]);
 		}
 	}
-	for (;optind < argc; optind++)
-		source_files.front().push_back(SourceFileNames.emplace_back(strdup(argv[optind])));
+	for (;optind < argc; optind++) {
+		char* dotpos = strrchr(argv[optind], '.');
+		if (dotpos) {
+			char* extpos = dotpos+1;
+			if (!strcmp(extpos, "vx") || !strcmp(extpos, "VX")) {
+				source_files.front().push_back(SourceFileNames.emplace_back(strdup(argv[optind])));
+				continue;
+			}
+			if (!strcmp(extpos, "o") || !strcmp(extpos, "O") || !strcmp(extpos, "obj") || !strcmp(extpos, "OBJ")) {
+				extra_libs.emplace_back(argv[optind]);
+				continue;
+			}
+		}
+		errs() << "unexpected argument : \"" << argv[optind] << "\"\n";
+		usage(argv[0]);
+	}
 	if (verbosity >= 2) {
 		errs() << "Path of Volvox Binary: >" << getThisExePath() << "<\n";
 		errs() << "Lib: >" << volvox_lib() << "<\n";
@@ -2115,6 +2129,8 @@ int main(int argc, char* argv[]) {
 			clang_argv.reserve(16);
 			clang_argv.push_back(linker_exe);
 			clang_argv.push_back(output_file);
+			for (auto& lib: extra_libs)
+				clang_argv.push_back(const_cast<char*>(lib.c_str()));
 			if (target_mingw) {
 				size_t comp_offs = strlen(linker_exe) - 3;
 				if (strcmp(linker_exe + comp_offs, "gcc") && strcmp(linker_exe + comp_offs, "g++")) {
@@ -2164,8 +2180,6 @@ int main(int argc, char* argv[]) {
 #ifdef _WIN32
 			}
 #endif
-			for (auto& lib: extra_libs)
-				clang_argv.push_back(const_cast<char*>(lib.c_str()));
 			clang_argv.push_back(nullptr);
 			if (verbosity)
 				for (auto a: clang_argv) {
