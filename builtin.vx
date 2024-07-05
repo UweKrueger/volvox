@@ -25,6 +25,24 @@ cdecl(close) __close(fd int) int
 cdecl(write) __write(fd int, buf voidptr, count size_t) ssize_t
 cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 
+decl __builtin_print(fd int, nl bool, ...) int
+
+inline def print(...) int
+	return __builtin_print(1, false, va_args)
+end
+
+inline def println(...) int
+	return __builtin_print(1, true, va_args)
+end
+
+inline def eprint(...) int
+	return __builtin_print(2, false, va_args)
+end
+
+inline def eprintln(...) int
+	return __builtin_print(2, true, va_args)
+end
+
 # create POSIX/Windows Threads - returns -1 on error, 0 on detach and handle for joinable
 cdecl __create_thread(f voidptr, arg voidptr, detached bool) voidptr
 cdecl __join_thread(thr voidptr, ctrl_blk voidptr) voidptr

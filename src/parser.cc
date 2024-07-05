@@ -1826,16 +1826,18 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		goto noargs;
 	for (;;) {
 		if (CurTok.kind == tok_ellipsis) {
-			isVarArgs = true;
 			auto El_Pos = CurLoc;
 			getNextToken();
 			if (CurTok.kind != ')') {
 				errs() << CurLoc << ": unexpected '" << CurTok << "' after '...' - ')' expected\n";
 				return nullptr;
 			}
-			if (!(visibility & A_c_api)) {
+			if (visibility & A_c_api)
+				isVarArgs = true;
+			else {
 				ArgNames.push_back("va_args");
 				ArgPos.push_back(El_Pos);
+				ArgTypes.push_back(va_arg_type);
 			}
 			break;
 		}
