@@ -562,7 +562,7 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		// We try to avoid going through codegen_ref() because this
 		// migght be inefficient for a SIMD type
 		return codegen_complex(target);
-	auto V = codegen_ref(true);
+	auto V = codegen_ref(true, true);
 	if (auto val = ref2val(V))
 		return handle(target, val);
 	if (V.first) {
@@ -1668,7 +1668,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		           dynamic_cast<BranchExprAST*>(RHS.get()))
 				is_call_expr = true;
 		else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
-			auto ValR = RHS_Lval->codegen_ref(true);
+			auto ValR = RHS_Lval->codegen_ref(true, !LREF);
 			if (!ValR.second) {
 				if (LREF) {
 					errs() << RHS->Loc << ": reference requires lvalue for initialization\n";
