@@ -62,3 +62,9 @@ end
 
 pL2E = [ 2.625, 7.0625, -23.75 ]
 
+def dFkkL2(n int, a []f64) f64
+	z = dFkkL(4, a)
+	# a[2] = 6 # this should trigger "variable 'a' is immutable"
+	return n * z
+end
+

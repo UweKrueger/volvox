@@ -25,7 +25,9 @@ cdecl(close) __close(fd int) int
 cdecl(write) __write(fd int, buf voidptr, count size_t) ssize_t
 cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 
-decl __builtin_print(fd int, nl bool, ...) int
+def __builtin_print(fd int, nl bool, ...) int
+	return 0
+end
 
 inline def print(...) int
 	return __builtin_print(1, false, va_args)

@@ -237,7 +237,7 @@ void init(const llvm::Triple& triple) {
 	interface_type = lex.get_full_type("interface");
 	interface_type->type_attr = A_interface;
 	llvm::Type* llvm_va_arg_type = llvm::ArrayType::get(llvm_interface_type, 0);
-	va_arg_type = new_FullType(llvm_va_arg_type, A_va_arg, nullptr, interface_type);
+	va_arg_type = new_FullType(llvm_va_arg_type, A_va_arg | A_ref | A_by_value, nullptr, interface_type);
 	// often needed prototype
 	int_int_proto = new_AnonProto(
 		std::make_unique<PrototypeAST>(

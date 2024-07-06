@@ -1017,9 +1017,10 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			&& Proto->ArgTypes[i+arg_offs]->type->isArrayTy()
 			&& !Proto->FT->getFunctionParamType(i+arg_offs)->isArrayTy();
 		bool is_address = (i+arg_offs) < Proto->ArgAttrs.size()
-			&& (Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal)
-			    || (by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef))
+			&& ((by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal))
+			    || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
 			    || is_var_array);
+		by_val = by_val || (i+arg_offs < Proto->ArgAttrs.size() && (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value));
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
 			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= Proto->ArgAttrs.size() || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
@@ -1082,7 +1083,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 							//errs() << Loc << ": arg #" << i << " " << *arg << '\n';
 							auto tmparg = Args[i]->codegen_raw();
 							if (!tmparg) {
-								errs() << Args[i]->Loc << ": cannot generate code for2 expression\n";
+								errs() << Args[i]->Loc << ": cannot generate code for expression\n";
 								return nullptr;
 							}
 							// The following sections are ugly hacks to circumvent bugs in

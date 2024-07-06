@@ -934,7 +934,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 				auto [ ref_type, el_type ] = getReferenceType(fn_arg_type);
 				fn_arg_type = ref_type;
 				ArgAttrs.push_back(llvm::AttributeSet());
-			} else if (argsize > sret_limit || (argtype->type_attr & A_by_value)) { // Arguments > sret_limit bytes are always passed as pointer using copy-on-write
+			} else if (argtype->type_attr & A_by_value) { // Arguments > sret_limit bytes are always passed as pointer using copy-on-write
 				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 							llvm::Attribute::getWithByValType(Context, argtype->type) }));
 				fn_arg_type = fn_arg_type->getPointerTo();
