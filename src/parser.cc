@@ -302,7 +302,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 				errs() << KeyLoc << ": type (of map value) expected\n";
 				return nullptr;
 			}
-			auto ftpair = new_FullType(*key_ft, 1); // reserve space for 1 additional FullType
+			auto ftpair = new_FullType(*key_ft, 0, 1); // reserve space for 1 additional FullType
 			ftpair[1] = *val_ft;
 			auto ft = new_FullType(llvm_ptr_type, A_map, nullptr, ftpair);
 			return ft;
@@ -1851,10 +1851,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		auto type = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL);
 		if (!(type->type_attr & A_ref)) {
 			uint64_t arg_size = type->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(type->type) : 0;
-			if (!arg_size || arg_size > sret_limit) {
-				type = new_FullType(*type);
-				type->type_attr |= A_by_value;
-			}
+			if (!arg_size || arg_size > sret_limit)
+				type = new_FullType(*type, A_by_value);
 		}
 		ArgTypes.push_back(type);
 		if (CurTok.kind == ')')

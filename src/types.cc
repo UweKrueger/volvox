@@ -1028,7 +1028,7 @@ llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_co
 }
 
 // there is another "FullType" printing routine in mangler.cc - use reference here to distinguish
-llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned type_attr, volvoxc::FullType* ft_elem_type) {
+llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned type_attr, const volvoxc::FullType* ft_elem_type) {
 	if (!type)
 		return out << "<nil>";
 	// print LLVM type for now - TODO: print canonical Volvox names instead
@@ -1116,4 +1116,28 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 		}
 	}
 	return { nullptr, nullptr, nullptr };
+}
+
+volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr,
+                                llvm::DIType* ditype, volvoxc::FullType* elem_type) {
+	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem));
+	new_node->next = nullptr;
+	new_node->ft.type = type;
+	new_node->ft.type_attr = type_attr;
+	new_node->ft.mangled_name = nullptr; // it's an anonymous type
+	new_node->ft.ditype = ditype;
+	new_node->ft.elem_type = elem_type;
+	*anon_types_end = new_node;
+	anon_types_end = &new_node->next;
+	return &new_node->ft;
+}
+
+volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned add_attr, unsigned add_fields) {
+	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem) + add_fields * sizeof(volvoxc::FullType));
+	new_node->next = nullptr;
+	new_node->ft = orig;
+	new_node->ft.type_attr |= add_attr;
+	*anon_types_end = new_node;
+	anon_types_end = &new_node->next;
+	return &new_node->ft;
 }

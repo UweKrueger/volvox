@@ -691,7 +691,7 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 			ft = nullptr;
 			return;
 		}			
-		auto ftpair = new_FullType(*key_ft, 1); // reserve space for 1 additional FullType
+		auto ftpair = new_FullType(*key_ft, 0, 1); // reserve space for 1 additional FullType
 		ftpair[1] = *val_ft;
 		ft->elem_type = ftpair;
 	}

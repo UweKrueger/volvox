@@ -369,9 +369,9 @@ struct FnArg {
 };
 
 extern llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned type_attr,
-                                   volvoxc::FullType* ft_elem_type = nullptr);
+                                   const volvoxc::FullType* ft_elem_type = nullptr);
 // there is another "FullType" printing routine in mangler.cc - use reference here to distinguish
-static inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType& ft) {
+static inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, const volvoxc::FullType& ft) {
 	return print_ft(out, ft.type, ft.type_attr, ft.elem_type);
 }
 
@@ -622,28 +622,11 @@ public:
 extern volvoxc::FTListElem* anon_types;
 extern volvoxc::FTListElem** anon_types_end;
 
-inline volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
-                                       volvoxc::FullType* elem_type = nullptr) {
-	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem));
-	new_node->next = nullptr;
-	new_node->ft.type = type;
-	new_node->ft.type_attr = type_attr;
-	new_node->ft.mangled_name = nullptr; // it's an anonymous type
-	new_node->ft.ditype = ditype;
-	new_node->ft.elem_type = elem_type;
-	*anon_types_end = new_node;
-	anon_types_end = &new_node->next;
-	return &new_node->ft;
-}
+extern volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
+                                       volvoxc::FullType* elem_type = nullptr);
 
-inline volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned additional = 0) {
-	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem) + additional * sizeof(volvoxc::FullType));
-	new_node->next = nullptr;
-	new_node->ft = orig;
-	*anon_types_end = new_node;
-	anon_types_end = &new_node->next;
-	return &new_node->ft;
-}
+extern volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned add_attr = 0,
+                                       unsigned add_fields = 0);
 
 class Table {
 public:
