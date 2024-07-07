@@ -701,11 +701,21 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 		*cap = 128;
 		*s = (char*)realloc(*s, *cap);
 	}
-	if (pre)
+	bool quot_marks = false;
+	if ((intptr_t)pre == (intptr_t)(-1)) {
+		quot_marks = true;
+		pre = NULL;
+	} else if (pre)
 		prtstring(s, cap, pos, volvox2cstr(pre), 0);
 	int space = *cap - *pos;
 	const VOLVOX_RtType* ft = va_arg(ap, const VOLVOX_RtType*);
+	unsigned idx = 0;
 	while (ft) {
+		int w = 0;
+		int p = 0;
+		unsigned flags = 0;
+		if (!pre && idx++)
+			prtstring(s, cap, pos, ", ", 0);
 		switch (ft->ID) {
 		case VOLVOX_BFloatTyID:
 		case VOLVOX_FloatTyID:
@@ -718,9 +728,11 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			} else {
 				val = va_arg(ap, double);
 			}
-			int w = va_arg(ap, int);
-			int p = va_arg(ap, int);
-			unsigned flags = va_arg(ap, unsigned);
+			if (pre) {
+				w = va_arg(ap, int);
+				p = va_arg(ap, int);
+				flags = va_arg(ap, unsigned);
+			}
 			const char* fmt = getFmtFlt(flags);
 			if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 			prt_float(s, cap, pos, space, val, w, p, flags);
@@ -736,9 +748,11 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			} else {
 				vall = va_arg(ap, unsigned long long);
 			}
-			int w = va_arg(ap, int);
-			int p = va_arg(ap, int);
-			unsigned flags = va_arg(ap, unsigned);
+			if (pre) {
+				w = va_arg(ap, int);
+				p = va_arg(ap, int);
+				flags = va_arg(ap, unsigned);
+			}
 			if (ft->type_attr & A_complex) {
 				if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 				prt_float(s, cap, pos, space, *(float*)&vall, w, p, flags);
@@ -765,9 +779,11 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			for (int n = order - 1; n >= 0; n--)
 				subsz[n] = dims[n] * subsz[n + 1];
 			char* elem_ptr = va_arg(ap, char*);
-			int w = va_arg(ap, int);
-			int p = va_arg(ap, int);
-			unsigned flags = va_arg(ap, unsigned);
+			if (pre) {
+				w = va_arg(ap, int);
+				p = va_arg(ap, int);
+				flags = va_arg(ap, unsigned);
+			}
 			size_t elem_size = ft->elem_type->type_size;
 			if (subsz[0]) {
 				print_array(s, cap, pos, ft->elem_type, elem_ptr, dims, subsz, order, 0, w, p, flags);
@@ -780,11 +796,13 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 		}
 			break;
 		case VOLVOX_FixedVectorTyID: {
-			if (true || (ft->type_attr & A_complex)) {
+			if (ft->type_attr & A_complex) {
 				complex_float c = va_arg(ap, complex_float);
-				int w = va_arg(ap, int);
-				int p = va_arg(ap, int);
-				unsigned flags = va_arg(ap, unsigned);
+				if (pre) {
+					w = va_arg(ap, int);
+					p = va_arg(ap, int);
+					flags = va_arg(ap, unsigned);
+				}
 				if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 				prt_float(s, cap, pos, space, crealf(c), w, p, flags);
 				const char* sp = cimagf(c) < 0 ? " - " : " + ";
@@ -797,17 +815,22 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 			break;
 		case VOLVOX_PointerTyID: {
 			char* str = va_arg(ap, char*);
-			int w = va_arg(ap, int);
-			int p = va_arg(ap, int);
-			unsigned flags = va_arg(ap, unsigned);
+			if (pre) {
+				w = va_arg(ap, int);
+				p = va_arg(ap, int);
+				flags = va_arg(ap, unsigned);
+			} else if (quot_marks)
+				w = INT_MIN;
 			prt_pointer(s, cap, pos, str, w, ft->type_attr);
 		}
 			break;
 		case VOLVOX_FunctionTyID: {
 			char* fn = va_arg(ap, char*);
-			int w = va_arg(ap, int);
-			int p = va_arg(ap, int);
-			unsigned flags = va_arg(ap, unsigned);
+			if (pre) {
+				w = va_arg(ap, int);
+				p = va_arg(ap, int);
+				flags = va_arg(ap, unsigned);
+			}
 			int expected_nchar = Max(abs(w)+1, 30+1);
 			while (space < expected_nchar) {
 				*cap += expected_nchar + (*cap >> 1);
@@ -820,9 +843,11 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 		case VOLVOX_StructTyID: {
 			unsigned num_fields = ft->SubclassData;
 			char* elem_ptr = va_arg(ap, char*);
-			int w = va_arg(ap, int);
-			int p = va_arg(ap, int);
-			unsigned flags = va_arg(ap, unsigned);
+			if (pre) {
+				w = va_arg(ap, int);
+				p = va_arg(ap, int);
+				flags = va_arg(ap, unsigned);
+			}
 			print_struct(s, cap, pos, ft, elem_ptr, num_fields, 0, w, p, flags);
 		}
 			break;
@@ -834,10 +859,12 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 		if (space < 1)
 			// error in calculation
 			abort();
-		const char* post = va_arg(ap, char*);
-		if (post) {
-			prtstring(s, cap, pos, post, 0);
-			space = *cap - *pos;
+		if (pre) {
+			const char* post = va_arg(ap, char*);
+			if (post) {
+				prtstring(s, cap, pos, post, 0);
+				space = *cap - *pos;
+			}
 		}
 		ft = va_arg(ap, const VOLVOX_RtType*);
 	}
