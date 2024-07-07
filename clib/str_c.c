@@ -877,7 +877,7 @@ static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, ... /*
 	va_end(ap);
 }
 
-_DECL bool vfprint(int fd, bool newline, const char* pre, va_list ap) {
+_DECL int vfprint(int fd, bool newline, const char* pre, va_list ap) {
 	char* s = NULL;
 	unsigned cap = 0;
 	unsigned pos = 0;
@@ -889,7 +889,7 @@ _DECL bool vfprint(int fd, bool newline, const char* pre, va_list ap) {
 	}
 	int n = write(fd, s, bytes_to_write);
 	free(s);
-	return n == bytes_to_write;
+	return (n == bytes_to_write) ? n : -1;
 }
 
 _DECL bool enableColorANSI(int fd) {
@@ -1408,6 +1408,25 @@ _DECL void __trim_cstring(char* s, ssize_t* l, char d) {
 			*l = l_new;
 		}
 	}
+}
+
+_DECL char* __volvox_sprt(const char* pre, ... /* ft, val, int w, int p, unsigned flags, ..., char* post */) {
+	char* s = NULL;
+	unsigned cap = 0;
+	unsigned pos = 0;
+	va_list ap;
+	va_start(ap, pre);
+	vsprt(&s, &cap, &pos, pre, ap);
+	va_end(ap);
+	return __transformcstr2volvox_l(s, pos, cap);
+}
+
+_DECL int __volvox_prt(int fd, bool nl, const char* pre, ... /* ft, val, int w, int p, unsigned flags, ..., char* post */) {
+	va_list ap;
+	va_start(ap, pre);
+	int n = vfprint(fd, nl, pre, ap);
+	va_end(ap);
+	return n;
 }
 
 #undef target_bytes

@@ -24,6 +24,8 @@ cdecl(pipe2) __pipe2(fds voidptr, flags int) int
 cdecl(close) __close(fd int) int
 cdecl(write) __write(fd int, buf voidptr, count size_t) ssize_t
 cdecl(CloseHandle) __CloseHandle(handle voidptr) int
+cdecl __volvox_sprt(pre cstring, ...) string
+cdecl __volvox_prt(fd int, nl bool, pre cstring, ...) int
 
 def __builtin_print(fd int, nl bool, ...) int
 	return 0
@@ -191,10 +193,6 @@ cdecl(strdup) __strdup(s cstring) cstring
 cdecl _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
 cdecl _ZN9ArrayNodeD1Ev(&a ArrayNode)
 cdecl _ZN9ArrayNode8pushbackEPcy(&a ArrayNode, s string, obj_size u64)
-cdecl _ZN6volvox6fprintEiPKcz(fd int, pre string, ft string, ...) bool
-cdecl _ZN6volvox8fprintlnEiPKcz(fd int, pre string, ft string, ...) bool
-cdecl _ZN6volvox5printEPKcz(pre string, ...) bool
-cdecl _ZN6volvox7printlnEPKcz(pre string, ...) bool
 cdecl memcpy(dest voidptr, src cstring, n size_t) voidptr
 cdecl getTermSize(fd i32) i32
 cdecl showtestres(fd i32, width i32, testcase string, result bool)
