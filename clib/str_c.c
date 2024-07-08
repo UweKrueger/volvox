@@ -892,6 +892,144 @@ _DECL int vfprint(int fd, bool newline, const char* pre, va_list ap) {
 	return (n == bytes_to_write) ? n : -1;
 }
 
+struct __volvox_interface {
+	const VOLVOX_RtType* typ;
+	union {
+		char* ptr;
+		uint64_t u64;
+		double f64;
+		uint32_t u32;
+		float f32;
+		complex_float c32;
+	};
+};
+
+_DECL int _Z15__builtin_printibRA0interface(int fd, bool nl, size_t n_elem, struct __volvox_interface* ap) {
+	unsigned cap = 128;
+	unsigned pos = 0;
+	char* s = (char*)malloc(cap);
+	for (size_t idx = 0; idx < n_elem; idx++) {
+		if (idx)
+			prtstring(&s, &cap, &pos, ", ", 0);
+		int space = cap - pos;
+		int w = 0;
+		int p = 0;
+		unsigned flags = 0;
+		const VOLVOX_RtType* ft = ap[idx].typ;
+		switch (ft->ID) {
+		case VOLVOX_BFloatTyID:
+		case VOLVOX_FloatTyID:
+		case VOLVOX_DoubleTyID: {
+			double val;
+			if (ft->ID != VOLVOX_DoubleTyID) {
+				val = (double)ap[idx].f32;
+			} else {
+				val = ap[idx].f64;
+			}
+			const char* fmt = getFmtFlt(0);
+			int p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
+			prt_float(&s, &cap, &pos, space, val, w, p, flags);
+			if (ft->type_attr & A_signed)
+				prtstring(&s, &cap, &pos, "i", flags);
+		}
+			break;
+		case VOLVOX_IntegerTyID: {
+			unsigned long long vall;
+			if (ft->SubclassData <= 32) {
+				unsigned val = ap[idx].u32;
+				vall = val;
+			} else {
+				vall = ap[idx].u64;
+			}
+			if (ft->type_attr & A_complex) {
+				if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
+				prt_float(&s, &cap, &pos, space, *(float*)&vall, w, p, flags);
+				const char* sp = *((float*)&vall + 1) < 0 ? " - " : " + ";
+				float im = ((float*)&vall + 1) < 0 ? -*((float*)&vall + 1) : *((float*)&vall + 1);
+				prtstring(&s, &cap, &pos, sp, w);
+				prt_float(&s, &cap, &pos, 0, im, w, p, flags);
+				prtstring(&s, &cap, &pos, "i", w);
+			} else {
+				if (!(ft->type_attr & A_signed))
+					flags |= FMT_UNSIGNED;
+				prt_int(&s, &cap, &pos, space, vall, ft->SubclassData, w, p, flags);
+			}
+		}
+			break;
+		case VOLVOX_ArrayTyID: {
+			// rt_len = ft->num_fields;
+			unsigned order = ft->SubclassData;
+			size_t* dims = (size_t*)alloca(order * sizeof(size_t));
+			size_t* subsz = (size_t*)alloca((order + 1) * sizeof(size_t));
+			size_t* descr_ptr = (size_t*)ap[idx].ptr;
+			for (unsigned n = 0; n < order; n++)
+				dims[n] = *descr_ptr++;
+			subsz[order] = ft->elem_type->type_size;
+			for (int n = order - 1; n >= 0; n--)
+				subsz[n] = dims[n] * subsz[n + 1];
+			char* elem_ptr = (char*)*descr_ptr;
+			size_t elem_size = ft->elem_type->type_size;
+			if (subsz[0]) {
+				print_array(&s, &cap, &pos, ft->elem_type, elem_ptr, dims, subsz, order, 0, w, p, flags);
+			} else {
+				for (unsigned n = 0; n < order; n++)
+					prtstring(&s, &cap, &pos, "[", 0);
+				for (unsigned n = 0; n < order; n++)
+					prtstring(&s, &cap, &pos, "]", 0);
+			}
+		}
+			break;
+		case VOLVOX_FixedVectorTyID: {
+			if (ft->type_attr & A_complex) {
+				complex_float c = ap[idx].c32;
+				p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
+				prt_float(&s, &cap, &pos, space, crealf(c), w, p, flags);
+				const char* sp = cimagf(c) < 0 ? " - " : " + ";
+				float im = cimagf(c) < 0 ? -cimagf(c) : cimagf(c);
+				prtstring(&s, &cap, &pos, sp, w);
+				prt_float(&s, &cap, &pos, 0, im, w, p, flags);
+				prtstring(&s, &cap, &pos, "i", w);
+			}
+		}
+			break;
+		case VOLVOX_PointerTyID: {
+			char* str = ap[idx].ptr;
+			w = INT_MIN;
+			prt_pointer(&s, &cap, &pos, str, w, ft->type_attr);
+		}
+			break;
+		case VOLVOX_FunctionTyID: {
+			char* fn = ap[idx].ptr;
+			int expected_nchar = Max(abs(w)+1, 30+1);
+			while (space < expected_nchar) {
+				cap += expected_nchar + (cap >> 1);
+				s = (char*)realloc(s, cap);
+				space = cap - pos;
+			}
+			pos += sprintf(s + pos, "function: <%p>", fn);
+		}
+			break;
+		case VOLVOX_StructTyID: {
+			unsigned num_fields = ft->SubclassData;
+			char* elem_ptr = ap[idx].ptr;
+			print_struct(&s, &cap, &pos, ft, elem_ptr, num_fields, 0, w, p, flags);
+		}
+			break;
+		default:
+			fprintf(stderr, "TypeID: %u\n", ft->ID);
+			abort();
+		}
+	}
+	unsigned bytes_to_write = pos;
+	if (nl) {
+		s[pos] = '\n';
+		bytes_to_write++;
+	}
+	int n = write(fd, s, bytes_to_write);
+	free(s);
+	return (n == bytes_to_write) ? n : -1;
+}
+
 _DECL bool enableColorANSI(int fd) {
 #if defined (_MSC_VER)
 	static bool is_set = false;

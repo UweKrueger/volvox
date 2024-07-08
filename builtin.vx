@@ -27,9 +27,7 @@ cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 cdecl __volvox_sprt(pre cstring, ...) string
 cdecl __volvox_prt(fd int, nl bool, pre cstring, ...) int
 
-def __builtin_print(fd int, nl bool, ...) int
-	return 0
-end
+decl __builtin_print(fd int, nl bool, ...) int
 
 inline def print(...) int
 	return __builtin_print(1, false, va_args)
