@@ -4,8 +4,6 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #include "../include/volvox.hh"
-#include "global.h"
-#include "AST.h"
 
 std::vector<const char*> jit_string_consts;
 bool do_range_checks = true;

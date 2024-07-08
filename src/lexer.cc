@@ -4,8 +4,6 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #include "../include/volvox.hh"
-#include "global.h"
-#include "AST.h"
 
 /* we want to use NetBSD's libedit and not GNU readline because the latter is GPL licensed
    (not LGPL!). On some platforms there are <readline/readline.h> for GNU readline and

@@ -4,8 +4,6 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #pragma once
-#include "../include/volvox.hh"
-#include "global.h"
 
 //===----------------------------------------------------------------------===//
 // Abstract Syntax Tree (aka Parse Tree)

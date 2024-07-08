@@ -4,7 +4,6 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #include "../include/volvox.hh"
-#include "global.h"
 
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 	if (ft->type_attr & A_ref) // reference

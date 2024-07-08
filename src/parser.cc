@@ -4,8 +4,6 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #include "../include/volvox.hh"
-#include "global.h"
-#include "AST.h"
 
 //===----------------------------------------------------------------------===//
 // Parser

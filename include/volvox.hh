@@ -88,3 +88,14 @@
 #endif
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <math.h>
+#include <float.h>
+
+#ifdef _WIN32
+#include "VolvoxJIT-18.h"
+#include <windows.h>
+#include <synchapi.h>
+#include <processthreadsapi.h>
+#endif
+#include "../src/global.h"
+#include "../src/AST.h"

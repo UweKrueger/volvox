@@ -3,7 +3,7 @@
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
-#include "global.h"
+#include "../include/volvox.hh"
 
 #define VOLVOX_ROOT "VOLVOX"
 #define VOLVOX_LIB "VOLVOX_LIB"
