@@ -904,12 +904,12 @@ struct __volvox_interface {
 	};
 };
 
-_DECL int _Z15__builtin_printibRA0interface(int fd, bool nl, size_t n_elem, struct __volvox_interface* ap) {
+_DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n_elem, struct __volvox_interface* ap) {
 	unsigned cap = 128;
 	unsigned pos = 0;
 	char* s = (char*)malloc(cap);
 	for (size_t idx = 0; idx < n_elem; idx++) {
-		if (idx)
+		if (csv && idx)
 			prtstring(&s, &cap, &pos, ", ", 0);
 		int space = cap - pos;
 		int w = 0;
@@ -994,7 +994,8 @@ _DECL int _Z15__builtin_printibRA0interface(int fd, bool nl, size_t n_elem, stru
 			break;
 		case VOLVOX_PointerTyID: {
 			char* str = ap[idx].ptr;
-			w = INT_MIN;
+			if (csv)
+				w = INT_MIN;
 			prt_pointer(&s, &cap, &pos, str, w, ft->type_attr);
 		}
 			break;

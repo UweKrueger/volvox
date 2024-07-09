@@ -27,22 +27,26 @@ cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 cdecl __volvox_sprt(pre cstring, ...) string
 cdecl __volvox_prt(fd int, nl bool, pre cstring, ...) int
 
-decl __builtin_print(fd int, nl bool, ...) int
+decl __builtin_print(fd int, csv bool, nl bool, ...) int
 
 inline def print(...) int
-	return __builtin_print(1, false, va_args)
+	return __builtin_print(1, false, true, va_args)
 end
 
-inline def println(...) int
-	return __builtin_print(1, true, va_args)
+inline def printn(...) int
+	return __builtin_print(1, false, false, va_args)
+end
+
+inline def printcsv(...) int
+	return __builtin_print(1, true, true, va_args)
 end
 
 inline def eprint(...) int
-	return __builtin_print(2, false, va_args)
+	return __builtin_print(2, false, true, va_args)
 end
 
-inline def eprintln(...) int
-	return __builtin_print(2, true, va_args)
+inline def eprintn(...) int
+	return __builtin_print(2, false, false, va_args)
 end
 
 # create POSIX/Windows Threads - returns -1 on error, 0 on detach and handle for joinable
