@@ -1922,7 +1922,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	bool left_is_imag = LHS->ft && LHS->ft->type && (LHS->ft->type->isFloatTy() || LHS->ft->type->isDoubleTy()) && (LHS->ft->type_attr & A_imaginary);
 	const char* new_err_msg;
 	if (left_is_imag || right_is_imag)
-		if (RHS->ft->type->isDoubleTy() || LHS->ft->type->isDoubleTy())
+		if (RHS->ft->type->isDoubleTy() && !RHS->is_unknown_type || LHS->ft->type->isDoubleTy() && !LHS->is_unknown_type || RHS->is_unknown_type && LHS->is_unknown_type)
 			LHS->desired_type = RHS->desired_type = llvm::Type::getDoubleTy(Context);
 		else
 			LHS->desired_type = RHS->desired_type = llvm::Type::getFloatTy(Context);
