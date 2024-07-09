@@ -685,9 +685,10 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 		}
 	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr->ft->type)) {
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
-			auto V = LV->codegen_ref();
+			auto V = LV->codegen_ref(true);
 			val = V.second;
-		} else {
+		}
+		if (!val) {
 			uint64_t allocsz = 0;
 			llvm::Constant* alloc_sz;
 			if (expr->needs_target()) {
