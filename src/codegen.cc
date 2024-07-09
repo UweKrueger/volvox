@@ -642,8 +642,6 @@ llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
-	if (target)
-		errs() << Loc << ": target set\n";
 	llvm::Value* val = nullptr;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->ft->type)) {
 		// pass by reference

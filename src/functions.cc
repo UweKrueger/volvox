@@ -1027,6 +1027,17 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, volvox_var_array, 1);
 	}
 	for (unsigned i = 0; i < Args.size(); ++i) {
+		if (is_volvox_variadic && (i+arg_offs) >= n_proto_args) {
+			unsigned idx = (i+arg_offs) - n_proto_args;
+			auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(Args[i]));
+			llvm::Value* interface_val_adr = Builder->CreateGEP(llvm_interface_type, volvox_var_array, llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), idx));
+			llvm::Value* interface_val = interface_expr->codegen_raw(interface_val_adr);
+			if (!interface_val) {
+				errs() << interface_expr->Loc << ": cannot generate interface expr value\n";
+				return nullptr;
+			}
+			continue;
+		}
 		bool by_val = false;
 		bool is_var_array = (i+arg_offs) < n_proto_args
 			&& Proto->ArgTypes[i+arg_offs]->type->isArrayTy()
@@ -1157,6 +1168,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		if (!ArgsV.back())
 			return nullptr;
 	}
+	if (is_volvox_variadic)
+		ArgsV.push_back(volvox_var_array_ref);
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
 		// Callee was a function symbol like `sin`
 		if (Proto->const_result)
