@@ -443,6 +443,7 @@ extern llvm::Type* llvm_size_type;
 extern llvm::Type* llvm_bool_type;
 extern llvm::Type* llvm_interface_type;
 extern llvm::Type* llvm_c32_type;
+extern llvm::Type* llvm_va_arg_ref_type;
 extern llvm::PointerType* llvm_ptr_type;
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* bool_type;

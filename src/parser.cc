@@ -1828,9 +1828,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				errs() << CurLoc << ": unexpected '" << CurTok << "' after '...' - ')' expected\n";
 				return nullptr;
 			}
-			if (visibility & A_c_api)
-				isVarArgs = true;
-			else {
+			isVarArgs = true;
+			if (!(visibility & A_c_api)) {
 				ArgNames.push_back("va_args");
 				ArgPos.push_back(El_Pos);
 				ArgTypes.push_back(va_arg_type);

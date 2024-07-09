@@ -1009,24 +1009,41 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 	}
+	unsigned n_proto_args = Proto->ArgAttrs.size();
+	bool is_volvox_variadic = Proto->IsVarArgs && !(Proto->visibility & A_c_api);
+	llvm::Value* volvox_var_array = nullptr;
+	llvm::Value* volvox_var_array_ref = nullptr;
+	unsigned n_volovox_va_arg = 0;
+	if (is_volvox_variadic) {
+		n_proto_args--; // Volvox variadic functions have an interface-array as last regular argument
+		n_volovox_va_arg = Args.size() + arg_offs - n_proto_args;
+		auto va_arg_array_type = llvm::ArrayType::get(llvm_interface_type, n_volovox_va_arg);
+		if (n_volovox_va_arg)
+			volvox_var_array = CreateEntryBlockAlloca(va_arg_array_type, "va_arg_array");
+		else
+			volvox_var_array = llvm::ConstantPointerNull::get(va_arg_array_type->getPointerTo());
+		volvox_var_array_ref = llvm::UndefValue::get(llvm_va_arg_ref_type);
+		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, getSize(n_volovox_va_arg), 0);
+		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, volvox_var_array, 1);
+	}
 	for (unsigned i = 0; i < Args.size(); ++i) {
 		bool by_val = false;
-		bool is_var_array = (i+arg_offs) < Proto->ArgAttrs.size()
+		bool is_var_array = (i+arg_offs) < n_proto_args
 			&& Proto->ArgTypes[i+arg_offs]->type->isArrayTy()
 			&& !Proto->FT->getFunctionParamType(i+arg_offs)->isArrayTy();
-		bool is_address = (i+arg_offs) < Proto->ArgAttrs.size()
+		bool is_address = (i+arg_offs) < n_proto_args
 			&& ((by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal))
 			    || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
 			    || is_var_array);
-		by_val = by_val || (i+arg_offs < Proto->ArgAttrs.size() && (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value));
+		by_val = by_val || (i+arg_offs < n_proto_args && (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value));
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
-			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= Proto->ArgAttrs.size() || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
+			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= n_proto_args || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
 				arg = Volvox2CStr(arg);
 			ArgsV.push_back(arg);
 		} else {
 			llvm::Type* real_arg_type;
-			if ((i+arg_offs) < Proto->ArgAttrs.size())
+			if ((i+arg_offs) < n_proto_args)
 				real_arg_type = Args[i]->desired_type = Proto->ArgTypes[i+arg_offs]->type;
 			else
 				real_arg_type = Args[i]->ft->type;
@@ -1039,7 +1056,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					errs() << Args[i]->Loc << ": cannot create function call argument\n";
 					return nullptr;
 				}
-				if ((i+arg_offs) < Proto->ArgAttrs.size() && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
+				if ((i+arg_offs) < n_proto_args && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
 					if (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor) {
 						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
 						if (!F) {
@@ -1125,7 +1142,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 			if (!arg)
 				return nullptr;
-			if ((i+arg_offs) >= Proto->ArgAttrs.size()) {
+			if ((i+arg_offs) >= n_proto_args) {
 				if (arg->getType()->isFloatTy()) {
 					// C convention: variadic float args must be promoted to double
 					arg = Builder->CreateFPCast(arg, llvm::Type::getDoubleTy(Context));

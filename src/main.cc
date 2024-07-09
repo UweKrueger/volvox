@@ -102,6 +102,7 @@ llvm::Type* llvm_size_type;
 llvm::Type* llvm_bool_type;
 llvm::Type* llvm_interface_type;
 llvm::Type* llvm_c32_type;
+llvm::Type* llvm_va_arg_ref_type;
 llvm::PointerType* llvm_ptr_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
@@ -236,6 +237,8 @@ void init(const llvm::Triple& triple) {
 	interface_type->type_attr = A_interface;
 	llvm::Type* llvm_va_arg_type = llvm::ArrayType::get(llvm_interface_type, 0);
 	va_arg_type = new_FullType(llvm_va_arg_type, A_va_arg | A_ref | A_by_value, nullptr, interface_type);
+	std::vector<llvm::Type*> llvm_va_arg_ref_struct_types = { llvm_size_type, llvm_va_arg_type->getPointerTo() };
+	llvm_va_arg_ref_type = llvm::StructType::get(Context, llvm_va_arg_ref_struct_types);
 	// often needed prototype
 	int_int_proto = new_AnonProto(
 		std::make_unique<PrototypeAST>(

@@ -952,7 +952,9 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		LLVMArgTypes.insert(LLVMArgTypes.begin(), struct_ret_type);
 		llvm_ret_type = llvm::Type::getVoidTy(Context);
 	}
-	FT = llvm::FunctionType::get(llvm_ret_type, LLVMArgTypes, IsVarArgs);
+	// Volvox variadic function are passed an interface array as last argument
+	// So only C-API functions are variadic for LLVM
+	FT = llvm::FunctionType::get(llvm_ret_type, LLVMArgTypes, IsVarArgs && (visibility & A_c_api));
 }
 
 ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b) {
