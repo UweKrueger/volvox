@@ -1010,7 +1010,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	unsigned n_proto_args = Proto->ArgAttrs.size();
-	bool is_volvox_variadic = Proto->IsVarArgs && !(Proto->visibility & A_c_api);
+	bool is_volvox_variadic = Proto->IsVarArgs && !(Proto->visibility & A_c_api) && !(!Args.empty() && (Args.back()->ft->type_attr & A_va_arg));
 	llvm::Value* volvox_var_array = nullptr;
 	llvm::Value* volvox_var_array_ref = nullptr;
 	unsigned n_volovox_va_arg = 0;
