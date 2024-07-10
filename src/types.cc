@@ -44,8 +44,8 @@ std::pair<unsigned, bool> getBitWidth(llvm::Type* type) {
 		return { 113, true };
 	case llvm::Type::BFloatTyID:
 		return { 8, true };
-	case llvm::Type::FixedVectorTyID:
-		return getBitWidth(llvm::cast<llvm::FixedVectorType>(type)->getElementType());
+	// case llvm::Type::FixedVectorTyID:
+	// 	return getBitWidth(llvm::cast<llvm::FixedVectorType>(type)->getElementType());
 	default:
 		return { 0, false };
 	}
@@ -92,8 +92,10 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 {
 	bool expr_is_signed = expr_attr & A_signed;
 	bool expr_is_imag = (expr_attr & A_imaginary) && (expr_type->isFloatTy() || expr_type->isDoubleTy());
+	bool expr_is_complex = (bool)(expr_attr & A_complex);
 	bool desired_is_signed = desired_attr & A_signed;
 	bool desired_is_imag = (desired_attr & A_imaginary) && (desired_type->isFloatTy() || desired_type->isDoubleTy());
+	bool desired_is_complex = (bool)(desired_attr & A_complex);
 	if (!expr_type)
 		return nullptr;
 	if (expr_is_imag != desired_is_imag)
@@ -190,6 +192,8 @@ no_explicit_constructor:
 		else
 			return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "int -> voidptr");
 	}
+	if (!desired_bitwidth || !expr_bitwidth)
+		return nullptr;
 	if (desired_bitwidth == 1) {
 		if (expr_bitwidth == 1)
 			return NoConversion;
