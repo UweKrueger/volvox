@@ -44,6 +44,8 @@ std::pair<unsigned, bool> getBitWidth(llvm::Type* type) {
 		return { 113, true };
 	case llvm::Type::BFloatTyID:
 		return { 8, true };
+	case llvm::Type::FixedVectorTyID:
+		return getBitWidth(llvm::cast<llvm::FixedVectorType>(type)->getElementType());
 	default:
 		return { 0, false };
 	}
