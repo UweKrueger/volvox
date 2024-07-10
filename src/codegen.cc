@@ -641,8 +641,14 @@ llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 	return handle(target, (*ft->Protos)[selected_proto]->codegen());
 }
 
-llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
+llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 	llvm::Value* val = nullptr;
+	llvm::Value* strict_target;
+	if (strict) {
+		strict_target = target;
+		target = nullptr;
+	} else
+		strict_target = nullptr;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->ft->type)) {
 		// pass by reference
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
@@ -682,6 +688,12 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 					condnesting--;
 				}
 			}
+		}
+		if (strict) {
+			llvm::Value* val_storage = CreateEntryBlockAlloca(val->getType());
+			Builder->CreateStore(val, val_storage);
+			val = val_storage;
+			target = strict_target;
 		}
 	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr->ft->type)) {
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
