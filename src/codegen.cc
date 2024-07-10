@@ -1949,9 +1949,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			RHS->conv_kind = ConvUnsigned;
 	}
 	if (false) {
-		if (LHS->desired_type) errs() << "LHS desired_type: " << *LHS->desired_type << ' ';
-		if (RHS->desired_type) errs() << "RHS desired_type: " << *RHS->desired_type << ' ';
-		errs() << "expr: ";
+		errs() << Loc << ": Imag: " << left_is_imag << right_is_imag << " Cmplx: " << (bool)(LHS->ft->type_attr & A_complex) << (bool)(RHS->ft->type_attr & A_complex);
+		if (LHS->desired_type) errs() << " LHS desired_type: " << *LHS->desired_type;
+		if (RHS->desired_type) errs() << " RHS desired_type: " << *RHS->desired_type;
+		errs() << " expr: ";
 		if (desired_type)
 			errs() << *desired_type << '\n';
 		else

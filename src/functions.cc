@@ -143,10 +143,13 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		bool exact = true;
 		bool with_conv = true;
 		bool with_undefconv = true;
+		unsigned n_proto_args = proto->ArgTypes.size();
+		if (proto->IsVarArgs && !(proto->visibility & A_c_api))
+			n_proto_args--;
 		for (int i=0; i<fnargs.size(); i++) {
 			conv_match_t match_kind = untyped_match;
 			std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
-			if (i >= proto->ArgTypes.size()) {
+			if (i >= n_proto_args) {
 				if (candidate < 0)
 					fnargs[i].Conv = nullptr; // for variadic args - but see comment above
 			} else {
