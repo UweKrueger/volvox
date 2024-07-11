@@ -42,6 +42,7 @@ TOKEN(nil) \
 TOKEN(last_keyword) \
 TOKEN(ptr_lit) \
 TOKEN(str_lit) \
+TOKEN(part_str_lit) /* for string interpolation */ \
 TOKEN(number) \
 TOKEN(identifier) \
 TOKEN(ellipsis) \

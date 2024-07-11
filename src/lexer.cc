@@ -498,8 +498,7 @@ Token Lexer::purge_line() {
 	return ';';
 }
 
-Token Lexer::get_str_tok(int terminator) {
-	char Closing = CurChar;
+Token Lexer::get_str_tok(int Closing) {
 	std::string StrLit = "";
 	unsigned sum = 0;
 	unsigned nexpect = 0;
@@ -844,10 +843,11 @@ if (CurChar == 'i') {
 		default:
 			errs() << "Invalid '*' in context\n";
 			CurChar = advance();
+			return tok_error;
 		}
 	case '\'':
 	case '"':
-		return get_str_tok(terminator);
+		return get_str_tok(CurChar);
 	case '#': {
 		// Comment until end of line.
 		do
