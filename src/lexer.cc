@@ -498,6 +498,94 @@ Token Lexer::purge_line() {
 	return ';';
 }
 
+Token Lexer::get_str_tok(int terminator) {
+	char Closing = CurChar;
+	std::string StrLit = "";
+	unsigned sum = 0;
+	unsigned nexpect = 0;
+	for (;;) {
+		CurChar = advance();
+		if (nexpect) {
+			if (CurChar >= '0' && CurChar < '8') {
+				sum = (sum << 3) | (CurChar - '0');
+				if (!--nexpect)
+					CurChar = advance();
+				else
+					continue;
+			} else {
+				nexpect = 0;
+			}
+			if (sum >= 0x100)
+				errs() << "Illegal octal character sequence\n";
+			else
+				StrLit += (char)sum;
+		}
+		switch (CurChar) {
+		case '\\':
+			CurChar = advance();
+			switch (CurChar) {
+			case 'a':
+				StrLit += '\a';
+				continue;
+			case 'b':
+				StrLit += '\b';
+				continue;
+			case 'e':
+				StrLit += '\033';
+				continue;
+			case 'f':
+				StrLit += '\f';
+				continue;
+			case 'n':
+				StrLit += '\n';
+				continue;
+			case 'r':
+				StrLit += '\r';
+				continue;
+			case 't':
+				StrLit += '\t';
+				continue;
+			case 'v':
+				StrLit += '\v';
+				continue;
+			case '\\':
+				StrLit += '\\';
+				continue;
+			case '0':
+			case '1':
+			case '2':
+			case '3':
+			case '4':
+			case '5':
+			case '6':
+			case '7':
+				// 3 octal digits
+				sum = CurChar - '0';
+				nexpect = 2;
+				continue;
+			default:
+				goto add_letter;
+			}
+		case EOF:
+#if defined (_MSC_VER)
+		case 26:
+#endif
+			errs() << "unexpected EOF in string literal\n";
+			return EOF;
+		case '"':
+		case '\'':
+			if (CurChar == Closing) {
+				CurChar = advance();
+				return Token(StrLit, Closing == '\'');
+			}
+			// else fallthrough
+		default:
+		add_letter:
+			StrLit += CurChar;
+		}
+	}
+}
+
 Token Lexer::gettok(eXpect expect, int terminator) {
 	Expected = expect; // for error messages in parser, etc.
 	if (KeepIdentifierStr != "") {
@@ -758,93 +846,8 @@ if (CurChar == 'i') {
 			CurChar = advance();
 		}
 	case '\'':
-	case '"': {
-		char Closing = CurChar;
-		std::string StrLit = "";
-		unsigned sum = 0;
-		unsigned nexpect = 0;
-		for (;;) {
-			CurChar = advance();
-			if (nexpect) {
-				if (CurChar >= '0' && CurChar < '8') {
-					sum = (sum << 3) | (CurChar - '0');
-					if (!--nexpect)
-						CurChar = advance();
-					else
-						continue;
-				} else {
-					nexpect = 0;
-				}
-				if (sum >= 0x100)
-					errs() << "Illegal octal character sequence\n";
-				else
-					StrLit += (char)sum;
-			}
-			switch (CurChar) {
-			case '\\':
-				CurChar = advance();
-				switch (CurChar) {
-				case 'a':
-					StrLit += '\a';
-					continue;
-				case 'b':
-					StrLit += '\b';
-					continue;
-				case 'e':
-					StrLit += '\033';
-					continue;
-				case 'f':
-					StrLit += '\f';
-					continue;
-				case 'n':
-					StrLit += '\n';
-					continue;
-				case 'r':
-					StrLit += '\r';
-					continue;
-				case 't':
-					StrLit += '\t';
-					continue;
-				case 'v':
-					StrLit += '\v';
-					continue;
-				case '\\':
-					StrLit += '\\';
-					continue;
-				case '0':
-				case '1':
-				case '2':
-				case '3':
-				case '4':
-				case '5':
-				case '6':
-				case '7':
-					// 3 octal digits
-					sum = CurChar - '0';
-					nexpect = 2;
-					continue;
-				default:
-					goto add_letter;
-				}
-			case EOF:
-#if defined (_MSC_VER)
-			case 26:
-#endif
-				errs() << "unexpected EOF in string literal\n";
-				return EOF;
-			case '"':
-			case '\'':
-				if (CurChar == Closing) {
-					CurChar = advance();
-					return Token(StrLit, Closing == '\'');
-				}
-				// else fallthrough
-			default:
-			add_letter:
-				StrLit += CurChar;
-			}
-		}
-	}
+	case '"':
+		return get_str_tok(terminator);
 	case '#': {
 		// Comment until end of line.
 		do

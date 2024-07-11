@@ -1212,6 +1212,7 @@ public:
 	}
 	int advance();
 	Token gettok(eXpect expect = eNone, int terminator = 0);
+	Token get_str_tok(int terminator);
 	Token purge_line();
 	char peek();
 	char peek_strict();
