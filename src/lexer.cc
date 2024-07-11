@@ -550,6 +550,9 @@ Token Lexer::get_str_tok(int Closing) {
 			case '\\':
 				StrLit += '\\';
 				continue;
+			case '$':
+				StrLit += '$';
+				continue;
 			case '0':
 			case '1':
 			case '2':
@@ -571,11 +574,16 @@ Token Lexer::get_str_tok(int Closing) {
 #endif
 			errs() << "unexpected EOF in string literal\n";
 			return EOF;
+		case '$':
+			if (Closing != '"')
+				goto add_letter;
+			CurChar = advance();
+			return Token(StrLit, '$');
 		case '"':
 		case '\'':
 			if (CurChar == Closing) {
 				CurChar = advance();
-				return Token(StrLit, Closing == '\'');
+				return Token(StrLit, Closing);
 			}
 			// else fallthrough
 		default:

@@ -145,6 +145,18 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
+// interpolated string literals - "Result: $x, Average: ${x+y+z/3}"
+class InterpStrLitExprAST : public ExprAST {
+public:
+	std::vector<std::string> str_parts;
+	std::vector<std::array<std::unique_ptr<ExprAST>,4>> interpolations;
+	InterpStrLitExprAST(SourceLocation Loc, std::vector<std::string> _str_parts,
+		std::vector<std::array<std::unique_ptr<ExprAST>,4>> _ints)
+		: ExprAST(string_type, Loc), str_parts(std::move(_str_parts)),
+		  interpolations(std::move(_ints)) {}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+};
+
 inline bool is_cfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
 	return Proto && (*Proto).size() == 1 && ((*Proto)[0]->getName().c_str()[0] != '_' || (*Proto)[0]->getName().c_str()[1] != 'Z');
 }

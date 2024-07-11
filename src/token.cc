@@ -338,9 +338,10 @@ unknown_err:
 	abort();
 }
 				
-Token::Token(const std::string& str, bool is_char)
-	: kind(is_char ? tok_number : tok_str_lit) {
-	if (is_char) {
+Token::Token(const std::string& str, char Closing)
+	: kind(Closing == '\'' ? tok_number
+	       : Closing == '"' ? tok_str_lit : tok_part_str_lit) {
+	if (kind == tok_number) {
 		const char* seq_start = str.c_str();
 		const char* seq = seq_start;
 		uint32_t codepoint = utf8_decode(&seq);

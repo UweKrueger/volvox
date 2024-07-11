@@ -408,6 +408,14 @@ static std::unique_ptr<ExprAST> ParseStringExpr(int terminator = 0) {
 	return Result;
 }
 
+static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) {
+	std::vector<std::string> str_parts;
+	std::vector<std::array<std::unique_ptr<ExprAST>,4>> interpolations;
+	SourceLocation Loc = CurLoc;
+	return std::make_unique<InterpStrLitExprAST>(
+		Loc, std::move(str_parts), std::move(interpolations));
+}
+
 static std::unique_ptr<ExprAST> ParsePointerExpr(int terminator = 0) {
 	auto Result = std::make_unique<LiteralExprAST>(std::move(CurTok));
 	getNextToken(eBinOp, terminator); // consume the pointer
@@ -1283,6 +1291,8 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 		return ParseNumberExpr(terminator);
 	case tok_str_lit:
 		return ParseStringExpr(terminator);
+	case tok_part_str_lit:
+		return ParseInterpolatedStringExpr(terminator);
 	case tok_ptr_lit:
 		return ParsePointerExpr(terminator);
 	case '(':

@@ -455,6 +455,7 @@ extern volvoxc::FullType* interface_type;
 extern volvoxc::FullType* va_arg_type;
 extern volvoxc::FullType* voidptr_type;
 extern volvoxc::FullType* c32_type;
+extern volvoxc::FullType* string_type;
 extern std::unique_ptr<FunctionAST> MainFunction;
 static inline llvm::ConstantInt* getSize(int64_t n) {
 	return llvm::ConstantInt::get(llvm::IntegerType::get(Context, target_bits), n, true);
@@ -1123,7 +1124,7 @@ public:
 	Token(int _kind = 0);
 	Token(char** s_ptr);
 	Token(void* ptr);
-	Token(const std::string& str, bool is_char = false);
+	Token(const std::string& str, char Closing = '"');
 	Token(bool truth) : kind(tok_number) {
 		Val.Uint = truth ? 1UL : 0UL;
 		int_type = { .ID = llvm::Type::IntegerTyID, .BitWidth = 1, .is_signed = false };

@@ -722,3 +722,7 @@ llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &N
 	llvm::Constant* Indices[] = {Builder->getInt32(0), Builder->getInt32(l_alloc - 2*target_bytes)};
 	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
 }
+
+llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
+	return nullptr;
+}
