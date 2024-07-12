@@ -154,6 +154,10 @@ public:
 		std::vector<std::tuple<std::unique_ptr<ExprAST>,std::unique_ptr<ExprAST>,std::unique_ptr<ExprAST>,unsigned>> _ints)
 		: ExprAST(string_type, Loc), str_parts(std::move(_str_parts)),
 		  interpolations(std::move(_ints)) {}
+	~InterpStrLitExprAST() {
+		for (auto p: str_parts)
+			free(p);
+	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
