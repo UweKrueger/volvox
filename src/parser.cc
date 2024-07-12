@@ -503,6 +503,7 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 	//        << interpolations.size() << "\n";
 	// for (auto& s: str_parts)
 	// 	errs() << "\"" << s << "\"\n";
+	getNextToken(eBinOp);
 	return std::make_unique<InterpStrLitExprAST>(
 		Loc, std::move(str_parts), std::move(interpolations));
 }

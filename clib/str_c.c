@@ -428,8 +428,6 @@ static void prtstring(char** s, unsigned* cap, unsigned* pos, const char* str, i
 	}
 }
 
-static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, ... /* ft, val, int w, int p, unsigned flags */);
-
 static const char* ptr_align(const char* ptr, size_t bytes) {
 	if (bytes) {
 		unsigned align = sizeof(size_t);
@@ -702,6 +700,7 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 		*s = (char*)realloc(*s, *cap);
 	}
 	bool quot_marks = false;
+	bool have_pre = (bool)pre;
 	if ((intptr_t)pre == (intptr_t)(-1)) {
 		quot_marks = true;
 		pre = NULL;
@@ -870,13 +869,6 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 	}
 }
 		
-static void sprt(char** s, unsigned* cap, unsigned* pos, const char* pre, ... /* ft, val, int w, int p, unsigned flags */) {
-	va_list ap;
-	va_start(ap, pre);
-	vsprt(s, cap, pos, pre, ap);
-	va_end(ap);
-}
-
 _DECL int vfprint(int fd, bool newline, const char* pre, va_list ap) {
 	char* s = NULL;
 	unsigned cap = 0;

@@ -726,6 +726,30 @@ llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &N
 }
 
 llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
-	errs() << Loc << ": InterpStrLitExprAST::codegen_raw\n";
-	return nullptr;
+	std::vector<llvm::Value*> values;
+	unsigned n_inter = interpolations.size();
+	values.reserve(2 + 5*n_inter);
+	for (unsigned i=0; ; i++) {
+		if (str_parts[i])
+			values.push_back(createStringConst(str_parts[i], strlen(str_parts[i]), ""));
+		else
+			values.push_back(llvm::ConstantPointerNull::get(llvm_ptr_type));
+		if (i >= n_inter)
+			break;
+		values.push_back(std::make_unique<InterfaceExprAST>(std::move(std::get<0>(interpolations[i])))->codegen_raw());
+		if (std::get<1>(interpolations[i]))
+			values.push_back(std::get<1>(interpolations[i])->codegen());
+		else
+			values.push_back(llvm::Constant::getNullValue(llvm_int_type));
+		if (std::get<2>(interpolations[i]))
+			values.push_back(std::get<2>(interpolations[i])->codegen());
+		else
+			values.push_back(llvm::Constant::getNullValue(llvm_int_type));
+		values.push_back(llvm::ConstantInt::get(llvm_int_type, std::get<3>(interpolations[i])));
+	}
+	values.push_back(llvm::ConstantPointerNull::get(llvm_ptr_type));
+	std::string volvox_sprt = "__volvox_sprt";
+	auto sprt_proto = (*lex.findProtos(volvox_sprt))[0].get();
+	auto sprt_fn = getFunction(sprt_proto);
+	return Builder->CreateCall(sprt_proto->FT, sprt_fn, values);
 }
