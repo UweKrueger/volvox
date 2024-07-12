@@ -751,5 +751,16 @@ llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
 	std::string volvox_sprt = "__volvox_sprt";
 	auto sprt_proto = (*lex.findProtos(volvox_sprt))[0].get();
 	auto sprt_fn = getFunction(sprt_proto);
-	return Builder->CreateCall(sprt_proto->FT, sprt_fn, values);
+	llvm::Value* result = Builder->CreateCall(sprt_proto->FT, sprt_fn, values);
+	if (!target) {
+		FullVar tmp = {
+			.val = result,
+			.ft = {
+				.type = llvm_ptr_type,
+				.type_attr = A_string | A_rvalue
+			}
+		};
+		expr_temps.push_back(tmp);
+	}
+	return handle(target, result);
 }
