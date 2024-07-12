@@ -708,6 +708,8 @@ llvm::Value* createJITStringConst(const char* str, size_t Len, const llvm::Twine
 }
 
 llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name) {
+	if (!str)
+		return nullptr;
 	if (jit_repl)
 		return createJITStringConst(str, Len, Name);
 	char* stra;
@@ -724,5 +726,6 @@ llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &N
 }
 
 llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
+	errs() << Loc << ": InterpStrLitExprAST::codegen_raw\n";
 	return nullptr;
 }
