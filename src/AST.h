@@ -111,7 +111,7 @@ public:
 		          Loc, tok.is_unknown_type), Val(tok.Val) {
 		if (tok.kind == tok_str_lit) {
 			ft->type_attr |= A_string;
-			tok.Val.Ptr = nullptr;
+			tok.Val.Ptr = nullptr; // has been moved manually - avoid free by destructor
 		}
 	}
 	~LiteralExprAST() {
@@ -148,10 +148,10 @@ public:
 // interpolated string literals - "Result: $x, Average: ${x+y+z/3}"
 class InterpStrLitExprAST : public ExprAST {
 public:
-	std::vector<std::string> str_parts;
-	std::vector<std::array<std::unique_ptr<ExprAST>,4>> interpolations;
-	InterpStrLitExprAST(SourceLocation Loc, std::vector<std::string> _str_parts,
-		std::vector<std::array<std::unique_ptr<ExprAST>,4>> _ints)
+	std::vector<char*> str_parts;
+	std::vector<std::tuple<std::unique_ptr<ExprAST>,std::unique_ptr<ExprAST>,std::unique_ptr<ExprAST>,unsigned>> interpolations;
+	InterpStrLitExprAST(SourceLocation Loc, std::vector<char*> _str_parts,
+		std::vector<std::tuple<std::unique_ptr<ExprAST>,std::unique_ptr<ExprAST>,std::unique_ptr<ExprAST>,unsigned>> _ints)
 		: ExprAST(string_type, Loc), str_parts(std::move(_str_parts)),
 		  interpolations(std::move(_ints)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;

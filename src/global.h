@@ -1106,7 +1106,7 @@ public:
 		VOLVOX_gen_val_type_t gen_type;
 		unsigned key;
 	};
-	union LitValue Val;
+	LitValue Val;
 	bool is_unknown_type = false;
 	Token(const Token& old) = delete;
 	Token(Token&& old) : kind(old.kind), gen_type(old.gen_type), Val(old.Val), is_unknown_type(old.is_unknown_type) {

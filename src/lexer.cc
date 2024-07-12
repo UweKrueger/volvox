@@ -503,7 +503,6 @@ Token Lexer::get_str_tok(int Closing) {
 	unsigned sum = 0;
 	unsigned nexpect = 0;
 	for (;;) {
-		CurChar = advance();
 		if (nexpect) {
 			if (CurChar >= '0' && CurChar < '8') {
 				sum = (sum << 3) | (CurChar - '0');
@@ -590,6 +589,7 @@ Token Lexer::get_str_tok(int Closing) {
 		add_letter:
 			StrLit += CurChar;
 		}
+		CurChar = advance();
 	}
 }
 
@@ -854,8 +854,11 @@ if (CurChar == 'i') {
 			return tok_error;
 		}
 	case '\'':
-	case '"':
-		return get_str_tok(CurChar);
+	case '"': {
+		auto closing_char = CurChar;
+		CurChar = advance();
+		return get_str_tok(closing_char);
+	}
 	case '#': {
 		// Comment until end of line.
 		do
