@@ -2329,26 +2329,18 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 }
 
 std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E) {
-	std::string mangled_println = "__volvox_prt";
-	auto println_proto = lex.findProtos(mangled_println);
-	if (!println_proto) {
-		errs() << "Fatal error: could not find 'println' function\n";
+	std::string printcsv = "printcsv";
+	auto printcsv_proto = lex.findProtos(printcsv);
+	if (!printcsv_proto) {
+		errs() << "Fatal error: could not find 'printcsv' function\n";
 		return nullptr;
 	}
 	// long long w = 0LL;
 	auto FnLoc = E->Loc;
-	auto volvox_println = std::make_unique<FunctionExprAST>(FnLoc, mangled_println, println_proto);
+	auto volvox_printcsv = std::make_unique<FunctionExprAST>(FnLoc, printcsv, printcsv_proto);
 	std::vector<std::unique_ptr<ExprAST>> PrintArgs;
-	// file descriptor 1 - stdout
-	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
-	// append newline = true
-	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
-	// force enclosing strings in "" by passing (void*)(-1)
-	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)(intptr_t)(-1)))));
-	auto the_expr = std::make_unique<InterfaceExprAST>(std::move(E));
-	PrintArgs.push_back(std::move(the_expr));
-	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
-	auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
+	PrintArgs.push_back(std::move(E));
+	auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_printcsv), std::move(PrintArgs));
 	auto success = std::make_unique<BinaryExprAST>(
 		FnLoc, ">=", std::move(print_call), std::move(std::make_unique<LiteralExprAST>(Token(0LL))),
 		std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm_bool_type, 0, false, OpComparison, nullptr });
