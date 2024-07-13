@@ -208,7 +208,7 @@ endif
 
 all: $(PROG)
 
-$(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh
+$(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh ../clib/map.h ../clib/types.h ../clib/str.h AST.h global.h
 ifeq ($(CC),gcc)
 	$(CXX) -o $@ -x c++-header $(CXXFLAGS) $(OPT) $<
 else
@@ -236,5 +236,5 @@ ifneq ($(EDITLINESRC),)
 endif
 	$(CC) -MM $(LIBCSRC) $(CPPEXTRAFLAGS) $(OPT) $(EXTRASRC) >> .depend
 	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
-
+	for qq in $(CCOBJS); do echo "$$qq: $(PCH)" >> .depend; done
 -include .depend
