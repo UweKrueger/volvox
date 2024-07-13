@@ -25,7 +25,6 @@ cdecl(close) __close(fd int) int
 cdecl(write) __write(fd int, buf voidptr, count size_t) ssize_t
 cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 cdecl __volvox_sprt(pre cstring, ...) string
-cdecl __volvox_prt(fd int, nl bool, pre cstring, ...) int
 
 decl __builtin_print(fd int, csv bool, nl bool, ...) int
 

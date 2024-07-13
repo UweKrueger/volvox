@@ -36,8 +36,6 @@
 #include "types.h"
 #include "str.h"
 
-extern "C" bool vfprint(int fd, bool newline, const char* pre, va_list ap);
-
 namespace volvox {
 
 #if defined (_WIN32)

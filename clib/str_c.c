@@ -585,21 +585,6 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 	}
 }
 		
-_DECL int vfprint(int fd, bool newline, const char* pre, va_list ap) {
-	char* s = NULL;
-	unsigned cap = 0;
-	unsigned pos = 0;
-	vsprt(&s, &cap, &pos, pre, ap);
-	unsigned bytes_to_write = pos;
-	if (newline) {
-		s[pos] = '\n';
-		bytes_to_write++;
-	}
-	int n = write(fd, s, bytes_to_write);
-	free(s);
-	return (n == bytes_to_write) ? n : -1;
-}
-
 struct __volvox_interface {
 	const VOLVOX_RtType* typ;
 	union {
@@ -1265,14 +1250,6 @@ _DECL char* __volvox_sprt(const char* pre, ... /* ft, val, int w, int p, unsigne
 	vsprt(&s, &cap, &pos, pre, ap);
 	va_end(ap);
 	return __transformcstr2volvox_l(s, pos, cap);
-}
-
-_DECL int __volvox_prt(int fd, bool nl, const char* pre, ... /* ft, val, int w, int p, unsigned flags, ..., char* post */) {
-	va_list ap;
-	va_start(ap, pre);
-	int n = vfprint(fd, nl, pre, ap);
-	va_end(ap);
-	return n;
 }
 
 #undef target_bytes
