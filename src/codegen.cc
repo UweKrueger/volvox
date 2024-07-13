@@ -644,6 +644,8 @@ llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 	llvm::Value* val = nullptr;
 	llvm::Value* strict_target;
+	if (!expr->ft->type)
+		return nullptr;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->ft->type)) {
 		if (strict) {
 			strict_target = target;

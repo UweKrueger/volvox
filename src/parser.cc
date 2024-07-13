@@ -434,12 +434,6 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 					return nullptr;
 				}
 				flags |= FMT_ZEROPAD;
-			} else if (lex.CurChar == '-') {
-				if (flags & FMT_LEFT) {
-					errs() << CurLoc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
-					return nullptr;
-				}
-				flags |= FMT_LEFT;
 			} else if (lex.CurChar == ' ' || lex.CurChar == '+') {
 				if (flags & (FMT_PREFIX_SPACE | FMT_PREFIX_PLUS)) {
 					errs() << CurLoc << ": at most 1 format specifier out of ' ' and '+' allowed\n";
@@ -480,12 +474,25 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 		if (lex.CurChar == '{') {
 			lex.CurChar = lex.advance();
 			getNextToken();
-			expr = ParseExpression('}');
+			auto exprs = ParseExpression('}');
+			if (!exprs)
+				return nullptr;
 			if (CurTok.kind != '}') {
 				errs() << CurLoc << ": '}' expected at end of string interpolation expression\n";
 				return nullptr;
 			}
-			// TODO: handle w, p
+			auto expr_list = SplitExprList(std::move(exprs));
+			expr = std::move(expr_list[0]);
+			if (expr_list.size() > 1) {
+				w = std::move(expr_list[1]);
+				if (expr_list.size() > 2) {
+					p = std::move(expr_list[2]);
+					if (expr_list.size() > 3) {
+						errs() << expr_list[3]->Loc << ": unexpected 4th interpolation expression - expected $*{value[,width[,precision]]}\n";
+						return nullptr;
+					}
+				}
+			}
 		} else {
 			std::string VarName;
 			do {
@@ -2334,7 +2341,8 @@ std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E) {
 	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 	// force enclosing strings in "" by passing (void*)(-1)
 	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)(intptr_t)(-1)))));
-	PrintArgs.push_back(std::make_unique<InterfaceExprAST>(std::move(E)));
+	auto the_expr = std::make_unique<InterfaceExprAST>(std::move(E));
+	PrintArgs.push_back(std::move(the_expr));
 	PrintArgs.push_back(std::move(std::make_unique<LiteralExprAST>(Token((void*)0))));
 	auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_println), std::move(PrintArgs));
 	auto success = std::make_unique<BinaryExprAST>(

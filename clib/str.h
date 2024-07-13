@@ -27,8 +27,7 @@
 
 #define FMT_ALT 64U
 #define FMT_UNSIGNED 128U
-#define FMT_LEFT 256U // not implemented, yet
-#define FMT_GROUPED 512U // not implemented, yet
+#define FMT_GROUPED 256U // not implemented, yet
 
 #define F32_DEFAULT_PRECISION 7
 #define F64_DEFAULT_PRECISION 16
