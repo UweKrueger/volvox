@@ -421,53 +421,53 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 		unsigned flags = 0;
 		// for parsing the format specifiers we must think in terms of characters - not tokens
 		// so we use the Lexer directly
-		while (lex.CurChar != '{' && lex.CurChar != '_' && !isalnum(lex.CurChar)) {
+		while (lex.CurChar != '{' && lex.CurChar != '_' && !isalpha(lex.CurChar)) {
 			if (lex.CurChar == '#') {
 				if (flags & FMT_ALT) {
-					errs() << CurLoc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
-					return nullptr;
+					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
+					goto handle_error;
 				}
 				flags |= FMT_ALT;
 			} else if (lex.CurChar == '0') {
 				if (flags & FMT_ZEROPAD) {
-					errs() << CurLoc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
-					return nullptr;
+					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
+					goto handle_error;
 				}
 				flags |= FMT_ZEROPAD;
 			} else if (lex.CurChar == ' ' || lex.CurChar == '+') {
 				if (flags & (FMT_PREFIX_SPACE | FMT_PREFIX_PLUS)) {
-					errs() << CurLoc << ": at most 1 format specifier out of ' ' and '+' allowed\n";
-					return nullptr;
+					errs() << lex.Loc << ": at most 1 format specifier out of ' ' and '+' allowed\n";
+					goto handle_error;
 				}
 				flags |= (lex.CurChar == ' ' ? FMT_PREFIX_SPACE : FMT_PREFIX_PLUS);
 			} else if (lex.CurChar == '\'') {
 				if (flags & FMT_GROUPED) {
-					errs() << CurLoc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
-					return nullptr;
+					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
+					goto handle_error;
 				}
 				flags |= FMT_GROUPED;
 // The following are Volvox specific - in C they are handle by the conversion letter 'd', 'x', ...
 			} else if (lex.CurChar == '!') {
 				if (flags & FMT_UPPER) {
-					errs() << CurLoc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
-					return nullptr;
+					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
+					goto handle_error;
 				}
 				flags |= FMT_UPPER;
 			} else if (lex.CurChar == '%' || lex.CurChar == '~') {
 				if (flags & (FMT_DISPLAY_HEX | FMT_DISPLAY_OCT)) {
-					errs() << CurLoc << ": at most 1 format specifier out of '%' and '~' allowed\n";
-					return nullptr;
+					errs() << lex.Loc << ": at most 1 format specifier out of '%' and '~' allowed\n";
+					goto handle_error;
 				}
 				flags |= (lex.CurChar == '%' ? FMT_DISPLAY_HEX : FMT_DISPLAY_OCT);
 			} else if (lex.CurChar == '.' || lex.CurChar == '^') {
 				if (flags & (FMT_DISPLAY_EXP | FMT_DISPLAY_FIXED)) {
-					errs() << CurLoc << ": at most 1 format specifier out of '.' and '^' allowed\n";
-					return nullptr;
+					errs() << lex.Loc << ": at most 1 format specifier out of '.' and '^' allowed\n";
+					goto handle_error;
 				}
 				flags |= (lex.CurChar == '.' ? FMT_DISPLAY_FIXED : FMT_DISPLAY_EXP);
 			} else {
-				errs() << CurLoc << ": unexpected string interpolation specifier '" << lex.CurChar << "'\n";
-				return nullptr;
+				errs() << lex.Loc << ": unexpected string interpolation specifier '" << (char)lex.CurChar << "'\n";
+				goto handle_error;
 			}
 			lex.CurChar = lex.advance();
 		}
@@ -476,10 +476,10 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 			getNextToken();
 			auto exprs = ParseExpression('}');
 			if (!exprs)
-				return nullptr;
+				goto handle_error;
 			if (CurTok.kind != '}') {
 				errs() << CurLoc << ": '}' expected at end of string interpolation expression\n";
-				return nullptr;
+				goto handle_error;
 			}
 			auto expr_list = SplitExprList(std::move(exprs));
 			expr = std::move(expr_list[0]);
@@ -489,30 +489,34 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 					p = std::move(expr_list[2]);
 					if (expr_list.size() > 3) {
 						errs() << expr_list[3]->Loc << ": unexpected 4th interpolation expression - expected $*{value[,width[,precision]]}\n";
-						return nullptr;
+						goto handle_error;
 					}
 				}
 			}
 		} else {
 			std::string VarName;
+			CurLoc = lex.Loc;
 			do {
 				VarName += lex.CurChar;
 				lex.CurChar = lex.advance();
 			} while (lex.CurChar == '_' || isalnum(lex.CurChar));
 			expr = std::make_unique<VariableExprAST>(CurLoc, VarName);
+			if (!expr->ft->type) {
+				errs() << CurLoc << ": unknown variable name '" << VarName << "'\n";
+				goto handle_error;
+			}
 		}
 		CurTok = lex.get_str_tok('"');
 		interpolations.push_back({ std::move(expr), std::move(w), std::move(p), flags });
 		str_parts.push_back(CurTok.Val.CStr); // move pointer value
 		CurTok.Val.CStr = nullptr; // prevent ~Token() from free()ing
 	} while (CurTok.kind == tok_part_str_lit);
-	// errs() << CurLoc << ": interpolation prepared " << str_parts.size() << " "
-	//        << interpolations.size() << "\n";
-	// for (auto& s: str_parts)
-	// 	errs() << "\"" << s << "\"\n";
 	getNextToken(eBinOp);
 	return std::make_unique<InterpStrLitExprAST>(
 		Loc, std::move(str_parts), std::move(interpolations));
+handle_error:
+	purgeLine();
+	return nullptr;
 }
 
 static std::unique_ptr<ExprAST> ParsePointerExpr(int terminator = 0) {

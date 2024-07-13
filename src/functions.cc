@@ -1052,6 +1052,10 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		by_val = by_val || (i+arg_offs < n_proto_args && (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value));
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
+			if (!arg) {
+				errs() << Args[i]->Loc << ": error generating function argument\n";
+				return nullptr;
+			}
 			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= n_proto_args || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
 				arg = Volvox2CStr(arg);
 			ArgsV.push_back(arg);
@@ -1154,8 +1158,10 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					//errs() << Loc << ": valarg #" << i << " " << *arg << ' ' << Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal) << '\n';
 				}
 			}
-			if (!arg)
+			if (!arg) {
+				errs() << Args[i]->Loc << ": cannot create function call argument\n";
 				return nullptr;
+			}
 			if ((i+arg_offs) >= n_proto_args) {
 				if (arg->getType()->isFloatTy()) {
 					// C convention: variadic float args must be promoted to double

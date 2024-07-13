@@ -741,6 +741,10 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 	if (!val)
 		return nullptr;
 	llvm::Constant* rttype_ptr = getRtType(expr->ft);
+	if (!rttype_ptr) {
+		errs() << Loc << ": error creating type information for interface expression\n";
+		return nullptr;
+	}
 	std::vector<llvm::Type*> types = { rttype_ptr->getType(), val->getType() };
 	llvm::Type* struct_type = llvm::StructType::get(Context, types);
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);

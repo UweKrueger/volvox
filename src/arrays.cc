@@ -736,14 +736,30 @@ llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
 			values.push_back(llvm::ConstantPointerNull::get(llvm_ptr_type));
 		if (i >= n_inter)
 			break;
-		values.push_back(std::make_unique<InterfaceExprAST>(std::move(std::get<0>(interpolations[i])))->codegen_raw());
-		if (std::get<1>(interpolations[i]))
-			values.push_back(std::get<1>(interpolations[i])->codegen());
-		else
+		auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(std::get<0>(interpolations[i])));
+		auto inter_val = interface_expr->codegen_raw();
+		if (!inter_val) {
+			errs() << interface_expr->Loc << ": cannot generate interpolation value\n";
+			return nullptr;
+		}
+		values.push_back(inter_val);
+		if (std::get<1>(interpolations[i])) {
+			auto field_width = std::get<1>(interpolations[i])->codegen();
+			if (!field_width) {
+				errs() << std::get<1>(interpolations[i])->Loc << ": cannot generate width value\n";
+				return nullptr;
+			}
+			values.push_back(field_width);
+		} else
 			values.push_back(llvm::Constant::getNullValue(llvm_int_type));
-		if (std::get<2>(interpolations[i]))
-			values.push_back(std::get<2>(interpolations[i])->codegen());
-		else
+		if (std::get<2>(interpolations[i])) {
+			auto precision = std::get<2>(interpolations[i])->codegen();
+			if (!precision) {
+				errs() << std::get<1>(interpolations[i])->Loc << ": cannot generate precision value\n";
+				return nullptr;
+			}
+			values.push_back(precision);
+		} else
 			values.push_back(llvm::Constant::getNullValue(llvm_int_type));
 		values.push_back(llvm::ConstantInt::get(llvm_int_type, std::get<3>(interpolations[i])));
 	}
