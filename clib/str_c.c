@@ -45,6 +45,78 @@
 
 /* create the printf-format string to print given Type */
 
+static void getFmt(char* fmt, unsigned flags) {
+	unsigned i = 0;
+	fmt[i++] = '%';
+	if (flags & FMT_ALT)
+		fmt[i++] = '#';
+	if (flags & FMT_ZEROPAD)
+		fmt[i++] = '0';
+	if (flags & FMT_PREFIX_PLUS)
+		fmt[i++] = '+';
+	else if (flags & FMT_PREFIX_SPACE)
+		fmt[i++] = ' ';
+	if ((flags & FMT_GROUPED) && (flags & FMT_FLOAT))
+		fmt[i++] = '\'';
+	if (flags & FMT_HAVE_WIDTH) {
+		fmt[i++] = '*';
+		// the case "have precision but no width" is handled as w=0
+		if (flags & FMT_HAVE_PRECISION) {
+			fmt[i++] = '.';
+			fmt[i++] = '*';
+		}
+	}
+	if (flags & FMT_STRING)
+		fmt[i++] = 's';
+	else if (flags & FMT_CHAR)
+		fmt[i++] = 'c';
+	else {
+		if (flags & FMT_LONG) {
+			fmt[i++] = 'l';
+			fmt[i++] = 'l';
+		}
+		if (flags & FMT_FLOAT)
+			if (flags & FMT_DISPLAY_HEX)
+				// always exponential notation
+				if (flags & FMT_UPPER)
+					fmt[i++] = 'A';
+				else
+					fmt[i++] = 'a';
+			else // decimal float	
+				if (flags & FMT_DISPLAY_EXP)
+					if (flags & FMT_UPPER)
+						fmt[i++] = 'E';
+					else
+						fmt[i++] = 'e';
+				else if (flags & FMT_DISPLAY_FIXED)
+					if (flags & FMT_UPPER)
+						fmt[i++] = 'F';
+					else
+						fmt[i++] = 'f';
+				else
+					if (flags & FMT_UPPER)
+						fmt[i++] = 'G';
+					else
+						fmt[i++] = 'g';
+		else // integer
+			if (flags & FMT_DISPLAY_HEX)
+				// always unsigned notation, i.e. -1 => ff
+				if (flags & FMT_UPPER)
+					fmt[i++] = 'A';
+				else
+					fmt[i++] = 'a';
+			else if (flags & FMT_DISPLAY_OCT)
+				// always unsigned notation, i.e. -1 => 377; no letters => no uppercase
+				fmt[i++] = 'o';
+			else
+				if (flags & FMT_UNSIGNED)
+					fmt[i++] = 'u';
+				else
+					fmt[i++] = 'd';
+	}
+	fmt[i] = '\0';
+}
+
 static const char* getFmtInt(unsigned fmt_flags) {
 	if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_NONE)
 		if ((fmt_flags & FMT_UPPER) == 0U)

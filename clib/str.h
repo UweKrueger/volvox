@@ -21,13 +21,19 @@
 #define FMT_DISPLAY_MASK 48U
 #define FMT_DISPLAY_STD 0U
 #define FMT_DISPLAY_FIXED 16U
-#define FMT_DISPLAY_EXP 48U
-#define FMT_DISPLAY_HEX 32U
-#define FMT_DISPLAY_OCT 0U // not implemented, yet
+#define FMT_DISPLAY_EXP 32U
+#define FMT_DISPLAY_HEX 64U
+#define FMT_DISPLAY_OCT 128U
 
-#define FMT_ALT 64U
-#define FMT_UNSIGNED 128U
-#define FMT_GROUPED 256U // not implemented, yet
+#define FMT_ALT 256U
+#define FMT_UNSIGNED 512U // only for integers
+#define FMT_GROUPED 512U // only for floats
+#define FMT_CHAR 1024U
+#define FMT_HAVE_WIDTH 2048U
+#define FMT_HAVE_PRECISION 4096U
+#define FMT_FLOAT 8192U
+#define FMT_LONG 16384U
+#define FMT_STRING 32768U
 
 #define F32_DEFAULT_PRECISION 7
 #define F64_DEFAULT_PRECISION 16
