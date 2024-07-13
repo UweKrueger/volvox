@@ -56,7 +56,7 @@ static void getFmt(char* fmt, unsigned flags) {
 		fmt[i++] = '+';
 	else if (flags & FMT_PREFIX_SPACE)
 		fmt[i++] = ' ';
-	if ((flags & FMT_GROUPED) && (flags & FMT_FLOAT))
+	if (flags & FMT_GROUPED)
 		fmt[i++] = '\'';
 	if (flags & FMT_HAVE_WIDTH) {
 		fmt[i++] = '*';

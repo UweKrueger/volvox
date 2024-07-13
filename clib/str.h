@@ -10,26 +10,27 @@
 
 // format flags
 
-#define FMT_PREFIX_PLUS 1U
-#define FMT_PREFIX_SPACE 2U
+#define FMT_ALT            (1U << 0)
+#define FMT_ZEROPAD        (1U << 1)
+#define FMT_PREFIX_SPACE   (1U << 2)
+#define FMT_PREFIX_PLUS    (1U << 3)
+#define FMT_GROUPED        (1U << 4)
 
-#define FMT_UPPER 4U
-#define FMT_ZEROPAD 8U
+#define FMT_HAVE_WIDTH     (1U << 5)
+#define FMT_HAVE_PRECISION (1U << 6)
 
-#define FMT_DISPLAY_FIXED 16U
-#define FMT_DISPLAY_EXP 32U
-#define FMT_DISPLAY_HEX 64U
-#define FMT_DISPLAY_OCT 128U
+#define FMT_DISPLAY_HEX    (1U << 7)
+#define FMT_UPPER          (1U << 8)
 
-#define FMT_ALT 256U
-#define FMT_UNSIGNED 512U // only for integers
-#define FMT_GROUPED 512U // only for floats
-#define FMT_CHAR 1024U
-#define FMT_HAVE_WIDTH 2048U
-#define FMT_HAVE_PRECISION 4096U
-#define FMT_FLOAT 8192U
-#define FMT_LONG 16384U
-#define FMT_STRING 32768U
+#define FMT_FLOAT          (1U << 9)
+#define FMT_DISPLAY_FIXED (1U << 10)
+#define FMT_DISPLAY_EXP   (1U << 11)
+
+#define FMT_LONG          (1U << 12)
+#define FMT_DISPLAY_OCT   (1U << 13)
+#define FMT_UNSIGNED      (1U << 14)
+#define FMT_CHAR          (1U << 15)
+#define FMT_STRING        (1U << 16)
 
 #define F32_DEFAULT_PRECISION 7
 #define F64_DEFAULT_PRECISION 16
