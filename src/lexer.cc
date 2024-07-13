@@ -524,34 +524,34 @@ Token Lexer::get_str_tok(int Closing) {
 			switch (CurChar) {
 			case 'a':
 				StrLit += '\a';
-				continue;
+				goto do_advance;
 			case 'b':
 				StrLit += '\b';
-				continue;
+				goto do_advance;
 			case 'e':
 				StrLit += '\033';
-				continue;
+				goto do_advance;
 			case 'f':
 				StrLit += '\f';
-				continue;
+				goto do_advance;
 			case 'n':
 				StrLit += '\n';
-				continue;
+				goto do_advance;
 			case 'r':
 				StrLit += '\r';
-				continue;
+				goto do_advance;
 			case 't':
 				StrLit += '\t';
-				continue;
+				goto do_advance;
 			case 'v':
 				StrLit += '\v';
-				continue;
+				goto do_advance;
 			case '\\':
 				StrLit += '\\';
-				continue;
+				goto do_advance;
 			case '$':
 				StrLit += '$';
-				continue;
+				goto do_advance;
 			case '0':
 			case '1':
 			case '2':
@@ -563,7 +563,7 @@ Token Lexer::get_str_tok(int Closing) {
 				// 3 octal digits
 				sum = CurChar - '0';
 				nexpect = 2;
-				continue;
+				goto do_advance;
 			default:
 				goto add_letter;
 			}
@@ -589,6 +589,7 @@ Token Lexer::get_str_tok(int Closing) {
 		add_letter:
 			StrLit += CurChar;
 		}
+	do_advance:
 		CurChar = advance();
 	}
 }
