@@ -68,3 +68,18 @@ def dFkkL2(n int, a []f64) f64
 	return n * z
 end
 
+global rrw3tz = -89.0625f
+global lfdswe = 152.3 / 7
+const kppo = 75234
+const hjsq34 := 89.7 / 13
+
+def test_string_interpolation_1 bool
+	b = "abc->$rrw3tz<- j${lfdswe,0,7}"
+	c = "$.{lfdswe,12,5}<-"
+	return b == "abc->-89.0625<- j21.75714" && c == "    21.75714<-"
+end
+
+def test_string_interpolation_2 bool
+	x = "op$%kppo, ${hjsq34,0,5}+"
+	return x == "op0x125e2, 6.9+"
+end
