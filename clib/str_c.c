@@ -449,8 +449,6 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 				p = va_arg(ap, int);
 				flags = va_arg(ap, unsigned);
 			}
-			char fmt[24];
-			getFmt(fmt, flags | FMT_FLOAT | FMT_HAVE_WIDTH | FMT_HAVE_PRECISION);
 			if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 			prt_float(s, cap, pos, space, val, w, p, flags);
 			if (ft->type_attr & A_signed)
@@ -636,8 +634,6 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 			} else {
 				val = ap[idx].f64;
 			}
-			char fmt[24];
-			getFmt(fmt, FMT_FLOAT | FMT_HAVE_WIDTH | FMT_HAVE_PRECISION);
 			int p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 			prt_float(&s, &cap, &pos, space, val, w, p, flags);
 			if (ft->type_attr & A_signed)
