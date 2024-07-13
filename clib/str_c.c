@@ -102,9 +102,9 @@ static void getFmt(char* fmt, unsigned flags) {
 			if (flags & FMT_DISPLAY_HEX)
 				// always unsigned notation, i.e. -1 => ff
 				if (flags & FMT_UPPER)
-					fmt[i++] = 'A';
+					fmt[i++] = 'X';
 				else
-					fmt[i++] = 'a';
+					fmt[i++] = 'x';
 			else if (flags & FMT_DISPLAY_OCT)
 				// always unsigned notation, i.e. -1 => 377; no letters => no uppercase
 				fmt[i++] = 'o';
@@ -115,362 +115,6 @@ static void getFmt(char* fmt, unsigned flags) {
 					fmt[i++] = 'd';
 	}
 	fmt[i] = '\0';
-}
-
-static const char* getFmtInt(unsigned fmt_flags) {
-	if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_NONE)
-		if ((fmt_flags & FMT_UPPER) == 0U)
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
-					if ((fmt_flags & FMT_UNSIGNED) == 0U)
-						return "%*d";
-					else
-						return "%*u";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%#*x";
-					else
-						return "%*x";
-			else // FMT_ZEROPAD
-				if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
-					if ((fmt_flags & FMT_UNSIGNED) == 0U)
-						return "%0*d";
-					else
-						return "%0*u";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%#0*x";
-					else
-						return "%0*x";
-		else // FMT_UPPER
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
-					if ((fmt_flags & FMT_UNSIGNED) == 0U)
-						return "%*D";
-					else
-						return "%*U";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%#*X";
-					else
-						return "%*X";
-			else // FMT_ZEROPAD
-				if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
-					if ((fmt_flags & FMT_UNSIGNED) == 0U)
-						return "%0*D";
-					else
-						return "%0*U";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%#0*X";
-					else
-						return "%0*X";
-	else // FMT_PREFIX...
-		if (fmt_flags & (FMT_DISPLAY_HEX | FMT_UNSIGNED))
-			return NULL;
-		else
-			if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_PLUS)
-				if ((fmt_flags & FMT_UPPER) == 0U)
-					if ((fmt_flags & FMT_ZEROPAD) == 0U)
-						return "%+*d";
-					else // FMT_ZEROPAD
-						return "%0+*d";
-				else // FMT_UPPER
-					if ((fmt_flags & FMT_ZEROPAD) == 0U)
-						return "%+*D";
-					else // FMT_ZEROPAD
-						return "%0+*D";
-			else // FMT_PREFIX_SPACE
-				if ((fmt_flags & FMT_UPPER) == 0U)
-					if ((fmt_flags & FMT_ZEROPAD) == 0U)
-						return "% *d";
-					else // FMT_ZEROPAD
-						return "%0 *d";
-				else // FMT_UPPER
-					if ((fmt_flags & FMT_ZEROPAD) == 0U)
-						return "% *D";
-					else // FMT_ZEROPAD
-						return "%0 *D";
-}
-
-static const char* getFmtLong(unsigned fmt_flags) {
-	if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_NONE)
-		if ((fmt_flags & FMT_UPPER) == 0U)
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
-					if ((fmt_flags & FMT_UNSIGNED) == 0U)
-						return "%*lld";
-					else
-						return "%*llu";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%#*llx";
-					else
-						return "%*llx";
-			else // FMT_ZEROPAD
-				if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
-					if ((fmt_flags & FMT_UNSIGNED) == 0U)
-						return "%0*lld";
-					else
-						return "%0*llu";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%#0*llx";
-					else
-						return "%0*llx";
-		else // FMT_UPPER
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
-					if ((fmt_flags & FMT_UNSIGNED) == 0U)
-						return "%*llD";
-					else
-						return "%*llU";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%#*llX";
-					else
-						return "%*llX";
-			else // FMT_ZEROPAD
-				if ((fmt_flags & FMT_DISPLAY_HEX) == 0U)
-					if ((fmt_flags & FMT_UNSIGNED) == 0U)
-						return "%0*llD";
-					else
-						return "%0*llU";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%#0*llX";
-					else
-						return "%0*llX";
-	else // FMT_PREFIX...
-		if (fmt_flags & (FMT_DISPLAY_HEX | FMT_UNSIGNED))
-			return NULL;
-		else
-			if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_PLUS)
-				if ((fmt_flags & FMT_UPPER) == 0U)
-					if ((fmt_flags & FMT_ZEROPAD) == 0U)
-						return "%+*lld";
-					else // FMT_ZEROPAD
-						return "%0+*lld";
-				else // FMT_UPPER
-					if ((fmt_flags & FMT_ZEROPAD) == 0U)
-						return "%+*llD";
-					else // FMT_ZEROPAD
-						return "%0+*llD";
-			else // FMT_PREFIX_SPACE
-				if ((fmt_flags & FMT_UPPER) == 0U)
-					if ((fmt_flags & FMT_ZEROPAD) == 0U)
-						return "% *lld";
-					else // FMT_ZEROPAD
-						return "%0 *lld";
-				else // FMT_UPPER
-					if ((fmt_flags & FMT_ZEROPAD) == 0U)
-						return "% *llD";
-					else // FMT_ZEROPAD
-						return "%0 *llD";
-}
-
-static const char* getFmtFlt(unsigned fmt_flags) {
-	if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_NONE)
-		if ((fmt_flags & FMT_UPPER) == 0U)
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%*.*g";
-					else
-						return "%#*.*g";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%*.*f";
-					else
-						return "%#*.*f";
-				else // FMT_DISPLAY_HEX
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%*.*a";
-					else
-						return "%#*.*a";
-			else // FMT_ZEROPAD
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0*.*g";
-					else
-						return "%#0*.*g";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0*.*f";
-					else
-						return "%#0*.*f";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0*.*a";
-					else
-						return "%#0*.*a";
-		else // FMT_UPPER
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%*.*G";
-					else
-						return "%#*.*G";
-				else if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%*.*F";
-					else
-						return "%#*.*F";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%*.*A";
-					else
-						return "%#*.*A";
-			else
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0*.*G";
-					else
-						return "%#0*.*G";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0*.*F";
-					else
-						return "%#0*.*F";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0*.*A";
-					else
-						return "%#0*.*A";
-	else if ((fmt_flags & FMT_PREFIX_MASK) == FMT_PREFIX_PLUS)
-		if ((fmt_flags & FMT_UPPER) == 0U)
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%+*.*g";
-					else
-						return "%#+*.*g";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%+*.*f";
-					else
-						return "%#+*.*f";
-				else // FMT_DISPLAY_HEX
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%+*.*a";
-					else
-						return "%#+*.*a";
-			else // FMT_ZEROPAD
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0+*.*g";
-					else
-						return "%#0+*.*g";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0+*.*f";
-					else
-						return "%#0+*.*f";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0+*.*a";
-					else
-						return "%#0+*.*a";
-		else // FMT_UPPER
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%+*.*G";
-					else
-						return "%#+*.*G";
-				else if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%+*.*F";
-					else
-						return "%#+*.*F";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%+*.*A";
-					else
-						return "%#+*.*A";
-			else
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0+*.*G";
-					else
-						return "%#0+*.*G";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0+*.*F";
-					else
-						return "%#0+*.*F";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0+*.*A";
-					else
-						return "%#0+*.*A";
-	else // FMT_PREFIX_SPACE
-		if ((fmt_flags & FMT_UPPER) == 0U)
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "% *.*g";
-					else
-						return "%# *.*g";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "% *.*f";
-					else
-						return "%# *.*f";
-				else // FMT_DISPLAY_HEX
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "% *.*a";
-					else
-						return "%# *.*a";
-			else // FMT_ZEROPAD
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0 *.*g";
-					else
-						return "%#0 *.*g";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0 *.*f";
-					else
-						return "%#0 *.*f";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0 *.*a";
-					else
-						return "%#0 *.*a";
-		else // FMT_UPPER
-			if ((fmt_flags & FMT_ZEROPAD) == 0U)
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "% *.*G";
-					else
-						return "%# *.*G";
-				else if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "% *.*F";
-					else
-						return "%# *.*F";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "% *.*A";
-					else
-						return "%# *.*A";
-			else
-				if ((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_STD)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0 *.*G";
-					else
-						return "%#0 *.*G";
-				else if((fmt_flags & FMT_DISPLAY_MASK) == FMT_DISPLAY_FIXED)
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0 *.*F";
-					else
-						return "%#0 *.*F";
-				else
-					if ((fmt_flags & FMT_ALT) == 0U)
-						return "%0 *.*A";
-					else
-						return "%#0 *.*A";
 }
 
 // find maximum of 2 numbers
@@ -723,7 +367,8 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 }
 
 static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double val, int w, int p, unsigned flags) {
-	const char* fmt = getFmtFlt(flags);
+	char fmt[24];
+	getFmt(fmt, flags | FMT_FLOAT | FMT_HAVE_WIDTH | FMT_HAVE_PRECISION);
 	int expected_nchar = Max(abs(w)+1, p+7+1);
 	while (space < expected_nchar) {
 		*cap += expected_nchar + (*cap >> 1);
@@ -736,7 +381,7 @@ static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double 
 static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned long long vall, unsigned bits, int w, int p, unsigned flags) {
 	int expected_nchar;
 	unsigned val;
-	const char* fmt;
+	char fmt[24];
 	if (bits <= 32) {
 		val = (unsigned)vall;
 		if (bits < 32) {
@@ -749,10 +394,10 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned 
 			if (!(flags & FMT_UNSIGNED))
 				val = (unsigned)((int)(val << (32 - bits)) >> (32 - bits));
 		}
-		fmt = getFmtInt(flags);
+		getFmt(fmt, flags | FMT_HAVE_WIDTH);
 		expected_nchar = Max(abs(w)+1, 21+1);
 	} else {
-		fmt = getFmtLong(flags);
+		getFmt(fmt, flags | FMT_LONG | FMT_HAVE_WIDTH);
 		expected_nchar = Max(abs(w)+1, 11+1);
 	}
 	while (space < expected_nchar) {
@@ -804,7 +449,8 @@ static void vsprt(char** s, unsigned* cap, unsigned* pos, const char* pre, va_li
 				p = va_arg(ap, int);
 				flags = va_arg(ap, unsigned);
 			}
-			const char* fmt = getFmtFlt(flags);
+			char fmt[24];
+			getFmt(fmt, flags | FMT_FLOAT | FMT_HAVE_WIDTH | FMT_HAVE_PRECISION);
 			if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 			prt_float(s, cap, pos, space, val, w, p, flags);
 			if (ft->type_attr & A_signed)
@@ -990,7 +636,8 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 			} else {
 				val = ap[idx].f64;
 			}
-			const char* fmt = getFmtFlt(0);
+			char fmt[24];
+			getFmt(fmt, FMT_FLOAT | FMT_HAVE_WIDTH | FMT_HAVE_PRECISION);
 			int p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 			prt_float(&s, &cap, &pos, space, val, w, p, flags);
 			if (ft->type_attr & A_signed)

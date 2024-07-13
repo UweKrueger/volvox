@@ -80,6 +80,6 @@ def test_string_interpolation_1 bool
 end
 
 def test_string_interpolation_2 bool
-	x = "op$%kppo, ${hjsq34,0,5}+"
+	x = "op$#%kppo, ${hjsq34,0,5}+"
 	return x == "op0x125e2, 6.9+"
 end
