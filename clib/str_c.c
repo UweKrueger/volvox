@@ -426,12 +426,12 @@ struct __volvox_interface {
 static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, bool nl, unsigned n_elem,
                            struct __volvox_interface* ap, unsigned* flg, int* widths, int* precisions, const char* strs[]) {
 	for (unsigned idx = 0; ; idx++) {
-		if (csv && idx)
-			prtstring(s, cap, pos, ", ", 0);
-		else if (strs && strs[idx])
+		if (strs && strs[idx])
 			prtstring(s, cap, pos, strs[idx], 0);
 		if (idx >= n_elem)
 			break;
+		if (csv && idx)
+			prtstring(s, cap, pos, ", ", 0);
 		int space = *cap - *pos;
 		int w = widths ? widths[idx] : 0;
 		int p = precisions ? precisions[idx] : 0;
@@ -447,7 +447,8 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 			} else {
 				val = ap[idx].f64;
 			}
-			int p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
+			if (!precisions || p < 0)
+				p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 			prt_float(s, cap, pos, space, val, w, p, flags);
 			if (ft->type_attr & A_signed)
 				prtstring(s, cap, pos, "i", 0);
@@ -462,7 +463,7 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 				vall = ap[idx].u64;
 			}
 			if (ft->type_attr & A_complex) {
-				if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
+				if (p < 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 				prt_float(s, cap, pos, space, *(float*)&vall, w, p, flags);
 				const char* sp = *((float*)&vall + 1) < 0 ? " - " : " + ";
 				float im = ((float*)&vall + 1) < 0 ? -*((float*)&vall + 1) : *((float*)&vall + 1);

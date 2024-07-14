@@ -796,7 +796,7 @@ llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 		} else
-			precision = llvm::Constant::getNullValue(llvm_int_type);
+			precision = llvm::ConstantInt::get(llvm_int_type, INT_MIN);
 		Builder->CreateStore(precision, precision_val_adr);
 		llvm::Value* flags = llvm::ConstantInt::get(llvm_int_type, std::get<3>(interpolations[idx]));
 		Builder->CreateStore(flags, flags_val_adr);
