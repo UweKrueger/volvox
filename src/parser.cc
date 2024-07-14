@@ -465,6 +465,12 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 					goto handle_error;
 				}
 				flags |= (lex.CurChar == '.' ? FMT_DISPLAY_FIXED : FMT_DISPLAY_EXP);
+			} else if (lex.CurChar == '`') {
+				if (flags & (FMT_DISPLAY_EXP | FMT_DISPLAY_FIXED | FMT_DISPLAY_HEX | FMT_DISPLAY_OCT| FMT_CHAR)) {
+					errs() << lex.Loc << ": '`' invalid since '^', '.', '%', '0' or a previous '`' has already been specified\n";
+					goto handle_error;
+				}
+				flags |= FMT_CHAR;
 			} else {
 				errs() << lex.Loc << ": unexpected string interpolation specifier '" << (char)lex.CurChar << "'\n";
 				goto handle_error;
