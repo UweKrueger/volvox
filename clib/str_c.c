@@ -367,7 +367,7 @@ static void print_array(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtT
 }
 
 static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double val, int w, int p, unsigned flags) {
-	char fmt[24];
+	char fmt[16];
 	getFmt(fmt, flags | FMT_FLOAT | FMT_HAVE_WIDTH | FMT_HAVE_PRECISION);
 	int expected_nchar = Max(abs(w)+1, p+7+1);
 	while (space < expected_nchar) {
@@ -381,7 +381,7 @@ static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double 
 static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned long long vall, unsigned bits, int w, int p, unsigned flags) {
 	int expected_nchar;
 	unsigned val;
-	char fmt[24];
+	char fmt[16];
 	if (bits <= 32) {
 		val = (unsigned)vall;
 		if (bits < 32) {
@@ -597,17 +597,15 @@ struct __volvox_interface {
 	};
 };
 
-_DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n_elem, struct __volvox_interface* ap) {
-	unsigned cap = 128;
-	unsigned pos = 0;
-	char* s = (char*)malloc(cap);
-	for (size_t idx = 0; idx < n_elem; idx++) {
+static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, bool nl, unsigned n_elem,
+                          struct __volvox_interface* ap, unsigned* flg, int* widths, int* precisions) {
+	for (unsigned idx = 0; idx < n_elem; idx++) {
 		if (csv && idx)
-			prtstring(&s, &cap, &pos, ", ", 0);
-		int space = cap - pos;
-		int w = 0;
-		int p = 0;
-		unsigned flags = 0;
+			prtstring(s, cap, pos, ", ", 0);
+		int space = *cap - *pos;
+		int w = widths ? widths[idx] : 0;
+		int p = precisions ? precisions[idx] : 0;
+		unsigned flags = flg ? flg[idx] : 0;
 		const VOLVOX_RtType* ft = ap[idx].typ;
 		switch (ft->ID) {
 		case VOLVOX_BFloatTyID:
@@ -620,9 +618,9 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 				val = ap[idx].f64;
 			}
 			int p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
-			prt_float(&s, &cap, &pos, space, val, w, p, flags);
+			prt_float(s, cap, pos, space, val, w, p, flags);
 			if (ft->type_attr & A_signed)
-				prtstring(&s, &cap, &pos, "i", flags);
+				prtstring(s, cap, pos, "i", 0);
 		}
 			break;
 		case VOLVOX_IntegerTyID: {
@@ -635,16 +633,16 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 			}
 			if (ft->type_attr & A_complex) {
 				if (p <= 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
-				prt_float(&s, &cap, &pos, space, *(float*)&vall, w, p, flags);
+				prt_float(s, cap, pos, space, *(float*)&vall, w, p, flags);
 				const char* sp = *((float*)&vall + 1) < 0 ? " - " : " + ";
 				float im = ((float*)&vall + 1) < 0 ? -*((float*)&vall + 1) : *((float*)&vall + 1);
-				prtstring(&s, &cap, &pos, sp, w);
-				prt_float(&s, &cap, &pos, 0, im, w, p, flags);
-				prtstring(&s, &cap, &pos, "i", w);
+				prtstring(s, cap, pos, sp, 0);
+				prt_float(s, cap, pos, 0, im, w, p, flags);
+				prtstring(s, cap, pos, "i", 0);
 			} else {
 				if (!(ft->type_attr & A_signed))
 					flags |= FMT_UNSIGNED;
-				prt_int(&s, &cap, &pos, space, vall, ft->SubclassData, w, p, flags);
+				prt_int(s, cap, pos, space, vall, ft->SubclassData, w, p, flags);
 			}
 		}
 			break;
@@ -662,12 +660,12 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 			char* elem_ptr = (char*)*descr_ptr;
 			size_t elem_size = ft->elem_type->type_size;
 			if (subsz[0]) {
-				print_array(&s, &cap, &pos, ft->elem_type, elem_ptr, dims, subsz, order, 0, w, p, flags);
+				print_array(s, cap, pos, ft->elem_type, elem_ptr, dims, subsz, order, 0, w, p, flags);
 			} else {
 				for (unsigned n = 0; n < order; n++)
-					prtstring(&s, &cap, &pos, "[", 0);
+					prtstring(s, cap, pos, "[", 0);
 				for (unsigned n = 0; n < order; n++)
-					prtstring(&s, &cap, &pos, "]", 0);
+					prtstring(s, cap, pos, "]", 0);
 			}
 		}
 			break;
@@ -675,12 +673,12 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 			if (ft->type_attr & A_complex) {
 				complex_float c = ap[idx].c32;
 				p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
-				prt_float(&s, &cap, &pos, space, crealf(c), w, p, flags);
+				prt_float(s, cap, pos, space, crealf(c), w, p, flags);
 				const char* sp = cimagf(c) < 0 ? " - " : " + ";
 				float im = cimagf(c) < 0 ? -cimagf(c) : cimagf(c);
-				prtstring(&s, &cap, &pos, sp, w);
-				prt_float(&s, &cap, &pos, 0, im, w, p, flags);
-				prtstring(&s, &cap, &pos, "i", w);
+				prtstring(s, cap, pos, sp, 0);
+				prt_float(s, cap, pos, 0, im, w, p, flags);
+				prtstring(s, cap, pos, "i", 0);
 			}
 		}
 			break;
@@ -688,24 +686,24 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 			char* str = ap[idx].ptr;
 			if (csv)
 				w = INT_MIN;
-			prt_pointer(&s, &cap, &pos, str, w, ft->type_attr);
+			prt_pointer(s, cap, pos, str, w, ft->type_attr);
 		}
 			break;
 		case VOLVOX_FunctionTyID: {
 			char* fn = ap[idx].ptr;
 			int expected_nchar = Max(abs(w)+1, 30+1);
 			while (space < expected_nchar) {
-				cap += expected_nchar + (cap >> 1);
-				s = (char*)realloc(s, cap);
-				space = cap - pos;
+				*cap += expected_nchar + (*cap >> 1);
+				*s = (char*)realloc(*s, *cap);
+				space = *cap - *pos;
 			}
-			pos += sprintf(s + pos, "function: <%p>", fn);
+			pos += sprintf(*s + *pos, "function: <%p>", fn);
 		}
 			break;
 		case VOLVOX_StructTyID: {
 			unsigned num_fields = ft->SubclassData;
 			char* elem_ptr = ap[idx].ptr;
-			print_struct(&s, &cap, &pos, ft, elem_ptr, num_fields, 0, w, p, flags);
+			print_struct(s, cap, pos, ft, elem_ptr, num_fields, 0, w, p, flags);
 		}
 			break;
 		default:
@@ -713,14 +711,19 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 			abort();
 		}
 	}
-	unsigned bytes_to_write = pos;
 	if (nl) {
-		s[pos] = '\n';
-		bytes_to_write++;
+		(*s)[(*pos)++] = '\n';
 	}
-	int n = write(fd, s, bytes_to_write);
+}
+
+_DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n_elem, struct __volvox_interface* ap) {
+	unsigned cap = 128;
+	unsigned pos = 0;
+	char* s = (char*)malloc(cap);
+	__generic_sprt(&s, &cap, &pos, csv, nl, n_elem, ap, NULL, NULL, NULL);
+	int n = write(fd, s, pos);
 	free(s);
-	return (n == bytes_to_write) ? n : -1;
+	return (n == pos) ? n : -1;
 }
 
 _DECL bool enableColorANSI(int fd) {
