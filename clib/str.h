@@ -32,6 +32,8 @@
 #define FMT_CHAR          (1U << 15)
 #define FMT_STRING        (1U << 16)
 // A_packed (1U<<17) - from RtType - see types.h
+#define FMT_CSV           (1U << 18)
+
 #define F32_DEFAULT_PRECISION 7
 #define F64_DEFAULT_PRECISION 16
 #define ARRAY_DEFAULT_FIELD_WIDTH 8

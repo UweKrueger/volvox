@@ -375,7 +375,13 @@ static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double 
 		*s = (char*)realloc(*s, *cap);
 		space = *cap - *pos;
 	}
-	*pos += sprintf(*s + *pos, fmt, w, p, val);
+	char* oldpos = *s + *pos;
+	*pos += sprintf(oldpos, fmt, w, p, val);
+	if (flags & FMT_CSV)
+		if (!strchr(oldpos, '.')) {
+			*(*s + (*pos)++) = '.';
+			*(*s + (*pos)++) = '\0';
+		}
 }
 
 static void prt_int(char** s, unsigned* cap, unsigned* pos, int space, unsigned long long vall, unsigned bits, int w, int p, unsigned flags) {
@@ -437,6 +443,8 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 		int p = precisions ? precisions[idx] : 0;
 		unsigned flags = flg ? flg[idx] : 0;
 		const VOLVOX_RtType* ft = ap[idx].typ;
+		if (csv)
+			flags |= FMT_CSV;
 		switch (ft->ID) {
 		case VOLVOX_BFloatTyID:
 		case VOLVOX_FloatTyID:
