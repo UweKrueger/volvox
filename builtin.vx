@@ -24,8 +24,8 @@ cdecl(pipe2) __pipe2(fds voidptr, flags int) int
 cdecl(close) __close(fd int) int
 cdecl(write) __write(fd int, buf voidptr, count size_t) ssize_t
 cdecl(CloseHandle) __CloseHandle(handle voidptr) int
-cdecl __volvox_sprt(pre cstring, ...) string
 
+decl __builtin_sprint(widths voidptr, precisions voidptr, flagss voidptr, strings voidptr, ...) string
 decl __builtin_print(fd int, csv bool, nl bool, ...) int
 
 inline def print(...) int

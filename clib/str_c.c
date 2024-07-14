@@ -598,10 +598,14 @@ struct __volvox_interface {
 };
 
 static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, bool nl, unsigned n_elem,
-                          struct __volvox_interface* ap, unsigned* flg, int* widths, int* precisions) {
-	for (unsigned idx = 0; idx < n_elem; idx++) {
+                           struct __volvox_interface* ap, unsigned* flg, int* widths, int* precisions, const char* strs[]) {
+	for (unsigned idx = 0; ; idx++) {
 		if (csv && idx)
 			prtstring(s, cap, pos, ", ", 0);
+		else if (strs && strs[idx])
+			prtstring(s, cap, pos, strs[idx], 0);
+		if (idx >= n_elem)
+			break;
 		int space = *cap - *pos;
 		int w = widths ? widths[idx] : 0;
 		int p = precisions ? precisions[idx] : 0;
@@ -720,7 +724,7 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 	unsigned cap = 128;
 	unsigned pos = 0;
 	char* s = (char*)malloc(cap);
-	__generic_sprt(&s, &cap, &pos, csv, nl, n_elem, ap, NULL, NULL, NULL);
+	__generic_sprt(&s, &cap, &pos, csv, nl, n_elem, ap, NULL, NULL, NULL, NULL);
 	int n = write(fd, s, pos);
 	free(s);
 	return (n == pos) ? n : -1;
@@ -1244,14 +1248,13 @@ _DECL void __trim_cstring(char* s, ssize_t* l, char d) {
 	}
 }
 
-_DECL char* __volvox_sprt(const char* pre, ... /* ft, val, int w, int p, unsigned flags, ..., char* post */) {
-	char* s = NULL;
-	unsigned cap = 0;
+_DECL char* _Z16__builtin_sprintPvPvPvPvRA0interface(int* widths, int* precisions, unsigned* flagss, const char* strings[],
+                                                     size_t n_elem, struct __volvox_interface* ap)
+{
+	unsigned cap = 128;
 	unsigned pos = 0;
-	va_list ap;
-	va_start(ap, pre);
-	vsprt(&s, &cap, &pos, pre, ap);
-	va_end(ap);
+	char* s = (char*)malloc(cap);
+	__generic_sprt(&s, &cap, &pos, false, false, (unsigned)n_elem, ap, flagss, widths, precisions, strings);
 	return __transformcstr2volvox_l(s, pos, cap);
 }
 

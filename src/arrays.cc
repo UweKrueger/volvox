@@ -697,7 +697,7 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 
 // in interactive JIT mode addresses of globals change from call to call, so
 // a "string constant" has to be stored at a fixed place on heap to emulate
-// the beahviour we have in other modes
+// the behaviour we have in other modes
 llvm::Value* createJITStringConst(const char* str, size_t Len, const llvm::Twine &Name) {
 	char* v_str = __cstr2volvoxstr(str, Len, false);
 	size_t new_l = *(size_t*)v_str;
@@ -725,47 +725,88 @@ llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &N
 	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
 }
 
+llvm::Value* createJITCStringConst(const char* str) {
+	const char* new_cstr = strdup(str);
+	jit_string_consts.push_back(new_cstr);
+	llvm::Constant* iadr = getSize((uintptr_t)new_cstr);
+	return Builder->CreateIntToPtr(iadr, llvm_ptr_type);
+}
+
+llvm::Value* createCStringConst(const char* str) {
+	if (!str)
+		return nullptr;
+	if (jit_repl)
+		return createJITCStringConst(str);
+	return Builder->CreateGlobalStringPtr(str, "", 0, TheModule.get());
+}
+
 llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
-	std::vector<llvm::Value*> values;
 	unsigned n_inter = interpolations.size();
-	values.reserve(2 + 5*n_inter);
-	for (unsigned i=0; ; i++) {
-		if (str_parts[i])
-			values.push_back(createStringConst(str_parts[i], strlen(str_parts[i]), ""));
+	auto interface_array_t = llvm::ArrayType::get(llvm_interface_type, n_inter);
+	auto int_array_t = llvm::ArrayType::get(llvm_int_type, n_inter);
+	auto str_array_t = llvm::ArrayType::get(llvm_ptr_type, n_inter+1);
+	llvm::Value* InterfaceStore = CreateEntryBlockAlloca(interface_array_t);
+	llvm::Value* WidthStore = CreateEntryBlockAlloca(int_array_t);
+	llvm::Value* PrecisionStore = CreateEntryBlockAlloca(int_array_t);
+	llvm::Value* FlagsStore = CreateEntryBlockAlloca(int_array_t);
+	llvm::Value* StringStore = CreateEntryBlockAlloca(str_array_t);
+	llvm::Value* volvox_var_array_ref = llvm::UndefValue::get(llvm_va_arg_ref_type);
+	volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, getSize(n_inter), 0);
+	volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, InterfaceStore, 1);
+	std::vector<llvm::Value*> values = {
+		WidthStore, PrecisionStore, FlagsStore, StringStore, volvox_var_array_ref };
+	for (unsigned idx=0; ; idx++) {
+		llvm::Value* interface_val_adr = Builder->CreateGEP(llvm_interface_type, InterfaceStore, llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), idx));
+		llvm::Value* width_val_adr = Builder->CreateGEP(llvm_int_type, WidthStore, llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), idx));
+		llvm::Value* precision_val_adr = Builder->CreateGEP(llvm_int_type, PrecisionStore, llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), idx));
+		llvm::Value* flags_val_adr = Builder->CreateGEP(llvm_int_type, FlagsStore, llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), idx));
+		llvm::Value* string_val_adr = Builder->CreateGEP(llvm_ptr_type, StringStore, llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), idx));
+		llvm::Value* str_val;
+		if (str_parts[idx]) {
+			str_val = createCStringConst(str_parts[idx]);
+		}
 		else
-			values.push_back(llvm::ConstantPointerNull::get(llvm_ptr_type));
-		if (i >= n_inter)
+			str_val = llvm::ConstantPointerNull::get(llvm_ptr_type);
+		Builder->CreateStore(str_val, string_val_adr);
+		if (idx >= n_inter)
 			break;
-		auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(std::get<0>(interpolations[i])));
-		auto inter_val = interface_expr->codegen_raw();
+		auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(std::get<0>(interpolations[idx])));
+		auto inter_val = interface_expr->codegen_raw(interface_val_adr, true);
 		if (!inter_val) {
 			errs() << interface_expr->Loc << ": cannot generate interpolation value\n";
 			return nullptr;
 		}
-		values.push_back(inter_val);
-		if (std::get<1>(interpolations[i])) {
-			auto field_width = std::get<1>(interpolations[i])->codegen();
+		llvm::Value* field_width;
+		if (std::get<1>(interpolations[idx])) {
+			std::get<1>(interpolations[idx])->desired_type = llvm_int_type;
+			field_width = std::get<1>(interpolations[idx])->codegen();
 			if (!field_width) {
-				errs() << std::get<1>(interpolations[i])->Loc << ": cannot generate width value\n";
+				errs() << std::get<1>(interpolations[idx])->Loc << ": cannot generate width value\n";
 				return nullptr;
 			}
-			values.push_back(field_width);
 		} else
-			values.push_back(llvm::Constant::getNullValue(llvm_int_type));
-		if (std::get<2>(interpolations[i])) {
-			auto precision = std::get<2>(interpolations[i])->codegen();
+			field_width = llvm::Constant::getNullValue(llvm_int_type);
+		Builder->CreateStore(field_width, width_val_adr);
+		llvm::Value* precision;
+		if (std::get<2>(interpolations[idx])) {
+			std::get<2>(interpolations[idx])->desired_type = llvm_int_type;
+			precision = std::get<2>(interpolations[idx])->codegen();
 			if (!precision) {
-				errs() << std::get<1>(interpolations[i])->Loc << ": cannot generate precision value\n";
+				errs() << std::get<2>(interpolations[idx])->Loc << ": cannot generate precision value\n";
 				return nullptr;
 			}
-			values.push_back(precision);
 		} else
-			values.push_back(llvm::Constant::getNullValue(llvm_int_type));
-		values.push_back(llvm::ConstantInt::get(llvm_int_type, std::get<3>(interpolations[i])));
+			precision = llvm::Constant::getNullValue(llvm_int_type);
+		Builder->CreateStore(precision, precision_val_adr);
+		llvm::Value* flags = llvm::ConstantInt::get(llvm_int_type, std::get<3>(interpolations[idx]));
+		Builder->CreateStore(flags, flags_val_adr);
 	}
-	values.push_back(llvm::ConstantPointerNull::get(llvm_ptr_type));
-	std::string volvox_sprt = "__volvox_sprt";
+	std::string volvox_sprt = "__builtin_sprint";
 	auto sprt_proto = (*lex.findProtos(volvox_sprt))[0].get();
+	if (!sprt_proto) {
+		errs() << Loc << ": cannot find function " << volvox_sprt << "()\n";
+		return nullptr;
+	}
 	auto sprt_fn = getFunction(sprt_proto);
 	llvm::Value* result = Builder->CreateCall(sprt_proto->FT, sprt_fn, values);
 	if (!target) {
