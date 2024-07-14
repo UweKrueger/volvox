@@ -301,8 +301,8 @@ static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_Rt
 		prtstring(s, cap, pos, struct_type->name, w);
 	if (num_fields) { // should empty structs be allowed? not sure...
 		prtstring(s, cap, pos, "{", 0);
-		if (struct_type->type_attr & A_packed)
-			flags |= A_packed;
+		flags &= ~A_packed;
+		flags |= (struct_type->type_attr & A_packed);
 		for (unsigned n=0; n<num_fields; ++n) {
 			elem_ptr = prt_aggregate_elem(s, cap, pos,
 			                              ((VOLVOX_RtType*)((char*)struct_type + n * sizeof(VOLVOX_RtStructField)))->fields.FieldName,

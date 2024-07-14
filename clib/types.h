@@ -20,8 +20,7 @@
 #define A_map    (1U<<7) // llvm-type is key type
 #define A_signed_key (1U<<8) //for maps with integer key
 #define A_fn     (1U<<9) // function (or function pointer)
-#define A_packed (1U<<10) // only set for RtType, otherwise part of llvm::Type
-#define A_constructor_value_return (1U<<10)
+#define A_mainvar (1U<<10) // global for LLVM
 #define A_union  (1U<<11)
 #define A_string (1U<<12)
 #define A_cstring (1U<<13)
@@ -30,7 +29,8 @@
 #define A_optional (1U<<15)
 // symbol visibility attributes
 #define A_pub    (1U<<16)
-#define A_mainvar (1U<<17) // global for LLVM
+#define A_packed (1U<<17) // only set for RtType, otherwise part of llvm::Type
+#define A_constructor_value_return (1U<<17)
 #define A_global (1U<<18) // in jit jit all main symbols are global for LLVM, so an additional flag for logical visibility is needed
 #define A_inline (1U<<19) // function
 #define A_modified (1U<<19) // variable
