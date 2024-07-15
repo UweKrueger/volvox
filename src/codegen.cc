@@ -2396,7 +2396,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			switch(typeclass) {
 			case is_int:
 				if (OperandSigned)
-					result = Builder->CreateICmpSLE(L, R, "lesitmp");
+					if (!(RHS->ft->type_attr & A_signed)) {
+						result = Builder->CreateOr(
+							Builder->CreateICmpSLT(L, llvm::Constant::getNullValue(L->getType())),
+							Builder->CreateICmpULE(L, R), "lesu");
+					} else if (!(LHS->ft->type_attr & A_signed)) {
+						result = Builder->CreateAnd(
+							Builder->CreateICmpULE(L, R),
+							Builder->CreateICmpSGE(R, llvm::Constant::getNullValue(R->getType())), "leus");
+					} else
+						result = Builder->CreateICmpSLE(L, R, "lesitmp");
 				else
 					result = Builder->CreateICmpULE(L, R, "leuitmp");
 				break;
@@ -2421,7 +2430,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			switch(typeclass) {
 			case is_int:
 				if (OperandSigned)
-					result = Builder->CreateICmpSLT(L, R, "ltsitmp");
+					if (!(RHS->ft->type_attr & A_signed)) {
+						result = Builder->CreateOr(
+							Builder->CreateICmpSLT(L, llvm::Constant::getNullValue(L->getType())),
+							Builder->CreateICmpULT(L, R), "ltsu");
+					} else if (!(LHS->ft->type_attr & A_signed)) {
+						result = Builder->CreateAnd(
+							Builder->CreateICmpULT(L, R),
+							Builder->CreateICmpSGE(R, llvm::Constant::getNullValue(R->getType())), "ltus");
+					} else
+						result = Builder->CreateICmpSLT(L, R, "ltsitmp");
 				else
 					result = Builder->CreateICmpULT(L, R, "ltuitmp");
 				break;
@@ -2439,7 +2457,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			switch(typeclass) {
 			case is_int:
 				if (OperandSigned)
-					result = Builder->CreateICmpSGE(L, R, "gesitmp");
+					if (!(RHS->ft->type_attr & A_signed)) {
+						result = Builder->CreateAnd(
+							Builder->CreateICmpSGE(L, llvm::Constant::getNullValue(L->getType())),
+							Builder->CreateICmpUGE(L, R), "gesu");
+					} else if (!(LHS->ft->type_attr & A_signed)) {
+						result = Builder->CreateOr(
+							Builder->CreateICmpUGE(L, R),
+							Builder->CreateICmpSLT(R, llvm::Constant::getNullValue(R->getType())), "geus");
+					} else
+						result = Builder->CreateICmpSGE(L, R, "gesitmp");
 				else
 					result = Builder->CreateICmpUGE(L, R, "geuitmp");
 				break;
@@ -2477,7 +2504,16 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			switch(typeclass) {
 			case is_int:
 				if (OperandSigned)
-					result = Builder->CreateICmpSGT(L, R, "gtsitmp");
+					if (!(RHS->ft->type_attr & A_signed)) {
+						result = Builder->CreateAnd(
+							Builder->CreateICmpSGE(L, llvm::Constant::getNullValue(L->getType())),
+							Builder->CreateICmpUGT(L, R), "gtsu");
+					} else if (!(LHS->ft->type_attr & A_signed)) {
+						result = Builder->CreateOr(
+							Builder->CreateICmpUGT(L, R),
+							Builder->CreateICmpSLT(R, llvm::Constant::getNullValue(R->getType())), "gtus");
+					} else
+						result = Builder->CreateICmpSGT(L, R, "gtsitmp");
 				else
 					result = Builder->CreateICmpUGT(L, R, "gtuitmp");
 				break;
