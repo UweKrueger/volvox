@@ -144,7 +144,7 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 				}
 				Dims.push_back(std::move(std::make_unique<ConstExprAST>(getSize(dim))));
-				LenLocs.push_back(SourceLocation{});
+				LenLocs.push_back(SourceLocation());
 				elem_type = array_type->getElementType();
 			} while ((array_type = llvm::dyn_cast<llvm::ArrayType>(elem_type)));
 			auto iter = ExprListIterator(std::move(Dims));

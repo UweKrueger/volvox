@@ -244,10 +244,10 @@ void init(const llvm::Triple& triple) {
 	// often needed prototype
 	int_int_proto = new_AnonProto(
 		std::make_unique<PrototypeAST>(
-			SourceLocation{}, "dim", std::vector<std::string>{ "order" }, 0,
-			SourceLocation{}, false, size_type,
+			SourceLocation(), "dim", std::vector<std::string>{ "order" }, 0,
+			SourceLocation(), false, size_type,
 			std::vector<volvoxc::FullType*>{ integer_type },
-			std::vector<SourceLocation>{ SourceLocation{} }),
+			std::vector<SourceLocation>{ SourceLocation() }),
 		SourceLocation("<builtin array method>", 0, 0));
 	// create build in constexprs to describe target
 	switch (triple.getOS()) {
