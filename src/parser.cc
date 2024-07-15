@@ -575,8 +575,9 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 	// or a module prefix
 	auto im = lex.module->ImportedSymbols.find({ IdName, "" });
 	if (im != lex.module->ImportedSymbols.end())
-		if (im->second.isPrefix())
-			return std::make_unique<ModuleExprAST>(LitLoc, std::move(IdName));
+		if (im->second.isPrefix()) {
+			return std::make_unique<ModuleExprAST>(LitLoc, im->second.Loc, std::move(IdName));
+		}
 	// or a type name
 	if (auto type = lex.get_full_type(IdName.c_str())) {
 		if (CurTok.kind == '{')
@@ -1170,6 +1171,12 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
 		} else {
 			errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
+			const char* nth = (function->ft->Protos->size() > 1) ? "one" : "the";
+			const char* a = (function->ft->Protos->size() > 1) ? "a" : "the";
+			for (auto& proto: *function->ft->Protos) {
+				errs() << proto->retLoc << ": this is " << nth << " location of " << a << " previous declaration\n";
+				nth = "another";
+			}
 			return { nullptr, new_var_none };
 		}
 	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
@@ -1178,6 +1185,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
 		} else {
 			errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
+			errs() << mod->importLoc << ": declared in an 'import' here\n";
 			return { nullptr, new_var_none };
 		}
 	}

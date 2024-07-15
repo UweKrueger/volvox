@@ -164,6 +164,7 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 	}
 	std::string patterntail;
 	std::string new_mod;
+	auto TheLoc = CurLoc;
 	for (int j=0; j < _import_path.size(); j++) {
 		patterntail += _import_path[j];
 		new_mod += _import_path[j];
@@ -218,23 +219,29 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 		return next_input_file();
 	} else {
 		if (verbosity >= 2)
-			errs() << "skipping import of " << patterntail << " - already processed\n";
+			errs() << CurLoc << "skipping import of " << patterntail << " - already processed\n";
 		auto previously_processed_module = Modules.find(patterntail);
 		if (previously_processed_module == Modules.end()) {
 			errs() << "internal error\n";
 			abort();
 		}
 		Module* import_module = &previously_processed_module->second;
-		import_from_module(import_module);
+		import_from_module(import_module, TheLoc);
 		return true;
 	}
 }
 
-void Lexer::import_from_module(Module* import_module) {
+void Lexer::import_from_module(Module* import_module, SourceLocation TheLoc) {
 	bool is_from_import = !fromlist.empty();
 	std::set<std::string> processed_symbols_from_from_list = {};
 	if (!is_from_import) {
-		module->ImportedSymbols[{ as, "" }] = SymbolRef(); // declare `as` as module prefix
+		auto _success = module->ImportedSymbols.try_emplace({ as, "" }, TheLoc); // declare `as` as module prefix
+		if (!_success.second) {
+			errs() << TheLoc << ": unable to declare '" << as << "' as module prefix - symbol already declared\n";
+			errs() << _success.first->second.Loc << ": in an 'import' here\n";
+			return;
+		}
+		// TODO: check for other name conflicts
 	}
 	for (auto& unmangled_protos: import_module->FunctionProtos) {
 		for (auto proto = unmangled_protos.second.begin(); proto != unmangled_protos.second.end();)
@@ -246,13 +253,13 @@ void Lexer::import_from_module(Module* import_module) {
 			bool success = true;
 			if (is_from_import) {
 				if (fromlist.contains(unmangled_protos.first)) {
-					auto _success = module->ImportedSymbols.try_emplace({ "", unmangled_protos.first }, &unmangled_protos.second);
+					auto _success = module->ImportedSymbols.try_emplace({ "", unmangled_protos.first }, TheLoc, &unmangled_protos.second);
 					success = _success.second;
 					if (success)
 						processed_symbols_from_from_list.insert(unmangled_protos.first);
 				}
 			} else {
-				auto _success = module->ImportedSymbols.try_emplace({ as, unmangled_protos.first }, &unmangled_protos.second);
+				auto _success = module->ImportedSymbols.try_emplace({ as, unmangled_protos.first }, TheLoc, &unmangled_protos.second);
 				success = _success.second;
 			}
 			if (!success) {
@@ -267,13 +274,13 @@ void Lexer::import_from_module(Module* import_module) {
 			bool success = true;
 			if (is_from_import) {
 				if (fromlist.contains(global.getKey())) {
-					auto _success = module->ImportedSymbols.try_emplace({ "", global.getKey() }, var);
+					auto _success = module->ImportedSymbols.try_emplace({ "", global.getKey() }, TheLoc, var);
 					success = _success.second;
 					if (success)
 						processed_symbols_from_from_list.insert(global.getKey());
 				}
 			} else {
-				auto _success = module->ImportedSymbols.try_emplace({ as, global.getKey() }, var);
+				auto _success = module->ImportedSymbols.try_emplace({ as, global.getKey() }, TheLoc, var);
 				success = _success.second;
 			}
 			if (!success) {
@@ -288,13 +295,13 @@ void Lexer::import_from_module(Module* import_module) {
 		bool success = true;
 		if (is_from_import) {
 			if (fromlist.contains(type.getKey())) {
-				auto _success = module->ImportedSymbols.try_emplace({ "", type.getKey() }, ft);
+				auto _success = module->ImportedSymbols.try_emplace({ "", type.getKey() }, TheLoc, ft);
 				success = _success.second;
 				if (success)
 					processed_symbols_from_from_list.insert(type.getKey());
 			}
 		} else {
-			auto _success = module->ImportedSymbols.try_emplace({ as, type.getKey() }, ft);
+			auto _success = module->ImportedSymbols.try_emplace({ as, type.getKey() }, TheLoc, ft);
 			success = _success.second;
 		}
 		if (!success) {
@@ -363,7 +370,7 @@ void Lexer::pop_state() {
 	source_files.pop_back();
 	source_index.pop_back();
 	modulestack.pop_back();
-	import_from_module(processed_module);
+	import_from_module(processed_module, Loc);
 }
 
 bool Lexer::next_input_file() {

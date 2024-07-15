@@ -83,3 +83,15 @@ def test_string_interpolation_2 bool
 	x = "op$#%kppo, ${hjsq34,0,5}+"
 	return x == "op0x125e2, 6.9+"
 end
+
+def test_signed_unsigned_comparison_1 bool
+	gg = 0xa0000000U
+	b = -17
+	return gg > b
+end
+
+def test_signed_unsigned_comparison_2 bool
+	gg = 3U
+	b = 17
+	return gg < b
+end

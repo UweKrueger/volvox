@@ -95,8 +95,9 @@ public:
 
 class ModuleExprAST : public ExprAST {
 public:
+	SourceLocation importLoc;
 	std::string Name;
-	ModuleExprAST(SourceLocation Loc, std::string _Name) : ExprAST(Loc), Name(std::move(_Name)) {}
+	ModuleExprAST(SourceLocation Loc, SourceLocation importLoc, std::string _Name) : ExprAST(Loc), importLoc(importLoc), Name(std::move(_Name)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) { return nullptr; }
 };
 

@@ -1042,18 +1042,19 @@ enum SymbolKind : uint8_t {
 
 // representation of imported symbols
 class SymbolRef {
+public:
 	union {
 		volvoxc::FullType* full_type = nullptr;
 		FullVar* full_var;
 		std::vector<std::unique_ptr<PrototypeAST>>* protos;
 		std::nullptr_t module_prefix;
 	};
+	SourceLocation Loc;
 	SymbolKind kind = (SymbolKind)0;
-public:
-	SymbolRef(volvoxc::FullType* _full_type) : full_type(_full_type), kind(SymbolType) {}
-	SymbolRef(FullVar* _full_var) : full_var(_full_var), kind(SymbolVar) {}
-	SymbolRef(std::vector<std::unique_ptr<PrototypeAST>>* _protos) : protos(_protos), kind(SymbolFunction) {}
-	SymbolRef() : module_prefix(nullptr), kind(ModulePrefix) {}
+	SymbolRef(SourceLocation Loc, volvoxc::FullType* _full_type) : full_type(_full_type), Loc(Loc), kind(SymbolType) {}
+	SymbolRef(SourceLocation Loc, FullVar* _full_var) : full_var(_full_var), Loc(Loc), kind(SymbolVar) {}
+	SymbolRef(SourceLocation Loc, std::vector<std::unique_ptr<PrototypeAST>>* _protos) : protos(_protos), Loc(Loc), kind(SymbolFunction) {}
+	SymbolRef(SourceLocation Loc) : module_prefix(nullptr), Loc(Loc), kind(ModulePrefix) {}
 	volvoxc::FullType* getFullType() { return (kind == SymbolType) ? full_type : nullptr; }
 	FullVar* getFullVar() { return (kind == SymbolVar) ? full_var : nullptr; }
 	std::vector<std::unique_ptr<PrototypeAST>>* getProtos() { return (kind == SymbolFunction) ? protos : nullptr; }
@@ -1222,7 +1223,7 @@ public:
 	bool next_input_file();
 	bool push_state(std::vector<std::string> _import_path, std::string as, std::map<std::string, SourceLocation> fromlist);
 	void pop_state();
-	void import_from_module(Module* import_module);
+	void import_from_module(Module* import_module, SourceLocation TheLoc);
 	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
 	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }
 	MapNode* add_type(const char* name, volvoxc::FullType* ft, MapNode*& target) { return module->type_table.add(name, ft, target); }
