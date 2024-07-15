@@ -423,11 +423,17 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 		// so we use the Lexer directly
 		while (lex.CurChar != '{' && lex.CurChar != '_' && !isalpha(lex.CurChar)) {
 			if (lex.CurChar == '#') {
-				if (flags & FMT_ALT) {
-					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
+				if (flags & (FMT_ALT | FMT_CSV)) {
+					errs() << lex.Loc << ": at most 1 format specifier out of '#' and ',' allowed\n";
 					goto handle_error;
 				}
 				flags |= FMT_ALT;
+			} else if (lex.CurChar == ',') {
+				if (flags & (FMT_ALT | FMT_CSV)) {
+					errs() << lex.Loc << ": at most 1 format specifier out of '#' and ',' allowed\n";
+					goto handle_error;
+				}
+				flags |= FMT_CSV;
 			} else if (lex.CurChar == '0') {
 				if (flags & FMT_ZEROPAD) {
 					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
