@@ -341,12 +341,12 @@ static std::pair<llvm::Value*, SourceLocation> GenIndex(ExprAST* Index) {
 		if (aggr->Elements.size() != 1) {
 			errs() << (aggr->Elements.size() > 1 ? aggr->Elements[1]->Loc : Index->Loc)
 			       << ": exactly one index expected (for now)\n";
-			return { nullptr, {0} };
+			return { nullptr, SourceLocation() };
 		}
 		return { aggr->Elements[0]->codegen(), aggr->Elements[0]->Loc };
 	} else {
 		errs() << "internal compiler error\n";
-		return { nullptr, {0} };
+		return { nullptr, SourceLocation() };
 	}
 }
 
@@ -404,7 +404,7 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 			abort();
 		}
 		auto FixedField = dynamic_cast<FixedArrayExprAST*>(Field.get());
-		SourceLocation LenLoc = FixedField ? FixedField->LenLocs[0] : SourceLocation{0};
+		SourceLocation LenLoc = FixedField ? FixedField->LenLocs[0] : SourceLocation();
 		// if both the array size and the index are CT consts we can get the element
 		// without having to allocate space to store the array
 		if (auto Idx = llvm::dyn_cast<llvm::ConstantInt>(idx)) {

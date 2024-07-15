@@ -174,7 +174,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 					if (fnargs[i].is_anonymous_list && (proto->ArgTypes[i]->type->isStructTy() || proto->ArgTypes[i]->type->isArrayTy()))
 						conv = NoConversion;
 					else
-						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation{0},
+						conv = getConv(fnargs[i].argtype, proto->ArgTypes[i]->type, SourceLocation(),
 						               fnargs[i].argtype_attr, proto->ArgTypes[i]->type_attr,
 						               false, fnargs[i].arg_unknown_type, &match_kind);
 				}

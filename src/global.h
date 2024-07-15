@@ -213,10 +213,16 @@ inline llvm::raw_ostream& dbgs() {
 		return llvm::nulls();
 }
 
-struct SourceLocation {
+class SourceLocation {
+public:
 	const char* File;
 	int Line;
 	int Col;
+	SourceLocation() : File(nullptr), Line(0), Col(0) {}
+	SourceLocation(const char* File, int Line, int Col)
+		: File(File), Line(Line), Col(Col) {}
+	SourceLocation(const SourceLocation& orig) = default;
+	operator bool() { return (bool)File; }
 };
 
 extern std::string IdentifierStr; // string parsed as CurTok
@@ -314,6 +320,7 @@ namespace volvoxc {
 			std::vector<std::unique_ptr<PrototypeAST>>* Protos; // for overloaded functions
 			MapNode* fields;     // for structs
 		};
+		SourceLocation decl_loc;
 		void dump(int fd = 2);
 		std::string str();
 		// iterate over struct fields
@@ -342,14 +349,18 @@ inline bool FullTypes_equal(volvoxc::FullType* a, volvoxc::FullType* b) {
 }
 
 extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(
-	volvoxc::FullType* IteratorType, SourceLocation Loc = {0});
+	volvoxc::FullType* IteratorType, SourceLocation Loc = SourceLocation());
 
 extern llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type);
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
-	out << Loc.File;
-	if (Loc.Line || Loc.Col)
-		out << ":" << Loc.Line << ":" << Loc.Col;
+	if (!Loc.File)
+		out << "<unknown location>";
+	else {
+		out << Loc.File;
+		if (Loc.Line || Loc.Col)
+			out << ":" << Loc.Line << ":" << Loc.Col;
+	}
 	return out;
 }
 
@@ -575,7 +586,7 @@ struct FullVar {
 	llvm::Function* destructor = nullptr;
 	llvm::Instruction* constructor = nullptr; // to erase in auto-conversion to move
 	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
-	SourceLocation decl_loc = SourceLocation{0};
+	SourceLocation decl_loc;
 	unsigned n_p_r = 0;
 	unsigned c_p_r = 0;
 	volvoxc::FullType ft = {0};
@@ -1162,7 +1173,7 @@ extern Token& purgeLine();
 extern bool do_range_checks;
 
 struct SourceLocState {
-	SourceLocation Loc = {0};
+	SourceLocation Loc;
 	Module* module = nullptr;
 	ssize_t linelen = 0;
 	size_t bufsize = 0;
@@ -1464,7 +1475,7 @@ extern const char* last_thread_constructor_caller;
 extern const char* last_thread_destructor_caller;
 extern void CallGlobalDestructorsJIT();
 extern int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
-                       std::vector<FnArg>& fnargs, SourceLocation Loc = {0});
+                       std::vector<FnArg>& fnargs, SourceLocation Loc = SourceLocation());
 static inline llvm::LoadInst* CreateAtomicLoad(llvm::Type* ty, llvm::Value* adr, const llvm::Twine &Name = "") {
 	auto align = TheModule->getDataLayout().getABITypeAlign(ty);
 	return Builder->Insert(

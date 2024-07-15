@@ -248,7 +248,7 @@ void init(const llvm::Triple& triple) {
 			SourceLocation{}, false, size_type,
 			std::vector<volvoxc::FullType*>{ integer_type },
 			std::vector<SourceLocation>{ SourceLocation{} }),
-		SourceLocation{.File = "<builtin array method>"});
+		SourceLocation("<builtin array method>", 0, 0));
 	// create build in constexprs to describe target
 	switch (triple.getOS()) {
 	case llvm::Triple::DragonFly:
@@ -598,6 +598,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	}
 	// newft remains alive even after lex goes out of scope
 	newft->mangled_name = ft->mangled_name;
+	newft->decl_loc = TypeLoc;
 	*ft = *newft;
 	// mangled_name will intentionally *not* be automatically freed because
 	// it can be referred anywhere. We keep a database of all types with mangled

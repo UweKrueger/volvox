@@ -252,7 +252,8 @@ void Lexer::import_from_module(Module* import_module, SourceLocation TheLoc) {
 		}
 		if (auto type = lex.get_full_type(as.c_str())) {
 			errs() << TheLoc << ": '" << as << "' is already declared as a type\n";
-			// TODO: add declaration location to FullType class
+			if (type->decl_loc)
+				errs() << type->decl_loc << ": this is the location of the type declaration\n";
 			return;
 		}
 		auto _success = module->ImportedSymbols.try_emplace({ as, "" }, TheLoc); // declare `as` as module prefix
@@ -261,7 +262,6 @@ void Lexer::import_from_module(Module* import_module, SourceLocation TheLoc) {
 			errs() << _success.first->second.Loc << ": in an 'import' here\n";
 			return;
 		}
-		// TODO: check for other name conflicts
 	}
 	for (auto& unmangled_protos: import_module->FunctionProtos) {
 		for (auto proto = unmangled_protos.second.begin(); proto != unmangled_protos.second.end();)
@@ -402,10 +402,10 @@ bool Lexer::next_input_file() {
 				std::string consetup = "__setup_console";
 				auto protos = lex.findProtos(consetup);
 				std::unique_ptr<ExprAST> callee = std::make_unique<FunctionExprAST>(
-					SourceLocation{0}, consetup, protos);
+					SourceLocation(), consetup, protos);
 				GlobalExprList.push_back(
 					std::move(std::make_unique<CallExprAST>(
-								  SourceLocation{0}, std::move(callee))));
+						          SourceLocation(), std::move(callee))));
 			}
 			free(linebuf);
 			linebuf = nullptr;

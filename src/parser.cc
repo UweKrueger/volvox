@@ -690,7 +690,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	std::unique_ptr<ListExprAST> init_list = nullptr;
 	if (ft) {
 		for (auto& dim: Dims)
-			LenLocs.push_back(dim ? dim->Loc : SourceLocation{0});
+			LenLocs.push_back(dim ? dim->Loc : SourceLocation());
 		if (CurTok.kind != '{') {
 			errs() << CurLoc << ": expression list ('{...}') expected\n";
 			return nullptr;
