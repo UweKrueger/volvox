@@ -146,7 +146,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 		unsigned n_proto_args = proto->ArgTypes.size();
 		if (proto->IsVarArgs && !(proto->visibility & A_c_api))
 			n_proto_args--;
-		for (int i=0; i<fnargs.size(); i++) {
+		for (unsigned i=0; i<fnargs.size(); i++) {
 			conv_match_t match_kind = untyped_match;
 			std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
 			if (i >= n_proto_args) {
