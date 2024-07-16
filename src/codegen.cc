@@ -1598,10 +1598,55 @@ std::tuple<llvm::FunctionType*,llvm::Function*,llvm::Type*> findModAssign(
 	return { func_ty, func, des_ty };
 }
 
+llvm::Value *BinaryExprAST::codegen_ternary(llvm::Value* target) {
+	LHS->desired_type = llvm_bool_type;
+	llvm::Value* C = LHS->codegen();
+	if (auto colon_expr = dynamic_cast<BinaryExprAST*>(RHS.get())) {
+		if (strcmp(colon_expr->Op, ":"))
+			goto structural_err;
+		colon_expr->LHS->desired_type = colon_expr->ft->type;
+		colon_expr->RHS->desired_type = colon_expr->ft->type;
+		llvm::Value* L = colon_expr->LHS->codegen();
+		llvm::Value* R = colon_expr->RHS->codegen();
+		if (!(C && L && R)) {
+			errs() << Loc << ": error generating code for ternary expression\n";
+			return nullptr;
+		}
+		llvm::Type* int_ty;
+		llvm::Type* flt_ty = nullptr;
+		if (!colon_expr->ft->type->isIntegerTy()) {
+			flt_ty = colon_expr->ft->type;
+			if (flt_ty->isFloatTy())
+				int_ty = llvm::Type::getInt32Ty(Context);
+			else if (flt_ty->isDoubleTy())
+				int_ty = llvm::Type::getInt64Ty(Context);
+			else {
+				errs() << Loc << ": ternary operator not supported for value type '" << *colon_expr->ft << "'\n";
+				return nullptr;
+			}
+			L = Builder->CreateBitCast(L, int_ty);
+			R = Builder->CreateBitCast(R, int_ty);
+		} else
+			int_ty = colon_expr->ft->type;
+		llvm::Value* left_mask = Builder->CreateIntCast(C, int_ty, true);
+		llvm::Value* right_mask = Builder->CreateNot(left_mask);
+		llvm::Value* res = Builder->CreateOr(
+			Builder->CreateAnd(L, left_mask), Builder->CreateAnd(R, right_mask));
+		if (flt_ty)
+			res = Builder->CreateBitCast(res, flt_ty);
+		return res;
+	}
+structural_err:
+	errs() << Loc << ": ternary operator in form 'c ? a : b' expected\n";
+	return nullptr;
+}
+
 llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	if (opclass == OpTernary)
+		return codegen_ternary(target);
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
 	if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign || opclass == OpAssign || opclass == OpModAssign || opclass == OpCmpExchange) {

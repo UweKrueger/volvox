@@ -750,7 +750,7 @@ startanalysis:
 				return tok_assign;
 			} else {
 				IdentifierStr = "?";
-				return tok_error;
+				return tok_ternary;
 			}
 		case ',':
 			IdentifierStr = CurChar;

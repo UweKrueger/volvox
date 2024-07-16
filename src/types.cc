@@ -358,6 +358,8 @@ OpClass getOpClass(const char* Op) {
 			return OpExponentiation;
 		case ':':
 			return OpColon;
+		case '?':
+			return OpTernary;
 		case ',':
 			return OpComma;
 		default:
@@ -581,7 +583,7 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
 	auto opclass = getOpClass(Op);
-	if (opclass != OpComma && opclass != OpBitwise && opclass != OpColon) {
+	if (opclass != OpComma && opclass != OpBitwise && opclass != OpColon && opclass != OpTernary) {
 		if (left_bitwidth == 1 && right_bitwidth != 1)
 			return { nullptr, 0, false, opclass, "LHS of type 'bool' cannot be combined with numeric RHS value\n" };
 		if (right_bitwidth == 1 && left_bitwidth != 1)
@@ -629,6 +631,12 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 		res_bitwidth = 1;
 		res_is_signed = false;
 		break;
+	case OpTernary:
+		res_bitwidth = right_bitwidth;
+		res_is_float = right_is_float;
+		res_is_signed = right_is_signed;
+		res_is_unknown_type = false;
+		break;
 	case OpBitwise:
 		res_is_signed = false; // default to unsigned for (possibly bitwise) &, |, ><
 		// fallthrough
@@ -636,7 +644,7 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 		res_bitwidth = right_is_unknown_type ?
 		(left_is_unknown_type ? Max(right_bitwidth, left_bitwidth)
 		 : left_bitwidth) :
-		left_is_unknown_type ? right_bitwidth : Max(right_bitwidth, left_bitwidth);;
+		left_is_unknown_type ? right_bitwidth : Max(right_bitwidth, left_bitwidth);
 	}
 	if (res_is_float)
 		res_bitwidth = Min(res_bitwidth, 53); // limit to f64

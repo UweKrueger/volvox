@@ -400,6 +400,7 @@ enum OpClass : uint8_t {
 	OpExponentiation,
 	OpRange,
 	OpColon,
+	OpTernary,
 	OpComma
 };
 
