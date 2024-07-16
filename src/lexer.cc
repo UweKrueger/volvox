@@ -271,22 +271,22 @@ void Lexer::module_err(const char* ident, SourceLocation& TheLoc, SourceLocation
 }
 
 bool Lexer::previously_used(std::string& ident, SourceLocation& TheLoc, lexer_skip_t skip) {
-	if (skip != lex_skip_variable)
+	if (!(skip & lex_skip_variable))
 		if (auto fv = lookup_var(ident.c_str())) {
 			variable_err(ident.c_str(), TheLoc, fv);
 			return true;
 		}
-	if (skip != lex_skip_protos)
+	if (!(skip & lex_skip_protos))
 		if (auto protos = findProtos(ident)) {
 			protos_err(ident.c_str(), TheLoc, protos);
 			return true;
 		}
-	if (skip != lex_skip_type)
+	if (!(skip & lex_skip_type))
 		if (auto ft = get_full_type(ident.c_str())) {
 			type_err(ident.c_str(), TheLoc, ft);
 			return true;
 		}
-	if (skip != lex_skip_moduleprefix) {
+	if (!(skip & lex_skip_moduleprefix)) {
 		auto im = module->ImportedSymbols.find({ ident, "" });
 		if (im != module->ImportedSymbols.end()) {
 			if (im->second.isPrefix()) {

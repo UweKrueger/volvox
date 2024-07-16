@@ -1202,10 +1202,10 @@ struct SourceLocState {
 };
 
 enum lexer_skip_t : int8_t {
-	lex_skip_variable = 0,
-	lex_skip_protos,
-	lex_skip_type,
-	lex_skip_moduleprefix
+	lex_skip_variable = 1,
+	lex_skip_protos = 2,
+	lex_skip_type = 4,
+	lex_skip_moduleprefix = 8
 };
 
 class ModuleExprAST;
