@@ -270,7 +270,7 @@ void Lexer::module_err(const char* ident, SourceLocation& TheLoc, SourceLocation
 	errs() << declLoc << ": declared in an 'import' here\n";
 }
 
-bool Lexer::previously_used(std::string& ident, SourceLocation& TheLoc, lexer_skip_t skip) {
+bool Lexer::previously_used(std::string& ident, SourceLocation& TheLoc, uint8_t skip) {
 	if (!(skip & lex_skip_variable))
 		if (auto fv = lookup_var(ident.c_str())) {
 			variable_err(ident.c_str(), TheLoc, fv);

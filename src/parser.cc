@@ -1839,7 +1839,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		// if "inside_function" we would not see conflicting non-global main vars, so clear this flag temporarily
 		auto old_inside_function = inside_function;
 		inside_function = false;
-		if (lex.previously_used(IdentifierStr, CurLoc, (lexer_skip_t)((uint8_t)lex_skip_protos | (uint8_t)lex_skip_type)))
+		if (lex.previously_used(IdentifierStr, CurLoc, lex_skip_protos | lex_skip_type))
 		    return nullptr;
 		inside_function = old_inside_function;
 		// identify constructors and destructors:
