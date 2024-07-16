@@ -1244,7 +1244,7 @@ public:
 	void variable_err(const char* ident, SourceLocation& TheLoc, FullVar* fv);
 	void protos_err(const char* ident, SourceLocation& TheLoc, std::vector<std::unique_ptr<PrototypeAST>>* protos);
 	void type_err(const char* ident, SourceLocation& TheLoc, volvoxc::FullType* ft);
-	void module_err(const char* ident, SourceLocation& TheLoc, SymbolRef* mod);
+	void module_err(const char* ident, SourceLocation& TheLoc, SourceLocation& declLoc);
 	bool previously_used(std::string& ident, SourceLocation& TheLoc, lexer_skip_t skip);
 	const char* skip_str(lexer_skip_t skip);
 	bool push_state(std::vector<std::string> _import_path, std::string as, std::map<std::string, SourceLocation> fromlist);

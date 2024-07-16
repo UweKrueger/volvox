@@ -265,9 +265,9 @@ void Lexer::type_err(const char* ident, SourceLocation& TheLoc, volvoxc::FullTyp
 		errs() << ft->decl_loc << ": this is the location of the type declaration\n";
 }
 
-void Lexer::module_err(const char* ident, SourceLocation& TheLoc, SymbolRef* mod) {
+void Lexer::module_err(const char* ident, SourceLocation& TheLoc, SourceLocation& declLoc) {
 	errs() << TheLoc << ": '" << ident << "' is already in use as module prefix\n";
-	errs() << mod->Loc << ": declared in an 'import' here\n";
+	errs() << declLoc << ": declared in an 'import' here\n";
 }
 
 bool Lexer::previously_used(std::string& ident, SourceLocation& TheLoc, lexer_skip_t skip) {
@@ -290,7 +290,7 @@ bool Lexer::previously_used(std::string& ident, SourceLocation& TheLoc, lexer_sk
 		auto im = module->ImportedSymbols.find({ ident, "" });
 		if (im != module->ImportedSymbols.end()) {
 			if (im->second.isPrefix()) {
-				module_err(ident.c_str(), TheLoc, &im->second);
+				module_err(ident.c_str(), TheLoc, im->second.Loc);
 				return true;
 			} else {
 				errs() << TheLoc << ": internal compiler error\n";

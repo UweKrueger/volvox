@@ -1165,29 +1165,15 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 		if (v->full_var)
 			return { v->full_var, existing_var_returned };
 		VarL = v;
+	} else if (auto type = dynamic_cast<TypeExprAST*>(LHS.get())) {
+		lex.type_err(type->Name.c_str(), type->Loc, type->ft);
+		return { nullptr, new_var_none };
 	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
-		if (inside_function && local_var_may_shadow_func_and_mod) { // local variable will shadow function name
-			LHS = std::make_unique<VariableExprAST>(function->Loc, function->Name, nullptr);
-			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
-		} else {
-			errs() << LHS->Loc << ": '" << function->Name << "' is already declared as function\n";
-			const char* nth = (function->ft->Protos->size() > 1) ? "one" : "the";
-			const char* a = (function->ft->Protos->size() > 1) ? "a" : "the";
-			for (auto& proto: *function->ft->Protos) {
-				errs() << proto->retLoc << ": this is " << nth << " location of " << a << " previous declaration\n";
-				nth = "another";
-			}
-			return { nullptr, new_var_none };
-		}
+		lex.protos_err(function->Name.c_str(), function->Loc, function->ft->Protos);
+		return { nullptr, new_var_none };
 	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
-		if (inside_function && local_var_may_shadow_func_and_mod) {
-			LHS = std::make_unique<VariableExprAST>(mod->Loc, mod->Name, nullptr);
-			VarL = dynamic_cast<VariableExprAST*>(LHS.get());
-		} else {
-			errs() << LHS->Loc << ": '" << mod->Name << "' is already in use as module prefix\n";
-			errs() << mod->importLoc << ": declared in an 'import' here\n";
-			return { nullptr, new_var_none };
-		}
+		lex.module_err(mod->Name.c_str(), mod->Loc, mod->importLoc);
+		return { nullptr, new_var_none };
 	}
 	if (VarL)
 		RefL = nullptr;
