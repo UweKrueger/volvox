@@ -25,7 +25,6 @@ FVListElem* anon_fullvars = nullptr;
 FVListElem** anon_fullvars_end = &anon_fullvars;
 ProtoListElem* anon_protos = nullptr;
 ProtoListElem** anon_protos_end = &anon_protos;
-bool local_var_may_shadow_func_and_mod = false;
 
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;

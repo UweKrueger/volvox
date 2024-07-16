@@ -558,6 +558,10 @@ static void HandleTypeDef(unsigned share_kind) {
 	}
 	auto type_name = IdentifierStr;
 	auto TypeLoc = CurLoc;
+	if (lex.previously_used(type_name, TypeLoc, lex_skip_type)) {
+		purgeLine();
+		return;
+	}
 	std::string volvox_name;
 	for (auto& p: lex.module->import_path) {
 		volvox_name += p;
@@ -575,7 +579,9 @@ static void HandleTypeDef(unsigned share_kind) {
 	if (replace) { // new_node is actually an old node, replace is set to (void*)-1
 		struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
 		if (!struct_type || !struct_type->isOpaque()) {
-			errs() << TypeLoc << ": cannot define '" << type_name << "' - type already exists\n";
+			errs() << TypeLoc << ": type '" << type_name << "' is already defined\n";
+			errs() << ft->decl_loc << ": this the location of the previous definition\n";
+			purgeLine();
 			return;
 		}
 	} else {
