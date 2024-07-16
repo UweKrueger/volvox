@@ -926,6 +926,7 @@ inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	return V;
 }
 
+extern std::map<std::string,SourceLocation> defined_functions;
 extern llvm::MaybeAlign getAlignment(size_t elem_size);
 extern llvm::MaybeAlign getAlignment(llvm::Value* size);
 extern llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
@@ -967,7 +968,6 @@ public:
 	unsigned visibility = 0;
 	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
 	bool IsVarArgs = false;
-	bool has_definition = false;
 	llvm::GlobalValue::LinkageTypes link_typ;
 	int Line;
 	std::string Name;

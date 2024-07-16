@@ -2173,7 +2173,6 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		prompt_indent = 0;
 		return nullptr;
 	}
-	Proto->has_definition = true;
 	if ((Proto->visibility & A_constructor) && !(Proto->visibility & A_conversion))
 		function_return_kind = return_constructor;
 	else if (Proto->visibility & A_destructor)
@@ -2221,6 +2220,13 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	setMangledName(ProtoRef, visibility);
+	auto previous_def = defined_functions.find(Proto->Name);
+	if (previous_def != defined_functions.end()) {
+		errs() << CurLoc << ": a function with the same name and the same signature has already been defined\n";
+		errs() << previous_def->second << ": this is the location of the prefious definition\n";
+		prompt_indent = 0;
+		return nullptr;
+	}
 	if (visibility & A_constructor) {
 		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) // default constructor
 			AutoMethods[Proto->ArgTypes[0]->mangled_name].first = Proto->Name;

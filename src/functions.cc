@@ -20,6 +20,7 @@ std::vector<FullVar> expr_temps; // to call destructors immediatelly after expr
 #ifdef _WIN32
 std::vector<HMODULE> extra_dlls; // loaded by '__link_extra' at runtime in JIT mode
 #endif
+std::map<std::string,SourceLocation> defined_functions;
 
 // global function to find method protos
 std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName) {
@@ -641,6 +642,7 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 		} else {
 			F->print(errs());
 			F->eraseFromParent();
+			return false;
 		}
 	}
 	if (finishModule) {
@@ -1418,6 +1420,17 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	}
 	// Validate the generated code, checking for consistency.
 	bool success = finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
+	if (success) {
+		std::string& FnName = Proto->Name;
+		if (FnName != "__anon_expr") {
+			auto registred = defined_functions.insert({FnName, Proto->retLoc});
+			if (!registred.second) {
+				errs() << Proto->retLoc << ": internal compiler error - function '" << FnName << "' seems to have been previously defined\n";
+				errs() << registred.first->second << ": this is the location of the previous definition\n";
+				success = false;
+			}
+		}
+	}
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
 	expr_temps.clear();
