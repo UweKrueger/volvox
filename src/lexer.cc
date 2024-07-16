@@ -231,31 +231,82 @@ bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, s
 	}
 }
 
+const char* Lexer::skip_str(lexer_skip_t skip) {
+	switch (skip) {
+	case lex_skip_variable:
+		return "variable name";
+	case lex_skip_protos:
+		return "function name";
+	case lex_skip_type:
+		return "type name";
+	case lex_skip_moduleprefix:
+		return "module prefix";
+	}
+}
+
+void Lexer::variable_err(const char* ident, SourceLocation& TheLoc, FullVar* fv) {
+	errs() << TheLoc << ": '" << ident << "' already in use as variable name\n";
+	errs() << fv->decl_loc << ": this is the location of the variable declaration\n";
+}
+
+void Lexer::protos_err(const char* ident, SourceLocation& TheLoc, std::vector<std::unique_ptr<PrototypeAST>>* protos) {
+	errs() << TheLoc << ": '" << ident << "' is already declared as function\n";
+	const char* nth = (protos->size() > 1) ? "one" : "the";
+	const char* a = (protos->size() > 1) ? "a" : "the";
+	for (auto& proto: *protos) {
+		errs() << proto->retLoc << ": this is " << nth << " location of " << a << " previous declaration\n";
+		nth = "another";
+	}
+}
+
+void Lexer::type_err(const char* ident, SourceLocation& TheLoc, volvoxc::FullType* ft) {
+	errs() << TheLoc << ": '" << ident << "' is already declared as a type\n";
+	if (ft->decl_loc)
+		errs() << ft->decl_loc << ": this is the location of the type declaration\n";
+}
+
+void Lexer::module_err(const char* ident, SourceLocation& TheLoc, SymbolRef* mod) {
+	errs() << TheLoc << ": '" << ident << "' is already in use as module prefix\n";
+	errs() << mod->Loc << ": declared in an 'import' here\n";
+}
+
+bool Lexer::previously_used(std::string& ident, SourceLocation& TheLoc, lexer_skip_t skip) {
+	if (skip != lex_skip_variable)
+		if (auto fv = lookup_var(ident.c_str())) {
+			variable_err(ident.c_str(), TheLoc, fv);
+			return true;
+		}
+	if (skip != lex_skip_protos)
+		if (auto protos = findProtos(ident)) {
+			protos_err(ident.c_str(), TheLoc, protos);
+			return true;
+		}
+	if (skip != lex_skip_type)
+		if (auto ft = get_full_type(ident.c_str())) {
+			type_err(ident.c_str(), TheLoc, ft);
+			return true;
+		}
+	if (skip != lex_skip_moduleprefix) {
+		auto im = module->ImportedSymbols.find({ ident, "" });
+		if (im != module->ImportedSymbols.end()) {
+			if (im->second.isPrefix()) {
+				module_err(ident.c_str(), TheLoc, &im->second);
+				return true;
+			} else {
+				errs() << TheLoc << ": internal compiler error\n";
+				abort();
+			}
+		}
+	}
+	return false;
+}
+
 void Lexer::import_from_module(Module* import_module, SourceLocation TheLoc) {
 	bool is_from_import = !fromlist.empty();
 	std::set<std::string> processed_symbols_from_from_list = {};
 	if (!is_from_import) {
-		if (auto fv = lookup_var(as.c_str())) {
-			errs() << TheLoc << ": '" << as << "' already in use as variable name\n";
-			errs() << fv->decl_loc << ": this is the location of the variable declaration\n";
+		if (previously_used(as, TheLoc, lex_skip_moduleprefix))
 			return;
-		}
-		if (auto protos = lex.findProtos(as)) {
-			errs() << TheLoc << ": '" << as << "' is already declared as function\n";
-			const char* nth = (protos->size() > 1) ? "one" : "the";
-			const char* a = (protos->size() > 1) ? "a" : "the";
-			for (auto& proto: *protos) {
-				errs() << proto->retLoc << ": this is " << nth << " location of " << a << " previous declaration\n";
-				nth = "another";
-			}
-			return;
-		}
-		if (auto type = lex.get_full_type(as.c_str())) {
-			errs() << TheLoc << ": '" << as << "' is already declared as a type\n";
-			if (type->decl_loc)
-				errs() << type->decl_loc << ": this is the location of the type declaration\n";
-			return;
-		}
 		auto _success = module->ImportedSymbols.try_emplace({ as, "" }, TheLoc); // declare `as` as module prefix
 		if (!_success.second) {
 			errs() << TheLoc << ": unable to declare '" << as << "' as module prefix - symbol already declared\n";

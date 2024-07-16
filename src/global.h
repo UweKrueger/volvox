@@ -234,7 +234,7 @@ extern std::unique_ptr<llvm::DIBuilder> DBuilder;
 extern std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM;
 #endif
 
-enum idiv_modes {
+enum idiv_modes : int8_t {
 	idiv_mode_undef = 0,
 	idiv_mode_floored,
 	idiv_mode_c99
@@ -1201,6 +1201,15 @@ struct SourceLocState {
 		}
 };
 
+enum lexer_skip_t : int8_t {
+	lex_skip_variable = 0,
+	lex_skip_protos,
+	lex_skip_type,
+	lex_skip_moduleprefix
+};
+
+class ModuleExprAST;
+
 class Lexer : public SourceLocState {
 public:
 	std::vector<SourceLocState> source_stack;
@@ -1232,6 +1241,12 @@ public:
 	std::pair<char,bool> peek2_strict();
 	char look_back_strict();
 	bool next_input_file();
+	void variable_err(const char* ident, SourceLocation& TheLoc, FullVar* fv);
+	void protos_err(const char* ident, SourceLocation& TheLoc, std::vector<std::unique_ptr<PrototypeAST>>* protos);
+	void type_err(const char* ident, SourceLocation& TheLoc, volvoxc::FullType* ft);
+	void module_err(const char* ident, SourceLocation& TheLoc, SymbolRef* mod);
+	bool previously_used(std::string& ident, SourceLocation& TheLoc, lexer_skip_t skip);
+	const char* skip_str(lexer_skip_t skip);
 	bool push_state(std::vector<std::string> _import_path, std::string as, std::map<std::string, SourceLocation> fromlist);
 	void pop_state();
 	void import_from_module(Module* import_module, SourceLocation TheLoc);
