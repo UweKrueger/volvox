@@ -116,3 +116,31 @@ def test_ternary_3 bool
 	x = lkceg(7, 12.0625, 17.3f)
 	return x == 12.0625
 end
+
+def test_min_max_abs_1 bool
+	a = 13.75
+	b = -17.25
+	c = min(a, b)
+	d = max(a, b)
+	e = abs a
+	f = abs b
+	return c == -17.25 && d == 13.75 && e == 13.75 && f == 17.25
+end
+
+def test_min_max_abs_2 bool
+	a = 1389
+	b = -1725
+	c = min(a, b)
+	d = max(a, b)
+	e = abs a
+	f = abs b
+	return c == -1725 && d == 1389 && e == 1389 && f == 1725
+end
+
+def test_min_max_abs_3 bool
+	a = 1389U
+	b = 1725U
+	c = min(a, b)
+	d = max(a, b)
+	return c == 1389 && d == 1725
+end

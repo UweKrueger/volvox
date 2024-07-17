@@ -341,30 +341,30 @@ end
 
 cdecl(fabs) abs(x f64) f64
 cdecl(fabsf) abs(x f32) f32
-inline def abs(x i8) i8; return if x < 0; -x else x end; end
-inline def abs(x i16) i16; return if x < 0; -x else x end; end
-inline def abs(x i32) i32; return if x < 0; -x else x end; end
-inline def abs(x i64) i64; return if x < 0; -x else x end; end
+inline def abs(x i8) i8; return x<0 ? -x : x; end
+inline def abs(x i16) i16; return x<0 ? -x : x; end
+inline def abs(x i32) i32; return x<0 ? -x : x; end
+inline def abs(x i64) i64; return x<0 ? -x : x; end
 cdecl(fmax) max(a f64, b f64) f64
 cdecl(fmaxf) max(a f32, b f32) f32
-inline def max(a i8, b i8) i8; return if a>b; a else b end; end
-inline def max(a i16, b i16) i16; return if a>b; a else b end; end
-inline def max(a i32, b i32) i32; return if a>b; a else b end; end
-inline def max(a i64, b i64) i64; return if a>b; a else b end; end
-inline def max(a u8, b u8) u8; return if a>b; a else b end; end
-inline def max(a u16, b u16) u16; return if a>b; a else b end; end
-inline def max(a u32, b u32) u32; return if a>b; a else b end; end
-inline def max(a u64, b u64) u64; return if a>b; a else b end; end
+inline def max(a i8, b i8) i8; return a>b ? a : b; end
+inline def max(a i16, b i16) i16; return a>b ? a : b; end
+inline def max(a i32, b i32) i32; return a>b ? a : b; end
+inline def max(a i64, b i64) i64; return a>b ? a : b; end
+inline def max(a u8, b u8) u8; return a>b ? a : b; end
+inline def max(a u16, b u16) u16; return a>b ? a : b; end
+inline def max(a u32, b u32) u32; return a>b ? a : b; end
+inline def max(a u64, b u64) u64; return a>b ? a : b; end
 cdecl(fmin) min(a f64, b f64) f64
 cdecl(fminf) min(a f32, b f32) f32
-inline def min(a i8, b i8) i8; return if a<=b; a else b end; end
-inline def min(a i16, b i16) i16; return if a<=b; a else b end; end
-inline def min(a i32, b i32) i32; return if a<=b; a else b end; end
-inline def min(a i64, b i64) i64; return if a<=b; a else b end; end
-inline def min(a u8, b u8) u8; return if a<=b; a else b end; end
-inline def min(a u16, b u16) u16; return if a<=b; a else b end; end
-inline def min(a u32, b u32) u32; return if a<=b; a else b end; end
-inline def min(a u64, b u64) u64; return if a<=b; a else b end; end
+inline def min(a i8, b i8) i8; return a<=b ? a : b; end
+inline def min(a i16, b i16) i16; return a<=b ? a : b; end
+inline def min(a i32, b i32) i32; return a<=b ? a : b; end
+inline def min(a i64, b i64) i64; return a<=b ? a : b; end
+inline def min(a u8, b u8) u8; return a<=b ? a : b; end
+inline def min(a u16, b u16) u16; return a<=b ? a : b; end
+inline def min(a u32, b u32) u32; return a<=b ? a : b; end
+inline def min(a u64, b u64) u64; return a<=b ? a : b; end
 
 type complex {
 	real
