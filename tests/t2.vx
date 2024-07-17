@@ -62,13 +62,13 @@ def test_return_local_array bool
 end
 
 
-def r(x [5]f64) f64
+def rpyyx(x [5]f64) f64
 	w = x[3]
 	return w
 end
 
 def test_nested_call_with_array_result bool
-	wq = r(u)
+	wq = rpyyx(u)
 	return wq == 6.75
 end
 

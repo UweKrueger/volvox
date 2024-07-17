@@ -42,8 +42,8 @@ pub inline def f64(limit f64)
 	this = limit * f64
 end
 
-pub inline def f64(min f64, limit f64)
-	this = min + f64(limit - min)
+pub inline def f64(min_value f64, limit f64)
+	this = min_value + f64(limit - min_value)
 end
 
 type FU32 union {
@@ -83,6 +83,6 @@ pub inline def f32(limit f32)
 	this = limit * f32
 end
 
-pub inline def f32(min f32, limit f32)
-	this = min + f32(limit - min)
+pub inline def f32(min_value f32, limit f32)
+	this = min_value + f32(limit - min_value)
 end

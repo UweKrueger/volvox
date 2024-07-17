@@ -44,8 +44,9 @@ end
 #
 global s = State4{}
 
-# function names for random functions are the same as the type they produce but with uppercase
-# letter because type names are not allowed for (non-constructor) function names
+# function names for random functions are the same as the type they produce
+# technically these functions are constructors, so the result is assigned
+# to 'this'
 
 # main RNG producing 64 bits
 #

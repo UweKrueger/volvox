@@ -1956,6 +1956,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		auto [name, ft] = ParseTypedIdent(')', false);
 		if (!ft)
 			return nullptr;
+		if (lex.previously_used(name, ArgLoc, 0))
+			return nullptr;
 		bool is_blanc_ident = ((uintptr_t)ft & 1) || name == "_";
 		ArgNames.push_back(is_blanc_ident ? " " : name);
 		ArgPos.push_back(ArgLoc);
