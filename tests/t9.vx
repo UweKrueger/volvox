@@ -101,3 +101,18 @@ def test_ternary_1 bool
 	p = false ? 5.3 : -17
 	return o == 7 && p == -17 && sizeof p == 8
 end
+
+def lkceg(r int, a f64, b f32) f64
+	q = r > 7 ? r + b : a
+	return q
+end
+
+def test_ternary_2 bool
+	x = lkceg(8, 12.3, -6.2)
+	return x > 1.7999 && x < 1.8001
+end
+
+def test_ternary_3 bool
+	x = lkceg(7, 12.0625, 17.3f)
+	return x == 12.0625
+end

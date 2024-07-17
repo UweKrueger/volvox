@@ -1612,28 +1612,56 @@ llvm::Value *BinaryExprAST::codegen_ternary(llvm::Value* target) {
 			errs() << Loc << ": error generating code for ternary expression\n";
 			return nullptr;
 		}
-		llvm::Type* int_ty;
-		llvm::Type* flt_ty = nullptr;
-		if (!colon_expr->ft->type->isIntegerTy()) {
-			flt_ty = colon_expr->ft->type;
-			if (flt_ty->isFloatTy())
-				int_ty = llvm::Type::getInt32Ty(Context);
-			else if (flt_ty->isDoubleTy())
-				int_ty = llvm::Type::getInt64Ty(Context);
-			else {
-				errs() << Loc << ": ternary operator not supported for value type '" << *colon_expr->ft << "'\n";
-				return nullptr;
-			}
-			L = Builder->CreateBitCast(L, int_ty);
-			R = Builder->CreateBitCast(R, int_ty);
-		} else
-			int_ty = colon_expr->ft->type;
-		llvm::Value* left_mask = Builder->CreateIntCast(C, int_ty, true);
-		llvm::Value* right_mask = Builder->CreateNot(left_mask);
-		llvm::Value* res = Builder->CreateOr(
-			Builder->CreateAnd(L, left_mask), Builder->CreateAnd(R, right_mask));
-		if (flt_ty)
-			res = Builder->CreateBitCast(res, flt_ty);
+		auto enterBB = Builder->GetInsertBlock();
+		llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
+		llvm::Value* res;
+		if (!TheFunction) {
+			llvm::Type* int_ty;
+			llvm::Type* flt_ty = nullptr;
+			if (!colon_expr->ft->type->isIntegerTy()) {
+				flt_ty = colon_expr->ft->type;
+				if (flt_ty->isFloatTy())
+					int_ty = llvm::Type::getInt32Ty(Context);
+				else if (flt_ty->isDoubleTy())
+					int_ty = llvm::Type::getInt64Ty(Context);
+				else {
+					errs() << Loc << ": ternary operator not supported for value type '" << *colon_expr->ft << "' out of context\n";
+					return nullptr;
+				}
+				L = Builder->CreateBitCast(L, int_ty);
+				R = Builder->CreateBitCast(R, int_ty);
+			} else
+				int_ty = colon_expr->ft->type;
+			llvm::Value* left_mask = Builder->CreateIntCast(C, int_ty, true);
+			llvm::Value* right_mask = Builder->CreateNot(left_mask);
+			res = Builder->CreateOr(
+				Builder->CreateAnd(L, left_mask), Builder->CreateAnd(R, right_mask));
+			if (flt_ty)
+				res = Builder->CreateBitCast(res, flt_ty);
+		} else {
+			auto TrueBB = llvm::BasicBlock::Create(Context, "trueBB");
+			auto ContBB = llvm::BasicBlock::Create(Context, "contBB");
+			Builder->CreateCondBr(C, TrueBB, ContBB);
+			enterBB = Builder->GetInsertBlock();
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), TrueBB);
+#else
+			TheFunction->getBasicBlockList().push_back(TrueBB);
+#endif
+			Builder->SetInsertPoint(TrueBB);
+			Builder->CreateBr(ContBB);
+			auto TrueEnd = Builder->GetInsertBlock();
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), ContBB);
+#else
+			TheFunction->getBasicBlockList().push_back(ContBB);
+#endif
+			Builder->SetInsertPoint(ContBB);
+			llvm::PHINode* PN = Builder->CreatePHI(colon_expr->ft->type, 2, "ternary_res");
+			PN->addIncoming(L, TrueBB);
+			PN->addIncoming(R, enterBB);
+			res = PN;
+		}
 		return res;
 	}
 structural_err:
