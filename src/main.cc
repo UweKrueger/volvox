@@ -16,10 +16,10 @@
 
 CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
-std::vector<std::string> include_files = {};
+std::vector<std::string> include_files;
 std::vector<std::string> extra_libs;
 std::vector<std::vector<const char*>> source_files = {{}};
-std::vector<std::unique_ptr<ExprAST>> GlobalExprList = {};
+std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 std::map<unsigned, llvm::Type*> key32_table; // only builtin types
 Tristate do_pres;
 const std::string single_test_result_name = "__test_result";
@@ -579,6 +579,8 @@ static void HandleTypeDef(unsigned share_kind) {
 	volvox_name += type_name;
 	volvoxc::FullType Ft = {
 		.type = nullptr,
+		.type_attr = share_kind & (A_c_api | A_interface),
+		.decl_loc = TypeLoc
 	};
 	MapNode* replace = nullptr;
 	MapNode* new_node = lex.add_type(type_name.c_str(), &Ft, replace);
@@ -588,9 +590,9 @@ static void HandleTypeDef(unsigned share_kind) {
 	if (replace) { // new_node is actually an old node, replace is set to (void*)-1
 		struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
 		if ((share_kind & (A_c_api | A_interface)) != (ft->type_attr & (A_c_api | A_interface))) {
-			errs() << TypeLoc << ": '" << type_name << "' has previously been declared as '"
-			       << type_type(ft->type_attr) << "' and cannot be declared as '"
-			       << type_type(share_kind) << "'\n";
+			errs() << TypeLoc << ": '" << type_name << "' cannot be declared as '"
+			       << type_type(share_kind) << "' because it has previously been declared as '"
+			       << type_type(ft->type_attr) << "'\n";
 			errs() << ft->decl_loc << ": this the location of the previous declaration\n";
 			purgeLine();
 			return;
@@ -614,7 +616,9 @@ static void HandleTypeDef(unsigned share_kind) {
 			errs() << "declared type - ft: " << ft << " " << *ft->type << '\n';
 		return; // only declaration of incomplete type
 	}
-	auto newft = ParseType(false, eComma, 0, volvox_name.c_str(), nullptr, struct_type);
+	auto newft = (share_kind & A_interface) ?
+		ParseInterface(share_kind, eComma, 0, volvox_name.c_str(), struct_type) :
+		ParseType(false, eComma, 0, volvox_name.c_str(), nullptr, struct_type);
 	if (!newft) {
 		purgeLine();
 		return;
@@ -627,7 +631,8 @@ static void HandleTypeDef(unsigned share_kind) {
 	// it can be referred anywhere. We keep a database of all types with mangled
 	// names so valgrind will not report leaks
 	struct_mangled_ft[std::string(struct_type->getName())] = newft;
-	last_defined_type = new_node->key.string;
+	if (!(share_kind & A_interface))
+		last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "defined type - ft: " << ft << " " << *ft << ", " << ft->type << " as " << *ft->type << '\n';
 	if (!strcmp(ft->mangled_name, "7complex")) {

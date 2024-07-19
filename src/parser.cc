@@ -17,6 +17,7 @@ Token CurTok;
 std::vector<const char*> module_names = {};
 std::map<std::string,llvm::FunctionType*> Conversions;
 std::map<std::string,std::pair<std::string,std::string>> AutoMethods;
+std::vector<std::vector<std::unique_ptr<PrototypeAST>>> InterfaceProtos;
 
 // methods table - keys: { mangled_type_name, method_name }
 std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
@@ -2134,6 +2135,33 @@ static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& prot
 		protos[match_idx] = std::move(Proto);
 		return true;
 	}
+}
+
+volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
+                                  int terminator, const char* iname,
+                                  llvm::StructType* existing) {
+	if (!Expect('{'))
+		return nullptr;
+	std::vector<std::unique_ptr<PrototypeAST>> Protos;
+	while (CurTok.kind != '}') {
+		unsigned visibility = A_interface;
+		auto proto = ParsePrototype(visibility);
+		if (!proto)
+			return nullptr;
+		Protos.push_back(std::move(proto));
+		if (CurTok.kind != '}')
+			if (!Expect(';'))
+				return nullptr;
+	}
+	getNextToken(eSemi);
+	std::vector<llvm::Type*> interface_type_elements = { llvm_ptr_type, llvm_ptr_type };
+	llvm_interface_type = iname ?
+		llvm::StructType::create(Context, interface_type_elements, iname, false) :
+		llvm::StructType::get(Context, interface_type_elements, false);
+	auto ft = new_FullType(llvm_interface_type, A_interface);
+	InterfaceProtos.push_back(std::move(Protos));
+	ft->Protos = &InterfaceProtos.back();
+	return ft;
 }
 
 #define TEST_FN_PREFIX "test_"

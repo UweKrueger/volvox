@@ -511,6 +511,10 @@ enum eXpect {
 	eType
 };
 
+extern volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
+                                         int terminator, const char* iname,
+                                         llvm::StructType* existing);
+
 // variable size main vars are "malloc()ed" in jit mode. On exit these blocks would be
 // orphaned - so let's keep track of then to avoid memory leaks:
 class MainVars {
