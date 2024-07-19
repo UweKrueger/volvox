@@ -549,6 +549,15 @@ cleanup:
 
 std::map<std::string,volvoxc::FullType*> struct_mangled_ft;
 
+const char* type_type(unsigned bits) {
+	if (bits & A_c_api)
+		return "ctype";
+	else if (bits & A_interface)
+		return "interface";
+	else
+		return "type";
+}
+
 static void HandleTypeDef(unsigned share_kind) {
 	getNextToken(); // eat type
 	if (CurTok.kind != tok_identifier) {
@@ -578,8 +587,16 @@ static void HandleTypeDef(unsigned share_kind) {
 	llvm::StructType* struct_type;
 	if (replace) { // new_node is actually an old node, replace is set to (void*)-1
 		struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
+		if ((share_kind & (A_c_api | A_interface)) != (ft->type_attr & (A_c_api | A_interface))) {
+			errs() << TypeLoc << ": '" << type_name << "' has previously been declared as '"
+			       << type_type(ft->type_attr) << "' and cannot be declared as '"
+			       << type_type(share_kind) << "'\n";
+			errs() << ft->decl_loc << ": this the location of the previous declaration\n";
+			purgeLine();
+			return;
+		}
 		if (!struct_type || !struct_type->isOpaque()) {
-			errs() << TypeLoc << ": type '" << type_name << "' is already defined\n";
+			errs() << TypeLoc << ": '" << type_name << "' is already defined\n";
 			errs() << ft->decl_loc << ": this the location of the previous definition\n";
 			purgeLine();
 			return;
@@ -1167,9 +1184,12 @@ static void MainLoop() {
 			break;
 		case tok_ctype:
 			sym_kind |= A_c_api;
+		case tok_interface:
+			if (!(sym_kind & A_c_api))
+				sym_kind |= A_interface;
 		case tok_type:
 			if (sym_kind & A_pub)
-				errs() << CurLoc << ": 'pub' is not needed for type declarations\n";
+				errs() << CurLoc << ": 'pub' is not needed for (c)type/interface declarations\n";
 			if (last_defined_type)
 				finish_constructors_and_destructor();
 			HandleTypeDef(sym_kind);

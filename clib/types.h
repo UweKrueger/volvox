@@ -24,7 +24,6 @@
 #define A_union  (1U<<11)
 #define A_string (1U<<12)
 #define A_cstring (1U<<13)
-#define A_interface (1U<<14)
 #define A_va_arg (1U<<14) // array of interfaces
 #define A_optional (1U<<15)
 // symbol visibility attributes
@@ -47,6 +46,7 @@
 #define A_immutable (1U<<28)
 #define A_closure (1U<<28)
 #define A_untyped (1U<<29)
+#define A_interface (1U<<30)
 
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)
