@@ -1849,63 +1849,65 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		auto op_ptr = strchr(operators, lex.peek());
 		if (op_ptr)
 			operator_idx = op_ptr - operators;
-		if (tmp_rec_type) {
-			visibility |= A_method; // 1st token of function name is known type -> must be method
-			if (visibility & A_destructor) {
-				if (!last_defined_type) {
-					errs() << FnLoc << ": destructor definition is only valid immediately after type definition\n";
-					return nullptr;
-				} else if (IdentifierStr != last_defined_type) {
-					errs() << CurLoc << ": destructor must refer to type of preceding definition ('" << last_defined_type << "')\n";
+		if (!(visibility & A_interface)) {
+			if (tmp_rec_type) {
+				visibility |= A_method; // 1st token of function name is known type -> must be method
+				if (visibility & A_destructor) {
+					if (!last_defined_type) {
+						errs() << FnLoc << ": destructor definition is only valid immediately after type definition\n";
+						return nullptr;
+					} else if (IdentifierStr != last_defined_type) {
+						errs() << CurLoc << ": destructor must refer to type of preceding definition ('" << last_defined_type << "')\n";
+						return nullptr;
+					}
+					tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
+				} else {
+					if (operator_idx < 0) // normal method has operator_idx == 0
+						visibility |= (A_constructor | A_ref);
+				}
+				if (visibility & A_c_api) {
+					errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
 					return nullptr;
 				}
-				tmp_rec_type->type_attr |= A_destructor; // mark this type in database to have destructor
+				ReceiverType = new_FullType(*tmp_rec_type);
+				// TODO: avoid creating new FullTypes just for adding attributes
+				// This will require ParseType() to return attributes separately
+				// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
+				UnmagledReceiverTypeName = std::move(IdentifierStr);
+				if (ReceiverType->type->isStructTy() || operator_idx >= 0) {
+					if (visibility & A_const)
+						// we use "by-const-reference" even for small receivers to allow
+						// more consistent interface declarations
+						ReceiverType->type_attr |= (A_ref | A_by_value);
+					else
+						ReceiverType->type_attr |= A_ref;
+					ArgNames.push_back("this");
+					ArgTypes.push_back(ReceiverType);
+					ArgPos.push_back(CurLoc);
+				} else {
+					if (visibility & A_constructor) {
+						// this is a base type constructor that returns "this" by value
+						returnName = "this";
+						this_is_value = true;
+					}
+				}
+				if (!(visibility & (A_destructor | A_constructor))) {
+					getNextToken(eBinOp, eSemi);
+					if (!operator_idx && !Expect(tok_selector)) // eat '.' for method declarations
+						return nullptr;
+				}
 			} else {
-				if (operator_idx < 0) // normal method has operator_idx == 0
-					visibility |= (A_constructor | A_ref);
-			}
-			if (visibility & A_c_api) {
-				errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
-				return nullptr;
-			}
-			ReceiverType = new_FullType(*tmp_rec_type);
-			// TODO: avoid creating new FullTypes just for adding attributes
-			// This will require ParseType() to return attributes separately
-			// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
-			UnmagledReceiverTypeName = std::move(IdentifierStr);
-			if (ReceiverType->type->isStructTy() || operator_idx >= 0) {
-				if (visibility & A_const)
-					// we use "by-const-reference" even for small receivers to allow
-					// more consistent interface declarations
-					ReceiverType->type_attr |= (A_ref | A_by_value);
-				else
-					ReceiverType->type_attr |= A_ref;
-				ArgNames.push_back("this");
-				ArgTypes.push_back(ReceiverType);
-				ArgPos.push_back(CurLoc);
-			} else {
-				if (visibility & A_constructor) {
-					// this is a base type constructor that returns "this" by value
-					returnName = "this";
-					this_is_value = true;
+				if (operator_idx >= 0 || (visibility & A_destructor)) {
+					errs() << CurLoc << ": error in " << ((visibility & A_destructor) ? "destructor" : "method")
+					       << " parsing - '" << IdentifierStr << "' is not a known type\n";
+					return nullptr;
 				}
 			}
-			if (!(visibility & (A_destructor | A_constructor))) {
-				getNextToken(eBinOp, eSemi);
-				if (!operator_idx && !Expect(tok_selector)) // eat '.' for method declarations
-					return nullptr;
-			}
-		} else {
-			if (operator_idx >= 0 || (visibility & A_destructor)) {
-				errs() << CurLoc << ": error in " << ((visibility & A_destructor) ? "destructor" : "method")
-				       << " parsing - '" << IdentifierStr << "' is not a known type\n";
-				return nullptr;
-			}
+			if (last_defined_type && !(visibility & (A_constructor | A_destructor)) && !this_is_value)
+				// there is still a destructor/constructor section pending for the last type declaration
+				// which is unrelated - let's finish that before we continue with this definition here
+				finish_constructors_and_destructor();
 		}
-		if (last_defined_type && !(visibility & (A_constructor | A_destructor)) && !this_is_value)
-			// there is still a destructor/constructor section pending for the last type declaration
-			// which is unrelated - let's finish that before we continue with this definition here
-			finish_constructors_and_destructor();
 	}
 	switch ((int)CurTok.kind) {
 	case tok_identifier:
@@ -1927,7 +1929,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		// errs() << "Operator Method for " << *ReceiverType << " " << FnName << "\n";
 		break;
 	default:
-		errs() << CurLoc << ": expected function name in prototype - got " << CurTok << "\n";
+		errs() << CurLoc << ": expected token '" << CurTok << "' - expected prototype name or operator\n";
 		return nullptr;
 	}
 	if (CurTok.kind != '(')
