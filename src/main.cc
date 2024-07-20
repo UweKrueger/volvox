@@ -111,6 +111,7 @@ volvoxc::FullType* size_type;
 volvoxc::FullType* integer_type;
 volvoxc::FullType* f32_type;
 volvoxc::FullType* interface_type;
+volvoxc::FullType* interface_ref_type;
 volvoxc::FullType* va_arg_type;
 volvoxc::FullType* voidptr_type;
 volvoxc::FullType* c32_type;
@@ -237,6 +238,10 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("interface", llvm_interface_type, nullptr);
 	interface_type = lex.get_full_type("interface");
 	interface_type->type_attr = A_interface;
+	llvm::Type* llvm_interface_ref_type = llvm_interface_type->getPointerTo();
+	lex.add_type("__interface_ref", llvm_interface_ref_type, nullptr);
+	interface_ref_type = lex.get_full_type("__interface_ref");
+	interface_ref_type->type_attr = A_interface;
 	llvm::Type* llvm_va_arg_type = llvm::ArrayType::get(llvm_interface_type, 0);
 	va_arg_type = new_FullType(llvm_va_arg_type, A_va_arg | A_ref | A_by_value, nullptr, interface_type);
 	std::vector<llvm::Type*> llvm_va_arg_ref_struct_types = { llvm_size_type, llvm_va_arg_type->getPointerTo() };

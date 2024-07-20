@@ -1850,7 +1850,14 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		auto op_ptr = strchr(operators, lex.peek());
 		if (op_ptr)
 			operator_idx = op_ptr - operators;
-		if (!(visibility & A_interface)) {
+		if (visibility & A_interface) {
+			visibility |= A_method;
+			ReceiverType = interface_ref_type;
+			UnmagledReceiverTypeName = "interface";
+			ArgNames.push_back("this");
+			ArgTypes.push_back(ReceiverType);
+			ArgPos.push_back(CurLoc);
+		} else {
 			if (tmp_rec_type) {
 				visibility |= A_method; // 1st token of function name is known type -> must be method
 				if (visibility & A_destructor) {
