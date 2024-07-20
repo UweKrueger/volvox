@@ -1882,6 +1882,12 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				// This will require ParseType() to return attributes separately
 				// and ProtoTypeAST::ProtoTypeAST() to get ArgAttrs passed
 				UnmagledReceiverTypeName = std::move(IdentifierStr);
+				auto receiver_struct_type = llvm::dyn_cast<llvm::StructType>(ReceiverType->type);
+				if (receiver_struct_type && receiver_struct_type->isOpaque()) {
+					errs() << CurLoc << ": method for incomplete type '" << UnmagledReceiverTypeName << "' not allowed\n";
+					errs() << ReceiverType->decl_loc << ": this is the location of the type declaration but the is no definition anywhere\n";
+					return nullptr;
+				}
 				if (ReceiverType->type->isStructTy() || operator_idx >= 0) {
 					if (visibility & A_const)
 						// we use "by-const-reference" even for small receivers to allow
