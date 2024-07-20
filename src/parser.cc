@@ -1919,6 +1919,12 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	}
 	switch ((int)CurTok.kind) {
 	case tok_identifier:
+		if (ReceiverType && !(visibility & (A_destructor | A_destructor)))
+			if (MapValue* mv = map_string_get(ReceiverType->fields, IdentifierStr.c_str())) {
+				errs() << CurLoc << ": method name '" << IdentifierStr << "' for type '" << *ReceiverType << "' conflicts with field of same name\n";
+				errs() << ReceiverType->decl_loc << ": this is the location of the type definition\n";
+				return nullptr;
+			}
 		FnName = (visibility & A_destructor) ? ("~" + UnmagledReceiverTypeName) :
 			(visibility & A_constructor) ? std::move(UnmagledReceiverTypeName) : std::move(IdentifierStr);
 		Kind = 0;
