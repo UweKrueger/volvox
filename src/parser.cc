@@ -1169,6 +1169,9 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 		lex.type_err(type->Name.c_str(), type->Loc, type->ft);
 		return { nullptr, new_var_none };
 	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
+		// if (auto method = dynamic_cast<MethodExprAST*>(function)) {
+		// 	errs() << method->Loc << ": method " << method->Method->Name << " " << method->ft->Protos->size() << "\n";
+		// }
 		lex.protos_err(function->Name.c_str(), function->Loc, function->ft->Protos);
 		return { nullptr, new_var_none };
 	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
@@ -1874,7 +1877,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 						visibility |= (A_constructor | A_ref);
 				}
 				if (visibility & A_c_api) {
-					errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'fn' instead of 'cfn'\n";
+					errs() << CurLoc << ": methods/constructors/destructors cannot be declared using C-API - use 'def' instead of 'cdef'\n";
 					return nullptr;
 				}
 				ReceiverType = new_FullType(*tmp_rec_type);
@@ -1952,6 +1955,10 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		errs() << CurLoc << ": expected token '" << CurTok << "' - expected prototype name or operator\n";
 		return nullptr;
 	}
+	if (CurTok.kind == '=') {
+		visibility |= A_setter;
+		getNextToken();
+	}
 	if (CurTok.kind != '(')
 		goto nobrace;
 	else
@@ -1997,6 +2004,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 noargs:
 	Eat(')', eSemi); //getNextToken(); // eat ')'.
 nobrace:
+	if (visibility & A_setter)
+		if (!(visibility & A_method) || (visibility & (A_constructor | A_destructor)) || ArgTypes.size() != 2 || (ArgTypes[1]->type_attr & A_va_arg)) {
+			errs() << CurLoc << ": setter must be regular method with exactly 1 argument\n";
+			return nullptr;
+		}
 	// parse return type(s)
 	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc = CurLoc;

@@ -48,7 +48,7 @@ pub def tm.mon int
 	return this._mon + 1
 end
 
-pub def tm.mon(m int) int
+pub def tm.mon=(m int) int
 	old = this._mon = m - 1
 	return old + 1
 end
@@ -57,7 +57,7 @@ pub def tm.year int
 	return this._year + 1900
 end
 
-pub def tm.year(m int) int
+pub def tm.year=(m int) int
 	old = this._year = m - 1900
 	return old + 1900
 end
