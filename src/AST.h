@@ -982,6 +982,7 @@ enum new_var_kind : uint8_t {
 	new_var_none = 0,
 	new_var_created,
 	existing_var_returned,
+	setter_method_returned,
 	generic_lvalue_returned
 };
 

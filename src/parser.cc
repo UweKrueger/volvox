@@ -1146,10 +1146,11 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 
 // try to add new variable to current context's database
 //
-static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprAST>& LHS, std::unique_ptr<ExprAST>* RHS,
-                               llvm::Type* LHS_type, llvm::Type* RHS_type, unsigned LHS_attr,
-                               unsigned RHS_attr, SourceLocation& BinLoc, bool LHS_is_unknown_type,
-                               bool RHS_is_unknown_type, bool ref_allowed = true, bool is_iterator = false)
+static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
+	std::unique_ptr<ExprAST>& LHS, std::unique_ptr<ExprAST>* RHS,
+	llvm::Type* LHS_type, llvm::Type* RHS_type, unsigned LHS_attr,
+	unsigned RHS_attr, SourceLocation& BinLoc, bool LHS_is_unknown_type,
+	bool RHS_is_unknown_type, bool ref_allowed = true, bool is_iterator = false)
 {
 	if (!RHS_type || RHS_type->isVoidTy()) {
 		errs() << BinLoc << ": RHS of declaration is " << (RHS_type ? "of void type\n" : "indeterminate\n");
@@ -1169,9 +1170,17 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(std::unique_ptr<ExprA
 		lex.type_err(type->Name.c_str(), type->Loc, type->ft);
 		return { nullptr, new_var_none };
 	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
-		// if (auto method = dynamic_cast<MethodExprAST*>(function)) {
-		// 	errs() << method->Loc << ": method " << method->Method->Name << " " << method->ft->Protos->size() << "\n";
-		// }
+		if (auto method = dynamic_cast<MethodExprAST*>(function))
+			for (auto& proto: *method->ft->Protos)
+				if (proto->visibility & A_setter) {
+					// auto call_expr = std::make_unique<CallExprAST>(
+					// 	LHS->Loc, std::move(LHS),
+					// 	std::move(std::vector<std::unique_ptr<ExprAST>>{ std::move(RHS) }));
+					// auto fv = (FullVar*)dynamic_cast<CallExprAST*>(call_expr.get());
+					// call_expr.release();
+					return { nullptr, setter_method_returned };
+				}
+		// TODO: more suitable error message
 		lex.protos_err(function->Name.c_str(), function->Loc, function->ft->Protos);
 		return { nullptr, new_var_none };
 	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
