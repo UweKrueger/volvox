@@ -123,6 +123,10 @@ pub inline def i32(limit i32)
 	this = limit >= 0 ? _i32(u32(limit)) : -_i32(u32(-limit))
 end
 
+pub inline def int(limit int)
+	this = limit >= 0 ? _i32(u32(limit)) : -_i32(u32(-limit))
+end
+
 inline def _i16(u u16) i16
 	return i16(u)
 end

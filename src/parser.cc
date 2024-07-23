@@ -1172,14 +1172,8 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
 		if (auto method = dynamic_cast<MethodExprAST*>(function))
 			for (auto& proto: *method->ft->Protos)
-				if (proto->visibility & A_setter) {
-					// auto call_expr = std::make_unique<CallExprAST>(
-					// 	LHS->Loc, std::move(LHS),
-					// 	std::move(std::vector<std::unique_ptr<ExprAST>>{ std::move(RHS) }));
-					// auto fv = (FullVar*)dynamic_cast<CallExprAST*>(call_expr.get());
-					// call_expr.release();
+				if (proto->visibility & A_setter)
 					return { nullptr, setter_method_returned };
-				}
 		// TODO: more suitable error message
 		lex.protos_err(function->Name.c_str(), function->Loc, function->ft->Protos);
 		return { nullptr, new_var_none };
@@ -1333,6 +1327,9 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 				errs() << lvalKey->Loc << ": unable to declare key control variable '"
 				       << lvalKey->Name << "'\n";
 				return nullptr;
+			} else if (key_kind == setter_method_returned) {
+				errs() << lvalKey->Loc << ": using virtual type fields as 'for' control variable not supported, yet\n";
+				return nullptr;
 			}
 		} else {
 			errs() << Key->Loc << ": 'for' key control variable must be an Lvalue\n";
@@ -1352,6 +1349,9 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			if (value_kind == new_var_none) {
 				errs() << lvalValue->Loc << ": unable to declare value control variable '"
 				       << lvalValue->Name << "'\n";
+				return nullptr;
+			} else if (value_kind == setter_method_returned) {
+				errs() << lvalValue->Loc << ": using virtual type fields as 'for' control variable not supported, yet\n";
 				return nullptr;
 			}
 		} else {
@@ -1591,6 +1591,14 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			                                 BinLoc, LHS_is_unknown_type, RHS_is_unknown_type);
 			if (new_kind == new_var_none)
 				return nullptr;
+			if (new_kind == setter_method_returned) {
+				std::vector<std::unique_ptr<ExprAST>> args;
+				args.push_back(std::move(RHS));
+				LHS = std::make_unique<CallExprAST>(
+					LHS->Loc, std::move(LHS),
+					std::move(args));
+				continue;
+			}
 			is_decl = (new_kind == new_var_created);
 			// TODO: store returned 'new_fv' instead of discarding here and re-evaluating in codegen.cc
 		} else if (LHS_type && (LHS_type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {

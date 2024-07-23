@@ -2999,6 +2999,8 @@ bool ForExprAST::PrepareIterator() {
 		}
 	}
 	switch (new_Value) {
+	case setter_method_returned:
+		abort();
 	case new_var_none:
 		errs() << Loc << ": cannot initialize 'for' control variable '" << ValueName << "'\n";
 		return false;
@@ -3070,6 +3072,8 @@ bool ForExprAST::PrepareIterator() {
 			Builder->CreateFSub(limit, step_half);
 	}
 	switch (new_Key) {
+	case setter_method_returned:
+		abort();
 	case new_var_none:
 		break;
 	case new_var_created:

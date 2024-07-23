@@ -66,6 +66,13 @@ def test_semaphore_2 bool
 	return success
 end
 
+def test_virtual_field bool
+	z = time.now.gm
+	m = rand.int(12) + 1
+	z.mon = m
+	return z.mon == m && z._mon == m -1
+end
+
 import io.socket
 
 printf("All tests done!\n")
