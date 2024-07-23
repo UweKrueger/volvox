@@ -941,6 +941,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			return handle(target, Builder->CreateExtractElement(DimsArray, arg));
 		}
 	}
+	if (!Proto)
+		return nullptr;
 	TypeExprAST* type_expr;
 	if (Proto->visibility & A_constructor && (type_expr = dynamic_cast<TypeExprAST*>(Callee.get()))) {
 		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
