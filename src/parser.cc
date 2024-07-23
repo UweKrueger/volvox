@@ -2136,6 +2136,11 @@ int PrototypeAST::conflicts(std::vector<std::unique_ptr<PrototypeAST>>& protos) 
 	int n = protos.size();
 	for (int i=0; i<n; i++) {
 		auto proto = protos[i].get();
+		if ((proto->visibility & A_setter) && !(visibility & A_setter)) {
+			errs() << this->retLoc << ": method invalid - setter with the same name has already been declared\n";
+			errs() << proto->retLoc << ": this is the location of the setter declaration\n";
+			return -2;
+		}
 		auto matching_state = CompareProtos(this, proto);
 		switch (matching_state) {
 		case protos_matching:
@@ -2165,6 +2170,13 @@ int PrototypeAST::conflicts(std::vector<std::unique_ptr<PrototypeAST>>& protos) 
 			continue;
 		}
 	}
+	if (res == -1 && (visibility & A_setter))
+		if (n != 1 || ArgTypes.size() != 2 || protos[0]->ArgTypes.size() != 1 || FullTypes_differ(protos[0]->RetType, ArgTypes[1])) {
+			errs() << this->retLoc << ": setter can only be declared if corresponding getter has been declared as only other method with the same name\n";
+			for (auto& p: protos)
+				errs() << p->retLoc << ": previous method\n";
+			return -2;
+		}
 	return res;
 }
 
