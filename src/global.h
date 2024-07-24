@@ -1248,7 +1248,7 @@ public:
 	char look_back_strict();
 	bool next_input_file();
 	void variable_err(const char* ident, SourceLocation& TheLoc, FullVar* fv);
-	void protos_err(const char* ident, SourceLocation& TheLoc, std::vector<std::unique_ptr<PrototypeAST>>* protos);
+	void protos_err(const char* ident, SourceLocation& TheLoc, std::vector<std::unique_ptr<PrototypeAST>>* protos, bool already = true, bool method = false);
 	void type_err(const char* ident, SourceLocation& TheLoc, volvoxc::FullType* ft);
 	void module_err(const char* ident, SourceLocation& TheLoc, SourceLocation& declLoc);
 	bool previously_used(std::string& ident, SourceLocation& TheLoc, uint8_t skip);

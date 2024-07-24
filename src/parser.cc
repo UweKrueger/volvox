@@ -1170,12 +1170,14 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		lex.type_err(type->Name.c_str(), type->Loc, type->ft);
 		return { nullptr, new_var_none };
 	} else if (auto function = dynamic_cast<FunctionExprAST*>(LHS.get())) {
-		if (auto method = dynamic_cast<MethodExprAST*>(function))
+		bool is_method = true;
+		if (auto method = dynamic_cast<MethodExprAST*>(function)) {
 			for (auto& proto: *method->ft->Protos)
 				if (proto->visibility & A_setter)
 					return { nullptr, setter_method_returned };
-		// TODO: more suitable error message
-		lex.protos_err(function->Name.c_str(), function->Loc, function->ft->Protos);
+		} else
+			is_method = false;
+		lex.protos_err(function->Name.c_str(), function->Loc, function->ft->Protos, false, is_method);
 		return { nullptr, new_var_none };
 	} else if (auto mod = dynamic_cast<ModuleExprAST*>(LHS.get())) {
 		lex.module_err(mod->Name.c_str(), mod->Loc, mod->importLoc);
@@ -2042,8 +2044,12 @@ nobrace:
 		}
 		if (ArgTypes.size() != 2 || (ArgTypes[1]->type_attr & A_va_arg)) {
 			if (visibility & A_interface) {
-				if (ArgTypes.size() != 1 || !RetType) {
-					errs() << CurLoc << ": getter/setter interface short declaration requires no argument and 1 return type\n";
+				if (ArgTypes.size() != 1) {
+					errs() << CurLoc << ": getter/setter interface declaration may have at most 1 argument\n";
+					return nullptr;
+				}
+				if (!RetType) {
+					errs() << CurLoc << ": getter/setter interface short declaration requires a return type\n";
 					return nullptr;
 				}
 			} else {

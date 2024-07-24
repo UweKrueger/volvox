@@ -622,7 +622,7 @@ static void HandleTypeDef(unsigned share_kind) {
 		return; // only declaration of incomplete type
 	}
 	auto newft = (share_kind & A_interface) ?
-		ParseInterface(share_kind, eComma, 0, volvox_name.c_str(), struct_type) :
+		ParseInterface(share_kind, eSemi, 0, volvox_name.c_str(), struct_type) :
 		ParseType(false, eComma, 0, volvox_name.c_str(), nullptr, struct_type);
 	if (!newft) {
 		purgeLine();

@@ -249,12 +249,15 @@ void Lexer::variable_err(const char* ident, SourceLocation& TheLoc, FullVar* fv)
 	errs() << fv->decl_loc << ": this is the location of the variable declaration\n";
 }
 
-void Lexer::protos_err(const char* ident, SourceLocation& TheLoc, std::vector<std::unique_ptr<PrototypeAST>>* protos) {
-	errs() << TheLoc << ": '" << ident << "' is already declared as function\n";
+void Lexer::protos_err(const char* ident, SourceLocation& TheLoc, std::vector<std::unique_ptr<PrototypeAST>>* protos, bool already, bool method) {
+	errs() << TheLoc << ": '" << ident << "' is "
+	       << (already ? "already " : "") << "declared as "
+	       << (method ? "method\n" : "function\n");
 	const char* nth = (protos->size() > 1) ? "one" : "the";
 	const char* a = (protos->size() > 1) ? "a" : "the";
 	for (auto& proto: *protos) {
-		errs() << proto->retLoc << ": this is " << nth << " location of " << a << " previous declaration\n";
+		errs() << proto->retLoc << ": this is " << nth << " location of " << a
+		       << (already ? " previous" : "") << " declaration\n";
 		nth = "another";
 	}
 }
