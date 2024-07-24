@@ -1750,7 +1750,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 	valid_void:
 		if (BinKind == tok_invisible) {
 			auto lit = dynamic_cast<LiteralExprAST*>(RHS.get());
-			if (!(lit->ft->type_attr & A_string)) {
+			if (lit && !(lit->ft->type_attr & A_string)) {
 				// we forbid 'a 2' instead of '2 a', or '12 34' instead of 408
 				// because usually these are cases of a missing ',' separator ('a, 2'; '12, 34')
 				errs() << lit->Loc << ": literal number as RHS of invisible operator not allowed - maybe you forgot a ',' or an explicit operator\n";
@@ -1974,7 +1974,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	}
 	if (CurTok.kind == '=') {
 		visibility |= A_setter;
-		getNextToken();
+		getNextToken(eSemi);
 	}
 	if (CurTok.kind != '(')
 		goto nobrace;
@@ -2021,11 +2021,6 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 noargs:
 	Eat(')', eSemi); //getNextToken(); // eat ')'.
 nobrace:
-	if (visibility & A_setter)
-		if (!(visibility & A_method) || (visibility & (A_constructor | A_destructor)) || ArgTypes.size() != 2 || (ArgTypes[1]->type_attr & A_va_arg)) {
-			errs() << CurLoc << ": setter must be regular method with exactly 1 argument\n";
-			return nullptr;
-		}
 	// parse return type(s)
 	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc = CurLoc;
@@ -2040,7 +2035,23 @@ nobrace:
 		}
 		RetType = type;
 	}
-	// getNextToken();
+	if (visibility & A_setter) {
+		if (!(visibility & A_method) || (visibility & (A_constructor | A_destructor))) {
+			errs() << CurLoc << ": setter must be a regular method\n";
+			return nullptr;
+		}
+		if (ArgTypes.size() != 2 || (ArgTypes[1]->type_attr & A_va_arg)) {
+			if (visibility & A_interface) {
+				if (ArgTypes.size() != 1 || !RetType) {
+					errs() << CurLoc << ": getter/setter interface short declaration requires no argument and 1 return type\n";
+					return nullptr;
+				}
+			} else {
+				errs() << CurLoc << ": setter must be regular method with exactly 1 argument\n";
+				return nullptr;
+			}
+		}
+	}
 	// Verify right number of names for operator.
 	if (Kind && ArgNames.size() != Kind) {
 		errs() << "Invalid number of operands for operator\n";
@@ -2208,6 +2219,7 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 		auto proto = ParsePrototype(visibility);
 		if (!proto)
 			return nullptr;
+		// errs() << proto->retLoc << ": ### Interface Prototype '" << proto->Name << "' #args: " << proto->ArgTypes.size() << "\n";
 		Protos.push_back(std::move(proto));
 		if (CurTok.kind != '}')
 			if (!Expect(';'))
