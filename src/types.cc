@@ -976,6 +976,56 @@ different:
 	return protos_different;
 }
 
+// similar to Lexer::protos_err() but different API
+static void protos_err(std::vector<std::pair<std::unique_ptr<PrototypeAST>,size_t>>* protos) {
+	const char* nth = (protos->size() > 1) ? "one" : "the";
+	const char* a = (protos->size() > 1) ? "a" : "the";
+	for (auto& proto: *protos) {
+		errs() << proto.first->retLoc << ": this is " << nth << " location of " << a
+		       << " declaration\n";
+		nth = "another";
+	}
+}
+
+llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft, volvoxc::FullType* interface) {
+	if (!interface || interface->InterfaceProtos) {
+		errs() << Loc << ": internal error - interface type inconsistent\n";
+		abort();
+	}
+	llvm::ArrayType* array_type = interface->InterfaceProtos->first;
+	std::map<std::string,std::vector<std::pair<std::unique_ptr<PrototypeAST>,size_t>>>*
+		inter_protos = &interface->InterfaceProtos->second;
+	std::vector<llvm::Constant*> methods(array_type->getNumElements());
+	if (!ft->mangled_name) {
+		errs() << Loc << ": internal error - no mangled type name\n";
+		abort();
+	}
+	std::string mangledType = ft->mangled_name;
+	for (auto& [ident, protos] : *inter_protos) {
+		auto ft_protos = MethodProtos.find({ mangledType, ident });
+		if (ft_protos == MethodProtos.end()) {
+			errs() << Loc << ": type '" << *ft << "' does not fulfill interface '" << *interface << "' - no method '" << ident << "()'\n";
+			protos_err(&protos);
+			return nullptr;
+		}
+		for (auto& proto : protos) {
+			size_t idx = proto.second;
+			for (auto& ft_proto : ft_protos->second) {
+				if (CompareProtos(ft_proto.get(), proto.first.get()) == protos_matching) {
+					methods[idx] = nullptr; // find function address
+					goto match_found;
+				}
+			}
+			errs() << Loc << ": type '" << *ft << "' does not fulfill interface '" << *interface << "' - no matching method '" << ident << "()'\n";
+			// print candidates
+			return nullptr;
+		match_found:
+			continue;
+		}
+	}
+	return llvm::ConstantArray::get(array_type, methods);
+}
+
 void destroy_FV(MapValue* mapval) {
 	auto var = (FullVar*)((char*)mapval + mapval->offset);
 	var->destroy();

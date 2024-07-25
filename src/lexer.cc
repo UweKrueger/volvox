@@ -250,9 +250,10 @@ void Lexer::variable_err(const char* ident, SourceLocation& TheLoc, FullVar* fv)
 }
 
 void Lexer::protos_err(const char* ident, SourceLocation& TheLoc, std::vector<std::unique_ptr<PrototypeAST>>* protos, bool already, bool method) {
-	errs() << TheLoc << ": '" << ident << "' is "
-	       << (already ? "already " : "") << "declared as "
-	       << (method ? "method\n" : "function\n");
+	if (ident)
+		errs() << TheLoc << ": '" << ident << "' is "
+		       << (already ? "already " : "") << "declared as "
+		       << (method ? "method\n" : "function\n");
 	const char* nth = (protos->size() > 1) ? "one" : "the";
 	const char* a = (protos->size() > 1) ? "a" : "the";
 	for (auto& proto: *protos) {
