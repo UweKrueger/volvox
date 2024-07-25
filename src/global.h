@@ -317,7 +317,8 @@ namespace volvoxc {
 		union {
 			FullType* elem_type = nullptr; // for array or tuples
 			//PrototypeAST* proto; // for functions
-			std::vector<std::unique_ptr<PrototypeAST>>* Protos; // for overloaded functions and interface methods
+			std::vector<std::unique_ptr<PrototypeAST>>* Protos; // for overloaded functions
+			std::pair<llvm::ArrayType*,std::map<std::string,std::vector<std::pair<std::unique_ptr<PrototypeAST>,size_t>>>>* InterfaceProtos; // for interface methods;
 			MapNode* fields;     // for structs
 		};
 		SourceLocation decl_loc;
