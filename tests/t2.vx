@@ -46,9 +46,21 @@ def h [5]f64
 	return q
 end
 
-def test_function_literal bool
+def test_function_reference_1 bool
 	la = h
 	return la[2] == -1 && la[3] == 6.75
+end
+
+def fplmm f64
+	return 12.0625
+end
+
+&qjkq3r = fplmm
+
+global pqb5t = qjkq3r
+
+def test_function_reference_2 bool
+	return pqb5t == 12.0625
 end
 
 def v [5]i32
