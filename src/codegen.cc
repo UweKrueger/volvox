@@ -1089,13 +1089,12 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	// if (rhs_is_constexpr && !Val)
 	// 	errs() << expr->RHS->Loc << ": no value for const expr\n";
 	if (Val) {
-		if (rhs_is_constexpr || expr->RHS->ft->type->isFunctionTy()) {
+		if (rhs_is_constexpr || (jit_repl && expr->RHS->ft->type->isFunctionTy())) {
 			initializer = llvm::dyn_cast<llvm::Constant>(Val);
 			if (!initializer) {
 				errs() << expr->RHS->Loc << ": initialization with ':=' requires a compile time const on the RHS\n";
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 			}
-			initialization_from_main = false;
 		}
 	} else if (!use_target && !initialization_from_main && !dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 		errs() << expr->Loc << ": cannot generate code for RHS\n";
