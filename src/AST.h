@@ -52,10 +52,11 @@ inline static llvm::Value* handle_d(llvm::Value* target, llvm::Value* val, unsig
 
 class InterfaceExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> expr;
+	volvoxc::FullType* interface_ft;
 	llvm::Value* rttype = nullptr;
 public:
-	InterfaceExprAST(std::unique_ptr<ExprAST> _expr) :
-		ExprAST(interface_type, _expr->Loc, false), expr(std::move(_expr)) {}
+	InterfaceExprAST(std::unique_ptr<ExprAST> _expr, volvoxc::FullType* interface_ft = nullptr) :
+		ExprAST(interface_type, _expr->Loc, false), expr(std::move(_expr)), interface_ft(interface_ft) {}
 	llvm::Value* codegen_raw(llvm::Value* target, bool strict);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) {
 		return codegen_raw(target, false);

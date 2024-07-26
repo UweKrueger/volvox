@@ -1051,9 +1051,7 @@ enum ProtoMatchKind : uint8_t {
 };
 
 extern ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b);
-extern llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
-                                          const char* ft_unmangled_name, volvoxc::FullType* interface,
-                                          const char* interface_unmangled_name);
+extern llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft, volvoxc::FullType* interface);
 
 enum SymbolKind : uint8_t {
 	SymbolType,

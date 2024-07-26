@@ -647,6 +647,10 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 	if (!expr->ft->type)
 		return nullptr;
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->ft->type)) {
+		if (interface_ft) {
+			errs() << Loc << ": specialized interfaces cannot be implemented by arrays\n";
+			return nullptr;
+		}
 		if (strict) {
 			strict_target = target;
 			target = nullptr;
@@ -724,6 +728,10 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 				val = StoreValue(stuct_val, expr->ft);
 		}
 	} else {
+		if (interface_ft) {
+			errs() << Loc << ": specialized interfaces cannot be implemented by basic types\n";
+			return nullptr;
+		}
 		// pass by value
 		if (expr->is_unknown_type && expr->ft->type->isIntegerTy()) {
 			// usually untyped int defaults to i32
@@ -740,7 +748,11 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 	}
 	if (!val)
 		return nullptr;
-	llvm::Constant* rttype_ptr = getRtType(expr->ft);
+	llvm::Constant* vtable = nullptr;
+	if (interface_ft) {
+		vtable = getInterfaceVtable(Loc, expr->ft, interface_ft);
+	}
+	llvm::Constant* rttype_ptr = getRtType(expr->ft, vtable);
 	if (!rttype_ptr) {
 		errs() << Loc << ": error creating type information for interface expression\n";
 		return nullptr;
