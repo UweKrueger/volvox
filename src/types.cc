@@ -955,6 +955,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 }
 
 ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b) {
+	unsigned arg_offset = 0;
 	if ((a->visibility ^ b->visibility) & (A_method | A_constructor | A_destructor))
 		return protos_different;
 	if ((a->visibility & A_method) && a->LLVMArgTypes[0] != b->LLVMArgTypes[0])
@@ -962,7 +963,9 @@ ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b) {
 	size_t a_sz = a->ArgTypes.size();
 	if (a_sz != b->ArgTypes.size())
 		goto different;
-	for (unsigned i = 0; i<a_sz; i++)
+	if (b->visibility & A_interface)
+		arg_offset = 1; // do not compare receiver type for interface match
+	for (unsigned i = arg_offset; i<a_sz; i++)
 		if (FullTypes_differ(a->ArgTypes[i], b->ArgTypes[i]))
 			goto different;;
 	if (FullTypes_differ(a->RetType, b->RetType))
@@ -991,7 +994,7 @@ static void protos_err(std::vector<std::pair<std::unique_ptr<PrototypeAST>,size_
 
 llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
                                    volvoxc::FullType* interface) {
-	if (!interface || interface->InterfaceProtos) {
+	if (!interface || !interface->InterfaceProtos) {
 		errs() << Loc << ": internal error - interface type inconsistent\n";
 		abort();
 	}
@@ -1037,8 +1040,6 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 			errs() << Loc << ": type '" << *ft << "' does not implement interface '"
 			       << *interface << "' - no match for method\n";
 			printCandidate(proto.first.get(), ident.c_str());
-			errs() << "canditates are:\n";
-			printAllProtos(&ft_protos->second, "type");
 			return nullptr;
 		match_found:
 			continue;

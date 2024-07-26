@@ -1057,6 +1057,14 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 			continue;
 		}
+		if ((i+arg_offs) < n_proto_args && Proto->ArgTypes[i+arg_offs]->type_attr & A_interface) {
+			auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(Args[i]), Proto->ArgTypes[i+arg_offs]);
+			llvm::Value* interface_val = interface_expr->codegen_raw(nullptr, true);
+			if (!interface_val)
+				return nullptr;
+			ArgsV.push_back(interface_val);
+			continue;
+		}
 		bool by_val = false;
 		bool is_var_array = (i+arg_offs) < n_proto_args
 			&& Proto->ArgTypes[i+arg_offs]->type->isArrayTy()

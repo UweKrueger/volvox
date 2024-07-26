@@ -751,14 +751,21 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 	llvm::Constant* vtable = nullptr;
 	if (interface_ft) {
 		vtable = getInterfaceVtable(Loc, expr->ft, interface_ft);
+		if (!vtable)
+			return nullptr;
 	}
 	llvm::Constant* rttype_ptr = getRtType(expr->ft, vtable);
 	if (!rttype_ptr) {
 		errs() << Loc << ": error creating type information for interface expression\n";
 		return nullptr;
 	}
-	std::vector<llvm::Type*> types = { rttype_ptr->getType(), val->getType() };
-	llvm::Type* struct_type = llvm::StructType::get(Context, types);
+	llvm::Type* struct_type;
+	if (interface_ft) {
+		struct_type = interface_ft->type;
+	} else {
+		std::vector<llvm::Type*> types = { rttype_ptr->getType(), val->getType() };
+		struct_type = llvm::StructType::get(Context, types);
+	}
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, 0);
 	the_struct = Builder->CreateInsertValue(the_struct, val, 1);
