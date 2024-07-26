@@ -723,7 +723,7 @@ volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs) {
 }
 
 // get runtime type, i.e. a description that is is passed at run time along with interface objects
-llvm::Constant* getRtType(volvoxc::FullType* ft) {
+llvm::Constant* getRtType(volvoxc::FullType* ft, llvm::Constant* vtable) {
 	union {
 		VOLVOX_gen_val_type_t llvmtype;
 		unsigned key;
@@ -803,6 +803,8 @@ llvm::Constant* getRtType(volvoxc::FullType* ft) {
 			fields.push_back(llvm::ConstantPointerNull::get(llvm_ptr_type));
 		}
 	}
+	if (vtable)
+		fields.push_back(vtable);
 	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(Context, fields, true);
 	auto *GV = new llvm::GlobalVariable(*TheModule, rt_const->getType(), true, llvm::GlobalValue::PrivateLinkage, rt_const);
 	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(rt_const->getType()));

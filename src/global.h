@@ -542,7 +542,7 @@ extern volvoxc::FullType* ParseType(
 	std::vector<std::unique_ptr<ExprAST>>* exprs = nullptr,
 	llvm::StructType* existing = nullptr,
 	bool is_index = false, bool resolve_ref = false);
-extern llvm::Constant* getRtType(volvoxc::FullType* ft);
+extern llvm::Constant* getRtType(volvoxc::FullType* ft, llvm::Constant* vtable = nullptr);
 extern std::pair<unsigned, bool> getBitWidth(llvm::Type* type);
 extern void PrepareTestFramework();
 extern const char* TestFunction;
