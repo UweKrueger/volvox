@@ -1013,11 +1013,25 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 		}
 		for (auto& proto : protos) {
 			size_t idx = proto.second;
+			int selidx = 0;
 			for (auto& ft_proto : ft_protos->second) {
 				if (CompareProtos(ft_proto.get(), proto.first.get()) == protos_matching) {
-					methods[idx] = nullptr; // find function address
+					auto func_expr = std::make_unique<FunctionExprAST>(Loc, ident, &ft_protos->second, selidx);
+					func_expr->need_address = true;
+					llvm::Value* fn_adr = func_expr->codegen_raw();
+					if (!fn_adr) {
+						errs() << Loc << ": cannot get address for method '" << ident << "'\n";
+						return nullptr;
+					}
+					auto const_adr = llvm::dyn_cast<llvm::Constant>(fn_adr);
+					if (!const_adr) {
+						errs() << Loc << ": cannot get constant address for method '" << ident << "'\n";
+						return nullptr;
+					}
+					methods[idx] = const_adr;
 					goto match_found;
 				}
+				selidx++;
 			}
 			errs() << Loc << ": type '" << ft_unmangled_name << "' aka '" << *ft << "' does not implement interface '"
 			       << interface_unmangled_name << "' aka '" << *interface << "' - no match for method\n";
