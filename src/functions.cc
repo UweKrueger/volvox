@@ -84,7 +84,7 @@ static void printArgTypes(std::vector<FnArg>& fnargs, unsigned offset = 0) {
 	}
 }
 
-static void printCandidate(PrototypeAST* proto, const char* name) {
+void printCandidate(PrototypeAST* proto, const char* name) {
 	errs() << proto->retLoc << ": " << (name ? name : "fn") << '(';
 	for (int i=0; i<proto->Args.size(); i++)
 		if (i>0 || proto->Args[i] != "this") {

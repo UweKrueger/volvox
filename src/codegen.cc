@@ -1752,9 +1752,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		} else if (dynamic_cast<BinaryExprAST*>(RHS.get()) ||
 		           dynamic_cast<PostfixExprAST*>(RHS.get()) ||
 		           dynamic_cast<UnaryExprAST*>(RHS.get()) ||
-		           dynamic_cast<BranchExprAST*>(RHS.get()))
+		           dynamic_cast<BranchExprAST*>(RHS.get())) {
 				is_call_expr = true;
-		else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
+		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
 			auto ValR = RHS_Lval->codegen_ref(true, !LREF);
 			if (!ValR.second) {
 				if (LREF) {

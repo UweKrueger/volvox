@@ -1015,6 +1015,7 @@ struct ProtoListElem {
 extern ProtoListElem* anon_protos;
 extern ProtoListElem** anon_protos_end;
 
+extern void printCandidate(PrototypeAST* proto, const char* name);
 extern void printAllProtos(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name);
 extern void setMangledName(PrototypeAST* Proto, unsigned visibility);
 extern std::string cdecl_rename;
@@ -1050,6 +1051,9 @@ enum ProtoMatchKind : uint8_t {
 };
 
 extern ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b);
+extern llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
+                                          const char* ft_unmangled_name, volvoxc::FullType* interface,
+                                          const char* interface_unmangled_name);
 
 enum SymbolKind : uint8_t {
 	SymbolType,
