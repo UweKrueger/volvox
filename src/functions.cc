@@ -40,7 +40,7 @@ std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangle
 llvm::Function* getFunction(PrototypeAST* FI) {
 	if (auto F = TheModule->getFunction(FI->Name))
 		return F;
-	return FI->codegen();
+	return llvm::dyn_cast<llvm::Function>(FI->codegen());
 }
 
 llvm::Function* getConversion(std::string& mangled_name) {
@@ -684,7 +684,19 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 	return success;
 }
 
-llvm::Function *PrototypeAST::codegen() {
+llvm::Value* PrototypeAST::codegen(bool need_address) {
+	if (need_address && !inside_function && jit_repl) {
+		// force JIT engine to generate code
+		auto ExprSymbolOpt = TheJIT->lookup(Name);
+		auto error = ExprSymbolOpt.takeError();
+		if (error) {
+			errs() << retLoc << ": Prototype has no implementation\n";
+			return nullptr;
+		}
+		auto ExprSymbol = ExprSymbolOpt.get();
+		auto adr = ExprSymbol.getAddress().getValue();
+		return Builder->CreateIntToPtr(getSize(adr), llvm_ptr_type);
+	}
 	llvm::Function *F =
 		llvm::Function::Create(FT, link_typ, 0, Name, TheModule.get());
 	// Set names for all arguments.

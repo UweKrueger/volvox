@@ -985,7 +985,7 @@ public:
 	             std::vector<volvoxc::FullType*> ArgTypes = {},
 	             std::vector<SourceLocation> _ArgPos = {}, std::string _returnName = "",
 	             bool IsVarArgs = false);
-	llvm::Function *codegen();
+	llvm::Value* codegen(bool need_address = false);
 	const std::string &getName() const { return Name; }
 
 	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }

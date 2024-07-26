@@ -638,7 +638,7 @@ llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 	if (auto F = TheModule->getFunction((*ft->Protos)[selected_proto]->Name)) {
 		return handle(target, F);
 	}
-	return handle(target, (*ft->Protos)[selected_proto]->codegen());
+	return handle(target, (*ft->Protos)[selected_proto]->codegen(need_address));
 }
 
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
@@ -1009,7 +1009,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		return nullptr;
 	}
 	bool initialization_from_main = !jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
-	bool prepare_setter_fn = jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
+	bool prepare_setter_fn = jit_repl && (!rhs_is_constexpr && !expr->RHS->ft->type->isFunctionTy() || (expr->RHS->ft->type_attr & A_constructor));
 	const std::string& unmangled_name = LHSE->getName();
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
 		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
@@ -1036,7 +1036,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (prepare_setter_fn)
 		tmpf = init_setter_fn(setter_name, varname, Arg);
 	llvm::Value* Val = nullptr;
-	llvm::Type* type;
+	llvm::Type* type = nullptr;
 	FullVar* is_referencing = nullptr;
 	unsigned attribs = 0;
 	unsigned is_union = expr->RHS->ft->type_attr & A_union;
@@ -1089,12 +1089,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	// if (rhs_is_constexpr && !Val)
 	// 	errs() << expr->RHS->Loc << ": no value for const expr\n";
 	if (Val) {
-		if (rhs_is_constexpr) {
+		if (rhs_is_constexpr || expr->RHS->ft->type->isFunctionTy()) {
 			initializer = llvm::dyn_cast<llvm::Constant>(Val);
 			if (!initializer) {
 				errs() << expr->RHS->Loc << ": initialization with ':=' requires a compile time const on the RHS\n";
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 			}
+			initialization_from_main = false;
 		}
 	} else if (!use_target && !initialization_from_main && !dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 		errs() << expr->Loc << ": cannot generate code for RHS\n";
