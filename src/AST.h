@@ -294,6 +294,7 @@ public:
 	std::unique_ptr<ExprAST> Callee;
 	std::vector<std::unique_ptr<ExprAST>> Args;
 	PrototypeAST* Proto = nullptr;
+	ssize_t vtable_offs = -1;
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {});
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
@@ -396,8 +397,9 @@ class MethodExprAST : public FunctionExprAST {
 public:
 	std::unique_ptr<ExprAST> Receiver;
 	std::unique_ptr<IdentExprAST> Method;
-	MethodExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Receiver, std::unique_ptr<IdentExprAST> _Method, std::vector<std::unique_ptr<PrototypeAST>>* Protos)
-		: FunctionExprAST(Loc, _Method->Name, Protos), Receiver(std::move(_Receiver)), Method(std::move(_Method)) {}
+	std::vector<size_t>* vtable_idx;
+	MethodExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Receiver, std::unique_ptr<IdentExprAST> _Method, std::vector<std::unique_ptr<PrototypeAST>>* Protos, std::vector<size_t>* vtable_idx = nullptr)
+		: FunctionExprAST(Loc, _Method->Name, Protos), Receiver(std::move(_Receiver)), Method(std::move(_Method)), vtable_idx(vtable_idx) {}
 };
 
 // struct field selection like 'struct.field'

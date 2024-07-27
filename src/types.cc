@@ -749,6 +749,8 @@ llvm::Constant* getRtType(volvoxc::FullType* ft, llvm::Constant* vtable) {
 	}
 	llvmtype = VOLVOX_gen_val_type_t{ .ID = (VOLVOX_TypeID)ft->type->getTypeID(), .SubclassData = subclassdata };
 	llvm::SmallVector<llvm::Constant*, 16> fields;
+	if (vtable)
+		fields.push_back(vtable);
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)key));
 	fields.push_back(llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), (uint64_t)(ft->type_attr | additional_attribs)));
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
@@ -803,8 +805,6 @@ llvm::Constant* getRtType(volvoxc::FullType* ft, llvm::Constant* vtable) {
 			fields.push_back(llvm::ConstantPointerNull::get(llvm_ptr_type));
 		}
 	}
-	if (vtable)
-		fields.push_back(vtable);
 	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(Context, fields, true);
 	auto *GV = new llvm::GlobalVariable(*TheModule, rt_const->getType(), true, llvm::GlobalValue::PrivateLinkage, rt_const);
 	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(rt_const->getType()));

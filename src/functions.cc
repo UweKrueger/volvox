@@ -332,9 +332,11 @@ do_analyze:
 			return;
 		}
 		int selected_proto = selectProto(protos, name, fn_args, Callee->Loc);
-		if (selected_proto >= 0)
+		if (selected_proto >= 0) {
 			Proto = (*protos)[selected_proto].get();
-		else if (selected_proto == -2) {
+			if (method && method->vtable_idx)
+				vtable_offs = target_bytes * (*method->vtable_idx)[selected_proto];
+		} else if (selected_proto == -2) {
 			// explicit basic type conversion
 			auto ft = lex.source_stack.front().module->type_table.get_full(name);
 			if (!ft)
@@ -859,8 +861,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	TypeExprAST* type_expr = dynamic_cast<TypeExprAST*>(Callee.get());
 	if (!Proto) {
-		if (auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get())) {
+		if (type_expr) {
 			if (Args.empty())
 				return llvm::Constant::getNullValue(ft->type);
 			if (Args.size() == 1) {
@@ -970,8 +973,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (!Proto)
 		return nullptr;
-	TypeExprAST* type_expr;
-	if (Proto->visibility & A_constructor && (type_expr = dynamic_cast<TypeExprAST*>(Callee.get()))) {
+	if (Proto->visibility & A_constructor && type_expr) {
 		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
 		llvm::Value* ret_val = nullptr;
 		if ((!target || (intptr_t)target == -1) && (allocsz > sret_limit || (type_expr->ft->type_attr & A_constructor)))
@@ -993,12 +995,6 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	llvm::Value* theFunction = nullptr;
-	if (!dynamic_cast<TypeExprAST*>(Callee.get()))
-		theFunction = Callee->codegen();
-	if (!theFunction)
-		theFunction = getFunction(Proto);
-	if (!theFunction)
-		abort();
 	auto FT = Proto->FT;
 	unsigned arg_offs = (Proto->visibility & A_method) ? 1 : 0;
 	std::vector<llvm::Value *> ArgsV;
@@ -1013,7 +1009,16 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	if (Proto->visibility & A_method && !(Proto->visibility & A_constructor)) {
 		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
 			llvm::Value* receiver_ref = nullptr;
-			if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
+			if (vtable_offs >= 0) { // method to polymorphic object
+				llvm::Value* interface_receiver = method->Receiver->codegen_raw();
+				llvm::Value* rt_type_ptr = Builder->CreateExtractValue(interface_receiver, 0);
+				receiver_ref = Builder->CreateExtractValue(interface_receiver, 1);
+				llvm::Value* method_adr = Builder->CreateIntToPtr(
+					Builder->CreateAdd(
+						Builder->CreatePtrToInt(rt_type_ptr, llvm_size_type),
+						getSize(vtable_offs)), llvm_ptr_type);
+				theFunction = Builder->CreateLoad(llvm_ptr_type, method_adr);
+			} else if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
 				llvm::Type* receiver_type;
 				std::tie(receiver_type, receiver_ref) = receiver_lval->codegen_ref(true);
 				if (!receiver_type) {
@@ -1053,7 +1058,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		n_volovox_va_arg = Args.size() + arg_offs - n_proto_args;
 		auto va_arg_array_type = llvm::ArrayType::get(llvm_interface_type, n_volovox_va_arg);
 		if (n_volovox_va_arg)
-			volvox_var_array = CreateEntryBlockAlloca(va_arg_array_type, "va_arg_array");
+			volvox_var_array = CreateEntryBlockAlloca(va_arg_array_type, "va_arg_arrayp");
 		else
 			volvox_var_array = llvm::ConstantPointerNull::get(va_arg_array_type->getPointerTo());
 		volvox_var_array_ref = llvm::UndefValue::get(llvm_va_arg_ref_type);
@@ -1218,6 +1223,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (is_volvox_variadic)
 		ArgsV.push_back(volvox_var_array_ref);
+	if (!theFunction && !type_expr)
+		theFunction = Callee->codegen();
+	if (!theFunction)
+		theFunction = getFunction(Proto);
+	if (!theFunction)
+		abort();
 	if (auto F = llvm::dyn_cast<llvm::Function>(theFunction)) {
 		// Callee was a function symbol like `sin`
 		if (Proto->const_result)

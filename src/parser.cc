@@ -1516,7 +1516,7 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 				errs() << LHS->Loc << ": interface '" << *LHS->ft << "' has no method '" << Ident->Name << "'\n";
 				return nullptr;
 			}
-			return nullptr; // TODO: implement interface callee
+			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second.first, &protos->second.second);
 		}
 		auto protos = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
 		if (protos != MethodProtos.end())
