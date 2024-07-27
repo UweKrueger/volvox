@@ -19,7 +19,7 @@ std::map<std::string,llvm::FunctionType*> Conversions;
 std::map<std::string,std::pair<std::string,std::string>> AutoMethods;
 
 //                    vtable_t                  method name                       prototype                      offset in vtable
-std::vector<std::pair<llvm::ArrayType*,std::map<std::string,std::pair<std::vector<std::unique_ptr<PrototypeAST>>,std::vector<size_t>>>>> InterfaceProtos;
+std::vector<std::pair<llvm::ArrayType*,std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>> InterfaceProtos;
 
 // methods table - keys: { mangled_type_name, method_name }
 std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
@@ -1516,7 +1516,7 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 				errs() << LHS->Loc << ": interface '" << *LHS->ft << "' has no method '" << Ident->Name << "'\n";
 				return nullptr;
 			}
-			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second.first, &protos->second.second);
+			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
 		}
 		auto protos = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
 		if (protos != MethodProtos.end())
@@ -2230,7 +2230,7 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 	if (!Expect('{'))
 		return nullptr;
 	//       method name                       prototype                     offset in vtable
-	std::map<std::string,std::pair<std::vector<std::unique_ptr<PrototypeAST>>,std::vector<size_t>>> Protos;
+	std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>> Protos;
 	size_t offset = 0;
 	while (CurTok.kind != '}') {
 		unsigned visibility = A_interface;
@@ -2242,9 +2242,9 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 			step = 2;
 		else
 			step = 1;
-		auto& protos_pair = Protos[std::move(proto->Name)];
-		protos_pair.first.push_back(std::move(proto));
-		protos_pair.second.push_back(offset);
+		auto& protos = Protos[std::move(proto->Name)];
+		proto->vtable_offs = offset;
+		protos.push_back(std::move(proto));
 		offset += step;
 		if (CurTok.kind != '}')
 			if (!Expect(';'))

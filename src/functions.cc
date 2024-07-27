@@ -337,8 +337,8 @@ do_analyze:
 		int selected_proto = selectProto(protos, name, fn_args, Callee->Loc);
 		if (selected_proto >= 0) {
 			Proto = (*protos)[selected_proto].get();
-			if (method && method->vtable_idx)
-				vtable_offs = target_bytes * (*method->vtable_idx)[selected_proto];
+			if (method && Proto->vtable_offs >= 0)
+				vtable_offs = target_bytes * Proto->vtable_offs;
 		} else if (selected_proto == -2) {
 			// explicit basic type conversion
 			auto ft = lex.source_stack.front().module->type_table.get_full(name);
