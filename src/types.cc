@@ -989,7 +989,7 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 	}
 	llvm::ArrayType* array_type = inter_face->InterfaceProtos->first;
 	std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>*
-		inter_protos = &inter_face->InterfaceProtos->second;
+		inter_protos = inter_face->InterfaceProtos->second.get();
 	std::vector<llvm::Constant*> methods(array_type->getNumElements());
 	if (!ft->mangled_name) {
 		errs() << Loc << ": internal error - no mangled type name\n";
