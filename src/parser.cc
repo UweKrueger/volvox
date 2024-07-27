@@ -2020,7 +2020,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		ArgNames.push_back(is_blanc_ident ? " " : name);
 		ArgPos.push_back(ArgLoc);
 		auto type = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL);
-		if (!(type->type_attr & A_ref)) {
+		if (!(type->type_attr & (A_ref | A_interface))) {
 			uint64_t arg_size = type->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(type->type) : 0;
 			if (!arg_size || arg_size > sret_limit)
 				type = new_FullType(*type, A_by_value);
