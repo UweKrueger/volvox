@@ -18,7 +18,7 @@ std::vector<const char*> module_names = {};
 std::map<std::string,llvm::FunctionType*> Conversions;
 std::map<std::string,std::pair<std::string,std::string>> AutoMethods;
 
-//                    vtable_t                   method name                       prototype                     offset in vtable
+//                    vtable_t                  method name                       prototype                      offset in vtable
 std::vector<std::pair<llvm::ArrayType*,std::map<std::string,std::pair<std::vector<std::unique_ptr<PrototypeAST>>,std::vector<size_t>>>>> InterfaceProtos;
 
 // methods table - keys: { mangled_type_name, method_name }

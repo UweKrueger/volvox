@@ -241,6 +241,8 @@ const char* Lexer::skip_str(lexer_skip_t skip) {
 		return "type name";
 	case lex_skip_moduleprefix:
 		return "module prefix";
+	default:
+		return "";
 	}
 }
 

@@ -982,14 +982,14 @@ different:
 }
 
 llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
-                                   volvoxc::FullType* interface) {
-	if (!interface || !interface->InterfaceProtos) {
+                                   volvoxc::FullType* inter_face) {
+	if (!inter_face || !inter_face->InterfaceProtos) {
 		errs() << Loc << ": internal error - interface type inconsistent\n";
 		abort();
 	}
-	llvm::ArrayType* array_type = interface->InterfaceProtos->first;
+	llvm::ArrayType* array_type = inter_face->InterfaceProtos->first;
 	std::map<std::string,std::pair<std::vector<std::unique_ptr<PrototypeAST>>,std::vector<size_t>>>*
-		inter_protos = &interface->InterfaceProtos->second;
+		inter_protos = &inter_face->InterfaceProtos->second;
 	std::vector<llvm::Constant*> methods(array_type->getNumElements());
 	if (!ft->mangled_name) {
 		errs() << Loc << ": internal error - no mangled type name\n";
@@ -1000,7 +1000,7 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 		auto ft_protos = MethodProtos.find({ mangledType, ident });
 		if (ft_protos == MethodProtos.end()) {
 			errs() << Loc << ": type '" << *ft << "' does not implement interface '"
-			       << *interface << "' - no method '" << ident << "()'\n";
+			       << *inter_face << "' - no method '" << ident << "()'\n";
 			errs() << "required prototypes:\n";
 			printAllProtos(&protos.first, ident.c_str());
 			return nullptr;
@@ -1027,7 +1027,7 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 				}
 			}
 			errs() << Loc << ": type '" << *ft << "' does not implement interface '"
-			       << *interface << "' - no match for method\n";
+			       << *inter_face << "' - no match for method\n";
 			printCandidate(protos.first[selidx].get(), ident.c_str());
 			errs() << "candidates are:\n";
 			printAllProtos(&ft_protos->second, ident.c_str());
