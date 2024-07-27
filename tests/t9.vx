@@ -144,3 +144,60 @@ def test_min_max_abs_3 bool
 	d = max(a, b)
 	return c == 1389 && d == 1725
 end
+
+interface QQwMYx {
+	oper(x f64) i32
+	ttz(a f64, b i32) f64
+	oper(p string) f64
+}
+
+type HHnMYx {
+	n i32
+	p f64
+	z f64
+}
+
+def HHnMYx.oper(x f64) i32
+	return 2 * this.n
+end
+
+def HHnMYx.oper(p string) f64
+	return 2 * this.n
+end
+
+def HHnMYx.ttz(a f64, b i32) f64
+	return a * this.n + b
+end
+
+type P4MYx {
+	m i32
+}
+
+def P4MYx.oper(x f64) i32
+	return i32(17 + x)
+end
+
+def P4MYx.oper(p string) f64
+	return 19.0625
+end
+
+def P4MYx.ttz(a f64, b i32) f64
+	return a * a - this.m + b
+end
+
+def g(x QQwMYx, m f64) f64
+	uwq = x.ttz(m, 4)
+	return 12.5 + uwq
+end
+
+def test_interface_1 bool
+	r = HHnMYx{ n: 56, p: -33.5 }
+	a = g(r, 34.25)
+	return a == 1934.5
+end
+
+def test_interface_2 bool
+	r = P4MYx{ m: 3 }
+	a = g(r, 7.5)
+	return a == 69.75
+end
