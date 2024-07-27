@@ -1510,9 +1510,17 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 
 std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident) {
 	if (LHS->ft->mangled_name) {
-		auto proto = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
-		if (proto != MethodProtos.end())
-			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &proto->second);
+		if (LHS->ft->type_attr & A_interface) {
+			auto protos = LHS->ft->InterfaceProtos->second.find(Ident->Name);
+			if (protos == LHS->ft->InterfaceProtos->second.end()) {
+				errs() << LHS->Loc << ": interface '" << *LHS->ft << "' has no method '" << Ident->Name << "'\n";
+				return nullptr;
+			}
+			return nullptr; // TODO: implement interface callee
+		}
+		auto protos = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
+		if (protos != MethodProtos.end())
+			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
 	}
 	return std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
 }
@@ -1525,7 +1533,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		int TokPrec = GetTokPrecedence();
 		// If this is a binop that binds at least as tightly as the current binop,
 		// consume it, otherwise we are done.
-		if (!LHS->ft)
+		if (!LHS || !LHS->ft)
 			return nullptr;
 		if (NextTokPrecedence() <= ExprPrec) {
 			if (LHS->ft->type && (LHS->ft->type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get())))
@@ -2229,7 +2237,6 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 		auto proto = ParsePrototype(visibility);
 		if (!proto)
 			return nullptr;
-		// errs() << proto->retLoc << ": ### Interface Prototype '" << proto->Name << "' #args: " << proto->ArgTypes.size() << "\n";
 		unsigned step;
 		if ((proto->visibility & A_setter) && proto->ArgTypes.size() == 1)
 			step = 2;
@@ -2243,9 +2250,20 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 	}
 	getNextToken(eSemi);
 	std::vector<llvm::Type*> interface_type_elements = { llvm_ptr_type, llvm_ptr_type };
-	llvm_interface_type = iname ?
-		llvm::StructType::create(Context, interface_type_elements, iname, false) :
-		llvm::StructType::get(Context, interface_type_elements, false);
+	if (iname) {
+		if (auto struct_ty = llvm::StructType::getTypeByName(Context, iname)) {
+			if (!struct_ty->isOpaque()) {
+				errs() << CurLoc << ": type '" << iname << "' has already been defined\n";
+				return nullptr;
+			}
+			struct_ty->setBody(interface_type_elements);
+			llvm_interface_type = struct_ty;
+		} else {
+			llvm_interface_type = llvm::StructType::create(Context, interface_type_elements, iname, false);
+		}
+	} else {
+		llvm_interface_type = llvm::StructType::get(Context, interface_type_elements, false);
+	}
 	auto ft = new_FullType(llvm_interface_type, A_interface);
 	auto array_type = llvm::ArrayType::get(llvm_ptr_type, offset);
 	InterfaceProtos.push_back({ array_type, std::move(Protos) });
