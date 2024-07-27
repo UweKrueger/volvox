@@ -981,17 +981,6 @@ different:
 	return protos_different;
 }
 
-// similar to Lexer::protos_err() but different API
-static void protos_err(std::vector<std::pair<std::unique_ptr<PrototypeAST>,size_t>>* protos) {
-	const char* nth = (protos->size() > 1) ? "one" : "the";
-	const char* a = (protos->size() > 1) ? "a" : "the";
-	for (auto& proto: *protos) {
-		errs() << proto.first->retLoc << ": this is " << nth << " location of " << a
-		       << " declaration\n";
-		nth = "another";
-	}
-}
-
 llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
                                    volvoxc::FullType* interface) {
 	if (!interface || !interface->InterfaceProtos) {
@@ -999,7 +988,7 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 		abort();
 	}
 	llvm::ArrayType* array_type = interface->InterfaceProtos->first;
-	std::map<std::string,std::vector<std::pair<std::unique_ptr<PrototypeAST>,size_t>>>*
+	std::map<std::string,std::pair<std::vector<std::unique_ptr<PrototypeAST>>,std::vector<size_t>>>*
 		inter_protos = &interface->InterfaceProtos->second;
 	std::vector<llvm::Constant*> methods(array_type->getNumElements());
 	if (!ft->mangled_name) {
@@ -1012,14 +1001,15 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 		if (ft_protos == MethodProtos.end()) {
 			errs() << Loc << ": type '" << *ft << "' does not implement interface '"
 			       << *interface << "' - no method '" << ident << "()'\n";
-			protos_err(&protos);
+			errs() << "required prototypes:\n";
+			printAllProtos(&protos.first, ident.c_str());
 			return nullptr;
 		}
-		for (auto& proto : protos) {
-			size_t idx = proto.second;
-			int selidx = 0;
+		unsigned vecsize = protos.first.size();
+		for (unsigned selidx = 0; selidx<vecsize; selidx++) {
+			size_t idx = protos.second[selidx];
 			for (auto& ft_proto : ft_protos->second) {
-				if (CompareProtos(ft_proto.get(), proto.first.get()) == protos_matching) {
+				if (CompareProtos(ft_proto.get(), protos.first[selidx].get()) == protos_matching) {
 					auto func_expr = std::make_unique<FunctionExprAST>(Loc, ident, &ft_protos->second, selidx);
 					func_expr->need_address = true;
 					llvm::Value* fn_adr = func_expr->codegen_raw();
@@ -1035,11 +1025,12 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 					methods[idx] = const_adr;
 					goto match_found;
 				}
-				selidx++;
 			}
 			errs() << Loc << ": type '" << *ft << "' does not implement interface '"
 			       << *interface << "' - no match for method\n";
-			printCandidate(proto.first.get(), ident.c_str());
+			printCandidate(protos.first[selidx].get(), ident.c_str());
+			errs() << "candidates are:\n";
+			printAllProtos(&ft_protos->second, ident.c_str());
 			return nullptr;
 		match_found:
 			continue;

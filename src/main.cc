@@ -521,7 +521,7 @@ static void HandleDefinition(unsigned& visibility) {
 		errs() << "Error parsing function definition\n";
 	}
 	// Skip remaining tokens for error recovery.
-	purgeLine();
+	// purgeLine();
 	TestFunction = nullptr;
 cleanup:
 	function_return_kind = old_return_kind;
@@ -1215,6 +1215,12 @@ static void MainLoop() {
 				if (jit_repl) {
 					if (!HandleTopLevelExpression(std::move(expr))) {
 						errs() << "Command aborted...\n";
+						// There is no "good" thing to do here in REPL mode:
+						// It might be that we are inside a function definition
+						// then a 'return' some line below will end the interpreter
+						// However parsing to the reguar 'end' of the function definition
+						// might block. Maybe searching for the next empty line or eof
+						// will do the job...(?)
 					}
 				} else {
 					if (!do_pres || have_return || !expr->ft->type || expr->ft->type->isVoidTy())

@@ -85,14 +85,25 @@ static void printArgTypes(std::vector<FnArg>& fnargs, unsigned offset = 0) {
 }
 
 void printCandidate(PrototypeAST* proto, const char* name) {
-	errs() << proto->retLoc << ": " << (name ? name : "fn") << '(';
+	errs() << proto->retLoc << ": ";
+	if (proto->visibility & A_method) {
+		if (proto->visibility & A_interface)
+			errs() << "this";
+		else
+			errs() << *proto->ArgTypes[0];
+		errs() << '.';
+	}
+	errs() << (name ? name : "fn") << '(';
 	for (int i=0; i<proto->Args.size(); i++)
-		if (i>0 || proto->Args[i] != "this") {
+		if (i || !(proto->visibility & A_method)) {
 			errs() << proto->Args[i] << ' ' << *proto->ArgTypes[i];
 			if (i != proto->Args.size()-1)
 				errs() << ", ";
 		}
-	errs() << ")\n";
+	errs() << ")";
+	if (proto->RetType && proto->RetType->type && !proto->RetType->type->isVoidTy())
+		errs() << " " << *proto->RetType;
+	errs() << "\n";
 }
 
 inline static void printCandidates(unsigned candidates[], unsigned num_candidates, std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name) {

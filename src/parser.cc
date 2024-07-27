@@ -19,7 +19,7 @@ std::map<std::string,llvm::FunctionType*> Conversions;
 std::map<std::string,std::pair<std::string,std::string>> AutoMethods;
 
 //                    vtable_t                   method name                       prototype                     offset in vtable
-std::vector<std::pair<llvm::ArrayType*,std::map<std::string,std::vector<std::pair<std::unique_ptr<PrototypeAST>,size_t>>>>> InterfaceProtos;
+std::vector<std::pair<llvm::ArrayType*,std::map<std::string,std::pair<std::vector<std::unique_ptr<PrototypeAST>>,std::vector<size_t>>>>> InterfaceProtos;
 
 // methods table - keys: { mangled_type_name, method_name }
 std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
@@ -2230,7 +2230,7 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 	if (!Expect('{'))
 		return nullptr;
 	//       method name                       prototype                     offset in vtable
-	std::map<std::string,std::vector<std::pair<std::unique_ptr<PrototypeAST>,size_t>>> Protos;
+	std::map<std::string,std::pair<std::vector<std::unique_ptr<PrototypeAST>>,std::vector<size_t>>> Protos;
 	size_t offset = 0;
 	while (CurTok.kind != '}') {
 		unsigned visibility = A_interface;
@@ -2242,7 +2242,9 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 			step = 2;
 		else
 			step = 1;
-		Protos[std::move(proto->Name)].push_back({ std::move(proto), offset });
+		auto& protos_pair = Protos[std::move(proto->Name)];
+		protos_pair.first.push_back(std::move(proto));
+		protos_pair.second.push_back(offset);
 		offset += step;
 		if (CurTok.kind != '}')
 			if (!Expect(';'))
