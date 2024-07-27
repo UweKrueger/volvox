@@ -694,7 +694,11 @@ llvm::Value* PrototypeAST::codegen(bool need_address) {
 			return nullptr;
 		}
 		auto ExprSymbol = ExprSymbolOpt.get();
+#if LLVM_VERSION_MAJOR >= 17
 		auto adr = ExprSymbol.getAddress().getValue();
+#else
+		auto adr = ExprSymbol.getAddress();
+#endif
 		return Builder->CreateIntToPtr(getSize(adr), llvm_ptr_type);
 	}
 	llvm::Function *F =
