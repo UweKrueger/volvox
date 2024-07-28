@@ -990,11 +990,13 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 	llvm::ArrayType* array_type = inter_face->InterfaceProtos->first;
 	std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>*
 		inter_protos = inter_face->InterfaceProtos->second.get();
+	// methods[0] holds the size of the table - to find RtType at run time
 	std::vector<llvm::Constant*> methods(array_type->getNumElements());
 	if (!ft->mangled_name) {
 		errs() << Loc << ": internal error - no mangled type name\n";
 		abort();
 	}
+	methods[0] = getSize(target_bytes * methods.size());
 	std::string mangledType = ft->mangled_name;
 	for (auto& [ident, protos] : *inter_protos) {
 		auto ft_protos = MethodProtos.find({ mangledType, ident });

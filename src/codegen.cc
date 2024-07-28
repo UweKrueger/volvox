@@ -749,7 +749,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 	if (!val)
 		return nullptr;
 	llvm::Constant* vtable = nullptr;
-	if (interface_ft) {
+	if (interface_ft && interface_ft->InterfaceProtos->first->getNumElements() > 1) {
 		vtable = getInterfaceVtable(Loc, expr->ft, interface_ft);
 		if (!vtable)
 			return nullptr;

@@ -2231,7 +2231,7 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 		return nullptr;
 	//       method name                       prototype                     offset in vtable
 	auto Protos = std::make_unique<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>();
-	size_t offset = 0;
+	size_t offset = 1; // methods[0] holds the size of the vtable - to find RtType at run time
 	while (CurTok.kind != '}') {
 		unsigned visibility = A_interface;
 		auto proto = ParsePrototype(visibility);
