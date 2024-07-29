@@ -191,7 +191,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 									lens.push_back((uint64_t)len);
 								}
 							} else {
-								errs() << "dimension must be constant int\n";
+								errs() << "dimension must be a constexpr size_t value\n";
 								return nullptr;
 							}
 						}
@@ -345,7 +345,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 
 // parse argument of function prototype or or element in struct declaration
 // typically something like "x type[,)}\n]" - 'x' can be omitted in which case
-// the type name is used as name and the lowes bit of FullType* is set to
+// the type name is used as name and the lowest bit of FullType* is set to
 // flag this condition
 static std::pair<std::string,volvoxc::FullType*> ParseTypedIdent(int terminator, bool resolve_ref) {
 	unsigned attribs = 0;
@@ -2016,8 +2016,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			return nullptr;
 		if (lex.previously_used(name, ArgLoc, 0))
 			return nullptr;
-		bool is_blanc_ident = ((uintptr_t)ft & 1) || name == "_";
-		ArgNames.push_back(is_blanc_ident ? " " : name);
+		ArgNames.push_back(((uintptr_t)ft & 1) ? "_" : name);
 		ArgPos.push_back(ArgLoc);
 		auto type = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL);
 		if (!(type->type_attr & (A_ref | A_interface))) {

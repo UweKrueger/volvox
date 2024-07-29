@@ -230,6 +230,10 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		}
 		for (auto& [fname, ini]: Fields) {
 			MapValue* mv = map_string_get(ft->fields, fname.c_str());
+			if (!mv) {
+				errs() << Loc << ": type '" << *ft << "' has no field '" << fname << "'\n";
+				return nullptr;
+			}
 			auto node = StructFieldType((MapNode*)((uintptr_t)mv - ((uintptr_t)&ft->fields->value - (uintptr_t)ft->fields)));
 			unsigned index = node.getIndex();
 			auto field_ft = node.getFt();
