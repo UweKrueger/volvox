@@ -2242,7 +2242,31 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 			step = 2;
 		else
 			step = 1;
-		auto& protos = (*Protos)[std::move(proto->Name)];
+		auto& protos = (*Protos)[proto->Name];
+		if (step == 2) {
+			if (!protos.empty()) {
+				errs() << proto->retLoc << ": declaration of '" << proto->Name << "' as (pseudo) field conflicts with method(s) with the same name\n";
+				lex.protos_err(nullptr, proto->retLoc, &protos, false, true);
+				return nullptr;
+			}
+		} else {
+			for (auto& existing_proto: protos) {
+				if ((existing_proto->visibility & A_setter) && existing_proto->ArgTypes.size() == 1) {
+					errs() << proto->retLoc << ": declaration of '" << proto->Name << "' as method conflicts with (pseudo) field with the same name\n";
+					errs() << existing_proto->retLoc << ": this is the location of the prvious declaration\n";
+					return nullptr;
+				}
+				auto match = CompareProtos(proto.get(), existing_proto.get());
+				if (match == protos_different)
+					continue;
+				if (match == protos_matching)
+					errs() << proto->retLoc << ": method '" << proto->Name << "' with same signature has already been declared\n";
+				else
+					errs() << proto->retLoc << ": method '" << proto->Name << "' with same signature but conflicting return type has already been declared\n";
+				errs() << existing_proto->retLoc << ": this is the location of the previous declaration\n";
+				return nullptr;
+			}
+		}
 		proto->vtable_offs = offset;
 		protos.push_back(std::move(proto));
 		offset += step;
