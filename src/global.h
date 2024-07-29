@@ -318,7 +318,8 @@ namespace volvoxc {
 			FullType* elem_type = nullptr; // for array or tuples
 			//PrototypeAST* proto; // for functions
 			std::vector<std::unique_ptr<PrototypeAST>>* Protos; // for overloaded functions
-			std::pair<llvm::ArrayType*,std::unique_ptr<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>>* InterfaceProtos; // for interface methods;
+			//         vtable type                               method name             overloaded prototypes            embedded interfaces
+			std::tuple<llvm::ArrayType*,std::unique_ptr<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>,std::vector<FullType*>>* InterfaceProtos; // for interface methods;
 			MapNode* fields;     // for structs
 		};
 		SourceLocation decl_loc;

@@ -987,9 +987,9 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 		errs() << Loc << ": internal error - interface type inconsistent\n";
 		abort();
 	}
-	llvm::ArrayType* array_type = inter_face->InterfaceProtos->first;
+	llvm::ArrayType* array_type = std::get<0>(*inter_face->InterfaceProtos);
 	std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>*
-		inter_protos = inter_face->InterfaceProtos->second.get();
+		inter_protos = std::get<1>(*inter_face->InterfaceProtos).get();
 	// methods[0] holds the size of the table - to find RtType at run time
 	std::vector<llvm::Constant*> methods(array_type->getNumElements());
 	if (!ft->mangled_name) {

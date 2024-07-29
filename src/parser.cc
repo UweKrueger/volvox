@@ -19,7 +19,7 @@ std::map<std::string,llvm::FunctionType*> Conversions;
 std::map<std::string,std::pair<std::string,std::string>> AutoMethods;
 
 //                    vtable_t                  method name                       prototype                      offset in vtable
-std::vector<std::pair<llvm::ArrayType*,std::unique_ptr<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>>> InterfaceProtos;
+std::vector<std::tuple<llvm::ArrayType*,std::unique_ptr<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>,std::vector<volvoxc::FullType*>>> InterfaceProtos;
 
 // methods table - keys: { mangled_type_name, method_name }
 std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
@@ -1511,8 +1511,8 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident) {
 	if (LHS->ft->mangled_name) {
 		if (LHS->ft->type_attr & A_interface) {
-			auto protos = LHS->ft->InterfaceProtos->second->find(Ident->Name);
-			if (protos == LHS->ft->InterfaceProtos->second->end()) {
+			auto protos = std::get<1>(*LHS->ft->InterfaceProtos)->find(Ident->Name);
+			if (protos == std::get<1>(*LHS->ft->InterfaceProtos)->end()) {
 				errs() << LHS->Loc << ": interface '" << *LHS->ft << "' has no method '" << Ident->Name << "'\n";
 				return nullptr;
 			}
@@ -2231,6 +2231,7 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 		return nullptr;
 	//       method name                       prototype                     offset in vtable
 	auto Protos = std::make_unique<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>();
+	std::vector<volvoxc::FullType*> Embeds;
 	size_t offset = 1; // methods[0] holds the size of the vtable - to find RtType at run time
 	while (CurTok.kind != '}') {
 		unsigned visibility = A_interface;
@@ -2268,7 +2269,7 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 	}
 	auto ft = new_FullType(llvm_interface_type, A_interface);
 	auto array_type = llvm::ArrayType::get(llvm_ptr_type, offset);
-	InterfaceProtos.push_back({ array_type, std::move(Protos) });
+	InterfaceProtos.push_back({ array_type, std::move(Protos), std::move(Embeds) });
 	ft->InterfaceProtos = &InterfaceProtos.back();
 	return ft;
 }
