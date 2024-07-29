@@ -18,7 +18,7 @@ std::vector<const char*> module_names = {};
 std::map<std::string,llvm::FunctionType*> Conversions;
 std::map<std::string,std::pair<std::string,std::string>> AutoMethods;
 
-//                    vtable_t                  method name                       prototype                      offset in vtable
+//                     vtable_t                                  method name             prototype                        embedded interfaces
 std::vector<std::tuple<llvm::ArrayType*,std::unique_ptr<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>,std::vector<volvoxc::FullType*>>> InterfaceProtos;
 
 // methods table - keys: { mangled_type_name, method_name }
@@ -275,11 +275,10 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 				MapNode* replace = nullptr;
 				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = &FieldTypes[i] }, sizeof(void*), &replace);
 				if (replace) {
-					errs() << "Duplicate field name '" << FieldNames[i] << "' in struct declaration\n";
+					errs() << CurLoc << ": duplicate field name '" << FieldNames[i] << "' in struct declaration\n";
 					return nullptr;
 				}
 			}
-				
 			return new_FullType(struct_type, attribs, nullptr /*DIType*/, (volvoxc::FullType*)fields);
 		}
 			break;
@@ -2016,6 +2015,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			return nullptr;
 		if (lex.previously_used(name, ArgLoc, 0))
 			return nullptr;
+		// treat type without variable name as blanc ident
 		ArgNames.push_back(((uintptr_t)ft & 1) ? "_" : name);
 		ArgPos.push_back(ArgLoc);
 		auto type = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL);
