@@ -996,7 +996,7 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 		errs() << Loc << ": internal error - no mangled type name\n";
 		abort();
 	}
-	methods[0] = getSize(target_bytes * methods.size());
+	methods[0] = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(getSize(target_bytes * methods.size()), llvm_ptr_type));
 	std::string mangledType = ft->mangled_name;
 	for (auto& [ident, protos] : *inter_protos) {
 		auto ft_protos = MethodProtos.find({ mangledType, ident });
