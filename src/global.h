@@ -642,6 +642,10 @@ extern volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llv
 
 extern volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned add_attr = 0,
                                        unsigned add_fields = 0);
+struct FieldTypeLoc {
+	volvoxc::FullType* ft;
+	SourceLocation Loc;
+};
 
 class Table {
 public:

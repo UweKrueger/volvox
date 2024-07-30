@@ -999,6 +999,24 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 	methods[0] = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(getSize(target_bytes * methods.size()), llvm_ptr_type));
 	std::string mangledType = ft->mangled_name;
 	for (auto& [ident, protos] : *inter_protos) {
+		if ((protos.size() == 1 && protos[0]->visibility & A_setter) && protos[0]->ArgTypes.size() == 1) {
+			// virtual field - first check if it's a real field
+			if (MapValue* mv = map_string_get(ft->fields, ident.c_str())) {
+				unsigned FieldIndex = *(unsigned*)((char*)mv + mv->offset);
+				char* adr = (char*)mv + mv->offset + 4;
+				volvoxc::FullType* field_ft;
+				memcpy(&field_ft, adr, sizeof(void*));
+				if (FullTypes_differ(field_ft, protos[0]->RetType)) {
+					errs() << Loc << ": type '" << *ft << "' does not implement interface '"
+					       << *inter_face << "' - type mismatch for field '" << ident << "'\n"
+					       << protos[0]->retLoc << ": declared as virtual field of type '" << *protos[0]->RetType << "'\n";
+					FieldTypeLoc f_f_loc;
+					memcpy(&f_f_loc, adr, sizeof(FieldTypeLoc));
+					errs() << f_f_loc.Loc << ": but as data field of type '" << *field_ft << "'\n";
+					return nullptr;
+				}
+			}
+		}
 		auto ft_protos = MethodProtos.find({ mangledType, ident });
 		if (ft_protos == MethodProtos.end()) {
 			errs() << Loc << ": type '" << *ft << "' does not implement interface '"

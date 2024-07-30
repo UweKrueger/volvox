@@ -226,16 +226,20 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			// struct type
 			getNextToken();
 			std::vector<std::string> FieldNames;
-			std::vector<volvoxc::FullType*> FieldTypes;
+			std::vector<FieldTypeLoc> FieldTypes;
 			std::vector<llvm::Type*> LLVMFieldTypes;
 			for (;;) {
+				auto field_Loc = CurLoc;
 				auto [name, ft] = ParseTypedIdent('}', true);
 				if (!ft)
 					return nullptr;
 				FieldNames.push_back(name);
-				auto type = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL);
+				FieldTypeLoc type = {
+					.ft = (volvoxc::FullType*)((uintptr_t)(ft) & ~1ULL),
+					.Loc = field_Loc
+				};
 				FieldTypes.push_back(type);
-				LLVMFieldTypes.push_back(type->type);
+				LLVMFieldTypes.push_back(type.ft->type);
 				if (CurTok.kind != '}')
 					if (!Expect(','))
 						return nullptr;
@@ -273,7 +277,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			MapNode* fields = map_string_new_map();
 			for (int i=0; i<FieldNames.size(); i++) {
 				MapNode* replace = nullptr;
-				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = &FieldTypes[i] }, sizeof(void*), &replace);
+				MapNode* new_node = map_string_tag_insert(&fields, FieldNames[i].c_str(), i, MapValue{ .src_ptr = &FieldTypes[i] }, sizeof(FieldTypeLoc), &replace);
 				if (replace) {
 					errs() << CurLoc << ": duplicate field name '" << FieldNames[i] << "' in struct declaration\n";
 					return nullptr;
