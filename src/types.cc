@@ -996,25 +996,34 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 		errs() << Loc << ": internal error - no mangled type name\n";
 		abort();
 	}
-	methods[0] = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(getSize(target_bytes * methods.size()), llvm_ptr_type));
+	methods[0] = llvm::cast<llvm::Constant>(
+		Builder->CreateIntToPtr(getSize(target_bytes * methods.size()), llvm_ptr_type));
 	std::string mangledType = ft->mangled_name;
+	auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
+	if (!struct_type) {
+		errs() << Loc << ": '" << *ft << "' is not a struct type\n";
+		return nullptr;
+	}
+	auto struct_layout = TheModule->getDataLayout().getStructLayout(struct_type);
 	for (auto& [ident, protos] : *inter_protos) {
 		if ((protos.size() == 1 && protos[0]->visibility & A_setter) && protos[0]->ArgTypes.size() == 1) {
 			// virtual field - first check if it's a real field
 			if (MapValue* mv = map_string_get(ft->fields, ident.c_str())) {
 				unsigned FieldIndex = *(unsigned*)((char*)mv + mv->offset);
-				char* adr = (char*)mv + mv->offset + 4;
-				volvoxc::FullType* field_ft;
-				memcpy(&field_ft, adr, sizeof(void*));
-				if (FullTypes_differ(field_ft, protos[0]->RetType)) {
+				auto f_f_loc = (FieldTypeLoc*)((char*)mv + mv->offset + 4);
+				if (FullTypes_differ(f_f_loc->ft, protos[0]->RetType)) {
 					errs() << Loc << ": type '" << *ft << "' does not implement interface '"
 					       << *inter_face << "' - type mismatch for field '" << ident << "'\n"
-					       << protos[0]->retLoc << ": declared as virtual field of type '" << *protos[0]->RetType << "'\n";
-					FieldTypeLoc f_f_loc;
-					memcpy(&f_f_loc, adr, sizeof(FieldTypeLoc));
-					errs() << f_f_loc.Loc << ": but as data field of type '" << *field_ft << "'\n";
+					       << protos[0]->retLoc << ": declared as virtual field of type '"
+					       << *protos[0]->RetType << "'\n";
+					errs() << f_f_loc->Loc << ": but as data field of type '" << *f_f_loc->ft << "'\n";
 					return nullptr;
 				}
+				auto FieldOffset = struct_layout->getElementOffset(FieldIndex);
+				size_t idx = protos[0]->vtable_offs;
+				methods[idx++] = llvm::ConstantPointerNull::get(llvm_ptr_type);
+				methods[idx] = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(getSize(FieldOffset), llvm_ptr_type));
+				continue;
 			}
 		}
 		auto ft_protos = MethodProtos.find({ mangledType, ident });
