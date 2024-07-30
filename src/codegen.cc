@@ -638,13 +638,6 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
-llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
-	if (auto F = TheModule->getFunction((*ft->Protos)[selected_proto]->Name)) {
-		return handle(target, F);
-	}
-	return handle(target, (*ft->Protos)[selected_proto]->codegen(need_address));
-}
-
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 	llvm::Value* val = nullptr;
 	llvm::Value* strict_target;

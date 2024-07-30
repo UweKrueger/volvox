@@ -700,6 +700,13 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 	return success;
 }
 
+llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
+	if (auto F = TheModule->getFunction((*ft->Protos)[selected_proto]->Name)) {
+		return handle(target, F);
+	}
+	return handle(target, (*ft->Protos)[selected_proto]->codegen(need_address));
+}
+
 llvm::Value* PrototypeAST::codegen(bool need_address) {
 	if (need_address && !inside_function && jit_repl) {
 		// force JIT engine to generate code
