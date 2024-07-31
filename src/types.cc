@@ -1005,22 +1005,21 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 		return nullptr;
 	}
 	auto struct_layout = TheModule->getDataLayout().getStructLayout(struct_type);
-	for (auto& [ident, protosr] : *inter_protos) {
-		auto protos = &protosr;
+	for (auto& [ident, protos] : *inter_protos) {
 		std::vector<std::unique_ptr<PrototypeAST>> getter_setter_protos;
 		volvoxc::FullType* virt_field_ft = nullptr;
-		if ((protos->size() == 1 && (*protos)[0]->visibility & A_setter) && (*protos)[0]->ArgTypes.size() == 1) {
+		if (protos.size() == 2 && (protos[0]->visibility & A_getter)) {
 			// virtual field - first check if it's a real field
-			size_t idx = (*protos)[0]->vtable_offs;
-			virt_field_ft = (*protos)[0]->RetType;
+			size_t idx = protos[0]->vtable_offs;
+			virt_field_ft = protos[0]->RetType;
 			if (MapValue* mv = map_string_get(ft->fields, ident.c_str())) {
 				unsigned FieldIndex = *(unsigned*)((char*)mv + mv->offset);
 				auto f_f_loc = (FieldTypeLoc*)((char*)mv + mv->offset + 4);
-				if (FullTypes_differ(f_f_loc->ft, (*protos)[0]->RetType)) {
+				if (FullTypes_differ(f_f_loc->ft, protos[0]->RetType)) {
 					errs() << Loc << ": type '" << *ft << "' does not implement interface '"
 					       << *inter_face << "' - type mismatch for field '" << ident << "'\n"
-					       << (*protos)[0]->retLoc << ": declared as virtual field of type '"
-					       << *(*protos)[0]->RetType << "'\n";
+					       << protos[0]->retLoc << ": declared as virtual field of type '"
+					       << *protos[0]->RetType << "'\n";
 					errs() << f_f_loc->Loc << ": but as data field of type '" << *f_f_loc->ft << "'\n";
 					return nullptr;
 				}
@@ -1028,24 +1027,6 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 				methods[idx++] = llvm::ConstantPointerNull::get(llvm_ptr_type);
 				methods[idx] = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(getSize(FieldOffset), llvm_ptr_type));
 				continue;
-			} else {
-				getter_setter_protos.reserve(2);
-				auto ReceiverType = new_FullType(*inter_face);
-				ReceiverType->type_attr |= A_ref;
-				auto getter_proto = std::make_unique<PrototypeAST>(
-					(*protos)[0]->retLoc, ident, std::vector<std::string>{ "this" },
-					A_method | A_interface, (*protos)[0]->retLoc,
-					0, virt_field_ft, std::vector<volvoxc::FullType*>{ ReceiverType }, std::vector<SourceLocation>{ (*protos)[0]->retLoc });
-				getter_proto->vtable_offs = (*protos)[0]->vtable_offs;
-				auto setter_proto = std::make_unique<PrototypeAST>(
-					(*protos)[0]->retLoc, ident, std::vector<std::string>{ "this", "assignment_RHS" },
-					A_method | A_interface | A_setter, (*protos)[0]->retLoc,
-					0, virt_field_ft, std::vector<volvoxc::FullType*>{ ReceiverType, (*protos)[0]->RetType },
-					std::vector<SourceLocation>{ (*protos)[0]->retLoc, (*protos)[0]->retLoc });
-				setter_proto->vtable_offs = (*protos)[0]->vtable_offs + 1;
-				getter_setter_protos.push_back(std::move(getter_proto));
-				getter_setter_protos.push_back(std::move(setter_proto));
-				protos = &getter_setter_protos;
 			}
 		}
 		auto ft_protos = MethodProtos.find({ mangledType, ident });
@@ -1053,14 +1034,14 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 			errs() << Loc << ": type '" << *ft << "' does not implement interface '" << *inter_face
 			       << (virt_field_ft ? "' - no virtual field (data field or method pair) '" : "' - no method '")
 			       << ident << "'\nrequired prototypes:\n";
-			printAllProtos(protos, ident.c_str());
+			printAllProtos(&protos, ident.c_str());
 			return nullptr;
 		}
-		unsigned vecsize = protos->size();
+		unsigned vecsize = protos.size();
 		for (unsigned selidx = 0; selidx<vecsize; selidx++) {
-			size_t idx = (*protos)[selidx]->vtable_offs;
+			size_t idx = protos[selidx]->vtable_offs;
 			for (auto& ft_proto : ft_protos->second) {
-				if (CompareProtos(ft_proto.get(), (*protos)[selidx].get()) == protos_matching) {
+				if (CompareProtos(ft_proto.get(), protos[selidx].get()) == protos_matching) {
 					auto func_expr = std::make_unique<FunctionExprAST>(Loc, ident, &ft_protos->second, selidx);
 					func_expr->need_address = true;
 					llvm::Value* fn_adr = func_expr->codegen_raw();
@@ -1079,7 +1060,7 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 			}
 			errs() << Loc << ": type '" << *ft << "' does not implement interface '"
 			       << *inter_face << "' - no match for method\n";
-			printCandidate((*protos)[selidx].get(), ident.c_str());
+			printCandidate(protos[selidx].get(), ident.c_str());
 			errs() << "candidates are:\n";
 			printAllProtos(&ft_protos->second, ident.c_str());
 			return nullptr;

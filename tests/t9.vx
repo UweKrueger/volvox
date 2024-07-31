@@ -212,3 +212,46 @@ def test_interface_3 bool
 	dd = ooo(7, yc)
 	return dd == 192.5
 end
+
+interface QQwOi {
+	oper i32
+	ppt=f64
+	ttz(ap f64, xx i32) f64
+}
+
+type HHnOi {
+	n i32
+	p f64
+	z f64
+}
+
+def HHnOi.oper i32
+	return 2 * this.n
+end
+
+def HHnOi.ttz(a f64, b i32) f64
+	return a * this.p + b
+end
+
+def HHnOi.ppt f64
+	return this.p + 1.25 + 0.125 * this.z
+end
+
+def HHnOi.ppt=(x f64) f64
+	ret = this.p + this.z
+	this.z = x - 0.5
+	return ret
+end
+
+def g(x QQwOi) bool
+	p = x.ppt = 6.25
+	q = x.ppt
+	x.ppt = -3.5
+	r = x.ppt
+	return p == 3.25 && q == 5.46875 && r == 4.25
+end
+
+def test_interface_4 bool
+	r = HHnOi{ n: 13, p: 3.5, z: -0.25 }
+	return g(r)
+end

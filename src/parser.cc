@@ -2241,13 +2241,31 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 		auto proto = ParsePrototype(visibility);
 		if (!proto)
 			return nullptr;
-		unsigned step;
-		if ((proto->visibility & A_setter) && proto->ArgTypes.size() == 1)
-			step = 2;
-		else
-			step = 1;
+		bool is_getter_setter_field;
+		std::unique_ptr<PrototypeAST> getter_proto = nullptr;
+		std::unique_ptr<PrototypeAST> setter_proto = nullptr;
+		if (proto->visibility & A_setter) {
+			if (proto->ArgTypes.size() == 1) {
+				// special getter/setter/field interface declaration provide 2 methods with A_setter
+				getter_proto = std::make_unique<PrototypeAST>(
+					proto->retLoc, proto->Name, std::vector<std::string>{ "this" },
+					A_method | A_interface | A_getter, proto->retLoc,
+					0, proto->RetType, std::vector<volvoxc::FullType*>{ proto->ArgTypes[0] },
+					std::vector<SourceLocation>{ proto->retLoc });
+				setter_proto = std::make_unique<PrototypeAST>(
+					proto->retLoc, proto->Name, std::vector<std::string>{ "this", "assignment_RHS" },
+					A_method | A_interface | A_setter, proto->retLoc,
+					0, proto->RetType, std::vector<volvoxc::FullType*>{ proto->ArgTypes[0], proto->RetType },
+					std::vector<SourceLocation>{ proto->retLoc, proto->retLoc });
+				is_getter_setter_field = true;
+			} else {
+				errs() << proto->retLoc << ": getter/setter has to be in the form 'method=type' inside interface declaration\n";
+				return nullptr;
+			}
+		} else
+			is_getter_setter_field = false;
 		auto& protos = (*Protos)[proto->Name];
-		if (step == 2) {
+		if (is_getter_setter_field) {
 			if (!protos.empty()) {
 				errs() << proto->retLoc << ": declaration of '" << proto->Name << "' as (pseudo) field conflicts with method(s) with the same name\n";
 				lex.protos_err(nullptr, proto->retLoc, &protos, false, true);
@@ -2271,9 +2289,15 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 				return nullptr;
 			}
 		}
-		proto->vtable_offs = offset;
-		protos.push_back(std::move(proto));
-		offset += step;
+		if (is_getter_setter_field) {
+			getter_proto->vtable_offs = offset++;
+			protos.push_back(std::move(getter_proto));
+			setter_proto->vtable_offs = offset++;
+			protos.push_back(std::move(setter_proto));
+		} else {
+			proto->vtable_offs = offset++;
+			protos.push_back(std::move(proto));
+		}
 		if (CurTok.kind != '}')
 			if (!Expect(';'))
 				return nullptr;

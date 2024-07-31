@@ -19,6 +19,7 @@
 #define A_ptrref (1U<<6) // reference that is a (mutable) pointer internally
 #define A_map    (1U<<7) // llvm-type is key type
 #define A_signed_key (1U<<8) //for maps with integer key
+#define A_getter (1U<<8) // for interface prototype
 #define A_setter  (1U<<9) // Tyte.field=(val t) t
 #define A_mainvar (1U<<10) // global for LLVM
 #define A_union  (1U<<11)
