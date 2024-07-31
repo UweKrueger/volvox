@@ -710,7 +710,7 @@ llvm::Value* createJITStringConst(const char* str, size_t Len, const llvm::Twine
 llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name) {
 	if (!str)
 		return nullptr;
-	if (jit_repl)
+	if (comp_mode == comp_jit)
 		return createJITStringConst(str, Len, Name);
 	char* stra;
 	char* tmpres;
@@ -721,8 +721,10 @@ llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &N
 	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
 	GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 	GV->setAlignment(llvm::Align(target_bytes));
-	llvm::Constant* Indices[] = {Builder->getInt32(0), Builder->getInt32(l_alloc - 2*target_bytes)};
-	return llvm::ConstantExpr::getInBoundsGetElementPtr(GV->getValueType(), GV, Indices);
+	return Builder->CreateIntToPtr(
+		Builder->CreateAdd(
+			Builder->CreatePtrToInt(GV, llvm_size_type),
+			getSize(l_alloc - 2*target_bytes)), llvm_ptr_type);
 }
 
 llvm::Value* createJITCStringConst(const char* str) {
