@@ -93,7 +93,8 @@ void printCandidate(PrototypeAST* proto, const char* name) {
 			errs() << *proto->ArgTypes[0];
 		errs() << '.';
 	}
-	errs() << (name ? name : "fn") << '(';
+	errs() << (name ? name : "fn")
+	       << ((proto->visibility & A_setter) ? "=(" : "(");
 	for (int i=0; i<proto->Args.size(); i++)
 		if (i || !(proto->visibility & A_method)) {
 			errs() << proto->Args[i] << ' ' << *proto->ArgTypes[i];

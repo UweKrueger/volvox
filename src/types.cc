@@ -956,7 +956,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 
 ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b) {
 	unsigned arg_offset = 0;
-	if ((a->visibility ^ b->visibility) & (A_method | A_constructor | A_destructor))
+	if ((a->visibility ^ b->visibility) & (A_method | A_constructor | A_destructor | A_setter))
 		return protos_different;
 	if ((a->visibility & A_method) && a->LLVMArgTypes[0] != b->LLVMArgTypes[0])
 		return protos_different;
@@ -1033,11 +1033,13 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 				auto ReceiverType = new_FullType(*inter_face);
 				ReceiverType->type_attr |= A_ref;
 				auto getter_proto = std::make_unique<PrototypeAST>(
-					(*protos)[0]->retLoc, ident, std::vector<std::string>{ "this" }, A_method | A_interface, (*protos)[0]->retLoc,
+					(*protos)[0]->retLoc, ident, std::vector<std::string>{ "this" },
+					A_method | A_interface, (*protos)[0]->retLoc,
 					0, virt_field_ft, std::vector<volvoxc::FullType*>{ ReceiverType }, std::vector<SourceLocation>{ (*protos)[0]->retLoc });
 				getter_proto->vtable_offs = (*protos)[0]->vtable_offs;
 				auto setter_proto = std::make_unique<PrototypeAST>(
-					(*protos)[0]->retLoc, ident, std::vector<std::string>{ "this", "assignment_RHS" }, A_method | A_interface, (*protos)[0]->retLoc,
+					(*protos)[0]->retLoc, ident, std::vector<std::string>{ "this", "assignment_RHS" },
+					A_method | A_interface | A_setter, (*protos)[0]->retLoc,
 					0, virt_field_ft, std::vector<volvoxc::FullType*>{ ReceiverType, (*protos)[0]->RetType },
 					std::vector<SourceLocation>{ (*protos)[0]->retLoc, (*protos)[0]->retLoc });
 				setter_proto->vtable_offs = (*protos)[0]->vtable_offs + 1;
