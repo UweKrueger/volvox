@@ -243,7 +243,7 @@ def HHnOi.ppt=(x f64) f64
 	return ret
 end
 
-def g(x QQwOi) bool
+def gLgT(x QQwOi) bool
 	p = x.ppt = 6.25
 	q = x.ppt
 	x.ppt = -3.5
@@ -253,5 +253,31 @@ end
 
 def test_interface_4 bool
 	r = HHnOi{ n: 13, p: 3.5, z: -0.25 }
-	return g(r)
+	return gLgT(r)
+end
+
+type HPnOi {
+	u f64
+	ppt f64
+}
+
+def HPnOi.oper i32
+	return i32(2 * this.u)
+end
+
+def HPnOi.ttz(a f64, b i32) f64
+	return this.ppt + 2.75
+end
+
+def g2LgT(x QQwOi) bool
+	p = x.ppt = 6.25
+	q = x.ppt
+	x.ppt = -3.5
+	r = x.ppt
+	return p == 13.25 && q == 6.25 && r == -3.5
+end
+
+def test_interface_5 bool
+	r44 = HPnOi{ u: -7.0625, ppt: 13.25 }
+	return g2LgT(r44)
 end

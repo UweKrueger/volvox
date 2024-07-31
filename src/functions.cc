@@ -1017,6 +1017,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 		ArgsV.push_back(target);
 	}
+	llvm::Value* getter = nullptr;
+	llvm::Value* setter = nullptr;
 	if (Proto->visibility & A_method && !(Proto->visibility & A_constructor)) {
 		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
 			llvm::Value* receiver_ref = nullptr;
@@ -1029,6 +1031,21 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						Builder->CreatePtrToInt(rt_type_ptr, llvm_size_type),
 						getSize(vtable_offs)), llvm_ptr_type);
 				theFunction = Builder->CreateLoad(llvm_ptr_type, method_adr);
+				if (Proto->visibility & A_getter) {
+					getter = Builder->CreatePtrToInt(theFunction, llvm_size_type);
+					method_adr = Builder->CreateIntToPtr(
+						Builder->CreateAdd(
+							Builder->CreatePtrToInt(method_adr, llvm_size_type),
+							getSize(target_bytes)), llvm_ptr_type);
+					setter = Builder->CreateLoad(llvm_size_type, method_adr);
+				} else if (Proto->visibility & A_setter) {
+					setter = Builder->CreatePtrToInt(theFunction, llvm_size_type);
+					method_adr = Builder->CreateIntToPtr(
+						Builder->CreateSub(
+							Builder->CreatePtrToInt(method_adr, llvm_size_type),
+							getSize(target_bytes)), llvm_ptr_type);
+					getter = Builder->CreateLoad(llvm_size_type, method_adr);
+				}
 			} else if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
 				llvm::Type* receiver_type;
 				std::tie(receiver_type, receiver_ref) = receiver_lval->codegen_ref(true);
@@ -1247,11 +1264,53 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		return Builder->CreateCall(FT, F, ArgsV);
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
-		// llvm::Type* Ft = theFunction->getType();
-		// errs() << "Function: " << *theFunction << ' ' << *Ft << '\n';
-		// llvm::Value* fstore = CreateEntryBlockAlloca(Ft);
-		// Builder->CreateStore(theFunction, fstore, true);
-		// theFunction = Builder->CreateLoad(Ft, fstore, true);
+		if (getter) {
+			// check if getter is NULL - if so, we have no method but a data field
+			auto fieldBB = llvm::BasicBlock::Create(Context, "getset_field");
+			auto callBB = llvm::BasicBlock::Create(Context, "getset_call");
+			auto contBB = llvm::BasicBlock::Create(Context, "getset_cont");
+			llvm::Value* vtable_entry_zero = Builder->CreateICmpEQ(getter, llvm::ConstantInt::get(llvm_size_type, 0));
+			auto enterBB = Builder->GetInsertBlock();
+			auto TheFunction = enterBB ? enterBB->getParent() : nullptr;
+			if (!TheFunction) {
+				errs() << "*** internal error: no function\n";
+				abort();
+			}
+			Builder->CreateCondBr(vtable_entry_zero, fieldBB, callBB);
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), fieldBB);
+#else
+			TheFunction->getBasicBlockList().push_back(fieldBB);
+#endif
+			Builder->SetInsertPoint(fieldBB);
+			llvm::Value* FieldPtr = Builder->CreateIntToPtr(
+				Builder->CreateAdd(
+					Builder->CreatePtrToInt(ArgsV[0], llvm_size_type),
+					setter), llvm_ptr_type);
+			llvm::Value* retVal_field = Builder->CreateLoad(Proto->RetType->type, FieldPtr);
+			// TODO: handle atomic data fields
+			if (Proto->visibility & A_setter)
+				Builder->CreateStore(ArgsV[1], FieldPtr);
+			Builder->CreateBr(contBB);
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), callBB);
+#else
+			TheFunction->getBasicBlockList().push_back(callBB);
+#endif
+			Builder->SetInsertPoint(callBB);
+			llvm::Value* retVal_call = Builder->CreateCall(FT, theFunction, ArgsV);
+			Builder->CreateBr(contBB);
+#if LLVM_VERSION_MAJOR >= 16
+			TheFunction->insert(TheFunction->end(), contBB);
+#else
+			TheFunction->getBasicBlockList().push_back(contBB);
+#endif
+			Builder->SetInsertPoint(contBB);
+			llvm::PHINode* PN = Builder->CreatePHI(Proto->RetType->type, 2, "iface_res");
+			PN->addIncoming(retVal_field, fieldBB);
+			PN->addIncoming(retVal_call, callBB);
+			return PN;
+		}
 		return Builder->CreateCall(FT, theFunction, ArgsV);
 	}
 }
