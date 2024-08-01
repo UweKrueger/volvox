@@ -1019,6 +1019,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	llvm::Value* getter = nullptr;
 	llvm::Value* setter = nullptr;
+	llvm::Value* method_adr = nullptr;
 	if (Proto->visibility & A_method && !(Proto->visibility & A_constructor)) {
 		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
 			llvm::Value* receiver_ref = nullptr;
@@ -1026,25 +1027,19 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				llvm::Value* interface_receiver = method->Receiver->codegen_raw();
 				llvm::Value* rt_type_ptr = Builder->CreateExtractValue(interface_receiver, 0);
 				receiver_ref = Builder->CreateExtractValue(interface_receiver, 1);
-				llvm::Value* method_adr = Builder->CreateIntToPtr(
+				method_adr = Builder->CreateIntToPtr(
 					Builder->CreateAdd(
 						Builder->CreatePtrToInt(rt_type_ptr, llvm_size_type),
 						getSize(vtable_offs)), llvm_ptr_type);
 				theFunction = Builder->CreateLoad(llvm_ptr_type, method_adr);
 				if (Proto->visibility & A_getter) {
 					getter = Builder->CreatePtrToInt(theFunction, llvm_size_type);
-					method_adr = Builder->CreateIntToPtr(
-						Builder->CreateAdd(
-							Builder->CreatePtrToInt(method_adr, llvm_size_type),
-							getSize(target_bytes)), llvm_ptr_type);
-					setter = Builder->CreateLoad(llvm_size_type, method_adr);
 				} else if (Proto->visibility & A_setter) {
 					setter = Builder->CreatePtrToInt(theFunction, llvm_size_type);
-					method_adr = Builder->CreateIntToPtr(
+					getter = Builder->CreatePtrToInt(Builder->CreateLoad(llvm_ptr_type, Builder->CreateIntToPtr(
 						Builder->CreateSub(
 							Builder->CreatePtrToInt(method_adr, llvm_size_type),
-							getSize(target_bytes)), llvm_ptr_type);
-					getter = Builder->CreateLoad(llvm_size_type, method_adr);
+							getSize(target_bytes)), llvm_ptr_type)), llvm_size_type);
 				}
 			} else if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
 				llvm::Type* receiver_type;
@@ -1276,6 +1271,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				errs() << "*** internal error: no function\n";
 				abort();
 			}
+			llvm::Value* PN_store = CreateEntryBlockAlloca(Proto->RetType->type);
 			Builder->CreateCondBr(vtable_entry_zero, fieldBB, callBB);
 #if LLVM_VERSION_MAJOR >= 16
 			TheFunction->insert(TheFunction->end(), fieldBB);
@@ -1283,11 +1279,20 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			TheFunction->getBasicBlockList().push_back(fieldBB);
 #endif
 			Builder->SetInsertPoint(fieldBB);
+			if (!setter)
+				setter = Builder->CreatePtrToInt(
+					Builder->CreateLoad(
+						llvm_size_type, Builder->CreateIntToPtr(
+							Builder->CreateAdd(
+								Builder->CreatePtrToInt(method_adr, llvm_size_type),
+								getSize(target_bytes)), llvm_ptr_type)), llvm_size_type);
 			llvm::Value* FieldPtr = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
 					Builder->CreatePtrToInt(ArgsV[0], llvm_size_type),
 					setter), llvm_ptr_type);
+			// TODO: handle sret
 			llvm::Value* retVal_field = Builder->CreateLoad(Proto->RetType->type, FieldPtr);
+			Builder->CreateStore(retVal_field, PN_store);
 			// TODO: handle atomic data fields
 			if (Proto->visibility & A_setter)
 				Builder->CreateStore(ArgsV[1], FieldPtr);
@@ -1299,6 +1304,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 #endif
 			Builder->SetInsertPoint(callBB);
 			llvm::Value* retVal_call = Builder->CreateCall(FT, theFunction, ArgsV);
+			Builder->CreateStore(retVal_call, PN_store);
 			Builder->CreateBr(contBB);
 #if LLVM_VERSION_MAJOR >= 16
 			TheFunction->insert(TheFunction->end(), contBB);
@@ -1306,9 +1312,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			TheFunction->getBasicBlockList().push_back(contBB);
 #endif
 			Builder->SetInsertPoint(contBB);
-			llvm::PHINode* PN = Builder->CreatePHI(Proto->RetType->type, 2, "iface_res");
-			PN->addIncoming(retVal_field, fieldBB);
-			PN->addIncoming(retVal_call, callBB);
+			// * Using a PHI node does not work with '-O0' for unknown reasons
+			// * but PN_store does. Leaving this code commented out for reference
+			// llvm::PHINode* PN = Builder->CreatePHI(Proto->RetType->type, 2, "iface_res");
+			// PN->addIncoming(retVal_field, fieldBB);
+			// PN->addIncoming(retVal_call, callBB);
+			llvm::Value* PN = Builder->CreateLoad(Proto->RetType->type, PN_store);
 			return PN;
 		}
 		return Builder->CreateCall(FT, theFunction, ArgsV);
