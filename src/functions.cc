@@ -1215,7 +1215,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						// Old LLVM versions seem to do illegal optimizations for call by reference
 						// in object code generation mode. These can be suppressed by reloading the
 						// reference after having stored it 'volatile'
-						auto rec_ptr_loc = CreateEntryBlockAlloca(arg->getType() "tmp_refarg");
+						auto rec_ptr_loc = CreateEntryBlockAlloca(arg->getType(), "tmp_refarg");
 						Builder->CreateStore(arg, rec_ptr_loc, true);
 						arg = Builder->CreateLoad(arg->getType(), rec_ptr_loc);
 					}
