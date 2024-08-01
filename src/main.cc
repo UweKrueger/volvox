@@ -1746,6 +1746,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 #ifndef ALLOW_UNSUPPORTED_OPTIMIZATIONS
+#ifndef LEGACY_PASS_MANAGER
 	if (comp_mode == comp_jit) {
 		if (optimization_level == llvm::OptimizationLevel::Os ||
 		    optimization_level == llvm::OptimizationLevel::Oz) {
@@ -1753,6 +1754,7 @@ int main(int argc, char* argv[]) {
 			usage(argv[0]);
 		}
 	}
+#endif
 #endif
 	if (do_pres.undecided())
 		do_pres = jit_repl;
