@@ -138,11 +138,18 @@ static constexpr Colors CYAN = { llvm::raw_ostream::Colors::CYAN, true };
 static constexpr Colors DARKCYAN = { llvm::raw_ostream::Colors::CYAN, false };
 static constexpr Colors WHITE = { llvm::raw_ostream::Colors::WHITE, true };
 static constexpr Colors DARKWHITE = { llvm::raw_ostream::Colors::WHITE, false };
-static constexpr llvm::raw_ostream::Colors SAVEDCOLOR = llvm::raw_ostream::Colors::SAVEDCOLOR;
-static constexpr llvm::raw_ostream::Colors RESET = llvm::raw_ostream::Colors::RESET;
+static constexpr Colors RESET = { llvm::raw_ostream::Colors::RESET, false };
+
+extern bool color_tty;
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, Colors color) {
-	return out.changeColor(color.col, color.bold);
+	if (color_tty) {
+		if (color.col == llvm::raw_ostream::Colors::RESET)
+			out << llvm::raw_ostream::Colors::RESET;
+		else
+			out.changeColor(color.col, color.bold);
+	}
+	return out;
 }
 
 class Tristate {
@@ -359,9 +366,9 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc
 	if (!Loc.File)
 		out << "<unknown location>";
 	else {
-		out << Loc.File;
+		out << GREEN << Loc.File << RESET;
 		if (Loc.Line || Loc.Col)
-			out << ":" << Loc.Line << ":" << Loc.Col;
+			out << ":" << CYAN << Loc.Line << RESET << ":" << BROWN << Loc.Col << RESET;
 	}
 	return out;
 }

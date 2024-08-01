@@ -575,35 +575,53 @@ _DECL int _Z15__builtin_printibbRA0interface(int fd, bool csv, bool nl, size_t n
 }
 
 _DECL bool enableColorANSI(int fd) {
-#if defined (_MSC_VER)
-	static bool is_set = false;
+	if (fd > 2)
+		return false;
+	static signed char is_set = 0;
+#ifdef _WIN32
 	if (!is_set) {
 		HANDLE h = (HANDLE)_get_osfhandle(fd);
-		if ((intptr_t)h == -1)
+		if ((intptr_t)h == -1) {
+			is_set = -1;
 			return false;
+		}
 		DWORD mode;
 		if (!GetConsoleMode(h, &mode)) {
 			errno = ENOTTY;
+			is_set = -1;
 			return false;
 		}
 		mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
 		if (!SetConsoleMode(h, mode)) {
 			errno = ENOTTY;
+			is_set = -1;
 			return false;
 		}
-		is_set = true;
+		is_set = 1;
 	}
-	return true;
 #else
-	return isatty(fd);
+	if (!is_set)
+		is_set = isatty(fd) ? 1 : -1;
 #endif
+	if (is_set > 0) {
+		const char* term = getenv("TERM");
+		// GNU Emacs buffer: $TERM="dumb"
+		if (!term || !strcmp(term, "dumb"))
+			is_set = -1;
+		else {
+			// XEmacs buffer: $EMACS="t"
+			const char* emacs = getenv("EMACS");
+			if (emacs && !strcmp(emacs, "t"))
+				is_set = -1;
+		}
+	}
+	return is_set > 0;
 }
 
 _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 20)
 		width = 20;
 	bool have_color = enableColorANSI(fd);
-
 	char* buf = (char*)alloca(width + (have_color ? 11 : 2));
 	snprintf(buf, width-4, "%*s", -width+5, volvox2cstr(testcase));
 	strcpy(buf+width-5, have_color ? (result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n") : (result ? " PASS\n" : " FAIL\n"));
@@ -1291,7 +1309,7 @@ void __restore_console(void) {
 #endif
 }
 
-_DECL void __setup_console() {
+_DECL bool __setup_console() {
 #ifdef _WIN32
 	HANDLE con = GetStdHandle(STD_OUTPUT_HANDLE);
 	if (con != INVALID_HANDLE_VALUE) {
@@ -1308,6 +1326,7 @@ _DECL void __setup_console() {
 	setlocale(LC_CTYPE, "en_US.UTF-8");
 	setlocale(LC_NUMERIC, "en_US.UTF-8");
 	atexit(__restore_console);
+	return enableColorANSI(1);
 }
 
 #if defined(_MSC_VER)

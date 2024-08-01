@@ -22,6 +22,7 @@ std::vector<std::vector<const char*>> source_files = {{}};
 std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 std::map<unsigned, llvm::Type*> key32_table; // only builtin types
 Tristate do_pres;
+bool color_tty = false;
 const std::string single_test_result_name = "__test_result";
 const std::string collector_name = "__test_results_collect";
 int include_index = 0;
@@ -1323,6 +1324,11 @@ CTRL_C_HANDLER_DECL CtrlCHandler(CTRL_C_HANDLER_EVENT_TY event) {
 }
 
 static void usage(const char* prog) {
+	errs() << "Type: " << prog << " -h\nfor usage information\n";
+	exit(1);
+}
+
+static void full_usage(const char* prog) {
 	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
 	errs() << " -h .......... print this help screen\n";
 	errs() << " -v .......... verbose output (may be repeated for even more verbosity)\n";
@@ -1465,14 +1471,14 @@ inline bool is_exe(const char* file) {
 
 int main(int argc, char* argv[]) {
 	argv0 = argv[0];
-	__setup_console();
+	color_tty = __setup_console();
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
 #ifndef _WIN32
 	struct rlimit rlimit_stacksize;
 	// try to get default stack size for new threads from rlimits
 	if (getrlimit(RLIMIT_STACK, &rlimit_stacksize))
-		errs() << llvm::format("Cannot get rlimit stacksize: %s\n", strerror(errno));
+		errs() << MAGENTA << llvm::format("Cannot get rlimit stacksize: %s", strerror(errno)) << RESET << "\n";
 	else
 		if (rlimit_stacksize.rlim_cur != RLIM_INFINITY)
 			stacksize = rlimit_stacksize.rlim_cur;
@@ -1480,8 +1486,8 @@ int main(int argc, char* argv[]) {
 #endif
 	if (char* cols = getenv(PROMPT_COL))
 		if (!parse_pcol(cols))
-			errs() << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
-			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << '\n';
+			errs() << MAGENTA << llvm::format("Problem processing environment variables: %s\n", strerror(errno))
+			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << RESET << "\n";
 	int opt;
 	char* endptr;
 	while ((opt = getopt(argc, argv, "vdDcghrjJm:M:f:O:i:o:s:tP:")) != -1) {
@@ -1523,8 +1529,8 @@ int main(int argc, char* argv[]) {
 #endif
 			break;
 		case 'h':
-		case'?':
-			usage(argv[0]);
+		case '?':
+			full_usage(argv[0]);
 		case 'r':
 			run_program = true;
 			break;
@@ -1541,13 +1547,13 @@ int main(int argc, char* argv[]) {
 				gen_pic = true;
 			else if (!strcmp(optarg, "div-floored")) {
 				if (idiv_mode == idiv_mode_c99) {
-					errs() << "-f" << optarg << " and -f" << "div-c99" << " are mutually exclusive\n";
+					errs() << RED << "-f" << optarg << " and -f" << "div-c99" << " are mutually exclusive" << RESET << "\n";
 					usage(argv[0]);
 				}
 				idiv_mode = idiv_mode_floored;
 			} else if (!strcmp(optarg, "div-c99")) {
 				if (idiv_mode == idiv_mode_floored) {
-					errs() << "-f" << optarg << " and -f" << "floored-div" << " are mutually exclusive\n";
+					errs() << RED << "-f" << optarg << " and -f" << "floored-div" << " are mutually exclusive" << RESET << "\n";
 					usage(argv[0]);
 				}
 				idiv_mode = idiv_mode_c99;
@@ -1561,13 +1567,13 @@ int main(int argc, char* argv[]) {
 			           !strcmp(optarg, "no-print-results")) {
 				do_pres = false;
 			} else {
-				errs() << "Unknown option '-f" << optarg << "'\n";
+				errs() << RED << "Unknown option '-f" << optarg << "'" << RESET << "\n";
 				usage(argv[0]);
 			}
 			break;
 		case 'M':
 			if (MainName) {
-				errs() << "'-M...' can be specified only once\n";
+				errs() << RED << "'-M...' can be specified only once" << RESET << "\n";
 				usage(argv[0]);
 			}
 			MainName = optarg;
@@ -1576,7 +1582,7 @@ int main(int argc, char* argv[]) {
 			include_files.push_back(optarg);
 		case 'o':
 			if (output_file) {
-				errs() << "at most one output filename may be specified\n";
+				errs() << RED << "at most one output filename may be specified" << RESET << "\n";
 				usage(argv[0]);
 			}
 			output_file = optarg;
@@ -1587,7 +1593,7 @@ int main(int argc, char* argv[]) {
 			else if (!strcmp(optarg, "svc"))
 				target_mingw = false;
 			else {
-				errs() << "unknown target option '-m" << optarg << "'\n";
+				errs() << RED << "unknown target option '-m" << optarg << "'" << RESET << "\n";
 				usage(argv[0]);
 			}
 			break;
@@ -1622,8 +1628,8 @@ int main(int argc, char* argv[]) {
 				stackeinvalerr:
 				errno = EINVAL;
 			}
-			errs() << llvm::format("'-s': \"%s\": %s\n", optarg, strerror(errno));
-			errs() << "you may use units like \"-s 10MB\" \"-s 500kB\" or \"-s 10GB\"\n";
+			errs() << RED << llvm::format("'-s': \"%s\": %s\n", optarg, strerror(errno));
+			errs() << "you may use units like \"-s 10MB\" \"-s 500kB\" or \"-s 10GB\"" << RESET << "\n";
 			usage(argv[0]);
 		stacksizesuccess:
 			break;
@@ -1693,14 +1699,14 @@ int main(int argc, char* argv[]) {
 			}
 			break;
 		optimizationerr:
-			errs() << "invalid optimization option: '-O" << optarg << "'\n";
+			errs() << RED << "invalid optimization option: '-O" << optarg << "'" << RESET << "\n";
 			usage(argv[0]);
 		case 't':
 			do_test = true;
 			break;
 		case 'P':
 			if (!parse_pcol(optarg)) {
-				errs() << llvm::format("Invalid value for prompt colors - \"%s\": %s\n", optarg, strerror(errno));
+				errs() << RED << llvm::format("Invalid value for prompt colors - \"%s\": %s", optarg, strerror(errno)) << RESET << "\n";
 				usage(argv[0]);
 			}
 			break;
@@ -1721,7 +1727,7 @@ int main(int argc, char* argv[]) {
 				continue;
 			}
 		}
-		errs() << "unexpected argument : \"" << argv[optind] << "\"\n";
+		errs() << RED << "unexpected argument : \"" << argv[optind] << "\"" << RESET << "\n";
 		usage(argv[0]);
 	}
 	if (verbosity >= 2) {
@@ -1739,20 +1745,35 @@ int main(int argc, char* argv[]) {
 			jit_repl = true;
 		}
 	}
+#ifndef ALLOW_UNSUPPORTED_OPTIMIZATIONS
+	if (comp_mode == comp_jit) {
+		if (optimization_level == llvm::OptimizationLevel::Os ||
+		    optimization_level == llvm::OptimizationLevel::Oz) {
+			errs() << RED << "Optimization levels '-Os' and '-Oz' are not supported in JIT mode" << RESET << "\n";
+			usage(argv[0]);
+		}
+	}
+#endif
 	if (do_pres.undecided())
 		do_pres = jit_repl;
 
 #if defined(__linux__) || defined(_WIN32) || defined(__FreeBSD__)
 	if (jit_repl)
-		// We have robust mutexes on these 3 OSs so each top level expression can be
-		// run in a newly spawned thread in interactive JIT mode.
+		// These 3 OSs have robust mutexes so it makes sense to run
+		// each top level expression in a newly spawned thread in
+		// interactive JIT mode.
+		//
 		// This allows better error recovery:
-		// When a signal is raise()d the signal handler can terminate the thread
-		// and mutexes held by that thread can be made consistent the next time they are
-		// locked.
-		// Other OSs (OpenBSD, NetBSD, DragonflyBSD, MacOSX, ...) always run top level
-		// expessions in the main thread. Unfortunately, this means that signaling errors
-		// may lead to dead locks or complete termination of the interpreter.
+		//
+		// When a signal is raise()d the signal handler can terminate
+		// the thread and mutexes held by that thread can be made
+		// consistent the next time they are locked.
+		//
+		// For other OSs (OpenBSD, NetBSD, DragonflyBSD, MacOSX, ...)
+		// it makes no difference, so we always run top level
+		// expessions in the main thread. Unfortunately, this means
+		// that signaling errors may lead to dead locks or complete
+		// termination of the interpreter.
 		jit_extra_thread = true;
 #endif
 	if (!link_mode) {
@@ -1764,16 +1785,16 @@ int main(int argc, char* argv[]) {
 	if (idiv_mode == idiv_mode_undef)
 		idiv_mode = idiv_mode_floored; // default to Knuth's suggestion
 	if (run_program && link_mode == dont_link) {
-		errs() << "Options '-c' and '-r' are mutually exclusive\n";
+		errs() << RED << "Options '-c' and '-r' are mutually exclusive" << RESET << "\n";
 		usage(argv[0]);
 	}
 	if (run_program && comp_mode == comp_jit) {
-		errs() << "Options '-r' makes no sense in JIT mode\n";
+		errs() << RED << "Options '-r' makes no sense in JIT mode" << RESET << "\n";
 		usage(argv[0]);
 	}
 	if (output_file) {
 		if (comp_mode == comp_jit) {
-			errs() << "output file ('-o ...') not supported for JIT compilation\n";
+			errs() << RED << "output file ('-o ...') not supported for JIT compilation" << RESET << "\n";
 			usage(argv[0]);
 		}
 		if (is_obj(output_file)) {
@@ -1787,11 +1808,11 @@ int main(int argc, char* argv[]) {
 			output_file[l-1] = 'j';
 		} else {
 			if (link_mode == dont_link) {
-				errs() << "Output file must have the extension '.o"
+				errs() << RED << "Output file must have the extension '.o"
 #if defined(_MSC_VER)
 				       << "bj"
 #endif
-				       << "' if '-c' is given\n";
+				       << "' if '-c' is given" << RESET << "\n";
 				usage(argv[0]);
 			}
 			int l = strlen(output_file);
@@ -1816,9 +1837,9 @@ int main(int argc, char* argv[]) {
 	} else {
 		if (comp_mode != comp_jit) {
 			if (source_files.front().size() != 1) {
-				errs() << "output file name (-o ...) required if "
+				errs() << RED << "output file name (-o ...) required if "
 				       << (source_files.front().size() ? "more than one" : "no")
-				       << " input file provided\n";
+				       << " input file provided" << RESET << "\n";
 				usage(argv[0]);
 			}
 			int len = strlen(source_files.front().front());
@@ -1861,7 +1882,7 @@ int main(int argc, char* argv[]) {
 #endif
 		);
 	if (!builtin_input_file) {
-		errs() << llvm::format("Cannot open definition file for builtins \"%s\": %s\n", builtin_fn.c_str(), strerror(errno));
+		errs() << MAGENTA << llvm::format("Cannot open definition file for builtins \"%s\": %s", builtin_fn.c_str(), strerror(errno)) << RESET << "\n";
 		exit(1);
 	}
 	lex = Lexer(&builtin_input_file, builtin_file_name);
