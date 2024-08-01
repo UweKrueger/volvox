@@ -95,6 +95,8 @@ namespace volvox {
 
 _CDECL void showtestres(int fd, int width, const char* testcase, bool result);
 _CDECL char* __cstr2volvoxstr(const char* c_str, size_t len, bool mark_as_heap);
+_CDECL char* __cstr2volvox(const char* c_str);
+_CDECL char* __volvox2cstr(const char* v);
 _CDECL uint32_t utf8_decode(const char** s);
 _CDECL uint32_t utf8_encode(uint32_t codepoint);
 _CDECL void __trim_cstring(char* s, ssize_t* l, char d);

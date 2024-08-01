@@ -248,7 +248,7 @@ def gLgT(x QQwOi) bool
 	q = x.ppt
 	x.ppt = -3.5
 	r = x.ppt
-	#printcsv(p,q,r)
+	#print(p,q,r)
 	#oooo = "$p $q $r"
 	return p == 3.25 && q == 5.46875 && r == 4.25
 end
@@ -278,7 +278,7 @@ def g2LgT(x QQwOi) bool
 	r = x.ppt
 	s = 7.3
 	#oopp = "$s $p $q $r"
-	#printcsv(p,q,r)
+	#print(p,q,r)
 	return p == 13.25 && q == 6.25 && r == -3.5
 end
 

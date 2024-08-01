@@ -606,23 +606,20 @@ _DECL bool enableColorANSI(int fd) {
 	if (is_set > 0) {
 		const char* term = getenv("TERM");
 		// GNU Emacs buffer: $TERM="dumb"
-		if (term && strcmp(term, "dumb"))
-			is_set = -1;
-#ifdef _WIN32
-		else
-#else
-		else if (term)
-#endif
-		{
-			// XEmacs buffer: $EMACS="t"
-			const char* emacs = getenv("EMACS");
-			if (emacs && !strcmp(emacs, "t"))
+		if (term) {
+			if (!strcmp(term, "dumb"))
 				is_set = -1;
 		}
 #ifndef _WIN32
 		else
 			is_set = -1;
 #endif
+		if (is_set > 0) {
+			// XEmacs buffer: $EMACS="t"
+			const char* emacs = getenv("EMACS");
+			if (emacs && !strcmp(emacs, "t"))
+				is_set = -1;
+		}
 	}
 	return is_set > 0;
 }
