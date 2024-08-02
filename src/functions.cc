@@ -1023,30 +1023,34 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	if (Proto->visibility & A_method && !(Proto->visibility & A_constructor)) {
 		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
 			llvm::Value* receiver_ref = nullptr;
-			if (vtable_offs >= 0) { // method to polymorphic object
-				llvm::Value* interface_receiver = method->Receiver->codegen_raw();
-				llvm::Value* rt_type_ptr = Builder->CreateExtractValue(interface_receiver, 0);
-				receiver_ref = Builder->CreateExtractValue(interface_receiver, 1);
-				method_adr = Builder->CreateIntToPtr(
-					Builder->CreateAdd(
-						Builder->CreatePtrToInt(rt_type_ptr, llvm_size_type),
-						getSize(vtable_offs)), llvm_ptr_type);
-				theFunction = Builder->CreateLoad(llvm_ptr_type, method_adr);
-				if (Proto->visibility & A_getter) {
-					getter = Builder->CreatePtrToInt(theFunction, llvm_size_type);
-				} else if (Proto->visibility & A_setter) {
-					setter = Builder->CreatePtrToInt(theFunction, llvm_size_type);
-					getter = Builder->CreatePtrToInt(Builder->CreateLoad(llvm_ptr_type, Builder->CreateIntToPtr(
-						Builder->CreateSub(
-							Builder->CreatePtrToInt(method_adr, llvm_size_type),
-							getSize(target_bytes)), llvm_ptr_type)), llvm_size_type);
-				}
-			} else if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
+			if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
 				llvm::Type* receiver_type;
 				std::tie(receiver_type, receiver_ref) = receiver_lval->codegen_ref(true);
 				if (!receiver_type) {
 					errs() << method->Receiver->Loc << ": could not get receiver\n";
 					return nullptr;
+				}
+				if (vtable_offs >= 0) { // method to polymorphic object
+					llvm::Value* rt_type_ptr = Builder->CreateLoad(
+						llvm_ptr_type, Builder->CreateStructGEP(llvm_interface_type, receiver_ref, 0));
+					receiver_ref = Builder->CreateLoad(
+						llvm_ptr_type, Builder->CreateStructGEP(llvm_interface_type, receiver_ref, 1));
+					method_adr = Builder->CreateIntToPtr(
+						Builder->CreateAdd(
+							Builder->CreatePtrToInt(rt_type_ptr, llvm_size_type),
+							getSize(vtable_offs)), llvm_ptr_type);
+					theFunction = Builder->CreateLoad(llvm_ptr_type, method_adr);
+					if (Proto->visibility & A_getter) {
+						getter = Builder->CreatePtrToInt(theFunction, llvm_size_type);
+					} else if (Proto->visibility & A_setter) {
+						setter = Builder->CreatePtrToInt(theFunction, llvm_size_type);
+						getter = Builder->CreatePtrToInt(
+							Builder->CreateLoad(
+								llvm_ptr_type, Builder->CreateIntToPtr(
+									Builder->CreateSub(
+										Builder->CreatePtrToInt(method_adr, llvm_size_type),
+										getSize(target_bytes)), llvm_ptr_type)), llvm_size_type);
+					}
 				}
 			}
 			if (!receiver_ref) {
