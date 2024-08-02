@@ -1199,7 +1199,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 							// unnecessary performance impacts
 							bool store_volatile = false;
 #ifndef LEGACY_PASS_MANAGER
-							if (jit_repl && optimization_level != llvm::OptimizationLevel::O0
+							if (comp_mode == comp_jit && optimization_level != llvm::OptimizationLevel::O0
 							    && optimization_level != llvm::OptimizationLevel::O1)
 								// the new optimizer tends to optimize this store away in -O2 and higher
 								// (probably a bug in LLVM) we can work around this by making this store volatile

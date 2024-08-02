@@ -806,6 +806,13 @@ llvm::Constant* getRtType(volvoxc::FullType* ft, llvm::Constant* vtable) {
 		}
 	}
 	llvm::Constant* rt_const = llvm::ConstantStruct::getAnon(Context, fields, true);
+	if (false && comp_mode == comp_jit) { // we may need this later for dynamic types
+		size_t rt_sz = TheModule->getDataLayout().getTypeAllocSize(rt_const->getType());
+		void* GV_rt = malloc(rt_sz);
+		auto GV = llvm::cast< llvm::Constant>(Builder->CreateIntToPtr(getSize((uintptr_t)GV_rt), llvm_ptr_type));
+		Builder->CreateStore(rt_const, GV, true);
+		return GV;
+	}
 	auto *GV = new llvm::GlobalVariable(*TheModule, rt_const->getType(), true, llvm::GlobalValue::PrivateLinkage, rt_const);
 	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(rt_const->getType()));
 	llvm::Constant *Zero = llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), 0);

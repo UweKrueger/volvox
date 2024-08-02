@@ -1746,15 +1746,17 @@ int main(int argc, char* argv[]) {
 		}
 	}
 #ifndef ALLOW_UNSUPPORTED_OPTIMIZATIONS
-#ifndef LEGACY_PASS_MANAGER
 	if (comp_mode == comp_jit) {
 		if (optimization_level == llvm::OptimizationLevel::Os ||
 		    optimization_level == llvm::OptimizationLevel::Oz) {
 			errs() << RED << "Optimization levels '-Os' and '-Oz' are not supported in JIT mode" << RESET << "\n";
 			usage(argv[0]);
 		}
+		// -O2 and -O3 are silently downgraded to -O1
+		if (optimization_level == llvm::OptimizationLevel::O3 ||
+		    optimization_level == llvm::OptimizationLevel::O2)
+			optimization_level = llvm::OptimizationLevel::O1;
 	}
-#endif
 #endif
 	if (do_pres.undecided())
 		do_pres = jit_repl;
