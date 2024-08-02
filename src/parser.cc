@@ -2531,18 +2531,18 @@ std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
 }
 
 std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E) {
-	std::string printcsv = "printcsv";
-	auto printcsv_proto = lex.findProtos(printcsv);
-	if (!printcsv_proto) {
-		errs() << "Fatal error: could not find 'printcsv' function\n";
+	std::string print = "print";
+	auto print_proto = lex.findProtos(print);
+	if (!print_proto) {
+		errs() << "Fatal error: could not find 'print' function\n";
 		return nullptr;
 	}
 	// long long w = 0LL;
 	auto FnLoc = E->Loc;
-	auto volvox_printcsv = std::make_unique<FunctionExprAST>(FnLoc, printcsv, printcsv_proto);
+	auto volvox_print = std::make_unique<FunctionExprAST>(FnLoc, print, print_proto);
 	std::vector<std::unique_ptr<ExprAST>> PrintArgs;
 	PrintArgs.push_back(std::move(E));
-	auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_printcsv), std::move(PrintArgs));
+	auto print_call = std::make_unique<CallExprAST>(FnLoc, std::move(volvox_print), std::move(PrintArgs));
 	auto success = std::make_unique<BinaryExprAST>(
 		FnLoc, ">=", std::move(print_call), std::move(std::make_unique<LiteralExprAST>(Token(0LL))),
 		std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm_bool_type, 0, false, OpComparison, nullptr });
