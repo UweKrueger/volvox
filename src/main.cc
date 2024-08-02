@@ -1752,9 +1752,15 @@ int main(int argc, char* argv[]) {
 			errs() << RED << "Optimization levels '-Os' and '-Oz' are not supported in JIT mode" << RESET << "\n";
 			usage(argv[0]);
 		}
-		// -O2 and -O3 are silently downgraded to -O1
-		if (optimization_level == llvm::OptimizationLevel::O3 ||
-		    optimization_level == llvm::OptimizationLevel::O2)
+		// codegen optimization and IR optimization > -O1 seem to be buggy for JIT mode
+#if LLVM_VERSION_MAJOR >= 18
+		codegenopt = llvm::CodeGenOptLevel::None;
+#else
+		codegenopt = llvm::CodeGenOpt::None;
+#endif
+		if (optimization_level != llvm::OptimizationLevel::O0
+		    && optimization_level != llvm::OptimizationLevel::O1)
+			// silently downgrade to -O1
 			optimization_level = llvm::OptimizationLevel::O1;
 	}
 #endif

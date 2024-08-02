@@ -1197,15 +1197,16 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 							// Not all LLVM versions and backends have these bugs and they depend
 							// on optimization levels. This should be taken into account to avoid
 							// unnecessary performance impacts
-							bool store_volatile = false;
+
+							/* bool store_volatile = false; */ // we forbid optimization > -O1 for JIT globally, now
 #ifndef LEGACY_PASS_MANAGER
-							if (comp_mode == comp_jit && optimization_level != llvm::OptimizationLevel::O0
-							    && optimization_level != llvm::OptimizationLevel::O1)
+							//if (comp_mode == comp_jit && optimization_level != llvm::OptimizationLevel::O0
+							//&& optimization_level != llvm::OptimizationLevel::O1)
 								// the new optimizer tends to optimize this store away in -O2 and higher
 								// (probably a bug in LLVM) we can work around this by making this store volatile
-								store_volatile = true;
+								//store_volatile = true;
 #endif
-							Builder->CreateStore(tmparg, arg, store_volatile);
+							Builder->CreateStore(tmparg, arg /*, store_volatile*/);
 						}
 					}
 #if LLVM_VERSION_MAJOR < 14 || defined(__aarch64__)
