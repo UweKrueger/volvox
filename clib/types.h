@@ -71,7 +71,9 @@
 #define VOLVOX_VoidTyID VoidTyID
 #define VOLVOX_LabelTyID LabelTyID
 #define VOLVOX_MetadataTyID MetadataTyID
+#if LLVM_VERSION_MAJOR < 20
 #define VOLVOX_X86_MMXTyID X86_MMXTyID
+#endif
 #define VOLVOX_X86_AMXTyID X86_AMXTyID
 #define VOLVOX_TokenTyID TokenTyID
 #define VOLVOX_IntegerTyID IntegerTyID
@@ -91,7 +93,7 @@ namespace volvox {
 
 	// We do not want to include LLVM headers since this file
 	// is part of the run time system - so we mirror the definitions
-	// to have consistent ID numbers
+	// from llvm/IR/Type.h to have consistent ID numbers
 	enum VOLVOX_TypeID {
 		// PrimitiveTypes
 		VOLVOX_HalfTyID = 0,  ///< 16-bit floating point type
@@ -104,7 +106,9 @@ namespace volvox {
 		VOLVOX_VoidTyID,      ///< type with no size
 		VOLVOX_LabelTyID,     ///< Labels
 		VOLVOX_MetadataTyID,  ///< Metadata
+#if LLVM_VERSION_MAJOR < 20
 		VOLVOX_X86_MMXTyID,   ///< MMX vectors (64 bits, X86 specific)
+#endif
 		VOLVOX_X86_AMXTyID,   ///< AMX vectors (8192 bits, X86 specific)
 		VOLVOX_TokenTyID,     ///< Tokens
 
@@ -197,8 +201,10 @@ namespace volvox {
 #define VOLVOX_LabelTyID volvox::LabelTyID
 #undef VOLVOX_MetadataTyID
 #define VOLVOX_MetadataTyID volvox::MetadataTyID
+#if LLVM_VERSION_MAJOR < 20
 #undef VOLVOX_X86_MMXTyID
 #define VOLVOX_X86_MMXTyID volvox::X86_MMXTyID
+#endif
 #undef VOLVOX_X86_AMXTyID
 #define VOLVOX_X86_AMXTyID volvox::X86_AMXTyID
 #undef VOLVOX_TokenTyID
