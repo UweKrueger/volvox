@@ -1457,6 +1457,7 @@ inline bool is_exe(const char* file) {
 // for mingw-w64 ('-mingw' flag) we use clang
 #ifndef MINGW_W64_LINKER
 #define MINGW_W64_LINKER "C:\\Program Files\\LLVM\\bin\\clang.exe"
+#define MINGW_W64_LINKER2 "C:\\Program Files\\LLVM\\bin\\gcc.exe"
 #endif
 // patterns for library directories - file name is added to skip stale empty directories
 #define LIBDIRS { \
@@ -1474,6 +1475,7 @@ int main(int argc, char* argv[]) {
 	color_tty = __setup_console();
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
+	bool use_gcc_as_mingw_linker = false;
 #ifndef _WIN32
 	struct rlimit rlimit_stacksize;
 	// try to get default stack size for new threads from rlimits
@@ -2148,8 +2150,23 @@ int main(int argc, char* argv[]) {
 			 */
 			char* linker_exe = getenv("VOLVOX_LINKER");
 			if (target_mingw) {
-				if (!linker_exe)
-					linker_exe = const_cast<char*>(MINGW_W64_LINKER);
+			    if (!linker_exe) {
+					volvox_glob_t linker1 = volvox_glob(MINGW_W64_LINKER);
+					if (linker1.size)
+						linker_exe = const_cast<char*>(MINGW_W64_LINKER);
+					else {
+						volvox_glob_t linker2 = volvox_glob(MINGW_W64_LINKER2);
+						if (linker2.size) {
+							use_gcc_as_mingw_linker = true;
+							linker_exe = const_cast<char*>(MINGW_W64_LINKER2);
+						}
+					}
+				}
+				if (!linker_exe) {
+					errs() << MAGENTA << "No MINGW linker found (tried \"" << MINGW_W64_LINKER
+						   << "\" and \"" << MINGW_W64_LINKER2 << "\"\n";
+					exit(1);
+				}
 #ifdef _WIN32
 				strcat(libpath, "\\libvolvox.a");
 #else
@@ -2221,8 +2238,7 @@ int main(int argc, char* argv[]) {
 			for (auto& lib: extra_libs)
 				clang_argv.push_back(const_cast<char*>(lib.c_str()));
 			if (target_mingw) {
-				size_t comp_offs = strlen(linker_exe) - 3;
-				if (strcmp(linker_exe + comp_offs, "gcc") && strcmp(linker_exe + comp_offs, "g++")) {
+				if (!use_gcc_as_mingw_linker) {
 					// neither 'gcc' nor 'g++' - so it's 'clang' and we must specify the target
 					clang_argv.push_back(const_cast<char*>("-target"));
 					clang_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
