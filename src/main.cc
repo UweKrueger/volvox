@@ -1480,7 +1480,6 @@ int main(int argc, char* argv[]) {
 	color_tty = __setup_console();
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
-	bool use_clang_as_mingw_linker = false;
 #ifndef _WIN32
 	struct rlimit rlimit_stacksize;
 	// try to get default stack size for new threads from rlimits
@@ -1966,9 +1965,9 @@ int main(int argc, char* argv[]) {
 	// is 'gnueabihf'. We set the 'hard' float abi here as a quick hack
 	if (!strcmp(Target->getName(), "arm"))
 		target_opts.FloatABIType = llvm::FloatABI::Hard;
-	if (target_mingw)
-		// workaround for now - there seems to be an "llvm-mingw" using UCRT and native TLS
-		target_opts.EmulatedTLS = 1;
+	// if (target_mingw)
+	// 	// workaround for now - there seems to be an "llvm-mingw" using UCRT and native TLS
+	// 	target_opts.EmulatedTLS = 1;
 #if LLVM_VERSION_MAJOR >= 17
 	auto RM = std::optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
 #else
@@ -2156,23 +2155,13 @@ int main(int argc, char* argv[]) {
 			char* linker_exe = getenv("VOLVOX_LINKER");
 			if (target_mingw) {
 				if (!linker_exe) {
-					volvox_glob_t linker1 = volvox_glob(MINGW_W64_GCC);
+					volvox_glob_t linker1 = volvox_glob(MINGW_W64_CLANG);
 					if (linker1.size)
-						linker_exe = const_cast<char*>(MINGW_W64_GCC);
-#if defined (_MSC_VER)
+						linker_exe = const_cast<char*>(MINGW_W64_CLANG);
 					else {
-						volvox_glob_t linker2 = volvox_glob(MINGW_W64_CLANG);
-						if (linker2.size) {
-							use_clang_as_mingw_linker = true;
-							linker_exe = const_cast<char*>(MINGW_W64_CLANG);
-						}
+						errs() << MAGENTA << "No MINGW linker found (tried \"" << MINGW_W64_CLANG << "\"\n";
+						exit(1);
 					}
-#endif
-				}
-				if (!linker_exe) {
-					errs() << MAGENTA << "No MINGW linker found (tried \"" << MINGW_W64_GCC
-					       << "\" and \"" << MINGW_W64_CLANG << "\"\n";
-					exit(1);
 				}
 #ifdef _WIN32
 				strcat(libpath, "\\libvolvox.a");
@@ -2245,11 +2234,9 @@ int main(int argc, char* argv[]) {
 			for (auto& lib: extra_libs)
 				linker_argv.push_back(const_cast<char*>(lib.c_str()));
 			if (target_mingw) {
-				if (use_clang_as_mingw_linker) {
-					// for clang we must specify the target
-					linker_argv.push_back(const_cast<char*>("-target"));
-					linker_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
-				}
+				// for clang we must specify the target
+				linker_argv.push_back(const_cast<char*>("-target"));
+				linker_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
 				linker_argv.push_back(stack_size); // mingw on Windows or cross compiler (e.g. on Linux)
 			}
 #ifdef _WIN32
