@@ -1455,18 +1455,23 @@ inline bool is_exe(const char* file) {
 #define LINKER "C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\link.exe"
 #endif
 // for mingw-w64 ('-mingw' flag) we use clang
-#ifndef MINGW_W64_LINKER
-#define MINGW_W64_LINKER "C:\\Program Files\\LLVM\\bin\\clang.exe"
-#define MINGW_W64_LINKER2 "C:\\Program Files\\LLVM\\bin\\gcc.exe"
+#ifndef MINGW_W64_GCC
+#define MINGW_W64_GCC "C:\\Program Files\\LLVM\\bin\\gcc.exe"
+#endif
+#ifndef MINGW_W64_CLANG
+#define MINGW_W64_CLANG "C:\\Program Files\\LLVM\\bin\\clang.exe"
 #endif
 // patterns for library directories - file name is added to skip stale empty directories
-#define LIBDIRS { \
-	"C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\lib\\x64\\libcmt.lib", \
-	"C:\\Program Files*\\Windows Kits\\*\\Lib\\*\\ucrt\\x64\\libucrt.lib", \
-	"C:\\Program Files*\\Windows Kits\\*\\Lib\\*\\um\\x64\\ntdll.lib" }
+#define LIBDIRS {	  \
+		"C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\lib\\x64\\libcmt.lib", \
+			"C:\\Program Files*\\Windows Kits\\*\\Lib\\*\\ucrt\\x64\\libucrt.lib", \
+			"C:\\Program Files*\\Windows Kits\\*\\Lib\\*\\um\\x64\\ntdll.lib" }
 #else
-#ifndef MINGW_W64_LINKER
-#define MINGW_W64_LINKER "x86_64-w64-mingw32-gcc"
+#ifndef MINGW_W64_GCC
+#define MINGW_W64_GCC "x86_64-w64-mingw32-gcc"
+#endif
+#ifndef MINGW_W64_CLANG
+#define MINGW_W64_CLANG "x86_64-w64-mingw32-clang"
 #endif
 #endif
 
@@ -1475,7 +1480,7 @@ int main(int argc, char* argv[]) {
 	color_tty = __setup_console();
 	outs().SetUnbuffered();
 	errs().SetUnbuffered();
-	bool use_gcc_as_mingw_linker = false;
+	bool use_clang_as_mingw_linker = false;
 #ifndef _WIN32
 	struct rlimit rlimit_stacksize;
 	// try to get default stack size for new threads from rlimits
@@ -1627,7 +1632,7 @@ int main(int argc, char* argv[]) {
 					endptr++;
 				if (!(*endptr))
 					goto stacksizesuccess;
-				stackeinvalerr:
+			stackeinvalerr:
 				errno = EINVAL;
 			}
 			errs() << RED << llvm::format("'-s': \"%s\": %s\n", optarg, strerror(errno));
@@ -2150,21 +2155,23 @@ int main(int argc, char* argv[]) {
 			 */
 			char* linker_exe = getenv("VOLVOX_LINKER");
 			if (target_mingw) {
-			    if (!linker_exe) {
-					volvox_glob_t linker1 = volvox_glob(MINGW_W64_LINKER);
+				if (!linker_exe) {
+					volvox_glob_t linker1 = volvox_glob(MINGW_W64_GCC);
 					if (linker1.size)
-						linker_exe = const_cast<char*>(MINGW_W64_LINKER);
+						linker_exe = const_cast<char*>(MINGW_W64_GCC);
+#if defined (_MSC_VER)
 					else {
-						volvox_glob_t linker2 = volvox_glob(MINGW_W64_LINKER2);
+						volvox_glob_t linker2 = volvox_glob(MINGW_W64_CLANG);
 						if (linker2.size) {
-							use_gcc_as_mingw_linker = true;
-							linker_exe = const_cast<char*>(MINGW_W64_LINKER2);
+							use_clang_as_mingw_linker = true;
+							linker_exe = const_cast<char*>(MINGW_W64_CLANG);
 						}
 					}
+#endif
 				}
 				if (!linker_exe) {
-					errs() << MAGENTA << "No MINGW linker found (tried \"" << MINGW_W64_LINKER
-						   << "\" and \"" << MINGW_W64_LINKER2 << "\"\n";
+					errs() << MAGENTA << "No MINGW linker found (tried \"" << MINGW_W64_GCC
+					       << "\" and \"" << MINGW_W64_CLANG << "\"\n";
 					exit(1);
 				}
 #ifdef _WIN32
@@ -2231,63 +2238,63 @@ int main(int argc, char* argv[]) {
 				stack_size = (char*)alloca(30);
 				sprintf(stack_size, "-Wl,-stack,%" PRIu64, stacksize);
 			}
-			std::vector<char*> clang_argv = {};
-			clang_argv.reserve(16);
-			clang_argv.push_back(linker_exe);
-			clang_argv.push_back(output_file);
+			std::vector<char*> linker_argv = {};
+			linker_argv.reserve(16);
+			linker_argv.push_back(linker_exe);
+			linker_argv.push_back(output_file);
 			for (auto& lib: extra_libs)
-				clang_argv.push_back(const_cast<char*>(lib.c_str()));
+				linker_argv.push_back(const_cast<char*>(lib.c_str()));
 			if (target_mingw) {
-				if (!use_gcc_as_mingw_linker) {
-					// neither 'gcc' nor 'g++' - so it's 'clang' and we must specify the target
-					clang_argv.push_back(const_cast<char*>("-target"));
-					clang_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
+				if (use_clang_as_mingw_linker) {
+					// for clang we must specify the target
+					linker_argv.push_back(const_cast<char*>("-target"));
+					linker_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
 				}
-				clang_argv.push_back(stack_size); // mingw on Windows or cross compiler (e.g. on Linux)
+				linker_argv.push_back(stack_size); // mingw on Windows or cross compiler (e.g. on Linux)
 			}
 #ifdef _WIN32
 			else {
-				clang_argv.push_back(stack_size); // native Windows
-				clang_argv.push_back(exe_out);
-				clang_argv.push_back(const_cast<char*>("-defaultlib:ucrt"));
-				clang_argv.push_back(const_cast<char*>("-defaultlib:legacy_stdio_definitions"));
-				clang_argv.push_back(libpath);
-				clang_argv.push_back(libdirs[0]);
-				clang_argv.push_back(libdirs[1]);
-				clang_argv.push_back(libdirs[2]);
+				linker_argv.push_back(stack_size); // native Windows
+				linker_argv.push_back(exe_out);
+				linker_argv.push_back(const_cast<char*>("-defaultlib:ucrt"));
+				linker_argv.push_back(const_cast<char*>("-defaultlib:legacy_stdio_definitions"));
+				linker_argv.push_back(libpath);
+				linker_argv.push_back(libdirs[0]);
+				linker_argv.push_back(libdirs[1]);
+				linker_argv.push_back(libdirs[2]);
 				if (verbosity >= 3)
-					clang_argv.push_back(const_cast<char*>("-verbose"));
+					linker_argv.push_back(const_cast<char*>("-verbose"));
 				else
-					clang_argv.push_back(const_cast<char*>("-nologo"));
+					linker_argv.push_back(const_cast<char*>("-nologo"));
 			}
 			if (target_mingw) {
 #endif
-				clang_argv.push_back(const_cast<char*>("-o"));
-				clang_argv.push_back(exe_file);
-				clang_argv.push_back(const_cast<char*>("-O2"));
+				linker_argv.push_back(const_cast<char*>("-o"));
+				linker_argv.push_back(exe_file);
+				linker_argv.push_back(const_cast<char*>("-O2"));
 #ifndef _WIN32
 				if (!target_mingw)
-					clang_argv.push_back(const_cast<char*>("-L"));
+					linker_argv.push_back(const_cast<char*>("-L"));
 #endif
-				clang_argv.push_back(libpath);
+				linker_argv.push_back(libpath);
 #ifndef _WIN32
 				if (!target_mingw) {
-					clang_argv.push_back(const_cast<char*>("-lvolvox"));
-					clang_argv.push_back(rpath);
+					linker_argv.push_back(const_cast<char*>("-lvolvox"));
+					linker_argv.push_back(rpath);
 				}
 				if (needs_libm)
-					clang_argv.push_back(const_cast<char*>("-lm"));
+					linker_argv.push_back(const_cast<char*>("-lm"));
 				if (needs_pthread)
-					clang_argv.push_back(const_cast<char*>("-lpthread"));
+					linker_argv.push_back(const_cast<char*>("-lpthread"));
 #endif
 				if(verbosity)
-					clang_argv.push_back(const_cast<char*>("-v"));
+					linker_argv.push_back(const_cast<char*>("-v"));
 #ifdef _WIN32
 			}
 #endif
-			clang_argv.push_back(nullptr);
+			linker_argv.push_back(nullptr);
 			if (verbosity)
-				for (auto a: clang_argv) {
+				for (auto a: linker_argv) {
 					if (a)
 						errs() << ' '
 #ifdef _WIN32
@@ -2302,7 +2309,7 @@ int main(int argc, char* argv[]) {
 						errs() << '\n';
 				}
 			int linker_pid;
-			if (!volvox_spawn(&linker_pid, nullptr, nullptr, nullptr, clang_argv.data())) {
+			if (!volvox_spawn(&linker_pid, nullptr, nullptr, nullptr, linker_argv.data())) {
 				errs() << llvm::format("Failed to link: %s\n", strerror(errno));
 				result = 1;
 			} else {
