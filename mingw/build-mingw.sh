@@ -107,4 +107,6 @@ cd $START_DIR/mingw-builds/install/native/x86_64-w64-mingw32/lib
 x86_64-w64-mingw32-strip --strip-debug *.a
 cd ../..
 bsdtar -czf $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.tgz bin include lib libexec share x86_64-w64-mingw32
-bsdtar -czf $START_DIR/mingw-${MINGW_V}-ucrt.tgz bin/*[a-z]-[0-9].dll bin/ldd.exe bin/make.exe x86_64-w64-mingw32
+rm -f bin/ld.exe
+mv include/c++/${GCC_V} x86_64-w64-mingw32/include/c++
+bsdtar -czf $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.tgz bin/*.dll bin/ldd.exe bin/make.exe x86_64-w64-mingw32
