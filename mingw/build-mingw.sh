@@ -4,9 +4,19 @@ BINUTILS_V=2.41
 GCC_V=14.2.0
 MINGW_V=v12.0.0
 MAKE_V=4.4.1
+NUM_CORES=8
+START_DIR=`pwd`
 CONF_PARAMS="--enable-tls --enable-threads=win32 --disable-nls --disable-lib32 --with-default-msvcrt=ucrt"
-export NUM_CORES=8
-export START_DIR=`pwd`
+
+for mingwcomp in x86_64-w64-mingw32-gcc x86_64-w64-mingw32-cc x86_64-w64-mingw32-as x86_64-w64-mingw32-ld; do
+	if comp=$(which $mingwcomp 2>/dev/null); then
+		echo "There is already a mingw-compiler in your PATH: $comp"
+		echo "Please remove it or make it unaccessible to run this script"
+		exit 1
+	fi
+done
+
+cd $START_DIR
 mkdir -p mingw-builds
 cd mingw-builds
 mkdir -p src build install
