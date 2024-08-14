@@ -813,7 +813,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 #ifdef _WIN32
 								DWORD last_err = GetLastError();
 								FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
-								                           FORMAT_MESSAGE_IGNORE_INSERTS, NULL, last_err, 0, (LPTSTR)&msg, 0, nullptr);
+								                           FORMAT_MESSAGE_IGNORE_INSERTS, NULL, last_err, 0, (LPSTR)&msg, 0, nullptr);
 #else
 								msg = dlerror();
 #endif

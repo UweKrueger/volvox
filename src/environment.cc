@@ -174,7 +174,7 @@ const char* volvox_lib() {
 #ifdef _WIN32
 			char* last_slash2 = (char*)strrchr(local_project, '\\');
 			if (last_slash2)
-				if (!last_slash || last_slash2 > last_slash2)
+				if (!last_slash || last_slash2 > last_slash)
 					last_slash = last_slash2;
 #endif
 			if (last_slash) {

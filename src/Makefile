@@ -5,8 +5,16 @@ OPT = -O2
 SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
+LIBTARGET :=
 TARGETDIR := ../
 PREFIX := /usr
+ifeq ($(shell test -x C\:/Program\ Files/LLVM/bin/llvm-config.exe && echo -n true),true)
+	PREFIX := C:/Program\ Files/LLVM
+	SUFFIX := .exe
+	NIXTYPE := msvc
+	LIBTARGET := -target x86_64-pc-windows-gnu
+	LINKEXTRAFLAGS := -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32 -lucrt
+else
 ifeq ($(shell test -x /ucrt64/bin/llvm-config && echo -n true),true)
 	PREFIX := /ucrt64
 	SUFFIX :=
@@ -76,6 +84,7 @@ endif
 endif
 endif
 endif
+endif
 	NIXTYPE := posix
 endif
 
@@ -108,6 +117,11 @@ ifeq ($(shell uname),Haiku)
 	EDITLINEOBJS := # we use system provided BSD editline
 	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
 else
+ifeq ($(NIXTYPE),msvc)
+	CPPEXTRAFLAGS := -D_CRT_NONSTDC_NO_DEPRECATE
+	EXTRAOBJS := emutls.o
+	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
+else
 ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' versions works ;-(
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS := emutls.o
@@ -121,6 +135,7 @@ else
 endif
 	EXTRAOBJS :=
 	EDITLINEOBJS :=
+endif
 endif
 endif
 endif
@@ -141,16 +156,25 @@ ifeq ($(LLVMVERSION),13)
 	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DLEGACY_PASS_MANAGER
 endif
 
-CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -std=c++20 -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
-LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
+ifeq ($(NIXTYPE),msvc)
+	CXXFLAGS := -I"C:/Program Files/LLVM/include" -I../include/editline $(shell $(LLVMCONFIG) --cflags | cut -d" " -f3-) -std=c++20 -DLINKER="\"C:/Program Files/LLVM/bin/clang.exe\"" -frtti $(CPPEXTRAFLAGS)
+	LDFLAGS := C:/Program\ Files/LLVM/lib/$(shell $(LLVMCONFIG) --libnames all-targets orcjit mcjit | sed 's+ + C:/Program\\\\ Files/LLVM/lib/+g')
+	PIC :=
+else
+	CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -std=c++20 -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
+	LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
+	PIC := -fPIC
+endif
 PRJH := ../include/volvox-$(LLVMVERSION).hh
 
 ifeq ($(CC),gcc)
 	CXX := g++
+	LINK := g++
 	INCPCH := -include $(PRJH)
 	PCH := $(PRJH:%.hh=%.hh.gch)
 else
 	CXX := clang++$(SUFFIX)
+	LINK := clang++$(SUFFIX)
 ifeq ($(shell test $(LLVMVERSION) -ge 18; echo $$?),0)
 	PCH := $(PRJH:%.hh=%.hh.pch)
 else
@@ -161,13 +185,21 @@ endif
 
 PROG = $(TARGETDIR)volvox
 
-CCOBJS :=  main.o codegen.o parser.o lexer.o token.o functions.o threads.o arrays.o types.o mangler.o environment.o
+CCOBJS := main.o codegen.o parser.o lexer.o token.o functions.o threads.o arrays.o types.o mangler.o environment.o
 OBJS := $(CCOBJS) $(EXTRAOBJS) $(EDITLINEOBJS)
 
 LIBOBJS := map.o str.o array.o
 LIBCOBJS := str_c.o threads_c.o
 
 LIBVOLVOXVERS := 0
+ifeq ($(NIXTYPE),msvc)
+LIBVOLVOXBASE := libvolvox.dll
+LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
+LIBVOLVOXSONAMESPEC :=
+EXTRAINC := -I../include
+RPATH :=
+LINK := llvm-link
+else
 ifeq ($(NIXTYPE),mingw64)
 LIBVOLVOXBASE := libvolvox.dll
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
@@ -180,6 +212,7 @@ LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
 LIBVOLVOXSONAMESPEC := -Wl,-soname,$(LIBVOLVOXSONAME)
 EXTRAINC :=
 RPATH := -Wl,-rpath,$(shell pwd)/../lib
+endif
 endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
 LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
@@ -196,12 +229,16 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 	$(CXX) -c $(CXXFLAGS) $(OPT) $(INCPCH) $(EXTRAINC) $<
 
 %.o: ../clib/%.cc
-	$(CXX) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) -fPIC $(OPT) $<
+	$(CXX) $(LIBTARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
 
 %.o: ../clib/%.c
-	$(CC) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) -fPIC $(OPT) $<
+	$(CC) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(PIC) $(OPT) $<
 
 ifeq ($(NIXTYPE),mingw64)
+%.o: ../wineditline/%.c
+	$(CC) -c $(EXTRAINC) $(OPT) $<
+endif
+ifeq ($(NIXTYPE),msvc)
 %.o: ../wineditline/%.c
 	$(CC) -c $(EXTRAINC) $(OPT) $<
 endif
@@ -216,11 +253,11 @@ else
 endif
 
 $(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
-	$(CC) -shared -fPIC $(LIBVOLVOXSONAMESPEC) -o $(LIBVOLVOX) $+
+	$(CC) -shared $(PIC) $(LIBVOLVOXSONAMESPEC) -o $(LIBVOLVOX) $+
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
 
 $(PROG): $(OBJS) $(LIBVOLVOX)
-	$(CXX) -o $@ $(OBJS) $(LDFLAGS) $(OPT) -L../lib -lvolvox $(RPATH) $(LINKEXTRAFLAGS)
+	clang++ -v -o $@ $(OBJS) $(LDFLAGS) $(LIBOBJS) $(LIBCOBJS) $(RPATH) $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:
@@ -235,6 +272,6 @@ ifneq ($(EDITLINESRC),)
 	$(CC) -MM $(OPT) $(EXTRAINC) $(EDITLINESRC) >> .depend
 endif
 	$(CC) -MM $(LIBCSRC) $(CPPEXTRAFLAGS) $(OPT) $(EXTRASRC) >> .depend
-	$(CXX) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
+	$(CXX) $(LIBTARGET) -MM $(CXXFLAGS) $(OPT) $(LIBSRC) >> .depend
 	for qq in $(CCOBJS); do echo "$$qq: $(PCH)" >> .depend; done
 -include .depend

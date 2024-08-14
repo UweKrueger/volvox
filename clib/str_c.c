@@ -24,6 +24,7 @@
 #endif
 #endif
 #if defined(_MSC_VER)
+#include <math.h>
 #include <BaseTsd.h>
 #define complex_float _Fcomplex
 #define complex_double _Dcomplex
