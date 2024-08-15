@@ -118,11 +118,13 @@ ifeq ($(shell uname),Haiku)
 	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
 else
 ifeq ($(NIXTYPE),msvc)
+$(warning *** Clang++/Windows not supported - use MSVC and make.bat ***)
 	CPPEXTRAFLAGS := -D_CRT_NONSTDC_NO_DEPRECATE
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
 else
 ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' versions works ;-(
+$(warning *** MINGW not supported - use MSVC and make.bat ***)
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
