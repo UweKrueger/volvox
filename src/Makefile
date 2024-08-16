@@ -12,7 +12,7 @@ ifeq ($(shell test -x C\:/Program\ Files/LLVM/bin/llvm-config.exe && echo -n tru
 	PREFIX := C:/Program\ Files/LLVM
 	SUFFIX := .exe
 	NIXTYPE := mingw64
-	TARGET := -target x86_64-pc-windows-gnu
+	TARGET := -target x86_64-pc-windows-gnu -Wno-gcc-compat
 	# LINKEXTRAFLAGS := -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32 -lucrt
 	LINKEXTRAFLAGS := -lpthread
 else
@@ -112,7 +112,6 @@ ifeq ($(shell uname),Haiku)
 	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
 else
 ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' versions works ;-(
-$(warning *** MINGW not supported - use MSVC and make.bat ***)
 	CPPEXTRAFLAGS :=
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
@@ -229,7 +228,7 @@ ifeq ($(NIXTYPE),mingw64)
 	$(CC) $(TARGET) -c $(EXTRAINC) $(OPT) $<
 endif
 
-all: $(PROG)
+all: $(PROG) $(LIBVOLVOX)
 
 $(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh ../clib/map.h ../clib/types.h ../clib/str.h AST.h global.h
 ifeq ($(CC),gcc)
@@ -240,14 +239,18 @@ endif
 
 $(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
 	$(CC) $(TARGET) -shared $(PIC) $(LIBVOLVOXSONAMESPEC) -o $(LIBVOLVOX) $+
+ifeq ($(NIXTYPE),mingw64)
+	cp $(LIBVOLVOX) ..
+else
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
+endif
 
-$(PROG): $(OBJS)
+$(PROG): $(OBJS) $(LIBOBJS) $(LIBCOBJS)
 	$(LINK) $(TARGET) -o $@ $(OBJS) $(LDFLAGS) $(LIBOBJS) $(LIBCOBJS) $(RPATH) $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS)  $(LIBCOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) $(LIBVOLVOXLINK) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS)  $(LIBCOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
 
 .depend:
 	$(CXX) $(TARGET) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend

@@ -624,6 +624,13 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 	}
 }
 
+// FIXME: this function is actually in libgcc but is not found by JIT
+#ifdef _WIN32
+#ifndef _MSC_VER
+extern "C" __declspec(dllexport) void ___chkstk_ms() __attribute__((weak)) {}
+#endif
+#endif
+
 /* Destructor and constructor declarations are only allowed right after the corresponding
  * type declaration. The following function is called when the next code is something else
  * i.e. the constructor/destructor section is finished. The point is that the type may need

@@ -1742,8 +1742,6 @@ int main(int argc, char* argv[]) {
 		errs() << "Lib: >" << volvox_lib() << "<\n";
 		errs() << "Volvox Root: >" << volvox_root() << "<\n";
 	}
-	if (!MainName)
-		MainName = "main";
 	if (!comp_mode) {
 		if (source_files.front().size())
 			comp_mode = comp_obj;
@@ -1751,6 +1749,14 @@ int main(int argc, char* argv[]) {
 			comp_mode = comp_jit;
 			jit_repl = true;
 		}
+	}
+	if (!MainName) {
+#if defined(_WIN32) && !defined(_MSC_VER)
+		if (comp_mode == comp_jit)
+			MainName = "__main";
+		else
+#endif
+			MainName = "main";
 	}
 #ifndef ALLOW_UNSUPPORTED_OPTIMIZATIONS
 	if (comp_mode == comp_jit) {
@@ -2165,7 +2171,10 @@ int main(int argc, char* argv[]) {
 					}
 				}
 #ifdef _WIN32
-				strcat(libpath, "\\libvolvox.a");
+				if (target_mingw)
+					strcat(libpath, "\\libvolvox.dll");
+				else
+					strcat(libpath, "\\libvolvox.a");
 #else
 				strcat(libpath, "/libvolvox.a");
 #endif
