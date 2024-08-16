@@ -773,7 +773,7 @@ static THREAD_RETURN anon_expr_wrapper_int(void* expr_ptr) {
 //
 #ifdef _WIN32
 bool spawn_bool_expr(bool (*expr)()) {
-	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper, (void*)expr, 0, NULL);
+	HANDLE thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)anon_expr_wrapper, (void*)expr, 0, NULL);
 	execution_thread = thread;
 	WaitForSingleObject(thread, INFINITE);
 	execution_thread = (THREAD_HANDLE_TY)0; // in case did not finish due to signal
@@ -783,7 +783,7 @@ bool spawn_bool_expr(bool (*expr)()) {
 	return !(!retval);
 }
 int spawn_int_expr(int (*expr)()) {
-	HANDLE thread = CreateThread(NULL, 0, anon_expr_wrapper_int, (void*)expr, 0, NULL);
+	HANDLE thread = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)anon_expr_wrapper_int, (void*)expr, 0, NULL);
 	WaitForSingleObject(thread, INFINITE);
 	DWORD retval;
 	GetExitCodeThread(thread, &retval);
@@ -1471,8 +1471,9 @@ inline bool is_exe(const char* file) {
 #define MINGW_W64_GCC "x86_64-w64-mingw32-gcc"
 #endif
 #ifndef MINGW_W64_CLANG
-#define MINGW_W64_CLANG "x86_64-w64-mingw32-clang"
+#define MINGW_W64_CLANG "C:\\Program Files\\LLVM\\bin\\clang.exe"
 #endif
+#define LIBDIRS { }
 #endif
 
 int main(int argc, char* argv[]) {
@@ -2169,7 +2170,7 @@ int main(int argc, char* argv[]) {
 				strcat(libpath, "/libvolvox.a");
 #endif
 			}
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 			const char* libpatterns[] = LIBDIRS;
 			char* libdirs[ARRAY_SIZE(libpatterns)];
 			if (!target_mingw) {
@@ -2201,10 +2202,11 @@ int main(int argc, char* argv[]) {
 				}
 			}
 			char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
-			if (!target_mingw) {
+			if (target_mingw)
+				strcpy(exe_out, "-o ");
+			else
 				strcpy(exe_out, "-out:");
-				strcat(exe_out, exe_file);
-			}
+			strcat(exe_out, exe_file);
 			stack_size = (char*)alloca(30);
 			if (!target_mingw)
 				sprintf(stack_size, "-stack:%" PRIu64, stacksize);

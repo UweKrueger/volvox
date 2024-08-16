@@ -142,7 +142,7 @@ llvm::Function* ThreadExprAST::get_thread_wrapper(bool have_target) {
 		return nullptr;
 }
 
-#if defined(_MSC_VER)
+#if defined(_WIN32)
 #define O_CLOEXEC 0
 #define O_NONBLOCK 0
 #endif
