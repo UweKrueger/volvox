@@ -161,6 +161,12 @@ ifeq ($(CC),gcc)
 	INCPCH := -include $(PRJH)
 	PCH := $(PRJH:%.hh=%.hh.gch)
 else
+ifeq ($(CC),gcc-14)
+	CXX := g++-14
+	LINK := g++-14
+	INCPCH := -include $(PRJH)
+	PCH := $(PRJH:%.hh=%.hh.gch)
+else
 	CXX := clang++$(SUFFIX)
 	LINK := clang++$(SUFFIX)
 ifeq ($(shell test $(LLVMVERSION) -ge 18; echo $$?),0)
@@ -169,6 +175,7 @@ else
 	PCH := $(PRJH:%.hh=%.hh.gch)
 endif
 	INCPCH := -include-pch $(PCH)
+endif
 endif
 
 PROG = $(TARGETDIR)volvox
