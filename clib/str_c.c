@@ -40,6 +40,7 @@
 #include <stdint.h>
 #include <inttypes.h>
 #include <string.h>
+#include <math.h>
 #include <complex.h>
 
 #define nullptr ((void*)0)
@@ -1336,7 +1337,13 @@ _DECL bool __setup_console() {
 	return enableColorANSI(1);
 }
 
-#if defined(_MSC_VER)
+#if defined(_MSC_VER) || defined(__OpenBSD__)
+#ifndef _MSC_VER
+#define _Dcomplex _Complex double
+#define _Fcomplex _Complex float
+#define _DCOMPLEX_(x, y) ((double complex)((double)(x) + 1.0fi * (double)(y)))
+#define _FCOMPLEX_(x, y) ((float complex)((float)(x) + 1.0fi * (float)(y)))
+#endif
 
 // libgcc provides these functions but they are missing on MSVC
 // so we provide some simple versions

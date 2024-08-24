@@ -27,7 +27,7 @@ else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-16 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := -16
-	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm16/lib -lreadline
+	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm16/lib -lreadline -rdynamic
 # readline on OpenBSD is GPLv2 - if you want a pure non-GPL build you can
 # use (a very old) libedit by using the following line and adding
 # "-DMONOCHROME_PROMPT=1" to CPPEXTRAFLAGS below 
@@ -131,8 +131,7 @@ endif
 endif
 endif
 
-# LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
-LLVMVERSION := 18
+LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
 
 CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))
