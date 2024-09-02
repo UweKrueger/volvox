@@ -1760,21 +1760,25 @@ int main(int argc, char* argv[]) {
 	}
 #ifndef ALLOW_UNSUPPORTED_OPTIMIZATIONS
 	if (comp_mode == comp_jit) {
+#ifndef LEGACY_PASS_MANAGER
 		if (optimization_level == llvm::OptimizationLevel::Os ||
 		    optimization_level == llvm::OptimizationLevel::Oz) {
 			errs() << RED << "Optimization levels '-Os' and '-Oz' are not supported in JIT mode" << RESET << "\n";
 			usage(argv[0]);
 		}
+#endif
 		// codegen optimization and IR optimization > -O1 seem to be buggy for JIT mode
 #if LLVM_VERSION_MAJOR >= 18
 		codegenopt = llvm::CodeGenOptLevel::None;
 #else
 		codegenopt = llvm::CodeGenOpt::None;
 #endif
+#ifndef LEGACY_PASS_MANAGER
 		if (optimization_level != llvm::OptimizationLevel::O0
 		    && optimization_level != llvm::OptimizationLevel::O1)
 			// silently downgrade to -O1
 			optimization_level = llvm::OptimizationLevel::O1;
+#endif
 	}
 #endif
 	if (do_pres.undecided())
