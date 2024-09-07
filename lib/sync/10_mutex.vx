@@ -4,6 +4,12 @@ import time
 
 const __MUTEX_ATTR_SIZE := if os.isLinux
 		4
+	elif os.isNetBSD
+		if arch.bitwidth == 64
+			16
+		else
+			8
+		end
 	else
 		arch.bitwidth >> 3
 	end
