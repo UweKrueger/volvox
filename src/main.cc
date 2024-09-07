@@ -1784,8 +1784,8 @@ int main(int argc, char* argv[]) {
 	if (do_pres.undecided())
 		do_pres = jit_repl;
 
-#if defined(__linux__) || defined(_WIN32) || defined(__FreeBSD__)
 	if (jit_repl)
+		// if defined(__linux__) || defined(_WIN32) || defined(__FreeBSD__)
 		// These 3 OSs have robust mutexes so it makes sense to run
 		// each top level expression in a newly spawned thread in
 		// interactive JIT mode.
@@ -1797,12 +1797,10 @@ int main(int argc, char* argv[]) {
 		// consistent the next time they are locked.
 		//
 		// For other OSs (OpenBSD, NetBSD, DragonflyBSD, MacOSX, ...)
-		// it makes no difference, so we always run top level
-		// expessions in the main thread. Unfortunately, this means
-		// that signaling errors may lead to dead locks or complete
-		// termination of the interpreter.
+		// we have to live with stale mutexes, i.e. potential dead locks
+		// but it still makes sense to use a separate thread
 		jit_extra_thread = true;
-#endif
+
 	if (!link_mode) {
 		if (comp_mode == comp_jit)
 			link_mode = dont_link;
