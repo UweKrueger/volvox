@@ -88,7 +88,7 @@
 #endif
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <math.h>
+#include <cmath>
 #include <float.h>
 
 #ifdef _WIN32

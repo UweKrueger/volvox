@@ -2286,8 +2286,15 @@ int main(int argc, char* argv[]) {
 				}
 				if (needs_libm)
 					linker_argv.push_back(const_cast<char*>("-lm"));
-				if (needs_pthread)
+				if (needs_pthread) {
 					linker_argv.push_back(const_cast<char*>("-lpthread"));
+					if (os_idx == OS_NetBSD) {
+						// we need libatomic from pkgsrc/packages
+						linker_argv.push_back(const_cast<char*>("-L/usr/pkg/lib"));
+						linker_argv.push_back(const_cast<char*>("-Wl,-rpath,/usr/pkg/lib"));
+						linker_argv.push_back(const_cast<char*>("-latomic"));
+					}
+				}
 #endif
 				if(verbosity)
 					linker_argv.push_back(const_cast<char*>("-v"));

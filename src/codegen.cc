@@ -54,9 +54,9 @@ static bool ConstexprIntOverflow(SourceLocation& Loc, llvm::ConstantInt* Vconst,
 
 static bool ConstexprFPOverflow(SourceLocation& Loc, llvm::ConstantFP* Vconst, double rawDouble, llvm::ConstantFP* rawConst = nullptr) {
 	double rawVal = rawConst ? rawConst->getValue().convertToDouble() : rawDouble;
-	if (Vconst->isInfinity() && !isinf(rawVal) ||
+	if (Vconst->isInfinity() && !std::isinf(rawVal) ||
 	    Vconst->isZero() && !(rawVal == 0.0) ||
-	    Vconst->isNaN() && !isnan(rawVal)) {
+	    Vconst->isNaN() && !std::isnan(rawVal)) {
 		errs() << Loc << ": untyped constexpr value (" << rawVal
 		       << ") cannot be represented as a" << " " << *Vconst->getType() << "\n";
 		return true;

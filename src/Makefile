@@ -93,6 +93,7 @@ ifeq ($(shell uname),NetBSD)
 	CPPEXTRAFLAGS := -I/usr/include/readline
 	EXTRAOBJS :=
 	EDITLINEOBJS := # we use system provided BSD editline
+	LINKEXTRAFLAGS := -latomic -rdynamic
 else
 ifeq ($(shell uname),OpenBSD)
 	CPPEXTRAFLAGS := -Wno-reorder-init-list -I/usr/include/readline -DNEED_HISTORY_H=1
