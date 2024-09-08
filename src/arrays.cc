@@ -773,7 +773,7 @@ llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
 		if (idx >= n_inter)
 			break;
 		auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(std::get<0>(interpolations[idx])));
-		auto inter_val = interface_expr->codegen_raw(interface_val_adr, true);
+		auto inter_val = interface_expr->codegen_raw(interface_val_adr);
 		if (!inter_val) {
 			errs() << interface_expr->Loc << ": cannot generate interpolation value\n";
 			return nullptr;

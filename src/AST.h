@@ -57,10 +57,7 @@ class InterfaceExprAST : public ExprAST {
 public:
 	InterfaceExprAST(std::unique_ptr<ExprAST> _expr, volvoxc::FullType* interface_ft = nullptr) :
 		ExprAST(interface_type, _expr->Loc, false), expr(std::move(_expr)), interface_ft(interface_ft) {}
-	llvm::Value* codegen_raw(llvm::Value* target, bool strict);
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) {
-		return codegen_raw(target, false);
-	}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr);
 };
 
 // internal AST node to hold an already (i.e. no more changing) evaluated

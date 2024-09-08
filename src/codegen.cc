@@ -638,9 +638,8 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
-llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
+llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* val = nullptr;
-	llvm::Value* strict_target;
 	llvm::Constant* vtable = nullptr;
 	llvm::Value* rttype_ptr = nullptr;
 	if (!expr->ft->type)
@@ -666,11 +665,6 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 			errs() << Loc << ": specialized interfaces cannot be implemented by arrays\n";
 			return nullptr;
 		}
-		if (strict) {
-			strict_target = target;
-			target = nullptr;
-		} else
-			strict_target = nullptr;
 		// pass by reference
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
 			auto V = LV->codegen_ref();
@@ -680,15 +674,11 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 				val = getInterfaceArrayValue(val, array_type);
 		} else {
 			llvm::Value* array = nullptr;
-			if (expr->needs_target() && !target) {
-				auto [allocsz, valproto, ndim] = expr->alloc_dims();
-				val = CreateAlloca(allocsz,
-				                   TheModule->getDataLayout().getPrefTypeAlign(llvm_size_type));
-				array = expr->codegen_raw(val);
-				val = Builder->CreateInsertValue(valproto, Builder->CreatePointerCast(val, llvm::cast<llvm::StructType>(valproto->getType())->getElementType(ndim)), ndim);
-			} else {
-				array = expr->codegen_raw(target);
-			}
+			auto [allocsz, valproto, ndim] = expr->alloc_dims();
+			val = CreateAlloca(allocsz,
+			                   TheModule->getDataLayout().getPrefTypeAlign(llvm_size_type));
+			array = expr->codegen_raw(val);
+			val = Builder->CreateInsertValue(valproto, Builder->CreatePointerCast(val, llvm::cast<llvm::StructType>(valproto->getType())->getElementType(ndim)), ndim);
 			if (!array) {
 				errs() << Loc << ": cannot generate code for interface -expression\n";
 				return nullptr;
@@ -710,12 +700,9 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target, bool strict) {
 				}
 			}
 		}
-		if (strict) {
-			llvm::Value* val_storage = CreateEntryBlockAlloca(val->getType());
-			Builder->CreateStore(val, val_storage);
-			val = val_storage;
-			target = strict_target;
-		}
+		llvm::Value* val_storage = CreateEntryBlockAlloca(val->getType());
+		Builder->CreateStore(val, val_storage);
+		val = val_storage;
 	} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr->ft->type)) {
 		if (auto LV = dynamic_cast<LvalueExprAST*>(expr.get())) {
 			auto V = LV->codegen_ref(true);

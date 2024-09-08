@@ -1104,7 +1104,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			unsigned idx = (i+arg_offs) - n_proto_args;
 			auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(Args[i]));
 			llvm::Value* interface_val_adr = Builder->CreateGEP(llvm_interface_type, volvox_var_array, llvm::ConstantInt::get(llvm::Type::getInt32Ty(Context), idx));
-			llvm::Value* interface_val = interface_expr->codegen_raw(interface_val_adr, true);
+			llvm::Value* interface_val = interface_expr->codegen_raw(interface_val_adr);
 			if (!interface_val) {
 				errs() << interface_expr->Loc << ": cannot generate interface expr value\n";
 				return nullptr;
@@ -1113,7 +1113,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if ((i+arg_offs) < n_proto_args && Proto->ArgTypes[i+arg_offs]->type_attr & A_interface) {
 			auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(Args[i]), Proto->ArgTypes[i+arg_offs]);
-			llvm::Value* interface_val = interface_expr->codegen_raw(nullptr, true);
+			llvm::Value* interface_val = interface_expr->codegen_raw(nullptr);
 			if (!interface_val)
 				return nullptr;
 			ArgsV.push_back(interface_val);
