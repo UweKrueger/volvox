@@ -722,19 +722,11 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			errs() << Loc << ": specialized interfaces cannot be implemented by basic types\n";
 			return nullptr;
 		}
-		// pass by value
-		if (expr->is_unknown_type && expr->ft->type->isIntegerTy()) {
-			// usually untyped int defaults to i32
-			// however, for result printing in interactive REPL we want the full value
-			// so we default to i64 here
-			expr->desired_type = llvm::Type::getInt64Ty(Context);
-			expr->ft = lex.get_full_type((expr->ft->type_attr & A_signed) ? "i64" : "u64");
-		}
-		val = expr->codegen();
-		if (!val)
+		val = Builder->CreateAlloca(expr->ft->type);
+		auto retval = expr->codegen_raw();
+		if (!retval)
 			return nullptr;
-		if (val->getType()->isFloatTy())
-			val = Builder->CreateBitCast(val, llvm::Type::getInt32Ty(Context));
+		Builder->CreateStore(retval, val);
 	}
 	if (!val)
 		return nullptr;

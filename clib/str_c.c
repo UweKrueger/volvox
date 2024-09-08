@@ -432,14 +432,7 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, unsigned long long v
 
 struct __volvox_interface {
 	const VOLVOX_RtType* typ;
-	union {
-		char* ptr;
-		uint64_t u64;
-		double f64;
-		uint32_t u32;
-		float f32;
-		complex_float c32;
-	};
+	void* ptr;
 };
 
 static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, bool nl, unsigned n_elem,
@@ -464,9 +457,9 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 		case VOLVOX_DoubleTyID: {
 			double val;
 			if (ft->ID != VOLVOX_DoubleTyID) {
-				val = (double)ap[idx].f32;
+				val = *(float*)ap[idx].ptr;
 			} else {
-				val = ap[idx].f64;
+				val = *(double*)ap[idx].ptr;
 			}
 			if (!precisions || p < 0)
 				p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
@@ -478,10 +471,9 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 		case VOLVOX_IntegerTyID: {
 			unsigned long long vall;
 			if (ft->SubclassData <= 32) {
-				unsigned val = ap[idx].u32;
-				vall = val;
+				vall = *(unsigned*)ap[idx].ptr;
 			} else {
-				vall = ap[idx].u64;
+				vall = *(unsigned long long*)ap[idx].ptr;
 			}
 			if (ft->type_attr & A_complex) {
 				if (p < 0) p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
@@ -523,7 +515,7 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 			break;
 		case VOLVOX_FixedVectorTyID: {
 			if (ft->type_attr & A_complex) {
-				complex_float c = ap[idx].c32;
+				complex_float c = *(complex_float*)ap[idx].ptr;
 				p = (ft->ID == VOLVOX_DoubleTyID) ? F64_DEFAULT_PRECISION : F32_DEFAULT_PRECISION;
 				prt_float(s, cap, pos, space, crealf(c), w, p, flags);
 				const char* sp = cimagf(c) < 0 ? " - " : " + ";
@@ -535,7 +527,7 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 		}
 			break;
 		case VOLVOX_PointerTyID: {
-			char* str = ap[idx].ptr;
+			char* str = *(char**)ap[idx].ptr;
 			prt_pointer(s, cap, pos, str, w, ft->type_attr, flags);
 		}
 			break;
