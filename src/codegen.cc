@@ -683,21 +683,9 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 				errs() << Loc << ": cannot generate code for interface -expression\n";
 				return nullptr;
 			}
-			if (array->getType()->isVoidTy()) {
-				if (target) // Does this happen at all?
-					return array;
-				// else {
-				// 	errs() << Loc << ": cannot generate code for interface expression\n";
-				// 	abort();
-				// 	return nullptr;
-				// }
-			} else {
-				// if it's an rvalue we have to store it on stack to get a reference
-				if (!target || (intptr_t)target == -1) {
-					condnesting++; // force 'alloca()' instead of 'malloc()' - TODO: implement and use 'codegen_dims()' instead
-					val = StoreValue(array, expr->ft, MakeInterfaceArrayType(array_type));
-					condnesting--;
-				}
+			if (!array->getType()->isVoidTy()) {
+				errs() << Loc << ": internal error\n";
+				exit(1);
 			}
 		}
 		llvm::Value* val_storage = CreateEntryBlockAlloca(val->getType());
@@ -1859,22 +1847,23 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 		} else {
 			if (allocsz > sret_limit || is_constructor_call) {
 				auto align = getAlignment(allocsz);
+				llvm::Value* OldVal;
 				if (target && (intptr_t)target != -1) {
 					Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
-					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+					OldVal = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				} else {
-					auto OldVal = Builder->CreateLoad(Variable.first, Variable.second);
-					if (ValPtr)
-						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
-					else {
-						auto voidval = RHS->codegen_raw(Variable.second);
-						if (!voidval || !voidval->getType()->isVoidTy()) {
-							errs() << Loc << ": internal error: sret ++call does not return void\n";
-							return nullptr;
-						}
-					}
-					return OldVal;
+					OldVal = Builder->CreateLoad(Variable.first, Variable.second);
 				}
+				if (ValPtr)
+					Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
+				else {
+					auto voidval = RHS->codegen_raw(Variable.second);
+					if (!voidval || !voidval->getType()->isVoidTy()) {
+						errs() << Loc << ": internal error: sret ++call does not return void\n";
+						return nullptr;
+					}
+				}
+				return OldVal;
 			} else {
 				llvm::Value* OldVal = (target && ValPtr && !postpone_valgen) ?
 					llvm::UndefValue::get(llvm::Type::getVoidTy(Context)) :
