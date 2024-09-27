@@ -2175,10 +2175,7 @@ int main(int argc, char* argv[]) {
 					}
 				}
 #ifdef _WIN32
-				if (target_mingw)
-					strcat(libpath, "\\libvolvox.dll");
-				else
-					strcat(libpath, "\\libvolvox.a");
+				strcat(libpath, "\\libvolvox.a");
 #else
 				strcat(libpath, "/libvolvox.a");
 #endif
