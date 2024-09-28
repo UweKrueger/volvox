@@ -849,8 +849,13 @@ enum LinkModes {
 enum StripModes {
 	strip_undefined = 0,
 	dont_strip,
-	strip_unused,
-	strip_all
+	do_strip
+};
+
+enum LTOModes {
+	lto_undefined = 0,
+	lto_none,
+	lto_thin
 };
 
 extern CompModes comp_mode;

@@ -161,15 +161,18 @@ ifeq ($(CC),gcc)
 	LINK := g++
 	INCPCH := -include $(PRJH)
 	PCH := $(PRJH:%.hh=%.hh.gch)
+	AR := ar
 else
 ifeq ($(CC),gcc-14)
 	CXX := g++-14
 	LINK := g++-14
 	INCPCH := -include $(PRJH)
 	PCH := $(PRJH:%.hh=%.hh.gch)
+	AR := ar
 else
 	CXX := clang++$(SUFFIX)
 	LINK := clang++$(SUFFIX)
+	AR := llvm-ar$(SUFFIX)
 ifeq ($(shell test $(LLVMVERSION) -ge 18; echo $$?),0)
 	PCH := $(PRJH:%.hh=%.hh.pch)
 else
@@ -186,8 +189,11 @@ OBJS := $(CCOBJS) $(EXTRAOBJS) $(EDITLINEOBJS)
 
 LIBOBJS := map.o str.o array.o
 LIBCOBJS := str_c.o threads_c.o
+LIBOBJSTLTO := map.tlto.o str.tlto.o array.tlto.o
+LIBCOBJSTLTO := str_c.tlto.o threads_c.tlto.o
 
 LIBVOLVOXVERS := 0
+LIBVOLVOXTLTONAME := libvolvox.tlto.a
 ifeq ($(NIXTYPE),msvc)
 LIBVOLVOXBASE := libvolvox.dll
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
@@ -212,6 +218,7 @@ endif
 endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
 LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
+LIBVOLVOXTLTO := ../lib/$(LIBVOLVOXTLTONAME)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
@@ -227,15 +234,21 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 %.o: ../clib/%.cc
 	$(CXX) $(TARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
 
+%.tlto.o: ../clib/%.cc
+	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
+
 %.o: ../clib/%.c
 	$(CC) $(TARGET) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(PIC) $(OPT) $<
+
+%.tlto.o: ../clib/%.c
+	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
 
 ifeq ($(NIXTYPE),mingw64)
 %.o: ../wineditline/%.c
 	$(CC) $(TARGET) -c $(EXTRAINC) $(OPT) $<
 endif
 
-all: $(PROG) $(LIBVOLVOX)
+all: $(PROG) $(LIBVOLVOX) $(LIBVOLVOXTLTO)
 
 $(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh ../clib/map.h ../clib/types.h ../clib/str.h AST.h global.h
 ifeq ($(CC),gcc)
@@ -245,19 +258,23 @@ else
 endif
 
 $(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
-	$(CC) $(TARGET) -shared $(PIC) $(LIBVOLVOXSONAMESPEC) -o $(LIBVOLVOX) $+
+	$(CC) $(TARGET) -shared $(PIC) $(LIBVOLVOXSONAMESPEC) -o $@ $+
 ifeq ($(NIXTYPE),mingw64)
 	cp $(LIBVOLVOX) ..
 else
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
 endif
 
+$(LIBVOLVOXTLTO): $(LIBOBJSTLTO) $(LIBCOBJSTLTO)
+	rm -f $@
+	$(AR) -qc $@ $+
+
 $(PROG): $(OBJS) $(LIBOBJS) $(LIBCOBJS)
 	$(LINK) $(TARGET) -o $@ $(OBJS) $(LDFLAGS) $(LIBOBJS) $(LIBCOBJS) $(RPATH) $(LINKEXTRAFLAGS)
 
 .PHONY: clean
 clean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS)  $(LIBCOBJS) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSTLTO) $(LIBCOBJSTLTO) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXTLTO) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
 
 .depend:
 	$(CXX) $(TARGET) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend

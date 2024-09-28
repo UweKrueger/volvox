@@ -687,12 +687,14 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 			llvm::ModulePassManager MPM;
 			if (optimization_level == llvm::OptimizationLevel::O0) {
 #if LLVM_VERSION_MAJOR < 18
+				// work around broken -O0 optimization
 				MPM = PB.buildModuleSimplificationPipeline(optimization_level, llvm::ThinOrFullLTOPhase::ThinLTOPostLink);
 #else
 				MPM = PB.buildO0DefaultPipeline(optimization_level);
 #endif
 			} else
-				MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
+				// MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
+				MPM = PB.buildThinLTOPreLinkDefaultPipeline(optimization_level);
 			MPM.run(*TheModule, MAM);
 		}
 #endif

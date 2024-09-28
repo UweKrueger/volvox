@@ -17,6 +17,7 @@
 CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 StripModes strip_mode = strip_undefined;
+LTOModes lto_mode = lto_undefined;
 std::vector<std::string> include_files;
 std::vector<std::string> extra_libs;
 std::vector<std::vector<const char*>> source_files = {{}};
@@ -1356,6 +1357,8 @@ static void full_usage(const char* prog) {
 	errs() << " -J .......... use JIT to run file(s) and start interactive session\n";
 	errs() << " -i file ..... include \"file\" in advance\n";
 	errs() << " -o file ..... output compiled result to \"file\"\n";
+	errs() << " -strip ...... strip symbols from binary\n";
+	errs() << " -no-lto ..... no link time optimization (default: thin LTO)\n";
 	errs() << " -s size ..... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
 	errs() << "               default: `ulimit -s` if finite or 10MB otherwise\n";
 	errs() << " -m<target> .. platform target option, e.g. '-mingw' or '-msvc' on Windows\n";
@@ -1610,18 +1613,22 @@ int main(int argc, char* argv[]) {
 			}
 			break;
 		case 'n':
-			if (!strcmp(optarg, "ostrip") || !strcmp(optarg, "o-strip")) {
-				if (strip_mode != strip_undefined && strip_mode != dont_strip) {
+			if (!strcmp(optarg, "olte") || !strcmp(optarg, "no-lto")) {
+				if (lto_mode != lto_undefined && lto_mode != lto_none) {
 					errs() << RED << "option '-m" << optarg << "' conflicts with previous option" << RESET << "\n";
 					usage(argv[0]);
 				}
-				strip_mode = dont_strip;
+				lto_mode = lto_none;
 			} else {
 				errs() << RED << "unknown option '-m" << optarg << "'" << RESET << "\n";
 				usage(argv[0]);
 			}
 			break;
 		case 's':
+			if (!strcmp(optarg, "trip")) {
+				strip_mode = do_strip;
+				break;
+			}
 			errno = 0;
 			stacksize = strtoull(optarg, &endptr, 0);
 			if (!errno) {
@@ -1825,15 +1832,18 @@ int main(int argc, char* argv[]) {
 			link_mode = do_link;
 	}
 	if (!strip_mode) {
-		if (comp_mode == comp_jit)
-			strip_mode = dont_strip;
-		else
-			strip_mode = strip_unused;
+		strip_mode = dont_strip;
 	} else {
 		if (link_mode != do_link) {
 			errs() << RED << "strip option invalid when no linking is done" << RESET << "\n";
 			usage(argv[0]);
 		}
+	}
+	if (!lto_mode) {
+		if (link_mode == do_link)
+			lto_mode = lto_thin;
+		else
+			lto_mode = lto_none;
 	}
 	if (idiv_mode == idiv_mode_undef)
 		idiv_mode = idiv_mode_floored; // default to Knuth's suggestion
@@ -2253,9 +2263,11 @@ int main(int argc, char* argv[]) {
 #ifndef _WIN32
 			char* rpath = nullptr;
 			if (!target_mingw) {
-				rpath = (char*)alloca(lr+43);
-				strcpy(rpath, "-Wl,-rpath,");
-				strcat(rpath, libpath);
+				if (lto_mode != lto_thin) {
+					rpath = (char*)alloca(lr+43);
+					strcpy(rpath, "-Wl,-rpath,");
+					strcat(rpath, libpath);
+				}
 			}
 #endif
 			if (!linker_exe)
@@ -2268,6 +2280,13 @@ int main(int argc, char* argv[]) {
 			std::vector<char*> linker_argv = {};
 			linker_argv.reserve(16);
 			linker_argv.push_back(linker_exe);
+			if (lto_mode == lto_thin
+#ifdef _WIN32
+			    && target_mingw
+#endif
+				) {
+				linker_argv.push_back(const_cast<char*>("-flto=thin"));
+			}
 			linker_argv.push_back(output_file);
 			for (auto& lib: extra_libs)
 				linker_argv.push_back(const_cast<char*>(lib.c_str()));
@@ -2287,7 +2306,7 @@ int main(int argc, char* argv[]) {
 				linker_argv.push_back(libdirs[0]);
 				linker_argv.push_back(libdirs[1]);
 				linker_argv.push_back(libdirs[2]);
-				if (strip_mode == dont_strip)
+				if (lto_mode == lte_none)
 					linker_argv.push_back(const_cast<char*>("/OPT:NOREF,NOICF,NOLBR"));
 				if (verbosity >= 3)
 					linker_argv.push_back(const_cast<char*>("-verbose"));
@@ -2306,8 +2325,12 @@ int main(int argc, char* argv[]) {
 				linker_argv.push_back(libpath);
 #ifndef _WIN32
 				if (!target_mingw) {
-					linker_argv.push_back(const_cast<char*>("-lvolvox"));
-					linker_argv.push_back(rpath);
+					if (lto_mode == lto_thin) {
+						linker_argv.push_back(const_cast<char*>("-lvolvox.tlto"));
+					} else {
+						linker_argv.push_back(const_cast<char*>("-lvolvox"));
+						linker_argv.push_back(rpath);
+					}
 				}
 				if (needs_libm)
 					linker_argv.push_back(const_cast<char*>("-lm"));
@@ -2356,16 +2379,12 @@ int main(int argc, char* argv[]) {
 #ifdef _WIN32
 		    // MSVC link removes unneeded by default unless /OPT:NOREF... is given
 		    // so we only use llvm-strip.exe for --strip-all
-		    && (target_mingw || strip_mode == strip_all)
+		    && (target_mingw || strip_mode == do_strip)
 #endif
 			) {
 			std::vector<char*> strip_argv = {};
-			strip_argv.reserve(4);
+			strip_argv.reserve(3);
 			strip_argv.push_back(const_cast<char*>(STRIP_EXE));
-			if (strip_mode == strip_all)
-				strip_argv.push_back(const_cast<char*>("--strip-all"));
-			else
-				strip_argv.push_back(const_cast<char*>("--strip-unneeded"));
 			strip_argv.push_back(exe_file);
 			strip_argv.push_back(nullptr);
 			if (verbosity)
