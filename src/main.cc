@@ -2367,6 +2367,7 @@ int main(int argc, char* argv[]) {
 			else
 				strip_argv.push_back(const_cast<char*>("--strip-unneeded"));
 			strip_argv.push_back(exe_file);
+			strip_argv.push_back(nullptr);
 			if (verbosity)
 				for (auto a: strip_argv) {
 					if (a)
