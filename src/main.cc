@@ -18,6 +18,7 @@ CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
 StripModes strip_mode = strip_undefined;
 LTOModes lto_mode = lto_undefined;
+bool inject_console_setup = true;
 std::vector<std::string> include_files;
 std::vector<std::string> extra_libs;
 std::vector<std::vector<const char*>> source_files = {{}};
@@ -1359,6 +1360,7 @@ static void full_usage(const char* prog) {
 	errs() << " -o file ..... output compiled result to \"file\"\n";
 	errs() << " -strip ...... strip symbols from binary\n";
 	errs() << " -no-lto ..... no link time optimization (default: thin LTO)\n";
+	errs() << " -no-setup-con do not inject console setup code\n";
 	errs() << " -s size ..... stack size for .exe(Windows)/new threads (suffix kB, MB, GB)\n";
 	errs() << "               default: `ulimit -s` if finite or 10MB otherwise\n";
 	errs() << " -m<target> .. platform target option, e.g. '-mingw' or '-msvc' on Windows\n";
@@ -1613,12 +1615,14 @@ int main(int argc, char* argv[]) {
 			}
 			break;
 		case 'n':
-			if (!strcmp(optarg, "olte") || !strcmp(optarg, "no-lto")) {
+			if (!strcmp(optarg, "olte") || !strcmp(optarg, "o-lto")) {
 				if (lto_mode != lto_undefined && lto_mode != lto_none) {
 					errs() << RED << "option '-m" << optarg << "' conflicts with previous option" << RESET << "\n";
 					usage(argv[0]);
 				}
 				lto_mode = lto_none;
+			} else if (!strcmp(optarg, "osetupcon") || !strcmp(optarg, "o-setup-con")) {
+				inject_console_setup = false;
 			} else {
 				errs() << RED << "unknown option '-m" << optarg << "'" << RESET << "\n";
 				usage(argv[0]);

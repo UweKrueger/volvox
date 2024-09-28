@@ -860,6 +860,8 @@ enum LTOModes {
 
 extern CompModes comp_mode;
 extern LinkModes link_mode;
+extern LTOModes lto_mode;
+extern bool inject_console_setup;
 extern std::vector<VarTable> locals_table; // including function arguments
 extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;

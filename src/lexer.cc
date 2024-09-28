@@ -455,7 +455,7 @@ bool Lexer::next_input_file() {
 	if (input_file && input_file != stdin) {
 		if (input_file == builtin_input_file) {
 			builtin_input_file = nullptr;
-			if (comp_mode != comp_jit) {
+			if (inject_console_setup && comp_mode != comp_jit) {
 				std::string consetup = "__setup_console";
 				auto protos = lex.findProtos(consetup);
 				std::unique_ptr<ExprAST> callee = std::make_unique<FunctionExprAST>(
