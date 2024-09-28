@@ -846,6 +846,13 @@ enum LinkModes {
 	dont_link,
 };
 
+enum StripModes {
+	strip_undefined = 0,
+	dont_strip,
+	strip_unused,
+	strip_all
+};
+
 extern CompModes comp_mode;
 extern LinkModes link_mode;
 extern std::vector<VarTable> locals_table; // including function arguments
