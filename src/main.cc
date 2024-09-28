@@ -16,6 +16,7 @@
 
 CompModes comp_mode = comp_undefined;
 LinkModes link_mode = link_undefined;
+StripModes strip_mode = strip_undefined;
 std::vector<std::string> include_files;
 std::vector<std::string> extra_libs;
 std::vector<std::vector<const char*>> source_files = {{}};
@@ -1452,6 +1453,7 @@ inline bool is_exe(const char* file) {
 }
 
 #if defined (_MSC_VER)
+#define STRIP_EXE "C:\\Program Files\\LLVM\\bin\\llvm-strip.exe"
 // glob patterns to search for linker and libraries
 #ifndef LINKER
 #define LINKER "C:\\Program Files*\\Microsoft Visual Studio\\*\\*\\VC\\Tools\\MSVC\\*\\bin\\Hostx64\\x64\\link.exe"
@@ -1475,6 +1477,7 @@ inline bool is_exe(const char* file) {
 #ifndef MINGW_W64_CLANG
 #define MINGW_W64_CLANG "C:\\Program Files\\LLVM\\bin\\clang.exe"
 #endif
+#define STRIP_EXE "strip"
 #define LIBDIRS { }
 #endif
 
@@ -1499,7 +1502,7 @@ int main(int argc, char* argv[]) {
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << RESET << "\n";
 	int opt;
 	char* endptr;
-	while ((opt = getopt(argc, argv, "vdDcghrjJm:M:f:O:i:o:s:tP:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdDcghrjJm:M:n:f:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -1603,6 +1606,18 @@ int main(int argc, char* argv[]) {
 				target_mingw = false;
 			else {
 				errs() << RED << "unknown target option '-m" << optarg << "'" << RESET << "\n";
+				usage(argv[0]);
+			}
+			break;
+		case 'n':
+			if (!strcmp(optarg, "ostrip") || !strcmp(optarg, "o-strip")) {
+				if (strip_mode != strip_undefined && strip_mode != dont_strip) {
+					errs() << RED << "option '-m" << optarg << "' conflicts with previous option" << RESET << "\n";
+					usage(argv[0]);
+				}
+				strip_mode = dont_strip;
+			} else {
+				errs() << RED << "unknown option '-m" << optarg << "'" << RESET << "\n";
 				usage(argv[0]);
 			}
 			break;
@@ -1786,7 +1801,7 @@ int main(int argc, char* argv[]) {
 	if (do_pres.undecided())
 		do_pres = jit_repl;
 
-	if (jit_repl)
+	if (jit_repl) {
 		// if defined(__linux__) || defined(_WIN32) || defined(__FreeBSD__)
 		// These 3 OSs have robust mutexes so it makes sense to run
 		// each top level expression in a newly spawned thread in
@@ -1802,12 +1817,23 @@ int main(int argc, char* argv[]) {
 		// we have to live with stale mutexes, i.e. potential dead locks
 		// but it still makes sense to use a separate thread
 		jit_extra_thread = true;
-
+	}
 	if (!link_mode) {
 		if (comp_mode == comp_jit)
 			link_mode = dont_link;
 		else
 			link_mode = do_link;
+	}
+	if (!strip_mode) {
+		if (comp_mode == comp_jit)
+			strip_mode = dont_strip;
+		else
+			strip_mode = strip_unused;
+	} else {
+		if (link_mode != do_link) {
+			errs() << RED << "strip option invalid when no linking is done" << RESET << "\n";
+			usage(argv[0]);
+		}
 	}
 	if (idiv_mode == idiv_mode_undef)
 		idiv_mode = idiv_mode_floored; // default to Knuth's suggestion
@@ -2252,7 +2278,7 @@ int main(int argc, char* argv[]) {
 				linker_argv.push_back(stack_size); // mingw on Windows or cross compiler (e.g. on Linux)
 			}
 #ifdef _WIN32
-			else {
+			else { // target msvc
 				linker_argv.push_back(stack_size); // native Windows
 				linker_argv.push_back(exe_out);
 				linker_argv.push_back(const_cast<char*>("-defaultlib:ucrt"));
@@ -2261,6 +2287,8 @@ int main(int argc, char* argv[]) {
 				linker_argv.push_back(libdirs[0]);
 				linker_argv.push_back(libdirs[1]);
 				linker_argv.push_back(libdirs[2]);
+				if (strip_mode == dont_strip)
+					linker_argv.push_back(const_cast<char*>("/OPT:NOREF,NOICF,NOLBR"));
 				if (verbosity >= 3)
 					linker_argv.push_back(const_cast<char*>("-verbose"));
 				else
@@ -2320,23 +2348,61 @@ int main(int argc, char* argv[]) {
 				result = 1;
 			} else {
 				result = volvox_wait(linker_pid);
-				if (result) {
+				if (result)
 					errs() << "Linking failed with exit code " << result << '\n';
-				} else if (run_program) {
-#if !defined(_MSC_VER)
-					char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
+			}
+		}
+		if (!result && strip_mode != dont_strip
+#ifdef _WIN32
+		    // MSVC link removes unneeded by default unless /OPT:NOREF... is given
+		    // so we only use llvm-strip.exe for --strip-all
+		    && (target_mingw || strip_mode == strip_all)
 #endif
-					strcpy(exe_out, "./");
-					strcat(exe_out, exe_file);
-					char* prog_argv[] = { exe_out, nullptr };
-					int prog_pid;
-					if (!volvox_spawn(&prog_pid, nullptr, nullptr, nullptr, prog_argv)) {
-						errs() << llvm::format("Failed to run program: %s\n", strerror(errno));
-						result = 1;
-					} else {
-						result = volvox_wait(prog_pid);
-					}
+			) {
+			std::vector<char*> strip_argv = {};
+			strip_argv.reserve(4);
+			strip_argv.push_back(const_cast<char*>(STRIP_EXE));
+			if (strip_mode == strip_all)
+				strip_argv.push_back(const_cast<char*>("--strip-all"));
+			else
+				strip_argv.push_back(const_cast<char*>("--strip-unneeded"));
+			strip_argv.push_back(exe_file);
+			if (verbosity)
+				for (auto a: strip_argv) {
+					if (a)
+						errs() << ' '
+#ifdef _WIN32
+						       << '"'
+#endif
+						       << a
+#ifdef _WIN32
+						       << '"'
+#endif
+							;
+					else
+						errs() << '\n';
 				}
+			int strip_pid;
+			if (!volvox_spawn(&strip_pid, nullptr, nullptr, nullptr, strip_argv.data())) {
+				errs() << llvm::format("Failed to strip binary: %s\n", strerror(errno));
+				result = 1;
+			} else {
+				result = volvox_wait(strip_pid);
+				if (result)
+					errs() << "strip failed with exit code " << result << '\n';
+			}
+		}
+		if (!result && run_program) {
+			char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
+			strcpy(exe_out, "./");
+			strcat(exe_out, exe_file);
+			char* prog_argv[] = { exe_out, nullptr };
+			int prog_pid;
+			if (!volvox_spawn(&prog_pid, nullptr, nullptr, nullptr, prog_argv)) {
+				errs() << llvm::format("Failed to run program: %s\n", strerror(errno));
+				result = 1;
+			} else {
+				result = volvox_wait(prog_pid);
 			}
 		}
 	} else if (comp_mode == comp_dbg) {
