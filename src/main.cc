@@ -1844,7 +1844,11 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	if (!lto_mode) {
-		if (link_mode == do_link)
+		if (link_mode == do_link
+#ifdef _WIN32
+		    && target_mingw
+#endif
+			)
 			lto_mode = lto_thin;
 		else
 			lto_mode = lto_none;
@@ -2217,9 +2221,9 @@ int main(int argc, char* argv[]) {
 					}
 				}
 #ifdef _WIN32
-				strcat(libpath, "\\libvolvox.a");
+				strcat(libpath, (lto_mode == lto_thin) ? "\\lib\\libvolvox.lto.a" : "\\lib\\libvolvox.a");
 #else
-				strcat(libpath, "/libvolvox.a");
+				strcat(libpath, (lto_mode == lto_thin) ? "/lib/libvolvox.lto.a" : "/lib/libvolvox.a");
 #endif
 			}
 #if defined(_WIN32)
@@ -2312,7 +2316,7 @@ int main(int argc, char* argv[]) {
 				linker_argv.push_back(libdirs[0]);
 				linker_argv.push_back(libdirs[1]);
 				linker_argv.push_back(libdirs[2]);
-				if (lto_mode == lte_none)
+				if (lto_mode == lto_none)
 					linker_argv.push_back(const_cast<char*>("/OPT:NOREF,NOICF,NOLBR"));
 				if (verbosity >= 3)
 					linker_argv.push_back(const_cast<char*>("-verbose"));
@@ -2332,7 +2336,7 @@ int main(int argc, char* argv[]) {
 #ifndef _WIN32
 				if (!target_mingw) {
 					if (lto_mode == lto_thin) {
-						linker_argv.push_back(const_cast<char*>("-lvolvox.tlto"));
+						linker_argv.push_back(const_cast<char*>("-lvolvox.lto"));
 					} else {
 						linker_argv.push_back(const_cast<char*>("-lvolvox"));
 						linker_argv.push_back(rpath);

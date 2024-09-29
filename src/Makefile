@@ -189,11 +189,11 @@ OBJS := $(CCOBJS) $(EXTRAOBJS) $(EDITLINEOBJS)
 
 LIBOBJS := map.o str.o array.o
 LIBCOBJS := str_c.o threads_c.o
-LIBOBJSTLTO := map.tlto.o str.tlto.o array.tlto.o
-LIBCOBJSTLTO := str_c.tlto.o threads_c.tlto.o
+LIBOBJSLTO := map.lto.o str.lto.o array.lto.o
+LIBCOBJSLTO := str_c.lto.o threads_c.lto.o
 
 LIBVOLVOXVERS := 0
-LIBVOLVOXTLTONAME := libvolvox.tlto.a
+LIBVOLVOXLTONAME := libvolvox.lto.a
 ifeq ($(NIXTYPE),msvc)
 LIBVOLVOXBASE := libvolvox.dll
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
@@ -218,7 +218,7 @@ endif
 endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
 LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
-LIBVOLVOXTLTO := ../lib/$(LIBVOLVOXTLTONAME)
+LIBVOLVOXLTO := ../lib/$(LIBVOLVOXLTONAME)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
@@ -234,13 +234,13 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 %.o: ../clib/%.cc
 	$(CXX) $(TARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
 
-%.tlto.o: ../clib/%.cc
+%.lto.o: ../clib/%.cc
 	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
 
 %.o: ../clib/%.c
 	$(CC) $(TARGET) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(PIC) $(OPT) $<
 
-%.tlto.o: ../clib/%.c
+%.lto.o: ../clib/%.c
 	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
 
 ifeq ($(NIXTYPE),mingw64)
@@ -248,7 +248,7 @@ ifeq ($(NIXTYPE),mingw64)
 	$(CC) $(TARGET) -c $(EXTRAINC) $(OPT) $<
 endif
 
-all: $(PROG) $(LIBVOLVOX) $(LIBVOLVOXTLTO)
+all: $(PROG) $(LIBVOLVOX) $(LIBVOLVOXLTO)
 
 $(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh ../clib/map.h ../clib/types.h ../clib/str.h AST.h global.h
 ifeq ($(CC),gcc)
@@ -265,7 +265,7 @@ else
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
 endif
 
-$(LIBVOLVOXTLTO): $(LIBOBJSTLTO) $(LIBCOBJSTLTO)
+$(LIBVOLVOXLTO): $(LIBOBJSLTO) $(LIBCOBJSLTO)
 	rm -f $@
 	$(AR) -qc $@ $+
 
@@ -274,7 +274,7 @@ $(PROG): $(OBJS) $(LIBOBJS) $(LIBCOBJS)
 
 .PHONY: clean
 clean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSTLTO) $(LIBCOBJSTLTO) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXTLTO) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSLTO) $(LIBCOBJSLTO) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXLTO) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
 
 .depend:
 	$(CXX) $(TARGET) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend
