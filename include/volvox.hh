@@ -49,6 +49,7 @@
 #include <llvm/Transforms/Scalar/GVN.h>
 #include <llvm/Transforms/Utils.h>
 #include <llvm/Target/TargetOptions.h>
+#include <llvm/Bitcode/BitcodeWriter.h>
 #include <algorithm>
 #include <cassert>
 #include <cctype>

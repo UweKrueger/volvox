@@ -692,9 +692,12 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 #else
 				MPM = PB.buildO0DefaultPipeline(optimization_level);
 #endif
-			} else
-				// MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
-				MPM = PB.buildThinLTOPreLinkDefaultPipeline(optimization_level);
+			} else {
+				if (lto_mode == lto_thin)
+					MPM = PB.buildThinLTOPreLinkDefaultPipeline(optimization_level);
+				else
+					MPM = PB.buildPerModuleDefaultPipeline(optimization_level);
+			}
 			MPM.run(*TheModule, MAM);
 		}
 #endif

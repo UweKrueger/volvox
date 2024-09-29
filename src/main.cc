@@ -2172,19 +2172,21 @@ int main(int argc, char* argv[]) {
 			errs() << "Could not open output file \"" << Filename << "\": " << EC.message() << '\n';
 			return 1;
 		}
-	  
-		llvm::legacy::PassManager pass;
+		if (lto_mode == lto_thin) {
+			llvm::WriteBitcodeToFile(*TheModule, dest);
+		} else {
+			llvm::legacy::PassManager pass;
 #if LLVM_VERSION_MAJOR >= 18
-		auto FileType = llvm::CodeGenFileType::ObjectFile;
+			auto FileType = llvm::CodeGenFileType::ObjectFile;
 #else
-		auto FileType = llvm::CGFT_ObjectFile;
+			auto FileType = llvm::CGFT_ObjectFile;
 #endif
-		if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
-			errs() << "TheTargetMachine can't emit a file of this type";
-			return 1;
+			if (TheTargetMachine->addPassesToEmitFile(pass, dest, nullptr, FileType)) {
+				errs() << "TheTargetMachine can't emit a file of this type";
+				return 1;
+			}
+			pass.run(*TheModule);
 		}
-
-		pass.run(*TheModule);
 		dest.flush();
 		dest.close();
 		hints() << "Wrote " << Filename << "\n";
