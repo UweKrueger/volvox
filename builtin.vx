@@ -22,7 +22,7 @@ cdecl __setup_console()
 cdecl(eventfd) __eventfd(initval int, flags int) int
 cdecl(pipe2) __pipe2(fds voidptr, flags int) int
 cdecl(close) __close(fd int) int
-cdecl(write) __write(fd int, buf voidptr, count size_t) ssize_t
+cdecl(write) __write(fd int, buf cstring, count size_t) ssize_t
 cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 
 decl __builtin_sprint(widths voidptr, precisions voidptr, flagss voidptr, strings voidptr, ...) string
@@ -32,12 +32,20 @@ inline def print(...) int
 	return __builtin_print(1, true, true, va_args)
 end
 
+inline def printn(s string) int
+	return int(__write(1, s, s.len))
+end
+
 inline def printn(...) int
 	return __builtin_print(1, false, false, va_args)
 end
 
 inline def eprint(...) int
 	return __builtin_print(2, true, true, va_args)
+end
+
+inline def eprintn(s string) int
+	return int(__write(2, s, s.len))
 end
 
 inline def eprintn(...) int
