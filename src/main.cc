@@ -1486,6 +1486,23 @@ inline bool is_exe(const char* file) {
 #define LIBDIRS { }
 #endif
 
+void print_cmd(std::vector<char*>& argv) {
+	for (auto a: argv) {
+		if (a)
+			errs() << ' '
+#ifdef _WIN32
+			       << '"'
+#endif
+			       << a
+#ifdef _WIN32
+			       << '"'
+#endif
+				;
+		else
+			errs() << '\n';
+	}
+}
+
 int main(int argc, char* argv[]) {
 	argv0 = argv[0];
 	color_tty = __setup_console();
@@ -2361,20 +2378,7 @@ int main(int argc, char* argv[]) {
 #endif
 			linker_argv.push_back(nullptr);
 			if (verbosity)
-				for (auto a: linker_argv) {
-					if (a)
-						errs() << ' '
-#ifdef _WIN32
-						       << '"'
-#endif
-						       << a
-#ifdef _WIN32
-						       << '"'
-#endif
-							;
-					else
-						errs() << '\n';
-				}
+				print_cmd(linker_argv);
 			int linker_pid;
 			if (!volvox_spawn(&linker_pid, nullptr, nullptr, nullptr, linker_argv.data())) {
 				errs() << llvm::format("Failed to link: %s\n", strerror(errno));
@@ -2398,20 +2402,7 @@ int main(int argc, char* argv[]) {
 			strip_argv.push_back(exe_file);
 			strip_argv.push_back(nullptr);
 			if (verbosity)
-				for (auto a: strip_argv) {
-					if (a)
-						errs() << ' '
-#ifdef _WIN32
-						       << '"'
-#endif
-						       << a
-#ifdef _WIN32
-						       << '"'
-#endif
-							;
-					else
-						errs() << '\n';
-				}
+				print_cmd(strip_argv);
 			int strip_pid;
 			if (!volvox_spawn(&strip_pid, nullptr, nullptr, nullptr, strip_argv.data())) {
 				errs() << llvm::format("Failed to strip binary: %s\n", strerror(errno));
