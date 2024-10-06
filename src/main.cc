@@ -556,7 +556,7 @@ cleanup:
 	purgeLine();
 }
 
-std::map<std::string,std::pair<volvoxc::FullType*,llvm::Constant*>> struct_mangled_ft;
+std::map<std::string,std::pair<volvoxc::FullType*,llvm::Constant*>> FullType_from_fqname;
 
 const char* type_type(unsigned bits) {
 	if (bits & A_c_api)
@@ -639,7 +639,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	// mangled_name will intentionally *not* be automatically freed because
 	// it can be referred anywhere. We keep a database of all types with mangled
 	// names so valgrind will not report leaks
-	struct_mangled_ft[std::string(struct_type->getName())] = { newft, nullptr };
+	FullType_from_fqname[std::string(struct_type->getName())] = { newft, nullptr };
 	if (share_kind & A_interface)
 		all_interfaces.push_back(newft);
 	else

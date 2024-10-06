@@ -126,7 +126,7 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 	if (desired_type) {
 		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(desired_type)) {
 			// cannot move "this" so create a new unique expr...
-			auto str_ft = struct_mangled_ft[std::string(struct_type->getName())].first;
+			auto str_ft = FullType_from_fqname[std::string(struct_type->getName())].first;
 			if (str_ft) {
 				// errs() << Loc << ": found '" << struct_type->getName() << "' as '" << str_ft->mangled_name << "'\n";
 				auto list = std::make_unique<ListExprAST>(Loc, std::move(Elements), str_ft);
