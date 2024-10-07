@@ -1120,10 +1120,18 @@ public:
 	std::map<std::pair<std::string, std::string>, SymbolRef> ImportedSymbols;
 };
 
+struct RtType_Description {
+	volvoxc::FullType* ft;
+	llvm::Constant* current_rttype;
+	int last_known_interface_idx;
+	int num_interfaces_in_rttype;
+	std::vector<llvm::Constant*> vtable;
+};
+
 extern std::map<std::string, Module> Modules;
 extern std::vector<std::string> extra_libs;
 extern std::map<std::pair<std::string,std::string>, std::vector<std::unique_ptr<PrototypeAST>>> MethodProtos;
-extern std::map<std::string,std::pair<volvoxc::FullType*,llvm::Constant*>> FullType_from_fqname;
+extern std::map<std::string,RtType_Description> RtType_for_fqname;
 extern std::vector<volvoxc::FullType*> all_interfaces;
 extern unsigned dump_IR;
 extern bool dump_opt;
