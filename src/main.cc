@@ -242,6 +242,8 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("interface", llvm_interface_type, nullptr);
 	interface_type = lex.get_full_type("interface");
 	interface_type->type_attr = A_interface;
+	all_interface_idxs[interface_type] = all_interfaces.size();
+	all_interfaces.push_back(interface_type);
 	llvm::Type* llvm_interface_ref_type = llvm_interface_type->getPointerTo();
 	lex.add_type("__interface_ref", llvm_interface_ref_type, nullptr);
 	interface_ref_type = lex.get_full_type("__interface_ref");
@@ -640,7 +642,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	// it can be referred anywhere. We keep a database of all types with mangled
 	// names so valgrind will not report leaks
 	RtType_for_fqname[std::string(struct_type->getName())] = {
-		.ft = newft,
+		.ft = ft,
 		.current_rttype = nullptr,
 		.num_generated_interface_idx = 0,
 		.num_checked_interface_idx = 0,
@@ -653,8 +655,8 @@ static void HandleTypeDef(unsigned share_kind) {
 		   but also find an index for a given interface.
 		   So we maintain two containers...
 		*/
-		all_interface_idxs[newft] = all_interfaces.size();
-		all_interfaces.push_back(newft);
+		all_interface_idxs[ft] = all_interfaces.size();
+		all_interfaces.push_back(ft);
 	} else
 		last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
