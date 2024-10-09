@@ -642,12 +642,20 @@ static void HandleTypeDef(unsigned share_kind) {
 	RtType_for_fqname[std::string(struct_type->getName())] = {
 		.ft = newft,
 		.current_rttype = nullptr,
-		.last_known_interface_idx = -1,
+		.num_generated_interface_idx = 0,
+		.num_checked_interface_idx = 0,
 		.num_interfaces_in_rttype = 0,
-		.vtable = {} };
-	if (share_kind & A_interface)
+		.vtable = {},
+		.vtable_offsets = {}
+	};
+	if (share_kind & A_interface) {
+		/* We want to iterate over all interfaces by index
+		   but also find an index for a given interface.
+		   So we maintain two containers...
+		*/
+		all_interface_idxs[newft] = all_interfaces.size();
 		all_interfaces.push_back(newft);
-	else
+	} else
 		last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "defined type - ft: " << ft << " " << *ft << ", " << ft->type << " as " << *ft->type << '\n';

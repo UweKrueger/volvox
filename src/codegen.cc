@@ -640,10 +640,28 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
+llvm::Value* getInterfaceFromFT(volvoxc::FullType* ft, volvoxc::FullType* interface_ft) {
+	auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
+	auto rt_descr = RtType_for_fqname.find(std::string(struct_type->getName()));
+	if (rt_descr == RtType_for_fqname.end()) {
+		errs() << "internal error: could not find type description for " << struct_type->getName() << "\n";
+		abort();
+	}
+	auto the_interf = all_interface_idxs.find(interface_ft);
+	if (the_interf == all_interface_idxs.end()) {
+		errs() << "internal error: could not find interface\n";
+		abort();
+	}
+	int idx = the_interf->second;
+	
+	return rt_descr->second.current_rttype;
+}
+
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* val = nullptr;
 	llvm::Constant* vtable = nullptr;
 	llvm::Value* rttype_ptr = nullptr;
+	llvm::Value* interf_ptr = nullptr;
 	if (!expr->ft->type)
 		return nullptr;
 	if (expr->ft->type_attr & A_interface) {
@@ -730,8 +748,11 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		Builder->CreateStore(retval, val);
 	}
-	if (!val)
+	if (!val) {
+		errs() << Loc << ": unable to create interface from expression\n";
 		return nullptr;
+	}
+	//interf_ptr = getInterfaceFromFT(expr->ft, interface_ft);
 	if (interface_ft && std::get<0>(*interface_ft->InterfaceProtos)->getNumElements() > 1) {
 		vtable = getInterfaceVtable(Loc, expr->ft, interface_ft);
 		if (!vtable)

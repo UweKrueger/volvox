@@ -14,6 +14,7 @@ unsigned anon_struct_nr = 0;
 volvoxc::FTListElem* anon_types = nullptr;
 volvoxc::FTListElem** anon_types_end = &anon_types;
 std::vector<volvoxc::FullType*> all_interfaces;
+std::map<volvoxc::FullType*,int> all_interface_idxs;
 
 void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                    bool expr_is_signed, bool desired_is_signed, const char* reason, bool is_explicit) {
