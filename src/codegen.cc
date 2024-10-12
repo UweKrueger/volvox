@@ -641,6 +641,8 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* getInterfaceFromFT(volvoxc::FullType* ft, volvoxc::FullType* interface_ft) {
+	if (!interface_ft)
+		return nullptr;
 	auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type);
 	if (!struct_type)
 		return nullptr; // special interfaces (arrays, basic types) are handled elsewhere
