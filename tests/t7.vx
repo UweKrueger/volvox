@@ -49,6 +49,9 @@ def test_exactly_one_cpu_is_defined bool
 	if cpu.isX86_64
 		m++
 	end
+	if cpu.isPPC
+		m++
+	end
 	return m == 1
 end
 

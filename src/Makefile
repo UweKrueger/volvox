@@ -172,7 +172,12 @@ ifeq ($(CC),gcc-14)
 else
 	CXX := clang++$(SUFFIX)
 	LINK := clang++$(SUFFIX)
+ifeq ($(shell type -path llvm-ar$(SUFFIX)),)
+# Alpine Linux has a special form...
+	AR := llvm18-ar
+else
 	AR := llvm-ar$(SUFFIX)
+endif
 ifeq ($(shell test $(LLVMVERSION) -ge 18; echo $$?),0)
 	PCH := $(PRJH:%.hh=%.hh.pch)
 else
