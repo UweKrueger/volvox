@@ -52,6 +52,15 @@ def test_exactly_one_cpu_is_defined bool
 	if cpu.isPPC
 		m++
 	end
+	if cpu.isRISCV32
+		m++
+	end
+	if cpu.isRISCV64
+		m++
+	end
+	if cpu.isSystemZ
+		m++
+	end
 	return m == 1
 end
 

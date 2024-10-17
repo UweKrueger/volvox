@@ -313,6 +313,15 @@ void init(const llvm::Triple& triple) {
 	case llvm::Triple::ppc64le:
 		cpu_idx = CPU_ppc64le;
 		break;
+	case llvm::Triple::riscv32:
+		cpu_idx = CPU_riscv32;
+		break;
+	case llvm::Triple::riscv64:
+		cpu_idx = CPU_riscv64;
+		break;
+	case llvm::Triple::systemz:
+		cpu_idx = CPU_systemz;
+		break;
 	default:
 		cpu_idx = CPU_Unknown;
 	}

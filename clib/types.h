@@ -259,7 +259,10 @@ enum CPU_Type_t : uint8_t {
 	CPU_avr,
 	CPU_x86,
 	CPU_x86_64,
-	CPU_ppc64le
+	CPU_ppc64le,
+	CPU_riscv32,
+	CPU_riscv64,
+	CPU_systemz
 };
 
 enum Environment_Type_t : uint8_t {
