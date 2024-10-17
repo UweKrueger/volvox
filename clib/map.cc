@@ -23,8 +23,8 @@ namespace volvox {
 /* balace factor of nodes require only 2 bits and parent pointer is
  * aligned to 8 bytes so these two can share a 64 bit value */
 
-#define PARENT(node) ((Node*)((uintptr_t)node->parent & ~0x03))
-#define SET_PARENT(node, p) node->parent = (Node*)((uintptr_t)p | node->u_bf)
+#define PARENT(node) ((Node*)((uintptr_t)node->parent & ~(uintptr_t)0x03))
+#define SET_PARENT(node, p) node->parent = (Node*)((uintptr_t)p | (uintptr_t)node->u_bf)
 
 		_DECL Node* string_new_map() { return NULL; }
 		_DECL Node* num_new_map() { return NULL; }
@@ -359,12 +359,12 @@ namespace volvox {
 		 */
 		_DECL Node* string_tag_insert(Node** root_ptr, const char* key, unsigned tag, Value value, int value_size, Node** target) {
 			bool use_tag = false;
-			if ((uintptr_t)root_ptr & 0x01)
-				root_ptr = (Node**)((uintptr_t)root_ptr & ~1ULL);
+			if ((uintptr_t)root_ptr & (uintptr_t)0x01)
+				root_ptr = (Node**)((uintptr_t)root_ptr & ~(uintptr_t)0x01);
 			else
 				use_tag = true;
 			NodePosition insert_pos = string_find(root_ptr, key);
-			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~0x01ULL);
+			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~(uintptr_t)0x01);
 			if(insert_pos.is_parent || *target) {
 				Node* node = string_tag_new_node(key, tag, value, value_size, use_tag);
 				insert_priv(root_ptr, node, insert_node, insert_pos.parent_ptr);
@@ -391,16 +391,16 @@ namespace volvox {
 		}
 
 		_DECL Node* string_insert(Node** root_ptr, const char* key, Value value, int value_size, Node** target) {
-			return string_tag_insert((Node**)((uintptr_t)root_ptr | 0x01), key, 0, value, value_size, target);
+			return string_tag_insert((Node**)((uintptr_t)root_ptr | (uintptr_t)0x01), key, 0, value, value_size, target);
 		}
 
 		_DECL Node* volvoxstring_insert(Node** root_ptr, const char* key, Value value, int value_size, Node** target) {
-			return string_tag_insert((Node**)((uintptr_t)root_ptr | 0x01), volvox2cstr(key), 0, value, value_size, target);
+			return string_tag_insert((Node**)((uintptr_t)root_ptr | (uintptr_t)0x01), volvox2cstr(key), 0, value, value_size, target);
 		}
 
 #define DEFINE_INSERT_FOR(typ) _DECL Node* typ ## _insert(Node** root_ptr, typ key, Value value, int value_size, Node** target) { \
 			NodePosition insert_pos = typ ## _find(root_ptr, key); \
-			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~0x01ULL); \
+			Node* insert_node = (Node*)((uintptr_t)insert_pos.node & ~(uintptr_t)0x01); \
 			if(insert_pos.is_parent || target) { \
 				Node* node = typ ## _new_node(key, value, value_size); \
 				insert_priv(root_ptr, node, insert_node, insert_pos.parent_ptr); \

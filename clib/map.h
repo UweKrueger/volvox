@@ -55,8 +55,27 @@ namespace volvox {
 		struct Node {
 			union {
 				struct Node* parent;
-				int bf : 2;
-				unsigned u_bf : 2;
+#ifdef __BIG_ENDIAN__
+				struct {
+#if __POINTER_WIDTH__ == 64
+					unsigned _dummy0;
+#endif
+					char _dummy1; char _dummy2; char _dummy3;
+					char _dummy4 : 6;
+					signed char bf : 2;
+				};
+				struct {
+#if __POINTER_WIDTH__ == 64
+					unsigned __dummy0;
+#endif
+					char __dummy1; char __dummy2; char __dummy3;
+					char __dummy4 : 6;
+					unsigned char u_bf : 2;
+				};
+#else
+				signed char bf : 2;
+				unsigned char u_bf : 2;
+#endif
 			};
 			struct Node* leftChild;
 			struct Node* rightChild;
@@ -67,7 +86,18 @@ namespace volvox {
 		struct NodePosition {
 			union {
 				Node* node;
+#ifdef __BIG_ENDIAN__
+				struct {
+#if __POINTER_WIDTH__ == 64
+					unsigned _dummy0;
+#endif
+					char _dummy1; char _dummy2; char _dummy3;
+					char _dummy4 : 7;
+					bool is_parent : 1; // for insert
+				};
+#else
 				bool is_parent : 1; // for insert
+#endif
 			};
 			Node** parent_ptr;
 		};
