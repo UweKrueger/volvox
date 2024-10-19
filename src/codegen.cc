@@ -210,8 +210,17 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		keys[i]->desired_type = ft->elem_type[0].type;
 		llvm::Value* Key = keys[i]->codegen();
 		values[i]->desired_type = ft->elem_type[1].type;
-		llvm::Value* Value = values[i]->codegen();
-		Value = Builder->CreateZExtOrBitCast(Value, llvm::Type::getInt64Ty(Context));
+		llvm::Value* Value0 = values[i]->codegen();
+		auto valsz = TheModule->getDataLayout().getTypeAllocSize(Value0->getType());
+		if (valsz > 8) {
+			errs() << values[i]->Loc << ": size of map element value (" << valsz << " byte) exceeds maximum of 8 byte\n";
+			return 0;
+		}
+		llvm::Value* Value = Builder->CreateZExtOrBitCast(Value0, llvm::Type::getInt64Ty(Context));
+		if (target_big_endian && valsz != 8) {
+			unsigned shift = (8 - valsz) << 3;
+			Value = Builder->CreateShl(Value, shift);
+		}
 		Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), do_replace);
 		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
 				ptr, Key, Value, Builder->getInt32(0), do_replace });
