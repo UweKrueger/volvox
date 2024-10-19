@@ -195,6 +195,7 @@ extern const char* argv0;
 extern int verbosity;
 extern bool gen_pic;
 extern bool gen_pie;
+extern bool target_big_endian;
 
 // hints to possibe problems that might be interesting for debugging the program being compiled
 inline llvm::raw_ostream& hints() {

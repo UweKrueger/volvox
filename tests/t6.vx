@@ -355,14 +355,24 @@ end
 type JFzu { z [8]u8, u i8, v f32 }
 
 global f337 = JFzu{ z: [8]u8{ 6, 7, 6, 7, 6 } }
-global hfdsw233 = OOWq{ z: [6, 7] }
+global hfdsw233 = OOWq{ z: [18]u8{ 6, 7 } }
+global hfdsw234 = OOWq{ z: [ 6hhu, 7hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu, 0hhu ] }
 
-def test_array_field_init bool
-	print(hfdsw233.t, f337.z[1], f337.z[7])
+def test_array_field_init_1 bool
+	# print(hfdsw233.t, f337.z[1], f337.z[7])
 	if arch.isBigEndian
 		return hfdsw233.t == 434315889064542208 && f337.z[1] == 7 && f337.z[7] == 0
 	else
 		return hfdsw233.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
+	end
+end
+
+def test_array_field_init_2 bool
+	# print(hfdsw234.t, f337.z[1], f337.z[7])
+	if arch.isBigEndian
+		return hfdsw234.t == 434315889064542208 && f337.z[1] == 7 && f337.z[7] == 0
+	else
+		return hfdsw234.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
 	end
 end
 

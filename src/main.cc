@@ -37,6 +37,7 @@ const char* last_defined_type = nullptr;
 bool needs_libm = false;
 bool needs_pthread = true; // for now - may be false when not needed, but hard to figure out...
 bool support_fp80;
+bool target_big_endian;
 bool have_return = false;
 int return_value = 0;
 #ifdef _WIN32
@@ -404,8 +405,9 @@ void init(const llvm::Triple& triple) {
 		errs() << "cannot create const " << "__OS_Bitwidth" << '\n';
 		abort();
 	}
+	target_big_endian = !triple.isLittleEndian();
 	FullVar is_little_endian = {
-		.val = llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), triple.isLittleEndian()),
+		.val = llvm::ConstantInt::get(llvm::Type::getInt1Ty(Context), !target_big_endian),
 		.mangled_name = strdup("__ARCH_LITTLE_ENDIAN"),
 		.ft = {
 			.type = llvm::Type::getInt1Ty(Context),
