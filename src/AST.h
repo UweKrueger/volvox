@@ -114,7 +114,7 @@ public:
 		}
 	}
 	~LiteralExprAST() {
-		if (ft->type->getTypeID() == llvm::Type::PointerTyID && !(ft->type_attr & A_signed))
+		if (ft->type && ft->type->getTypeID() == llvm::Type::PointerTyID && !(ft->type_attr & A_signed))
 			free((void*)Val.Ptr);
 	}
 #ifndef NDEBUG

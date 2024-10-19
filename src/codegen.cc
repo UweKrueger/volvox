@@ -259,8 +259,10 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 				if (ft->type_attr & A_union) {
 					size_t unionsize = TheModule->getDataLayout().getTypeAllocSize(ft->type);
 					size_t valsize = TheModule->getDataLayout().getTypeAllocSize(ini->getType());
-					if (valsize > unionsize)
-						abort();
+					if (valsize > unionsize) {
+						errs() << initializers[i]->Loc << ": initializer exceeds union size\n";
+						return nullptr;
+					}
 					unsigned szdiff = unionsize - valsize;
 					if (szdiff) {
 						// fill up remaining bytes with 0x00
@@ -1887,7 +1889,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
 				else {
 					auto voidval = RHS->codegen_raw(Variable.second);
-					if (!voidval || !voidval->getType()->isVoidTy()) {
+					if (!voidval)
+						return nullptr;
+					if (!voidval->getType()->isVoidTy()) {
 						errs() << Loc << ": internal error: sret ++call does not return void\n";
 						return nullptr;
 					}
