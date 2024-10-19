@@ -293,6 +293,8 @@ big_struct_arg_3(lkt)
 
 lkt
 
+import arch
+
 type GFds {
 	n i32
 	m i32
@@ -308,7 +310,12 @@ type OOWq union {
 
 def test_union_1 bool
 	lk = OOWq{ y: -55435476.0625 }
-	return lk.x == -1602224128 && lk.y == -55435476.0625 && lk.z[5] == 111
+	print(lk.x, lk.y, lk.z[5])
+	if arch.isBigEndian
+		return lk.x == -1047892218 && lk.y == -55435476.0625 && lk.z[5] == 128
+	else
+		return lk.x == -1602224128 && lk.y == -55435476.0625 && lk.z[5] == 111
+	end
 end
 
 def test_union_2 bool
@@ -317,19 +324,32 @@ end
 
 def test_union_3 bool
 	fww = OOWq{ t: 23136026754243021 }
-	return fww.q.n == 3365325 && fww.q.m == 5386776
+	if arch.isLittleEndian
+		return fww.q.n == 3365325 && fww.q.m == 5386776
+	else
+		return fww.q.n == 5386776 && fww.q.m == 3365325
+	end
 end
 
 def test_union_4 bool
 	fww = OOWq{ q: GFds{ n: 3365325, m: 5386776 }}
-	return fww.t == 23136026754243021
+	if arch.isLittleEndian
+		return fww.t == 23136026754243021
+	else
+		return fww.t == 14453960820797976
+	end
 end
 
 global fsdgre = OOWq{ y: 5226454.0625 }
 
 def test_global_union bool
-	return fsdgre.x == -2080374784 && fsdgre.t == 4707369873292918784 &&
-		fsdgre.q.m == 1096019957 && fsdgre.z[6] == 83 && fsdgre.z[17] == 0
+	if arch.isBigEndian
+		return fsdgre.x == 1096019957 && fsdgre.t == 4707369873292918784 &&
+			fsdgre.q.m == -2080374784 && fsdgre.z[6] == 0 && fsdgre.z[17] == 0
+	else
+		return fsdgre.x == -2080374784 && fsdgre.t == 4707369873292918784 &&
+			fsdgre.q.m == 1096019957 && fsdgre.z[6] == 83 && fsdgre.z[17] == 0
+	end
 end
 
 type JFzu { z [8]u8, u i8, v f32 }
@@ -338,7 +358,12 @@ global f337 = JFzu{ z: [8]u8{ 6, 7, 6, 7, 6 } }
 global hfdsw233 = OOWq{ z: [6, 7] }
 
 def test_array_field_init bool
-	return hfdsw233.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
+	print(hfdsw233.t, f337.z[1], f337.z[7])
+	if arch.isBigEndian
+		return hfdsw233.t == 434315889064542208 && f337.z[1] == 7 && f337.z[7] == 0
+	else
+		return hfdsw233.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
+	end
 end
 
 def test_untyped_struct_initializers bool

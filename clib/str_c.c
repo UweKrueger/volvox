@@ -190,7 +190,7 @@ static void prt_pointer(char** s, unsigned* cap, unsigned* pos, const char* ptr,
 	else if (attr & A_string)
 		prtstring(s, cap, pos, volvox2cstr(ptr), w, flags);
 	else
-		prt_int(s, cap, pos, (size_t)ptr, 8*sizeof(size_t),
+		prt_int(s, cap, pos, (unsigned long long)(size_t)ptr, 8*sizeof(size_t),
 		        w, -1, flags | FMT_ZEROPAD | FMT_DISPLAY_HEX | FMT_UNSIGNED);
 }
 
@@ -234,7 +234,7 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 	} else if (elem_type->ID == VOLVOX_IntegerTyID) {
 		if (!(flags & A_packed))
 			elem_ptr = ptr_align(elem_ptr, sizeof(size_t));
-		prt_int(s, cap, pos, *(size_t*)elem_ptr, elem_type->SubclassData, w, p, flags);
+		prt_int(s, cap, pos, (unsigned long long)*(size_t*)elem_ptr, elem_type->SubclassData, w, p, flags);
 		elem_ptr += elem_type->SubclassData / 8;
 	} else if (elem_type->ID == VOLVOX_DoubleTyID) {
 		if (!(flags & A_packed))
