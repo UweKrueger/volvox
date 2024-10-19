@@ -363,7 +363,7 @@ def test_array_field_init_1 bool
 	if arch.isBigEndian
 		return hfdsw233.t == 434315889064542208 && f337.z[1] == 7 && f337.z[7] == 0
 	else
-		return hfdsw233.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
+		return hfdsw233.t == 1798 && f337.z[1] == 7 && f337.z[7] == 0
 	end
 end
 
@@ -372,7 +372,7 @@ def test_array_field_init_2 bool
 	if arch.isBigEndian
 		return hfdsw234.t == 434315889064542208 && f337.z[1] == 7 && f337.z[7] == 0
 	else
-		return hfdsw234.t == 30064771078 && f337.z[1] == 7 && f337.z[7] == 0
+		return hfdsw234.t == 1798 && f337.z[1] == 7 && f337.z[7] == 0
 	end
 end
 
