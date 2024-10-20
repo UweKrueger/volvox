@@ -410,7 +410,9 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, unsigned long long v
 				return;
 			}
 			// extend upper bits according to signedness
-			if (!(flags & FMT_UNSIGNED))
+			if (flags & FMT_UNSIGNED)
+				val = (unsigned)((unsigned)(val << (32 - bits)) >> (32 - bits));
+			else
 				val = (unsigned)((int)(val << (32 - bits)) >> (32 - bits));
 		}
 		getFmt(fmt, flags | FMT_HAVE_WIDTH);
