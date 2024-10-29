@@ -177,8 +177,12 @@ else
 	CXX := clang++$(SUFFIX)
 	LINK := clang++$(SUFFIX)
 ifeq ($(shell type -path llvm-ar$(SUFFIX)),)
+ifeq ($(shell type -path llvm-ar),)
 # Alpine Linux has a special form...
 	AR := llvm18-ar
+else
+	AR := llvm-ar
+endif
 else
 	AR := llvm-ar$(SUFFIX)
 endif
