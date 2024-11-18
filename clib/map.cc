@@ -50,7 +50,7 @@ namespace volvox {
 				nodesz = keylen + value_size <= 8 ? sizeof(Node) : sizeof(Node) + keylen - 8 + value_size;
 			}
 			Node* node = (Node*)malloc(nodesz);
-			strcpy(&node->key.string[0], key);
+			memcpy(&node->key.string[0], key, keylen);
 			char* val_ptr = &node->key.string[0] + keylen;
 			if (use_tag) {
 				memcpy(val_ptr, &tag, 4);

@@ -675,14 +675,15 @@ public:
 #endif
 };
 
+#define SZ_OPCODE 4
 /// UnaryExprAST - Expression class for a unary operator (-x, !e)
 class UnaryExprAST : public ExprAST {
-	char Opcode[4] = { 0, 0, 0, 0 };
+	char Opcode[SZ_OPCODE] = { 0, 0, 0, 0 };
 	std::unique_ptr<ExprAST> Operand;
 public:
 	UnaryExprAST(SourceLocation Loc, const char* Op, std::unique_ptr<ExprAST> _Operand)
 		: ExprAST(_Operand->ft->type, _Operand->ft->type_attr, Loc), Operand(std::move(_Operand)) {
-		strcpy(Opcode, Op); 
+		strlcpy(Opcode, Op, SZ_OPCODE); 
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
@@ -729,12 +730,12 @@ public:
 
 /// postfix expressions (c++, b--) - similar to UnaryExprAST above but operand must be an lvalue
 class PostfixExprAST : public ExprAST {
-	char Opcode[4] = { 0, 0, 0, 0 };
+	char Opcode[SZ_OPCODE] = { 0, 0, 0, 0 };
 	std::unique_ptr<LvalueExprAST> Operand;
 public:
 	PostfixExprAST(SourceLocation Loc, const char* Op, std::unique_ptr<LvalueExprAST> _Operand)
 		: ExprAST(_Operand->ft->type, _Operand->ft->type_attr, Loc), Operand(std::move(_Operand)) {
-		strcpy(Opcode, Op); 
+		strlcpy(Opcode, Op, SZ_OPCODE); 
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 #ifndef NDEBUG
@@ -793,7 +794,7 @@ class BinaryExprAST : public ExprAST {
 public:
 	std::unique_ptr<ExprAST> LHS, RHS;
 	const char* err_msg = nullptr;
-	char Op[4] = { 0, 0, 0, 0 };
+	char Op[SZ_OPCODE] = { 0, 0, 0, 0 };
 	OpClass opclass = OpNormal;
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, unsigned, bool, OpClass,
@@ -802,7 +803,7 @@ public:
 		          std::get<2>(res_t)),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
 		{
-			strcpy(Op, _Op);
+			strlcpy(Op, _Op, SZ_OPCODE);
 			if (opclass == OpDeclAssign)
 				LHS->ft = RHS->ft;
 			if (opclass == OpRange && ft && ft->type) {
@@ -810,9 +811,10 @@ public:
 				if (limits_type_name) {
 #define RANGE_PREFIX "__range_"
 #define RANGE_PREFIX_SIZE ARRAY_SIZE(RANGE_PREFIX) /* including terminating 0 */
-					auto range_type_name = (char*)alloca(ARRAY_SIZE(RANGE_PREFIX) + strlen(limits_type_name));
-					strcpy(range_type_name, RANGE_PREFIX);
-					strcpy(range_type_name + (RANGE_PREFIX_SIZE - 1), limits_type_name);
+					size_t name_sz = ARRAY_SIZE(RANGE_PREFIX) + strlen(limits_type_name);
+					auto range_type_name = (char*)alloca(name_sz);
+					strlcpy(range_type_name, RANGE_PREFIX, name_sz);
+					strlcpy(range_type_name + (RANGE_PREFIX_SIZE - 1), limits_type_name, name_sz-(RANGE_PREFIX_SIZE - 1));
 					ft = lex.get_full_type(range_type_name);
 					if (ft)
 						return;

@@ -41,7 +41,8 @@ extern "C" void volvox_free_glob(volvox_glob_t* rets);
 // Lexer
 //===----------------------------------------------------------------------===//
 
-static char prompt[1024];
+#define PROMPT_SZ 1024
+static char prompt[PROMPT_SZ];
 std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid after files have been processed
 
 #ifdef MONOCHROME_PROMPT
@@ -128,12 +129,12 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 		    }
 		    if (comp_mode == comp_jit && lex.input_file == stdin) {
 #ifdef MONOCHROME_PROMPT
-			    sprintf(prompt, VOLVOX_PROMPT, lex.Loc.Line + 1);
+			    snprintf(prompt, PROMPT_SZ, VOLVOX_PROMPT, lex.Loc.Line + 1);
 #else
-			    sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, lex.Loc.Line + 1, p_col.greater);
+			    snprintf(prompt, PROMPT_SZ, VOLVOX_PROMPT, p_col.number, p_col.background, lex.Loc.Line + 1, p_col.greater);
 #endif
 			    for (int i=0; i<prompt_indent && i<200; i++)
-				    strcat(prompt, "    ");
+				    strlcat(prompt, "    ", PROMPT_SZ);
 			    lex.use_readline = true;
 #ifndef _WIN32
 			    static bool rl_initialized = false;
@@ -507,12 +508,12 @@ int Lexer::advance() {
 	if (!linebuf || Loc.Col > linelen) {
 		if (use_readline) {
 #ifdef MONOCHROME_PROMPT
-			sprintf(prompt, VOLVOX_PROMPT, Loc.Line + 1);
+			snprintf(prompt, PROMPT_SZ, VOLVOX_PROMPT, Loc.Line + 1);
 #else
-			sprintf(prompt, VOLVOX_PROMPT, p_col.number, p_col.background, Loc.Line + 1, p_col.greater);
+			snprintf(prompt, PROMPT_SZ, VOLVOX_PROMPT, p_col.number, p_col.background, Loc.Line + 1, p_col.greater);
 #endif
 			for (int i=0; i<prompt_indent && i<200; i++)
-				strcat(prompt, "    ");
+				strlcat(prompt, "    ", PROMPT_SZ);
 		}
 		linelen = fdgetline(&linebuf, &bufsize);
 		if (linelen < 0) {

@@ -1934,21 +1934,23 @@ int main(int argc, char* argv[]) {
 			}
 			int l = strlen(output_file);
 #ifdef _WIN32
-			char* new_out = (char*)malloc(l+5);
-			exe_file = (char*)malloc(l+5);
-			strcpy(new_out, output_file);
-			strcpy(exe_file, output_file);
+			size_t fn_sz = l+5;
+			char* new_out = (char*)malloc(fn_sz);
+			exe_file = (char*)malloc(fn_sz);
+			strlcpy(new_out, output_file, fn_sz);
+			strlcpy(exe_file, output_file, fn_sz);
 			output_file = new_out;
-			strcat(exe_file, ".exe");
+			strlcat(exe_file, ".exe", fn_sz);
 #else
 			exe_file = output_file;
-			output_file = (char*)malloc(l+3);
-			strcpy(output_file, exe_file);
+			size_t fn_sz = l+3;
+			output_file = (char*)malloc(fn_sz);
+			strlcpy(output_file, exe_file, fn_sz);
 #endif
 #if defined(_MSC_VER)
-			strcat(output_file, ".obj");
+			strlcat(output_file, ".obj", fn_sz);
 #else
-			strcat(output_file, ".o");
+			strlcat(output_file, ".o", fn_sz);
 #endif
 		}
 	} else {
@@ -1960,21 +1962,22 @@ int main(int argc, char* argv[]) {
 				usage(argv[0]);
 			}
 			int len = strlen(source_files.front().front());
-			output_file = (char*)malloc(len + 5);
-			strcpy(output_file, source_files.front().front());
+			size_t fn_sz = len + 5;
+			output_file = (char*)malloc(fn_sz);
+			strlcpy(output_file, source_files.front().front(), fn_sz);
 			if(output_file[len-3]=='.' && output_file[len-2]=='v' && output_file[len-1]=='x') {
 				output_file[len-3] = '\0';
 				if (link_mode != dont_link) {
-					exe_file = (char*)malloc(len+5);
-					strcpy(exe_file, output_file);
+					exe_file = (char*)malloc(fn_sz);
+					strlcpy(exe_file, output_file, fn_sz);
 #ifdef _WIN32
-					strcat(exe_file, ".exe");
+					strlcat(exe_file, ".exe", fn_sz);
 #endif
 				}
 #if defined(_MSC_VER)
-				strcat(output_file, ".obj");
+				strlcat(output_file, ".obj", fn_sz);
 #else
-				strcat(output_file, ".o");
+				strlcat(output_file, ".o", fn_sz);
 #endif
 			} else {
 #ifdef _WIN32
@@ -2242,8 +2245,9 @@ int main(int argc, char* argv[]) {
 		hints() << "Wrote " << Filename << "\n";
 		if (link_mode != dont_link) {
 			int lr = strlen(volvox_root());
-			char* libpath = (char*)alloca(lr+32);
-			strcpy(libpath, volvox_root());
+			size_t lp_sz = lr+32;
+			char* libpath = (char*)alloca(lp_sz);
+			strlcpy(libpath, volvox_root(), lp_sz);
 			char* stack_size = nullptr;
 			/* building the linker command is somewhat tricky because several things have to be considered:
 			 * 1. on POSIX systems the "GNU" typical syntax should be used
@@ -2267,16 +2271,16 @@ int main(int argc, char* argv[]) {
 					}
 				}
 #ifdef _WIN32
-				strcat(libpath, (lto_mode == lto_thin) ? "\\lib\\libvolvox.lto.a" : "\\lib\\libvolvox.a");
+				strlcat(libpath, (lto_mode == lto_thin) ? "\\lib\\libvolvox.lto.a" : "\\lib\\libvolvox.a", lp_sz);
 #else
-				strcat(libpath, (lto_mode == lto_thin) ? "/lib/libvolvox.lto.a" : "/lib/libvolvox.a");
+				strlcat(libpath, (lto_mode == lto_thin) ? "/lib/libvolvox.lto.a" : "/lib/libvolvox.a", lp_sz);
 #endif
 			}
 #if defined(_WIN32)
 			const char* libpatterns[] = LIBDIRS;
 			char* libdirs[ARRAY_SIZE(libpatterns)];
 			if (!target_mingw) {
-				strcat(libpath, "\\lib\\libvolvox.lib");
+				strlcat(libpath, "\\lib\\libvolvox.lib", lp_sz);
 				volvox_glob_t linkers = volvox_glob(LINKER);
 				if (!linkers.size) {
 					errs() << "Unable to find 'link.exe' (searched as \"" << LINKER << "\"\n";
@@ -2297,32 +2301,33 @@ int main(int argc, char* argv[]) {
 					while (lib.dirs[0][strl] != '\\' && lib.dirs[0][strl] != '/')
 						strl--;
 					libdirs[i] = (char*)alloca(strl + 10);
-					strcpy(libdirs[i], "-libpath:"); // 9 characters
+					strlcpy(libdirs[i], "-libpath:", strl + 10); // 9 characters
 					strncpy(libdirs[i] + 9, lib.dirs[0], strl); // don't copy trailing '\\'
 					libdirs[i][9 + strl] = '\0';
 					volvox_free_glob(&lib);
 				}
 			}
-			char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
+			size_t eo_sz = 5 + strlen(exe_file) + 1;
+			char* exe_out = (char*)alloca(eo_sz);
 			if (target_mingw)
-				strcpy(exe_out, "-o ");
+				strlcpy(exe_out, "-o ", eo_sz);
 			else
-				strcpy(exe_out, "-out:");
-			strcat(exe_out, exe_file);
+				strlcpy(exe_out, "-out:", eo_sz);
+			strlcat(exe_out, exe_file, eo_sz);
 			stack_size = (char*)alloca(30);
 			if (!target_mingw)
-				sprintf(stack_size, "-stack:%" PRIu64, stacksize);
+				snprintf(stack_size, "-stack:%" PRIu64, stacksize, 30);
 #else
 			if (!target_mingw) {
-				strcat(libpath, "/lib");
+				strlcat(libpath, "/lib", lp_sz);
 			}
 #ifndef _WIN32
 			char* rpath = nullptr;
 			if (!target_mingw) {
 				if (lto_mode != lto_thin) {
 					rpath = (char*)alloca(lr+43);
-					strcpy(rpath, "-Wl,-rpath,");
-					strcat(rpath, libpath);
+					strlcpy(rpath, "-Wl,-rpath,", lp_sz);
+					strlcat(rpath, libpath, lp_sz);
 				}
 			}
 #endif
@@ -2331,7 +2336,7 @@ int main(int argc, char* argv[]) {
 #endif
 			if (target_mingw) {
 				stack_size = (char*)alloca(30);
-				sprintf(stack_size, "-Wl,-stack,%" PRIu64, stacksize);
+				snprintf(stack_size, 30, "-Wl,-stack,%" PRIu64, stacksize);
 			}
 			std::vector<char*> linker_argv = {};
 			linker_argv.reserve(16);
@@ -2443,9 +2448,10 @@ int main(int argc, char* argv[]) {
 			}
 		}
 		if (!result && run_program) {
-			char* exe_out = (char*)alloca(5 + strlen(exe_file) + 1);
-			strcpy(exe_out, "./");
-			strcat(exe_out, exe_file);
+			size_t eo_sz = 5 + strlen(exe_file) + 1;
+			char* exe_out = (char*)alloca(eo_sz);
+			strlcpy(exe_out, "./", eo_sz);
+			strlcat(exe_out, exe_file, eo_sz);
 			char* prog_argv[] = { exe_out, nullptr };
 			int prog_pid;
 			if (!volvox_spawn(&prog_pid, nullptr, nullptr, nullptr, prog_argv)) {

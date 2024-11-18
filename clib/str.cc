@@ -116,7 +116,7 @@ namespace volvox {
 				baseptr++; // eat ':'/';' but keep '\0'
 			if (pattern[n-1] != '/' && pattern[n-1] != '\\')
 				pattern[n++] = PATHDIRSEP;
-			strcpy(pattern+n, patterntail);
+			strncpy(pattern+n, patterntail, patternlen-n);
 #if defined (_WIN32)
 			char buf[MAX_PATH] = "";
 			auto res = Glob_impl(buf, 0, 0, pattern, &rets.dirs, &rets.size, &max_rets);

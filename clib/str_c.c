@@ -389,7 +389,7 @@ static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double 
 		space = *cap - *pos;
 	}
 	char* oldpos = *s + *pos;
-	*pos += sprintf(oldpos, fmt, w, p, val);
+	*pos += snprintf(oldpos, space, fmt, w, p, val);
 	if (flags & FMT_CSV)
 		if (!strchr(oldpos, '.')) {
 			*(*s + (*pos)++) = '.';
@@ -421,15 +421,16 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, unsigned long long v
 		getFmt(fmt, flags | FMT_LONG | FMT_HAVE_WIDTH);
 		expected_nchar = Max(abs(w)+1, 11+1);
 	}
-	for (int space = *cap - *pos; space < expected_nchar; ) {
+	int space;
+	for (space = *cap - *pos; space < expected_nchar; ) {
 		*cap += expected_nchar + (*cap >> 1);
 		*s = (char*)realloc(*s, *cap);
 		space = *cap - *pos;
 	}
 	if (bits <= 32)
-		*pos += sprintf(*s + *pos, fmt, w, val);
+		*pos += snprintf(*s + *pos, space, fmt, w, val);
 	else
-		*pos += sprintf(*s + *pos, fmt, w, vall);
+		*pos += snprintf(*s + *pos, space, fmt, w, vall);
 }
 
 struct __volvox_interface {
@@ -541,7 +542,7 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 				*s = (char*)realloc(*s, *cap);
 				space = *cap - *pos;
 			}
-			pos += sprintf(*s + *pos, "function: <%p>", fn);
+			pos += snprintf(*s + *pos, space, "function: <%p>", fn);
 		}
 			break;
 		case VOLVOX_StructTyID: {
@@ -624,9 +625,10 @@ _DECL void showtestres(int fd, int width, const char* testcase, bool result) {
 	if (width < 20)
 		width = 20;
 	bool have_color = enableColorANSI(fd);
-	char* buf = (char*)alloca(width + (have_color ? 11 : 2));
+	int n_alloc = width + (have_color ? 11 : 2);
+	char* buf = (char*)alloca(n_alloc);
 	snprintf(buf, width-4, "%*s", -width+5, volvox2cstr(testcase));
-	strcpy(buf+width-5, have_color ? (result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n") : (result ? " PASS\n" : " FAIL\n"));
+	strncpy(buf+width-5, have_color ? (result ? " \033[32mPASS\033[0m\n" : " \033[31mFAIL\033[0m\n") : (result ? " PASS\n" : " FAIL\n"), n_alloc-width+5);
 	write(fd, buf, width + (have_color ? 10 : 1));
 }
 
@@ -767,9 +769,7 @@ continue_search:
 		pathBubblesort(*rets + old_n_rets, *n_rets - old_n_rets);
 	return found;
 }
-#endif
 
-#ifdef _WIN32
 // dest must be 32767 bytes in size - maximum length of command line on Windows
 _DECL bool getCmdLine(char* dest, const char* cmd, char* const argv[]) {
 	int pos = 0;
