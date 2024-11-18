@@ -358,7 +358,7 @@ static void CheckArrayIndex(llvm::Value* idx, llvm::Value* Len, SourceLocation L
 	auto checker = getFunction(checker_proto);
 	if (idx->getType() != llvm_size_type)
 		idx = Builder->CreateIntCast(idx, llvm_size_type, idx_is_signed);
-	auto File = Builder->CreateGlobalStringPtr(Loc.File, "", 0, TheModule.get());
+	auto File = Builder->CreateGlobalString(Loc.File, "", 0, TheModule.get());
 	auto Line = llvm::ConstantInt::get(llvm_int_type, Loc.Line, true);
 	auto Col = llvm::ConstantInt::get(llvm_int_type, Loc.Col, true);
 	Builder->CreateCall(checker_proto->FT, checker, { idx, Len, File, Line, Col });
@@ -738,7 +738,7 @@ llvm::Value* createCStringConst(const char* str) {
 		return nullptr;
 	if (jit_repl)
 		return createJITCStringConst(str);
-	return Builder->CreateGlobalStringPtr(str, "", 0, TheModule.get());
+	return Builder->CreateGlobalString(str, "", 0, TheModule.get());
 }
 
 llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {

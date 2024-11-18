@@ -771,11 +771,11 @@ llvm::Constant* getRtType(volvoxc::FullType* ft, llvm::Constant* vtable) {
 	llvm::Constant* TypeName;
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		if (ft->type_attr & A_thread) {
-			TypeName = Builder->CreateGlobalStringPtr(
+			TypeName = Builder->CreateGlobalString(
 				"thread[" + ft->elem_type->str() + "]", "", 0, TheModule.get());
 			ft = lex.source_stack.front().module->type_table.get_full("__thread");
 		} else if (struct_type->hasName()) {
-			TypeName = Builder->CreateGlobalStringPtr(struct_type->getName(), "", 0, TheModule.get());
+			TypeName = Builder->CreateGlobalString(struct_type->getName(), "", 0, TheModule.get());
 		} else {
 			TypeName = llvm::ConstantPointerNull::get(llvm_ptr_type);
 		}
@@ -793,7 +793,7 @@ llvm::Constant* getRtType(volvoxc::FullType* ft, llvm::Constant* vtable) {
 			volvoxc::FullType* field_ft = struct_field.getFt();
 			const char* field_name = struct_field.getKey();
 			llvm::SmallVector<llvm::Constant*, 2> fld_descr;
-			fld_descr.push_back(Builder->CreateGlobalStringPtr(field_name, "", 0, TheModule.get()));
+			fld_descr.push_back(Builder->CreateGlobalString(field_name, "", 0, TheModule.get()));
 			fld_descr.push_back(getRtType(field_ft));
 			llvm::Constant* field = llvm::ConstantStruct::getAnon(Context, fld_descr, true);
 			fields[idx_offs+index] = field;
