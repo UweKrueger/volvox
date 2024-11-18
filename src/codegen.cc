@@ -87,7 +87,7 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 			else
 				return handle(target, Builder->getFalse());
 		else {
-			auto the_val = llvm::ConstantInt::get(Context, llvm::APInt(bw, Val.Uint, ft->type_attr & A_signed));
+			auto the_val = llvm::ConstantInt::get(llvm::IntegerType::get(Context, bw), Val.Uint, ft->type_attr & A_signed);
 			if (ConstexprIntOverflow(Loc, the_val, Val.Uint, ft->type_attr))
 				return nullptr;
 			return handle(target, the_val);
@@ -300,7 +300,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 						}
 					}
 					llvm::Value* store = (target && (intptr_t)target != -1) ? target : CreateEntryBlockAlloca(ft->type);
-					Builder->CreateStore(V, Builder->CreatePointerCast(store, V->getType()->getPointerTo()));
+					Builder->CreateStore(V, Builder->CreatePointerCast(store, llvm_ptr_type));
 					if (!target || (intptr_t)target == -1)
 						return Builder->CreateLoad(ft->type, store);
 					else
@@ -426,7 +426,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 		V = full_var->val;
 		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
 		if (storage_type->isFunctionTy() || (ft->type_attr & A_ptrref))
-			storage_type = storage_type->getPointerTo();
+			storage_type = llvm_ptr_type;
 	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -491,9 +491,9 @@ llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, llvm::Type* exp
 		// Entry block allocations should be done only once for each variable. So in an 'else' branch
 		// the allocation from the if/while branch should be reused if existing
 		if (IfWhileVarTable && (var_in_if_branch = (*IfWhileVarTable)[Name.str().c_str()])) {
-			if (var_in_if_branch->val->getType() != val->getType()->getPointerTo()) {
+			if (var_in_if_branch->val->getType() != llvm_ptr_type) {
 				errs() << "incompatible types for pointers to variable '" << Name << "' (" << *var_in_if_branch->val->getType()
-				       << " in 'if'/'while' branch vs. " << *val->getType()->getPointerTo() << " in 'else' branch\n";
+				       << " in 'if'/'while' branch vs. " << *llvm_ptr_type << " in 'else' branch\n";
 				return nullptr;
 			}
 			Alloca = var_in_if_branch->val;
@@ -516,7 +516,7 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref_(
 		auto struct_ref = LV->codegen_ref(silent_fail, constref);
 		if (struct_ref.second) {
 			if (Struct->ft->type_attr & A_union)
-				return { ft->type, Builder->CreatePointerCast(struct_ref.second, ft->type->getPointerTo()) };
+				return { ft->type, Builder->CreatePointerCast(struct_ref.second, llvm_ptr_type) };
 			else if ((Struct->ft->type_attr & A_complex) && Struct->ft->type == llvm_c32_type)
 				return { llvm::Type::getFloatTy(Context),
 					Builder->CreateConstGEP2_32(
@@ -561,7 +561,7 @@ llvm::Value* extractStructFieldValue(llvm::Value* Store, llvm::Value* struct_val
 	llvm::Value* val;
 	if (Store) {
 		if (StructFt->type_attr & A_union)
-			val = Builder->CreateLoad(ft->type, Builder->CreatePointerCast(Store, ft->type->getPointerTo()));
+			val = Builder->CreateLoad(ft->type, Store);
 		else {
 			auto valptr = Builder->CreateStructGEP(StructFt->type, Store, FieldIndex);
 			val = Builder->CreateLoad(ft->type, valptr);
@@ -936,7 +936,7 @@ llvm::Function* init_setter_fn(std::string& setter_name, std::string& varname, l
 	finishFunctionOrModule();
 	setter_name = "__global_" + varname + "_setter";
 	llvm::FunctionType* ptr_fn_t = llvm::FunctionType::get(llvm_ptr_type,
-	                                                       { llvm_size_type->getPointerTo() }, false);
+	                                                       { llvm_ptr_type }, false);
 	llvm::Function* tmpf = llvm::Function::Create(ptr_fn_t, llvm::Function::ExternalLinkage, setter_name, TheModule.get());
 	auto BB = llvm::BasicBlock::Create(Context, "entry", tmpf);
 	Builder->SetInsertPoint(BB);
@@ -1154,7 +1154,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		needs_store = false;
 	} else {
 		if (LREF)
-			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type->getPointerTo());
+			initializer = llvm::Constant::getNullValue(llvm_ptr_type);
 		else if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		}
@@ -1400,7 +1400,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				the_struct = Builder->CreateInsertValue(the_struct, Builder->CreateIntToPtr(getSize((uintptr_t)varptr), array_ptr_ty), ndim);
 				fv->val = the_struct;
 			} else {
-				fv->val = Builder->CreateIntToPtr(getSize((uintptr_t)varptr), expr->RHS->ft->type->getPointerTo());
+				fv->val = Builder->CreateIntToPtr(getSize((uintptr_t)varptr), llvm_ptr_type);
 			}
 			fv->ft.type_attr &= ~A_mainvar;
 		}
@@ -2849,7 +2849,7 @@ std::pair<llvm::Type*, llvm::Value*> merge_values(
 		} while ((array_tA = llvm::dyn_cast<llvm::ArrayType>(typA)));
 		if (typA != typB)
 			goto uncompatible_types;
-		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : typA->getPointerTo();
+		llvm::Type* ptr_t = varDimsA.size() ? Aptr->getType() : llvm_ptr_type;
 		Builder->SetInsertPoint(lastA);
 		Aptr = Builder->CreatePointerCast(Aptr, ptr_t);
 		Builder->SetInsertPoint(lastB);
@@ -3669,7 +3669,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 							auto dim_array = malloc(sizeof(size_t)*num_dims);
 							llvm::Constant* DimArray = llvm::cast<llvm::Constant>(Builder->CreateIntToPtr(
 								llvm::ConstantInt::get(llvm_size_type, (uintptr_t)dim_array),
-								struct_type->getPointerTo()));
+								llvm_ptr_type));
 							Builder->CreateStore(mergeVal, DimArray);
 							pending_arrays.push_back({dim_array, &entry->val, struct_type});
 						} else {
@@ -3897,7 +3897,7 @@ std::tuple<llvm::Value*,llvm::Value*,unsigned> ExprAST::alloc_dims() {
 			Sz = Builder->CreateMul(Sz, dim);
 	}
 	std::vector<llvm::Type*> struct_type_el(Dims.second->size() + 1, llvm_size_type);
-	struct_type_el[Dims.second->size()] = Dims.first->getPointerTo();
+	struct_type_el[Dims.second->size()] = llvm_ptr_type;
 	llvm::Type* struct_type = llvm::StructType::get(Context, struct_type_el);
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	unsigned u = 0;

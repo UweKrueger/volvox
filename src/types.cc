@@ -888,11 +888,11 @@ std::pair<llvm::Type*,llvm::Type*> getReferenceType(llvm::Type* nominal_type) {
 		} while (array_type);
 		if (n_var_dim) {
 			std::vector<llvm::Type*> ref_el_types(n_var_dim+1, llvm_size_type);
-			ref_el_types[n_var_dim] = el_type->getPointerTo();
+			ref_el_types[n_var_dim] = llvm_ptr_type;
 			auto struct_type = llvm::StructType::get(Context, ref_el_types);
 			return { struct_type, el_type };
 		} else {
-			return { el_type->getPointerTo(), el_type };
+			return { llvm_ptr_type, el_type };
 		}
 	} else {
 		return { llvm_ptr_type, nullptr };
@@ -923,7 +923,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 							llvm::Attribute::getWithByRefType(Context, argtype->type),
 							llvm::Attribute::getWithDereferenceableBytes(Context, argsize) }));
-				fn_arg_type = fn_arg_type->getPointerTo();
+				fn_arg_type = llvm_ptr_type;
 			} else {
 				auto [ ref_type, el_type ] = getReferenceType(fn_arg_type);
 				if (ref_type->isPointerTy())
@@ -941,7 +941,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 			} else if (argtype->type_attr & A_by_value) { // Arguments > sret_limit bytes are always passed as pointer using copy-on-write
 				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 							llvm::Attribute::getWithByValType(Context, argtype->type) }));
-				fn_arg_type = fn_arg_type->getPointerTo();
+				fn_arg_type = llvm_ptr_type;
 			} else {
 				ArgAttrs.push_back(llvm::AttributeSet());
 			}
@@ -954,7 +954,7 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 		llvm_ret_type = RetType->type;
 	} else {
 		IsStructRet = true;
-		llvm::Type* struct_ret_type = RetType->type->getPointerTo();
+		llvm::Type* struct_ret_type = llvm_ptr_type;
 		LLVMArgTypes.insert(LLVMArgTypes.begin(), struct_ret_type);
 		llvm_ret_type = llvm::Type::getVoidTy(Context);
 	}
@@ -1106,7 +1106,7 @@ llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_co
 	if (!is_created)
 		if (auto F = TheModule->getFunction(fn_name))
 			return F;
-	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { ft->type->getPointerTo() }, false);
+	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
 	auto F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, fn_name, TheModule.get());
 	auto thisarg = F->getArg(0);
 	auto argsize = ft->type->isSized() ?

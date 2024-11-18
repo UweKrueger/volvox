@@ -62,7 +62,7 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 		return nullptr;
 	if (auto F = TheModule->getFunction(thename))
 		return F;
-	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { ft->type->getPointerTo() }, false);
+	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
 	auto F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, thename, TheModule.get());
 	return F;
 }
@@ -137,9 +137,9 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 	memset(candidates_3, 0, (*protos).size() * sizeof(unsigned));
 	// class 1 can directly save in Arguments
 	std::function<llvm::Value*(llvm::Value*)>* convs2 = (std::function<llvm::Value*(llvm::Value*)>*)alloca(fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
-	memset(convs2, 0, fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
+	memset((void*)convs2, 0, fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
 	std::function<llvm::Value*(llvm::Value*)>* convs3 = (std::function<llvm::Value*(llvm::Value*)>*)alloca(fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
-	memset(convs3, 0, fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
+	memset((void*)convs3, 0, fnargs.size() * sizeof(std::function<llvm::Value*(llvm::Value*)>));
 	unsigned cands1 = 0;
 	unsigned cands2 = 0;
 	unsigned cands3 = 0;
@@ -416,7 +416,7 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	auto elem_sz = TheModule->getDataLayout().getTypeAllocSize(elem_type);
 	auto ElemAllocSize = getSize(elem_sz);
 	AllocSize = Builder->CreateMul(AllocSize, ElemAllocSize);
-	llvm::Type* elem_ptr_ty = elem_type->getPointerTo();
+	llvm::Type* elem_ptr_ty = llvm_ptr_type;
 	auto elDestructorFT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { elem_ptr_ty }, false);
 	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
 	llvm::Function* TheFunction = enterBB->getParent();
@@ -519,7 +519,7 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
 			llvm::Function* field_destructor = getDestructor(el_ft, false, is_constructor);
-			auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { el_ft->type->getPointerTo() }, false);
+			auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
 			Builder->CreateCall(FT, field_destructor, elem_ref);
 		} else if (isa<llvm::ArrayType>(el_ft->type) && (el_ft->elem_type->type_attr & (is_constructor ? A_constructor : A_destructor))) {
 			needs_destructors = true;
@@ -542,8 +542,7 @@ llvm::Value* Volvox2CStr1(llvm::Value* v) {
 
 llvm::Value* getArrayCap(llvm::Value* v) {
 	// LLVM implementation of macro '#define volvox2cstr(v)
-	auto vp = Builder->CreatePointerCast(v, llvm_size_type->getPointerTo());
-	auto cp = Builder->CreateConstGEP1_32(llvm_size_type, vp, 1);
+	auto cp = Builder->CreateConstGEP1_32(llvm_size_type, v, 1);
 	llvm::Value* cap = Builder->CreateLoad(llvm_size_type, cp);
 	return cap;
 }
@@ -1099,7 +1098,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		if (n_volovox_va_arg)
 			volvox_var_array = CreateEntryBlockAlloca(va_arg_array_type, "va_arg_arrayp");
 		else
-			volvox_var_array = llvm::ConstantPointerNull::get(va_arg_array_type->getPointerTo());
+			volvox_var_array = llvm::ConstantPointerNull::get(llvm_ptr_type);
 		volvox_var_array_ref = llvm::UndefValue::get(llvm_va_arg_ref_type);
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, getSize(n_volovox_va_arg), 0);
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, volvox_var_array, 1);
@@ -1179,19 +1178,15 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 							errs() << Args[i]->Loc << ": cannot generate reference function argument\n";
 							return nullptr;
 						}
-						if (argref.second) {
-							if (is_var_array)
-								arg = argref.second;
-							else
-								arg = Builder->CreatePointerCast(argref.second, argref.first->getPointerTo());
-						}
+						if (argref.second)
+							arg = argref.second;
 					}
 					if (!arg) {
 						auto lit = dynamic_cast<LiteralExprAST*>(Args[i].get());
 						if (lit && lit->ft->type->isPointerTy()) {
 							llvm::Type* target_type =
 								(Proto->ArgTypes[i+arg_offs]->type_attr & A_ref) ?
-								Proto->ArgTypes[i+arg_offs]->type->getPointerTo() :
+								llvm_ptr_type :
 								Proto->ArgTypes[i+arg_offs]->type;
 							arg = Builder->CreatePointerCast(Args[i]->codegen_raw(), target_type);
 						} else {

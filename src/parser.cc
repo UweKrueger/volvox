@@ -340,7 +340,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 	if (attribs != type->type_attr)
 		type = new_FullType(*type, attribs);
 	if (is_ptr) {
-		llvm::Type* ptr_type = type->type->getPointerTo();
+		llvm::Type* ptr_type = llvm_ptr_type;
 		type = new_FullType(ptr_type, 0, nullptr, type);
 	}
 	return type;

@@ -896,7 +896,7 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 			oldBB = Builder->GetInsertBlock();
 			Builder->SetInsertPoint(before);
 		}
-		auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { fv->ft.type->getPointerTo() }, false);
+		auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
 		Builder->CreateCall(FT, fv->destructor, val);
 		if (before)
 			Builder->SetInsertPoint(oldBB);
