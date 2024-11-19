@@ -283,11 +283,7 @@ llvm::Value* CreateReleaseRefC(llvm::Value* ptr, std::function<llvm::Value*(llvm
 	auto keepBB = llvm::BasicBlock::Create(Context, "keep");
 	auto contBB = llvm::BasicBlock::Create(Context, "cont");
 	Builder->CreateCondBr(was_zero, freeBB, keepBB);
-#if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), freeBB);
-#else
-	TheFunction->getBasicBlockList().push_back(freeBB);
-#endif
 	Builder->SetInsertPoint(freeBB);
 	if (ValDestructor)
 		if (!ValDestructor(ptr))
@@ -298,21 +294,13 @@ llvm::Value* CreateReleaseRefC(llvm::Value* ptr, std::function<llvm::Value*(llvm
 	Builder->Insert(llvm::CallInst::CreateFree(ptr, freeBB));
 #endif
 	Builder->CreateBr(contBB);
-#if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), keepBB);
-#else
-	TheFunction->getBasicBlockList().push_back(keepBB);
-#endif
 	Builder->SetInsertPoint(keepBB);
 	if (ValKeeper)
 		if (!ValKeeper(ptr))
 			return nullptr;
 	Builder->CreateBr(contBB);
-#if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), contBB);
-#else
-	TheFunction->getBasicBlockList().push_back(contBB);
-#endif
 	Builder->SetInsertPoint(contBB);
 	return was_zero;
 }

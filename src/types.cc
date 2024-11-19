@@ -1115,13 +1115,8 @@ llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_co
 			llvm::Attribute::getWithByRefType(Context, ft->type),
 			llvm::Attribute::getWithDereferenceableBytes(Context, argsize)
 		});
-#if LLVM_VERSION_MAJOR >= 14
 	llvm::AttrBuilder attr_builder(Context, attr_set);
 	thisarg->addAttrs(attr_builder);
-#else
-	for (auto attr: attr_set)
-		thisarg->addAttr(attr);
-#endif
 	thisarg->setName("this");
 	return F;
 }

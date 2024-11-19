@@ -45,15 +45,6 @@ else
 ifeq ($(shell test -x /usr/bin/llvm-config-16 && echo -n true),true)
 	SUFFIX := -16
 else
-ifeq ($(shell test -x /usr/bin/llvm-config-15 && echo -n true),true)
-	SUFFIX := -15
-else
-ifeq ($(shell test -x /usr/bin/llvm-config-14 && echo -n true),true)
-	SUFFIX := -14
-else
-ifeq ($(shell test -x /usr/bin/llvm-config-13 && echo -n true),true)
-	SUFFIX := -13
-else
 ifeq ($(shell test -x /usr/bin/llvm-config && echo -n true),true)
 	SUFFIX :=
 else
@@ -69,9 +60,6 @@ else
 ifeq ($(shell test -x /usr/pkg/bin/llvm-config && echo -n true),true)
 	PREFIX := /usr/pkg
 	SUFFIX :=
-endif
-endif
-endif
 endif
 endif
 endif
@@ -140,14 +128,6 @@ LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
 
 CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))
-
-# use new pass manager for LLVM-14, 15 and 16
-ifeq ($(LLVMVERSION),12)
-	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DLEGACY_PASS_MANAGER
-endif
-ifeq ($(LLVMVERSION),13)
-	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DLEGACY_PASS_MANAGER
-endif
 
 ifeq ($(NIXTYPE),mingw64)
 	CXXFLAGS := -I"C:/Program Files/LLVM/include" -I../include/editline -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++20 -DLINKER="\"C:/Program Files/LLVM/bin/clang.exe\"" -frtti $(CPPEXTRAFLAGS)

@@ -213,28 +213,16 @@ void init(const llvm::Triple& triple) {
 	c32_type = lex.get_full_type("c32");
 	lex.add_type("string", llvm_ptr_type,
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
-#if LLVM_VERSION_MAJOR >= 16
 	                                                    std::nullopt,
-#else
-	                                                    llvm::None,
-#endif
 	                                                    "string") : nullptr, A_string);
 	string_type = lex.get_full_type("string");
 	lex.add_type("cstring", llvm_ptr_type,
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
-#if LLVM_VERSION_MAJOR >= 16
 	                                                    std::nullopt,
-#else
-	                                                    llvm::None,
-#endif
 	                                                    "cstring") : nullptr, A_cstring);
 	lex.add_type("voidptr", llvm_ptr_type,
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
-#if LLVM_VERSION_MAJOR >= 16
 	                                                    std::nullopt,
-#else
-	                                                    llvm::None,
-#endif
 	                                                    "voidptr") : nullptr);
 	voidptr_type = lex.get_full_type("voidptr");
 	MDBuilder = std::make_unique<llvm::MDBuilder>(Context);
@@ -2088,11 +2076,7 @@ int main(int argc, char* argv[]) {
 	} else {
 		TheTargetMachine =
 			Target->createTargetMachine(TargetTriple, CPU, Features, target_opts, RM,
-#if LLVM_VERSION_MAJOR >= 16
 			                            std::nullopt,
-#else
-			                            llvm::None,
-#endif
 			                            codegenopt);
 	}
 	if (verbosity >= 1) {

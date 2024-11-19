@@ -437,11 +437,7 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	} else
 		ContBB = llvm::BasicBlock::Create(Context, "contloop");
 	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "loopwhile");
-#if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), DestructorBB);
-#else
-	TheFunction->getBasicBlockList().push_back(DestructorBB);
-#endif
 	Builder->SetInsertPoint(DestructorBB);
 	Ptr = Builder->CreateLoad(llvm_size_type, PtrStore);
 	llvm::Value* ElPtr = Builder->CreateIntToPtr(Ptr, elem_ptr_ty);
@@ -449,11 +445,7 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	llvm::Value* NewPtr = Builder->CreateAdd(Ptr, ElemAllocSize);
 	Builder->CreateStore(NewPtr, PtrStore);
 	Builder->CreateBr(CondBB);
-#if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), CondBB);
-#else
-	TheFunction->getBasicBlockList().push_back(CondBB);
-#endif
 	Builder->SetInsertPoint(CondBB);
 	Ptr = Builder->CreateLoad(llvm_size_type, PtrStore);
 	auto is_less = Builder->CreateICmpULT(Ptr, UpperLimit);
@@ -461,11 +453,7 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	if (before)
 		Builder->SetInsertPoint(before);
 	else {
-#if LLVM_VERSION_MAJOR >= 16
 		TheFunction->insert(TheFunction->end(), ContBB);
-#else
-		TheFunction->getBasicBlockList().push_back(ContBB);
-#endif
 		Builder->SetInsertPoint(ContBB);
 	}
 }
@@ -533,9 +521,6 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 
 llvm::Value* Volvox2CStr1(llvm::Value* v) {
 	// LLVM implementation of macro '#define volvox2cstr(v)
-#if LLVM_VERSION_MAJOR < 15
-	v = Builder->CreatePointerCast(v, llvm_size_type->getPointerTo());
-#endif
 	llvm::Value* subtrahend = Builder->CreateLoad(llvm_size_type, v);
 	return subtrahend;
 }
@@ -573,11 +558,7 @@ void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "stringdestr");
 	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "contdestr");
 	Builder->CreateCondBr(destructflag, DestructorBB, ContBB);
-#if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), DestructorBB);
-#else
-	TheFunction->getBasicBlockList().push_back(DestructorBB);
-#endif
 	Builder->SetInsertPoint(DestructorBB);
 	auto cstr = Volvox2CStr2(v, subtrahend);
 #if LLVM_VERSION_MAJOR >= 18
@@ -586,11 +567,7 @@ void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 	Builder->Insert(llvm::CallInst::CreateFree(cstr, DestructorBB));
 #endif
 	Builder->CreateBr(ContBB);
-#if LLVM_VERSION_MAJOR >= 16
 	TheFunction->insert(TheFunction->end(), ContBB);
-#else
-	TheFunction->getBasicBlockList().push_back(ContBB);
-#endif
 	Builder->SetInsertPoint(ContBB);
 }
 
@@ -742,24 +719,15 @@ llvm::Value* PrototypeAST::codegen(bool need_address) {
 	unsigned Idx = 0;
 	unsigned ArgIdx = 0;
 	if (IsStructRet) {
-#if LLVM_VERSION_MAJOR >= 14
 		llvm::AttrBuilder attr_builder(Context, llvm::Attribute::getWithStructRetType(Context, RetType->type));
 		F->getArg(Idx)->addAttrs(attr_builder);
-#else
-		F->getArg(Idx)->addAttr(llvm::Attribute::getWithStructRetType(Context, RetType->type));
-#endif
 		Idx++;
 	}
 	for (auto &Arg : Args) {
 		auto fnarg = F->getArg(Idx);
 		if (ArgAttrs[ArgIdx].hasAttributes()) {
-#if LLVM_VERSION_MAJOR >= 14
 			llvm::AttrBuilder attr_builder(Context, ArgAttrs[ArgIdx]);
 			fnarg->addAttrs(attr_builder);
-#else
-			for (auto attr: ArgAttrs[ArgIdx])
-				fnarg->addAttr(attr);
-#endif
 		}
 		fnarg->setName(Arg);
 		Idx++;
@@ -1216,14 +1184,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 							Builder->CreateStore(tmparg, arg /*, store_volatile*/);
 						}
 					}
-#if LLVM_VERSION_MAJOR < 14 || defined(__aarch64__)
-					if (
 #if defined(__aarch64__)
-						comp_mode == comp_jit
-#else
-						codegenopt != llvm::CodeGenOpt::None
-#endif
-						) {
+					if (comp_mode == comp_jit) {
 						// Old LLVM versions seem to do illegal optimizations for call by reference
 						// in object code generation mode. These can be suppressed by reloading the
 						// reference after having stored it 'volatile'
@@ -1285,11 +1247,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 			llvm::Value* PN_store = CreateEntryBlockAlloca(Proto->RetType->type);
 			Builder->CreateCondBr(vtable_entry_zero, fieldBB, callBB);
-#if LLVM_VERSION_MAJOR >= 16
 			TheFunction->insert(TheFunction->end(), fieldBB);
-#else
-			TheFunction->getBasicBlockList().push_back(fieldBB);
-#endif
 			Builder->SetInsertPoint(fieldBB);
 			if (!setter)
 				setter = Builder->CreatePtrToInt(
@@ -1309,20 +1267,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			if (Proto->visibility & A_setter)
 				Builder->CreateStore(ArgsV[1], FieldPtr);
 			Builder->CreateBr(contBB);
-#if LLVM_VERSION_MAJOR >= 16
 			TheFunction->insert(TheFunction->end(), callBB);
-#else
-			TheFunction->getBasicBlockList().push_back(callBB);
-#endif
 			Builder->SetInsertPoint(callBB);
 			llvm::Value* retVal_call = Builder->CreateCall(FT, theFunction, ArgsV);
 			Builder->CreateStore(retVal_call, PN_store);
 			Builder->CreateBr(contBB);
-#if LLVM_VERSION_MAJOR >= 16
 			TheFunction->insert(TheFunction->end(), contBB);
-#else
-			TheFunction->getBasicBlockList().push_back(contBB);
-#endif
 			Builder->SetInsertPoint(contBB);
 			// * Using a PHI node does not work with '-O0' for unknown reasons
 			// * but PN_store does. Leaving this code commented out for reference
