@@ -5,6 +5,11 @@
  */
 #pragma once
 
+#if defined(__GLIBC__) && __GLIBC__ == 2 && __GLIBC_MINOR__ < 38
+#define strlcpy(dst, src, bufsz) strncpy(dst, src, bufsz)
+#define strlcat(dst, src, bufsz) strncat(dst, src, bufsz - strlen(dst) - 1)
+#endif
+
 //===----------------------------------------------------------------------===//
 // Abstract Syntax Tree (aka Parse Tree)
 //===----------------------------------------------------------------------===//

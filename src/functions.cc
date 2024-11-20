@@ -1165,35 +1165,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 								errs() << Args[i]->Loc << ": cannot generate code for expression\n";
 								return nullptr;
 							}
-							// The following sections are ugly hacks to circumvent bugs in
-							// over aggressive optimizers. In particular a storage space might be
-							// optimized away even if a pointer (or a pointer to a pointer) to this
-							// space is passed to a called function - however, 'volatile' storage can help.
-							// Not all LLVM versions and backends have these bugs and they depend
-							// on optimization levels. This should be taken into account to avoid
-							// unnecessary performance impacts
-
-							/* bool store_volatile = false; */ // we forbid optimization > -O1 for JIT globally, now
-#ifndef LEGACY_PASS_MANAGER
-							//if (comp_mode == comp_jit && optimization_level != llvm::OptimizationLevel::O0
-							//&& optimization_level != llvm::OptimizationLevel::O1)
-								// the new optimizer tends to optimize this store away in -O2 and higher
-								// (probably a bug in LLVM) we can work around this by making this store volatile
-								//store_volatile = true;
-#endif
-							Builder->CreateStore(tmparg, arg /*, store_volatile*/);
+							Builder->CreateStore(tmparg, arg);
 						}
 					}
-#if defined(__aarch64__)
-					if (comp_mode == comp_jit) {
-						// Old LLVM versions seem to do illegal optimizations for call by reference
-						// in object code generation mode. These can be suppressed by reloading the
-						// reference after having stored it 'volatile'
-						auto rec_ptr_loc = CreateEntryBlockAlloca(arg->getType(), "tmp_refarg");
-						Builder->CreateStore(arg, rec_ptr_loc, true);
-						arg = Builder->CreateLoad(arg->getType(), rec_ptr_loc);
-					}
-#endif
 				} else {
 					arg = Args[i]->codegen();
 					//errs() << Loc << ": valarg #" << i << " " << *arg << ' ' << Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal) << '\n';
