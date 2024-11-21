@@ -22,7 +22,16 @@ cdecl __setup_console()
 cdecl(eventfd) __eventfd(initval int, flags int) int
 cdecl(pipe2) __pipe2(fds voidptr, flags int) int
 cdecl(close) __close(fd int) int
-cdecl(write) __write(fd int, buf cstring, count size_t) ssize_t
+cdecl(write) __write_posix(fd int, buf cstring, count size_t) ssize_t
+cdecl(_write) __write_windows(fd int, buf cstring, count u32) int
+
+inline def __write(fd int, buf cstring, count size_t) ssize_t
+	if __Environment_Idx == 2
+		return __write_windows(fd, buf, int(count))
+	else
+		return __write_posix(fd, buf, count)
+end end
+
 cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 
 decl __builtin_sprint(widths voidptr, precisions voidptr, flagss voidptr, strings voidptr, ...) string

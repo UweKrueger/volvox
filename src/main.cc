@@ -2300,7 +2300,7 @@ int main(int argc, char* argv[]) {
 			strlcat(exe_out, exe_file, eo_sz);
 			stack_size = (char*)alloca(30);
 			if (!target_mingw)
-				snprintf(stack_size, "-stack:%" PRIu64, stacksize, 30);
+				snprintf(stack_size, 30, "-stack:%" PRIu64, stacksize);
 #else
 			if (!target_mingw) {
 				strlcat(libpath, "/lib", lp_sz);

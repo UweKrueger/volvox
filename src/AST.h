@@ -6,8 +6,13 @@
 #pragma once
 
 #if defined(__GLIBC__) && __GLIBC__ == 2 && __GLIBC_MINOR__ < 38
+// secure BSD string functions missing - replace with similar ones
 #define strlcpy(dst, src, bufsz) strncpy(dst, src, bufsz)
 #define strlcat(dst, src, bufsz) strncat(dst, src, bufsz - strlen(dst) - 1)
+#elif defined(_MSC_VER)
+// WinAPI secure string functions have different names and APIs
+#define strlcpy(dst, src, bufsz) strcpy_s(dst, bufsz, src)
+#define strlcat(dst, src, bufsz) strcat_s(dst, bufsz, src)
 #endif
 
 //===----------------------------------------------------------------------===//
