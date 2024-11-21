@@ -1794,16 +1794,22 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	while (CurTok.kind == ';')
 		getNextToken();
 	auto kind = CurTok.kind;
-	if (kind == tok_return || kind == tok_else || kind == tok_elif || kind == tok_end || kind == tok_until) {
-		if (kind == tok_return) {
-			getNextToken(eSemi);
-			if (CurTok.kind == ';' || CurTok.kind == tok_end) 
-				return { nullptr, kind };
-			else
-				return { ParseExpression(), kind };
-		}
-		else
+	if (kind == tok_return) {
+		getNextToken(eSemi);
+		if (CurTok.kind == ';' || CurTok.kind == tok_end) 
 			return { nullptr, kind };
+		else
+			return { ParseExpression(), kind };
+	} else if (kind == tok_brk) {
+		unsigned levels = 0;
+		while (CurTok.kind == tok_brk) {
+			levels++;
+			getNextToken(eSemi);
+		}
+		// encode multi level brk in upper bits of kind
+		return { nullptr, (int)((unsigned)kind | (levels << 16)) };
+	} else if (kind == tok_else || kind == tok_elif || kind == tok_end || kind == tok_until) {
+		return { nullptr, kind };
 	} else if (kind == tok_global || kind == tok_const || kind == tok_atomic) {
 		errs() << CurLoc << ": global/const/atomic cannot be defined inside functions\n";
 		return { nullptr, 0 };

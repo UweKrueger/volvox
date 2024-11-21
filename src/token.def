@@ -23,6 +23,7 @@ TOKEN(not_in) /* '!in' - element membership test */ \
 TOKEN(for) \
 TOKEN(else) \
 TOKEN(elif) \
+TOKEN(brk) \
 TOKEN(if) \
 TOKEN(end) \
 TOKEN(pub) \
