@@ -138,7 +138,7 @@ else
 	LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
 	PIC := -fPIC
 endif
-PRJH := ../include/volvox-$(LLVMVERSION).hh
+PRJH := ../include/volvox.hh
 
 ifeq ($(CC),gcc)
 	CXX := g++
@@ -243,7 +243,7 @@ endif
 
 all: $(PROG) $(LIBVOLVOX) $(LIBVOLVOXLTO)
 
-$(PCH): $(PRJH) ../include/VolvoxJIT-$(LLVMVERSION).h ../include/volvox.hh ../clib/map.h ../clib/types.h ../clib/str.h AST.h global.h
+$(PCH): $(PRJH) ../include/VolvoxJIT.h ../clib/map.h ../clib/types.h ../clib/str.h AST.h global.h
 ifeq ($(CC),gcc)
 	$(CXX) $(TARGET) -o $@ -x c++-header $(CXXFLAGS) $(OPT) $<
 else

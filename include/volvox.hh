@@ -4,6 +4,7 @@
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
+#include "VolvoxJIT.h"
 #include <llvm/ADT/APFloat.h>
 #if LLVM_VERSION_MAJOR <= 16
 #include <llvm/ADT/Optional.h>
@@ -89,10 +90,12 @@
 #include <float.h>
 
 #ifdef _WIN32
-#include "VolvoxJIT-18.h"
 #include <windows.h>
 #include <synchapi.h>
 #include <processthreadsapi.h>
 #endif
 #include "../src/global.h"
 #include "../src/AST.h"
+#ifndef _WIN32
+#pragma hdrstop
+#endif

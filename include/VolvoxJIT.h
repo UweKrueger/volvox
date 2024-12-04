@@ -13,7 +13,9 @@
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
 #include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
+#if LLVM_VERSION_MAJOR >= 17
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorSymbolDef.h"
+#endif
 #include "llvm/ExecutionEngine/SectionMemoryManager.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/LLVMContext.h"
@@ -59,7 +61,15 @@ namespace llvm {
 					ES->reportError(std::move(Err));
 			}
 
-			static Expected<std::unique_ptr<VolvoxJIT>> Create(CodeGenOpt::Level codegenopt) {
+			static Expected<std::unique_ptr<VolvoxJIT>> Create(
+#if LLVM_VERSION_MAJOR >= 18
+				CodeGenOptLevel
+#else
+				CodeGenOpt::Level
+#endif
+				codegenopt
+				)
+			{
 				auto EPC = SelfExecutorProcessControl::Create();
 				if (!EPC)
 					return EPC.takeError();
@@ -85,8 +95,12 @@ namespace llvm {
 					RT = MainJD.getDefaultResourceTracker();
 				return CompileLayer.add(RT, std::move(TSM));
 			}
-
-			Expected<ExecutorSymbolDef> lookup(StringRef Name) {
+#if LLVM_VERSION_MAJOR >= 17
+			Expected<ExecutorSymbolDef>
+#else
+			Expected<JITEvaluatedSymbol>
+#endif
+			lookup(StringRef Name) {
 				return ES->lookup({&MainJD}, Mangle(Name.str()));
 			}
 
