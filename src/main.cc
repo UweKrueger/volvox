@@ -2048,7 +2048,8 @@ int main(int argc, char* argv[]) {
 	}
 	if (verbosity >= 1) {
 		errs() << "Target: " << TargetTriple << '\n';
-		// errs() << Target->getName() << " # " << Target->getShortDescription() << " # " << Target->getBackendName() << '\n';
+		errs() << "Host: " LLVM_HOST_TRIPLE "\n";
+		errs() << "LLVM Version: " LLVM_VERSION_STRING "\n";
 	}
 	auto CPU = "generic";
 	auto Features = "";
