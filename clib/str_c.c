@@ -1366,4 +1366,12 @@ _DECL _Fcomplex __divsc3(float tr, float ti, float dr, float di) {
 	}
 }
 
+_DECL _Dcomplex __cpow(_Dcomplex b, _Dcomplex e) {
+	return cpow(b, e);
+}
+
+_DECL _Fcomplex __cpowf(_Fcomplex b, _Fcomplex e) {
+	return cpowf(b, e);
+}
+
 #endif

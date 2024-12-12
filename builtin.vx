@@ -589,8 +589,24 @@ end
 cdecl(cabsf) abs(c c32) f32
 cdecl(cabs) abs(c complex) real
 
-cdecl(cpow) __cpow(b complex, e complex) complex
-cdecl(cpowf) __cpow(b c32, e c32) c32
+cdecl(cpow) ___cpow(b complex, e complex) complex
+cdecl(cpowf) ___cpow(b c32, e c32) c32
+cdecl(__cpow) ____cpow(b complex, e complex) complex
+cdecl(__cpowf) ____cpow(b c32, e c32) c32
+
+inline def __cpow(b complex, e complex) complex
+	if __Environment_Idx == 2 && __LLVM_JIT
+		return ____cpow(b, e)
+	else
+		return ___cpow(b, e)
+end end
+
+inline def __cpow(b c32, e c32) c32
+	if __Environment_Idx == 2 && __LLVM_JIT
+		return ____cpow(b, e)
+	else
+		return ___cpow(b, e)
+end end
 
 inline def complex^(e int) complex
 	if e < 16
