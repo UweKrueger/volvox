@@ -1796,7 +1796,7 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 	auto kind = CurTok.kind;
 	if (kind == tok_return) {
 		getNextToken(eSemi);
-		if (CurTok.kind == ';' || CurTok.kind == tok_end) 
+		if (CurTok.kind == ';' || CurTok.kind == tok_end)
 			return { nullptr, kind };
 		else
 			return { ParseExpression(), kind };

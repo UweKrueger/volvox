@@ -923,7 +923,7 @@ public:
 
 class BranchExprAST : public ExprAST {
 protected:
-	std::vector<std::unique_ptr<ExprAST>> Then, Else;
+	std::vector<std::vector<std::unique_ptr<ExprAST>>> Then, Else;
 	VarTable then_locals_table, else_locals_table;
 	TokenKind if_kind = (TokenKind)0;
 	llvm::BasicBlock* StackRestoreBB0;
@@ -938,7 +938,8 @@ public:
 	bool always_return = false;
 	BranchExprAST(SourceLocation Loc, llvm::Type* type, unsigned type_attr,
 	              bool is_unknown_type, const char* errmsg,
-	              std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
+	              std::vector<std::vector<std::unique_ptr<ExprAST>>> _Then,
+	              std::vector<std::vector<std::unique_ptr<ExprAST>>> _Else,
 	              VarTable _then_locals_table, VarTable _else_locals_table, int ThenEndKind, int ElseEndKind,
 	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
 	              bool always_return = false)
@@ -962,7 +963,8 @@ class IfExprAST : public BranchExprAST {
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
-	          std::vector<std::unique_ptr<ExprAST>> _Then, std::vector<std::unique_ptr<ExprAST>> _Else,
+	          std::vector<std::vector<std::unique_ptr<ExprAST>>> _Then,
+	          std::vector<std::vector<std::unique_ptr<ExprAST>>> _Else,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
 	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
 	          bool always_return = false)
@@ -972,9 +974,9 @@ public:
 		                ThenEndKind, ElseEndKind, std::move(_Cond), if_kind, always_return)
 		{
 			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
-			if (Then.size() && Then.back()->ft && Then.back()->ft->type && !Then.back()->ft->type->isSingleValueType() && !Then.back()->ft->type->isVoidTy()
-			    && Else.size() && Else.back()->ft && Else.back()->ft->type && !Else.back()->ft->type->isSingleValueType() && !Else.back()->ft->type->isVoidTy())
-				ft = new_FullType(*Then.back()->ft);
+			if (Then[0].size() && Then[0].back()->ft && Then[0].back()->ft->type && !Then[0].back()->ft->type->isSingleValueType() && !Then[0].back()->ft->type->isVoidTy()
+			    && Else[0].size() && Else[0].back()->ft && Else[0].back()->ft->type && !Else[0].back()->ft->type->isSingleValueType() && !Else[0].back()->ft->type->isVoidTy())
+				ft = new_FullType(*Then[0].back()->ft);
 			if (!ft->type)
 				ft = new_FullType(llvm::Type::getVoidTy(Context), 0);
 		}
@@ -982,9 +984,9 @@ public:
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "if", ind);
 		Cond->dump(indent(out, ind) << "Cond:", ind + 1);
-		Then[0]->dump(indent(out, ind) << "Then:", ind + 1);
+		Then[0][0]->dump(indent(out, ind) << "Then:", ind + 1);
 		if (Else.size())
-			Else[0]->dump(indent(out, ind) << "Else:", ind + 1);
+			Else[0][0]->dump(indent(out, ind) << "Else:", ind + 1);
 		return out;
 	}
 #endif
@@ -1032,7 +1034,8 @@ public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
 	           std::string _KeyName, std::string _ValueName,
-	           std::vector<std::unique_ptr<ExprAST>> _Body, std::vector<std::unique_ptr<ExprAST>> _Else,
+	           std::vector<std::vector<std::unique_ptr<ExprAST>>> _Body,
+	           std::vector<std::vector<std::unique_ptr<ExprAST>>> _Else,
 	           int EndKind, int ElseEndKind, FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
 	           volvoxc::FullType* KeyFT = nullptr,
 	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)
@@ -1049,7 +1052,7 @@ public:
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		ExprAST::dump(out << "for " << KeyName << "," << ValueName, ind);
-		Then[0]->dump(indent(out, ind) << "Body:", ind + 1);
+		Then[0][0]->dump(indent(out, ind) << "Body:", ind + 1);
 		return out;
 	}
 #endif

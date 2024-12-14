@@ -3353,12 +3353,12 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (CTcond != CTcond_true && TheFunction)
 				ElseBB = llvm::BasicBlock::Create(Context, "else");
 		}
-		if (!Else.empty() && !Then.empty() && ft->type && !ft->type->isVoidTy()) {
+		if (Then.size() == 1 && Else.size() == 1 && !Else.empty() && !Then.empty() && ft->type && !ft->type->isVoidTy()) {
 			const char* new_err_msg = nullptr;
-			std::tie(Then.back()->desired_type, Else.back()->desired_type, new_err_msg) = getDesiredTypes(
-				ft->type, desired_type, Then.back()->ft->type, Else.back()->ft->type, OpNormal, ft->type_attr & A_signed,
-				Then.back()->ft->type_attr & A_signed, Else.back()->ft->type_attr & A_signed,
-				Then.back()->is_unknown_type, Else.back()->is_unknown_type);
+			std::tie(Then[0].back()->desired_type, Else[0].back()->desired_type, new_err_msg) = getDesiredTypes(
+				ft->type, desired_type, Then[0].back()->ft->type, Else[0].back()->ft->type, OpNormal, ft->type_attr & A_signed,
+				Then[0].back()->ft->type_attr & A_signed, Else[0].back()->ft->type_attr & A_signed,
+				Then[0].back()->is_unknown_type, Else[0].back()->is_unknown_type);
 			if (new_err_msg) {
 				errs() << Loc << new_err_msg << '\n';
 				return nullptr;
