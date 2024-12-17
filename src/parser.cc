@@ -996,7 +996,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
 	inside_branch = true;
-	auto Then = ParseExprList();
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
+	Then.push_back(ParseExprList());
 	if (!Then.second && Then.first.empty())
 		return nullptr;
 	inside_branch = old_inside_branch;
