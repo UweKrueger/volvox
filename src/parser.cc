@@ -978,7 +978,7 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 	return Cond;
 }
 
-static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,bool,bool,int> ParseElse(
+static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
 /// if..., elif..., while...[elif...]else...end, repeat...until
@@ -998,12 +998,12 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	inside_branch = true;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	Then.push_back(ParseExprList());
-	if (!Then.second && Then.first.empty())
+	if (!Then[0].second && Then[0].first.empty())
 		return nullptr;
 	inside_branch = old_inside_branch;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, IfLoc, kind, Then.second);
+	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second);
 	if (!success)
 		return nullptr;
 	if (kind == tok_repeat) {
@@ -1013,30 +1013,30 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (!Cond)
 			return nullptr;
 	} else {
-		if (have_else && Else.second == tok_end && then_end_kind != tok_elif || !have_else && Then.second == tok_end)
+		if (have_else && Else.back().second == tok_end && then_end_kind != tok_elif || !have_else && Then.back().second == tok_end)
 			if (!Expect(tok_end, eBinOp)) {
 				errs() << CurLoc << ": 'end' expected\n";
 				return nullptr;
 			}
 	}
-	bool always_return = Then.second == tok_return && have_else && Else.second == tok_return;
-	auto res_t = ((kind == tok_if || kind == tok_elif) && Else.first.size() && Else.first.back()->ft->type &&
-	              !Else.first.back()->ft->type->isVoidTy() && Then.first.back()->ft->type &&
-	              !Then.first.back()->ft->type->isVoidTy() &&
-	              !(Then.second == tok_return || have_else && Else.second == tok_return)) ?
-		getResType(Then.first.back()->ft->type, Else.first.back()->ft->type, "if",
-		           Then.first.back()->ft->type_attr, Else.first.back()->ft->type_attr,
-		           Then.first.back()->is_unknown_type, Else.first.back()->is_unknown_type)
+	bool always_return = Then.back().second == tok_return && have_else && Else.back().second == tok_return;
+	auto res_t = ((kind == tok_if || kind == tok_elif) && Else.back().first.size() && Else.back().first.back()->ft->type &&
+	              !Else.back().first.back()->ft->type->isVoidTy() && Then.back().first.back()->ft->type &&
+	              !Then.back().first.back()->ft->type->isVoidTy() &&
+	              !(Then.back().second == tok_return || have_else && Else.back().second == tok_return)) ?
+		getResType(Then.back().first.back()->ft->type, Else.back().first.back()->ft->type, "if",
+		           Then.back().first.back()->ft->type_attr, Else.back().first.back()->ft->type_attr,
+		           Then.back().first.back()->is_unknown_type, Else.back().first.back()->is_unknown_type)
 		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context),
 		                                                                 0, false, OpNormal, nullptr };
-	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then.first),
-	                                   std::move(Else.first), Then.second, Else.second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
+	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then),
+	                                   std::move(Else), Then.back().second, Else.back().second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
-static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,bool,bool,int> ParseElse(
+static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
 {
-	std::pair<std::vector<std::unique_ptr<ExprAST>>, int> Else;
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>, int>> Else;
 	int then_end_kind;
 	bool have_else = false;
 	if (ThenEndkind == tok_else || ThenEndkind == tok_elif) {
@@ -1057,17 +1057,17 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 			have_else = true;
 		} else {
 			errs() << CurLoc << ": 'else', 'elif' or 'end' expected\n";
-			return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-					std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{},
-					false, false, then_end_kind };
+			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
 		}
 	}
 	if (have_else) {
 		if (kind == tok_repeat) {
 			errs() << CurLoc << ": 'else' not allowed with 'repeat'\n";
-			return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-					std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{},
-					false, false, then_end_kind };
+			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
 		}
 		locals_table.emplace_back();
 		auto old_inside_branch = inside_branch;
@@ -1077,36 +1077,38 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
 			if (!elifif_expr) {
 				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
-				return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-						std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{},
-						false, false, then_end_kind };
+				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+				return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
 			}
 			auto end_k = elifif_expr->always_return ? tok_return : tok_end;
 			std::vector<std::unique_ptr<ExprAST>> l;
 			l.push_back(std::move(elif_expr));
-			Else = { std::move(l), end_k };
+			Else.push_back({ std::move(l), end_k });
 		} else {
-			Else = ParseExprList();
-			if (!Else.second && Else.first.empty())
-				return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-						std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{},
-						false, false, then_end_kind };
-			if (Else.second == tok_return) {
+			Else.push_back(ParseExprList());
+			if (!Else.back().second && Else.back().first.empty()) {
+				errs() << CurLoc << ": invalid 'if ... else' structure\n";
+				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+				return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
+			}
+			if (Else.back().second == tok_return) {
 				while (CurTok.kind == ';')
 					getNextToken();
 				if (CurTok.kind == tok_end) {
 					getNextToken();
 				} else {
 					errs() << CurLoc << ": 'end' expected\n";
-					return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-							std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{},
-							false, false, then_end_kind };
+					std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+					ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+					return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
 				}
 			}
 		}
 		inside_branch = old_inside_branch;
 	} else {
-		Else = { std::vector<std::unique_ptr<ExprAST>>(), 0 };
+		Else.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
 	}
 	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
 	if (kind == tok_repeat) {
@@ -1116,9 +1118,9 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 				auto then_var = (FullVar*)((char*)node + node->offset);
 				if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
 					errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-					return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-							std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{},
-							false, false, then_end_kind };
+					std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+					ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+					return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
 				}
 			}
 		}
@@ -1139,9 +1141,9 @@ static std::tuple<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>,VarTable,
 					}
 					if (!success) {
 						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-						return { std::pair<std::vector<std::unique_ptr<ExprAST>>,int>{
-								std::vector<std::unique_ptr<ExprAST>>(), 0 }, VarTable{},
-								false, false, then_end_kind };
+						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+						ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+						return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
 					}
 				}
 			}
@@ -1367,24 +1369,26 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 	}
-	auto Body = ParseExprList();
-	if (!Body.second && Body.first.empty())
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
+	Body.push_back(ParseExprList());
+	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
 	inside_branch = old_inside_branch;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, ForLoc, tok_for, Body.second);
+	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second);
 	if (!success)
 		return nullptr;
-	if (have_else && Else.second == tok_end && Body.second != tok_elif || !have_else && Body.second == tok_end)
+	if (have_else && Else.back().second == tok_end && Body.back().second != tok_elif || !have_else && Body.back().second == tok_end)
 		if (!Expect(tok_end, eBinOp)) {
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
 		}
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
 	                                    std::move(else_locals_table), std::move(Key), std::move(Value),
-	                                    std::move(KeyName), std::move(ValueName), std::move(Body.first),
-	                                    std::move(Else.first), Body.second, Else.second, ValueFV, KeyFV,
+	                                    std::move(KeyName), std::move(ValueName), Body.back().second, Else.back().second,
+	                                    std::move(Body),
+	                                    std::move(Else), ValueFV, KeyFV,
 	                                    ValueFt, KeyFt, key_kind, value_kind, descending);
 }
 

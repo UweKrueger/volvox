@@ -3355,10 +3355,10 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (Then.size() == 1 && Else.size() == 1 && !Else.empty() && !Then.empty() && ft->type && !ft->type->isVoidTy()) {
 			const char* new_err_msg = nullptr;
-			std::tie(Then[0].back()->desired_type, Else[0].back()->desired_type, new_err_msg) = getDesiredTypes(
-				ft->type, desired_type, Then[0].back()->ft->type, Else[0].back()->ft->type, OpNormal, ft->type_attr & A_signed,
-				Then[0].back()->ft->type_attr & A_signed, Else[0].back()->ft->type_attr & A_signed,
-				Then[0].back()->is_unknown_type, Else[0].back()->is_unknown_type);
+			std::tie(Then.back().first.back()->desired_type, Else.back().first.back()->desired_type, new_err_msg) = getDesiredTypes(
+				ft->type, desired_type, Then.back().first.back()->ft->type, Else.back().first.back()->ft->type, OpNormal, ft->type_attr & A_signed,
+				Then.back().first.back()->ft->type_attr & A_signed, Else.back().first.back()->ft->type_attr & A_signed,
+				Then.back().first.back()->is_unknown_type, Else.back().first.back()->is_unknown_type);
 			if (new_err_msg) {
 				errs() << Loc << new_err_msg << '\n';
 				return nullptr;
@@ -3441,7 +3441,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			BlockToJump = CondBBstart;
 		else
 			BlockToJump = MergeBB;
-		std::tie(ThenV, thenLast) = createCondBranch(BlockToJump, Then, ThenEndKind, false);
+		std::tie(ThenV, thenLast) = createCondBranch(BlockToJump, Then.back().first, ThenEndKind, false);
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		condnesting--;
@@ -3502,7 +3502,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
-			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, Else, ElseEndKind, true);
+			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, Else.back().first, ElseEndKind, true);
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
 			if (CTcond == CTcond_undef)
@@ -3663,9 +3663,9 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			return handle(target, ThenV);
 		else if (CTcond == CTcond_false)
 			return handle(target, ElseV);
-		auto merge = merge_values(Then.back()->ft->type, ThenV, (if_kind == tok_while || if_kind == tok_for) ?
-		                          CondBB : ThenBB, thenLast, Else.back()->ft->type, ElseV, ElseBB, elseLast,
-		                          firstWhile, enterBB, Then.back()->Loc, Else.back()->Loc);
+		auto merge = merge_values(Then.back().first.back()->ft->type, ThenV, (if_kind == tok_while || if_kind == tok_for) ?
+		                          CondBB : ThenBB, thenLast, Else.back().first.back()->ft->type, ElseV, ElseBB, elseLast,
+		                          firstWhile, enterBB, Then.back().first.back()->Loc, Else.back().first.back()->Loc);
 		if (ft->type != merge.first) {
 			ft = new_FullType(*ft);
 			ft-> type = merge.first;

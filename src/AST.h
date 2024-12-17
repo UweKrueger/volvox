@@ -1033,10 +1033,10 @@ class ForExprAST : public BranchExprAST {
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
-	           std::string _KeyName, std::string _ValueName,
+	           std::string _KeyName, std::string _ValueName, int EndKind, int ElseEndKind,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Body,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
-	           int EndKind, int ElseEndKind, FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
+	           FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
 	           volvoxc::FullType* KeyFT = nullptr,
 	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
