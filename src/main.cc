@@ -2335,6 +2335,11 @@ int main(int argc, char* argv[]) {
 			    && target_mingw
 #endif
 				) {
+				// Not all "system linkers" support LTO
+				// Force using LLVM linker on these systems
+#if defined(__NetBSD__)
+				linker_argv.push_back(const_cast<char*>("-fuse-ld=/usr/pkg/bin/ld.lld"));
+#endif
 				linker_argv.push_back(const_cast<char*>("-flto=thin"));
 			}
 			linker_argv.push_back(output_file);
