@@ -997,7 +997,9 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	auto old_inside_branch = inside_branch;
 	inside_branch = true;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
-	Then.push_back(ParseExprList());
+	do {
+		Then.push_back(ParseExprList());
+	} while ((Then.back().second & ((1<<16)-1)) == tok_brk);
 	if (!Then[0].second && Then[0].first.empty())
 		return nullptr;
 	inside_branch = old_inside_branch;
@@ -1086,7 +1088,9 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			l.push_back(std::move(elif_expr));
 			Else.push_back({ std::move(l), end_k });
 		} else {
-			Else.push_back(ParseExprList());
+			do {
+				Else.push_back(ParseExprList());
+			} while ((Else.back().second & ((1<<16)-1)) == tok_brk);
 			if (!Else.back().second && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1370,7 +1374,9 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		}
 	}
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
-	Body.push_back(ParseExprList());
+	do {
+		Body.push_back(ParseExprList());
+	} while ((Body.back().second & ((1<<16)-1)) == tok_brk);
 	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
 	inside_branch = old_inside_branch;
