@@ -50,7 +50,7 @@
            '("cstring" "f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union" "voidptr" "thread")
 	   "\\|"))
 	(CONTROLFLOW (mapconcat 'identity
-           '("elif" "else" "end" "def" "cdef" "if" "repeat" "return" "until" "while" "for")
+           '("brk" "elif" "else" "end" "def" "cdef" "if" "repeat" "return" "until" "while" "for")
 	   "\\|"))
 	(UNIX (mapconcat 'identity
            '("inline" "atomic" "shared" "const" "global" "cdecl" "decl" "from" "import" "pub" "type" "ctype")
@@ -89,6 +89,7 @@
         ("end" "end" volvox-indent-line 0)
         ("else" "else" volvox-indent-line 0)
         ("elif" "elif" volvox-indent-line 0)
+        ("brk" "brk" volvox-indent-line 0)
         ))
 
 (defconst volvox-indent-whitespace " \t"
@@ -237,7 +238,7 @@ ignored, nil otherwise."
 (defconst volvox-block-regexp
   (concat
    "\\(\\<"
-   "\\(if\\|while\\|for\\|else\\|elif\\|end\\|def\\|cdef\\|repeat\\|until\\)"
+   "\\(if\\|while\\|for\\|else\\|brk\\|elif\\|end\\|def\\|cdef\\|repeat\\|until\\)"
    "\\>\\)\\|"
    "\\([]()[{}]\\)"
    ))
@@ -535,7 +536,7 @@ one."
   (concat "\\("
 	  "\\(\\<"
 	  ;;(regexp-opt '("else" "elif" "until") t)
-	  "\\(else\\|elif\\|until\\)"
+	  "\\(else\\|elif\\|brk\\|until\\)"
 	  "\\>\\)\\($\\|\\s +\\)"
 	  "\\)"))
 
