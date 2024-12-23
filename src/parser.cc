@@ -31,7 +31,12 @@ ProtoListElem** anon_protos_end = &anon_protos;
 
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
-bool inside_branch = false;
+enum branch_t : uint8_t {
+	not_inside_branch = 0,
+	inside_main_branch,
+	inside_brk_branch
+};
+branch_t inside_branch = not_inside_branch;
 return_kind_t function_return_kind = return_expr; // main function return status value
 
 Token& getNextToken(eXpect expect, int terminator) {
@@ -995,14 +1000,15 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	}
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
-	inside_branch = true;
+	inside_branch = inside_main_branch;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	do {
 		Then.push_back(ParseExprList());
+		inside_branch = inside_brk_branch;
 	} while (~(~Then.back().second & ((1<<16)-1)) == tok_brk);
+	inside_branch = old_inside_branch;
 	if (!Then[0].second && Then[0].first.empty())
 		return nullptr;
-	inside_branch = old_inside_branch;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second);
@@ -1073,10 +1079,11 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		}
 		locals_table.emplace_back();
 		auto old_inside_branch = inside_branch;
-		inside_branch = true;
+		inside_branch = inside_main_branch;
 		if (CurTok.kind == tok_elif) {
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
+			inside_branch = old_inside_branch;
 			if (!elifif_expr) {
 				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1090,7 +1097,9 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		} else {
 			do {
 				Else.push_back(ParseExprList());
+				inside_branch = inside_brk_branch;
 			} while (~(~Else.back().second & ((1<<16)-1)) == tok_brk);
+			inside_branch = old_inside_branch;
 			if (!Else.back().second && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1110,7 +1119,6 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 				}
 			}
 		}
-		inside_branch = old_inside_branch;
 	} else {
 		Else.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
 	}
@@ -1292,7 +1300,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	// condition - expect bool.
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
-	inside_branch = true;
+	inside_branch = inside_main_branch;
 	auto KeyVal = ParseExpression(tok_in);
 	bool descending;
 	switch (CurTok.kind) {
@@ -1376,10 +1384,11 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
 	do {
 		Body.push_back(ParseExprList());
+		inside_branch = inside_brk_branch;
 	} while (~(~Body.back().second & ((1<<16)-1)) == tok_brk);
+	inside_branch = old_inside_branch;
 	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
-	inside_branch = old_inside_branch;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second);
