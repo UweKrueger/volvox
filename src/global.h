@@ -676,6 +676,10 @@ public:
 	}
 };
 
+inline FullVar* fullVar(Table t) {
+	return (FullVar*)((char*)t.getValue() + t.getValue()->offset);
+}
+
 extern std::map<unsigned, llvm::Type*> key32_table;
 
 class TypeTable : public Table {

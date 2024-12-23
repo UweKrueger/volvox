@@ -1028,7 +1028,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			}
 	}
 	bool always_return = Then.back().second == tok_return && have_else && Else.back().second == tok_return;
-	auto res_t = ((kind == tok_if || kind == tok_elif) && Else.back().first.size() && Else.back().first.back()->ft->type &&
+	auto res_t = ((kind == tok_if || kind == tok_elif) && Then.size() == 1 && Else.size() == 1 &&
+	              Else.back().first.size() && Else.back().first.back()->ft->type &&
 	              !Else.back().first.back()->ft->type->isVoidTy() && Then.back().first.back()->ft->type &&
 	              !Then.back().first.back()->ft->type->isVoidTy() &&
 	              !(Then.back().second == tok_return || have_else && Else.back().second == tok_return)) ?
@@ -1141,7 +1142,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		if (then_locals_table.table && else_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				FullVar* else_var = else_locals_table[then_node.getKey()];
-				if (else_var) {
+				if (else_var && !((fullVar(then_node)->ft.type_attr | else_var->ft.type_attr) & A_brk_var)) {
 					bool success = false;
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
@@ -1256,6 +1257,8 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		};
 		fv.ft.type = type;
 		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
+		if (inside_branch == inside_brk_branch)
+			fv.ft.type_attr |= A_brk_var;
 		if (is_signed & A_signed)
 			fv.ft.type_attr |= A_signed;
 		else
