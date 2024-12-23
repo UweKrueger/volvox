@@ -999,7 +999,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	do {
 		Then.push_back(ParseExprList());
-	} while ((Then.back().second & ((1<<16)-1)) == tok_brk);
+	} while (~(~Then.back().second & ((1<<16)-1)) == tok_brk);
 	if (!Then[0].second && Then[0].first.empty())
 		return nullptr;
 	inside_branch = old_inside_branch;
@@ -1090,7 +1090,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		} else {
 			do {
 				Else.push_back(ParseExprList());
-			} while ((Else.back().second & ((1<<16)-1)) == tok_brk);
+			} while (~(~Else.back().second & ((1<<16)-1)) == tok_brk);
 			if (!Else.back().second && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1376,7 +1376,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
 	do {
 		Body.push_back(ParseExprList());
-	} while ((Body.back().second & ((1<<16)-1)) == tok_brk);
+	} while (~(~Body.back().second & ((1<<16)-1)) == tok_brk);
 	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
 	inside_branch = old_inside_branch;
@@ -1813,12 +1813,13 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 			return { ParseExpression(), kind };
 	} else if (kind == tok_brk) {
 		unsigned levels = 0;
-		while (CurTok.kind == tok_brk) {
+		do {
 			levels++;
 			getNextToken(eSemi);
-		}
+		} while (CurTok.kind == tok_brk);
 		// encode multi level brk in upper bits of kind
-		return { nullptr, (int)((unsigned)kind | (levels << 16)) };
+		// but be careful: kind is negative
+		return { ParseExpression(), (int)~(~(unsigned)kind | (levels << 16)) };
 	} else if (kind == tok_else || kind == tok_elif || kind == tok_end || kind == tok_until) {
 		return { nullptr, kind };
 	} else if (kind == tok_global || kind == tok_const || kind == tok_atomic) {
