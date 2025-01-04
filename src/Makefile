@@ -24,6 +24,11 @@ ifeq ($(shell test -x /usr/local/bin/llvm-config18 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := 18
 else
+ifeq ($(shell test -x /usr/local/bin/llvm-config-18 && echo -n true),true)
+	PREFIX := /usr/local
+	SUFFIX := -18
+	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm18/lib -lreadline -rdynamic
+else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-17 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := -17
@@ -60,6 +65,7 @@ else
 ifeq ($(shell test -x /usr/pkg/bin/llvm-config && echo -n true),true)
 	PREFIX := /usr/pkg
 	SUFFIX :=
+endif
 endif
 endif
 endif

@@ -86,6 +86,9 @@ extern "C" {
 #define map_max volvox::map::Max
 #endif
 
+#define __str(s) #s
+#define __xstr(s) __str(s)
+
 class PrototypeAST;
 class FunctionAST;
 class VariableExprAST;

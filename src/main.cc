@@ -2339,6 +2339,8 @@ int main(int argc, char* argv[]) {
 				// Force using LLVM linker on these systems
 #if defined(__NetBSD__)
 				linker_argv.push_back(const_cast<char*>("-fuse-ld=/usr/pkg/bin/ld.lld"));
+#elif defined(__OpenBSD__)
+				linker_argv.push_back(const_cast<char*>("-fuse-ld=/usr/local/bin/ld.lld-" __xstr(LLVM_VERSION_MAJOR)));
 #endif
 				linker_argv.push_back(const_cast<char*>("-flto=thin"));
 			}
