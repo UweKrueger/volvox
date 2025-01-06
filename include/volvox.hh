@@ -1,6 +1,6 @@
 #pragma once
 /*
- * Copyright © Uwe Krüger 2021, 2022, 2023, 2024
+ * Copyright © Uwe Krüger 2021, 2022, 2023, 2024, 2025
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
