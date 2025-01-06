@@ -33,10 +33,12 @@ extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
 enum branch_t : uint8_t {
 	not_inside_branch = 0,
-	inside_main_branch,
-	inside_brk_branch
+	inside_main_branch, // first part of if ... or else ...
+	                    // declared variables remain valid if declared in all cases
+	inside_brk_branch   // after 1st brk - declared variables are local
 };
 branch_t inside_branch = not_inside_branch;
+int branch_depth = 0;
 return_kind_t function_return_kind = return_expr; // main function return status value
 
 Token& getNextToken(eXpect expect, int terminator) {
@@ -1001,12 +1003,14 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
+	branch_depth++;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	do {
 		Then.push_back(ParseExprList());
 		inside_branch = inside_brk_branch;
 	} while (~(~Then.back().second & ((1<<16)-1)) == tok_brk);
 	inside_branch = old_inside_branch;
+	branch_depth--;
 	if (!Then[0].second && Then[0].first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
@@ -1082,6 +1086,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		auto old_inside_branch = inside_branch;
 		inside_branch = inside_main_branch;
 		if (CurTok.kind == tok_elif) {
+			// do not increment branch_depth!
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
 			inside_branch = old_inside_branch;
@@ -1096,11 +1101,13 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			l.push_back(std::move(elif_expr));
 			Else.push_back({ std::move(l), end_k });
 		} else {
+			branch_depth++;
 			do {
 				Else.push_back(ParseExprList());
 				inside_branch = inside_brk_branch;
 			} while (~(~Else.back().second & ((1<<16)-1)) == tok_brk);
 			inside_branch = old_inside_branch;
+			branch_depth--;
 			if (!Else.back().second && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1127,13 +1134,14 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 	if (kind == tok_repeat) {
 		if (then_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
-				MapValue* node = then_node.getValue();
-				auto then_var = (FullVar*)((char*)node + node->offset);
-				if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
-					errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-					std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-					ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
-					return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
+				auto then_var = fullVar(then_node);
+				if (!(then_var->ft.type_attr & A_brk_var)) {
+					if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
+						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
+						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+						ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+						return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
+					}
 				}
 			}
 		}
@@ -1304,6 +1312,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
+	branch_depth++;
 	auto KeyVal = ParseExpression(tok_in);
 	bool descending;
 	switch (CurTok.kind) {
@@ -1390,6 +1399,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		inside_branch = inside_brk_branch;
 	} while (~(~Body.back().second & ((1<<16)-1)) == tok_brk);
 	inside_branch = old_inside_branch;
+	branch_depth--;
 	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
