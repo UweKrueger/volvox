@@ -923,7 +923,10 @@ public:
 
 class BranchExprAST : public ExprAST {
 protected:
+	// branches, end-kinds
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then, Else;
+	// breaks, to branch-depth
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> Breaks;
 	VarTable then_locals_table, else_locals_table;
 	TokenKind if_kind = (TokenKind)0;
 	llvm::BasicBlock* StackRestoreBB0;
@@ -940,13 +943,15 @@ public:
 	              bool is_unknown_type, const char* errmsg,
 	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Then,
 	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
+	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> _Breaks,
 	              VarTable _then_locals_table, VarTable _else_locals_table, int ThenEndKind, int ElseEndKind,
 	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
 	              bool always_return = false)
-		: ExprAST(type, type_attr, Loc, is_unknown_type), Then(std::move(_Then)), Else(std::move(_Else)),
-		  then_locals_table(std::move(_then_locals_table)), else_locals_table(std::move(_else_locals_table)),
-		  ThenEndKind(ThenEndKind), ElseEndKind(ElseEndKind), Cond(std::move(_Cond)), if_kind(if_kind),
-		  always_return(always_return), errmsg(errmsg) {}
+	: ExprAST(type, type_attr, Loc, is_unknown_type), Then(std::move(_Then)), Else(std::move(_Else)),
+	  Breaks(std::move(_Breaks)), then_locals_table(std::move(_then_locals_table)),
+	  else_locals_table(std::move(_else_locals_table)),
+	  ThenEndKind(ThenEndKind), ElseEndKind(ElseEndKind), Cond(std::move(_Cond)), if_kind(if_kind),
+	  always_return(always_return), errmsg(errmsg) {}
 	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock* MergeBB,
 		      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
@@ -965,12 +970,13 @@ public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Then,
 	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
+	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> _Breaks,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
 	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
 	          bool always_return = false)
 		: BranchExprAST(Loc, std::get<0>(res_t),
 		                std::get<1>(res_t), std::get<2>(res_t), std::get<4>(res_t), std::move(_Then),
-		                std::move(_Else), std::move(_then_locals_table), std::move(_else_locals_table),
+		                std::move(_Else), std::move(_Breaks), std::move(_then_locals_table), std::move(_else_locals_table),
 		                ThenEndKind, ElseEndKind, std::move(_Cond), if_kind, always_return)
 		{
 			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
@@ -1036,11 +1042,12 @@ public:
 	           std::string _KeyName, std::string _ValueName, int EndKind, int ElseEndKind,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Body,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
+	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> _Breaks,
 	           FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
 	           volvoxc::FullType* KeyFT = nullptr,
 	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
-		                std::move(_Else), std::move(_locals_table),
+		                std::move(_Else), std::move(_Breaks), std::move(_locals_table),
 		                std::move(else_locals_table), EndKind, ElseEndKind, nullptr, tok_for),
 		  Iterator(std::move(_Iterator)), Key(std::move(_Key)), Value(std::move(_Value)),
 		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)), ValueName(std::move(_ValueName)),

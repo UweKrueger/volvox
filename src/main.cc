@@ -972,9 +972,10 @@ bool FinishTestRuns() {
 		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _else;
 		_else.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, tok_end });
 		_else[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
+		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> _breaks;
 		auto if_e = std::make_unique<IfExprAST>(
 			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-			std::move(_then), std::move(_else), tok_end, tok_end, std::move(VarTable()), std::move(VarTable()),
+			std::move(_then), std::move(_else), std::move(_breaks), tok_end, tok_end, std::move(VarTable()), std::move(VarTable()),
 			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm_int_type, true, false, OpNormal, nullptr });
 		if_e->desired_type = llvm_int_type;
 		GlobalExprList.push_back(
@@ -1093,9 +1094,10 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _else;
 		_else.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, tok_end });
 		_else[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
+		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> _breaks;
 		auto if_e = std::make_unique<IfExprAST>(
 			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-			std::move(_then), std::move(_else), tok_end, tok_end, std::move(VarTable()), std::move(VarTable()),
+			std::move(_then), std::move(_else), std::move(_breaks), tok_end, tok_end, std::move(VarTable()), std::move(VarTable()),
 			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm_int_type, true, false, OpNormal, nullptr });
 		if_e->desired_type = llvm_int_type;
 		GlobalExprList.push_back(

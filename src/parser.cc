@@ -1004,6 +1004,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
 	branch_depth++;
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	do {
 		Then.push_back(ParseExprList());
@@ -1042,8 +1043,10 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		           Then.back().first.back()->is_unknown_type, Else.back().first.back()->is_unknown_type)
 		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context),
 		                                                                 0, false, OpNormal, nullptr };
-	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then),
-	                                   std::move(Else), Then.back().second, Else.back().second, std::move(then_locals_table), std::move(else_locals_table), res_t, kind == tok_elif ? tok_if : kind, always_return);
+	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then), std::move(Else),
+	                                   std::move(Breaks), Then.back().second, Else.back().second,
+	                                   std::move(then_locals_table), std::move(else_locals_table),
+	                                   res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
 static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int> ParseElse(
@@ -1393,6 +1396,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 	}
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
 	do {
 		Body.push_back(ParseExprList());
@@ -1415,8 +1419,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
 	                                    std::move(else_locals_table), std::move(Key), std::move(Value),
 	                                    std::move(KeyName), std::move(ValueName), Body.back().second, Else.back().second,
-	                                    std::move(Body),
-	                                    std::move(Else), ValueFV, KeyFV,
+	                                    std::move(Body), std::move(Else), std::move(Breaks), ValueFV, KeyFV,
 	                                    ValueFt, KeyFt, key_kind, value_kind, descending);
 }
 
