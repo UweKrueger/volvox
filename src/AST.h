@@ -923,7 +923,9 @@ public:
 
 struct BreakDescription {
 	std::vector<std::unique_ptr<ExprAST>>* expr_list;
-	llvm::BasicBlock* break_br;
+	llvm::BasicBlock* insertion_point;
+	llvm::Value* do_break;
+	llvm::BasicBlock* break_br; // if 'do_break' represents 'true'
 	llvm::BasicBlock* cont_br;
 	int br_branch_depth;
 };
