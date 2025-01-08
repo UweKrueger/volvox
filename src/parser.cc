@@ -986,7 +986,8 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 }
 
 static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int> ParseElse(
-	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
+	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind,
+	std::vector<BreakDescription>& Breaks);
 
 /// if..., elif..., while...[elif...]else...end, repeat...until
 static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
@@ -1006,17 +1007,22 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	branch_depth++;
 	std::vector<BreakDescription> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
-	do {
+	for (;;) {
 		Then.push_back(ParseExprList());
+		if (~(~Then.back().second & ((1<<16)-1)) != tok_brk)
+			break;
 		inside_branch = inside_brk_branch;
-	} while (~(~Then.back().second & ((1<<16)-1)) == tok_brk);
+		int brk_depth = (~Then.back().second) >> 16;
+		// errs() << Then.back().first.back()->Loc << ": brk depth = " << brk_depth << " " << branch_depth << " " << branch_depth - brk_depth << "\n";
+		Breaks.push_back({ .br_branch_depth = branch_depth - brk_depth });
+	}
 	inside_branch = old_inside_branch;
 	branch_depth--;
 	if (!Then[0].second && Then[0].first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second);
+	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second, Breaks);
 	if (!success)
 		return nullptr;
 	if (kind == tok_repeat) {
@@ -1050,7 +1056,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 }
 
 static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int> ParseElse(
-	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
+	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind,
+	std::vector<BreakDescription>& Breaks)
 {
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>, int>> Else;
 	int then_end_kind;
@@ -1105,10 +1112,14 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			Else.push_back({ std::move(l), end_k });
 		} else {
 			branch_depth++;
-			do {
+			for (;;) {
 				Else.push_back(ParseExprList());
+				if (~(~Else.back().second & ((1<<16)-1)) != tok_brk)
+					break;
 				inside_branch = inside_brk_branch;
-			} while (~(~Else.back().second & ((1<<16)-1)) == tok_brk);
+				int brk_depth = (~Else.back().second) >> 16;
+				Breaks.push_back({ .br_branch_depth = branch_depth - brk_depth });
+			}
 			inside_branch = old_inside_branch;
 			branch_depth--;
 			if (!Else.back().second && Else.back().first.empty()) {
@@ -1398,17 +1409,21 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	}
 	std::vector<BreakDescription> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
-	do {
+	for (;;) {
 		Body.push_back(ParseExprList());
+		if (~(~Body.back().second & ((1<<16)-1)) != tok_brk)
+			break;
 		inside_branch = inside_brk_branch;
-	} while (~(~Body.back().second & ((1<<16)-1)) == tok_brk);
+		int brk_depth = (~Body.back().second) >> 16;
+		Breaks.push_back({ .br_branch_depth = branch_depth - brk_depth });
+	}
 	inside_branch = old_inside_branch;
 	branch_depth--;
 	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second);
+	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second, Breaks);
 	if (!success)
 		return nullptr;
 	if (have_else && Else.back().second == tok_end && Body.back().second != tok_elif || !have_else && Body.back().second == tok_end)
