@@ -921,12 +921,18 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
+struct BreakDescription {
+	std::vector<std::unique_ptr<ExprAST>>* expr_list;
+	llvm::BasicBlock* break_br;
+	llvm::BasicBlock* cont_br;
+	int br_branch_depth;
+};
+
 class BranchExprAST : public ExprAST {
 protected:
 	// branches, end-kinds
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then, Else;
-	// breaks, to branch-depth
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> Breaks;
+	std::vector<BreakDescription> Breaks;
 	VarTable then_locals_table, else_locals_table;
 	TokenKind if_kind = (TokenKind)0;
 	llvm::BasicBlock* StackRestoreBB0;
@@ -943,7 +949,7 @@ public:
 	              bool is_unknown_type, const char* errmsg,
 	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Then,
 	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
-	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> _Breaks,
+	              std::vector<BreakDescription> _Breaks,
 	              VarTable _then_locals_table, VarTable _else_locals_table, int ThenEndKind, int ElseEndKind,
 	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
 	              bool always_return = false)
@@ -970,7 +976,7 @@ public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Then,
 	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
-	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> _Breaks,
+	          std::vector<BreakDescription> _Breaks,
 	          int ThenEndKind, int ElseEndKind, VarTable _then_locals_table, VarTable _else_locals_table,
 	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
 	          bool always_return = false)
@@ -1042,7 +1048,7 @@ public:
 	           std::string _KeyName, std::string _ValueName, int EndKind, int ElseEndKind,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Body,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
-	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> _Breaks,
+	           std::vector<BreakDescription> _Breaks,
 	           FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
 	           volvoxc::FullType* KeyFT = nullptr,
 	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)

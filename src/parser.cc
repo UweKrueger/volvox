@@ -1004,7 +1004,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
 	branch_depth++;
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> Breaks;
+	std::vector<BreakDescription> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	do {
 		Then.push_back(ParseExprList());
@@ -1396,7 +1396,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 	}
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>*,int>> Breaks;
+	std::vector<BreakDescription> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
 	do {
 		Body.push_back(ParseExprList());
