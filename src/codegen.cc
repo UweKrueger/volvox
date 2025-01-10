@@ -25,6 +25,7 @@ unsigned condnesting = 0;
 idiv_modes idiv_mode = idiv_mode_undef;
 std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
 std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
+std::vector<llvm::BasicBlock*> merge_points; // for multi level brk
 
 //===----------------------------------------------------------------------===//
 // Code Generation
@@ -2651,6 +2652,10 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 	return handle(target, result);
 }
 
+// create if/while/repeat/for or else branch
+// handles jump to mergepoint and returns last expr-value and pointer to jump-instruction
+// as insertion point for destructors, etc
+//
 std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm::BasicBlock* MergeBB,
 	      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse) {
 	llvm::Value* BranchV = nullptr;
@@ -2685,7 +2690,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 	}
 	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
-	if (for_expr && !isElse && EndKind != tok_return) {
+	if (for_expr && !isElse && EndKind != tok_return && EndKind != tok_brk) {
 		llvm::Value* cond = for_expr->CreateCondition(true);
 		llvm::BasicBlock* IterateBB = llvm::BasicBlock::Create(Context, "Iterate");
 		firstBreak = Builder->CreateCondBr(cond, IterateBB, MergeBB);
@@ -3432,6 +3437,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
 		condnesting++;
+		merge_points.push_back(MergeBB); // for multi level brk
 		llvm::BasicBlock* BlockToJump;
 		if (if_kind == tok_for) {
 			for_expr->SetupLoop();
@@ -3441,9 +3447,16 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			BlockToJump = CondBBstart;
 		else
 			BlockToJump = MergeBB;
-		std::tie(ThenV, thenLast) = createCondBranch(BlockToJump, Then.back().first, ThenEndKind, false);
+		int then_max = Else.size() - 1;
+		for (int n=0; n <= then_max; n++) {
+			if (n == then_max)
+				std::tie(ThenV, thenLast) = createCondBranch(BlockToJump, Then.back().first, ThenEndKind, false);
+			else
+				errs() << "not implemented, yet\n";
+		}
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
+		merge_points.pop_back();
 		condnesting--;
 		then_locals_table = std::move(locals_table.back());
 		locals_table.pop_back();
@@ -3499,14 +3512,22 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			Builder->SetInsertPoint(ElseBB);
 			locals_table.push_back(std::move(else_locals_table));
 			condnesting++;
+			merge_points.push_back(MergeBB); // for multi level brk
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
-			std::tie(ElseV, elseLast) = createCondBranch(MergeBB, Else.back().first, ElseEndKind, true);
+			int else_max = Else.size() - 1;
+			for (int n=0; n <= else_max; n++) {
+				if (n == else_max)
+					std::tie(ElseV, elseLast) = createCondBranch(MergeBB, Else[n].first, ElseEndKind, true);
+				else
+					errs() << "not implemented, yet\n";
+			}
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = old_IfWhileVarTable;
+			merge_points.pop_back();
 			condnesting--;
 			else_locals_table = std::move(locals_table.back());
 			locals_table.pop_back();
