@@ -1050,7 +1050,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context),
 		                                                                 0, false, OpNormal, nullptr };
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then), std::move(Else),
-	                                   std::move(Breaks), Then.back().second, Else.back().second,
+	                                   std::move(Breaks),
 	                                   std::move(then_locals_table), std::move(else_locals_table),
 	                                   res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
@@ -1433,7 +1433,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		}
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
 	                                    std::move(else_locals_table), std::move(Key), std::move(Value),
-	                                    std::move(KeyName), std::move(ValueName), Body.back().second, Else.back().second,
+	                                    std::move(KeyName), std::move(ValueName),
 	                                    std::move(Body), std::move(Else), std::move(Breaks), ValueFV, KeyFV,
 	                                    ValueFt, KeyFt, key_kind, value_kind, descending);
 }
@@ -1879,7 +1879,7 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 		if (expr.first) {
 			if (!end_kind) {
 				if (auto I = dynamic_cast<IfExprAST*>(expr.first.get()))
-					if (I->ThenEndKind == tok_return && I->ElseEndKind == tok_return)
+					if (I->Then.back().second == tok_return && I->Else.back().second == tok_return)
 						end_kind = tok_return;
 			} else if (end_kind == tok_return && function_return_kind != return_expr) {
 				errs() << expr.first->Loc << ": return value for "

@@ -3451,7 +3451,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		for (int n=0; n <= then_max; n++) {
 			if (n == then_max)
 				merge_points.back() = BlockToJump;
-			std::tie(ThenV, thenLast) = createCondBranch(Then[n].first, ThenEndKind, false);
+			std::tie(ThenV, thenLast) = createCondBranch(Then[n].first, Then[n].second, false);
 		}
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
@@ -3517,7 +3517,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				IfWhileVarTable = &then_locals_table;
 			int else_max = Else.size() - 1;
 			for (int n=0; n <= else_max; n++) {
-				std::tie(ElseV, elseLast) = createCondBranch(Else[n].first, ElseEndKind, true);
+				std::tie(ElseV, elseLast) = createCondBranch(Else[n].first, Else[n].second, true);
 			}
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
@@ -3538,7 +3538,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	if (if_kind == tok_if || if_kind == tok_for) {
 		Builder->SetInsertPoint(EntryBBend);
 		if (CTcond != CTcond_undef && if_kind != tok_for) { // at least one branch can be removed
-			if (thenConstV && ThenEndKind == tok_else && !ft->type->isVoidTy()) {
+			if (thenConstV && Then.back().second == tok_else && !ft->type->isVoidTy()) {
 				if (TheFunction) {
 					TheFunction->insert(TheFunction->end(), MergeBB);
 					if (ThenBBstart)
@@ -3546,7 +3546,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 					Builder->SetInsertPoint(MergeBB);
 				}
 				return thenConstV;
-			} else if (elseConstV && ElseEndKind == tok_end && !ft->type->isVoidTy()) {
+			} else if (elseConstV && Else.back().second == tok_end && !ft->type->isVoidTy()) {
 				if (TheFunction) {
 					TheFunction->insert(TheFunction->end(), MergeBB);
 					if (ElseBBstart)
