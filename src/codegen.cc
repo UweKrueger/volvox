@@ -2656,8 +2656,8 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 // handles jump to mergepoint and returns last expr-value and pointer to jump-instruction
 // as insertion point for destructors, etc
 //
-std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm::BasicBlock* MergeBB,
-	      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse) {
+std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
+	std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse) {
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
 	auto for_expr = dynamic_cast<ForExprAST*>(this);
@@ -2693,7 +2693,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 	if (for_expr && !isElse && EndKind != tok_return && EndKind != tok_brk) {
 		llvm::Value* cond = for_expr->CreateCondition(true);
 		llvm::BasicBlock* IterateBB = llvm::BasicBlock::Create(Context, "Iterate");
-		firstBreak = Builder->CreateCondBr(cond, IterateBB, MergeBB);
+		firstBreak = Builder->CreateCondBr(cond, IterateBB, merge_points.back());
 		if (TheFunction) {
 			TheFunction->insert(TheFunction->end(), IterateBB);
 			Builder->SetInsertPoint(IterateBB);
@@ -2712,8 +2712,8 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(llvm
 			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		else if (!BranchV)
 			BranchV = llvm::Constant::getNullValue(ft->type);
-		if (MergeBB && !(for_expr && !isElse))
-			firstBreak = Builder->CreateBr(MergeBB);
+		if (merge_points.back() && !(for_expr && !isElse))
+			firstBreak = Builder->CreateBr(merge_points.back());
 	}
 	return { BranchV, firstBreak };
 }
@@ -3450,9 +3450,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		int then_max = Else.size() - 1;
 		for (int n=0; n <= then_max; n++) {
 			if (n == then_max)
-				std::tie(ThenV, thenLast) = createCondBranch(BlockToJump, Then.back().first, ThenEndKind, false);
-			else
-				errs() << "not implemented, yet\n";
+				merge_points.back() = BlockToJump;
+			std::tie(ThenV, thenLast) = createCondBranch(Then[n].first, ThenEndKind, false);
 		}
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
@@ -3518,10 +3517,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				IfWhileVarTable = &then_locals_table;
 			int else_max = Else.size() - 1;
 			for (int n=0; n <= else_max; n++) {
-				if (n == else_max)
-					std::tie(ElseV, elseLast) = createCondBranch(MergeBB, Else[n].first, ElseEndKind, true);
-				else
-					errs() << "not implemented, yet\n";
+				std::tie(ElseV, elseLast) = createCondBranch(Else[n].first, ElseEndKind, true);
 			}
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);

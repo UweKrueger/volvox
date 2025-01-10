@@ -960,8 +960,8 @@ public:
 	  else_locals_table(std::move(_else_locals_table)),
 	  ThenEndKind(ThenEndKind), ElseEndKind(ElseEndKind), Cond(std::move(_Cond)), if_kind(if_kind),
 	  always_return(always_return), errmsg(errmsg) {}
-	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(llvm::BasicBlock* MergeBB,
-		      std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse);
+	std::pair<llvm::Value*, llvm::Instruction*> createCondBranch(
+		std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
