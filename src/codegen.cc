@@ -2725,8 +2725,12 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
 			}
 		}
 		llvm::BasicBlock* breakDest = merge_points[idx].first;
+		auto brkBB = llvm::BasicBlock::Create(Context, "brkBB");
 		auto contBB = llvm::BasicBlock::Create(Context, "nobrkBB");
-		Builder->CreateCondBr(BranchV, breakDest, contBB);
+		Builder->CreateCondBr(BranchV, brkBB, contBB);
+		TheFunction->insert(TheFunction->end(), brkBB);
+		Builder->SetInsertPoint(brkBB);
+		firstBreak = Builder->CreateBr(breakDest); // insertion point for destructors
 		TheFunction->insert(TheFunction->end(), contBB);
 		Builder->SetInsertPoint(contBB);
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
