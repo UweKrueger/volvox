@@ -943,6 +943,7 @@ protected:
 public:
 	const char* errmsg; // postponed: result type is just void if branch last values do not match
 	                    // however if a result value is needed by a consumer this message is used
+	bool is_elif_branch = false; // true indicates that no further syntactic nesting is done
 	std::unique_ptr<ExprAST> Cond;
 	bool always_return = false;
 	BranchExprAST(SourceLocation Loc, llvm::Type* type, unsigned type_attr,

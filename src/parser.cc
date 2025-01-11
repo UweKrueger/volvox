@@ -1107,6 +1107,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
 				return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
 			}
+			elifif_expr->is_elif_branch = true;
 			auto end_k = elifif_expr->always_return ? tok_return : tok_end;
 			std::vector<std::unique_ptr<ExprAST>> l;
 			l.push_back(std::move(elif_expr));

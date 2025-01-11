@@ -2709,7 +2709,10 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	} else if (~(~EndKind & ((1<<16)-1)) == tok_brk) {
 		int brk_depth = (~EndKind) >> 16;
-		llvm::BasicBlock* breakDest = merge_points[merge_points.size() - brk_depth];
+		// errs() << Branch.back()->Loc << " - sz: " << merge_points.size() << " nest: " << condnesting << " depth: " << brk_depth << "\n";
+		// for the index we take into account that 'elif' is not considered to add further nesting
+		// syntactically whereas semantically it does. 'condnesting' takes this into account
+		llvm::BasicBlock* breakDest = merge_points[condnesting - brk_depth];
 		auto contBB = llvm::BasicBlock::Create(Context, "nobrkBB");
 		Builder->CreateCondBr(BranchV, breakDest, contBB);
 		TheFunction->insert(TheFunction->end(), contBB);
@@ -3266,6 +3269,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
+	int nestdelta = is_elif_branch ? 0 : 1;
 	auto if_expr = dynamic_cast<IfExprAST*>(this);
 	auto for_expr = dynamic_cast<ForExprAST*>(this);
 	auto enterBB = Builder->GetInsertBlock();
@@ -3444,7 +3448,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
-		condnesting++;
+		condnesting += nestdelta;
 		merge_points.push_back(MergeBB); // for multi level brk
 		llvm::BasicBlock* BlockToJump;
 		if (if_kind == tok_for) {
@@ -3464,7 +3468,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		merge_points.pop_back();
-		condnesting--;
+		condnesting -= nestdelta;
 		then_locals_table = std::move(locals_table.back());
 		locals_table.pop_back();
 		if (!ThenV) {
@@ -3518,7 +3522,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			}
 			Builder->SetInsertPoint(ElseBB);
 			locals_table.push_back(std::move(else_locals_table));
-			condnesting++;
+			condnesting += nestdelta;
 			merge_points.push_back(MergeBB); // for multi level brk
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
@@ -3532,7 +3536,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = old_IfWhileVarTable;
 			merge_points.pop_back();
-			condnesting--;
+			condnesting -= nestdelta;
 			else_locals_table = std::move(locals_table.back());
 			locals_table.pop_back();
 			if (!ElseV) {
