@@ -1039,7 +1039,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 				return nullptr;
 			}
 	}
-	bool always_return = Then.back().second == tok_return && have_else && Else.back().second == tok_return;
+	bool always_return = Then.size() == 1 && Then.back().second == tok_return && have_else && Else.size() == 1 && Else.back().second == tok_return;
 	auto res_t = ((kind == tok_if || kind == tok_elif) && Then.size() == 1 && Else.size() == 1 &&
 	              Else.back().first.size() && Else.back().first.back()->ft->type &&
 	              !Else.back().first.back()->ft->type->isVoidTy() && Then.back().first.back()->ft->type &&
@@ -1080,7 +1080,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 				getNextToken();
 			have_else = true;
 		} else {
-			errs() << CurLoc << ": 'else', 'elif' or 'end' expected\n";
+			errs() << CurLoc << ": 'else', 'elif' or 'end' expected (branch has returned unconditionally so any statement would be dead code)\n";
 			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
 			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
 			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind };
@@ -1880,7 +1880,10 @@ static std::pair<std::vector<std::unique_ptr<ExprAST>>, int> ParseExprList() {
 		if (expr.first) {
 			if (!end_kind) {
 				if (auto I = dynamic_cast<IfExprAST*>(expr.first.get()))
-					if (I->Then.back().second == tok_return && I->Else.back().second == tok_return)
+					if (I->Then.back().second == tok_return && I->Else.back().second == tok_return
+					    && I->Then.size() == 1 && I->Else.size() == 1)
+						// both branches do return and there is no break
+						// TODO: stricter checks for multi level break
 						end_kind = tok_return;
 			} else if (end_kind == tok_return && function_return_kind != return_expr) {
 				errs() << expr.first->Loc << ": return value for "
