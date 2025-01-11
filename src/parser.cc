@@ -1013,13 +1013,14 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			break;
 		inside_branch = inside_brk_branch;
 		int brk_depth = (~Then.back().second) >> 16;
-		// errs() << Then.back().first.back()->Loc << ": brk depth = " << brk_depth << " " << branch_depth << " " << branch_depth - brk_depth << "\n";
 		Breaks.push_back({ .br_branch_depth = branch_depth - brk_depth });
 	}
 	inside_branch = old_inside_branch;
 	branch_depth--;
-	if (!Then[0].second && Then[0].first.empty())
+	if (!Then.back().second && Then.back().first.empty()) {
+		errs() << CurLoc << ": malformed branch expression\n";
 		return nullptr;
+	}
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second, Breaks);

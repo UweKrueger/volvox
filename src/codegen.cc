@@ -2714,6 +2714,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
 		Builder->CreateCondBr(BranchV, breakDest, contBB);
 		TheFunction->insert(TheFunction->end(), contBB);
 		Builder->SetInsertPoint(contBB);
+		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	} else {
 		if (ft->type->isVoidTy())
 			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
@@ -3454,7 +3455,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			BlockToJump = CondBBstart;
 		else
 			BlockToJump = MergeBB;
-		int then_max = Else.size() - 1;
+		int then_max = Then.size() - 1;
 		for (int n=0; n <= then_max; n++) {
 			if (n == then_max)
 				merge_points.back() = BlockToJump;
