@@ -286,3 +286,44 @@ def test_interface_5 bool
 	r44 = HPnOi{ u: -7.0625, ppt: 13.25 }
 	return g2LgT(r44)
 end
+
+def klghju(x real, b real) real
+	while x>b
+		b += 1.0625
+	brk b >= 5
+		b += 0.25
+	end
+	return b
+end
+
+def test_1level_break_1 bool
+	return klghju(25, 11) == 12.062500
+end
+
+def test_1level_break_2 bool
+	return klghju(25, 0.5) == 5.5
+end
+
+def ttqwl(a int, b int) int
+	if a >= 5
+		if a > b
+			a += 5
+		elif a > 9
+			b += 3
+	brk brk a > 10
+			return b
+		else
+			return 0
+		end
+		b += 13
+	end
+	return -857 + b
+end
+
+def test_2level_break_1 bool
+	return ttqwl(11, 23) == -831
+end
+
+def test_2level_break_2 bool
+	return ttqwl(10, 17) == 20
+end
