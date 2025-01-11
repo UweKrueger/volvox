@@ -535,7 +535,9 @@ cleanup:
 	function_return_kind = old_return_kind;
 	locals_table[0].clear();
 	locals_table = std::move(std::vector<VarTable>{});
+	condnesting = 0;
 	inside_function = false;
+	merge_points.clear();
 }
 
 static void HandleExtern(unsigned visibility) {

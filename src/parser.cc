@@ -51,6 +51,8 @@ Token& getNextToken(eXpect expect, int terminator) {
 Token& purgeLine() {
 	parseOk = true;
 	CurTok = lex.purge_line();
+	merge_points.clear();
+	condnesting = 0;
 	return CurTok;
 }
 
