@@ -2688,9 +2688,9 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
 			InsertDestructors(expr_temps);
 		}
 	}
-	if (EndKind != tok_return && !Branch.empty() && Branch.back()->desired_type)
+	if (EndKind != tok_return && ~(~EndKind & ((1<<16)-1)) != tok_brk && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
-	if (for_expr && !isElse && EndKind != tok_return && EndKind != tok_brk) {
+	if (for_expr && !isElse && EndKind != tok_return && ~(~EndKind & ((1<<16)-1)) != tok_brk) {
 		llvm::Value* cond = for_expr->CreateCondition(true);
 		llvm::BasicBlock* IterateBB = llvm::BasicBlock::Create(Context, "Iterate");
 		firstBreak = Builder->CreateCondBr(cond, IterateBB, merge_points.back());
@@ -2707,6 +2707,13 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
 	if (EndKind == tok_return) {
 		HandleReturn(Branch, BranchV);
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+	} else if (~(~EndKind & ((1<<16)-1)) == tok_brk) {
+		int brk_depth = (~EndKind) >> 16;
+		llvm::BasicBlock* breakDest = merge_points[merge_points.size() - brk_depth];
+		auto contBB = llvm::BasicBlock::Create(Context, "nobrkBB");
+		Builder->CreateCondBr(BranchV, breakDest, contBB);
+		TheFunction->insert(TheFunction->end(), contBB);
+		Builder->SetInsertPoint(contBB);
 	} else {
 		if (ft->type->isVoidTy())
 			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
