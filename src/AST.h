@@ -923,10 +923,8 @@ public:
 
 struct BreakDescription {
 	std::vector<std::unique_ptr<ExprAST>>* expr_list;
-	llvm::BasicBlock* insertion_point;
-	llvm::Value* do_break;
-	llvm::BasicBlock* break_br; // if 'do_break' represents 'true'
-	llvm::BasicBlock* cont_br;
+	llvm::Instruction* destructors_insertion_point;
+	std::vector<std::array<int, 2>> var_idxs;
 	int br_branch_depth;
 };
 
@@ -935,6 +933,7 @@ public:
 	// branches, end-kinds
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then, Else;
 	std::vector<BreakDescription> Breaks;
+	int brk_idx = -1;
 protected:
 	VarTable then_locals_table, else_locals_table;
 	TokenKind if_kind = (TokenKind)0;

@@ -25,8 +25,13 @@ unsigned condnesting = 0; // semantic nesting of current branch - elif-branch is
 idiv_modes idiv_mode = idiv_mode_undef;
 std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
 std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
-// int value to store nesting delta - normally 1, but 0 for elif - used to calculate syntactig nesting
+// int value to store nesting delta - normally 1, but 0 for elif
+// used to calculate syntactig nesting in BranchExpr
 std::vector<std::pair<llvm::BasicBlock*,int>> merge_points; // for multi level brk
+// log declared vars to be able to call destructors
+// nestlevel / branch / branchpart(for break)
+// each branchpoint holds a vector (with size break_level) of index triples to identify
+std::vector<std::vector<std::vector<FullVar*>>> declared_vars;
 
 //===----------------------------------------------------------------------===//
 // Code Generation
