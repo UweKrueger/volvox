@@ -31,8 +31,8 @@ std::vector<std::pair<llvm::BasicBlock*,int>> merge_points; // for multi level b
 // log declared vars to be able to call destructors
 // nestlevel / branch / branchpart(for break)
 // each branchpoint holds a vector (with size break_level) of index triples to identify
-std::vector<std::vector<std::vector<FullVar*>>> declared_vars;
-
+std::vector<std::vector<std::vector<FullVar*>>> declared_vars = {{{}}};
+std::vector<std::vector<BreakDescription>> Breaks;
 //===----------------------------------------------------------------------===//
 // Code Generation
 //===----------------------------------------------------------------------===//
@@ -1957,6 +1957,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 			return nullptr;
 		}
+		declared_vars.back().back().push_back(entry);
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		llvm::Type* type = RHS->ft->type;
@@ -2662,7 +2663,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 // handles jump to mergepoint and returns last expr-value and pointer to jump-instruction
 // as insertion point for destructors, etc
 //
-std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
+std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranch(
 	std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse) {
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
@@ -2670,12 +2671,12 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
 	if (EndKind == tok_return) {
 		if (for_expr) {
 			errs() << Loc << ": 'return' at end of 'for' loop not allowed - use 'if' instead\n";
-			return { nullptr, nullptr };
+			return { nullptr, nullptr, 0 };
 		}
 		if (!theFunction_ret_ft->type->isVoidTy()) {
 			if (Branch.empty()) {
 				errs() << Loc << ": return value value of type " << *theFunction_ret_ft << " required\n";
-				return { nullptr, nullptr };
+				return { nullptr, nullptr, 0 };
 			}
 			Branch.back()->desired_type = theFunction_ret_ft->type;
 		}
@@ -2708,11 +2709,13 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
 		Builder->CreateBr(StackRestoreBB0);
 	}
 	if (!BranchV && !isElse && !for_expr) {
-		return { nullptr, nullptr };
+		return { nullptr, nullptr, 0 };
 	}
+	int brk_depth = 1;
 	if (EndKind == tok_return) {
 		HandleReturn(Branch, BranchV);
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+		brk_depth = 0;
 	} else if (~(~EndKind & ((1<<16)-1)) == tok_brk) {
 		int brk_depth = (~EndKind) >> 16;
 		// errs() << Branch.back()->Loc << " - sz: " << merge_points.size() << " nest: " << condnesting << " depth: " << brk_depth << "\n";
@@ -2747,7 +2750,7 @@ std::pair<llvm::Value*, llvm::Instruction*> BranchExprAST::createCondBranch(
 		if (merge_points.back().first && !(for_expr && !isElse))
 			firstBreak = Builder->CreateBr(merge_points.back().first);
 	}
-	return { BranchV, firstBreak };
+	return { BranchV, firstBreak, brk_depth };
 }
 
 std::pair<llvm::Type*, llvm::Value*> merge_values(
@@ -3457,6 +3460,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* ThenV = nullptr;
 	llvm::Instruction* thenLast = nullptr;
 	llvm::PHINode* savedStack1;
+	Breaks.emplace_back(std::vector<BreakDescription>());
 	if (CTcond != CTcond_false) {
 		if (TheFunction) {
 			TheFunction->insert(TheFunction->end(), ThenBB);
@@ -3481,10 +3485,18 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		else
 			BlockToJump = MergeBB;
 		int then_max = Then.size() - 1;
+		declared_vars.emplace_back(std::vector<std::vector<FullVar*>>());
 		for (int n=0; n <= then_max; n++) {
+			declared_vars.back().emplace_back(std::vector<FullVar*>());
 			if (n == then_max)
 				merge_points.back().first = BlockToJump;
-			std::tie(ThenV, thenLast) = createCondBranch(Then[n].first, Then[n].second, false);
+			int brk_level;
+			std::tie(ThenV, thenLast, brk_level) = createCondBranch(Then[n].first, Then[n].second, false);
+			Breaks.back().push_back(BreakDescription{
+					.destructors_insertion_point = thenLast,
+					.var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
+					.break_level = brk_level
+				});
 		}
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
@@ -3549,8 +3561,16 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
 			int else_max = Else.size() - 1;
+			declared_vars.emplace_back(std::vector<std::vector<FullVar*>>());
 			for (int n=0; n <= else_max; n++) {
-				std::tie(ElseV, elseLast) = createCondBranch(Else[n].first, Else[n].second, true);
+				declared_vars.back().emplace_back(std::vector<FullVar*>());
+				int brk_level;
+				std::tie(ElseV, elseLast, brk_level) = createCondBranch(Else[n].first, Else[n].second, true);
+				Breaks.back().push_back(BreakDescription{
+						.destructors_insertion_point = thenLast,
+						.var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
+						.break_level = brk_level
+					});
 			}
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
@@ -3705,6 +3725,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				InsertDestructor(else_var, elseLast);
 		}
 	}
+	Breaks.pop_back();
+	declared_vars.pop_back();
 	Builder->SetInsertPoint(MergeBB);
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);

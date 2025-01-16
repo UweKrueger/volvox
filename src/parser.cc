@@ -987,8 +987,7 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 }
 
 static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int> ParseElse(
-	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind,
-	std::vector<BreakDescription>& Breaks);
+	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
 /// if..., elif..., while...[elif...]else...end, repeat...until
 static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
@@ -1005,7 +1004,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
-	std::vector<BreakDescription> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	for (;;) {
 		Then.push_back(ParseExprList());
@@ -1020,7 +1018,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	}
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second, Breaks);
+	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second);
 	if (!success)
 		return nullptr;
 	if (kind == tok_repeat) {
@@ -1048,14 +1046,12 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context),
 		                                                                 0, false, OpNormal, nullptr };
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then), std::move(Else),
-	                                   std::move(Breaks),
 	                                   std::move(then_locals_table), std::move(else_locals_table),
 	                                   res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
 static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int> ParseElse(
-	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind,
-	std::vector<BreakDescription>& Breaks)
+	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
 {
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>, int>> Else;
 	int then_end_kind;
@@ -1400,7 +1396,6 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 	}
-	std::vector<BreakDescription> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
 	for (;;) {
 		Body.push_back(ParseExprList());
@@ -1413,7 +1408,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second, Breaks);
+	auto [Else, else_locals_table, have_else, success, then_end_kind] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second);
 	if (!success)
 		return nullptr;
 	if (have_else && Else.back().second == tok_end && Body.back().second != tok_elif || !have_else && Body.back().second == tok_end)
@@ -1424,7 +1419,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
 	                                    std::move(else_locals_table), std::move(Key), std::move(Value),
 	                                    std::move(KeyName), std::move(ValueName),
-	                                    std::move(Body), std::move(Else), std::move(Breaks), ValueFV, KeyFV,
+	                                    std::move(Body), std::move(Else), ValueFV, KeyFV,
 	                                    ValueFt, KeyFt, key_kind, value_kind, descending);
 }
 
