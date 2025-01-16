@@ -38,7 +38,6 @@ enum branch_t : uint8_t {
 	inside_brk_branch   // after 1st brk - declared variables are local
 };
 branch_t inside_branch = not_inside_branch;
-int branch_depth = 0;
 return_kind_t function_return_kind = return_expr; // main function return status value
 
 Token& getNextToken(eXpect expect, int terminator) {
@@ -1006,7 +1005,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
-	branch_depth++;
 	std::vector<BreakDescription> Breaks;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	for (;;) {
@@ -1016,7 +1014,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		inside_branch = inside_brk_branch;
 	}
 	inside_branch = old_inside_branch;
-	branch_depth--;
 	if (!Then.back().second && Then.back().first.empty()) {
 		errs() << CurLoc << ": malformed branch expression\n";
 		return nullptr;
@@ -1097,7 +1094,6 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		auto old_inside_branch = inside_branch;
 		inside_branch = inside_main_branch;
 		if (CurTok.kind == tok_elif) {
-			// do not increment branch_depth!
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
 			inside_branch = old_inside_branch;
@@ -1113,7 +1109,6 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			l.push_back(std::move(elif_expr));
 			Else.push_back({ std::move(l), end_k });
 		} else {
-			branch_depth++;
 			for (;;) {
 				Else.push_back(ParseExprList());
 				if (~(~Else.back().second & ((1<<16)-1)) != tok_brk)
@@ -1121,7 +1116,6 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 				inside_branch = inside_brk_branch;
 			}
 			inside_branch = old_inside_branch;
-			branch_depth--;
 			if (!Else.back().second && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1326,7 +1320,6 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
-	branch_depth++;
 	auto KeyVal = ParseExpression(tok_in);
 	bool descending;
 	switch (CurTok.kind) {
@@ -1416,7 +1409,6 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		inside_branch = inside_brk_branch;
 	}
 	inside_branch = old_inside_branch;
-	branch_depth--;
 	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
