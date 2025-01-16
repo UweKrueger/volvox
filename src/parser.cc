@@ -1014,8 +1014,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (~(~Then.back().second & ((1<<16)-1)) != tok_brk)
 			break;
 		inside_branch = inside_brk_branch;
-		int brk_depth = (~Then.back().second) >> 16;
-		Breaks.push_back({ .br_branch_depth = branch_depth - brk_depth });
 	}
 	inside_branch = old_inside_branch;
 	branch_depth--;
@@ -1121,8 +1119,6 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 				if (~(~Else.back().second & ((1<<16)-1)) != tok_brk)
 					break;
 				inside_branch = inside_brk_branch;
-				int brk_depth = (~Else.back().second) >> 16;
-				Breaks.push_back({ .br_branch_depth = branch_depth - brk_depth });
 			}
 			inside_branch = old_inside_branch;
 			branch_depth--;
@@ -1418,8 +1414,6 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		if (~(~Body.back().second & ((1<<16)-1)) != tok_brk)
 			break;
 		inside_branch = inside_brk_branch;
-		int brk_depth = (~Body.back().second) >> 16;
-		Breaks.push_back({ .br_branch_depth = branch_depth - brk_depth });
 	}
 	inside_branch = old_inside_branch;
 	branch_depth--;

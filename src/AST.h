@@ -6,11 +6,11 @@
 #pragma once
 
 #if defined(__GLIBC__) && __GLIBC__ == 2 && __GLIBC_MINOR__ < 38
-// secure BSD string functions missing - replace with similar ones
+// very old GLIBC lacks secure BSD string functions - replace with similar ones
 #define strlcpy(dst, src, bufsz) strncpy(dst, src, bufsz)
 #define strlcat(dst, src, bufsz) strncat(dst, src, bufsz - strlen(dst) - 1)
 #elif defined(_MSC_VER)
-// WinAPI secure string functions have different names and APIs
+// WinAPI does provide secure string functions but with different names and APIs
 #define strlcpy(dst, src, bufsz) strcpy_s(dst, bufsz, src)
 #define strlcat(dst, src, bufsz) strcat_s(dst, bufsz, src)
 #endif
@@ -922,10 +922,10 @@ public:
 };
 
 struct BreakDescription {
-	std::vector<std::unique_ptr<ExprAST>>* expr_list;
+	// std::vector<std::unique_ptr<ExprAST>>* expr_list;
 	llvm::Instruction* destructors_insertion_point;
 	std::vector<std::array<int, 2>> var_idxs;
-	int br_branch_depth;
+	int break_level; // semantic - not number of brk
 };
 
 class BranchExprAST : public ExprAST {
