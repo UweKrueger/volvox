@@ -570,6 +570,7 @@ extern llvm::DISubprogram *SP;
 extern llvm::DIFile *Unit;
 extern volvoxc::FullType* theFunction_ret_ft;
 extern bool theFunction_struct_ret;
+extern unsigned current_branch_part;
 extern FunctionAST* currentFunction;
 #ifdef _WIN32
 extern std::vector<HMODULE> extra_dlls;
@@ -607,8 +608,9 @@ struct FullVar {
 	llvm::Instruction* constructor = nullptr; // to erase in auto-conversion to move
 	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
 	SourceLocation decl_loc;
-	unsigned n_p_r = 0;
+	unsigned n_p_r = 0; // number of possible references
 	unsigned c_p_r = 0;
+	unsigned branch_part = 0; // 'brk' splits branch in multiple parts
 	volvoxc::FullType ft = {0};
 	bool may_reference(FullVar* v) {
 		for (unsigned i=0; i<n_p_r; i++)

@@ -38,6 +38,7 @@ enum branch_t : uint8_t {
 	inside_brk_branch   // after 1st brk - declared variables are local
 };
 branch_t inside_branch = not_inside_branch;
+unsigned current_branch_part = 0;
 return_kind_t function_return_kind = return_expr; // main function return status value
 
 Token& getNextToken(eXpect expect, int terminator) {
@@ -52,6 +53,7 @@ Token& purgeLine() {
 	CurTok = lex.purge_line();
 	merge_points.clear();
 	condnesting = 0;
+	current_branch_part = 0;
 	return CurTok;
 }
 
@@ -1004,14 +1006,18 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
+	auto old_branch_part = current_branch_part;
+	current_branch_part = 0;
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
 	for (;;) {
 		Then.push_back(ParseExprList());
 		if (~(~Then.back().second & ((1<<16)-1)) != tok_brk)
 			break;
 		inside_branch = inside_brk_branch;
+		current_branch_part++;
 	}
 	inside_branch = old_inside_branch;
+	current_branch_part = old_branch_part;
 	if (!Then.back().second && Then.back().first.empty()) {
 		errs() << CurLoc << ": malformed branch expression\n";
 		return nullptr;
@@ -1089,10 +1095,13 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		locals_table.emplace_back();
 		auto old_inside_branch = inside_branch;
 		inside_branch = inside_main_branch;
+		auto old_branch_part = current_branch_part;
+		current_branch_part = 0;
 		if (CurTok.kind == tok_elif) {
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
 			inside_branch = old_inside_branch;
+			current_branch_part = old_branch_part;
 			if (!elifif_expr) {
 				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1110,8 +1119,10 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 				if (~(~Else.back().second & ((1<<16)-1)) != tok_brk)
 					break;
 				inside_branch = inside_brk_branch;
+				current_branch_part++;
 			}
 			inside_branch = old_inside_branch;
+			current_branch_part = old_branch_part;
 			if (!Else.back().second && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1265,6 +1276,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		FullVar fv = {
 			.val = nullptr,
 			.decl_loc = LHS->Loc,
+			.branch_part = current_branch_part,
 			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{}
 		};
 		fv.ft.type = type;
@@ -1316,6 +1328,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	auto old_inside_branch = inside_branch;
 	inside_branch = inside_main_branch;
+	auto old_branch_part = current_branch_part;
+	current_branch_part = 0;
 	auto KeyVal = ParseExpression(tok_in);
 	bool descending;
 	switch (CurTok.kind) {
@@ -1402,8 +1416,10 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		if (~(~Body.back().second & ((1<<16)-1)) != tok_brk)
 			break;
 		inside_branch = inside_brk_branch;
+		current_branch_part++;
 	}
 	inside_branch = old_inside_branch;
+	current_branch_part = old_branch_part;
 	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
