@@ -3494,7 +3494,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			std::tie(ThenV, thenLast, brk_level) = createCondBranch(Then[n].first, Then[n].second, false);
 			Breaks.back().push_back(BreakDescription{
 					.destructors_insertion_point = thenLast,
-					.var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
+					// .embedding_branch_partsvar_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
 					.break_level = brk_level
 				});
 		}
@@ -3568,7 +3568,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				std::tie(ElseV, elseLast, brk_level) = createCondBranch(Else[n].first, Else[n].second, true);
 				Breaks.back().push_back(BreakDescription{
 						.destructors_insertion_point = thenLast,
-						.var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
+						// .var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
 						.break_level = brk_level
 					});
 			}

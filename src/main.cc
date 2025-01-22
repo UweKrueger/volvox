@@ -977,7 +977,7 @@ bool FinishTestRuns() {
 		_else[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		auto if_e = std::make_unique<IfExprAST>(
 			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-			std::move(_then), std::move(_else), std::move(VarTable()), std::move(VarTable()),
+			std::move(_then), std::move(_else), std::move(VarTable()), std::move(VarTable()), 0,
 			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm_int_type, true, false, OpNormal, nullptr });
 		if_e->desired_type = llvm_int_type;
 		GlobalExprList.push_back(
@@ -1098,7 +1098,7 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		_else[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		auto if_e = std::make_unique<IfExprAST>(
 			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
-			std::move(_then), std::move(_else), std::move(VarTable()), std::move(VarTable()),
+			std::move(_then), std::move(_else), std::move(VarTable()), std::move(VarTable()), 0,
 			std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{ llvm_int_type, true, false, OpNormal, nullptr });
 		if_e->desired_type = llvm_int_type;
 		GlobalExprList.push_back(

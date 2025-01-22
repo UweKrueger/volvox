@@ -923,7 +923,9 @@ public:
 
 struct BreakDescription {
 	llvm::Instruction* destructors_insertion_point;
-	int var_idxs[3];
+	// multi level 'brk' requires insertion of destructors for variables
+	// declared in outer branches - so we need to know where we are
+	std::vector<unsigned> embedding_branch_parts;
 	int break_level; // semantic - not number of brk
 };
 
@@ -931,6 +933,8 @@ class BranchExprAST : public ExprAST {
 public:
 	// branches, end-kinds
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then, Else;
+	unsigned max_brk_level = 0; // if >1 this expr must be considered as brk-like for
+	                   // variable validation
 protected:
 	VarTable then_locals_table, else_locals_table;
 	TokenKind if_kind = (TokenKind)0;
@@ -946,12 +950,12 @@ public:
 	              bool is_unknown_type, const char* errmsg,
 	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Then,
 	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
-	              VarTable _then_locals_table, VarTable _else_locals_table,
+	              VarTable _then_locals_table, VarTable _else_locals_table, unsigned max_brk_level,
 	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
 	              bool always_return = false)
 	: ExprAST(type, type_attr, Loc, is_unknown_type), Then(std::move(_Then)), Else(std::move(_Else)),
-	  then_locals_table(std::move(_then_locals_table)),
-	  else_locals_table(std::move(_else_locals_table)),
+	  then_locals_table(std::move(_then_locals_table)), max_brk_level(max_brk_level),
+	  else_locals_table(std::move(_else_locals_table)), 
 	  Cond(std::move(_Cond)), if_kind(if_kind),
 	  always_return(always_return), errmsg(errmsg) {}
 	std::tuple<llvm::Value*, llvm::Instruction*, int> createCondBranch(
@@ -972,13 +976,13 @@ public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
 	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Then,
 	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
-	          VarTable _then_locals_table, VarTable _else_locals_table,
+	          VarTable _then_locals_table, VarTable _else_locals_table, unsigned max_brk_level,
 	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
 	          bool always_return = false)
 		: BranchExprAST(Loc, std::get<0>(res_t),
 		                std::get<1>(res_t), std::get<2>(res_t), std::get<4>(res_t), std::move(_Then),
 		                std::move(_Else), std::move(_then_locals_table), std::move(_else_locals_table),
-		                std::move(_Cond), if_kind, always_return)
+		                max_brk_level, std::move(_Cond), if_kind, always_return)
 		{
 			// this is a little bit of a hack to make arrays work. Conversions can only handle SingleValueTypes but 'merge_values()' in codegen.cc is more powerful
 			if (Then[0].first.size() && Then[0].first.back()->ft && Then[0].first.back()->ft->type && !Then[0].first.back()->ft->type->isSingleValueType() && !Then[0].first.back()->ft->type->isVoidTy()
@@ -1039,7 +1043,7 @@ class ForExprAST : public BranchExprAST {
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
-	           VarTable else_locals_table, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
+	           VarTable else_locals_table, unsigned max_brk_level, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
 	           std::string _KeyName, std::string _ValueName,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Body,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
@@ -1048,7 +1052,7 @@ public:
 	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
 		                std::move(_Else), std::move(_locals_table),
-		                std::move(else_locals_table), nullptr, tok_for),
+		                std::move(else_locals_table), max_brk_level, nullptr, tok_for),
 		  Iterator(std::move(_Iterator)), Key(std::move(_Key)), Value(std::move(_Value)),
 		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)), ValueName(std::move(_ValueName)),
 		  ValueFT(ValueFT), KeyFT(KeyFT), new_Key(new_Key), new_Value(new_Value), descending(descending) {}
