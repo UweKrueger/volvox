@@ -1838,6 +1838,14 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 			levels++;
 			getNextToken(eSemi);
 		} while (CurTok.kind == tok_brk);
+		if (levels > current_branch_part.size()) {
+			if (current_branch_part.empty())
+				errs() << CurLoc << ": 'brk' called outside of any branch branch\n";
+			else
+				errs() << CurLoc << ": " << levels << " level 'brk' called, but branch nesting level is only "
+				       << current_branch_part.size() << "\n";
+			return { nullptr, 0 };
+		}
 		// encode multi level brk in upper bits of kind
 		// but be careful: kind is negative
 		return { ParseExpression(), (int)~(~(unsigned)kind | (levels << 16)) };
