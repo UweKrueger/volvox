@@ -1150,7 +1150,8 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		if (then_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				auto then_var = fullVar(then_node);
-				if (!(then_var->ft.type_attr & A_brk_var)) {
+				// only add vars declared before 1st 'brk' to outer scope
+				if (!then_var->branch_part) {
 					if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
 						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
 						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1165,7 +1166,8 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		if (then_locals_table.table && else_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				FullVar* else_var = else_locals_table[then_node.getKey()];
-				if (else_var && !((fullVar(then_node)->ft.type_attr | else_var->ft.type_attr) & A_brk_var)) {
+				// only add to outer scope if declared before 1st 'brk' in each branch
+				if (else_var && !fullVar(then_node)->branch_part && !else_var->branch_part) {
 					bool success = false;
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
@@ -1273,6 +1275,8 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		}
 	} else {
 		auto [type, is_signed] = MakeType(RHS_type, RHS_attr, RHS_is_unknown_type);
+		// TODO: check that variable always has the same type if declared in different
+		// branches within the same function even when not merged (not necessary but design decision)
 		FullVar fv = {
 			.val = nullptr,
 			.decl_loc = LHS->Loc,
@@ -1281,8 +1285,6 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		};
 		fv.ft.type = type;
 		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
-		if (inside_branch == inside_brk_branch)
-			fv.ft.type_attr |= A_brk_var;
 		if (is_signed & A_signed)
 			fv.ft.type_attr |= A_signed;
 		else
