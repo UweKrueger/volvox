@@ -536,7 +536,7 @@ cleanup:
 	locals_table[0].clear();
 	locals_table = std::move(std::vector<VarTable>{});
 	condnesting = 0;
-	current_branch_part = 0;
+	current_branch_part.clear();
 	inside_function = false;
 	merge_points.clear();
 }
