@@ -31,7 +31,13 @@ ProtoListElem** anon_protos_end = &anon_protos;
 
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
+
+// Branches may be interrupted by 'brk's or by BranchExprs that contain multi level 'brk's.
+// In order to know which constructors to call we tag each declared variable with part ids
+// that are specific to the branch nesting levels
+//
 std::vector<unsigned> current_branch_part;
+
 return_kind_t function_return_kind = return_expr; // main function return status value
 
 Token& getNextToken(eXpect expect, int terminator) {
@@ -1009,15 +1015,15 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		Then.push_back({ std::move(list), e_kind });
 		if (~(~Then.back().second & ((1<<16)-1)) != tok_brk)
 			break;
-		current_branch_part.back()++;
+		current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 	}
-	current_branch_part.pop_back();
 	if (!Then.back().second && Then.back().first.empty()) {
 		errs() << CurLoc << ": malformed branch expression\n";
 		return nullptr;
 	}
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
+	// current_branch_part.pop_back();
 	auto [Else, else_locals_table, have_else, success, then_end_kind, else_level] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second);
 	if (else_level > max_brk_level)
 		max_brk_level = else_level;
@@ -1090,11 +1096,12 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
 		locals_table.emplace_back();
-		current_branch_part.push_back(0);
+		errs() << CurLoc << ": back: " << current_branch_part.back() << "\n";
+		current_branch_part.back() = (1U << 31); // code else branch as 1st bit set
+		// current_branch_part.push_back(0);
 		if (CurTok.kind == tok_elif) {
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
-			current_branch_part.pop_back();
 			if (!elifif_expr) {
 				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1116,9 +1123,8 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 				Else.push_back({ std::move(list), e_kind });
 				if (~(~Else.back().second & ((1<<16)-1)) != tok_brk)
 					break;
-				current_branch_part.back()++;
+				current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 			}
-			current_branch_part.pop_back();
 			if (!Else.back().second && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1141,13 +1147,15 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 	} else {
 		Else.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
 	}
+	current_branch_part.pop_back();
+	current_branch_part.back()++; // to distinguist from other BranchExprs in enclosing level
 	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
 	if (kind == tok_repeat) {
 		if (then_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				auto then_var = fullVar(then_node);
 				// only add vars declared before 1st 'brk' to outer scope
-				if (!then_var->branch_part) {
+				if (!(then_var->branch_parts->back() & 0xffff0000)) {
 					if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
 						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
 						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
@@ -1163,7 +1171,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				FullVar* else_var = else_locals_table[then_node.getKey()];
 				// only add to outer scope if declared before 1st 'brk' in each branch
-				if (else_var && !fullVar(then_node)->branch_part && !else_var->branch_part) {
+				if (else_var && !(fullVar(then_node)->branch_parts->back() & 0xffff0000) && !(else_var->branch_parts->back() & 0x7fff0000)) {
 					bool success = false;
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
@@ -1276,7 +1284,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		FullVar fv = {
 			.val = nullptr,
 			.decl_loc = LHS->Loc,
-			.branch_part = current_branch_part.empty() ? (unsigned)-1 : current_branch_part.back(),
+			.branch_parts = new std::vector<unsigned>(current_branch_part),
 			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{}
 		};
 		fv.ft.type = type;
@@ -1296,6 +1304,10 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 			}
 		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
 			fv.ft.type_attr |= A_destructor;
+		}
+		if (verbosity >= 0) {
+			errs() << CurLoc << ": var " << VarL->Name;
+			dump_branch_parts(fv.branch_parts);
 		}
 		if (inside_function || !current_branch_part.empty()) {
 			if (auto entry = locals_table.back().insert(VarL->Name.c_str(), fv)) {
@@ -1414,7 +1426,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		Body.push_back({ std::move(list), e_kind });
 		if (~(~Body.back().second & ((1<<16)-1)) != tok_brk)
 			break;
-		current_branch_part.back()++;
+		current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 	}
 	current_branch_part.pop_back();
 	if (!Body.back().second && Body.back().first.empty())
@@ -1891,6 +1903,10 @@ static std::tuple<std::vector<std::unique_ptr<ExprAST>>, int, unsigned> ParseExp
 					if (I->max_brk_level) {
 						if (max_brk_level < I->max_brk_level)
 							max_brk_level = I->max_brk_level - 1;
+						if (I->max_brk_level > 1)
+							// consider this a new branch part since the rest of this branch
+							// might not be preformed do to multi level 'brk'
+							current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 					} else if (I->Then.back().second == tok_return && I->Else.back().second == tok_return) {
 						// both branches do return and there is no break
 						// TODO: stricter checks for multi level break

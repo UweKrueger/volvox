@@ -610,7 +610,7 @@ struct FullVar {
 	SourceLocation decl_loc;
 	unsigned n_p_r = 0; // number of possible references
 	unsigned c_p_r = 0;
-	unsigned branch_part = 0; // 'brk' splits branch in multiple parts
+	std::vector<unsigned>* branch_parts = nullptr; // 'brk' splits branch in multiple parts
 	volvoxc::FullType ft = {0};
 	bool may_reference(FullVar* v) {
 		for (unsigned i=0; i<n_p_r; i++)
@@ -631,6 +631,7 @@ struct FullVar {
 		if (val)
 			free((void*)this->mangled_name);
 		free((void*)this->possible_references);
+		delete branch_parts;
 	}
 };
 
