@@ -1096,9 +1096,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
 		locals_table.emplace_back();
-		errs() << CurLoc << ": back: " << current_branch_part.back() << "\n";
 		current_branch_part.back() = (1U << 31); // code else branch as 1st bit set
-		// current_branch_part.push_back(0);
 		if (CurTok.kind == tok_elif) {
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
@@ -1148,19 +1146,33 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 		Else.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
 	}
 	current_branch_part.pop_back();
-	current_branch_part.back()++; // to distinguist from other BranchExprs in enclosing level
+	if (!current_branch_part.empty())
+		current_branch_part.back()++; // to distinguist from other BranchExprs in enclosing level
 	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
 	if (kind == tok_repeat) {
 		if (then_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				auto then_var = fullVar(then_node);
 				// only add vars declared before 1st 'brk' to outer scope
-				if (!(then_var->branch_parts->back() & 0xffff0000)) {
-					if (!locals_table.back().insert(then_node.getKey(), *then_var)) {
-						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-						ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
-						return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
+				if (!((unsigned)then_var->branch_parts->back() & 0xffff0000)) {
+					bool success = false;
+					if (locals_table.empty()) {
+						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *then_var)) {
+							fv->ft.type_attr |= A_mainvar;
+							success = true;
+							fv->branch_parts = new std::vector<unsigned>(*then_var->branch_parts);
+							fv->branch_parts->pop_back();
+						}
+					} else {
+						auto new_then_var = *then_var;
+						new_then_var.branch_parts = new std::vector<unsigned>(*then_var->branch_parts);
+						new_then_var.branch_parts->pop_back();
+						if (!locals_table.back().insert(then_node.getKey(), new_then_var)) {
+							errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
+							std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
+							ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+							return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
+						}
 					}
 				}
 			}
@@ -1177,9 +1189,14 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
 							fv->ft.type_attr |= A_mainvar;
 							success = true;
+							fv->branch_parts = new std::vector<unsigned>(*else_var->branch_parts);
+							fv->branch_parts->pop_back();
 						}
 					} else {
-						success = locals_table.back().insert(then_node.getKey(), *else_var);
+						auto new_else_var = *else_var;
+						new_else_var.branch_parts = new std::vector<unsigned>(*else_var->branch_parts);
+						new_else_var.branch_parts->pop_back();
+						success = locals_table.back().insert(then_node.getKey(), new_else_var);
 					}
 					if (!success) {
 						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
@@ -1187,6 +1204,15 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 						ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
 						return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
 					}
+					if (verbosity >= 2)
+						errs() << CurLoc << ": added '" << then_node.getKey() << "' to outer scope\n";
+				} else {
+					if (verbosity >= 2)
+						errs() << CurLoc << ": ***not*** added '" << then_node.getKey() << "' to outer scope ";
+					if (else_var && else_var->branch_parts) 
+						errs() << fullVar(then_node)->branch_parts->back() << " " << else_var->branch_parts->back() << "\n";
+					else if (verbosity >= 2)
+						errs() << "<\n";
 				}
 			}
 		}
@@ -1305,7 +1331,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
 			fv.ft.type_attr |= A_destructor;
 		}
-		if (verbosity >= 0) {
+		if (verbosity >= 2) {
 			errs() << CurLoc << ": var " << VarL->Name;
 			dump_branch_parts(fv.branch_parts);
 		}
@@ -1428,7 +1454,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			break;
 		current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 	}
-	current_branch_part.pop_back();
+	// current_branch_part.pop_back();
 	if (!Body.back().second && Body.back().first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
