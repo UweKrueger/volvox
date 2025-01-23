@@ -630,9 +630,9 @@ struct FullVar {
 	void destroy() { // we cannot call it "~FullVar()" because it must not be called automatically
 		if (val) {
 			free((void*)this->mangled_name);
-			// delete branch_parts;
 		}
 		free((void*)this->possible_references);
+		delete branch_parts;
 	}
 };
 

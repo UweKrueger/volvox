@@ -72,6 +72,16 @@
    fun:main
 }
 {
+   emutls/aligned_malloc_opt4
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:emutls_alloc
+   fun:__emutls_get_address
+   obj:*
+   fun:main
+}
+{
    emutls/get_address
    Memcheck:Leak
    match-leak-kinds: possible
