@@ -941,13 +941,14 @@ struct BreakDescription {
 	// multi level 'brk' requires insertion of destructors for variables
 	// declared in outer branches - so we need to know where we are
 	std::vector<unsigned> embedding_branch_parts;
+	int end_kind; // tok_end, tok_else, tok_return, tok_brk...
 	int break_level; // semantic - not number of brk
 };
 
 class BranchExprAST : public ExprAST {
 public:
 	// branches, end-kinds
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then, Else;
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> Then, Else;
 	unsigned max_brk_level = 0; // if >1 this expr must be considered as brk-like for
 	                   // variable validation
 protected:
@@ -963,8 +964,8 @@ public:
 	bool always_return = false;
 	BranchExprAST(SourceLocation Loc, llvm::Type* type, unsigned type_attr,
 	              bool is_unknown_type, const char* errmsg,
-	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Then,
-	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
+	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Then,
+	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,
 	              VarTable _then_locals_table, VarTable _else_locals_table, unsigned max_brk_level,
 	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
 	              bool always_return = false)
@@ -989,8 +990,8 @@ class IfExprAST : public BranchExprAST {
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
-	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Then,
-	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
+	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Then,
+	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,
 	          VarTable _then_locals_table, VarTable _else_locals_table, unsigned max_brk_level,
 	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
 	          bool always_return = false)
@@ -1060,8 +1061,8 @@ public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, unsigned max_brk_level, std::unique_ptr<ExprAST> _Key, std::unique_ptr<ExprAST> _Value,
 	           std::string _KeyName, std::string _ValueName,
-	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Body,
-	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _Else,
+	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Body,
+	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,
 	           FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
 	           volvoxc::FullType* KeyFT = nullptr,
 	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)

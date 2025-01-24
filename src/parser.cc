@@ -989,7 +989,7 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 	return Cond;
 }
 
-static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int,unsigned> ParseElse(
+static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
 /// if..., elif..., while...[elif...]else...end, repeat...until
@@ -1007,24 +1007,28 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	current_branch_part.push_back(0);
 	unsigned max_brk_level = 0;
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Then;
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> Then;
 	for (;;) {
 		auto [list, e_kind, level] = ParseExprList();
 		if (level > max_brk_level)
 			max_brk_level = level;
-		Then.push_back({ std::move(list), e_kind });
-		if (~(~Then.back().second & ((1<<16)-1)) != tok_brk)
+		Then.push_back({ std::move(list), BreakDescription{
+					.embedding_branch_parts = current_branch_part,
+					.end_kind = e_kind,
+					.break_level = -733
+				} });
+		if (~(~Then.back().second.end_kind & ((1<<16)-1)) != tok_brk)
 			break;
 		current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 	}
-	if (!Then.back().second && Then.back().first.empty()) {
+	if (!Then.back().second.end_kind && Then.back().first.empty()) {
 		errs() << CurLoc << ": malformed branch expression\n";
 		return nullptr;
 	}
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	// current_branch_part.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind, else_level] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second);
+	auto [Else, else_locals_table, have_else, success, then_end_kind, else_level] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second.end_kind);
 	if (else_level > max_brk_level)
 		max_brk_level = else_level;
 	if (!success)
@@ -1036,18 +1040,18 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (!Cond)
 			return nullptr;
 	} else {
-		if (have_else && Else.back().second == tok_end && then_end_kind != tok_elif || !have_else && Then.back().second == tok_end)
+		if (have_else && Else.back().second.end_kind == tok_end && then_end_kind != tok_elif || !have_else && Then.back().second.end_kind == tok_end)
 			if (!Expect(tok_end, eBinOp)) {
 				errs() << CurLoc << ": 'end' expected\n";
 				return nullptr;
 			}
 	}
-	bool always_return = Then.size() == 1 && Then.back().second == tok_return && have_else && Else.size() == 1 && Else.back().second == tok_return;
+	bool always_return = Then.size() == 1 && Then.back().second.end_kind == tok_return && have_else && Else.size() == 1 && Else.back().second.end_kind == tok_return;
 	auto res_t = ((kind == tok_if || kind == tok_elif) && Then.size() == 1 && Else.size() == 1 &&
 	              Else.back().first.size() && Else.back().first.back()->ft->type &&
 	              !Else.back().first.back()->ft->type->isVoidTy() && Then.back().first.back()->ft->type &&
 	              !Then.back().first.back()->ft->type->isVoidTy() &&
-	              !(Then.back().second == tok_return || have_else && Else.back().second == tok_return)) ?
+	              !(Then.back().second.end_kind == tok_return || have_else && Else.back().second.end_kind == tok_return)) ?
 		getResType(Then.back().first.back()->ft->type, Else.back().first.back()->ft->type, "if",
 		           Then.back().first.back()->ft->type_attr, Else.back().first.back()->ft->type_attr,
 		           Then.back().first.back()->is_unknown_type, Else.back().first.back()->is_unknown_type)
@@ -1058,10 +1062,10 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	                                   res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
-static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>>,VarTable,bool,bool,int,unsigned> ParseElse(
+static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
 {
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>, int>> Else;
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>, BreakDescription>> Else;
 	int then_end_kind;
 	bool have_else = false;
 	unsigned max_brk_level = 0;
@@ -1083,27 +1087,28 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			have_else = true;
 		} else {
 			errs() << CurLoc << ": 'else', 'elif' or 'end' expected (branch has returned unconditionally so any statement would be dead code)\n";
-			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
 	}
 	if (have_else) {
 		if (kind == tok_repeat) {
 			errs() << CurLoc << ": 'else' not allowed with 'repeat'\n";
-			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
 		locals_table.emplace_back();
 		current_branch_part.back() = (1U << 31); // code else branch as 1st bit set
 		if (CurTok.kind == tok_elif) {
+			// TODO: modify elif counter vector
 			auto elif_expr = ParseIfExpr();
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
 			if (!elifif_expr) {
 				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
-				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 				return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
 			}
 			elifif_expr->is_elif_branch = true;
@@ -1112,38 +1117,46 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 			auto end_k = elifif_expr->always_return ? tok_return : tok_end;
 			std::vector<std::unique_ptr<ExprAST>> l;
 			l.push_back(std::move(elif_expr));
-			Else.push_back({ std::move(l), end_k });
+			Else.push_back({ std::move(l), BreakDescription{
+						.embedding_branch_parts = current_branch_part,
+						.end_kind = end_k,
+						.break_level = -733
+					} });
 		} else {
 			for (;;) {
 				auto [list, e_kind, level] = ParseExprList();
 				if (level > max_brk_level)
 					max_brk_level = level;
-				Else.push_back({ std::move(list), e_kind });
-				if (~(~Else.back().second & ((1<<16)-1)) != tok_brk)
+				Else.push_back({ std::move(list), BreakDescription{
+							.embedding_branch_parts = current_branch_part,
+							.end_kind = e_kind,
+							.break_level = -733
+						} });
+				if (~(~Else.back().second.end_kind & ((1<<16)-1)) != tok_brk)
 					break;
 				current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 			}
-			if (!Else.back().second && Else.back().first.empty()) {
+			if (!Else.back().second.end_kind && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
-				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 				return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
 			}
-			if (Else.back().second == tok_return) {
+			if (Else.back().second.end_kind == tok_return) {
 				while (CurTok.kind == ';')
 					getNextToken();
 				if (CurTok.kind == tok_end) {
 					getNextToken();
 				} else {
 					errs() << CurLoc << ": 'end' expected\n";
-					std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-					ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+					std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+					ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 					return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
 				}
 			}
 		}
 	} else {
-		Else.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+		Else.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 	}
 	current_branch_part.pop_back();
 	if (!current_branch_part.empty())
@@ -1169,8 +1182,8 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 						new_then_var.branch_parts->pop_back();
 						if (!locals_table.back().insert(then_node.getKey(), new_then_var)) {
 							errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-							std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-							ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+							std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+							ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 							return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
 						}
 					}
@@ -1200,8 +1213,8 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,in
 					}
 					if (!success) {
 						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> ret_vec;
-						ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), 0 });
+						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+						ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 						return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
 					}
 					if (verbosity >= 2)
@@ -1443,28 +1456,32 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 	}
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> Body;
+	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> Body;
 	unsigned max_brk_level = 0;
 	for (;;) {
 		auto [list, e_kind, level] = ParseExprList();
 		if (level > max_brk_level)
 			max_brk_level = level;
-		Body.push_back({ std::move(list), e_kind });
-		if (~(~Body.back().second & ((1<<16)-1)) != tok_brk)
+		Body.push_back({ std::move(list), BreakDescription{
+					.embedding_branch_parts = current_branch_part,
+					.end_kind = e_kind,
+					.break_level = -733
+				} });
+		if (~(~Body.back().second.end_kind & ((1<<16)-1)) != tok_brk)
 			break;
 		current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 	}
 	// current_branch_part.pop_back();
-	if (!Body.back().second && Body.back().first.empty())
+	if (!Body.back().second.end_kind && Body.back().first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind, level] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second);
+	auto [Else, else_locals_table, have_else, success, then_end_kind, level] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second.end_kind);
 	if (!success)
 		return nullptr;
 	if (level > max_brk_level)
 			max_brk_level = level;
-	if (have_else && Else.back().second == tok_end && Body.back().second != tok_elif || !have_else && Body.back().second == tok_end)
+	if (have_else && Else.back().second.end_kind == tok_end && Body.back().second.end_kind != tok_elif || !have_else && Body.back().second.end_kind == tok_end)
 		if (!Expect(tok_end, eBinOp)) {
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
@@ -1933,7 +1950,7 @@ static std::tuple<std::vector<std::unique_ptr<ExprAST>>, int, unsigned> ParseExp
 							// consider this a new branch part since the rest of this branch
 							// might not be preformed do to multi level 'brk'
 							current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
-					} else if (I->Then.back().second == tok_return && I->Else.back().second == tok_return) {
+					} else if (I->Then.back().second.end_kind == tok_return && I->Else.back().second.end_kind == tok_return) {
 						// both branches do return and there is no break
 						// TODO: stricter checks for multi level break
 						end_kind = tok_return;

@@ -3491,7 +3491,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (n == then_max)
 				merge_points.back().first = BlockToJump;
 			int brk_level;
-			std::tie(ThenV, thenLast, brk_level) = createCondBranch(Then[n].first, Then[n].second, false);
+			std::tie(ThenV, thenLast, brk_level) = createCondBranch(Then[n].first, Then[n].second.end_kind, false);
 			Breaks.back().push_back(BreakDescription{
 					.destructors_insertion_point = thenLast,
 					// .embedding_branch_partsvar_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
@@ -3565,7 +3565,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			for (int n=0; n <= else_max; n++) {
 				declared_vars.back().emplace_back(std::vector<FullVar*>());
 				int brk_level;
-				std::tie(ElseV, elseLast, brk_level) = createCondBranch(Else[n].first, Else[n].second, true);
+				std::tie(ElseV, elseLast, brk_level) = createCondBranch(Else[n].first, Else[n].second.end_kind, true);
 				Breaks.back().push_back(BreakDescription{
 						.destructors_insertion_point = thenLast,
 						// .var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
@@ -3591,7 +3591,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	if (if_kind == tok_if || if_kind == tok_for) {
 		Builder->SetInsertPoint(EntryBBend);
 		if (CTcond != CTcond_undef && if_kind != tok_for) { // at least one branch can be removed
-			if (thenConstV && Then.back().second == tok_else && !ft->type->isVoidTy()) {
+			if (thenConstV && Then.back().second.end_kind == tok_else && !ft->type->isVoidTy()) {
 				if (TheFunction) {
 					TheFunction->insert(TheFunction->end(), MergeBB);
 					if (ThenBBstart)
@@ -3599,7 +3599,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 					Builder->SetInsertPoint(MergeBB);
 				}
 				return thenConstV;
-			} else if (elseConstV && Else.back().second == tok_end && !ft->type->isVoidTy()) {
+			} else if (elseConstV && Else.back().second.end_kind == tok_end && !ft->type->isVoidTy()) {
 				if (TheFunction) {
 					TheFunction->insert(TheFunction->end(), MergeBB);
 					if (ElseBBstart)

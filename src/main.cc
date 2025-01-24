@@ -969,11 +969,11 @@ bool FinishTestRuns() {
 	if (comp_mode == comp_jit) {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
 	} else {
-		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _then;
-		_then.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, tok_else });
+		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _then;
+		_then.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, BreakDescription{ .end_kind = tok_else } });
 		_then[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _else;
-		_else.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, tok_end });
+		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _else;
+		_else.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, BreakDescription{ .end_kind = tok_end } });
 		_else[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		auto if_e = std::make_unique<IfExprAST>(
 			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
@@ -1090,11 +1090,11 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
 		return CreateMain("test_main", true, "bool");
 	} else {
-		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _then;
-		_then.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, tok_else });
+		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _then;
+		_then.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, BreakDescription{ .end_kind = tok_else } });
 		_then[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,int>> _else;
-		_else.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, tok_end });
+		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _else;
+		_else.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, BreakDescription{ .end_kind = tok_end } });
 		_else[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		auto if_e = std::make_unique<IfExprAST>(
 			CurLoc, std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
