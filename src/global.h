@@ -1437,6 +1437,7 @@ inline FullVar* lookup_var(const char* Name) {
 
 // avoid name conflics by collecting all syms - true: functinon, false: variable
 extern std::map<std::string,bool> all_global_symbols;
+extern std::vector<uint8_t> syntax_nesting;
 
 enum ConversionKind : uint8_t {
 	ConvImplicit = 0,

@@ -537,6 +537,7 @@ cleanup:
 	current_branch_part.clear();
 	inside_function = false;
 	merge_points.clear();
+	syntax_nesting.clear();
 }
 
 static void HandleExtern(unsigned visibility) {

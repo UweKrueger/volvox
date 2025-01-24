@@ -29,6 +29,11 @@ FVListElem** anon_fullvars_end = &anon_fullvars;
 ProtoListElem* anon_protos = nullptr;
 ProtoListElem** anon_protos_end = &anon_protos;
 
+// Syntactically 'elif' does not introduce more nesting than 'else' - however,
+// semantically it does. Keep track of syntactic nesting delta for each semantic level.
+// Used to find merge point for multi level 'brk'
+std::vector<uint8_t> syntax_nesting;
+
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
 
@@ -53,6 +58,7 @@ Token& purgeLine() {
 	// clean up global parser states
 	merge_points.clear();
 	current_branch_part.clear();
+	syntax_nesting.clear();
 	return CurTok;
 }
 
@@ -998,6 +1004,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	getNextToken(); // eat the if/while.
 	// condition - expect bool.
 	std::unique_ptr<ExprAST> Cond;
+	syntax_nesting.push_back(kind == tok_elif ? 0 : 1);
 	if (kind == tok_if || kind == tok_elif || kind == tok_while) {
 		Cond = ParseCondition(kind);
 		if (!Cond)
@@ -1056,6 +1063,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		           Then.back().first.back()->is_unknown_type, Else.back().first.back()->is_unknown_type)
 		: std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{ llvm::Type::getVoidTy(Context),
 		                                                                 0, false, OpNormal, nullptr };
+	syntax_nesting.pop_back();
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then), std::move(Else),
 	                                   std::move(then_locals_table), std::move(else_locals_table), max_brk_level,
 	                                   res_t, kind == tok_elif ? tok_if : kind, always_return);
@@ -1372,6 +1380,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	SourceLocation ForLoc = CurLoc;
 	getNextToken(); // eat for.
+	syntax_nesting.push_back(1);
 	// condition - expect bool.
 	locals_table.emplace_back();
 	current_branch_part.push_back(0);
@@ -1485,6 +1494,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
 		}
+	syntax_nesting.pop_back();
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
 	                                    std::move(else_locals_table), max_brk_level, std::move(Key),
 	                                    std::move(Value), std::move(KeyName), std::move(ValueName),
@@ -1976,7 +1986,22 @@ static std::tuple<std::vector<std::unique_ptr<ExprAST>>, int, unsigned> ParseExp
 		}
 	}
 	if (~(~end_kind & ((1<<16)-1)) == tok_brk) {
-		unsigned brk_depth = (~end_kind) >> 16;
+		unsigned brk_depth_raw = (~end_kind) >> 16;
+		// errs() << CurLoc << ": got 'brk' - raw: " << brk_depth_raw;
+		unsigned brk_depth = 0;
+		int idx = syntax_nesting.size() - 1;
+		while (brk_depth_raw) {
+			if (idx < 0) {
+				errs() << CurLoc << ": 'brk' level exceeds nesting level\n";
+				return { std::vector<std::unique_ptr<ExprAST>>{}, 0, 0 };
+			}
+			brk_depth++;
+			brk_depth_raw -= syntax_nesting[idx--];
+		}
+		// errs() << " effective: " << brk_depth << "\n";
+		//
+		// update end_kind - maybe this is too early(?)
+		end_kind = (int)~(~(unsigned)tok_brk | (brk_depth << 16));
 		if (brk_depth > max_brk_level)
 			max_brk_level = brk_depth;
 	}

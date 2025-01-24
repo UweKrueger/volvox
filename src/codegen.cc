@@ -2714,17 +2714,7 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 		brk_depth = 0;
 	} else if (~(~EndKind & ((1<<16)-1)) == tok_brk) {
 		int brk_depth = (~EndKind) >> 16;
-		int idx = merge_points.size() - 1;
-		for(;;) {
-			brk_depth -= merge_points[idx].second;
-			if (!brk_depth)
-				break;
-			idx--;
-			if (idx < 0 || brk_depth < 0) {
-				errs() << "severe internal error\n";
-				abort();
-			}
-		}
+		int idx = merge_points.size() - brk_depth;
 		llvm::BasicBlock* breakDest = merge_points[idx].first;
 		auto brkBB = llvm::BasicBlock::Create(Context, "brkBB");
 		auto contBB = llvm::BasicBlock::Create(Context, "nobrkBB");
