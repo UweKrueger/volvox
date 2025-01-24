@@ -52,7 +52,6 @@ Token& purgeLine() {
 	CurTok = lex.purge_line();
 	// clean up global parser states
 	merge_points.clear();
-	condnesting = 0;
 	current_branch_part.clear();
 	return CurTok;
 }

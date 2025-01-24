@@ -514,7 +514,6 @@ void InitializeModuleAndPassManager() {
 
 static void HandleDefinition(unsigned& visibility) {
 	inside_function = true;
-	condnesting = 0;
 	IfWhileVarTable = nullptr;
 	locals_table.push_back(VarTable());
 	bool success = false;
@@ -535,7 +534,6 @@ cleanup:
 	function_return_kind = old_return_kind;
 	locals_table[0].clear();
 	locals_table = std::move(std::vector<VarTable>{});
-	condnesting = 0;
 	current_branch_part.clear();
 	inside_function = false;
 	merge_points.clear();

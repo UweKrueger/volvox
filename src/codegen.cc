@@ -18,10 +18,6 @@ const char* last_thread_destructor_caller = nullptr;
 // this is used to avoid multiple  allocations of variables that are declared inside a then/while/repeat loop
 VarTable* IfWhileVarTable = nullptr;
 llvm::Value* ret_ptr = nullptr; // for sret
-// both in loop bodies and in 'else' blocks array allocation should *not* be done in the entry block
-// since the array size might be run time determined in one or the other block. To ensure this we track
-// the nesting level of 'if/while/repeat/else' blocks - so we can use "if (condnesting) { ..."
-unsigned condnesting = 0; // semantic nesting of current branch - elif-branch is nore nested than corresponding then-branch
 idiv_modes idiv_mode = idiv_mode_undef;
 std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
 std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
@@ -2718,9 +2714,6 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 		brk_depth = 0;
 	} else if (~(~EndKind & ((1<<16)-1)) == tok_brk) {
 		int brk_depth = (~EndKind) >> 16;
-		// errs() << Branch.back()->Loc << " - sz: " << merge_points.size() << " nest: " << condnesting << " depth: " << brk_depth << "\n";
-		// for the index we take into account that 'elif' is not considered to add further nesting
-		// syntactically whereas semantically it does. 'condnesting' takes this into account
 		int idx = merge_points.size() - 1;
 		for(;;) {
 			brk_depth -= merge_points[idx].second;
@@ -3473,7 +3466,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
-		condnesting++;
 		merge_points.push_back({ MergeBB, nestdelta }); // for multi level brk
 		llvm::BasicBlock* BlockToJump;
 		if (if_kind == tok_for) {
@@ -3501,7 +3493,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		merge_points.pop_back();
-		condnesting--;
 		then_locals_table = std::move(locals_table.back());
 		locals_table.pop_back();
 		if (!ThenV) {
@@ -3555,7 +3546,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			}
 			Builder->SetInsertPoint(ElseBB);
 			locals_table.push_back(std::move(else_locals_table));
-			condnesting++;
 			merge_points.push_back({ MergeBB, nestdelta }); // for multi level brk
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
@@ -3577,7 +3567,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = old_IfWhileVarTable;
 			merge_points.pop_back();
-			condnesting--;
 			else_locals_table = std::move(locals_table.back());
 			locals_table.pop_back();
 			if (!ElseV) {

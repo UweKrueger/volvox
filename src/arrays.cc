@@ -164,7 +164,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 	llvm::Value* Len = Builder->CreateUDiv(Sizes[0], Sizes[Sizes.size() - 1]);
 	if (auto len = llvm::dyn_cast<llvm::ConstantInt>(Len)) {
 		llvm::Type* alloc_arr_type = llvm::ArrayType::get(elem_type, len->getZExtValue());
-		if (condnesting) {
+		if (!merge_points.empty()) {
 			// We are inside an if/while/repeat/else branch. An array should *always* be
 			// allocated dynamically since it might be of variable size in the other branch
 			ArrayAlloc = Builder->CreateAlloca(alloc_arr_type, nullptr, Name);

@@ -876,7 +876,6 @@ extern LinkModes link_mode;
 extern LTOModes lto_mode;
 extern bool inject_console_setup;
 extern std::vector<VarTable> locals_table; // including function arguments
-extern unsigned condnesting;
 extern VarTable* IfWhileVarTable;
 extern llvm::Value* ret_ptr; // for sret
 extern std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
