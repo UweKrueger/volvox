@@ -545,8 +545,12 @@ public:
 	}
 };
 
+struct MergePointDescription {
+	llvm::BasicBlock* BB;
+};
+
 extern MainVars jit_main_variables;
-extern std::vector<std::pair<llvm::BasicBlock*,int>> merge_points; // for multi level brk
+extern std::vector<MergePointDescription> merge_points; // for multi level brk
 
 extern bool Expect(int tok, eXpect expect = eNone, int terminator = 0);
 extern volvoxc::FullType* ParseType(
