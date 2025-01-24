@@ -941,8 +941,9 @@ struct BreakDescription {
 	// multi level 'brk' requires insertion of destructors for variables
 	// declared in outer branches - so we need to know where we are
 	std::vector<unsigned> embedding_branch_parts;
+	std::vector<FullVar*> vars_to_destruct;
 	int end_kind; // tok_end, tok_else, tok_return, tok_brk...
-	int break_level; // semantic - not number of brk
+	unsigned break_level; // semantic - not number of brk
 };
 
 class BranchExprAST : public ExprAST {

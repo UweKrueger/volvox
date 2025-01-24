@@ -3472,7 +3472,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			declared_vars.back().emplace_back(std::vector<FullVar*>());
 			if (n == then_max)
 				merge_points.back().BB = BlockToJump;
-			int brk_level;
+			unsigned brk_level;
 			std::tie(ThenV, thenLast, brk_level) = createCondBranch(Then[n].first, Then[n].second.end_kind, false);
 			Breaks.back().push_back(BreakDescription{
 					.destructors_insertion_point = thenLast,
@@ -3544,7 +3544,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			declared_vars.emplace_back(std::vector<std::vector<FullVar*>>());
 			for (int n=0; n <= else_max; n++) {
 				declared_vars.back().emplace_back(std::vector<FullVar*>());
-				int brk_level;
+				unsigned brk_level;
 				std::tie(ElseV, elseLast, brk_level) = createCondBranch(Else[n].first, Else[n].second.end_kind, true);
 				Breaks.back().push_back(BreakDescription{
 						.destructors_insertion_point = thenLast,

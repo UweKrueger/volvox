@@ -997,6 +997,24 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
+std::vector<FullVar*> get_destuct_vars(int b_lev) {
+	std::vector<FullVar*> destr_vars;
+	int sz = locals_table.size();
+	for (int n=b_lev; n>0; n--) {
+		auto& table = locals_table[sz-n];
+		for (auto t = table.first(); (bool)t; ++t) {
+			const char* key = t.getKey();
+			FullVar* fullV = fullVar(t);
+			if (fullV->ft.type_attr & A_destructor) {
+				destr_vars.push_back(fullV);
+				// errs() << CurLoc << ": saving '" << key << "' for destructor\n";
+			}
+			// else errs() << CurLoc << ": not saving '" << key << "'\n";
+		}
+	}
+	return destr_vars;
+}
+
 /// if..., elif..., while...[elif...]else...end, repeat...until
 static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	SourceLocation IfLoc = CurLoc;
@@ -1018,12 +1036,16 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		auto [list, e_kind, level] = ParseExprList();
 		if (level > max_brk_level)
 			max_brk_level = level;
+		bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
+		unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1;
+		std::vector<FullVar*> destr_vars = get_destuct_vars(b_lev);
 		Then.push_back({ std::move(list), BreakDescription{
 					.embedding_branch_parts = current_branch_part,
+					.vars_to_destruct = std::move(destr_vars),
 					.end_kind = e_kind,
-					.break_level = -733
+					.break_level = b_lev
 				} });
-		if (~(~Then.back().second.end_kind & ((1<<16)-1)) != tok_brk)
+		if (!is_brk)
 			break;
 		current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 	}
@@ -1127,17 +1149,21 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			Else.push_back({ std::move(l), BreakDescription{
 						.embedding_branch_parts = current_branch_part,
 						.end_kind = end_k,
-						.break_level = -733
+						.break_level = 1
 					} });
 		} else {
 			for (;;) {
 				auto [list, e_kind, level] = ParseExprList();
 				if (level > max_brk_level)
 					max_brk_level = level;
+				bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
+				unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1;
+				std::vector<FullVar*> destr_vars = get_destuct_vars(b_lev);
 				Else.push_back({ std::move(list), BreakDescription{
 							.embedding_branch_parts = current_branch_part,
+							.vars_to_destruct = std::move(destr_vars),
 							.end_kind = e_kind,
-							.break_level = -733
+							.break_level = b_lev
 						} });
 				if (~(~Else.back().second.end_kind & ((1<<16)-1)) != tok_brk)
 					break;
@@ -1470,10 +1496,14 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		auto [list, e_kind, level] = ParseExprList();
 		if (level > max_brk_level)
 			max_brk_level = level;
+		bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
+		unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1;
+		std::vector<FullVar*> destr_vars = get_destuct_vars(b_lev);
 		Body.push_back({ std::move(list), BreakDescription{
 					.embedding_branch_parts = current_branch_part,
+					.vars_to_destruct = std::move(destr_vars),
 					.end_kind = e_kind,
-					.break_level = -733
+					.break_level = b_lev
 				} });
 		if (~(~Body.back().second.end_kind & ((1<<16)-1)) != tok_brk)
 			break;
