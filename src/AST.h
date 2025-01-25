@@ -962,6 +962,7 @@ public:
 	                    // however if a result value is needed by a consumer this message is used
 	bool is_elif_branch = false; // true indicates that no further syntactic nesting is done
 	std::unique_ptr<ExprAST> Cond;
+	std::set<FullVar*> merged_vars; // constructor has not to be called
 	bool always_return = false;
 	BranchExprAST(SourceLocation Loc, llvm::Type* type, unsigned type_attr,
 	              bool is_unknown_type, const char* errmsg,

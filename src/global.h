@@ -545,13 +545,7 @@ public:
 	}
 };
 
-struct MergePointDescription {
-	llvm::BasicBlock* BB;
-};
-
 extern MainVars jit_main_variables;
-extern std::vector<MergePointDescription> merge_points; // for multi level brk
-
 extern bool Expect(int tok, eXpect expect = eNone, int terminator = 0);
 extern volvoxc::FullType* ParseType(
 	unsigned attribs = 0, eXpect expect = eComma,
@@ -648,6 +642,14 @@ struct FVListElem {
 extern FVListElem* anon_fullvars;
 extern FVListElem** anon_fullvars_end;
 extern std::vector<FullVar> expr_temps;
+
+struct MergePointDescription {
+	llvm::BasicBlock* BB;
+	std::set<FullVar*>* merged_vars;
+};
+
+extern std::vector<MergePointDescription> merge_points; // for multi level brk
+
 // small hack to access protected method
 class genType : protected llvm::Type {
 public:

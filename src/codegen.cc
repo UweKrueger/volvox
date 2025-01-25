@@ -3456,7 +3456,10 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// Emit then value.
 		locals_table.push_back(std::move(then_locals_table));
-		merge_points.push_back(MergePointDescription{ .BB = MergeBB }); // for multi level brk
+		merge_points.push_back(MergePointDescription{
+				.BB = MergeBB,
+				.merged_vars = &this->merged_vars
+			}); // for multi level brk
 		llvm::BasicBlock* BlockToJump;
 		if (if_kind == tok_for) {
 			for_expr->SetupLoop();

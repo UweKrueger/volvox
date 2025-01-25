@@ -1195,12 +1195,15 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 	if (!current_branch_part.empty())
 		current_branch_part.back()++; // to distinguist from other BranchExprs in enclosing level
 	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
+	std::set<FullVar*> merged_vars;
 	if (kind == tok_repeat) {
 		if (then_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				auto then_var = fullVar(then_node);
 				// only add vars declared before 1st 'brk' to outer scope
 				if (!((unsigned)then_var->branch_parts->back() & 0xffff0000)) {
+					if (then_var->ft.type_attr & A_destructor)
+						merged_vars.insert(then_var);
 					bool success = false;
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *then_var)) {
@@ -1229,7 +1232,10 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				FullVar* else_var = else_locals_table[then_node.getKey()];
 				// only add to outer scope if declared before 1st 'brk' in each branch
-				if (else_var && !(fullVar(then_node)->branch_parts->back() & 0xffff0000) && !(else_var->branch_parts->back() & 0x7fff0000)) {
+				FullVar* then_var = fullVar(then_node);
+				if (else_var && !(then_var->branch_parts->back() & 0xffff0000) && !(else_var->branch_parts->back() & 0x7fff0000)) {
+					if (then_var->ft.type_attr & A_destructor)
+						merged_vars.insert(then_var);
 					bool success = false;
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
