@@ -493,6 +493,14 @@ llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, llvm::Type* exp
 		FullVar* var_in_if_branch;
 		// Entry block allocations should be done only once for each variable. So in an 'else' branch
 		// the allocation from the if/while branch should be reused if existing
+		// this is also the prerequisite for merges after BranchExprs and destructor calls
+		//
+		// TODO: make sure the same type is used for each variable name in the same function
+		//       regardless of merges
+		//
+		// TODO: this should not be a side effect of StoreValue() - maybe use a master vector to store
+		//       FullVar and use pointers elsewhere
+		//
 		if (IfWhileVarTable && (var_in_if_branch = (*IfWhileVarTable)[Name.str().c_str()])) {
 			if (var_in_if_branch->val->getType() != llvm_ptr_type) {
 				errs() << "incompatible types for pointers to variable '" << Name << "' (" << *var_in_if_branch->val->getType()
