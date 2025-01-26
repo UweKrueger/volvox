@@ -994,7 +994,7 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 	return Cond;
 }
 
-static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,VarTable,bool,bool,int,unsigned> ParseElse(
+static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<FullVar*>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
 std::vector<FullVar*> get_destuct_vars(int b_lev) {
@@ -1056,7 +1056,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
 	// current_branch_part.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind, else_level] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second.end_kind);
+	auto [Else, merged_vars, else_locals_table, have_else, success, then_end_kind, else_level] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second.end_kind);
 	if (else_level > max_brk_level)
 		max_brk_level = else_level;
 	if (!success)
@@ -1088,13 +1088,15 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	syntax_nesting.pop_back();
 	return std::make_unique<IfExprAST>(IfLoc, std::move(Cond), std::move(Then), std::move(Else),
 	                                   std::move(then_locals_table), std::move(else_locals_table), max_brk_level,
+	                                   std::move(merged_vars),
 	                                   res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
-static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,VarTable,bool,bool,int,unsigned> ParseElse(
+static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<FullVar*>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
 {
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>, BreakDescription>> Else;
+	std::set<FullVar*> merged_vars;
 	int then_end_kind;
 	bool have_else = false;
 	unsigned max_brk_level = 0;
@@ -1118,7 +1120,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			errs() << CurLoc << ": 'else', 'elif' or 'end' expected (branch has returned unconditionally so any statement would be dead code)\n";
 			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
 			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
-			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, max_brk_level };
+			return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
 	}
 	if (have_else) {
@@ -1126,7 +1128,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			errs() << CurLoc << ": 'else' not allowed with 'repeat'\n";
 			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
 			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
-			return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, max_brk_level };
+			return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
 		locals_table.emplace_back();
 		current_branch_part.back() = (1U << 31); // code else branch as 1st bit set
@@ -1138,7 +1140,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
 				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
-				return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
+				return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 			}
 			elifif_expr->is_elif_branch = true;
 			if (elifif_expr->max_brk_level > max_brk_level)
@@ -1173,7 +1175,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
 				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
 				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
-				return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
+				return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 			}
 			if (Else.back().second.end_kind == tok_return) {
 				while (CurTok.kind == ';')
@@ -1184,7 +1186,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 					errs() << CurLoc << ": 'end' expected\n";
 					std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
 					ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
-					return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
+					return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 				}
 			}
 		}
@@ -1195,7 +1197,6 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 	if (!current_branch_part.empty())
 		current_branch_part.back()++; // to distinguist from other BranchExprs in enclosing level
 	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
-	std::set<FullVar*> merged_vars;
 	if (kind == tok_repeat) {
 		if (then_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
@@ -1220,7 +1221,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 							errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
 							std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
 							ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
-							return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
+							return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 						}
 					}
 				}
@@ -1254,7 +1255,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
 						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
 						ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
-						return { std::move(ret_vec), VarTable{}, false, false, then_end_kind, 0 };
+						return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 					}
 					if (verbosity >= 2)
 						errs() << CurLoc << ": added '" << then_node.getKey() << "' to outer scope\n";
@@ -1269,7 +1270,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			}
 		}
 	}
-	return { std::move(Else), std::move(else_locals_table), have_else, true, then_end_kind, max_brk_level };
+	return { std::move(Else), std::move(merged_vars), std::move(else_locals_table), have_else, true, then_end_kind, max_brk_level };
 }
 
 // try to add new variable to current context's database
@@ -1520,7 +1521,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	auto [Else, else_locals_table, have_else, success, then_end_kind, level] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second.end_kind);
+	auto [Else, merged_vars, else_locals_table, have_else, success, then_end_kind, level] = ParseElse(then_locals_table, ForLoc, tok_for, Body.back().second.end_kind);
 	if (!success)
 		return nullptr;
 	if (level > max_brk_level)
@@ -1532,7 +1533,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		}
 	syntax_nesting.pop_back();
 	return std::make_unique<ForExprAST>(ForLoc, std::move(Iterator), std::move(then_locals_table),
-	                                    std::move(else_locals_table), max_brk_level, std::move(Key),
+	                                    std::move(else_locals_table), max_brk_level, std::move(merged_vars), std::move(Key),
 	                                    std::move(Value), std::move(KeyName), std::move(ValueName),
 	                                    std::move(Body), std::move(Else), ValueFV, KeyFV,
 	                                    ValueFt, KeyFt, key_kind, value_kind, descending);
