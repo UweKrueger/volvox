@@ -475,6 +475,15 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	}
 }
 
+// destr_vars: variables that have been defined in correspondig levels at brk and have A_destructor
+// merged_vars: variables that are still valid at corresponding merge point
+//
+void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars) {
+	for (auto it = destr_vars.begin(); it != destr_vars.end(); it++)
+		if (!merged_vars->contains(it->first))
+			InsertDestructor(it->second);
+}
+
 // call function above for all local variable tables of the current function
 void InsertDestructors(llvm::Value* retp) {
 	if (locals_table.empty() && !jit_repl)

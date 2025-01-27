@@ -941,7 +941,9 @@ struct BreakDescription {
 	// multi level 'brk' requires insertion of destructors for variables
 	// declared in outer branches - so we need to know where we are
 	std::vector<unsigned> embedding_branch_parts;
-	std::vector<FullVar*> vars_to_destruct;
+	// candidates for destructor calls, i.e. unless present in set of merged variables
+	// use map to have alphabetic order in destructor calls
+	std::map<std::string,FullVar*> vars_to_destruct;
 	int end_kind; // tok_end, tok_else, tok_return, tok_brk...
 	unsigned break_level; // semantic - not number of brk
 };
@@ -962,14 +964,14 @@ public:
 	                    // however if a result value is needed by a consumer this message is used
 	bool is_elif_branch = false; // true indicates that no further syntactic nesting is done
 	std::unique_ptr<ExprAST> Cond;
-	std::set<FullVar*> merged_vars; // constructor has not to be called
+	std::set<std::string> merged_vars; // constructor has not to be called
 	bool always_return = false;
 	BranchExprAST(SourceLocation Loc, llvm::Type* type, unsigned type_attr,
 	              bool is_unknown_type, const char* errmsg,
 	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Then,
 	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,
 	              VarTable _then_locals_table, VarTable _else_locals_table, unsigned max_brk_level,
-	              std::set<FullVar*> _merged_vars,
+	              std::set<std::string> _merged_vars,
 	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
 	              bool always_return = false)
 	: ExprAST(type, type_attr, Loc, is_unknown_type), Then(std::move(_Then)), Else(std::move(_Else)),
@@ -979,7 +981,7 @@ public:
 	  Cond(std::move(_Cond)), if_kind(if_kind),
 	  always_return(always_return), errmsg(errmsg) {}
 	std::tuple<llvm::Value*, llvm::Instruction*, int> createCondBranch(
-		std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse);
+		std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>& bBranch, bool isElse);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
@@ -997,7 +999,7 @@ public:
 	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Then,
 	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,
 	          VarTable _then_locals_table, VarTable _else_locals_table, unsigned max_brk_level,
-	          std::set<FullVar*> _merged_vars,
+	          std::set<std::string> _merged_vars,
 	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
 	          bool always_return = false)
 		: BranchExprAST(Loc, std::get<0>(res_t),
@@ -1064,7 +1066,7 @@ class ForExprAST : public BranchExprAST {
 
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
-	           VarTable else_locals_table, unsigned max_brk_level, std::set<FullVar*> _merged_vars, std::unique_ptr<ExprAST> _Key,
+	           VarTable else_locals_table, unsigned max_brk_level, std::set<std::string> _merged_vars, std::unique_ptr<ExprAST> _Key,
 	           std::unique_ptr<ExprAST> _Value, std::string _KeyName, std::string _ValueName,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Body,
 	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,

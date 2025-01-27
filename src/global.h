@@ -645,7 +645,7 @@ extern std::vector<FullVar> expr_temps;
 
 struct MergePointDescription {
 	llvm::BasicBlock* BB;
-	std::set<FullVar*>* merged_vars;
+	std::set<std::string>* merged_vars;
 };
 
 extern std::vector<MergePointDescription> merge_points; // for multi level brk
@@ -892,6 +892,7 @@ extern void InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
 	llvm::Instruction* before = nullptr, bool is_constructor = false);
 extern void InsertDestructors(VarTable& t, llvm::Value* retp);
+extern void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars);
 extern void InsertDestructors(llvm::Value* retp);
 extern void InsertDestructors(std::vector<FullVar>& t);
 extern void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);

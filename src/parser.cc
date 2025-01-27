@@ -994,22 +994,20 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 	return Cond;
 }
 
-static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<FullVar*>,VarTable,bool,bool,int,unsigned> ParseElse(
+static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<std::string>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
-std::vector<FullVar*> get_destuct_vars(int b_lev) {
-	std::vector<FullVar*> destr_vars;
+std::map<std::string,FullVar*> get_destuct_vars(int b_lev) {
+	std::map<std::string,FullVar*> destr_vars;
 	int sz = locals_table.size();
 	for (int n=b_lev; n>0; n--) {
 		auto& table = locals_table[sz-n];
 		for (auto t = table.first(); (bool)t; ++t) {
-			const char* key = t.getKey();
 			FullVar* fullV = fullVar(t);
-			if (fullV->ft.type_attr & A_destructor) {
-				destr_vars.push_back(fullV);
-				// errs() << CurLoc << ": saving '" << key << "' for destructor\n";
+			if (fullV->ft.type_attr & (A_destructor | A_string | A_map)) {
+				std::string key(t.getKey());
+				destr_vars.insert({ std::move(key), fullV });
 			}
-			// else errs() << CurLoc << ": not saving '" << key << "'\n";
 		}
 	}
 	return destr_vars;
@@ -1037,8 +1035,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (level > max_brk_level)
 			max_brk_level = level;
 		bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
-		unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1;
-		std::vector<FullVar*> destr_vars = get_destuct_vars(b_lev);
+		unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1; // semantic level - raw handling has been done in ParseExprList()
+		std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
 		Then.push_back({ std::move(list), BreakDescription{
 					.embedding_branch_parts = current_branch_part,
 					.vars_to_destruct = std::move(destr_vars),
@@ -1092,11 +1090,11 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	                                   res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
-static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<FullVar*>,VarTable,bool,bool,int,unsigned> ParseElse(
+static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<std::string>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
 {
 	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>, BreakDescription>> Else;
-	std::set<FullVar*> merged_vars;
+	std::set<std::string> merged_vars;
 	int then_end_kind;
 	bool have_else = false;
 	unsigned max_brk_level = 0;
@@ -1160,7 +1158,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 					max_brk_level = level;
 				bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
 				unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1;
-				std::vector<FullVar*> destr_vars = get_destuct_vars(b_lev);
+				std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
 				Else.push_back({ std::move(list), BreakDescription{
 							.embedding_branch_parts = current_branch_part,
 							.vars_to_destruct = std::move(destr_vars),
@@ -1203,8 +1201,10 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 				auto then_var = fullVar(then_node);
 				// only add vars declared before 1st 'brk' to outer scope
 				if (!((unsigned)then_var->branch_parts->back() & 0xffff0000)) {
-					if (then_var->ft.type_attr & A_destructor)
-						merged_vars.insert(then_var);
+					if (then_var->ft.type_attr & (A_destructor | A_string | A_map)) {
+						std::string then_var_name(then_node.getKey());
+						merged_vars.insert(std::move(then_var_name));
+					}
 					bool success = false;
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *then_var)) {
@@ -1235,8 +1235,10 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 				// only add to outer scope if declared before 1st 'brk' in each branch
 				FullVar* then_var = fullVar(then_node);
 				if (else_var && !(then_var->branch_parts->back() & 0xffff0000) && !(else_var->branch_parts->back() & 0x7fff0000)) {
-					if (then_var->ft.type_attr & A_destructor)
-						merged_vars.insert(then_var);
+					if (then_var->ft.type_attr & (A_destructor | A_string | A_map)) {
+						std::string then_var_name(then_node.getKey());
+						merged_vars.insert(std::move(then_var_name));
+					}
 					bool success = false;
 					if (locals_table.empty()) {
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
@@ -1505,7 +1507,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			max_brk_level = level;
 		bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
 		unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1;
-		std::vector<FullVar*> destr_vars = get_destuct_vars(b_lev);
+		std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
 		Body.push_back({ std::move(list), BreakDescription{
 					.embedding_branch_parts = current_branch_part,
 					.vars_to_destruct = std::move(destr_vars),

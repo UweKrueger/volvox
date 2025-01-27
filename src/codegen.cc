@@ -2668,7 +2668,11 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 // as insertion point for destructors, etc
 //
 std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranch(
-	std::vector<std::unique_ptr<ExprAST>>& Branch, int EndKind, bool isElse) {
+	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>& bBranch, bool isElse)
+{
+	std::vector<std::unique_ptr<ExprAST>>& Branch = bBranch.first;
+	BreakDescription& brk_descr = bBranch.second;
+	int EndKind = brk_descr.end_kind;
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
 	auto for_expr = dynamic_cast<ForExprAST*>(this);
@@ -2729,6 +2733,7 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 		Builder->CreateCondBr(BranchV, brkBB, contBB);
 		TheFunction->insert(TheFunction->end(), brkBB);
 		Builder->SetInsertPoint(brkBB);
+		InsertDestructors(brk_descr.vars_to_destruct, merge_points[idx].merged_vars);
 		firstBreak = Builder->CreateBr(breakDest); // insertion point for destructors
 		TheFunction->insert(TheFunction->end(), contBB);
 		Builder->SetInsertPoint(contBB);
@@ -3484,7 +3489,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (n == then_max)
 				merge_points.back().BB = BlockToJump;
 			unsigned brk_level;
-			std::tie(ThenV, thenLast, brk_level) = createCondBranch(Then[n].first, Then[n].second.end_kind, false);
+			std::tie(ThenV, thenLast, brk_level) = createCondBranch(Then[n], false);
 			Breaks.back().push_back(BreakDescription{
 					.destructors_insertion_point = thenLast,
 					// .embedding_branch_partsvar_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
@@ -3556,7 +3561,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			for (int n=0; n <= else_max; n++) {
 				declared_vars.back().emplace_back(std::vector<FullVar*>());
 				unsigned brk_level;
-				std::tie(ElseV, elseLast, brk_level) = createCondBranch(Else[n].first, Else[n].second.end_kind, true);
+				std::tie(ElseV, elseLast, brk_level) = createCondBranch(Else[n], true);
 				Breaks.back().push_back(BreakDescription{
 						.destructors_insertion_point = thenLast,
 						// .var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
