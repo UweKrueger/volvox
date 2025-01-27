@@ -327,3 +327,39 @@ end
 def test_2level_break_2 bool
 	return ttqwl(10, 17) == 20
 end
+
+global wwqgh9 = 0
+
+type LLMJ {
+	x int
+}
+
+def ~LLMJ
+	wwqgh9 += 3 + 2*this.x
+	# print "Destuctor ${this.x}"
+end
+
+def nmntr(y int) int
+	if y > 6
+		if y > 10
+			r = LLMJ{ x: 17 }
+			# print "created ${r.x}"
+		else
+			r = LLMJ{ x: 19 }
+			# print "created ${r.x}"
+	brk brk y < 8
+			# print "no brk"
+			wwqgh9 += 100
+		end
+		# print "intermediate"
+		wwqgh9 += 1000
+	end
+	# print "Finish"
+	wwqgh9 *= 2
+	return 9
+end
+
+def test_multi_level_brk_destructors_1 bool
+	t = nmntr 7
+	return wwqgh9 == 82
+end
