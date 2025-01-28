@@ -892,7 +892,7 @@ extern void InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
 	llvm::Instruction* before = nullptr, bool is_constructor = false);
 extern void InsertDestructors(VarTable& t, llvm::Value* retp);
-extern void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars);
+extern void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars = nullptr, llvm::Value* retp = nullptr);
 extern void InsertDestructors(llvm::Value* retp);
 extern void InsertDestructors(std::vector<FullVar>& t);
 extern void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
@@ -1517,7 +1517,19 @@ public:
 #endif
 };
 
-extern void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch, llvm::Value* RetVal);
+struct BreakDescription {
+	llvm::Instruction* destructors_insertion_point;
+	// multi level 'brk' requires insertion of destructors for variables
+	// declared in outer branches - so we need to know where we are
+	std::vector<unsigned> embedding_branch_parts;
+	// candidates for destructor calls, i.e. unless present in set of merged variables
+	// use map to have alphabetic order in destructor calls
+	std::map<std::string,FullVar*> vars_to_destruct;
+	int end_kind; // tok_end, tok_else, tok_return, tok_brk...
+	unsigned break_level; // semantic - not number of brk
+};
+
+extern void HandleReturn(std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>& Branch, llvm::Value* RetVal);
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::unique_ptr<ExprAST>& expr) {
 	if (expr)

@@ -2721,7 +2721,14 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 	}
 	int brk_depth = 1;
 	if (EndKind == tok_return) {
-		HandleReturn(Branch, BranchV);
+		// for (auto it = bBranch.second.vars_to_destruct.begin(); it != bBranch.second.vars_to_destruct.end(); it++) {
+		// 	if (bBranch.first.empty())
+		// 		errs() << "<nil>: ";
+		// 	else
+		// 		errs() << bBranch.first.back()->Loc;
+		// 	errs() << ": var to destruct '" << it->first << "'\n";
+		// }
+		HandleReturn(bBranch, BranchV);
 		BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		brk_depth = 0;
 	} else if (~(~EndKind & ((1<<16)-1)) == tok_brk) {

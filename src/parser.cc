@@ -1035,7 +1035,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		if (level > max_brk_level)
 			max_brk_level = level;
 		bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
-		unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1; // semantic level - raw handling has been done in ParseExprList()
+		unsigned b_lev = is_brk ? ((~e_kind) >> 16) // semantic level - raw handling has been done in ParseExprList()
+			: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 		std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
 		Then.push_back({ std::move(list), BreakDescription{
 					.embedding_branch_parts = current_branch_part,
@@ -1146,10 +1147,13 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			auto end_k = elifif_expr->always_return ? tok_return : tok_end;
 			std::vector<std::unique_ptr<ExprAST>> l;
 			l.push_back(std::move(elif_expr));
+			unsigned b_lev = elifif_expr->always_return ? 0 : 1;
+			std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
 			Else.push_back({ std::move(l), BreakDescription{
 						.embedding_branch_parts = current_branch_part,
+						.vars_to_destruct = std::move(destr_vars),
 						.end_kind = end_k,
-						.break_level = 1
+						.break_level = b_lev
 					} });
 		} else {
 			for (;;) {
@@ -1157,7 +1161,8 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 				if (level > max_brk_level)
 					max_brk_level = level;
 				bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
-				unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1;
+				unsigned b_lev = is_brk ? ((~e_kind) >> 16)
+					: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 				std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
 				Else.push_back({ std::move(list), BreakDescription{
 							.embedding_branch_parts = current_branch_part,
@@ -1506,7 +1511,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		if (level > max_brk_level)
 			max_brk_level = level;
 		bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
-		unsigned b_lev = is_brk ? ((~e_kind) >> 16) : 1;
+		unsigned b_lev = is_brk ? ((~e_kind) >> 16)
+			: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 		std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
 		Body.push_back({ std::move(list), BreakDescription{
 					.embedding_branch_parts = current_branch_part,
@@ -2703,7 +2709,18 @@ parse_body:
 		}
 	}
 	prompt_indent = 0;
-	return std::make_unique<FunctionAST>(ProtoRef, std::move(Elist.first), Elist.second, std::move(unmangledName));
+	unsigned b_lev = 1;
+	std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
+	int end_knd = Elist.second;
+	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBranch = {
+		std::move(Elist.first),
+		BreakDescription{
+			.vars_to_destruct = std::move(destr_vars),
+			.end_kind = end_knd,
+			.break_level = b_lev
+		}
+	};
+	return std::make_unique<FunctionAST>(ProtoRef, std::move(bBranch), std::move(unmangledName));
 }
 
 std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
@@ -2800,10 +2817,17 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
 		}
 	}
+	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBranch = {
+		std::move(ExprList),
+		BreakDescription{
+			.end_kind = tok_return,
+			.break_level = 1
+		}
+	};
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
-	return std::make_unique<FunctionAST>(ProtoRef, std::move(ExprList), tok_return, std::move(unmangledName), return_val_idx);
+	return std::make_unique<FunctionAST>(ProtoRef, std::move(bBranch), std::move(unmangledName), return_val_idx);
 }
 
 /// external := 'extern' prototype

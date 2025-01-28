@@ -951,7 +951,7 @@ std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
-	return std::make_unique<FunctionAST>(ProtoRef, std::vector<std::unique_ptr<ExprAST>>{}, 0, std::move(unmangledName));
+	return std::make_unique<FunctionAST>(ProtoRef, std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>{}, std::move(unmangledName));
 }
 
 bool FinishMain() {
@@ -997,7 +997,14 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
-	auto main_function = std::make_unique<FunctionAST>(ProtoRef, std::move(GlobalExprList), tok_return, std::move(unmangledName));
+	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBody = {
+		std::move(GlobalExprList),
+		BreakDescription{
+			.end_kind = tok_return,
+			.break_level = 1
+		}};
+	auto main_function = std::make_unique<FunctionAST>(
+		ProtoRef, std::move(bBody), std::move(unmangledName));
 	return main_function;
 }
 

@@ -478,10 +478,11 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 // destr_vars: variables that have been defined in correspondig levels at brk and have A_destructor
 // merged_vars: variables that are still valid at corresponding merge point
 //
-void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars) {
+void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars, llvm::Value* retp) {
 	for (auto it = destr_vars.begin(); it != destr_vars.end(); it++)
-		if (!merged_vars->contains(it->first))
-			InsertDestructor(it->second);
+		if (!merged_vars || !merged_vars->contains(it->first))
+			if (it->second->val != retp)
+				InsertDestructor(it->second);
 }
 
 // call function above for all local variable tables of the current function
@@ -1424,9 +1425,11 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 	return true;
 }
 
-void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch, llvm::Value* RetVal)
+void HandleReturn(std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>& bBranch, llvm::Value* RetVal)
 {
 	bool already_returned = false; // set if both branches of last 'if ... else ...' end with 'return'
+	std::vector<std::unique_ptr<ExprAST>>& Branch = bBranch.first;
+	BreakDescription& brk_descr = bBranch.second;
 	if (!Branch.empty())
 		if (auto ifexpr = dynamic_cast<IfExprAST*>(Branch.back().get()))
 			already_returned = ifexpr->always_return;
@@ -1436,7 +1439,7 @@ void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch, llvm::Value* Re
 			if (currentFunction->Proto->visibility & A_destructor) {
 				insert_field_destructors(currentFunction->receiver_ft, currentFunction->TheFunction->getArg(0));
 			}
-			InsertDestructors(nullptr);
+			InsertDestructors(brk_descr.vars_to_destruct);
 			Builder->CreateRetVoid();
 		} else {
 			// auto ret_type = RetVal->getType();
@@ -1448,14 +1451,14 @@ void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch, llvm::Value* Re
 				}
 				if (!RetVal->getType()->isVoidTy() && !currentFunction->RetVar)
 					Builder->CreateStore(RetVal, ret_ptr);
-				InsertDestructors(ret_ptr);
+				InsertDestructors(brk_descr.vars_to_destruct, nullptr, ret_ptr);
 				Builder->CreateRetVoid();
 			} else {
 				if (currentFunction->RetVar) {
 					RetVal = Builder->CreateLoad(currentFunction->ret_ft->type, currentFunction->RetVar->val);
-					InsertDestructors(currentFunction->RetVar->val);
+					InsertDestructors(brk_descr.vars_to_destruct, nullptr, currentFunction->RetVar->val);
 				} else if (RetVal->getType()->isPointerTy())
-					InsertDestructors(RetVal);
+					InsertDestructors(brk_descr.vars_to_destruct, nullptr, RetVal);
 				else {
 					llvm::Value* re_ptr = nullptr;
 					if (!Branch.empty())
@@ -1466,7 +1469,7 @@ void HandleReturn(std::vector<std::unique_ptr<ExprAST>>& Branch, llvm::Value* Re
 								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
 									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);
 						}
-					InsertDestructors(re_ptr);
+					InsertDestructors(brk_descr.vars_to_destruct, nullptr, re_ptr);
 				}
 				Builder->CreateRet(CheckTailCall(RetVal));
 				if (!currentFunction->ArgIdx && Branch.size() == 1 && currentFunction->TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
@@ -1485,7 +1488,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	Builder->SetInsertPoint(BB);
 	if (InterRetVal)
 		RetVal = InterRetVal;
-	HandleReturn(Body, RetVal);
+	HandleReturn(bBody, RetVal);
 	if (comp_mode == comp_dbg) {
 		// Pop off the lexical block for the function.
 		KSDbgInfo.LexicalBlocks.pop_back();

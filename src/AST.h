@@ -338,12 +338,15 @@ public:
 	llvm::Function* cleanup_codegen();
 	PrototypeAST* Proto = nullptr;
 	std::string unmangledName;
-	std::vector<std::unique_ptr<ExprAST>> Body;
+	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBody;
+	std::vector<std::unique_ptr<ExprAST>>& Body;
 	int EndKind = 0;
 	int return_val_idx = -1;
 	FunctionAST(PrototypeAST* Proto,
-	            std::vector<std::unique_ptr<ExprAST>> Body, int EndKind, std::string unmName, int return_val_idx = -1)
-		: Proto(Proto), Body(std::move(Body)), EndKind(EndKind), unmangledName(std::move(unmName)), return_val_idx(return_val_idx) {}
+	            std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> _bBody, std::string unmName, int return_val_idx = -1)
+		: Proto(Proto), bBody(std::move(_bBody)), Body(bBody.first),
+		  EndKind(bBody.second.end_kind), unmangledName(std::move(unmName)),
+		  return_val_idx(return_val_idx) {}
 	llvm::Function* codegen(bool finishModule = false, bool getNewModule = false) {
 		if (prepare_codegen() && process_body(Body))
 			return finish_codegen(finishModule, getNewModule);
@@ -935,18 +938,6 @@ inline void dump_branch_parts(std::vector<unsigned>* v) {
 		errs() << ((p & 0x7fff000) >> 16) << " " << (p & 0xffff) << "\n";
 	}
 }
-
-struct BreakDescription {
-	llvm::Instruction* destructors_insertion_point;
-	// multi level 'brk' requires insertion of destructors for variables
-	// declared in outer branches - so we need to know where we are
-	std::vector<unsigned> embedding_branch_parts;
-	// candidates for destructor calls, i.e. unless present in set of merged variables
-	// use map to have alphabetic order in destructor calls
-	std::map<std::string,FullVar*> vars_to_destruct;
-	int end_kind; // tok_end, tok_else, tok_return, tok_brk...
-	unsigned break_level; // semantic - not number of brk
-};
 
 class BranchExprAST : public ExprAST {
 public:
