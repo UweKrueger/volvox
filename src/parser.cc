@@ -1267,12 +1267,13 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 					if (verbosity >= 2)
 						errs() << CurLoc << ": added '" << then_node.getKey() << "' to outer scope\n";
 				} else {
-					if (verbosity >= 2)
+					if (verbosity >= 2) {
 						errs() << CurLoc << ": ***not*** added '" << then_node.getKey() << "' to outer scope ";
-					if (else_var && else_var->branch_parts) 
-						errs() << fullVar(then_node)->branch_parts->back() << " " << else_var->branch_parts->back() << "\n";
-					else if (verbosity >= 2)
-						errs() << "<\n";
+						if (else_var && else_var->branch_parts)
+							errs() << fullVar(then_node)->branch_parts->back() << " " << else_var->branch_parts->back() << "\n";
+						else
+							errs() << "<\n";
+					}
 				}
 			}
 		}
