@@ -485,18 +485,6 @@ void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std:
 				InsertDestructor(it->second);
 }
 
-// call function above for all local variable tables of the current function
-void InsertDestructors(llvm::Value* retp) {
-	if (locals_table.empty() && !jit_repl)
-		for (auto& [modname, module] : Modules) {
-			if (module.globals_table.table)
-				InsertDestructors(module.globals_table, retp);
-		}
-	else
-		for (auto t = locals_table.rbegin(); t != locals_table.rend(); ++t )
-			InsertDestructors(*t, retp);
-}
-
 // insert destructors for intermediate results - this is done afer each complete expression
 void InsertDestructors(std::vector<FullVar>& t) {
 	if (t.empty())
