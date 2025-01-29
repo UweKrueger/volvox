@@ -27,7 +27,6 @@ std::vector<MergePointDescription> merge_points; // for multi level brk
 // log declared vars to be able to call destructors
 // nestlevel / branch / branchpart(for break)
 // each branchpoint holds a vector (with size break_level) of index triples to identify
-std::vector<std::vector<std::vector<FullVar*>>> declared_vars = {{{}}};
 
 //===----------------------------------------------------------------------===//
 // Code Generation
@@ -1961,7 +1960,6 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 			return nullptr;
 		}
-		declared_vars.back().back().push_back(entry);
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		llvm::Type* type = RHS->ft->type;
@@ -3496,9 +3494,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		else
 			BlockToJump = MergeBB;
 		int then_max = Then.size() - 1;
-		declared_vars.emplace_back(std::vector<std::vector<FullVar*>>());
 		for (int n=0; n <= then_max; n++) {
-			declared_vars.back().emplace_back(std::vector<FullVar*>());
 			if (n == then_max)
 				merge_points.back().BB = BlockToJump;
 			unsigned brk_level;
@@ -3568,9 +3564,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
 			int else_max = Else.size() - 1;
-			declared_vars.emplace_back(std::vector<std::vector<FullVar*>>());
 			for (int n=0; n <= else_max; n++) {
-				declared_vars.back().emplace_back(std::vector<FullVar*>());
 				unsigned brk_level;
 				llvm::Instruction* _elseLast;
 				std::tie(ElseV, _elseLast, brk_level) = createCondBranch(Else[n], true);
@@ -3710,7 +3704,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				InsertDestructor(then_var, StackRestoreInst);
 		}
 	}
-	declared_vars.pop_back();
 	Builder->SetInsertPoint(MergeBB);
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
