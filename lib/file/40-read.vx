@@ -2,7 +2,6 @@ cdecl fscanf(file voidptr, fmt cstring, ...) int
 cdecl ferror(file voidptr) int
 
 def File.__scanf(fmt cstring, v voidptr)
-	global EOF
 	if fscanf(this.voidptr, fmt, v) == EOF
 		if ferror(this.voidptr) != 0
 			this.err = GetLastError
@@ -153,7 +152,6 @@ end
 cdecl __purgeline(file voidptr) ssize_t
 
 pub def File.eatnl
-	global EMSGSIZE
 	if __purgeline(this.voidptr) != 0
 		if this.err = 0
 			this.err = EMSGSIZE

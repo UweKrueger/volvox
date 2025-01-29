@@ -31,20 +31,15 @@ pub def File.seek(offset i64, whence int) bool
 	return false
 end
 
-89.99
-
 pub def File.seek_set(offset i64) bool
-	global SEEK_SET
 	return this.seek(offset, SEEK_SET)
 end
 
 pub def File.seek_cur(offset i64) bool
-	global SEEK_CUR
 	return this.seek(offset, SEEK_CUR)
 end
 
 pub def File.seek_end(offset i64) bool
-	global SEEK_END
 	return this.seek(offset, SEEK_END)
 end
 

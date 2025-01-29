@@ -25,7 +25,6 @@ type File {
 }
 
 pub def File
-	global __stdin_ptr, __stdout_ptr, __stderr_ptr, __magic
 	if size_t(this.voidptr) == 0
 		# standard file - get file descriptor from err
 		if this.err != 0
