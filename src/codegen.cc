@@ -3496,7 +3496,10 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (n == then_max)
 				merge_points.back().BB = BlockToJump;
 			unsigned brk_level;
-			std::tie(ThenV, thenLast, brk_level) = createCondBranch(Then[n], false);
+			llvm::Instruction* _thenLast;
+			std::tie(ThenV, _thenLast, brk_level) = createCondBranch(Then[n], false);
+			if (!n)
+				thenLast = _thenLast;
 			Breaks.back().push_back(BreakDescription{
 					.destructors_insertion_point = thenLast,
 					// .embedding_branch_partsvar_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
@@ -3568,7 +3571,10 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			for (int n=0; n <= else_max; n++) {
 				declared_vars.back().emplace_back(std::vector<FullVar*>());
 				unsigned brk_level;
-				std::tie(ElseV, elseLast, brk_level) = createCondBranch(Else[n], true);
+				llvm::Instruction* _elseLast;
+				std::tie(ElseV, _elseLast, brk_level) = createCondBranch(Else[n], true);
+				if (!n)
+					elseLast = _elseLast;
 				Breaks.back().push_back(BreakDescription{
 						.destructors_insertion_point = thenLast,
 						// .var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },

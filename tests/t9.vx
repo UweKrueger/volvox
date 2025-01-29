@@ -344,13 +344,16 @@ def nmntr(y int) int
 		if y > 10
 			r = LLMJ{ x: 17 }
 			# print "created ${r.x}"
+		brk y > 12
+			q = LLMJ{ x: 23 }
+			# print "created ${q.x}"
 		else
 			r = LLMJ{ x: 19 }
 			# print "created ${r.x}"
 	brk brk y < 8
 			# print "no brk"
 			wwqgh9 += 100
-			# return 7
+			return 7
 		end
 		# print "intermediate"
 		wwqgh9 += 1000
@@ -363,4 +366,11 @@ end
 def test_multi_level_brk_destructors_1 bool
 	t = nmntr 7
 	return wwqgh9 == 82
+end
+
+wwqgh9 = 0
+
+def test_multi_level_brk_destructors_2 bool
+	t = nmntr 11
+	return wwqgh9 == 2098 && t == 9
 end
