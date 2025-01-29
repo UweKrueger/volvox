@@ -37,9 +37,9 @@ std::vector<uint8_t> syntax_nesting;
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
 
-// Branches may be interrupted by 'brk's or by BranchExprs that contain multi level 'brk's.
-// In order to know which constructors to call we tag each declared variable with part ids
-// that are specific to the branch nesting levels
+// branches may be be nested and each nesting level may have several parts separated by 'brk'
+// we keek track, where we are. Currently it is only used to know *if* we are inside a branch
+// so the implementation is too sophisticated - let's keep it though for debugging purposes
 //
 std::vector<unsigned> current_branch_part;
 
