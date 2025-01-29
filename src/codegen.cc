@@ -28,7 +28,7 @@ std::vector<MergePointDescription> merge_points; // for multi level brk
 // nestlevel / branch / branchpart(for break)
 // each branchpoint holds a vector (with size break_level) of index triples to identify
 std::vector<std::vector<std::vector<FullVar*>>> declared_vars = {{{}}};
-std::vector<std::vector<BreakDescription>> Breaks;
+
 //===----------------------------------------------------------------------===//
 // Code Generation
 //===----------------------------------------------------------------------===//
@@ -3470,7 +3470,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* ThenV = nullptr;
 	llvm::Instruction* thenLast = nullptr;
 	llvm::PHINode* savedStack1;
-	Breaks.emplace_back(std::vector<BreakDescription>());
 	if (CTcond != CTcond_false) {
 		if (TheFunction) {
 			TheFunction->insert(TheFunction->end(), ThenBB);
@@ -3507,11 +3506,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			std::tie(ThenV, _thenLast, brk_level) = createCondBranch(Then[n], false);
 			if (!n)
 				thenLast = _thenLast;
-			Breaks.back().push_back(BreakDescription{
-					.destructors_insertion_point = thenLast,
-					// .embedding_branch_partsvar_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
-					.break_level = brk_level
-				});
 		}
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
@@ -3582,11 +3576,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				std::tie(ElseV, _elseLast, brk_level) = createCondBranch(Else[n], true);
 				if (!n)
 					elseLast = _elseLast;
-				Breaks.back().push_back(BreakDescription{
-						.destructors_insertion_point = thenLast,
-						// .var_idxs = { (int)declared_vars.size(), (int)declared_vars.back().size(), (int)declared_vars.back().back().size() },
-						.break_level = brk_level
-					});
 			}
 			if (Else.size() == 1)
 				elseConstV = llvm::dyn_cast<llvm::Constant>(ElseV);
@@ -3721,7 +3710,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				InsertDestructor(then_var, StackRestoreInst);
 		}
 	}
-	Breaks.pop_back();
 	declared_vars.pop_back();
 	Builder->SetInsertPoint(MergeBB);
 	if (ft->type->isVoidTy())
