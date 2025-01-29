@@ -1392,7 +1392,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 				errs() << (RHS ? (*RHS)->Loc : CurLoc) << ": RHS of reference declaration must be an lvalue\n";
 				return { nullptr, new_var_none };
 			}
-		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
+		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & (A_destructor | A_string | A_map))) {
 			fv.ft.type_attr |= A_destructor;
 		}
 		if (verbosity >= 2) {

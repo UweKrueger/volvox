@@ -3717,7 +3717,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
-			if (then_var->ft.type_attr & A_destructor)
+			if (then_var->ft.type_attr & (A_destructor | A_string | A_map))
 				InsertDestructor(then_var, StackRestoreInst);
 		}
 	}
