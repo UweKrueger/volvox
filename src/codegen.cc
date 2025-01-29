@@ -2702,6 +2702,12 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 				BranchV = expr->codegen();
 			InsertDestructors(expr_temps);
 		}
+		if (verbosity >= 3) {
+			errs() << Branch.back()->Loc << ": destructors for ";
+			for (auto it: brk_descr.vars_to_destruct)
+				errs() << it.first << " ";
+			errs() << "\n";
+		}
 	}
 	if (EndKind != tok_return && ~(~EndKind & ((1<<16)-1)) != tok_brk && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
@@ -2750,6 +2756,7 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		else if (!BranchV)
 			BranchV = llvm::Constant::getNullValue(ft->type);
+		InsertDestructors(brk_descr.vars_to_destruct, merge_points[merge_points.size()-1].merged_vars);
 		if (merge_points.back().BB && !(for_expr && !isElse))
 			firstBreak = Builder->CreateBr(merge_points.back().BB);
 	}
@@ -3704,16 +3711,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	MergeBB = Builder->GetInsertBlock();
-	// iterate over then/else-declared objects and insert destructors for those that are not merged
-	if (if_kind != tok_repeat && then_locals_table.table && thenLast) {
-		Builder->SetInsertPoint(thenLast);
-		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
-			MapValue* node = then_node.getValue();
-			auto then_var = (FullVar*)((char*)node + node->offset);
-			if ((then_var->ft.type_attr & A_destructor) && !(then_var->ft.type_attr & A_merged))
-				InsertDestructor(then_var, thenLast);
-		}
-	}
 	// objects declared in while/repat branches have to be always destructed when the stack is restored
 	if (if_kind != tok_if && then_locals_table.table && StackRestoreInst) {
 		Builder->SetInsertPoint(StackRestoreInst);
@@ -3722,15 +3719,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (then_var->ft.type_attr & A_destructor)
 				InsertDestructor(then_var, StackRestoreInst);
-		}
-	}
-	if (if_kind != tok_repeat && else_locals_table.table && elseLast) {
-		Builder->SetInsertPoint(elseLast);
-		for (auto else_node = else_locals_table.first(); else_node; ++else_node) {
-			MapValue* node = else_node.getValue();
-			auto else_var = (FullVar*)((char*)node + node->offset);
-			if ((else_var->ft.type_attr & A_destructor) && !(else_var->ft.type_attr & A_merged))
-				InsertDestructor(else_var, elseLast);
 		}
 	}
 	Breaks.pop_back();

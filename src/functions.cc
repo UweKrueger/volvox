@@ -479,10 +479,17 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 // merged_vars: variables that are still valid at corresponding merge point
 //
 void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars, llvm::Value* retp) {
+	// errs() << " *** destructors for ";
 	for (auto it = destr_vars.begin(); it != destr_vars.end(); it++)
-		if (!merged_vars || !merged_vars->contains(it->first))
-			if (it->second->val != retp)
+		if (!merged_vars || !merged_vars->contains(it->first)) {
+			if (it->second->val != retp) {
+				// errs() << it->first << " ";
 				InsertDestructor(it->second);
+			}
+		}
+	// 	else
+	// 		errs() << "!" << it->first << " ";
+	// errs() << "\n";
 }
 
 // insert destructors for intermediate results - this is done afer each complete expression

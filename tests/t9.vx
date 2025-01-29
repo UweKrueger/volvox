@@ -372,5 +372,5 @@ wwqgh9 = 0
 
 def test_multi_level_brk_destructors_2 bool
 	t = nmntr 11
-	return wwqgh9 == 2098 && t == 9
+	return wwqgh9 == 2172 && t == 9
 end

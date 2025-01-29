@@ -997,19 +997,22 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<std::string>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
-std::map<std::string,FullVar*> get_destuct_vars(int b_lev) {
+std::map<std::string,FullVar*> get_destruct_vars(int b_lev) {
 	std::map<std::string,FullVar*> destr_vars;
 	int sz = locals_table.size();
+	// errs() << CurLoc << ": destr_vars ";
 	for (int n=b_lev; n>0; n--) {
 		auto& table = locals_table[sz-n];
 		for (auto t = table.first(); (bool)t; ++t) {
 			FullVar* fullV = fullVar(t);
 			if (fullV->ft.type_attr & (A_destructor | A_string | A_map)) {
 				std::string key(t.getKey());
+				// errs() << key << " ";
 				destr_vars.insert({ std::move(key), fullV });
 			}
 		}
 	}
+	// errs() << "\n";
 	return destr_vars;
 }
 
@@ -1037,7 +1040,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
 		unsigned b_lev = is_brk ? ((~e_kind) >> 16) // semantic level - raw handling has been done in ParseExprList()
 			: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
-		std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
+		std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 		Then.push_back({ std::move(list), BreakDescription{
 					.embedding_branch_parts = current_branch_part,
 					.vars_to_destruct = std::move(destr_vars),
@@ -1148,7 +1151,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			std::vector<std::unique_ptr<ExprAST>> l;
 			l.push_back(std::move(elif_expr));
 			unsigned b_lev = elifif_expr->always_return ? 0 : 1;
-			std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
+			std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 			Else.push_back({ std::move(l), BreakDescription{
 						.embedding_branch_parts = current_branch_part,
 						.vars_to_destruct = std::move(destr_vars),
@@ -1163,7 +1166,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 				bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
 				unsigned b_lev = is_brk ? ((~e_kind) >> 16)
 					: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
-				std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
+				std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 				Else.push_back({ std::move(list), BreakDescription{
 							.embedding_branch_parts = current_branch_part,
 							.vars_to_destruct = std::move(destr_vars),
@@ -1514,7 +1517,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		bool is_brk = ~(~e_kind & ((1<<16)-1)) == tok_brk;
 		unsigned b_lev = is_brk ? ((~e_kind) >> 16)
 			: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
-		std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
+		std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 		Body.push_back({ std::move(list), BreakDescription{
 					.embedding_branch_parts = current_branch_part,
 					.vars_to_destruct = std::move(destr_vars),
@@ -2711,7 +2714,7 @@ parse_body:
 	}
 	prompt_indent = 0;
 	unsigned b_lev = 1;
-	std::map<std::string,FullVar*> destr_vars = get_destuct_vars(b_lev);
+	std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 	int end_knd = Elist.second;
 	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBranch = {
 		std::move(Elist.first),
