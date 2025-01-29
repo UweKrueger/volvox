@@ -188,11 +188,16 @@ no_explicit_constructor:
 			return nullptr;
 		}
 	}
-	if (desired_type->isPointerTy()) {
+	if (desired_type->isPointerTy())
 		if (is_explicit) // e.g. voidptr(0)
 			return [=](llvm::Value* v) { return Builder->CreateIntToPtr(v, llvm_ptr_type, "inttoptr"); };
 		else
 			return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "int -> voidptr");
+	else if (expr_type->isPointerTy()) {
+		if (desired_type == llvm_size_type)
+			return [=](llvm::Value* v) { return Builder->CreatePtrToInt(v, desired_type, "ptrtoint"); };
+		else
+			return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no known conversion");
 	}
 	if (!desired_bitwidth || !expr_bitwidth)
 		return nullptr;
@@ -291,11 +296,6 @@ no_explicit_constructor:
 							return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "would truncate/reinterpret upper bits");
 					else
 						return [=](llvm::Value* v) { return Builder->CreateIntCast(v, desired_type, false, "expandstmp"); };
-	else if (expr_type->isPointerTy())
-		if (desired_type == llvm_size_type)
-			return [=](llvm::Value* v) { return Builder->CreatePtrToInt(v, desired_type, "ptrtoint"); };
-		else
-			return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no known conversion");
 	else
 		return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no known conversion");
 }
