@@ -1518,9 +1518,6 @@ public:
 
 struct BreakDescription {
 	llvm::Instruction* destructors_insertion_point;
-	// multi level 'brk' requires insertion of destructors for variables
-	// declared in outer branches - so we need to know where we are
-	std::vector<unsigned> embedding_branch_parts;
 	// candidates for destructor calls, i.e. unless present in set of merged variables
 	// use map to have alphabetic order in destructor calls
 	std::map<std::string,FullVar*> vars_to_destruct;

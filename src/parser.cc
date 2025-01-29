@@ -1042,7 +1042,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 		std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 		Then.push_back({ std::move(list), BreakDescription{
-					.embedding_branch_parts = current_branch_part,
 					.vars_to_destruct = std::move(destr_vars),
 					.end_kind = e_kind,
 					.break_level = b_lev
@@ -1153,7 +1152,6 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			unsigned b_lev = elifif_expr->always_return ? 0 : 1;
 			std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 			Else.push_back({ std::move(l), BreakDescription{
-						.embedding_branch_parts = current_branch_part,
 						.vars_to_destruct = std::move(destr_vars),
 						.end_kind = end_k,
 						.break_level = b_lev
@@ -1168,7 +1166,6 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 					: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 				std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 				Else.push_back({ std::move(list), BreakDescription{
-							.embedding_branch_parts = current_branch_part,
 							.vars_to_destruct = std::move(destr_vars),
 							.end_kind = e_kind,
 							.break_level = b_lev
@@ -1519,7 +1516,6 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 		std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 		Body.push_back({ std::move(list), BreakDescription{
-					.embedding_branch_parts = current_branch_part,
 					.vars_to_destruct = std::move(destr_vars),
 					.end_kind = e_kind,
 					.break_level = b_lev
