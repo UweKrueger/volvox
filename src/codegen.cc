@@ -3559,7 +3559,10 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			}
 			Builder->SetInsertPoint(ElseBB);
 			locals_table.push_back(std::move(else_locals_table));
-			merge_points.push_back(MergePointDescription{ .BB = MergeBB }); // for multi level brk
+			merge_points.push_back(MergePointDescription{
+					.BB = MergeBB,
+					.merged_vars = &this->merged_vars
+				}); // for multi level brk
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
