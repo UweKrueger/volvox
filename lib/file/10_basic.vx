@@ -13,40 +13,59 @@ cdecl __get_stdin voidptr
 cdecl __get_stdout voidptr
 cdecl __get_stderr voidptr
 
-const __stdin_ptr = __get_stdin
-const __stdout_ptr = __get_stdout
-const __stderr_ptr = __get_stderr
+const _flag_sharable           := 0x01
+const _flag_mask_special_files := 0x06
+const _flag_stdin              := 0x02
+const _flag_stdout             := 0x04
+const _flag_stderr             := 0x06
 
-const __magic := 0xfffff
+# buffered files come in two flavours:
+# non-sharable (default for Volvox):
+#   - limited to one object - cannot be copied (but referenced)
+#   - limited one thread
+#   - I/O is unlocked (very fast)
+#   - automatically closed by destructor
+# sharable:
+#   - many copies of object may exist
+#   - can be used in several threads but I/O is not atomic
+#     i.e. file content may become messed up by interleaving
+#     (see module io for unbuffered files that support atomic operations)
+#   - have to be closed manually
+#   - used for stdin, stdout and stderr but not recommended otherwise
 
 type File {
-	voidptr # FILE*
+	voidptr    # libc FILE pointer as returned by fopen()
+	_flags u32 # to indicate sharable, stdin/stdout/stderr
 	err u32
 }
 
 pub def File
 	if size_t(this.voidptr) == 0
 		# standard file - get file descriptor from err
-		if this.err != 0
-			# hack for std{in,out,err} - code fd in err
-			if this.err == __magic + 0
-				this.voidptr = __stdin_ptr
-			elif this.err == __magic + 1
-				this.voidptr = __stdout_ptr
-			elif this.err == __magic + 2
-				this.voidptr = __stderr_ptr
-			elif this.err != 0
-				panic("Inconsistent file status")
+		special_file_flags = this._flags & _flag_mask_special_files
+		if special_file_flags == 0
+			panic "file.File is not default constructable"
+		else
+			# hack to construct std{in,out,err}
+			if special_file_flags == _flag_stdin
+				this.voidptr = __get_stdin
+			elif special_file_flags == _flag_stdout
+				this.voidptr = __get_stdout
+			else
+				this.voidptr = __get_stderr
 			end
-			this.err = 0
+			this._flags |= _flag_sharable
 end end end
 
 pub def File(c_file voidptr)
 	this.voidptr = c_file
 end
 
+# The destructor closes the file unless it's flagged as shareable in which
+# case the method close() has to be called manually
+#
 pub inline def ~File
-	if size_t(this.voidptr) != 0
+	if !bool(this._flags & _flag_sharable) && size_t(this.voidptr) != 0
 	   fclose(this.voidptr)
 	end
 end
@@ -55,22 +74,22 @@ pub inline def File.is_valid bool
 	return size_t(this.voidptr) != 0
 end
 
-# Having std streams available in all threads but keeping the err part
-# thread local is somewhat tricky.
-# We declare thread-local variables using the constexpr-initialized
-# err as coded file descriptor.
+# Having std streams available in all threads is somewhat tricky since
+# initializers for thread local globals must be constexprs.
+#
+# We use _flags to code which non-constexpr FILE* from libc should be used.
 # The default constructor then assigns the correct file pointer based
-# on this magic code.
+# on these flags.
 
-pub global stdin := File{ err: __magic + 0 }
-pub global stdout := File{ err: __magic + 1 }
-pub global stderr := File{ err: __magic + 2 }
+pub global stdin  := File{ _flags: _flag_stdin }
+pub global stdout := File{ _flags: _flag_stdout }
+pub global stderr := File{ _flags: _flag_stderr }
 
 # open file for read/write (like '>' in shell scripts)
 # - if file name exists truncate it to size 0
 # - create new file otherwise
 #
-pub inline def create(filename cstring) File
+pub inline def create(filename cstring, sharable bool) File
 	if os.isWindows
 		mode = "wb"
 	else
@@ -84,13 +103,20 @@ pub inline def create(filename cstring) File
 	if !f.is_valid
 		f.err = GetLastError
 	end
+	if sharable
+		f._flags |= _flag_sharable
+	end
 	return f
+end
+
+pub inline def create(filename cstring) File
+	return create(filename, false)
 end
 
 # open existing file for read
 # return error otherwise
 #
-pub inline def open(filename cstring) File
+pub inline def open(filename cstring, sharable bool) File
 	if os.isWindows
 		mode = "rb"
 	else
@@ -104,13 +130,20 @@ pub inline def open(filename cstring) File
 	if !f.is_valid
 		f.err = GetLastError
 	end
+	if sharable
+		f._flags |= _flag_sharable
+	end
 	return f
+end
+
+pub inline def open(filename cstring) File
+	return open(filename, false)
 end
 
 # create new file for read/write
 # - if file name already exists do nothing and return error
 #
-pub inline def new(filename cstring) File
+pub inline def new(filename cstring, sharable bool) File
 	if os.isWindows
 		mode = "wxb"
 	else
@@ -124,7 +157,14 @@ pub inline def new(filename cstring) File
 	if !f.is_valid
 		f.err = GetLastError
 	end
+	if sharable
+		f._flags |= _flag_sharable
+	end
 	return f
+end
+
+pub inline def new(filename cstring) File
+	return new(filename, false)
 end
 
 # open file to append data (like '>>' in shell scripts)
@@ -134,7 +174,7 @@ end
 # create new file for read/write
 # - if file name already exists do nothing and return error
 #
-pub inline def append(filename cstring) File
+pub inline def append(filename cstring, sharable bool) File
 	if os.isWindows
 		mode = "ab"
 	else
@@ -148,7 +188,14 @@ pub inline def append(filename cstring) File
 	if !f.is_valid
 		f.err = GetLastError
 	end
+	if sharable
+		f._flags |= _flag_sharable
+	end
 	return f
+end
+
+pub inline def append(filename cstring) File
+	return append(filename, false)
 end
 
 pub inline def File.close
