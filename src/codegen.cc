@@ -1562,8 +1562,8 @@ inline bool is_fractional(ExprAST* expr) {
 }
 
 static llvm::Value* compare_strings(llvm::Value* L, llvm::Value* R) {
-	std::string C_strcpy = "strcmp";
-	auto strcmp_proto = (*lex.findProtos(C_strcpy))[0].get();
+	std::string C_strcmp = "strcmp";
+	auto strcmp_proto = (*lex.findProtos(C_strcmp))[0].get();
 	auto strcmp_fn = getFunction(strcmp_proto);
 	return Builder->CreateCall(strcmp_proto->FT, strcmp_fn, std::vector<llvm::Value*>{
 			Volvox2CStr(L), Volvox2CStr(R) });

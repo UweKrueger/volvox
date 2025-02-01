@@ -549,8 +549,34 @@ llvm::Value* Volvox2CStr2(llvm::Value* v, llvm::Value* subtrahend) {
 }
 
 llvm::Value* Volvox2CStr(llvm::Value* v) {
+#ifndef NO_NULLPTR_STRING
+	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
+	llvm::Function* TheFunction = enterBB->getParent();
+	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "cont2cstr");
+	llvm::BasicBlock* ConvBB = llvm::BasicBlock::Create(Context, "conv");
+	llvm::BasicBlock* ConvBB0 = llvm::BasicBlock::Create(Context, "conv0");
+	llvm::Value* IsNotNull = Builder->CreateIsNotNull(Builder->CreatePtrToInt(v, llvm_size_type));
+	Builder->CreateCondBr(IsNotNull, ConvBB, ConvBB0);
+	TheFunction->insert(TheFunction->end(), ConvBB0);
+	Builder->SetInsertPoint(ConvBB0);
+	llvm::Value* nullStr = Builder->CreateGlobalString("", "", 0, TheModule.get());
+	Builder->CreateBr(ContBB);
+	TheFunction->insert(TheFunction->end(), ConvBB);
+	Builder->SetInsertPoint(ConvBB);
+#endif
 	auto subtrahend = Volvox2CStr1(v);
-	return Volvox2CStr2(v, subtrahend);
+	llvm::Value* Res = Volvox2CStr2(v, subtrahend);
+#ifdef NO_NULLPTR_STRING
+	return Res;
+#else
+	Builder->CreateBr(ContBB);
+	TheFunction->insert(TheFunction->end(), ContBB);
+	Builder->SetInsertPoint(ContBB);
+	llvm::PHINode* PN = Builder->CreatePHI(llvm_ptr_type, 2, "strconv");
+	PN->addIncoming(nullStr, ConvBB0);
+	PN->addIncoming(Res, ConvBB);
+	return PN;
+#endif
 }
 
 void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
