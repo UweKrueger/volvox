@@ -183,12 +183,19 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, unsigned long long v
                     unsigned bits, int w, int p, unsigned flags);
 
 static void prt_pointer(char** s, unsigned* cap, unsigned* pos, const char* ptr, unsigned w, unsigned attr, unsigned flags) {
+#ifndef NO_NULLPTR_STRING
+	if (attr & A_string)
+		prtstring(s, cap, pos, ptr ? volvox2cstr(ptr) : "", w, flags);
+	else
+#endif
 	if (!ptr)
 		prtstring(s, cap, pos, "<nil>", w, 0);
 	else if (attr & A_cstring)
 		prtstring(s, cap, pos, ptr, w, flags);
+#ifdef NO_NULLPTR_STRING
 	else if (attr & A_string)
 		prtstring(s, cap, pos, volvox2cstr(ptr), w, flags);
+#endif
 	else
 		prt_int(s, cap, pos, (unsigned long long)(size_t)ptr, 8*sizeof(size_t),
 		        w, -1, flags | FMT_ZEROPAD | FMT_DISPLAY_HEX | FMT_UNSIGNED);
@@ -897,9 +904,11 @@ error:
 #endif
 
 _DECL void printstr(int fd, char* s) {
-	size_t l = volvox_string_len(s);
-	char* sc = volvox2cstr(s);
-	write(fd, sc, l);
+	if (s) {
+		size_t l = volvox_string_len(s);
+		char* sc = volvox2cstr(s);
+		write(fd, sc, l);
+	}
 	char n = '\n';
 	write(fd, &n, 1);
 }
@@ -924,15 +933,28 @@ _DECL void modstr(char* s, int idx, char c) {
 static char* __string_accumulate(size_t m, char* a[], bool is_add_assign) {
 	size_t new_l = 0;
 	for (size_t i = 0; i<m; i++)
-		new_l += volvox_string_len(a[i]);
+#ifndef NO_NULLPTR_STRING
+		if (a[i])
+#endif
+			new_l += volvox_string_len(a[i]);
+#ifndef NO_NULLPTR_STRING
+	if (!new_l)
+		return nullptr;
+#endif
 	size_t new_alloc = __string_allocsize(new_l);
 	char* n = malloc(new_alloc);
 	char* offset = n;
 	for (size_t idx=0; idx < m; idx++) {
-		char* cstr = volvox2cstr(a[idx]);
-		size_t len = volvox_string_len(a[idx]);
-		memcpy(offset, cstr, len);
-		offset += len;
+#ifndef NO_NULLPTR_STRING
+		if (a[idx]) {
+#endif
+			char* cstr = volvox2cstr(a[idx]);
+			size_t len = volvox_string_len(a[idx]);
+			memcpy(offset, cstr, len);
+			offset += len;
+#ifndef NO_NULLPTR_STRING
+		}
+#endif
 	}
 	*offset = 0;
 	char* res = n + __raw_offset(new_alloc);
@@ -947,6 +969,10 @@ _DECL char* __string_add(char* a, char* b) {
 }
 
 _DECL char* __string_dup(char* s) {
+#ifndef NO_NULLPTR_STRING
+	if (!s)
+		return s;
+#endif
 	size_t sz = __string_raw_size(s);
 	char* s_c = __string_c_ptr(s, sz);
 	size_t min_cap = __string_min_cap(sz);
@@ -983,14 +1009,15 @@ _DECL void __string_add_assign_gen(char** a, char* c_b, size_t sz_b) {
 }
 
 _DECL void __string_add_assign(char** a, char* b) {
-	size_t sz_b = __string_raw_size(b);
-	char* c_b = __string_c_ptr(b, sz_b);
-	__string_add_assign_gen(a, c_b, sz_b);
-}
-
-_DECL void __string_add_c_assign(char** a, char* c_b) {
-	size_t sz_b = strlen(c_b) + 1;
-	__string_add_assign_gen(a, c_b, sz_b);
+	if (!b)
+		return;
+	else if (!*a)
+		*a = __string_dup(b);
+	else {
+		size_t sz_b = __string_raw_size(b);
+		char* c_b = __string_c_ptr(b, sz_b);
+		__string_add_assign_gen(a, c_b, sz_b);
+	}
 }
 
 static char* __string_mult_general(size_t m, char* a, bool is_mult_assign) {
@@ -1069,6 +1096,15 @@ _DECL char* __cstr2volvoxstr(const char* c_str, size_t len, bool mark_as_heap) {
 _DECL char* __cstr2volvox(const char* c_str) {
 	size_t l = strlen(c_str);
 	return __cstr2volvoxstr(c_str, l, true);
+}
+
+_DECL void __string_add_c_assign(char** a, char* c_b) {
+	if (!*a)
+		*a = __cstr2volvox(c_b);
+	else {
+		size_t sz_b = strlen(c_b) + 1;
+		__string_add_assign_gen(a, c_b, sz_b);
+	}
 }
 
 _DECL char* __volvox2cstr(const char* v) {

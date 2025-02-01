@@ -66,9 +66,14 @@ typedef int ssize_t;
 
 #ifndef volvox2cstr
 #define SIZE_T_BITS ((sizeof(size_t) == 8) ? 64 : (sizeof(size_t) == 4) ? 32 : 16)
-#define volvox_string_len(v) (*(size_t*)v - 1)
+#ifndef NO_NULLPTR_STRING
+#define volvox_string_len(v) ((v) ? (*(size_t*)(v) - 1) : 0)
 // an LLVM implementation of this function is available as Volvox2CStr()
+#define volvox2cstr(v) ((v) ? (char*)((uintptr_t)((v) - *(size_t*)(v)) & ~((sizeof(size_t)-1))) : "")
+#else
+#define volvox_string_len(v) (*(size_t*)v - 1)
 #define volvox2cstr(v) (char*)((uintptr_t)(v - *(size_t*)v) & ~((sizeof(size_t)-1)))
+#endif
 #endif
 #ifndef STR_WRITE
 #define STR_WRITE(s) s, sizeof(s)-1

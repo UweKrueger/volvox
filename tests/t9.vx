@@ -430,3 +430,31 @@ ghbzd4t = "Kfe@ ug"
 oooddfg = string()
 
 WQrem(oooddfg = "jkgkj")
+
+def test_null_string_add_1 bool
+	a = string
+	b = "Ukd@"
+	uo = a + b
+	return uo == "Ukd@"
+end
+
+def test_null_string_add_2 bool
+	a = "Khu#p"
+	b = string
+	uo = a + b
+	return uo == "Khu#p"
+end
+
+def test_null_string_add_3 bool
+	a = "Öäu#p"
+	b = string
+	a += b
+	return a == "Öäu#p"
+end
+
+def test_null_string_add_4 bool
+	a = string
+	b = "Ngs9+"
+	a += b
+	return a == "Ngs9+"
+end
