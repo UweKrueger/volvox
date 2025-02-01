@@ -2527,6 +2527,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			case is_float:
 				result = Builder->CreateFCmpOLE(L, R, "leftmp");
 				break;
+			case is_string:
+				result = Builder->CreateICmpSLE(compare_strings(L, R), Builder->getInt32(0));
+				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 				return nullptr;
@@ -2561,6 +2564,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			case is_float:
 				result = Builder->CreateFCmpOLT(L, R, "ltftmp");
 				break;
+			case is_string:
+				result = Builder->CreateICmpSLT(compare_strings(L, R), Builder->getInt32(0));
+				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 				return nullptr;
@@ -2587,6 +2593,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			case is_float:
 				result = Builder->CreateFCmpOGE(L, R, "geftmp");
+				break;
+			case is_string:
+				result = Builder->CreateICmpSGE(compare_strings(L, R), Builder->getInt32(0));
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
@@ -2634,6 +2643,9 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			case is_float:
 				result = Builder->CreateFCmpOGT(L, R, "gtftmp");
+				break;
+			case is_string:
+				result = Builder->CreateICmpSGT(compare_strings(L, R), Builder->getInt32(0));
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
