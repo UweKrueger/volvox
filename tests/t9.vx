@@ -415,3 +415,18 @@ def test_multi_level_brk_destructors_5 bool
 	R = lwege2(7)
 	return R
 end
+
+# the following should not cause SEGV
+
+def WQrem(s string) f64
+	# print "SSS> $s <--"
+	return 67.5
+end
+
+ghbzd4t = string()
+
+ghbzd4t = "Kfe@ ug"
+
+oooddfg = string()
+
+WQrem(oooddfg = "jkgkj")
