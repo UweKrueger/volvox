@@ -1016,6 +1016,21 @@ std::map<std::string,FullVar*> get_destruct_vars(int b_lev) {
 	return destr_vars;
 }
 
+std::map<std::string,FullVar*> get_destruct_vars_main() {
+	std::map<std::string,FullVar*> destr_vars;
+	auto& table = lex.module->globals_table;
+	for (auto t = table.first(); (bool)t; ++t) {
+		FullVar* fullV = fullVar(t);
+		if (fullV->ft.type_attr & (A_destructor | A_string | A_map)) {
+			std::string key(t.getKey());
+			// errs() << key << " ";
+			destr_vars.insert({ std::move(key), fullV });
+		}
+	}
+	// errs() << "\n";
+	return destr_vars;
+}
+
 /// if..., elif..., while...[elif...]else...end, repeat...until
 static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	SourceLocation IfLoc = CurLoc;
@@ -2550,7 +2565,7 @@ void setMangledName(PrototypeAST* Proto, unsigned visibility) {
 	}
 }
 
-/// definition := 'fn' prototype expression
+/// definition := 'def' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
 		getNextToken(eSemi); // eat fn.

@@ -1414,7 +1414,7 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 	ret_ptr = this_ret_ptr;
 	theFunction_ret_ft = ret_ft;
 	Builder->SetInsertPoint(BB);
-	if (EndKind == tok_return && !Proto->RetType->type->isVoidTy()) {
+	if (bBody.second.end_kind == tok_return && !Proto->RetType->type->isVoidTy()) {
 		if (thisBody.empty() || !thisBody.back())
 			return false;
 		thisBody.back()->desired_type = Proto->RetType->type;

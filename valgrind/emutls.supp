@@ -4,6 +4,16 @@
 # on most platforms but we can safely suppress the corresponding
 # valgrind warning using "--suppressions=valgrind/emutls.supp"
 {
+   emutls/malloc_fedora
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:emutls_alloc
+   fun:__emutls_get_address
+   obj:*
+   fun:(below main)
+}
+{
    emutls/aligned_malloc
    Memcheck:Leak
    match-leak-kinds: possible

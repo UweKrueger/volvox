@@ -955,12 +955,14 @@ std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_
 }
 
 bool FinishMain() {
-	if (MainFunction->EndKind != tok_return) {
+	if (MainFunction->bBody.second.end_kind != tok_return) {
 		// if main() does not 'return' explicitly add 'return 0'
 		if (!have_return)
 			GlobalExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		MainFunction->EndKind = tok_return;
+		MainFunction->bBody.second.end_kind = tok_return;
 	}
+	std::map<std::string,FullVar*> destr_vars = get_destruct_vars_main();
+	MainFunction->bBody.second.vars_to_destruct = std::move(destr_vars);
 	return true;
 }
 
@@ -983,7 +985,9 @@ bool FinishTestRuns() {
 		GlobalExprList.push_back(
 			std::move(if_e));
 	}
-	MainFunction->EndKind = tok_return;
+	MainFunction->bBody.second.end_kind = tok_return;
+	std::map<std::string,FullVar*> destr_vars = get_destruct_vars_main();
+	MainFunction->bBody.second.vars_to_destruct = std::move(destr_vars);
 	return true;
 }
 

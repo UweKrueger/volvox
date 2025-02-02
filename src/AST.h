@@ -340,12 +340,11 @@ public:
 	std::string unmangledName;
 	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBody;
 	std::vector<std::unique_ptr<ExprAST>>& Body;
-	int EndKind = 0;
 	int return_val_idx = -1;
 	FunctionAST(PrototypeAST* Proto,
 	            std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> _bBody, std::string unmName, int return_val_idx = -1)
 		: Proto(Proto), bBody(std::move(_bBody)), Body(bBody.first),
-		  EndKind(bBody.second.end_kind), unmangledName(std::move(unmName)),
+		  unmangledName(std::move(unmName)),
 		  return_val_idx(return_val_idx) {}
 	llvm::Function* codegen(bool finishModule = false, bool getNewModule = false) {
 		if (prepare_codegen() && process_body(Body))

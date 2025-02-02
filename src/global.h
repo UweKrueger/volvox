@@ -821,6 +821,7 @@ extern void init_token_map();
 
 extern void destroy_FV(MapValue* mapval);
 extern llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created = false, bool is_constructor = false);
+extern std::map<std::string,FullVar*> get_destruct_vars_main();
 
 class VarTable : public Table {
 public:
