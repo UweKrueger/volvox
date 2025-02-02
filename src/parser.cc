@@ -1000,24 +1000,20 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 std::map<std::string,FullVar*> get_destruct_vars(int b_lev) {
 	std::map<std::string,FullVar*> destr_vars;
 	int sz = locals_table.size();
-	// errs() << CurLoc << ": destr_vars ";
 	for (int n=b_lev; n>0; n--) {
 		auto& table = locals_table[sz-n];
 		for (auto t = table.first(); (bool)t; ++t) {
 			FullVar* fullV = fullVar(t);
 			if (fullV->ft.type_attr & (A_destructor | A_string | A_map)) {
 				std::string key(t.getKey());
-				// errs() << key << " ";
 				destr_vars.insert({ std::move(key), fullV });
 			}
 		}
 	}
-	// errs() << "\n";
 	return destr_vars;
 }
 
-std::map<std::string,FullVar*> get_destruct_vars_main() {
-	std::map<std::string,FullVar*> destr_vars;
+void get_destruct_vars_main(std::map<std::string,FullVar*>& destr_vars) {
 	auto& table = lex.module->globals_table;
 	for (auto t = table.first(); (bool)t; ++t) {
 		FullVar* fullV = fullVar(t);
@@ -1027,7 +1023,11 @@ std::map<std::string,FullVar*> get_destruct_vars_main() {
 			destr_vars.insert({ std::move(key), fullV });
 		}
 	}
-	// errs() << "\n";
+}
+
+std::map<std::string,FullVar*> get_destruct_vars_main() {
+	std::map<std::string,FullVar*> destr_vars;
+	get_destruct_vars_main(destr_vars);
 	return destr_vars;
 }
 
@@ -1056,6 +1056,8 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 		unsigned b_lev = is_brk ? ((~e_kind) >> 16) // semantic level - raw handling has been done in ParseExprList()
 			: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 		std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
+		if (e_kind == tok_return && !inside_function)
+			get_destruct_vars_main(destr_vars);
 		Then.push_back({ std::move(list), BreakDescription{
 					.vars_to_destruct = std::move(destr_vars),
 					.end_kind = e_kind,
@@ -1180,6 +1182,8 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 				unsigned b_lev = is_brk ? ((~e_kind) >> 16)
 					: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 				std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
+				if (e_kind == tok_return && !inside_function)
+					get_destruct_vars_main(destr_vars);
 				Else.push_back({ std::move(list), BreakDescription{
 							.vars_to_destruct = std::move(destr_vars),
 							.end_kind = e_kind,
@@ -1530,6 +1534,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		unsigned b_lev = is_brk ? ((~e_kind) >> 16)
 			: (e_kind == tok_return) ? (unsigned)locals_table.size() : 1;
 		std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
+		if (e_kind == tok_return && !inside_function)
+			get_destruct_vars_main(destr_vars);
 		Body.push_back({ std::move(list), BreakDescription{
 					.vars_to_destruct = std::move(destr_vars),
 					.end_kind = e_kind,
