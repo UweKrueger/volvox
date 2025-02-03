@@ -502,8 +502,8 @@ extern llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::
 extern llvm::SmallString<128> Mangle(const std::vector<std::string>& path, const std::string& name,
                                      std::vector<volvoxc::FullType*>& arg_types, unsigned flags = 0);
 extern std::unique_ptr<FunctionAST> ParseDefinition(unsigned& share_kind);
-extern std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind);
-extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST>, bool suppress_output = false);
+extern std::pair<std::unique_ptr<ExprAST>,int> GetTopLevelExpression(unsigned sym_kind);
+extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::pair<std::unique_ptr<ExprAST>,int>, bool suppress_output = false, bool is_bool = false);
 extern std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E);
 extern std::unique_ptr<ExprAST> ParseExpression(int terminator = 0);
 extern std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft, int terminator = 0);
@@ -573,6 +573,8 @@ extern FunctionAST* currentFunction;
 #ifdef _WIN32
 extern std::vector<HMODULE> extra_dlls;
 #endif
+// special return value inserted by Interpreter - other return values mean "real" return
+#define JIT_SUCCESS_MAGIC 0xA4B5C6D7
 
 struct int_val_type_t {
 	llvm::Type::TypeID ID : 8; // base type

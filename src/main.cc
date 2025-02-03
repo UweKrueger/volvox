@@ -849,15 +849,15 @@ int spawn_int_expr(int (*expr)()) {
 }
 #endif
 
-static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_output = false) {
+static bool HandleTopLevelExpression(std::pair<std::unique_ptr<ExprAST>,int> E, bool suppress_output = false, bool is_bool = false) {
 	bool b = false; // result
 	// Evaluate a top-level expression into an anonymous function.
-	if (auto FnAST = ParseTopLevelExpr(std::move(E), suppress_output)) {
+	if (auto FnAST = ParseTopLevelExpr(std::move(E), suppress_output, is_bool)) {
 		if (auto anon_expr = FnAST->codegen()) {
 			auto ret_type = anon_expr->getReturnType();
-			unsigned res_bitwidth = have_return ? target_int_bits : 1;
+			unsigned res_bitwidth = is_bool ? 1 : target_int_bits;
 			if (!anon_expr->getReturnType()->isIntegerTy() || anon_expr->getReturnType()->getIntegerBitWidth() != res_bitwidth) {
-				errs() << "internal error: anonymous function does not return `bool`\n";
+				errs() << "internal error: anonymous function does not return `int`\n";
 				return false;
 			}
 			if (comp_mode == comp_jit) {
@@ -885,7 +885,7 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 				auto ExprSymbol = ExitOnErr(TheJIT->lookup("__anon_expr"));
 				// Get the symbol's address and cast it to the right type (takes no
 				// arguments, returns a bool) so we can call it as a native function.
-				if (have_return) {
+				if (!is_bool) {
 #if LLVM_VERSION_MAJOR >= 17
 					int (*INT)() = ExprSymbol.getAddress().toPtr<int (*)()>();;
 #else
@@ -895,6 +895,7 @@ static bool HandleTopLevelExpression(std::unique_ptr<ExprAST> E, bool suppress_o
 						return_value = spawn_int_expr(INT);
 					else
 						return_value = INT();
+					have_return = return_value != JIT_SUCCESS_MAGIC;
 				} else {
 #if LLVM_VERSION_MAJOR >= 17
 					bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
@@ -940,7 +941,7 @@ cleanup:
 	pending_arrays.clear();
 	purgeLine();
 do_return:
-	return b || have_return;
+	return is_bool ? b : true;
 }
 
 std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_type = "int") {
@@ -1058,7 +1059,7 @@ void CallTestFunction(bool immediately = false) {
 	auto call_expr = std::make_unique<CallExprAST>(
 		CurLoc, std::make_unique<FunctionExprAST>(CurLoc, TestFunction, F));
 	if (immediately) {
-		auto b = HandleTopLevelExpression(std::move(call_expr), true);
+		auto b = HandleTopLevelExpression({ std::move(call_expr), 0 }, true, true);
 		char* buf;
 		char* volvoxstrTestFunction;
 		size_t lalloc;
@@ -1247,13 +1248,12 @@ static void MainLoop() {
 			HandleTypeDef(sym_kind);
 			goto startmainloop;
 		case tok_return:
-			getNextToken();
-			have_return = true;
 		default:
 			if (last_defined_type)
 				finish_constructors_and_destructor();
 			Builder->ClearInsertionPoint();
-			if (auto expr = GetTopLevelExpression(sym_kind)) {
+			auto expr = GetTopLevelExpression(sym_kind);
+			if (expr.first) {
 				if (jit_repl) {
 					if (!HandleTopLevelExpression(std::move(expr))) {
 						errs() << "Command aborted...\n";
@@ -1265,16 +1265,17 @@ static void MainLoop() {
 						// will do the job...(?)
 					}
 				} else {
-					if (!do_pres || have_return || !expr->ft->type || expr->ft->type->isVoidTy())
-						GlobalExprList.push_back(std::move(expr));
+					if (!do_pres || have_return || !expr.first->ft->type || expr.first->ft->type->isVoidTy())
+						GlobalExprList.push_back(std::move(expr.first));
 					else {
-						auto print_cmd = GenerateResultPrint(std::move(expr));
+						auto print_cmd = GenerateResultPrint(std::move(expr.first));
 						GlobalExprList.push_back(std::move(print_cmd));
 					}
 				}
 			}
-			if (have_return)
+			if (have_return) {
 				return;
+			}
 		}
 	}
 }
@@ -2478,8 +2479,6 @@ int main(int argc, char* argv[]) {
 		// Print out all of the generated code.
 		TheModule->print(errs(), nullptr);
 	} else if (comp_mode == comp_jit) {
-		if (jit_repl)
-			CallGlobalDestructorsJIT();
 		ExitOnErr(TheJIT->getMainJITDylib().clear());
 		result = return_value;
 #ifdef _WIN32

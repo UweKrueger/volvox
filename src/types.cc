@@ -25,6 +25,7 @@ void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desire
 	if (reason)
 		errs() <<  ": " << reason;
 	errs() << "\n";
+	abort();
 }
 
 llvm::Value* NoConversion(llvm::Value* v) { return v; }

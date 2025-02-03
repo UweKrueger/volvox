@@ -2744,33 +2744,35 @@ parse_body:
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(bBranch), std::move(unmangledName));
 }
 
-std::unique_ptr<ExprAST> GetTopLevelExpression(unsigned sym_kind) {
-	if (auto E = ParseExpression()) {
-		if (!E->ft || !E->ft->type) {
-			if (auto B = dynamic_cast<BinaryExprAST*>(E.get())) {
+std::pair<std::unique_ptr<ExprAST>,int> GetTopLevelExpression(unsigned sym_kind) {
+	auto E = ParseExprOrReturn();
+	if (E.first) {
+		if (!E.first->ft || !E.first->ft->type) {
+			if (auto B = dynamic_cast<BinaryExprAST*>(E.first.get())) {
 				if (B->err_msg)
-					return AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->err_msg);
+					return { AutoErr(B->Loc, B->LHS->ft->type, B->RHS->ft->type, B->LHS->ft->type_attr, B->RHS->ft->type_attr, B->err_msg), 0 };
 				if (B->opclass == OpDeclAssign) {
 					if (!strcmp(B->Op, ":="))
 						sym_kind |= A_rvalue;
 					if (jit_repl || (sym_kind & A_globally_visible)) {
 						auto uB = std::unique_ptr<BinaryExprAST>(B);
-						E.release();
-						return HandleGlobalVariable(std::move(uB), sym_kind);
+						E.first.release();
+						HandleGlobalVariable(std::move(uB), sym_kind);
+						return { nullptr, 0 };
 					}
 					else
 						return E;
 				}
-				errs() << E->Loc << ' ' << B->Op << ": Cannot evaluate expression\n";
-				return nullptr;
+				errs() << E.first->Loc << ' ' << B->Op << ": Cannot evaluate expression\n";
+				return { nullptr, 0 };
 			} else {
-				errs() << E->Loc << ": indeterminate expression\n";
-				return nullptr;
+				errs() << E.first->Loc << ": indeterminate expression\n";
+				return { nullptr, 0 };
 			}
 		}
 		return E;
 	} else {
-		return nullptr;
+		return { nullptr, 0};
 	}
 }
 
@@ -2793,12 +2795,12 @@ std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E) {
 	return success;
 }
 
-std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool suppress_output) {
-	SourceLocation FnLoc = E->Loc;
+std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::pair<std::unique_ptr<ExprAST>,int> E, bool suppress_output, bool is_bool) {
+	SourceLocation FnLoc = E.first->Loc;
 	if (comp_mode == comp_jit)
 		finishFunctionOrModule();
 	// Make an anonymous proto.
-	volvoxc::FullType* TheType = have_return ? integer_type : bool_type;
+	volvoxc::FullType* TheType = is_bool ? bool_type : integer_type;
 	auto Proto = std::make_unique<PrototypeAST>(FnLoc, "__anon_expr",
 	                                            std::vector<std::string>(),
 	                                            A_c_api | A_pub,
@@ -2815,32 +2817,39 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::unique_ptr<ExprAST> E, bool 
 			ExprList.push_back(std::move(restorer_call));
 		}
 	}
-	if (!do_pres && !have_return) {
-		ExprList.push_back(std::move(E));
-		ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
-	} else if (E->ft->type->isVoidTy() || suppress_output || have_return) {
-		ExprList.push_back(std::move(E));
-		if (!suppress_output && !have_return)
-			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
-		return_val_idx = ExprList.size() - 1;
+	std::map<std::string,FullVar*> destr_vars;
+	if (E.second == tok_return) {
+		ExprList.push_back(std::move(E.first));
+		destr_vars = get_destruct_vars_main();
 	} else {
-		auto print_call = GenerateResultPrint(std::move(E));
-		ExprList.push_back(std::move(print_call));
-	}
-	if (last_shadow_saver) {
-		auto saver_proto = lex.findProtos(last_shadow_saver);
-		if (!saver_proto) {
-			errs() << "could not find saver '" << last_shadow_saver << "\n";
+		if (!do_pres) {
+			ExprList.push_back(std::move(E.first));
+			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token((long long)JIT_SUCCESS_MAGIC))));
+		} else if (E.first->ft->type->isVoidTy() || suppress_output) {
+			ExprList.push_back(std::move(E.first));
+			if (!suppress_output)
+				ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token((long long)JIT_SUCCESS_MAGIC))));
+			return_val_idx = ExprList.size() - 1;
 		} else {
-			auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, saver_proto);
-			auto saver_call = std::make_unique<CallExprAST>(FnLoc, std::move(saver), std::move(std::vector<std::unique_ptr<ExprAST>>()));
-			ExprList.push_back(std::move(saver_call));
-			ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token(true))));
+			auto print_call = GenerateResultPrint(std::move(E.first));
+			ExprList.push_back(std::move(print_call));
 		}
+		if (last_shadow_saver) {
+			auto saver_proto = lex.findProtos(last_shadow_saver);
+			if (!saver_proto) {
+				errs() << "could not find saver '" << last_shadow_saver << "\n";
+			} else {
+				auto saver = std::make_unique<FunctionExprAST>(FnLoc, last_shadow_saver, saver_proto);
+				auto saver_call = std::make_unique<CallExprAST>(FnLoc, std::move(saver), std::move(std::vector<std::unique_ptr<ExprAST>>()));
+				ExprList.push_back(std::move(saver_call));
+			}
+		}
+		ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token((long long)JIT_SUCCESS_MAGIC))));
 	}
 	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBranch = {
 		std::move(ExprList),
 		BreakDescription{
+			.vars_to_destruct = std::move(destr_vars),
 			.end_kind = tok_return,
 			.break_level = 1
 		}
