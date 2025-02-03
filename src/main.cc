@@ -2202,10 +2202,13 @@ int main(int argc, char* argv[]) {
 						ret = spawn_bool_expr(BOOL);
 					else
 						ret = BOOL();
-					if (ret)
+					if (ret) {
 						errs() << "All test cases passed\n";
-					else
+						return_value = 0;
+					} else {
 						errs() << "Some test cases failed\n";
+						return_value = 1;
+					}
 				} else {
 #if LLVM_VERSION_MAJOR >= 17
 					int (*INT)() = ExprSymbol.getAddress().toPtr<int (*)()>();
