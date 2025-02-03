@@ -1248,6 +1248,8 @@ static void MainLoop() {
 			HandleTypeDef(sym_kind);
 			goto startmainloop;
 		case tok_return:
+			if (!jit_repl)
+				have_return = true;
 		default:
 			if (last_defined_type)
 				finish_constructors_and_destructor();
