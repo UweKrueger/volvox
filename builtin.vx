@@ -695,6 +695,19 @@ def ~__vec
 		__free this.__ptr
 end end
 
+def __vec(_elem_sz size_t)
+	if size_t(this.__ptr) != 0
+		# copy constructor
+		this.cap = this.size
+		mem_sz = this.size * _elem_sz
+		old_ptr = this.__ptr = __malloc mem_sz
+		if size_t(this.__ptr) == 0
+			err_printf("vec: unable to allocate memory for %zd elements of size %zd\n", this.cap, _elem_sz)
+			abort
+		end
+		memcpy(this.__ptr, cstring(old_ptr), mem_sz)
+end end
+
 def __vec(_elem_sz size_t, _cap size_t)
 	this.__ptr = __malloc(_elem_sz * _cap)
 	if size_t(this.__ptr) != 0
@@ -707,10 +720,20 @@ end end
 def __vec.push_back(_elem_sz size_t, _elem_ptr voidptr)
 	if this.cap <= this.size
 		this.cap = this.cap + this.cap / 2 + 8
-		this.__ptr = __malloc(_elem_sz * this.cap)
+		this.__ptr = __realloc(this.__ptr, _elem_sz * this.cap)
 		if size_t(this.__ptr) == 0
 			err_printf("vec: unable to reallocate memory for %zd elements of size %zd\n", this.cap, _elem_sz)
 			abort
 	end end
-	memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.size), cstring(_elem_ptr), _elem_sz)
+	memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.size++), cstring(_elem_ptr), _elem_sz)
 end
+
+def __vec.pop_back(_elem_sz size_t, _res_ptr voidptr)
+	if this.size == 0
+		err_printf("vec: pop_back not possible as vec is empty\n")
+		abort
+	end
+	this.size--
+	if size_t(_res_ptr) != 0
+		memcpy(_res_ptr, cstring(size_t(this.__ptr) + _elem_sz * this.size), _elem_sz)
+end end
