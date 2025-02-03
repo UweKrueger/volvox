@@ -1567,7 +1567,6 @@ extern std::vector<int> source_index;
 extern std::vector<const char*> SourceFileNames;
 extern const char* last_thread_constructor_caller;
 extern const char* last_thread_destructor_caller;
-extern void CallGlobalDestructorsJIT();
 extern int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
                        std::vector<FnArg>& fnargs, SourceLocation Loc = SourceLocation());
 static inline llvm::LoadInst* CreateAtomicLoad(llvm::Type* ty, llvm::Value* adr, const llvm::Twine &Name = "") {

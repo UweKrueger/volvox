@@ -3738,43 +3738,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	}
 }
 
-void CallGlobalDestructorsJIT() {
-	finishFunctionOrModule();
-	std::string destr_name = "__global_destructor_caller";
-	llvm::FunctionType* destr_fn_t = llvm::FunctionType::get(llvm::Type::getInt1Ty(Context),
-	                                                         {}, false);
-	llvm::Function* destr_fn = llvm::Function::Create(destr_fn_t, llvm::Function::ExternalLinkage, destr_name, TheModule.get());
-	auto BB = llvm::BasicBlock::Create(Context, "entry", destr_fn);
-	Builder->SetInsertPoint(BB);
-	if (last_shadow_restorer && jit_repl) {
-		auto last_restorer_proto = (*lex.findProtos(last_shadow_restorer))[0].get();
-		auto last_restorer = getFunction(last_restorer_proto);
-		Builder->CreateCall(last_restorer_proto->FT, last_restorer, std::vector<llvm::Value*>());
-	}
-	for (auto& [modname, module] : Modules) {
-		if (module.globals_table.table)
-			InsertDestructors(module.globals_table, nullptr);
-	}
-	Builder->CreateRet(Builder->getInt1(true));
-	finishFunctionOrModule(destr_fn, 2, true, false);
-	auto RT = TheJIT->getMainJITDylib().createResourceTracker();
-	auto TSM = llvm::orc::ThreadSafeModule(std::move(TheModule), TS_Context);
-	ExitOnErr(TheJIT->addModule(std::move(TSM), RT));
-	InitializeModuleAndPassManager();
-	auto ExprSymbol = ExitOnErr(TheJIT->lookup(destr_name));
-#if LLVM_VERSION_MAJOR >= 17
-	bool (*BOOL)() = ExprSymbol.getAddress().toPtr<bool (*)()>();
-#else
-	bool (*BOOL)() = (bool (*)())(intptr_t)ExprSymbol.getAddress();
-#endif
-	bool b;
-	if (jit_extra_thread)
-		b = spawn_bool_expr(BOOL);
-	else
-		b = BOOL();
-	ExitOnErr(RT->remove());
-}
-
 llvm::Value* ExprAST::convert_raw(llvm::Value* rawV) {
 	if (!rawV)
 		return nullptr;
