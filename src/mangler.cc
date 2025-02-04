@@ -10,7 +10,7 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 		out << 'R';
 	if (ft->type->isPointerTy()) {
 		if (ft->type_attr & A_map) {
-			out << 'M' << ft->elem_type;
+			out << "U3map" << 'I' << ft->elem_type << 'E' << &ft->elem_type[1];
 		} else {
 			out << 'P';
 			if (ft->type_attr & A_shared)
@@ -29,6 +29,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 				out << ft->elem_type; // A "native Volvox pointer" - used for unique objects... ;-)
 			}
 		}
+	} else if (ft->type == llvm_vec_type) {
+		out << "U3vec" << ft->elem_type;
 	} else {
 		auto is_signed = (bool)(ft->type_attr & A_signed);
 		if (ft->type_attr & A_complex)
