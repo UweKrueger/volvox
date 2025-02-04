@@ -4,6 +4,7 @@ constexpr int TOKBEGIN = __LINE__;
 TOKEN(chan) \
 TOKEN(set) \
 TOKEN(map) \
+TOKEN(vec) \
 TOKEN(self) \
 TOKEN(packed) \
 TOKEN(union) \

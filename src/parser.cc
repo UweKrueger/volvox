@@ -302,8 +302,9 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 		}
 			break;
 		case tok_map:
+		case tok_vec:
 		case tok_set: {
-			bool is_set = CurTok.kind == tok_set;
+			auto typeTok = CurTok.kind;
 			getNextToken();
 			if (!Expect('[', eType))
 				return nullptr;
@@ -315,14 +316,24 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			}
 			if (!Expect(']', eType))
 				return nullptr;
-			auto val_ft = ParseType(0, expect, terminator);
-			if (!val_ft) {
-				errs() << KeyLoc << ": type (of map value) expected\n";
-				return nullptr;
+			volvoxc::FullType* ft;
+			if (typeTok == tok_map || typeTok == tok_set) {
+				volvoxc::FullType* val_ft;
+				if (typeTok == tok_map) {
+					val_ft = ParseType(0, expect, terminator);
+					if (!val_ft) {
+						errs() << KeyLoc << ": type (of map value) expected\n";
+						return nullptr;
+					}
+				} else {
+					val_ft = nullptr;
+				}
+				auto ftpair = new_FullType(*key_ft, 0, 1); // reserve space for 1 additional FullType
+				ftpair[1] = *val_ft;
+				ft = new_FullType(llvm_ptr_type, A_map, nullptr, ftpair);
+			} else {
+				ft = new_FullType(llvm_vec_type, 0, nullptr, key_ft);
 			}
-			auto ftpair = new_FullType(*key_ft, 0, 1); // reserve space for 1 additional FullType
-			ftpair[1] = *val_ft;
-			auto ft = new_FullType(llvm_ptr_type, A_map, nullptr, ftpair);
 			return ft;
 		}
 		default:

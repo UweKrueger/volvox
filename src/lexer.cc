@@ -455,6 +455,9 @@ bool Lexer::next_input_file() {
 	last_defined_type = nullptr;
 	if (input_file && input_file != stdin) {
 		if (input_file == builtin_input_file) {
+			// get some often used definitions after builtin.vx has been parsed
+			vec_type = lex.get_full_type("__vec");
+			llvm_vec_type = vec_type->type;
 			builtin_input_file = nullptr;
 			if (inject_console_setup && comp_mode != comp_jit) {
 				std::string consetup = "__setup_console";

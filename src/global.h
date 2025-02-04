@@ -469,6 +469,7 @@ extern llvm::Type* llvm_bool_type;
 extern llvm::Type* llvm_interface_type;
 extern llvm::Type* llvm_c32_type;
 extern llvm::Type* llvm_va_arg_ref_type;
+extern llvm::Type* llvm_vec_type;
 extern llvm::PointerType* llvm_ptr_type;
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* bool_type;
@@ -482,6 +483,7 @@ extern volvoxc::FullType* va_arg_type;
 extern volvoxc::FullType* voidptr_type;
 extern volvoxc::FullType* c32_type;
 extern volvoxc::FullType* string_type;
+extern volvoxc::FullType* vec_type;
 extern std::unique_ptr<FunctionAST> MainFunction;
 static inline llvm::ConstantInt* getSize(int64_t n) {
 	return llvm::ConstantInt::get(llvm::IntegerType::get(Context, target_bits), n, true);
