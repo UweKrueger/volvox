@@ -8,25 +8,50 @@ const _verbose := __VERBOSE
 cdecl exit(n int)
 cdecl strcmp(s1 cstring, s2 cstring) i32
 cdecl strncmp(s1 cstring, s2 cstring, len size_t) i32
-cdecl printf(s cstring, ...) int
+cdecl(printf) _printf(s cstring, ...) int
 cdecl strtod(s cstring, endptr voidptr) f64
 cdecl __printerr()
 cdecl err_printf(s cstring, ...)
 cdecl __jit_managed_malloc(s size_t) voidptr
-cdecl raise(signal int)
+cdecl(raise) _raise(signal int)
 cdecl __transformcstr2volvox(s cstring, cap size_t) string
 cdecl(malloc) __malloc(n_bytes size_t) voidptr
 cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) __free(buf voidptr)
+cdecl(memcpy) __memcpy(dest voidptr, src voidptr, n size_t) voidptr
 cdecl __setup_console()
 cdecl(eventfd) __eventfd(initval int, flags int) int
 cdecl(pipe2) __pipe2(fds voidptr, flags int) int
 cdecl(close) __close(fd int) int
 cdecl(write) __write_posix(fd int, buf cstring, count size_t) ssize_t
 cdecl(_write) __write_windows(fd int, buf cstring, count u32) int
+cdecl _printstrn(fd int, s string)
+cdecl _printstr(fd int, s string)
+cdecl abort()
 
-inline def __write(fd int, buf cstring, count size_t) ssize_t
+inline def panic(s string)
+	_printstr(2, s)
+	abort
+end
+
+inline def panicn(s string)
+	_printstrn(2, s)
+	abort
+end
+
+inline def _abort_if_negative(res ssize_t)
+	if res < 0
+		__printerr
+		abort
+end end
+
+inline def _write(fd int, buf cstring, count size_t) ssize_t
 	if __Environment_Idx == 2
+		# Windows write only allows writing < 2^31 bytes
+		# a loop would not be atomic, so there is no real workaround
+		if (count >= (1UL << 31))
+			panicn "write on Windows only allows buffer size < 2^31\n"
+		end
 		return __write_windows(fd, buf, int(count))
 	else
 		return __write_posix(fd, buf, count)
@@ -42,7 +67,7 @@ inline def print(...) int
 end
 
 inline def printn(s string) int
-	return int(__write(1, s, s.len))
+	return int(_write(1, s, s.len))
 end
 
 inline def printn(...) int
@@ -54,7 +79,7 @@ inline def eprint(...) int
 end
 
 inline def eprintn(s string) int
-	return int(__write(2, s, s.len))
+	return int(_write(2, s, s.len))
 end
 
 inline def eprintn(...) int
@@ -207,36 +232,19 @@ cdecl(strdup) __strdup(s cstring) cstring
 cdecl _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
 cdecl _ZN9ArrayNodeD1Ev(&a ArrayNode)
 cdecl _ZN9ArrayNode8pushbackEPcy(&a ArrayNode, s string, obj_size u64)
-cdecl memcpy(dest voidptr, src cstring, n size_t) voidptr
 cdecl getTermSize(fd i32) i32
 cdecl showtestres(fd i32, width i32, testcase string, result bool)
 cdecl enableColorANSI(fd i32) bool
-cdecl printadr(&x f64)
-cdecl printd(x f64)
-cdecl printu64(x u64)
-cdecl printstr(fd int, s string)
 # only for debugging
-cdecl modstr(s string, idx i32, c u8)
-cdecl abort()
+cdecl __modstr(s string, idx i32, c u8)
 cdecl GetLastError() u32
 cdecl SetLastError(err u32)
-
-inline def panic(s string)
-	printstr(2, s)
-	abort
-end
-
-inline def _abort_if_negative(res int)
-	if res < 0
-		__printerr
-		abort
-end end
 
 inline def __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
 	if index >= length
 		err_printf("%s:%d:%d: index (%zd) out of range (0..%zd)\n",
 			srcfile, line, col, index, length-1)
-		raise(6) # SIGABRT on all known systems
+		_raise(6) # SIGABRT on all known systems
 end end
 
 inline def __i32_pow(b i32, e i32) i32
@@ -705,7 +713,7 @@ def __vec(_elem_sz size_t)
 			err_printf("vec: unable to allocate memory for %zd elements of size %zd\n", this.cap, _elem_sz)
 			abort
 		end
-		memcpy(this.__ptr, cstring(old_ptr), mem_sz)
+		__memcpy(this.__ptr, old_ptr, mem_sz)
 end end
 
 def __vec(_elem_sz size_t, _cap size_t)
@@ -725,7 +733,7 @@ def __vec.push_back(_elem_sz size_t, _elem_ptr voidptr)
 			err_printf("vec: unable to reallocate memory for %zd elements of size %zd\n", this.cap, _elem_sz)
 			abort
 	end end
-	memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.size++), cstring(_elem_ptr), _elem_sz)
+	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.size++), _elem_ptr, _elem_sz)
 end
 
 def __vec.pop_back(_elem_sz size_t, _res_ptr voidptr)
@@ -735,5 +743,5 @@ def __vec.pop_back(_elem_sz size_t, _res_ptr voidptr)
 	end
 	this.size--
 	if size_t(_res_ptr) != 0
-		memcpy(_res_ptr, cstring(size_t(this.__ptr) + _elem_sz * this.size), _elem_sz)
+		__memcpy(_res_ptr, voidptr(size_t(this.__ptr) + _elem_sz * this.size), _elem_sz)
 end end

@@ -14,7 +14,7 @@ def test_rand_f64 bool
 		n++
 	end
 	p = 4. * s / n_pi
-	# printf("approximation for pi: %.5f\n", p)
+	# _printf("approximation for pi: %.5f\n", p)
 	return p > 3.139 && p < 3.144
 end
 
@@ -30,7 +30,7 @@ def test_rand_f32 bool
 		end
 	end
 	p = 4f * f32(s) / f32(n_pi_2)
-	# printf("approximation for pi: %.5f\n", p)
+	# _printf("approximation for pi: %.5f\n", p)
 	return p > 3.135f && p < 3.148f
 end
 
@@ -41,7 +41,7 @@ def test_sleep bool
 	time.sleep(0.35)
 	s.stop
 	e = s.elapsed
-	# printf("elapsed time: %.5f\n", e)
+	# _printf("elapsed time: %.5f\n", e)
 	return e >= 0.35 && e < 0.38
 end
 
@@ -75,4 +75,4 @@ end
 
 import io.socket
 
-printf("All tests done!\n")
+_printf("All tests done!\n")

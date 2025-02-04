@@ -11,7 +11,7 @@ end
 
 # The destructor should be called 4 times (aa, bb for each thread)
 def ~AALL
-	printf("Destructor called for AALL.x = %f\n", this.x)
+	_printf("Destructor called for AALL.x = %f\n", this.x)
 end
 
 # this should be initialized as aa.x=12 (RHS is constexpr)
@@ -25,7 +25,7 @@ global bb = AALL{ x: 17 }
 def do_print(x f64, n i32) f64
 	while n>0
 		sleep 0.25
-		printf("x: %f, Round %d; aa.x: %f, bb.x: %f\n", x, n, aa.x, bb.x)
+		_printf("x: %f, Round %d; aa.x: %f, bb.x: %f\n", x, n, aa.x, bb.x)
 		sleep(0.07+x/5)
 		n--
 		aa.x = x + n
@@ -36,9 +36,9 @@ end
 w = thread do_print(3.34, 5)
 
 # expect 108.8219
-printf("Result from main thread: %.4f\n", do_print(2.97, 4))
+_printf("Result from main thread: %.4f\n", do_print(2.97, 4))
 
-printf("Waiting for w\n")
+_printf("Waiting for w\n")
 
 # expect 111.1566
-printf("Result from spawned thread: %.4f\n", w.wait)
+_printf("Result from spawned thread: %.4f\n", w.wait)

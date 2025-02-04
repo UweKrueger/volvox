@@ -36,7 +36,7 @@ def State4
 	this.s[2] = splitmix64
 	this.s[3] = splitmix64
 	# if _verbose
-	# 	printf("RNG init: 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n", this.s[0], this.s[1], this.s[2], this.s[3])
+	# 	_printf("RNG init: 0x%016llx 0x%016llx 0x%016llx 0x%016llx\n", this.s[0], this.s[1], this.s[2], this.s[3])
 	# end
 end
 

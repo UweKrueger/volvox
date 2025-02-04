@@ -449,12 +449,12 @@ def str_drop
 	a = "Qkjs67bgfds"
 	b = "ouhesftzgh"
 	c = a + b
-	printstr(1, c)
+	_printstr(1, c)
 	c = b + a
 	b = b + b
 	b = a = c + c
-	printstr(1, a)
-	printstr(1, b)
+	_printstr(1, a)
+	_printstr(1, b)
 end
 
 # str_drop

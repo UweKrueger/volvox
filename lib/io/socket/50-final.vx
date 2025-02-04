@@ -38,7 +38,7 @@ pub inline def UnixSocket.bind(path string) Socket
 		saddr.sockaddr.len = u8(path.len) + 2
 		saddr.sockaddr.family = AF_UNIX
 	end
-	memcpy(&saddr.sockaddr_un.sun_path, path, path.len)
+	__memcpy(&saddr.sockaddr_un.sun_path, voidptr(path), path.len)
 	return do_bind(this.handle, saddr, u32(path.len) + 2)
 end
 

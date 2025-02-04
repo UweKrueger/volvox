@@ -53,11 +53,11 @@ inline def WsockProto
 			version = data32.wVersion
 		end
 		if this.int != 0
-			printf("WSAStartup returned %d\n", this.int)
+			eprintn "WSAStartup returned ${this.int}\n"
 		elif version != 0x0202
-			printf("requested WINSock version 2.2 not available - got version %hu.%hu\n", version >> 8, version & 0xff)
+			eprintn "requested WINSock version 2.2 not available - got version ${version >> 8}.${version & 0xff}\n"
 		elif _verbose
-			printf("got WINSock version %hu.%hu\n", version >> 8, version & 0xff)
+			eprintn "got WINSock version ${version >> 8}.${version & 0xff}\n"
 		end
 	else
 		this.int = 0

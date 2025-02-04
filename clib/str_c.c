@@ -903,17 +903,21 @@ error:
 }
 #endif
 
-_DECL void printstr(int fd, char* s) {
+_DECL void _printstrn(int fd, char* s) {
 	if (s) {
 		size_t l = volvox_string_len(s);
 		char* sc = volvox2cstr(s);
 		write(fd, sc, l);
 	}
+}
+
+_DECL void _printstr(int fd, char* s) {
+	_printstrn(fd, s);
 	char n = '\n';
 	write(fd, &n, 1);
 }
 
-_DECL void modstr(char* s, int idx, char c) {
+_DECL void __modstr(char* s, int idx, char c) {
 	char* sc = volvox2cstr(s);
 	sc[idx] = c;
 }
@@ -1067,16 +1071,6 @@ _DECL char* __string_make_writable(char** SizeRef) {
 	__string_raw_size(volvox_str) = len;
 	__string_raw_cap(volvox_str) = alloc_l;
 	return volvox_str;
-}
-
-/// printd - printf that takes a double prints it as "%f\n", returning 0.
-_DECL void printd(double X) {
-	fprintf(stderr, "%g\n", X);
-}
-
-/// printu64 - printf that takes a u64 prints it as "%f\n", returning 0.
-_DECL void printu64(uint64_t X) {
-	fprintf(stderr, "%" PRIu64 "\n", X);
 }
 
 #define target_bytes sizeof(size_t)
