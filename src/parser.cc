@@ -330,9 +330,9 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 				}
 				auto ftpair = new_FullType(*key_ft, 0, 1); // reserve space for 1 additional FullType
 				ftpair[1] = *val_ft;
-				ft = new_FullType(llvm_ptr_type, A_map, nullptr, ftpair);
+				ft = new_FullType(llvm_ptr_type, A_map | attribs, nullptr, ftpair);
 			} else {
-				ft = new_FullType(llvm_vec_type, 0, nullptr, key_ft);
+				ft = new_FullType(llvm_vec_type, attribs, nullptr, key_ft);
 			}
 			return ft;
 		}
