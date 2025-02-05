@@ -10,7 +10,10 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 		out << 'R';
 	if (ft->type->isPointerTy()) {
 		if (ft->type_attr & A_map) {
-			out << "U3map" << 'I' << ft->elem_type << 'E' << &ft->elem_type[1];
+			if (ft->elem_type[1].type)
+				out << "U3map" << 'I' << ft->elem_type << 'E' << &ft->elem_type[1];
+			else
+				out << "U3set" << ft->elem_type;
 		} else {
 			out << 'P';
 			if (ft->type_attr & A_shared)

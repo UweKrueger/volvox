@@ -318,6 +318,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 				return nullptr;
 			volvoxc::FullType* ft;
 			if (typeTok == tok_map || typeTok == tok_set) {
+				auto ftpair = new_FullType(*key_ft, 0, 1); // reserve space for 1 additional FullType
 				volvoxc::FullType* val_ft;
 				if (typeTok == tok_map) {
 					val_ft = ParseType(0, expect, terminator);
@@ -325,11 +326,9 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 						errs() << KeyLoc << ": type (of map value) expected\n";
 						return nullptr;
 					}
-				} else {
-					val_ft = nullptr;
-				}
-				auto ftpair = new_FullType(*key_ft, 0, 1); // reserve space for 1 additional FullType
-				ftpair[1] = *val_ft;
+					ftpair[1] = *val_ft;
+				} else
+					ftpair[1] = volvoxc::FullType{0};
 				ft = new_FullType(llvm_ptr_type, A_map | attribs, nullptr, ftpair);
 			} else {
 				ft = new_FullType(llvm_vec_type, attribs, nullptr, key_ft);
