@@ -232,6 +232,14 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	return Builder->CreateLoad(llvm_ptr_type, ptr);
 }
 
+llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
+	return nullptr;
+}
+
+llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
+	return nullptr;
+}
+
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		llvm::Value* V = llvm::UndefValue::get(ft->type);

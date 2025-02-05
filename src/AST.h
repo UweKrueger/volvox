@@ -645,6 +645,22 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
+class SetExprAST : public ListExprAST {
+public:
+	std::vector<ExprAST*> values;
+	SetExprAST(SourceLocation Loc, volvoxc::FullType* set_ft, std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
+		ListExprAST(Loc, std::move(_Elements), set_ft) {}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+};
+
+class VecExprAST : public ListExprAST {
+public:
+	std::vector<ExprAST*> values;
+	VecExprAST(SourceLocation Loc, volvoxc::FullType* set_ft, std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
+		ListExprAST(Loc, std::move(_Elements), set_ft) {}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+};
+
 class FixedArrayExprAST : public AggregateExprAST {
 public:
 	std::vector<std::unique_ptr<ExprAST>> Dims; // known at run time

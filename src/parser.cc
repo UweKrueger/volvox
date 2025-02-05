@@ -629,6 +629,8 @@ static const char* aggr_kind_str(int kind) {
 		return "map";
 	case tok_set:
 		return "set";
+	case tok_vec:
+		return "vec";
 	case tok_chan:
 		return "chan";
 	case tok_identifier: // struct literal
@@ -708,8 +710,15 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	std::vector<std::unique_ptr<ExprAST>> Elems = {};
 	volvoxc::FullType* ft;
 	SourceLocation loc = CurLoc;
-	if ((CurTok.kind == tok_map || CurTok.kind == tok_set) &&  lex.peek() == '{') {
-		ft = new_FullType(llvm_ptr_type, A_map);
+	bool is_set = CurTok.kind == tok_set;
+	bool is_map = CurTok.kind == tok_map;
+	bool is_vec = CurTok.kind == tok_vec;
+	if ((is_set || is_map || is_vec) && lex.peek() == '{') {
+		if (is_vec) {
+			ft = new_FullType(llvm_vec_type, 0);
+		} else {
+			ft = new_FullType(llvm_ptr_type, A_map);
+		}
 		getNextToken();
 	}
 	else
@@ -731,11 +740,22 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 			key_type = llvm::Type::getInt64Ty(Context);
 			break;
 		case llvm::Type::StructTyID:
-			errs() << CurLoc << ": struct literals not implementd, yet\n";
-			return nullptr;
+			if (ft->type == llvm_vec_type) {
+				auto vec_ast = std::make_unique<VecExprAST>(loc, ft, std::move(init_list->Elements));
+				if (!vec_ast->ft || !vec_ast->ft->type)
+					return nullptr;
+				return vec_ast;
+			} else {
+				errs() << CurLoc << ": internal error - struct literal\n";
+				return nullptr;
+			}
 		case llvm::Type::PointerTyID:
 			if (ft->type_attr & A_map) {
-				auto map_ast = std::make_unique<MapExprAST>(loc, ft, std::move(init_list->Elements));
+				std::unique_ptr<ExprAST> map_ast;
+				if (is_set)
+					map_ast = std::make_unique<SetExprAST>(loc, ft, std::move(init_list->Elements));
+				else
+					map_ast = std::make_unique<MapExprAST>(loc, ft, std::move(init_list->Elements));
 				if (!map_ast->ft || !map_ast->ft->type)
 					return nullptr;
 				return map_ast;
