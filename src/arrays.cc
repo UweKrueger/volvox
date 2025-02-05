@@ -685,12 +685,27 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 		auto key_ft = getCommonType(keys);
 		auto val_ft = getCommonType(values);
 		if (!key_ft || !val_ft) {
+			errs() << Loc << ": unable to infer common key/value types of list elements\n";
 			ft = nullptr;
 			return;
 		}			
 		auto ftpair = new_FullType(*key_ft, 0, 1); // reserve space for 1 additional FullType
 		ftpair[1] = *val_ft;
 		ft->elem_type = ftpair;
+	}
+}
+
+SetExprAST::SetExprAST(SourceLocation Loc, volvoxc::FullType* set_ft, std::vector<std::unique_ptr<ExprAST>> _Elements) :
+	ListExprAST(Loc, std::move(_Elements), set_ft)
+{
+	if (!ft->elem_type) {
+		auto val_ft = getCommonType(Elements);
+		if (!val_ft) {
+			errs() << Loc << ": unable to infer common value type of list elements\n";
+			ft = nullptr;
+			return;
+		}
+		ft->elem_type = val_ft;
 	}
 }
 

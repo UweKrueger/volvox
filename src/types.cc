@@ -725,6 +725,14 @@ volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs) {
 	return res_ft;
 }
 
+volvoxc::FullType* getCommonType(std::vector<std::unique_ptr<ExprAST>>& valid_exprs) {
+	std::vector<ExprAST*> expr_ptrs;
+	expr_ptrs.reserve(valid_exprs.size());
+	for (auto& expr: valid_exprs)
+		expr_ptrs.push_back(expr.get());
+	return getCommonType(expr_ptrs);
+}
+
 // get runtime type, i.e. a description that is is passed at run time along with interface objects
 llvm::Constant* getRtType(volvoxc::FullType* ft, llvm::Constant* vtable) {
 	union {

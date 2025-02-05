@@ -647,17 +647,14 @@ public:
 
 class SetExprAST : public ListExprAST {
 public:
-	std::vector<ExprAST*> values;
-	SetExprAST(SourceLocation Loc, volvoxc::FullType* set_ft, std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
-		ListExprAST(Loc, std::move(_Elements), set_ft) {}
+	SetExprAST(SourceLocation Loc, volvoxc::FullType* set_ft, std::vector<std::unique_ptr<ExprAST>> _Elements = {});
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
-class VecExprAST : public ListExprAST {
+class VecExprAST : public SetExprAST {
 public:
-	std::vector<ExprAST*> values;
 	VecExprAST(SourceLocation Loc, volvoxc::FullType* set_ft, std::vector<std::unique_ptr<ExprAST>> _Elements = {}) :
-		ListExprAST(Loc, std::move(_Elements), set_ft) {}
+		SetExprAST(Loc, set_ft, std::move(_Elements)) {}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 

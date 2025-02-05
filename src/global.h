@@ -452,6 +452,7 @@ extern std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type);
 extern volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs);
+extern volvoxc::FullType* getCommonType(std::vector<std::unique_ptr<ExprAST>>& valid_exprs);
 extern llvm::Value* NoConversion(llvm::Value* v);
 extern const char* getThisExePath();
 extern const char* volvox_root();
