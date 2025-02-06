@@ -528,10 +528,13 @@ public:
 				}
 				return;
 			} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
-				// if (Field->ft->type_attr & A_map) {
+				if (Field->ft->type_attr & A_map) {
 					ft = &Field->ft->elem_type[1];
 					return;
-				// }
+				}
+			} else if (Field->ft->type == llvm_vec_type) {
+				ft = Field->ft->elem_type;
+				return;
 			}
 			errs() << Index->Loc << ": index for non array expression " << *Field->ft << ' ' << Field->ft->type_attr << "\n";
 			ft->type = nullptr;

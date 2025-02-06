@@ -599,6 +599,44 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			res = Builder->CreateInsertValue(res, Builder->CreateExtractValue(LV, j + num_dims_to_strip_from_val), j);
 		res = Builder->CreateInsertValue(res, Ptr, n_var_dims);
 		return { ml_elem_type, res };
+	} else if (Field->ft->type == llvm_vec_type) {
+		llvm::Value* Idx;
+		llvm::Value* _Idx = Index->codegen();
+		if (!_Idx)
+			return { nullptr, nullptr };
+		if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Idx->getType())) {
+			if (arr_ty->getNumElements() == 1) {
+				Idx = Builder->CreateExtractValue(_Idx, 0);
+				if (Idx->getType()->isIntegerTy())
+					goto idx_ok;
+			}
+		}
+		errs() << Index->Loc << ": invalid vec index\n";
+		return { nullptr, nullptr };
+	idx_ok:
+		llvm::Value* StructAdr = nullptr;
+		if (auto vec_struct_ref = dynamic_cast<LvalueExprAST*>(Field.get())) {
+			llvm::Type* v_ty;
+			std::tie(v_ty,StructAdr) = vec_struct_ref->codegen_ref(true);
+		}
+		llvm::Value* ptr;
+		llvm::Value* size;
+		if (StructAdr) {
+			llvm::Value* ptr_adr = Builder->CreateStructGEP(llvm_vec_type, StructAdr, 0);
+			ptr = Builder->CreateLoad(llvm_ptr_type, ptr_adr);
+			llvm::Value* size_adr = Builder->CreateStructGEP(llvm_vec_type, StructAdr, 1);
+			size = Builder->CreateLoad(llvm_size_type, size_adr);
+		} else {
+			llvm::Value* the_struct = Field->codegen();
+			if (!the_struct) {
+				errs() << Field->Loc << ": cannot generte field expression\n";
+				return { nullptr, nullptr };
+			}
+			ptr = Builder->CreateExtractValue(the_struct, 0);
+			size = Builder->CreateExtractValue(the_struct, 1);
+		}
+		llvm::Value* vec_elem_ptr = Builder->CreateGEP(ft->type, ptr, Idx);
+		return { ft->type, vec_elem_ptr };
 	} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
 		// if (Field->ft->type_attr & A_map) {
 			llvm::Value* Map = Field->codegen();
