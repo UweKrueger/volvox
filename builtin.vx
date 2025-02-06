@@ -703,7 +703,8 @@ def ~__vec
 		__free this.__ptr
 end end
 
-def __vec(_elem_sz size_t)
+# copy constructor
+pub def __vec(_elem_sz size_t)
 	if size_t(this.__ptr) != 0
 		# copy constructor
 		this.cap = this.size
@@ -716,7 +717,7 @@ def __vec(_elem_sz size_t)
 		__memcpy(this.__ptr, old_ptr, mem_sz)
 end end
 
-def __vec(_elem_sz size_t, _cap size_t)
+pub def __vec(_elem_sz size_t, _cap size_t)
 	this.__ptr = __malloc(_elem_sz * _cap)
 	if size_t(this.__ptr) != 0
 		this.cap = _cap
@@ -725,7 +726,7 @@ def __vec(_elem_sz size_t, _cap size_t)
 		abort
 end end
 
-def __vec.push_back(_elem_sz size_t, _elem_ptr voidptr)
+pub def __vec.push_back(_elem_sz size_t, _elem_ptr voidptr)
 	if this.cap <= this.size
 		this.cap = this.cap + this.cap / 2 + 8
 		this.__ptr = __realloc(this.__ptr, _elem_sz * this.cap)

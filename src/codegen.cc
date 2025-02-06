@@ -276,7 +276,48 @@ llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
-	return nullptr;
+	volvoxc::FullType* elem_type = ft->elem_type;
+	if (!elem_type || !elem_type->type) {
+		errs() << Loc << ": internal error - element type of vec unknown\n";
+		return nullptr;
+	}
+	uint64_t elem_sz = TheModule->getDataLayout().getTypeAllocSize(elem_type->type);
+	llvm::Value* TmpElem = CreateEntryBlockAlloca(elem_type->type);
+	llvm::Value* Target;
+	if (target && (intptr_t)target != -1)
+		Target = target;
+	else
+		Target = CreateEntryBlockAlloca(ft->type);
+	// see "type __vec" in builtin.vx
+	llvm::Value* __ptr_ptr = Builder->CreateStructGEP(ft->type, Target, 0);
+	llvm::Value* size_ptr = Builder->CreateStructGEP(ft->type, Target, 1);
+	llvm::Value* cap_ptr = Builder->CreateStructGEP(ft->type, Target, 2);
+	size_t n_elem = Elements.size();
+	size_t cap = n_elem; // maybe increase this value
+	size_t alloc_size = cap * elem_sz;
+	llvm::Value* AllocSz = getSize(alloc_size);
+#if LLVM_VERSION_MAJOR >= 18
+	llvm::Value* Malloc = Builder->CreateMalloc(
+		llvm_size_type, llvm::Type::getInt8Ty(Context),
+		AllocSz, nullptr, nullptr, "vec");
+#else
+	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
+		Builder->GetInsertBlock(),
+		llvm_size_type, llvm::Type::getInt8Ty(Context),
+		AllocSz, nullptr, nullptr, "vec");
+	Malloc = Builder->Insert(Malloc);
+#endif
+	for (unsigned idx = 0; idx < Elements.size(); idx++) {
+		llvm::Value* adr = Builder->CreateConstGEP1_32(elem_type->type, Malloc, idx);
+		llvm::Value* success = Elements[idx]->codegen(adr);
+		if (!success) {
+			errs() << Elements[idx]->Loc << ": cannot generate vec element\n";
+			return nullptr;
+		}
+	}
+	if (target && (intptr_t)target != -1)
+		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+	return Builder->CreateLoad(ft->type, Malloc);
 }
 
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {

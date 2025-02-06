@@ -1648,6 +1648,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 	case '[':
 	case tok_map:
 	case tok_set:
+	case tok_vec:
 	case tok_chan:
 		return ParseAggregateExpr(false, terminator);
 	case tok_if:
