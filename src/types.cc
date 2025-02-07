@@ -1222,13 +1222,14 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 }
 
 volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr,
-                                llvm::DIType* ditype, volvoxc::FullType* elem_type) {
+                                llvm::DIType* ditype, MapNode* fields, volvoxc::FullType* elem_type) {
 	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem));
 	new_node->next = nullptr;
 	new_node->ft.type = type;
 	new_node->ft.type_attr = type_attr;
 	new_node->ft.mangled_name = nullptr; // it's an anonymous type
 	new_node->ft.ditype = ditype;
+	new_node->ft.fields = fields;
 	new_node->ft.elem_type = elem_type;
 	*anon_types_end = new_node;
 	anon_types_end = &new_node->next;

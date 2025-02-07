@@ -325,15 +325,15 @@ namespace volvoxc {
 		unsigned type_attr = 0; // signed, atomic, shared, iso, ref, num_indices
 		const char* mangled_name = nullptr; // maybe NULL for anonymous types
 		llvm::DIType* ditype = nullptr;
+		MapNode* fields = nullptr;     // for structs
+		SourceLocation decl_loc;
 		union {
-			FullType* elem_type = nullptr; // for array or tuples
+			FullType* elem_type = nullptr; // for array, vec, map, set, tuple
 			//PrototypeAST* proto; // for functions
 			std::vector<std::unique_ptr<PrototypeAST>>* Protos; // for overloaded functions
 			//         vtable type                               method name             overloaded prototypes            embedded interfaces
 			std::tuple<llvm::ArrayType*,std::unique_ptr<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>,std::vector<FullType*>>* InterfaceProtos; // for interface methods;
-			MapNode* fields;     // for structs
 		};
-		SourceLocation decl_loc;
 		void dump(int fd = 2);
 		std::string str();
 		// iterate over struct fields
@@ -665,7 +665,7 @@ extern volvoxc::FTListElem* anon_types;
 extern volvoxc::FTListElem** anon_types_end;
 
 extern volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
-                                       volvoxc::FullType* elem_type = nullptr);
+                                       MapNode* fields = nullptr, volvoxc::FullType* elem_type = nullptr);
 
 extern volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned add_attr = 0,
                                        unsigned add_fields = 0);

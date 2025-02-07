@@ -240,7 +240,7 @@ void init(const llvm::Triple& triple) {
 	interface_ref_type = lex.get_full_type("__interface_ref");
 	interface_ref_type->type_attr = A_interface;
 	llvm::Type* llvm_va_arg_type = llvm::ArrayType::get(llvm_interface_type, 0);
-	va_arg_type = new_FullType(llvm_va_arg_type, A_va_arg | A_ref | A_by_value, nullptr, interface_type);
+	va_arg_type = new_FullType(llvm_va_arg_type, A_va_arg | A_ref | A_by_value, nullptr, nullptr, interface_type);
 	std::vector<llvm::Type*> llvm_va_arg_ref_struct_types = { llvm_size_type, llvm_ptr_type };
 	llvm_va_arg_ref_type = llvm::StructType::get(Context, llvm_va_arg_ref_struct_types);
 	// often needed prototype

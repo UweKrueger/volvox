@@ -234,7 +234,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			else
 				for (int i = exprs->size(); i > 0; i--)
 					array_type = llvm::ArrayType::get(array_type, 0);
-			return new_FullType(array_type, attribs, nullptr, elem_type);
+			return new_FullType(array_type, attribs, nullptr, nullptr, elem_type);
 		}
 			break;
 		case '{': {
@@ -298,7 +298,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					return nullptr;
 				}
 			}
-			return new_FullType(struct_type, attribs, nullptr /*DIType*/, (volvoxc::FullType*)fields);
+			return new_FullType(struct_type, attribs, nullptr /*DIType*/, fields);
 		}
 			break;
 		case tok_map:
@@ -329,9 +329,10 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					ftpair[1] = *val_ft;
 				} else
 					ftpair[1] = volvoxc::FullType{0};
-				ft = new_FullType(llvm_ptr_type, A_map | attribs, nullptr, ftpair);
+				ft = new_FullType(llvm_ptr_type, A_map | attribs, nullptr, nullptr, ftpair);
 			} else {
-				ft = new_FullType(llvm_vec_type, attribs, nullptr, key_ft);
+				errs() << CurLoc << ": have vec of element type " << *key_ft << "\n";
+				ft = new_FullType(llvm_vec_type, attribs, nullptr, ft->fields, key_ft);
 			}
 			return ft;
 		}
@@ -366,7 +367,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 		type = new_FullType(*type, attribs);
 	if (is_ptr) {
 		llvm::Type* ptr_type = llvm_ptr_type;
-		type = new_FullType(ptr_type, 0, nullptr, type);
+		type = new_FullType(ptr_type, 0, nullptr, nullptr, type);
 	}
 	return type;
 }
@@ -716,6 +717,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	if ((is_set || is_map || is_vec) && lex.peek() == '{') {
 		if (is_vec) {
 			ft = new_FullType(llvm_vec_type, 0);
+			ft->fields = vec_type->fields;
 		} else {
 			ft = new_FullType(llvm_ptr_type, A_map);
 		}
@@ -1421,7 +1423,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 			.val = nullptr,
 			.decl_loc = LHS->Loc,
 			.branch_parts = new std::vector<unsigned>(current_branch_part),
-			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{}
+			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{0}
 		};
 		fv.ft.type = type;
 		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);

@@ -155,7 +155,7 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 			std::vector<std::unique_ptr<ExprAST>> Elems = iter.prepare_list(std::move(Elements), 0);
 			if (iter.struct_error())
 				return nullptr;
-			auto ft = new_FullType(desired_type, 0, nullptr, new_FullType(elem_type, 0));
+			auto ft = new_FullType(desired_type, 0, nullptr, nullptr, new_FullType(elem_type, 0));
 			auto array_expr = std::make_unique<FixedArrayExprAST>(Loc, ft, std::move(Elems), std::move(iter.valid_exprs), std::move(iter.LitDims), std::move(iter.Dims), LenLocs);
 			return array_expr->codegen_raw(target);
 		}
