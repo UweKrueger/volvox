@@ -458,3 +458,22 @@ def test_null_string_add_4 bool
 	a += b
 	return a == "Ngs9+"
 end
+
+global zpQjb6 = vec{ 4, 7.75, -2.25, 78.0625 }
+global Pfgvvd2e = vec[int]{ 8, -98, 11, 17, 67 }
+
+def test_global_vec_1 bool
+	a = zpQjb6[3]
+	b = Pfgvvd2e[1]
+	return a == 78.0625 && b == -98
+end
+
+def test_global_vec_2 bool
+	uP = zpQjb6[2] = 9.125
+	return uP == -2.25 && zpQjb6[2] == 9.125
+end
+
+def test_global_vec_3 bool
+	hQ = vec{ 9.25, 78.125, -7.0625, 89 }
+	return hQ[0] + hQ[1] == 87.375
+end
