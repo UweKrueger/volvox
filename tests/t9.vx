@@ -477,3 +477,12 @@ def test_global_vec_3 bool
 	hQ = vec{ 9.25, 78.125, -7.0625, 89 }
 	return hQ[0] + hQ[1] == 87.375
 end
+
+def test_ptr_bool_conv bool
+	gw = __malloc 100000
+	qu = voidptr(0)
+	mmm = bool gw
+	nnn = bool qu
+	__free gw
+	return bool(gw) && !bool(qu) && mmm && !nnn
+end
