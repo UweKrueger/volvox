@@ -19,6 +19,7 @@ cdecl(malloc) __malloc(n_bytes size_t) voidptr
 cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) __free(buf voidptr)
 cdecl(memcpy) __memcpy(dest voidptr, src voidptr, n size_t) voidptr
+cdecl(memmove) __memmove(dest voidptr, src voidptr, n size_t) voidptr
 cdecl __setup_console()
 cdecl(eventfd) __eventfd(initval int, flags int) int
 cdecl(pipe2) __pipe2(fds voidptr, flags int) int
@@ -733,18 +734,28 @@ def __vec.cap size_t
 	return this.__cap
 end
 
-def __vec.push_back(_elem_sz size_t, _elem_ptr voidptr)
+def __vec.__push(_elem_sz size_t, _elem_ptr voidptr)
 	if this.__cap <= this.__size
 		this.__cap = this.__cap + this.__cap / 2 + 8
 		this.__ptr = __realloc(this.__ptr, _elem_sz * this.__cap)
-		if !bool(this.__ptr)
-			err_printf("vec: unable to reallocate memory for %zd elements of size %zd\n", this.__cap, _elem_sz)
-			abort
-	end end
+	end
 	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.__size++), _elem_ptr, _elem_sz)
 end
 
-def __vec.pop_back(_elem_sz size_t, _res_ptr voidptr)
+def __vec.__insert(_elem_sz size_t, _elem_ptr voidptr, index size_t)
+	if this.__cap <= this.__size
+		this.__cap = this.__cap + this.__cap / 2 + 8
+		this.__ptr = __realloc(this.__ptr, _elem_sz * this.__cap)
+	end
+	elem_ptr = voidptr(size_t(this.__ptr) + _elem_sz * index)
+	elem_ptr_end = voidptr(size_t(elem_ptr) + _elem_sz)
+	upper_block_sz = (this.__size - index) * _elem_sz
+	__memmove(elem_ptr_end, elem_ptr, upper_block_sz)
+	this.__size++
+	__memcpy(elem_ptr, _elem_ptr, _elem_sz)
+end
+
+def __vec.__pop(_elem_sz size_t, _res_ptr voidptr)
 	if this.__size == 0
 		err_printf("vec: pop_back not possible as vec is empty\n")
 		abort
@@ -753,3 +764,14 @@ def __vec.pop_back(_elem_sz size_t, _res_ptr voidptr)
 	if bool(_res_ptr)
 		__memcpy(_res_ptr, voidptr(size_t(this.__ptr) + _elem_sz * this.__size), _elem_sz)
 end end
+
+def __vec.__delete(_elem_sz size_t, _elem_ptr voidptr, index size_t)
+	elem_ptr = voidptr(size_t(this.__ptr) + _elem_sz * index)
+	elem_ptr_end = voidptr(size_t(elem_ptr) + _elem_sz)
+	upper_block_sz = (this.__size - index - 1) * _elem_sz
+	if bool(_elem_ptr)
+		__memcpy(_elem_ptr, elem_ptr, _elem_sz)
+	end
+	__memmove(elem_ptr, elem_ptr_end, upper_block_sz)
+	this.__size--
+end
