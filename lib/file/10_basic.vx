@@ -73,13 +73,13 @@ end
 #
 pub inline def ~File
 	print "destructor called"
-	if bool(this._flags & autoclose) && size_t(this.voidptr) != 0
+	if bool(this._flags & autoclose) && bool(this.voidptr)
 	   fclose(this.voidptr)
 	end
 end
 
 pub inline def File.is_valid bool
-	return size_t(this.voidptr) != 0
+	return bool(this.voidptr)
 end
 
 # Having std streams available in all threads is somewhat tricky since
@@ -183,7 +183,7 @@ pub inline def append(filename cstring) File
 end
 
 pub inline def File.close
-	if size_t(this.voidptr) != 0
+	if bool(this.voidptr)
 		if fclose(this.voidptr) != 0
 			this.err = GetLastError
 		end

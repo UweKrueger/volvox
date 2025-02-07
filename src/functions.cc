@@ -900,7 +900,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				if (!expr)
 					return nullptr;
 				std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
-				if (expr->getType()->isPointerTy()) {
+				if (expr->getType()->isPointerTy() && (ft->type_attr & (A_string | A_cstring))) {
 					// special handling for string types
 					if ((Args[0]->ft->type_attr & A_string)
 					    && (ft->type_attr & A_cstring)) {

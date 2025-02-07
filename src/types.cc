@@ -195,10 +195,16 @@ no_explicit_constructor:
 		else
 			return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "int -> voidptr");
 	else if (expr_type->isPointerTy()) {
-		if (desired_type == llvm_size_type)
-			return [=](llvm::Value* v) { return Builder->CreatePtrToInt(v, desired_type, "ptrtoint"); };
-		else
-			return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no known conversion");
+		if (is_explicit) {
+			if (desired_type == llvm_size_type)
+				return [=](llvm::Value* v) { return Builder->CreatePtrToInt(v, desired_type, "ptrtoint"); };
+			else if (desired_bitwidth == 1)
+				return [=](llvm::Value* v) { return Builder->CreateIsNotNull(Builder->CreatePtrToInt(v, llvm_size_type), "ptrtobool"); };
+			else
+				return ExplicitErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "no known conversion");
+		} else {
+			return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "voidptr -> value");
+		}
 	}
 	if (!desired_bitwidth || !expr_bitwidth)
 		return nullptr;
