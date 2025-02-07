@@ -293,7 +293,7 @@ llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* size_ptr = Builder->CreateStructGEP(ft->type, Target, 1);
 	llvm::Value* cap_ptr = Builder->CreateStructGEP(ft->type, Target, 2);
 	size_t n_elem = Elements.size();
-	size_t cap = n_elem; // maybe increase this value
+	size_t cap = n_elem + 3; // maybe increase this value
 	size_t alloc_size = cap * elem_sz;
 	llvm::Value* AllocSz = getSize(alloc_size);
 #if LLVM_VERSION_MAJOR >= 18
@@ -307,9 +307,20 @@ llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
 		AllocSz, nullptr, nullptr, "vec");
 	Malloc = Builder->Insert(Malloc);
 #endif
+	Builder->CreateStore(Malloc, __ptr_ptr);
+	Builder->CreateStore(getSize(n_elem), size_ptr);
+	Builder->CreateStore(getSize(cap), cap_ptr);
 	for (unsigned idx = 0; idx < Elements.size(); idx++) {
 		llvm::Value* adr = Builder->CreateConstGEP1_32(elem_type->type, Malloc, idx);
-		llvm::Value* success = Elements[idx]->codegen(adr);
+		llvm::Value* success;
+		if (Elements[idx]->ft->type != elem_type->type) {
+			Elements[idx]->desired_type = elem_type->type;
+			success = Elements[idx]->codegen(true);
+			if (success)
+				Builder->CreateStore(success, adr);
+		} else {
+			success = Elements[idx]->codegen_raw(adr);
+		}
 		if (!success) {
 			errs() << Elements[idx]->Loc << ": cannot generate vec element\n";
 			return nullptr;
