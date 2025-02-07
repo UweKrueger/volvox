@@ -331,7 +331,8 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					ftpair[1] = volvoxc::FullType{0};
 				ft = new_FullType(llvm_ptr_type, A_map | attribs, nullptr, nullptr, ftpair);
 			} else {
-				ft = new_FullType(llvm_vec_type, attribs, nullptr, vec_type->fields, key_ft);
+				ft = new_FullType(*vec_type, attribs);
+				ft->elem_type = key_ft;
 			}
 			return ft;
 		}
@@ -715,8 +716,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	bool is_vec = CurTok.kind == tok_vec;
 	if ((is_set || is_map || is_vec) && lex.peek() == '{') {
 		if (is_vec) {
-			ft = new_FullType(llvm_vec_type, 0);
-			ft->fields = vec_type->fields;
+			ft = new_FullType(*vec_type, 0);
 		} else {
 			ft = new_FullType(llvm_ptr_type, A_map);
 		}

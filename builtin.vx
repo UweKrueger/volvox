@@ -694,8 +694,8 @@ end
 
 type __vec {
 	__ptr voidptr
-	size size_t
-	cap size_t
+	__size size_t
+	__cap size_t
 }
 
 def ~__vec
@@ -706,11 +706,11 @@ end end
 def __vec(_elem_sz size_t)
 	if size_t(this.__ptr) != 0
 		# copy constructor
-		this.cap = this.size
-		mem_sz = this.size * _elem_sz
+		this.__cap = this.__size
+		mem_sz = this.__size * _elem_sz
 		old_ptr = this.__ptr = __malloc mem_sz
 		if size_t(this.__ptr) == 0
-			err_printf("vec: unable to allocate memory for %zd elements of size %zd\n", this.cap, _elem_sz)
+			err_printf("vec: unable to allocate memory for %zd elements of size %zd\n", this.__cap, _elem_sz)
 			abort
 		end
 		__memcpy(this.__ptr, old_ptr, mem_sz)
@@ -719,29 +719,37 @@ end end
 def __vec(_elem_sz size_t, _cap size_t)
 	this.__ptr = __malloc(_elem_sz * _cap)
 	if size_t(this.__ptr) != 0
-		this.cap = _cap
+		this.__cap = _cap
 	else
 		err_printf("vec: unable to allocate memory for %zd elements of size %zd\n", _cap, _elem_sz)
 		abort
 end end
 
+def __vec.size size_t
+	return this.__size
+end
+
+def __vec.cap size_t
+	return this.__cap
+end
+
 def __vec.push_back(_elem_sz size_t, _elem_ptr voidptr)
-	if this.cap <= this.size
-		this.cap = this.cap + this.cap / 2 + 8
-		this.__ptr = __realloc(this.__ptr, _elem_sz * this.cap)
+	if this.__cap <= this.__size
+		this.__cap = this.__cap + this.__cap / 2 + 8
+		this.__ptr = __realloc(this.__ptr, _elem_sz * this.__cap)
 		if size_t(this.__ptr) == 0
-			err_printf("vec: unable to reallocate memory for %zd elements of size %zd\n", this.cap, _elem_sz)
+			err_printf("vec: unable to reallocate memory for %zd elements of size %zd\n", this.__cap, _elem_sz)
 			abort
 	end end
-	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.size++), _elem_ptr, _elem_sz)
+	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.__size++), _elem_ptr, _elem_sz)
 end
 
 def __vec.pop_back(_elem_sz size_t, _res_ptr voidptr)
-	if this.size == 0
+	if this.__size == 0
 		err_printf("vec: pop_back not possible as vec is empty\n")
 		abort
 	end
-	this.size--
+	this.__size--
 	if size_t(_res_ptr) != 0
-		__memcpy(_res_ptr, voidptr(size_t(this.__ptr) + _elem_sz * this.size), _elem_sz)
+		__memcpy(_res_ptr, voidptr(size_t(this.__ptr) + _elem_sz * this.__size), _elem_sz)
 end end
