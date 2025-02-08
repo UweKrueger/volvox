@@ -402,6 +402,7 @@ public:
 #endif
 };
 
+// regular method calls and interface methos calls
 class MethodExprAST : public FunctionExprAST {
 public:
 	std::unique_ptr<ExprAST> Receiver;
@@ -423,6 +424,9 @@ public:
 			FieldName = Field->Name.c_str();
 			if (Struct->ft && Struct->ft->type) {
 				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Struct->ft->type)) {
+					// for regular method call (having regular struct or interface as receiver)
+					// 'getSelect()' in parser.cc creates a MethodExprAST (see above)
+					// here we handle compiler built-in methods and regular struct fields
 					if (Struct->ft->type_attr & A_thread) {
 						if (!strcmp(FieldName, "wait")) {
 							FieldIndex = 0;

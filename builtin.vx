@@ -765,7 +765,7 @@ def __vec.__pop(_elem_sz size_t, _res_ptr voidptr)
 		__memcpy(_res_ptr, voidptr(size_t(this.__ptr) + _elem_sz * this.__size), _elem_sz)
 end end
 
-def __vec.__delete(_elem_sz size_t, _elem_ptr voidptr, index size_t)
+def __vec.__remove(_elem_sz size_t, _elem_ptr voidptr, index size_t)
 	elem_ptr = voidptr(size_t(this.__ptr) + _elem_sz * index)
 	elem_ptr_end = voidptr(size_t(elem_ptr) + _elem_sz)
 	upper_block_sz = (this.__size - index - 1) * _elem_sz

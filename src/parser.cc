@@ -1734,9 +1734,34 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 			}
 			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
 		}
-		auto protos = MethodProtos.find({LHS->ft->mangled_name, Ident->Name});
-		if (protos != MethodProtos.end())
+		// handle some built-in methods - see also SelectExpAST::SelectExpAST() for further cases
+		std::string real_method;
+		std::string* the_method;
+		if (LHS->ft->type == llvm_vec_type) {
+			if (Ident->Name == "push") {
+				real_method = "__push";
+			} else if (Ident->Name == "pop") {
+				real_method = "__pop";
+			} else if (Ident->Name == "insert") {
+				real_method = "__insert";
+			} else if (Ident->Name == "remove") {
+				real_method = "__remove";
+			} else {
+				errs() << Ident->Loc << ": '" << Ident->Name << "' is no valid method for 'vec' object\n";
+				return nullptr;
+			}
+		}
+		if (real_method.empty())
+			the_method = &Ident->Name;
+		else
+			the_method = &real_method;
+		auto protos = MethodProtos.find({LHS->ft->mangled_name, *the_method});
+		if (protos != MethodProtos.end()) {
+			if (!real_method.empty()) {
+				errs() << LHS->Loc << ": found '" << protos->second[0]->Name << "'\n";
+			}
 			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
+		}
 	}
 	return std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
 }

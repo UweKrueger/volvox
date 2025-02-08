@@ -690,6 +690,7 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		return handle(target, val);
 	if (V.first) {
 		if (auto arr_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type)) {
+			// handle builtin array methods
 			llvm::Type* arr_ty = (llvm::Type*)(intptr_t)-1;
 			llvm::Value* arr = nullptr;
 			if (auto array_ast = dynamic_cast<LvalueExprAST*>(Struct.get()))
