@@ -1757,8 +1757,19 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 			the_method = &real_method;
 		auto protos = MethodProtos.find({LHS->ft->mangled_name, *the_method});
 		if (protos != MethodProtos.end()) {
-			if (!real_method.empty()) {
-				errs() << LHS->Loc << ": found '" << protos->second[0]->Name << "'\n";
+			if (LHS->ft->type == llvm_vec_type) {
+				// rewrite proto
+				auto vec_protos = new_AnonProto(protos->second[0].get(), Ident->Loc);
+				uint64_t elem_sz = TheModule->getDataLayout().getTypeAllocSize(LHS->ft->elem_type->type);
+				(*vec_protos)[0]->implicitArgs.push_back(getSize(elem_sz));
+				// see __vec methods in builtin.vx
+				(*vec_protos)[0]->Args.erase((*vec_protos)[0]->Args.begin() + 1);
+				(*vec_protos)[0]->ArgTypes.erase((*vec_protos)[0]->ArgTypes.begin() + 1);
+				if ((*vec_protos)[0]->returnName.empty())
+					(*vec_protos)[0]->ArgTypes[1] = new_FullType(*LHS->ft->elem_type, A_ref);
+				else
+					(*vec_protos)[0]->RetType = LHS->ft->elem_type;
+				return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), vec_protos);
 			}
 			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
 		}
