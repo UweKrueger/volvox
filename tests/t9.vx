@@ -486,3 +486,26 @@ def test_ptr_bool_conv bool
 	__free gw
 	return bool(gw) && !bool(qu) && mmm && !nnn
 end
+
+def named_return_example(a f64, b f64) (dfg f64)
+	dfg = a + 2 * b
+end
+
+def test_named_return_1 bool
+	z = named_return_example(2.5, 3.75)
+	return z == 10
+end
+
+def named_return_example2(a f64, b f64) (dfg ___big_dummy)
+	if a > b
+		dfg.d4 = a + 2 * b
+		return
+	end
+	dfg.d4 = b - a
+end
+
+def test_named_return_2 bool
+	y = named_return_example2(2.5, 3.75)
+	z = named_return_example2(3.75, 2.5)
+	return y.d4 == 1.25 && z.d4 == 8.75
+end

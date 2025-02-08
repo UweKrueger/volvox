@@ -2324,16 +2324,18 @@ nobrace:
 	// parse return type(s)
 	volvoxc::FullType* RetType = nullptr;
 	SourceLocation retLoc = CurLoc;
-	while (CurTok.kind != ';') {
-		auto type = ParseType(0, eSemi);
-		if (!type) {
+	if (CurTok.kind != ';') {
+		if (CurTok.kind == '(') {
+			getNextToken();
+			std::tie(returnName, RetType) = ParseTypedIdent(')', false);
+			getNextToken();
+		} else {
+			RetType = ParseType(0, eSemi);
+		}
+		if (!RetType) {
 			errs() << "error parsing return type of function prototype\n";
 			return nullptr;
-		} else if (RetType) {
-			errs() << "functions returning multiple objecs is not implemented, yet\n";
-			return nullptr;
 		}
-		RetType = type;
 	}
 	if (visibility & A_setter) {
 		if (!(visibility & A_method) || (visibility & (A_constructor | A_destructor))) {

@@ -1016,6 +1016,7 @@ public:
 	std::vector<llvm::Type*> LLVMArgTypes = {}; // to get LLVM function type
 	std::vector<llvm::AttributeSet> ArgAttrs = {};
 	std::vector<SourceLocation> ArgPos;
+	std::vector<llvm::Value*> implicitArgs; // for built-in methods
 	volvoxc::FullType* RetType = nullptr;
 	std::string returnName; // for named Return or "this" for non-struct constructors
 	SourceLocation retLoc;
