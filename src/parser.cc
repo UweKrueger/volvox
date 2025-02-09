@@ -1746,9 +1746,6 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 				real_method = "__insert";
 			} else if (Ident->Name == "remove") {
 				real_method = "__remove";
-			} else {
-				errs() << Ident->Loc << ": '" << Ident->Name << "' is no valid method for 'vec' object\n";
-				return nullptr;
 			}
 		}
 		if (real_method.empty())
@@ -1757,7 +1754,7 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 			the_method = &real_method;
 		auto protos = MethodProtos.find({LHS->ft->mangled_name, *the_method});
 		if (protos != MethodProtos.end()) {
-			if (LHS->ft->type == llvm_vec_type) {
+			if (LHS->ft->type == llvm_vec_type && !real_method.empty()) {
 				// rewrite proto
 				auto vec_protos = new_AnonProto(protos->second[0].get(), Ident->Loc);
 				uint64_t elem_sz = TheModule->getDataLayout().getTypeAllocSize(LHS->ft->elem_type->type);
@@ -1765,10 +1762,13 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 				// see __vec methods in builtin.vx
 				(*vec_protos)[0]->Args.erase((*vec_protos)[0]->Args.begin() + 1);
 				(*vec_protos)[0]->ArgTypes.erase((*vec_protos)[0]->ArgTypes.begin() + 1);
-				if ((*vec_protos)[0]->returnName.empty())
+				(*vec_protos)[0]->ArgAttrs.erase((*vec_protos)[0]->ArgAttrs.begin() + 1);
+				(*vec_protos)[0]->ArgPos.erase((*vec_protos)[0]->ArgPos.begin() + 1);
+				if ((*vec_protos)[0]->returnName.empty()) {
 					(*vec_protos)[0]->ArgTypes[1] = new_FullType(*LHS->ft->elem_type, A_ref);
-				else
+				} else {
 					(*vec_protos)[0]->RetType = LHS->ft->elem_type;
+				}
 				return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), vec_protos);
 			}
 			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);

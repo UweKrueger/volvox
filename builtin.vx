@@ -4,6 +4,7 @@
 
 # use this to trigger informative messages
 const _verbose := __VERBOSE
+const _range_check := true
 
 cdecl exit(n int)
 cdecl strcmp(s1 cstring, s2 cstring) i32
@@ -734,23 +735,28 @@ def __vec(_elem_sz size_t, _cap size_t)
 		abort
 end end
 
-def __vec.size size_t
+inline def __vec.size size_t
 	return this.__size
 end
 
-def __vec.cap size_t
+inline def __vec.cap size_t
 	return this.__cap
 end
 
-def __vec.__push(_elem_sz size_t, _elem_ptr voidptr)
+inline def __vec.__push(_elem_sz size_t, &_elem_ptr voidptr)
 	if this.__cap <= this.__size
 		this.__cap = this.__cap + this.__cap / 2 + 8
 		this.__ptr = __realloc(this.__ptr, _elem_sz * this.__cap)
 	end
-	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.__size++), _elem_ptr, _elem_sz)
+	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.__size++), &_elem_ptr, _elem_sz)
 end
 
-def __vec.__insert(_elem_sz size_t, _elem_ptr voidptr, index size_t)
+inline def __vec.__insert(_elem_sz size_t, &_elem_ptr voidptr, index size_t)
+	if (_range_check)
+		if (index > this.__size)
+			err_printf("vec.insert: insertion index %zd exceeds size %zd\n", index, this.__size)
+			abort
+	end end
 	if this.__cap <= this.__size
 		this.__cap = this.__cap + this.__cap / 2 + 8
 		this.__ptr = __realloc(this.__ptr, _elem_sz * this.__cap)
@@ -760,10 +766,10 @@ def __vec.__insert(_elem_sz size_t, _elem_ptr voidptr, index size_t)
 	upper_block_sz = (this.__size - index) * _elem_sz
 	__memmove(elem_ptr_end, elem_ptr, upper_block_sz)
 	this.__size++
-	__memcpy(elem_ptr, _elem_ptr, _elem_sz)
+	__memcpy(elem_ptr, &_elem_ptr, _elem_sz)
 end
 
-def __vec.__pop(_elem_sz size_t) (_res ___big_dummy)
+inline def __vec.__pop(_elem_sz size_t) (_res ___big_dummy)
 	if this.__size == 0
 		err_printf("vec: pop_back not possible as vec is empty\n")
 		abort
@@ -772,7 +778,7 @@ def __vec.__pop(_elem_sz size_t) (_res ___big_dummy)
 	__memcpy(&_res, voidptr(size_t(this.__ptr) + _elem_sz * this.__size), _elem_sz)
 end
 
-def __vec.__remove(_elem_sz size_t, index size_t) (_res ___big_dummy)
+inline def __vec.__remove(_elem_sz size_t, index size_t) (_res ___big_dummy)
 	elem_ptr = voidptr(size_t(this.__ptr) + _elem_sz * index)
 	elem_ptr_end = voidptr(size_t(elem_ptr) + _elem_sz)
 	upper_block_sz = (this.__size - index - 1) * _elem_sz

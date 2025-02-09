@@ -1087,6 +1087,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				}
 			}
 			ArgsV.push_back(receiver_ref);
+			for (llvm::Value* iarg: Proto->implicitArgs)
+				ArgsV.push_back(iarg);
 		} else {
 			errs() << Callee->Loc << ": method prototype but not a method call\n";
 			return nullptr;
