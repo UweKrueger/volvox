@@ -116,6 +116,7 @@ static std::vector<std::unique_ptr<ExprAST>> SplitExprList(std::unique_ptr<ExprA
 }
 
 static std::pair<std::string,volvoxc::FullType*> ParseTypedIdent(int terminator, bool resolve_ref);
+static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility);
 
 /* parse a type - this function may be called by ParseAggregateExpr()
    for the initial part of "type{...}" literals
@@ -334,6 +335,15 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 				ft = new_FullType(*vec_type, attribs);
 				ft->elem_type = key_ft;
 			}
+			return ft;
+		}
+		case tok_func: {
+			unsigned visibility = A_closure;
+			auto Loc = CurLoc;
+			auto proto = ParsePrototype(visibility);
+			auto ft = new_FullType(proto->FT, 0);
+			ft->Protos = new_AnonProto(std::move(proto), Loc);
+			ft->mangled_name = "4func"; // TODO: mangle function type
 			return ft;
 		}
 		default:
@@ -1658,7 +1668,7 @@ static std::unique_ptr<ExprAST> ParsePrimary(int terminator = 0) {
 		return ParseIfExpr(terminator);
 	case tok_for:
 		return ParseForExpr(terminator);
-	case tok_def:
+	case tok_func:
 		return ParseFunctionExpr(terminator);
 	default:
 		errs() << CurLoc << ": unexpected token '" << CurTok.str() << "' when expecting a " << lex.Expected << " or an expression\n";
@@ -2267,7 +2277,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		Kind = 0;
 		getNextToken(eSemi);
 		break;
-	case tok_def: // closure
+	case tok_func: // closure
 		FnName = std::string(createAnonFnName());
 		Kind = 0;
 		getNextToken(eSemi);
@@ -2644,7 +2654,7 @@ void setMangledName(PrototypeAST* Proto, unsigned visibility) {
 /// definition := 'def' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	if (!(visibility & A_closure)) {
-		getNextToken(eSemi); // eat fn.
+		getNextToken(eSemi); // eat 'def'
 		if (CurTok.kind != tok_identifier) {
 			if (CurTok.kind == tok_const)
 				visibility |= A_const;

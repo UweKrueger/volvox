@@ -9,6 +9,7 @@ TOKEN(self) \
 TOKEN(packed) \
 TOKEN(union) \
 TOKEN(const) \
+TOKEN(func) \
 TOKEN(unique) \
 TOKEN(shared) \
 TOKEN(atomic) \
