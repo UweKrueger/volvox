@@ -1244,7 +1244,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		// Callee was a function symbol like `sin`
 		if (Proto->const_result)
 			return Proto->const_result;
-		return Builder->CreateCall(FT, F, ArgsV);
+		return Builder->CreateCall(FT, F, std::move(ArgsV));
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
 		if (getter) {
@@ -1296,7 +1296,51 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* PN = Builder->CreateLoad(Proto->RetType->type, PN_store);
 			return PN;
 		}
-		return Builder->CreateCall(FT, theFunction, ArgsV);
+		// errs() << Loc << ": ### call expr with function pointer " << *theFunction << "\n";
+		if (theFunction->getType()->isPointerTy())
+			// interface method or simple function pointer
+			return Builder->CreateCall(FT, theFunction, std::move(ArgsV));
+		if (auto closure_ty = llvm::dyn_cast<llvm::StructType>(theFunction->getType())) {
+			// closure: pointer pair - function pointer and pointer to captured variables
+			llvm::Value* closure_fn_ptr = Builder->CreateExtractValue(theFunction, 0);
+			llvm::Value* captures_ptr = Builder->CreateExtractValue(theFunction, 1);
+			auto ArgsV_closure = ArgsV;
+			ArgsV_closure.insert(ArgsV_closure.begin(), captures_ptr);
+			std::vector<llvm::Type*> closure_args;
+			closure_args.reserve(FT->getNumParams() + 1);
+			closure_args.push_back(llvm_ptr_type);
+			for (auto it = FT->param_begin(); it != FT->param_end(); it++)
+				closure_args.push_back(*it);
+			llvm::Type* ret_ty = FT->getReturnType();
+			auto FT_closure = llvm::FunctionType::get(ret_ty, std::move(closure_args), FT->isVarArg());
+			auto callBB_simple = llvm::BasicBlock::Create(Context, "call_simple");
+			auto callBB_closure = llvm::BasicBlock::Create(Context, "call_closure");
+			auto contBB = llvm::BasicBlock::Create(Context, "cont");
+			llvm::Value* IsSimple = Builder->CreateIsNull(Builder->CreatePtrToInt(captures_ptr, llvm_size_type));
+			auto enterBB = Builder->GetInsertBlock();
+			auto TheFunction = enterBB ? enterBB->getParent() : nullptr;
+			if (!TheFunction) {
+				errs() << "*** internal error: no function\n";
+				abort();
+			}
+			Builder->CreateCondBr(IsSimple, callBB_simple, callBB_closure);
+			TheFunction->insert(TheFunction->end(), callBB_simple);
+			Builder->SetInsertPoint(callBB_simple);
+			llvm::Value* simpleRes = Builder->CreateCall(FT, theFunction, std::move(ArgsV));
+			Builder->CreateBr(contBB);
+			TheFunction->insert(TheFunction->end(), callBB_closure);
+			Builder->SetInsertPoint(callBB_closure);
+			llvm::Value* closureRes = Builder->CreateCall(FT_closure, closure_fn_ptr, std::move(ArgsV_closure));
+			Builder->CreateBr(contBB);
+			TheFunction->insert(TheFunction->end(), contBB);
+			Builder->SetInsertPoint(contBB);
+			llvm::PHINode* PN = Builder->CreatePHI(ret_ty, 2, "closure_ret");
+			PN->addIncoming(simpleRes, callBB_simple);
+			PN->addIncoming(closureRes, callBB_closure);
+			return PN;
+		}
+		errs() << Loc << ": internal error - cannot create function call\n";
+		return nullptr;
 	}
 }
 
