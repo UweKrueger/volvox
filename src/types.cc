@@ -1251,3 +1251,18 @@ volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned add_attr
 	anon_types_end = &new_node->next;
 	return &new_node->ft;
 }
+
+uint64_t get_ref_alloc_sz(llvm::Type* type) {
+	uint64_t sz = target_bytes;
+	if (auto arr = llvm::dyn_cast<llvm::ArrayType>(type)) {
+		do {
+			auto dim = arr->getNumElements();
+			if (!dim)
+				sz += target_bytes;
+			arr = llvm::dyn_cast<llvm::ArrayType>(arr->getElementType());
+		} while(arr);
+	} else if (type->isFunctionTy()) {
+		sz += target_bytes;
+	}
+	return sz;
+}

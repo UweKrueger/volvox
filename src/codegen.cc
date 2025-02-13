@@ -1879,7 +1879,7 @@ llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
 			RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
 		uint64_t allocsz = LREF ?
-			target_bytes :
+			get_ref_alloc_sz(LHSE->ft->type) :
 			(LHSE->ft->type && LHSE->ft->type->isSized()) ?
 			TheModule->getDataLayout().getTypeAllocSize(LHSE->ft->type) :
 			0; // if size is compile time const

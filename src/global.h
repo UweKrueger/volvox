@@ -1006,6 +1006,7 @@ inline llvm::Value* getInterfaceArrayValue(llvm::Value* val, llvm::ArrayType* ar
 	return getInterfaceArrayOrStoreValue(val, array_type, expected_array_type, false);
 }
 extern llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name = "");
+extern uint64_t get_ref_alloc_sz(llvm::Type* type);
 
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
