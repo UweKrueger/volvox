@@ -1,0 +1,32 @@
+type GQhKL {
+	a int
+	b f64
+	c i64
+}
+
+decl GQhKL.getf f64
+
+def GQhKL.getall f64
+	q = this.getf
+	return this.c * q
+end
+
+def Mnjf(k GQhKL) f64
+	return k.getf + k.c
+end
+
+def GQhKL.getf f64
+	return this.a + this.b
+end
+
+def test_forward_method_1 bool
+	x = GQhKL{ a: 12, b: 7.5, c: -67 }
+	y = x.getall
+	return y == -1306.5
+end
+
+def test_forward_method_2 bool
+	x = GQhKL{ a: 32, b: -27.25, c: 77 }
+	y = Mnjf(x)
+	return y == 81.75
+end
