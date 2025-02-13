@@ -546,20 +546,38 @@ cleanup:
 
 static void HandleExtern(unsigned visibility) {
 	getNextToken();
-	if (auto ProtoAST = ParseExtern(visibility)) {
+	if (auto Proto = ParseExtern(visibility)) {
 		// "cdecl(rename) unmangled(...)"
-		std::string unmangledName = ProtoAST->getName();
-		setMangledName(ProtoAST.get(), visibility);
-		auto already_in_use = all_global_symbols.insert({ProtoAST->Name, true});
+		std::string unmangledName = Proto->getName();
+		setMangledName(Proto.get(), visibility);
+		auto already_in_use = all_global_symbols.insert({Proto->Name, true});
 		if (!already_in_use.second && !already_in_use.first->second) {
-			errs() << ProtoAST->retLoc << ": '" << ProtoAST->getName() << "' already in use as global variable\n";
+			errs() << Proto->retLoc << ": '" << Proto->getName() << "' already in use as global variable\n";
 			goto cleanup;
 		}
-		auto& protos = lex.module->FunctionProtos[unmangledName];
-		if (ProtoAST->conflicts(protos) == -2)
-			goto cleanup;
-		lex.module->FunctionProtos[unmangledName].push_back(std::move(ProtoAST));
-		return;
+		if (Proto->visibility & A_method) {
+			// compare similar code in ParseDefinition() in parser.cc
+			std::string mangled_receiver_type;
+			if (Proto->ArgTypes[0]->type->isStructTy())
+				mangled_receiver_type = Proto->ArgTypes[0]->mangled_name;
+			else if (Proto->ArgTypes[0]->type_attr & A_complex)
+				mangled_receiver_type = "3c32";
+			else {
+				errs() << Proto->retLoc << ": cannot declare method for type '" << *Proto->ArgTypes[0] << "'\n";
+				goto cleanup;
+			}
+			if (!check_and_add_proto(MethodProtos[{mangled_receiver_type, unmangledName}], std::move(Proto), unmangledName, true)) {
+				errs() << Proto->retLoc << ": cannot declare method for type '" << *Proto->ArgTypes[0] << "'\n";
+				goto cleanup;
+			}
+			return;
+		} else {
+			auto& protos = lex.module->FunctionProtos[unmangledName];
+			if (Proto->conflicts(protos) == -2)
+				goto cleanup;
+			lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
+			return;
+		}
 	}
 cleanup:
 	// Skip token for error recovery.
@@ -1278,9 +1296,12 @@ static void MainLoop() {
 						GlobalExprList.push_back(std::move(print_cmd));
 					}
 				}
-			}
-			if (have_return) {
-				return;
+				if (have_return) {
+					return;
+				}
+			} else {
+				purgeLine();
+				goto startmainloop;
 			}
 		}
 	}

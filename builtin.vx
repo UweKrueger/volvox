@@ -806,4 +806,3 @@ def ~__closure
 	if bool(this.__fn_ptr)
 		__free this.__fn_ptr
 end end
-

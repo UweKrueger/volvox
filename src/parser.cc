@@ -2519,8 +2519,8 @@ int PrototypeAST::conflicts(std::vector<std::unique_ptr<PrototypeAST>>& protos) 
 }
 
 // append prototype to list after checking that it does not already exist
-static bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& protos, std::unique_ptr<PrototypeAST> Proto,
-                                std::string& unmangledName, bool isMethod = false) {
+bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& protos, std::unique_ptr<PrototypeAST> Proto,
+                                std::string& unmangledName, bool isMethod) {
 	int match_idx = Proto->conflicts(protos);
 	switch (match_idx) {
 	case -2:
@@ -2941,7 +2941,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::pair<std::unique_ptr<ExprAST
 }
 
 /// external := 'extern' prototype
-std::unique_ptr<PrototypeAST> ParseExtern(unsigned visibility) {
+std::unique_ptr<PrototypeAST> ParseExtern(unsigned& visibility) {
 	visibility |= (A_extern | A_pub);
 	return ParsePrototype(visibility);
 }

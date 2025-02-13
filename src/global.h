@@ -512,7 +512,7 @@ extern std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::pair<std::unique_ptr<
 extern std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E);
 extern std::unique_ptr<ExprAST> ParseExpression(int terminator = 0);
 extern std::unique_ptr<ExprAST> ParseStructExpr(volvoxc::FullType* ft, int terminator = 0);
-extern std::unique_ptr<PrototypeAST> ParseExtern(unsigned share_kind);
+extern std::unique_ptr<PrototypeAST> ParseExtern(unsigned& share_kind);
 extern bool spawn_bool_expr(bool (*expr)());
 extern llvm::Value* CreateReleaseRefC(llvm::Value* ptr,
                                       std::function<llvm::Value*(llvm::Value*)> ValDestructor = nullptr,
@@ -1568,6 +1568,9 @@ extern llvm::Function* PrepareFunctionBody(std::unique_ptr<PrototypeAST> Proto);
 extern void FinishFunction(llvm::Function* TheFunction, llvm::Value* RetVal);
 extern std::nullptr_t Error(SourceLocation Loc, const char *Str, ...);
 extern std::tuple<llvm::Type*, unsigned> MakeType(llvm::Type* type, unsigned is_signed, bool is_unknown_type);
+extern bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& protos,
+                                std::unique_ptr<PrototypeAST> Proto,
+                                std::string& unmangledName, bool isMethod = false);
 extern std::vector<std::vector<const char*>> source_files;
 extern std::vector<int> source_index;
 extern std::vector<const char*> SourceFileNames;
