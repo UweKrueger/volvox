@@ -786,3 +786,24 @@ inline def __vec.__remove(_elem_sz size_t, index size_t) (_res ___big_dummy)
 	__memmove(elem_ptr, elem_ptr_end, upper_block_sz)
 	this.__size--
 end
+
+type __closure {
+	__fn_ptr voidptr
+	__captureds_ptr voidptr
+}
+
+def __closure # copy constructor
+	if bool(this.__fn_ptr)
+		sz = size_t(0)
+		# 1st element of captureds-block is its size
+		__memcpy(&sz, this.__fn_ptr, sizeof(size_t))
+		orig_ptr = this.__fn_ptr
+		this.__fn_ptr = __malloc sz
+		__memcpy(this.__fn_ptr, orig_ptr, sz)
+end end
+
+def ~__closure
+	if bool(this.__fn_ptr)
+		__free this.__fn_ptr
+end end
+

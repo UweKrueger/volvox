@@ -109,6 +109,7 @@ llvm::Type* llvm_interface_type;
 llvm::Type* llvm_c32_type;
 llvm::Type* llvm_va_arg_ref_type;
 llvm::Type* llvm_vec_type;
+llvm::Type* llvm_closure_type;
 llvm::PointerType* llvm_ptr_type;
 volvoxc::FullType* void_type;
 volvoxc::FullType* bool_type;
@@ -123,6 +124,7 @@ volvoxc::FullType* voidptr_type;
 volvoxc::FullType* c32_type;
 volvoxc::FullType* string_type;
 volvoxc::FullType* vec_type;
+volvoxc::FullType* closure_type;
 
 #ifdef LEGACY_PASS_MANAGER
 std::unique_ptr<llvm::legacy::FunctionPassManager> TheFPM = nullptr;
