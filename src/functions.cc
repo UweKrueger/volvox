@@ -282,20 +282,20 @@ check_selected_proto:
 
 CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
             std::vector<std::unique_ptr<ExprAST>> Args_)
-	: ReferencableExprAST(Loc), Callee(std::move(Callee_)),
+	: ReferencableExprAST(Loc, "*"), Callee(std::move(Callee_)),
 	  Args(std::move(Args_)) {
 	unsigned n_args = Args.size();
 	auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get());
 	if (functionexpr)
-		name = functionexpr->Name.c_str();
+		Name = functionexpr->Name;
 	else if (auto varexpr = dynamic_cast<VariableExprAST*>(Callee.get()))
-		name = varexpr->Name.c_str();
+		Name = varexpr->Name;
 	auto method = dynamic_cast<MethodExprAST*>(Callee.get());
 	auto type_expr = dynamic_cast<TypeExprAST*>(Callee.get());
 	auto select_expr = dynamic_cast<SelectExprAST*>(Callee.get());
 do_analyze:
 	if (type_expr) {
-		name = type_expr->Name.c_str();
+		Name = type_expr->Name;
 		ft = type_expr->ft;
 	}
 	if (method)
@@ -308,7 +308,7 @@ do_analyze:
 	else if (type_expr && type_expr->ft->type->isStructTy())
 		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, type_expr->ft->type_attr, false, false});
 	else if (select_expr)
-		name = select_expr->FieldName;
+		Name = select_expr->FieldName;
 	if (!type_expr || type_expr->ft->type->isStructTy()) {
 		for (auto& arg: Args) {
 			bool is_list = false;
@@ -335,17 +335,17 @@ do_analyze:
 			}
 			return;
 		}
-		int selected_proto = selectProto(protos, name, fn_args, Callee->Loc);
+		int selected_proto = selectProto(protos, Name.c_str(), fn_args, Callee->Loc);
 		if (selected_proto >= 0) {
 			Proto = (*protos)[selected_proto].get();
 			if (method && Proto->vtable_offs >= 0)
 				vtable_offs = target_bytes * Proto->vtable_offs;
 		} else if (selected_proto == -2) {
 			// explicit basic type conversion
-			auto ft = lex.source_stack.front().module->type_table.get_full(name);
+			auto ft = lex.source_stack.front().module->type_table.get_full(Name.c_str());
 			if (!ft)
 				return;
-			auto thetype_expr = std::make_unique<TypeExprAST>(Callee->Loc, name, ft);
+			auto thetype_expr = std::make_unique<TypeExprAST>(Callee->Loc, Name, ft);
 			type_expr = thetype_expr.get();
 			Callee = std::move(thetype_expr);
 			goto do_analyze;
