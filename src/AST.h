@@ -178,20 +178,15 @@ inline bool is_ccfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
 	return Proto && (*Proto).size() >= 1 && (*Proto)[0]->getName().c_str()[0] == '_' && (*Proto)[0]->getName().c_str()[1] == 'Z';
 }
 
-// Expressions that can the the LHS of an assignment: `a = 1`, `b[3] = 4.5`, `s.a = 9`
-// However, there are exceptions: LvalueExprAST is base class for IndexExprAST and SelectExprAST
-// but it is possible that the array/struct is in fact an rvalue. These cases need special
-// treatment is the derived classes. Here we provide an option 'silent_fail' for 'codegen_ref()'
-// that makes the method return a type but no pointer in these cases.
-// Usually generating the reference of an expression
+// Usually we need a reference of an object to use it as an Lvalue (see LvalueExprAST below)
+// However there are also function references / closures that are created with a CallExpr
 //
-class LvalueExprAST : public ExprAST {
+class ReferencableExprAST : public ExprAST {
 protected:
 	std::pair<llvm::Type*,llvm::Value*> ref_cache = { nullptr, nullptr };
 public:
 	std::string Name;
-	bool error_already_printed = false;
-	LvalueExprAST(SourceLocation Loc, std::string Name = "")
+	ReferencableExprAST(SourceLocation Loc, std::string Name = "")
 		: ExprAST(Loc), Name(std::move(Name)) {}
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
@@ -208,8 +203,26 @@ public:
 				errs() << Loc << ": cannot get reference\n";
 			return ref_cache;
 		}
+		// auto res = codegen_ref_(silent_fail, constref);
+		// if (res.second)
+		// 	errs() << Loc << ": got reference " << *res.second << "\n";
+		// return res;
 		return codegen_ref_(silent_fail, constref);
 	}
+};
+
+// Expressions that can be the LHS of an assignment: `a = 1`, `b[3] = 4.5`, `s.a = 9`
+// However, there are exceptions: LvalueExprAST is base class for IndexExprAST and SelectExprAST
+// but it is possible that the array/struct is in fact an rvalue. These cases need special
+// treatment is the derived classes. Here we provide an option 'silent_fail' for 'codegen_ref()'
+// that makes the method return a type but no pointer in these cases.
+// Usually generating the reference of an expression
+//
+class LvalueExprAST : public ReferencableExprAST {
+public:
+	LvalueExprAST(SourceLocation Loc, std::string Name = "")
+		: ReferencableExprAST(Loc, std::move(Name)) {}
+	bool error_already_printed = false;
 	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	virtual VariableExprAST* getBase() { return nullptr; }
@@ -294,7 +307,7 @@ public:
 };
 
 /// CallExprAST - Expression class for function calls.
-class CallExprAST : public ExprAST {
+class CallExprAST : public ReferencableExprAST {
 public:
 	std::vector<FnArg> fn_args;
 	const char* name = "*";

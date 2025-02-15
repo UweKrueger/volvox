@@ -282,7 +282,7 @@ check_selected_proto:
 
 CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
             std::vector<std::unique_ptr<ExprAST>> Args_)
-	: ExprAST(Loc), Callee(std::move(Callee_)),
+	: ReferencableExprAST(Loc), Callee(std::move(Callee_)),
 	  Args(std::move(Args_)) {
 	unsigned n_args = Args.size();
 	auto functionexpr = dynamic_cast<FunctionExprAST*>(Callee.get());
