@@ -578,6 +578,12 @@ llvm::MaybeAlign getAlignment(llvm::Value* size) {
 	}
 }
 
+llvm::Value* StoreReference(llvm::Value* ref, const llvm::Twine &Name) {
+	llvm::Value* Alloca = CreateEntryBlockAlloca(ref->getType(), Name);
+	Builder->CreateStore(ref, Alloca);
+	return Alloca;
+}
+
 llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, llvm::Type* expected_type, const llvm::Twine &Name) {
 	if (!expected_type)
 		expected_type = ft->type;
@@ -1828,12 +1834,69 @@ structural_err:
 // it returns a reference to allow &c = &b = a
 //
 std::pair<llvm::Type*,llvm::Value*> BinaryExprAST::codegen_ref_(bool silent_fail, bool constref) {
-	return { nullptr, nullptr };
+	if (opclass == OpGlobalDeclAssign) {
+		errs() << LHS->Loc << ": reference cannot be declared 'global'\n";
+		return { nullptr, nullptr };
+	}
+	if (opclass != OpDeclAssign && opclass != OpAssign && opclass != OpGlobalDeclAssign) {
+		errs() << Loc << ": expecting '=' operator for reference LHS\n";
+		return { nullptr, nullptr };
+	}
+	auto Var = dynamic_cast<VariableExprAST*>(LREF->Operand.get());
+	if (!Var) {
+		errs() << LREF->Operand->Loc << ": expected variable name after '&'\n";
+		return { nullptr, nullptr };
+	}
+	const char* varname = Var->getName().c_str();
+	FullVar* full_var = Var->full_var;
+	if (auto RREF = dynamic_cast<ReferencableExprAST*>(RHS.get())) {
+		auto ty_ref = RREF->codegen_ref();
+		if (!ty_ref.second) {
+			errs() << RHS->Loc << ": cannot get reference of RHS\n";
+			return { nullptr, nullptr };
+		}
+		if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign) {
+			if (full_var) {
+				errs() << LHS->Loc << ": internal error - declaration for existing variable\n";
+				return { nullptr, nullptr };
+			}
+			if (locals_table.empty()) {
+				full_var = lex.module->globals_table[varname];
+			} else {
+				full_var = locals_table.back()[varname];
+			}
+			if (!full_var) {
+				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
+				return { nullptr, nullptr };
+			}
+			full_var->ft = *RHS->ft;
+			full_var->ft.type_attr |= A_ptrref;
+			full_var->val = StoreReference(ty_ref.second, varname);
+			return { llvm::Type::getVoidTy(Context), llvm::UndefValue::get(llvm::Type::getVoidTy(Context)) };
+		} else {
+			if (!full_var) {
+				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
+				return { nullptr, nullptr };
+			}
+			llvm::Value* old_ref = Builder->CreateLoad(ty_ref.second->getType(), full_var->val);
+			Builder->CreateStore(ty_ref.second, full_var->val);
+			return { full_var->ft.type, old_ref };
+		}
+	} else {
+		errs() << RHS->Loc << ": RHS is not referencable\n";
+		return { nullptr, nullptr };
+	}
 }
 
 llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
+	}
+	if (LREF) {
+		auto ty_ref = codegen_ref();
+		if (ty_ref.second)
+			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+		return nullptr;
 	}
 	if (opclass == OpTernary)
 		return codegen_ternary(target);
@@ -1852,7 +1915,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			errs() << "left side of '" << Op << "' must be an lvalue\n";
 			return nullptr;
 		}
-		ReferenceExprAST* LREF = dynamic_cast<ReferenceExprAST*>(LHS.get());
 		if (opclass != OpDeclAssign) {
 			Variable = LHSE->codegen_ref();
 			if (!Variable.second)
