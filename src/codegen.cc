@@ -421,9 +421,13 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 
 llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	auto V = codegen_ref(false, true);
-	if (V.first && V.second)
-		// Load the value.
-		return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()));
+	if (V.first && V.second) {
+		if (V.first->isSized())
+			// Load the value.
+			return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()));
+		else
+			errs() << Loc << ": internal error - attempt to load value of unknown size\n";
+	}
 	return nullptr;
 }
 
@@ -1820,7 +1824,14 @@ structural_err:
 	return nullptr;
 }
 
-llvm::Value *BinaryExprAST::codegen_raw(llvm::Value* target) {
+// this method is only used if LHS if reference
+// it returns a reference to allow &c = &b = a
+//
+std::pair<llvm::Type*,llvm::Value*> BinaryExprAST::codegen_ref_(bool silent_fail, bool constref) {
+	return { nullptr, nullptr };
+}
+
+llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}

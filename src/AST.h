@@ -188,6 +188,9 @@ public:
 	std::string Name;
 	ReferencableExprAST(SourceLocation Loc, std::string Name = "")
 		: ExprAST(Loc), Name(std::move(Name)) {}
+	ReferencableExprAST(llvm::Type* type = llvm::Type::getVoidTy(Context), unsigned type_attr = 0,
+	                    SourceLocation Loc = CurLoc, bool is_unknown_type = false)
+		: ExprAST(type, type_attr, Loc, is_unknown_type) {}
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
@@ -791,7 +794,9 @@ public:
 #endif
 };
 
-// Expression class for a unary '&' operator
+// Expression class for a unary '&' operator in rvalues
+// usually to call C functions like f(void*) as f(&x)
+//
 class ReferenceExprAST : public LvalueExprAST {
 public:
 	std::unique_ptr<LvalueExprAST> Operand;
@@ -833,8 +838,8 @@ public:
 };
 
 /// BinaryExprAST - Expression class for a binary operator.
-class BinaryExprAST : public ExprAST {
-	
+class BinaryExprAST : public ReferencableExprAST {
+	// it's declared "Referencable" to allow "&b = &c = ..."
 public:
 	std::unique_ptr<ExprAST> LHS, RHS;
 	const char* err_msg = nullptr;
@@ -843,8 +848,7 @@ public:
 	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
 	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, unsigned, bool, OpClass,
 	              const char*> res_t = { llvm::Type::getVoidTy(Context), 0, false, OpDeclAssign, nullptr })
-		: ExprAST(std::get<0>(res_t), std::get<1>(res_t), Loc,
-		          std::get<2>(res_t)),
+		: ReferencableExprAST(std::get<0>(res_t), std::get<1>(res_t), Loc, std::get<2>(res_t)),
 		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t))
 		{
 			strlcpy(Op, _Op, SZ_OPCODE);
@@ -871,6 +875,8 @@ public:
 	llvm::Value* codegen_atomic_Xassign(llvm::Type* typ, llvm::Value* val);
 	llvm::Value* codegen_atomic_CmpExchange(llvm::Type* typ, llvm::Value* ptr);
 	llvm::Value* codegen_ternary(llvm::Value* target = nullptr);
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(
+		bool silent_fail = false, bool constref = false) override;
 	bool needs_target() override { return (opclass == OpAssign || opclass == OpModAssign) && LHS->ft && LHS->ft->type && LHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(LHS->ft->type) == 0; }
 	llvm::Value* alloc_size() override {
 		if (opclass == OpAssign || opclass == OpModAssign)
