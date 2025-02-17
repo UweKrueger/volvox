@@ -573,10 +573,15 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		auto field_ref = field_ref_ast->codegen_ref(silent_fail, constref);
 		if (!field_ref.second) {
 			if (silent_fail && field_ref.first)
-				return { a_type->getElementType(), nullptr };
+				return { llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)->getElementType(), nullptr };
 			errs() << Index->Loc << ": connot generate field reference\n";
 			return { nullptr, nullptr };
 		}
+		// field_ref_ast->codegen_ref() above has adjusted type by inserting const dimensions
+		// reget array type
+		a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type);
+		// and adjust our type accordingly
+		ft->type = a_type->getElementType();
 		llvm::Value* ElemSz = getAllocSize();
 		llvm::Value* _Idx = Index->codegen();
 		llvm::Value* Idx;

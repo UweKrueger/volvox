@@ -542,9 +542,9 @@ public:
 		{
 			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
 				llvm::Type* elem_type = array_type->getElementType();
-				if (elem_type == Field->ft->elem_type->type)
+				if (elem_type == Field->ft->elem_type->type) {
 					*ft = *Field->ft->elem_type;
-				else {
+				} else {
 					*ft = *Field->ft;
 					ft->type = elem_type;
 				}
