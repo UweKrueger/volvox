@@ -32,7 +32,7 @@ def test_forward_method_2 bool
 end
 
 global LtFgm := 3
-global LLorT := 2
+global LLorT := 5
 
 def test_array_reference_1 bool
 	a = [LtFgm][4][LLorT]real{ 1: { 3: { 2: -12.75 } } }

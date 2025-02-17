@@ -539,7 +539,6 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 	if (full_var->ft.type_attr & A_ptrref) {
 		if (true || V->getType()->isPointerTy()) {
 			auto the_ref = Builder->CreateLoad(storage_type, V);
-			errs() << Loc << ": reference loaded " << *the_ref << " - " << *full_var->ft.type << "\n";
 			return { full_var->ft.type, the_ref };
 		} else {
 			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(V->getType())) {

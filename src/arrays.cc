@@ -663,7 +663,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		for (int j = 0; j < n_var_dims; j++)
 			res = Builder->CreateInsertValue(res, Builder->CreateExtractValue(LV, j + num_dims_to_strip_from_val), j);
 		res = Builder->CreateInsertValue(res, Ptr, n_var_dims);
-		return { ml_elem_type, res };
+		return { ml_elem_type, res }; */
 	} else if (Field->ft->type == llvm_vec_type) {
 		llvm::Value* Idx;
 		llvm::Value* _Idx = Index->codegen();
@@ -673,12 +673,12 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			if (arr_ty->getNumElements() == 1) {
 				Idx = Builder->CreateExtractValue(_Idx, 0);
 				if (Idx->getType()->isIntegerTy())
-					goto idx_ok;
+					goto idx_ok_vec;
 			}
 		}
 		errs() << Index->Loc << ": invalid vec index\n";
 		return { nullptr, nullptr };
-	idx_ok:
+	idx_ok_vec:
 		llvm::Value* StructAdr = nullptr;
 		if (auto vec_struct_ref = dynamic_cast<LvalueExprAST*>(Field.get())) {
 			llvm::Type* v_ty;
@@ -702,7 +702,6 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		}
 		llvm::Value* vec_elem_ptr = Builder->CreateGEP(ft->type, ptr, Idx);
 		return { ft->type, vec_elem_ptr };
-		*/
 	} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
 		llvm::Value* Map = Field->codegen();
 		if (!Map)
