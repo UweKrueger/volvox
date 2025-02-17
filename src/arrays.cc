@@ -563,6 +563,70 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		return { nullptr, nullptr };
 	}
 	if (auto a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
+		auto field_ref_ast = dynamic_cast<ReferencableExprAST*>(Field.get());
+		if (!field_ref_ast) {
+			if (silent_fail)
+				return { a_type->getElementType(), nullptr };
+			errs() << Field->Loc << ": cannot generate index expression with non-referencable object\n";
+			return { nullptr, nullptr };
+		}
+		auto field_ref = field_ref_ast->codegen_ref(silent_fail, constref);
+		if (!field_ref.second) {
+			if (silent_fail && field_ref.first)
+				return { a_type->getElementType(), nullptr };
+			errs() << Index->Loc << ": connot generate field reference\n";
+			return { nullptr, nullptr };
+		}
+		llvm::Value* ElemSz = getAllocSize();
+		Index->desired_type = llvm_size_type;
+		llvm::Value* _Idx = Index->codegen();
+		llvm::Value* Idx;
+		if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Idx->getType())) {
+			if (arr_ty->getNumElements() == 1) {
+				Idx = Builder->CreateExtractValue(_Idx, 0);
+				if (Idx->getType()->isIntegerTy())
+					goto idx_ok;
+			}
+		}
+		errs() << Index->Loc << ": invalid vec index\n";
+		return { nullptr, nullptr };
+	idx_ok:
+		// TODO: range check
+		llvm::Value* Offset = Builder->CreateMul(Idx, ElemSz);
+		llvm::Value* Ptr;
+		unsigned n_struct_elem;
+		auto struct_ty = llvm::dyn_cast<llvm::StructType>(field_ref.second->getType());
+		if (struct_ty) {
+			n_struct_elem = struct_ty->getNumElements() - 1;
+			Ptr = Builder->CreateExtractValue(field_ref.second, n_struct_elem);
+		} else
+			Ptr = field_ref.second;
+		if (Ptr->getType() != llvm_ptr_type) {
+			errs() << Loc << ": internal error - cannot get array memory location\n";
+			return { nullptr, nullptr };
+		}
+		Ptr = Builder->CreateIntToPtr(
+			Builder->CreateAdd(
+				Builder->CreatePtrToInt(Ptr, llvm_size_type), Offset), llvm_ptr_type);
+		if (n_struct_elem > 1) {
+			// build new array reference descriptor
+			std::vector<llvm::Type*> array_struct_types(n_struct_elem, llvm_size_type);
+			array_struct_types[n_struct_elem-1] = llvm_ptr_type;
+			auto new_struct_ty = llvm::StructType::get(Context, array_struct_types);
+			llvm::Value* new_struct = llvm::UndefValue::get(new_struct_ty);
+			n_struct_elem++;
+			for (unsigned i=0; i<n_struct_elem; i++)
+				new_struct = Builder->CreateInsertValue(
+					new_struct, Builder->CreateExtractValue(field_ref.second, i+1), i);
+			new_struct = Builder->CreateInsertValue(new_struct, Ptr, n_struct_elem);
+			return { a_type->getElementType(), new_struct };
+		} else {
+			// just return memory address
+			return { a_type->getElementType(), Ptr };
+		}
+
+
+		/*
 		std::vector<llvm::Value*> Idxs;
 		llvm::Type* ml_field_type = nullptr;
 		auto LV = codegen_ref0(Idxs, ml_field_type);
@@ -637,43 +701,42 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		}
 		llvm::Value* vec_elem_ptr = Builder->CreateGEP(ft->type, ptr, Idx);
 		return { ft->type, vec_elem_ptr };
+		*/
 	} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
-		// if (Field->ft->type_attr & A_map) {
-			llvm::Value* Map = Field->codegen();
-			if (!Map)
-				return { nullptr, nullptr };
-			llvm::Value* Key;
-			llvm::Value* _Key = Index->codegen();
-			if (!_Key)
-				return { nullptr, nullptr };
-			if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Key->getType())) {
-				if (arr_ty->getNumElements() == 1) {
-					Key = Builder->CreateExtractValue(_Key, 0);
-					if (Key->getType()->isPointerTy())
-						goto key_ok;
-				}
-			}
-			errs() << Index->Loc << ": invalid map index\n";
+		llvm::Value* Map = Field->codegen();
+		if (!Map)
 			return { nullptr, nullptr };
+		llvm::Value* Key;
+		llvm::Value* _Key = Index->codegen();
+		if (!_Key)
+			return { nullptr, nullptr };
+		if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Key->getType())) {
+			if (arr_ty->getNumElements() == 1) {
+				Key = Builder->CreateExtractValue(_Key, 0);
+				if (Key->getType()->isPointerTy())
+					goto key_ok;
+			}
+		}
+		errs() << Index->Loc << ": invalid map index\n";
+		return { nullptr, nullptr };
 	key_ok:
-			const char* getter;
-			if (Field->ft->elem_type[0].type == llvm_ptr_type) // string key type
-				getter = "_ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc";
-			else {
-				errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
-				return { nullptr, nullptr };
-			}
-			PrototypeAST* getter_proto = (*lex.findProtos(std::string(getter)))[0].get();
-			if (!getter_proto) {
-				errs() << Loc << ": prototype " << getter << "() not found\n";
-				return { nullptr, nullptr };
-			}
-			auto getter_fn = getFunction(getter_proto);
-			auto value_wrapped = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
-			auto value = Builder->CreateExtractValue(value_wrapped, 0);
-			auto pointee_type = Field->ft->elem_type[1].type;
-			return { pointee_type, value };
-		// }
+		const char* getter;
+		if (Field->ft->elem_type[0].type == llvm_ptr_type) // string key type
+			getter = "_ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc";
+		else {
+			errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
+			return { nullptr, nullptr };
+		}
+		PrototypeAST* getter_proto = (*lex.findProtos(std::string(getter)))[0].get();
+		if (!getter_proto) {
+			errs() << Loc << ": prototype " << getter << "() not found\n";
+			return { nullptr, nullptr };
+		}
+		auto getter_fn = getFunction(getter_proto);
+		auto value_wrapped = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
+		auto value = Builder->CreateExtractValue(value_wrapped, 0);
+		auto pointee_type = Field->ft->elem_type[1].type;
+		return { pointee_type, value };
 	}
 	errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";
 	return { nullptr, nullptr };

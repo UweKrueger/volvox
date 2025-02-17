@@ -1266,3 +1266,86 @@ uint64_t get_ref_alloc_sz(llvm::Type* type) {
 	}
 	return sz;
 }
+
+std::vector<llvm::Value*> ReferencableExprAST::_getAllocSize() {
+	std::vector<llvm::Value*> factors;
+	if (auto array_ty = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
+		auto ty_ref = codegen_ref(false, true);
+		if (!ty_ref.second) {
+			if (ty_ref.first)
+				return factors;
+			else
+				goto failure;
+		}
+		unsigned dim_idx = 0;
+		llvm::Type* elem_ty;
+		auto struct_ty = llvm::dyn_cast<llvm::StructType>(ty_ref.second->getType());
+		do {
+			llvm::Value* NElem;
+			auto n_elem = array_ty->getNumElements();
+			elem_ty = array_ty->getElementType();
+			if (n_elem) {
+				NElem = getSize(n_elem);
+			} else {
+				if (!struct_ty)
+					goto failure;
+				NElem = Builder->CreateExtractValue(ty_ref.second, dim_idx++);
+				if (NElem->getType() != llvm_size_type)
+					goto failure;
+			}
+			factors.push_back(NElem);
+			array_ty = llvm::dyn_cast<llvm::ArrayType>(elem_ty);
+		} while (array_ty);
+		factors.push_back(getSize(TheModule->getDataLayout().getTypeAllocSize(elem_ty)));
+	} else {
+		if (ft->type->isSized())
+			factors.push_back(getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)));
+	}
+	return factors;
+failure:
+	errs() << Loc << ": internal error - inconsistent array reference\n";
+	factors.clear();
+	return factors;
+}
+
+llvm::Value* ReferencableExprAST::getAllocSize() {
+	auto sizes = _getAllocSize();
+	llvm::Value* const_factor = nullptr;
+	llvm::Value* var_factor = nullptr;
+	for (auto fact: sizes) {
+		// multiply size factors (multi-dimensional array)
+		// separate constant factors from variable factors for efficiency reasons
+		if (llvm::isa<llvm::Constant>(fact)) {
+			if (const_factor)
+				const_factor = Builder->CreateMul(const_factor, fact);
+			else
+				const_factor = fact;
+		} else {
+			if (var_factor)
+				var_factor = Builder->CreateMul(var_factor, fact);
+			else
+				var_factor = fact;
+		}
+	}
+	if (!const_factor)
+		return var_factor;
+	if (!var_factor)
+		return const_factor;
+	return Builder->CreateMul(const_factor, var_factor);
+}
+
+std::vector<llvm::Value*> IndexExprAST::_getAllocSize() {
+	std::vector<llvm::Value*> sizes;
+	if (auto field_array = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
+		if (auto ref_field = dynamic_cast<ReferencableExprAST*>(Field.get())) {
+			sizes = ref_field->_getAllocSize();
+			if (!sizes.empty())
+				sizes.erase(sizes.begin());
+			return sizes;
+		}
+		errs() << Loc << ": cannot get sizes of rvalue array\n";
+	}
+	if (ft->type->isSized())
+		sizes.push_back(getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)));
+	return sizes;
+}

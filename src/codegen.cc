@@ -531,14 +531,15 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 		V = full_var->val;
 		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
 		if (storage_type->isFunctionTy() || (ft->type_attr & A_ptrref))
-			storage_type = llvm_ptr_type;
+			storage_type = getReferenceType(ft->type).first;
 	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
 	if (full_var->ft.type_attr & A_ptrref) {
-		if (V->getType()->isPointerTy()) {
+		if (true || V->getType()->isPointerTy()) {
 			auto the_ref = Builder->CreateLoad(storage_type, V);
+			errs() << Loc << ": reference loaded " << *the_ref << " - " << *full_var->ft.type << "\n";
 			return { full_var->ft.type, the_ref };
 		} else {
 			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(V->getType())) {
@@ -1124,9 +1125,9 @@ llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& va
 static std::pair<llvm::Type*,llvm::Value*> GetReference(ExprAST* RHS, FullVar*& is_referencing) {
 	llvm::Value* Val = nullptr;
 	llvm::Type* type = nullptr;
-	if (auto refexpr = dynamic_cast<LvalueExprAST*>(RHS)) {
+	if (auto refexpr = dynamic_cast<ReferencableExprAST*>(RHS)) {
 		auto BaseVar = refexpr->getBase();
-		if (BaseVar->ft->type_attr & (A_global | A_const)) {
+		if (BaseVar && (BaseVar->ft->type_attr & (A_global | A_const))) {
 			errs() << BaseVar->Loc << ": cannot create reference to " << ((BaseVar->ft->type_attr & A_global) ? "global variable\n" : "constant\n");
 			return { nullptr, nullptr };
 		}
@@ -1274,7 +1275,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		needs_store = false;
 	} else {
 		if (LREF)
-			initializer = llvm::Constant::getNullValue(llvm_ptr_type);
+			initializer = llvm::Constant::getNullValue(Val->getType());
 		else if (allocsz > 0) {
 			initializer = llvm::Constant::getNullValue(expr->RHS->ft->type);
 		}
@@ -1830,8 +1831,8 @@ structural_err:
 	return nullptr;
 }
 
-// this method is only used if LHS if reference
-// it returns a reference to allow &c = &b = a
+// this method is only used if LHS a is reference
+// unless a new variable is declared it returns the old reference to allow &c = &b = a
 //
 std::pair<llvm::Type*,llvm::Value*> BinaryExprAST::codegen_ref_(bool silent_fail, bool constref) {
 	if (opclass == OpGlobalDeclAssign) {

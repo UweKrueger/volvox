@@ -453,6 +453,7 @@ extern std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type);
 extern volvoxc::FullType* getCommonType(std::vector<ExprAST*>& valid_exprs);
 extern volvoxc::FullType* getCommonType(std::vector<std::unique_ptr<ExprAST>>& valid_exprs);
+extern std::pair<llvm::Type*,llvm::Type*> getReferenceType(llvm::Type* nominal_type);
 extern llvm::Value* NoConversion(llvm::Value* v);
 extern const char* getThisExePath();
 extern const char* volvox_root();
@@ -1499,6 +1500,7 @@ public:
 	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
 		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
+	virtual llvm::Value* getAllocSize() { return getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)); }
 	// generate an llvm::Value* for this expression. 'target' may be:
 	// - a pointer value: in this case the generated value is directly stored and "void" is returned
 	// - (void*)0: the generated value is returned. Since it is not stored (e.g. to a variable) it is assumed that it's

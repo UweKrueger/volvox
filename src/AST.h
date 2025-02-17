@@ -212,6 +212,9 @@ public:
 		// return res;
 		return codegen_ref_(silent_fail, constref);
 	}
+	virtual std::vector<llvm::Value*> _getAllocSize();
+	virtual llvm::Value* getAllocSize() override;
+	virtual VariableExprAST* getBase() { return nullptr; }
 };
 
 // Expressions that can be the LHS of an assignment: `a = 1`, `b[3] = 4.5`, `s.a = 9`
@@ -228,7 +231,6 @@ public:
 	bool error_already_printed = false;
 	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	virtual VariableExprAST* getBase() { return nullptr; }
 	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
 		if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
 			return Builder->CreateLoad(ref.first, ref.second, Name.c_str());
@@ -527,7 +529,8 @@ extern std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<Ex
 
 // IndexExprAST - Expressions like x[2] or y["key"]
 class IndexExprAST : public LvalueExprAST {
-
+protected:
+	std::vector<llvm::Value*> _getAllocSize() override;
 public:
 	std::unique_ptr<ExprAST> Field, Index;
 	llvm::Type* ml_elem_type = nullptr;
@@ -543,13 +546,16 @@ public:
 					*ft = *Field->ft->elem_type;
 				else {
 					*ft = *Field->ft;
-					ft->type = array_type->getElementType();
+					ft->type = elem_type;
 				}
 				return;
 			} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
 				if (Field->ft->type_attr & A_map) {
 					ft = &Field->ft->elem_type[1];
 					return;
+				} else {
+					errs() << Loc << ": invalid index expression\n";
+					ft = nullptr;
 				}
 			} else if (Field->ft->type == llvm_vec_type) {
 				ft = Field->ft->elem_type;
