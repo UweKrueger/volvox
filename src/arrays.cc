@@ -578,14 +578,15 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			return { nullptr, nullptr };
 		}
 		llvm::Value* ElemSz = getAllocSize();
-		Index->desired_type = llvm_size_type;
 		llvm::Value* _Idx = Index->codegen();
 		llvm::Value* Idx;
 		if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Idx->getType())) {
 			if (arr_ty->getNumElements() == 1) {
 				Idx = Builder->CreateExtractValue(_Idx, 0);
 				if (Idx->getType()->isIntegerTy())
-					goto idx_ok;
+					if (Idx->getType() != llvm_size_type)
+						Idx = Builder->CreateIntCast(Idx, llvm_size_type, false);
+				goto idx_ok;
 			}
 		}
 		errs() << Index->Loc << ": invalid vec index\n";
@@ -594,7 +595,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		// TODO: range check
 		llvm::Value* Offset = Builder->CreateMul(Idx, ElemSz);
 		llvm::Value* Ptr;
-		unsigned n_struct_elem;
+		unsigned n_struct_elem = 0;
 		auto struct_ty = llvm::dyn_cast<llvm::StructType>(field_ref.second->getType());
 		if (struct_ty) {
 			n_struct_elem = struct_ty->getNumElements() - 1;
@@ -614,7 +615,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			array_struct_types[n_struct_elem-1] = llvm_ptr_type;
 			auto new_struct_ty = llvm::StructType::get(Context, array_struct_types);
 			llvm::Value* new_struct = llvm::UndefValue::get(new_struct_ty);
-			n_struct_elem++;
+			n_struct_elem--;
 			for (unsigned i=0; i<n_struct_elem; i++)
 				new_struct = Builder->CreateInsertValue(
 					new_struct, Builder->CreateExtractValue(field_ref.second, i+1), i);
