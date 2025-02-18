@@ -1267,11 +1267,15 @@ uint64_t get_ref_alloc_sz(llvm::Type* type) {
 	return sz;
 }
 
-std::vector<llvm::Value*> ReferencableExprAST::_getAllocSize() {
+std::vector<llvm::Value*> ReferencableExprAST::_getAllocSize(llvm::Type** el_ty) {
 	std::vector<llvm::Value*> factors;
+	int n = 0;
 	if (auto array_ty = llvm::dyn_cast<llvm::ArrayType>(ft->type)) {
 		auto ty_ref = codegen_ref(false, true);
+		// refresh type - constant dims might have been updated
+		array_ty = llvm::dyn_cast<llvm::ArrayType>(ft->type);
 		if (!ty_ref.second) {
+			n = 1;
 			if (ty_ref.first)
 				return factors;
 			else
@@ -1280,6 +1284,7 @@ std::vector<llvm::Value*> ReferencableExprAST::_getAllocSize() {
 		unsigned dim_idx = 0;
 		llvm::Type* elem_ty;
 		auto struct_ty = llvm::dyn_cast<llvm::StructType>(ty_ref.second->getType());
+		errs() << Loc << ": arr " << *array_ty << " - " << *ty_ref.second->getType() << "\n";
 		do {
 			llvm::Value* NElem;
 			auto n_elem = array_ty->getNumElements();
@@ -1287,29 +1292,41 @@ std::vector<llvm::Value*> ReferencableExprAST::_getAllocSize() {
 			if (n_elem) {
 				NElem = getSize(n_elem);
 			} else {
+				n = 2;
 				if (!struct_ty)
 					goto failure;
 				NElem = Builder->CreateExtractValue(ty_ref.second, dim_idx++);
+				n = 3;
 				if (NElem->getType() != llvm_size_type)
 					goto failure;
 			}
+			errs() << Loc << ": pushed " << *NElem << "\n";
 			factors.push_back(NElem);
 			array_ty = llvm::dyn_cast<llvm::ArrayType>(elem_ty);
 		} while (array_ty);
-		factors.push_back(getSize(TheModule->getDataLayout().getTypeAllocSize(elem_ty)));
+		if (el_ty) {
+			*el_ty = elem_ty;
+		} else {
+			llvm::Value* NElem = getSize(TheModule->getDataLayout().getTypeAllocSize(elem_ty));
+			factors.push_back(NElem);
+			errs() << Loc << ": final " << *NElem << "\n";
+			// factors.push_back(getSize(TheModule->getDataLayout().getTypeAllocSize(elem_ty)));
+		}
 	} else {
 		if (ft->type->isSized())
 			factors.push_back(getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)));
+		if (el_ty)
+			*el_ty = nullptr;
 	}
 	return factors;
 failure:
-	errs() << Loc << ": internal error - inconsistent array reference\n";
+	errs() << Loc << ": internal error " << n << " - inconsistent array reference\n";
 	factors.clear();
 	return factors;
 }
 
-llvm::Value* ReferencableExprAST::getAllocSize() {
-	auto sizes = _getAllocSize();
+llvm::Value* ReferencableExprAST::getAllocSize(llvm::Type** el_ty) {
+	auto sizes = _getAllocSize(el_ty);
 	llvm::Value* const_factor = nullptr;
 	llvm::Value* var_factor = nullptr;
 	for (auto fact: sizes) {
@@ -1334,11 +1351,11 @@ llvm::Value* ReferencableExprAST::getAllocSize() {
 	return Builder->CreateMul(const_factor, var_factor);
 }
 
-std::vector<llvm::Value*> IndexExprAST::_getAllocSize() {
+std::vector<llvm::Value*> IndexExprAST::_getAllocSize(llvm::Type** el_ty) {
 	std::vector<llvm::Value*> sizes;
 	if (auto field_array = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
 		if (auto ref_field = dynamic_cast<ReferencableExprAST*>(Field.get())) {
-			sizes = ref_field->_getAllocSize();
+			sizes = ref_field->_getAllocSize(el_ty);
 			if (!sizes.empty())
 				sizes.erase(sizes.begin());
 			return sizes;

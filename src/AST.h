@@ -212,8 +212,8 @@ public:
 		// return res;
 		return codegen_ref_(silent_fail, constref);
 	}
-	virtual std::vector<llvm::Value*> _getAllocSize();
-	virtual llvm::Value* getAllocSize() override;
+	virtual std::vector<llvm::Value*> _getAllocSize(llvm::Type** el_ty = nullptr);
+	virtual llvm::Value* getAllocSize(llvm::Type** el_ty = nullptr) override;
 	virtual VariableExprAST* getBase() { return nullptr; }
 };
 
@@ -529,8 +529,6 @@ extern std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<Ex
 
 // IndexExprAST - Expressions like x[2] or y["key"]
 class IndexExprAST : public LvalueExprAST {
-protected:
-	std::vector<llvm::Value*> _getAllocSize() override;
 public:
 	std::unique_ptr<ExprAST> Field, Index;
 	llvm::Type* ml_elem_type = nullptr;
@@ -570,6 +568,7 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type);
+	std::vector<llvm::Value*> _getAllocSize(llvm::Type** el_ty = nullptr) override;
 	VariableExprAST* getBase() override {
 		if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get()))
 			return lval->getBase();

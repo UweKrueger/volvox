@@ -1956,6 +1956,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			(LHSE->ft->type && LHSE->ft->type->isSized()) ?
 			TheModule->getDataLayout().getTypeAllocSize(LHSE->ft->type) :
 			0; // if size is compile time const
+		errs() << LHS->Loc << ": allocsz " << allocsz << "\n";
 		llvm::Value* Val = nullptr;
 		llvm::Value* ValPtr = nullptr;
 		llvm::Value* AllocSize = nullptr;
@@ -1998,6 +1999,15 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
 			if (!allocsz) {
 				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type)) {
+					AllocSize = RHS_Lval->getAllocSize(&elem_type);
+					errs() << Loc << ": AllocSize " << *AllocSize << " - " << *RHS_Lval->ft->type << " " << *ValR.second << "\n";
+					Struct = ValR.second;
+					el_allocsz = elem_type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(elem_type) : 0;
+					if (!el_allocsz) {
+						errs() << "array element type must be sized\n";
+						return nullptr;
+					}
+					/*
 					std::vector<llvm::Value*> Dims;
 					std::vector<llvm::Value*> returnDims;
 					Struct = ValR.second;
@@ -2010,6 +2020,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					AllocSize = getSize(1);
 					for (auto dim: Dims)
 						AllocSize = Builder->CreateMul(AllocSize, dim);
+					*/
 					if ((struct_type = llvm::dyn_cast<llvm::StructType>(ValR.second->getType())))
 						ValPtr = Builder->CreateExtractValue(ValR.second, struct_type->getNumElements() - 1);
 					else
@@ -2136,7 +2147,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		llvm::Type* type = RHS->ft->type;
-		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map);
+		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map | A_closure);
 		entry->ft.type = type;
 		entry->ft.type_attr |= attribs;
 		if (Val) {
@@ -2192,8 +2203,9 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
 				llvm::Value* cp_size = Builder->CreateMul(getSize(el_allocsz), AllocSize);
 				Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
-				if (Struct) {
-					auto strt = llvm::cast<llvm::StructType>(Struct->getType());
+				errs() << LHS->Loc << ": Struct: " << Struct << "\n";
+				llvm::StructType* strt;
+				if (Struct && (strt = llvm::dyn_cast<llvm::StructType>(Struct->getType()))) {
 					llvm::Value* Entry = llvm::UndefValue::get(strt);
 					unsigned ndim = strt->getNumElements() - 1;
 					for (unsigned i = 0; i < ndim; i++)
@@ -2202,6 +2214,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					entry->val = Entry;
 				} else {
 					entry->val = Alloca;
+					errs() << LHS->Loc << ": val: " << *Alloca << "\n";
 				}
 			}
 		} else if (allocsz > sret_limit || is_constructor_call) {

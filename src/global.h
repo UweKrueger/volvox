@@ -1500,7 +1500,7 @@ public:
 	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
 		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
-	virtual llvm::Value* getAllocSize() { return getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)); }
+	virtual llvm::Value* getAllocSize(llvm::Type** el_ty = nullptr) { return getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)); }
 	// generate an llvm::Value* for this expression. 'target' may be:
 	// - a pointer value: in this case the generated value is directly stored and "void" is returned
 	// - (void*)0: the generated value is returned. Since it is not stored (e.g. to a variable) it is assumed that it's
