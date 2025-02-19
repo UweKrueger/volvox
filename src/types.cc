@@ -909,6 +909,8 @@ std::pair<llvm::Type*,llvm::Type*> getReferenceType(llvm::Type* nominal_type) {
 		} else {
 			return { llvm_ptr_type, el_type };
 		}
+	} else if (nominal_type->isFunctionTy() || nominal_type == llvm_closure_type) {
+		return { llvm_ptr_type /*llvm_closure_type*/, nullptr };
 	} else {
 		return { llvm_ptr_type, nullptr };
 	}
@@ -1233,6 +1235,7 @@ volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr,
 	new_node->next = nullptr;
 	new_node->ft.type = type;
 	new_node->ft.type_attr = type_attr;
+	new_node->ft.selected_proto = 0;
 	new_node->ft.mangled_name = nullptr; // it's an anonymous type
 	new_node->ft.ditype = ditype;
 	new_node->ft.fields = fields;
@@ -1262,7 +1265,7 @@ uint64_t get_ref_alloc_sz(llvm::Type* type) {
 			arr = llvm::dyn_cast<llvm::ArrayType>(arr->getElementType());
 		} while(arr);
 	} else if (type->isFunctionTy()) {
-		sz += target_bytes;
+		sz += target_bytes; // sizeof(__closure)
 	}
 	return sz;
 }

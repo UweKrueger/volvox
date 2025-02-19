@@ -1802,7 +1802,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		if (!LHS || !LHS->ft)
 			return nullptr;
 		if (NextTokPrecedence() <= ExprPrec) {
-			if (LHS->ft->type && (LHS->ft->type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get())))
+			if (LHS->ft->type && (LHS->ft->type->isFunctionTy() ||
+			                      LHS->ft->type == llvm_closure_type || dynamic_cast<TypeExprAST*>(LHS.get())))
+				// function call without argument, e.g. "abort"
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 			return LHS;
 		}
@@ -1810,7 +1812,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		std::string BinOp = IdentifierStr;
 		SourceLocation BinLoc = CurLoc;
 		auto BinKind = CurTok.kind;
-		if (LHS->ft->type && (LHS->ft->type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
+		if (LHS->ft->type && (LHS->ft->type->isFunctionTy() ||
+		                      LHS->ft->type == llvm_closure_type || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			// make this a call expression even without '()' if the following if followed by a usual operand
 			// (';' and '\n' are handled above or below. The ',' case will need special handling if used inside LHS
 			// of decl-assign but this can only be done later when the '=' operator has been seen
@@ -1853,7 +1856,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		}
 		if (!RHS || !RHS->ft)
 			return nullptr;
-		if (RHS->ft->type && RHS->ft->type->isFunctionTy())
+		if (RHS->ft->type && (RHS->ft->type->isFunctionTy() || RHS->ft->type == llvm_closure_type))
+			// RHS of binary expression is function call without parameters, e.g. "x = f"
 			RHS = std::make_unique<CallExprAST>(RHS->Loc, std::move(RHS), std::vector<std::unique_ptr<ExprAST>>{});
 		// Merge LHS/RHS.
 		// save types befor objects are moved
@@ -1879,7 +1883,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			}
 			is_decl = (new_kind == new_var_created);
 			// TODO: store returned 'new_fv' instead of discarding here and re-evaluating in codegen.cc
-		} else if (LHS_type && (LHS_type->isFunctionTy() || dynamic_cast<TypeExprAST*>(LHS.get()))) {
+		} else if (LHS_type && (LHS_type->isFunctionTy()
+		                        || LHS_type == llvm_closure_type || dynamic_cast<TypeExprAST*>(LHS.get()))) {
 			if (BinOp[0] == '(' || BinOp[0] == '\0') {
 				auto Args = SplitExprList(std::move(RHS));
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::move(Args));

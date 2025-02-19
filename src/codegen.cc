@@ -537,22 +537,8 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 		KSDbgInfo.emitLocation(this);
 	}
 	if (full_var->ft.type_attr & A_ptrref) {
-		if (true || V->getType()->isPointerTy()) {
-			auto the_ref = Builder->CreateLoad(storage_type, V);
-			return { full_var->ft.type, the_ref };
-		} else {
-			if (auto struct_type = llvm::dyn_cast<llvm::StructType>(V->getType())) {
-				unsigned max_el = struct_type->getNumElements() - 1;
-				llvm::Value* val = llvm::UndefValue::get(struct_type);
-				for (unsigned i=0; i<max_el; i++)
-					val = Builder->CreateInsertValue(val, Builder->CreateExtractValue(V, i), i);
-				llvm::Value* ptr = Builder->CreateLoad(struct_type->getElementType(max_el), Builder->CreatePointerCast(Builder->CreateExtractValue(V, max_el), struct_type->getElementType(max_el)));
-				V = Builder->CreateInsertValue(val, ptr, max_el);
-			} else {
-				errs() << Loc << ": internal error - multi level array reference inconsistent\n";
-				return { nullptr, nullptr };
-			}
-		}
+		auto the_ref = Builder->CreateLoad(storage_type, V);
+		return { full_var->ft.type, the_ref };
 	}
 	return { storage_type, V };
 }
@@ -1251,12 +1237,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex | A_thread) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor | A_thread));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
-	// if (rhs_is_constexpr && !Val) {
-	// 	errs() << expr->RHS->Loc << ": generating value for const expr\n";
-	// 	Val = expr->RHS->codegen(true);
-	// }
-	// if (rhs_is_constexpr && !Val)
-	// 	errs() << expr->RHS->Loc << ": no value for const expr\n";
 	if (Val) {
 		if (rhs_is_constexpr || (jit_repl && expr->RHS->ft->type->isFunctionTy())) {
 			initializer = llvm::dyn_cast<llvm::Constant>(Val);
@@ -1264,6 +1244,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				errs() << expr->RHS->Loc << ": initialization with ':=' requires a compile time const on the RHS\n";
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 			}
+			// TODO: handle closures
+			if (false && jit_repl && expr->RHS->ft->type->isFunctionTy())
+				errs() << expr->RHS->Loc << ": got function reference " << *initializer << "\n";
 		}
 	} else if (!use_target && !initialization_from_main && !dynamic_cast<LvalueExprAST*>(expr->RHS.get())) {
 		errs() << expr->Loc << ": cannot generate code for RHS\n";
@@ -3955,7 +3938,7 @@ llvm::Value* get_type_alloc_size(llvm::Type* t) {
 	if (t->isVoidTy())
 		return getSize(0);
 	if (t->isFunctionTy())
-		return getSize(target_bytes);
+		return getSize(2 * target_bytes); // sizeof(__closure)
 	if (t->isSized()) {
 		uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(t);
 		if (sz)
@@ -4017,7 +4000,7 @@ std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> LvalueExprAST:
 std::tuple<llvm::Value*,llvm::Value*,unsigned> ExprAST::alloc_dims() {
 	llvm::Value* Sz = nullptr;
 	if (ft->type->isFunctionTy())
-		Sz = getSize(target_bytes);
+		Sz = getSize(2 * target_bytes); // sizeof(__closure)
 	else if (ft->type->isSized()) {
 		uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(ft->type);
 		if (sz)
