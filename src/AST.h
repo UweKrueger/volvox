@@ -562,12 +562,8 @@ public:
 			errs() << Index->Loc << ": index for non array expression " << *Field->ft << ' ' << Field->ft->type_attr << "\n";
 			ft->type = nullptr;
 		}
-	std::tuple<uint64_t,llvm::Value*,llvm::Value*> getMLIdxOffset(
-		llvm::Type* elem_type, std::vector<llvm::Value*>& Idxs,
-		llvm::Value* Dims, int idx_idx, int dim_idx);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
-	llvm::Value* codegen_ref0(std::vector<llvm::Value*>& Idxs, llvm::Type*& ml_field_type);
 	std::vector<llvm::Value*> _getAllocSize(llvm::Type** el_ty = nullptr) override;
 	VariableExprAST* getBase() override {
 		if (auto lval = dynamic_cast<LvalueExprAST*>(Field.get()))
