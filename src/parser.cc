@@ -1403,7 +1403,11 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 							return { nullptr, new_var_none };
 						}
 						*RHS = std::make_unique<FunctionExprAST>(call_expr);
-						RHS_type = (*RHS)->ft ? (*RHS)->ft->type : nullptr;
+						if (!(*RHS)->ft) {
+							errs() << (*RHS)->Loc << ": unable to get function reference\n";
+							return { nullptr, new_var_none };
+						}
+						RHS_type = (*RHS)->ft->type;
 						RHS_attr = 0;
 						RHS_is_unknown_type = false;
 						LHS = std::move(RefL->Operand);

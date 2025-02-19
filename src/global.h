@@ -321,8 +321,10 @@ namespace volvoxc {
 
 	class FullType {
 	public:
-		llvm::Type* type = nullptr; // used by compiler
+		llvm::Type* type = nullptr; // allocation type as used by compiler LLVM backend
+		                            // but can be e.g. [][7][]real for runtime-sized arrays
 		unsigned type_attr = 0; // signed, atomic, shared, iso, ref, num_indices
+		unsigned selected_proto = 0; // for function types
 		const char* mangled_name = nullptr; // maybe NULL for anonymous types
 		llvm::DIType* ditype = nullptr;
 		MapNode* fields = nullptr;     // for structs

@@ -354,7 +354,7 @@ do_analyze:
 		if (!type_expr)
 			ft = Proto->RetType;
 		if (functionexpr)
-			functionexpr->selected_proto = selected_proto;
+			functionexpr->ft->selected_proto = selected_proto;
 	}
 }
 
@@ -728,10 +728,10 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 }
 
 llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
-	if (auto F = TheModule->getFunction((*ft->Protos)[selected_proto]->Name)) {
+	if (auto F = TheModule->getFunction((*ft->Protos)[ft->selected_proto]->Name)) {
 		return handle(target, F);
 	}
-	return handle(target, (*ft->Protos)[selected_proto]->codegen(need_address));
+	return handle(target, (*ft->Protos)[ft->selected_proto]->codegen(need_address));
 }
 
 llvm::Value* PrototypeAST::codegen(bool need_address) {

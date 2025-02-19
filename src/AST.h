@@ -392,11 +392,11 @@ public:
 	std::unique_ptr<ExprAST> Exponent = nullptr;
 	std::unique_ptr<FunctionAST> Func = nullptr;
 	std::string Name;
-	int selected_proto = 0; // should be set by call expr
 	bool need_address = false; // for JIT repl - trigger codegen if function reference is desired
 	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos, int selected_proto = 0)
-		: ExprAST(Loc), Name(Name), selected_proto(selected_proto) {
+		: ExprAST(Loc), Name(Name) {
 		ft = new_FullType((*Protos)[selected_proto]->FT, 0);
+		ft->selected_proto = selected_proto;
 		ft->Protos = Protos;
 	}
 	// function references are created by a pseudo call expression (to be able to match the signature)
