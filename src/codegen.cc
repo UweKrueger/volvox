@@ -1991,6 +1991,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			// update allocsz in case codegen_ref() has revealed a fixed compile time size
+			errs() << Loc << ": Left: " << *LHS->ft->type << " Right: " << *RHS->ft->type << " ValR: " << *ValR.second << "\n";
 			if (LREF) {
 				is_referencing = RHS_Lval->getBase()->full_var;
 				rname = &RHS_Lval->getBase()->Name;

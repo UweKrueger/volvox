@@ -577,6 +577,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			errs() << Index->Loc << ": connot generate field reference\n";
 			return { nullptr, nullptr };
 		}
+		errs() << Loc << ": #### got ref " << *field_ref.second << "\n";
 		// field_ref_ast->codegen_ref() above has adjusted type by inserting const dimensions
 		// reget array type
 		a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type);
@@ -603,8 +604,8 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		unsigned n_struct_elem = 0;
 		auto struct_ty = llvm::dyn_cast<llvm::StructType>(field_ref.second->getType());
 		if (struct_ty) {
-			n_struct_elem = struct_ty->getNumElements() - 1;
-			Ptr = Builder->CreateExtractValue(field_ref.second, n_struct_elem);
+			n_struct_elem = struct_ty->getNumElements();
+			Ptr = Builder->CreateExtractValue(field_ref.second, n_struct_elem - 1);
 		} else
 			Ptr = field_ref.second;
 		if (Ptr->getType() != llvm_ptr_type) {
@@ -614,23 +615,36 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		Ptr = Builder->CreateIntToPtr(
 			Builder->CreateAdd(
 				Builder->CreatePtrToInt(Ptr, llvm_size_type), Offset), llvm_ptr_type);
-		if (n_struct_elem > 1) {
+		llvm::Type* new_struct_ty;
+		unsigned struct_offs;
+		if (!n_struct_elem)
+			return { a_type->getElementType(), Ptr };
+		if (a_type->getNumElements()) {
+			// kepp dims from old ref but replace Ptr
+			new_struct_ty = field_ref.second->getType();
+			struct_offs = 0;
+		} else {
+			n_struct_elem--;
+			struct_offs = 1;
+			if (n_struct_elem <= 1) {
+				if (!n_struct_elem) {
+					errs() << Loc << ": internal error - inconsistent array reference\n";
+					return { nullptr, nullptr };
+				}
+				return { a_type->getElementType(), Ptr };
+			}
 			// build new array reference descriptor
 			std::vector<llvm::Type*> array_struct_types(n_struct_elem, llvm_size_type);
 			array_struct_types[n_struct_elem-1] = llvm_ptr_type;
-			auto new_struct_ty = llvm::StructType::get(Context, array_struct_types);
-			llvm::Value* new_struct = llvm::UndefValue::get(new_struct_ty);
-			n_struct_elem--;
-			for (unsigned i=0; i<n_struct_elem; i++)
-				new_struct = Builder->CreateInsertValue(
-					new_struct, Builder->CreateExtractValue(field_ref.second, i+1), i);
-			new_struct = Builder->CreateInsertValue(new_struct, Ptr, n_struct_elem);
-			return { a_type->getElementType(), new_struct };
-		} else {
-			// just return memory address
-			return { a_type->getElementType(), Ptr };
+			new_struct_ty = llvm::StructType::get(Context, array_struct_types);
 		}
-
+		llvm::Value* new_struct = llvm::UndefValue::get(new_struct_ty);
+		n_struct_elem--;
+		for (unsigned i=0; i<n_struct_elem; i++)
+			new_struct = Builder->CreateInsertValue(
+				new_struct, Builder->CreateExtractValue(field_ref.second, i + struct_offs), i);
+		new_struct = Builder->CreateInsertValue(new_struct, Ptr, n_struct_elem);
+		return { a_type->getElementType(), new_struct };
 
 		/*
 		std::vector<llvm::Value*> Idxs;
