@@ -577,7 +577,6 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			errs() << Index->Loc << ": connot generate field reference\n";
 			return { nullptr, nullptr };
 		}
-		errs() << Loc << ": #### got ref " << *field_ref.second << "\n";
 		// field_ref_ast->codegen_ref() above has adjusted type by inserting const dimensions
 		// reget array type
 		a_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type);
@@ -645,44 +644,6 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 				new_struct, Builder->CreateExtractValue(field_ref.second, i + struct_offs), i);
 		new_struct = Builder->CreateInsertValue(new_struct, Ptr, n_struct_elem);
 		return { a_type->getElementType(), new_struct };
-
-		/*
-		std::vector<llvm::Value*> Idxs;
-		llvm::Type* ml_field_type = nullptr;
-		auto LV = codegen_ref0(Idxs, ml_field_type);
-		if (!LV) {
-			if (!silent_fail)
-				errs() << "LHS of index expression must be an lvalue\n";
-			return { Field->ft->type, nullptr };
-		}
-		auto OffsetDescr = getMLIdxOffset(ml_field_type, Idxs, LV, 0, 0);
-		auto offset = std::get<2>(OffsetDescr);
-		llvm::Value* Ptr;
-		int n_var_dims;
-		if (LV->getType()->isPointerTy()) {
-			Ptr = LV;
-			n_var_dims = 0;
-		} else if (auto struct_type = llvm::dyn_cast<llvm::StructType>(LV->getType())) {
-			Ptr = Builder->CreateExtractValue(LV, struct_type->getNumElements() - 1);
-			n_var_dims = struct_type->getNumElements() - 1 - num_dims_to_strip_from_val;
-		} else {
-			errs() << "internal error\n";
-			abort();
-		}
-		if (offset)
-			Ptr = Builder->CreateIntToPtr(Builder->CreateAdd(Builder->CreatePtrToInt(Ptr, llvm_size_type), offset), llvm_ptr_type);
-		else
-			Ptr = Builder->CreatePointerCast(Ptr, llvm_ptr_type);
-		if (!n_var_dims)
-			return { ml_elem_type, Ptr };
-		std::vector<llvm::Type*> new_struct_el(n_var_dims + 1, llvm_size_type);
-		new_struct_el[n_var_dims] = Ptr->getType();
-		llvm::Type* new_struct_type = llvm::StructType::get(Context, new_struct_el);
-		llvm::Value* res = llvm::UndefValue::get(new_struct_type);
-		for (int j = 0; j < n_var_dims; j++)
-			res = Builder->CreateInsertValue(res, Builder->CreateExtractValue(LV, j + num_dims_to_strip_from_val), j);
-		res = Builder->CreateInsertValue(res, Ptr, n_var_dims);
-		return { ml_elem_type, res }; */
 	} else if (Field->ft->type == llvm_vec_type) {
 		llvm::Value* Idx;
 		llvm::Value* _Idx = Index->codegen();
@@ -713,7 +674,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		} else {
 			llvm::Value* the_struct = Field->codegen();
 			if (!the_struct) {
-				errs() << Field->Loc << ": cannot generte field expression\n";
+				errs() << Field->Loc << ": cannot generate field expression\n";
 				return { nullptr, nullptr };
 			}
 			ptr = Builder->CreateExtractValue(the_struct, 0);

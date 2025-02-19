@@ -1284,7 +1284,6 @@ std::vector<llvm::Value*> ReferencableExprAST::_getAllocSize(llvm::Type** el_ty)
 		unsigned dim_idx = 0;
 		llvm::Type* elem_ty;
 		auto struct_ty = llvm::dyn_cast<llvm::StructType>(ty_ref.second->getType());
-		errs() << Loc << ": arr " << *array_ty << " - " << *ty_ref.second->getType() << "\n";
 		do {
 			llvm::Value* NElem;
 			auto n_elem = array_ty->getNumElements();
@@ -1300,7 +1299,6 @@ std::vector<llvm::Value*> ReferencableExprAST::_getAllocSize(llvm::Type** el_ty)
 				if (NElem->getType() != llvm_size_type)
 					goto failure;
 			}
-			errs() << Loc << ": pushed " << *NElem << "\n";
 			factors.push_back(NElem);
 			array_ty = llvm::dyn_cast<llvm::ArrayType>(elem_ty);
 		} while (array_ty);
@@ -1309,8 +1307,6 @@ std::vector<llvm::Value*> ReferencableExprAST::_getAllocSize(llvm::Type** el_ty)
 		} else {
 			llvm::Value* NElem = getSize(TheModule->getDataLayout().getTypeAllocSize(elem_ty));
 			factors.push_back(NElem);
-			errs() << Loc << ": final " << *NElem << "\n";
-			// factors.push_back(getSize(TheModule->getDataLayout().getTypeAllocSize(elem_ty)));
 		}
 	} else {
 		if (ft->type->isSized())

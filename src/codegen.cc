@@ -1956,7 +1956,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			(LHSE->ft->type && LHSE->ft->type->isSized()) ?
 			TheModule->getDataLayout().getTypeAllocSize(LHSE->ft->type) :
 			0; // if size is compile time const
-		errs() << LHS->Loc << ": allocsz " << allocsz << "\n";
 		llvm::Value* Val = nullptr;
 		llvm::Value* ValPtr = nullptr;
 		llvm::Value* AllocSize = nullptr;
@@ -1991,7 +1990,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			// update allocsz in case codegen_ref() has revealed a fixed compile time size
-			errs() << Loc << ": Left: " << *LHS->ft->type << " Right: " << *RHS->ft->type << " ValR: " << *ValR.second << "\n";
 			if (LREF) {
 				is_referencing = RHS_Lval->getBase()->full_var;
 				rname = &RHS_Lval->getBase()->Name;
@@ -2001,27 +1999,12 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (!allocsz) {
 				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type)) {
 					AllocSize = RHS_Lval->getAllocSize(&elem_type);
-					errs() << Loc << ": AllocSize " << *AllocSize << " - " << *RHS_Lval->ft->type << " " << *ValR.second << "\n";
 					Struct = ValR.second;
 					el_allocsz = elem_type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(elem_type) : 0;
 					if (!el_allocsz) {
 						errs() << "array element type must be sized\n";
 						return nullptr;
 					}
-					/*
-					std::vector<llvm::Value*> Dims;
-					std::vector<llvm::Value*> returnDims;
-					Struct = ValR.second;
-					elem_type = getArrayDims(ValR.second, array_type, Dims, returnDims);
-					el_allocsz = elem_type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(elem_type) : 0;
-					if (!el_allocsz) {
-						errs() << "array element type must be sized\n";
-						return nullptr;
-					}
-					AllocSize = getSize(1);
-					for (auto dim: Dims)
-						AllocSize = Builder->CreateMul(AllocSize, dim);
-					*/
 					if ((struct_type = llvm::dyn_cast<llvm::StructType>(ValR.second->getType())))
 						ValPtr = Builder->CreateExtractValue(ValR.second, struct_type->getNumElements() - 1);
 					else
@@ -2204,7 +2187,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
 				llvm::Value* cp_size = Builder->CreateMul(getSize(el_allocsz), AllocSize);
 				Builder->CreateMemCpy(Alloca, align, ValPtr, align, cp_size);
-				errs() << LHS->Loc << ": Struct: " << Struct << "\n";
 				llvm::StructType* strt;
 				if (Struct && (strt = llvm::dyn_cast<llvm::StructType>(Struct->getType()))) {
 					llvm::Value* Entry = llvm::UndefValue::get(strt);
