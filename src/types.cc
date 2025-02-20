@@ -910,7 +910,7 @@ std::pair<llvm::Type*,llvm::Type*> getReferenceType(llvm::Type* nominal_type) {
 			return { llvm_ptr_type, el_type };
 		}
 	} else if (nominal_type->isFunctionTy() || nominal_type == llvm_closure_type) {
-		return { llvm_ptr_type /*llvm_closure_type*/, nullptr };
+		return { /* llvm_ptr_type */ llvm_closure_type, nullptr };
 	} else {
 		return { llvm_ptr_type, nullptr };
 	}

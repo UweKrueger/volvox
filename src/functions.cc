@@ -1303,7 +1303,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		if (auto closure_ty = llvm::dyn_cast<llvm::StructType>(theFunction->getType())) {
 			// closure: pointer pair - function pointer and pointer to captured variables
 			llvm::Value* closure_fn_ptr = Builder->CreateExtractValue(theFunction, 0);
-			llvm::Value* captures_ptr = Builder->CreateExtractValue(theFunction, 1);
+			llvm::Value* captures_ptr = llvm::ConstantPointerNull::get(llvm_ptr_type);//Builder->CreateExtractValue(theFunction, 1);
 			auto ArgsV_closure = ArgsV;
 			ArgsV_closure.insert(ArgsV_closure.begin(), captures_ptr);
 			std::vector<llvm::Type*> closure_args;
@@ -1326,7 +1326,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			Builder->CreateCondBr(IsSimple, callBB_simple, callBB_closure);
 			TheFunction->insert(TheFunction->end(), callBB_simple);
 			Builder->SetInsertPoint(callBB_simple);
-			llvm::Value* simpleRes = Builder->CreateCall(FT, theFunction, std::move(ArgsV));
+			llvm::Value* simpleRes = Builder->CreateCall(FT, closure_fn_ptr, std::move(ArgsV));
 			Builder->CreateBr(contBB);
 			TheFunction->insert(TheFunction->end(), callBB_closure);
 			Builder->SetInsertPoint(callBB_closure);
@@ -1334,6 +1334,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			Builder->CreateBr(contBB);
 			TheFunction->insert(TheFunction->end(), contBB);
 			Builder->SetInsertPoint(contBB);
+			if (ret_ty->isVoidTy())
+				return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 			llvm::PHINode* PN = Builder->CreatePHI(ret_ty, 2, "closure_ret");
 			PN->addIncoming(simpleRes, callBB_simple);
 			PN->addIncoming(closureRes, callBB_closure);
