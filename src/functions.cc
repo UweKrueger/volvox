@@ -734,6 +734,15 @@ llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 	return handle(target, (*ft->Protos)[ft->selected_proto]->codegen(need_address));
 }
 
+std::pair<llvm::Type*,llvm::Value*> FunctionExprAST::codegen_ref_(bool silent_fail, bool constref) {
+	auto the_func = codegen_raw();
+	auto ref_struct_ty = llvm::cast<llvm::StructType>(llvm_closure_type);
+	llvm::Value* ref_val = llvm::UndefValue::get(ref_struct_ty);
+	ref_val = Builder->CreateInsertValue(ref_val, the_func, 0);
+	ref_val = Builder->CreateInsertValue(ref_val, llvm::ConstantPointerNull::get(llvm_ptr_type), 1);
+	return { the_func->getType(), ref_val };
+}
+
 llvm::Value* PrototypeAST::codegen(bool need_address) {
 	if (need_address && !inside_function && jit_repl) {
 		// force JIT engine to generate code
@@ -1303,7 +1312,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		if (auto closure_ty = llvm::dyn_cast<llvm::StructType>(theFunction->getType())) {
 			// closure: pointer pair - function pointer and pointer to captured variables
 			llvm::Value* closure_fn_ptr = Builder->CreateExtractValue(theFunction, 0);
-			llvm::Value* captures_ptr = llvm::ConstantPointerNull::get(llvm_ptr_type);//Builder->CreateExtractValue(theFunction, 1);
+			llvm::Value* captures_ptr = Builder->CreateExtractValue(theFunction, 1);
 			auto ArgsV_closure = ArgsV;
 			ArgsV_closure.insert(ArgsV_closure.begin(), captures_ptr);
 			std::vector<llvm::Type*> closure_args;

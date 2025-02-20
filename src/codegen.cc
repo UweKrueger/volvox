@@ -1866,7 +1866,9 @@ std::pair<llvm::Type*,llvm::Value*> BinaryExprAST::codegen_ref_(bool silent_fail
 			return { full_var->ft.type, old_ref };
 		}
 	} else {
-		errs() << RHS->Loc << ": RHS is not referencable\n";
+		errs() << RHS->Loc << ": RHS is not referencable"
+			// << " (" << typeid(*RHS).name() << ") "
+		       << "\n";
 		return { nullptr, nullptr };
 	}
 }

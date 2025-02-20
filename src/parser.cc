@@ -1410,12 +1410,12 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 						RHS_type = (*RHS)->ft->type;
 						RHS_attr = 0;
 						RHS_is_unknown_type = false;
-						LHS = std::move(RefL->Operand);
-						RefL = nullptr;
+						// LHS = std::move(RefL->Operand);
+						// RefL = nullptr;
 						LHS_type = LHS->ft ? LHS->ft->type : nullptr;
 						LHS_attr = LHS->ft ? LHS->ft->type_attr : 0;
 						LHS_is_unknown_type = LHS->is_unknown_type;
-						VarL = dynamic_cast<VariableExprAST*>(LHS.get());
+						VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get());
 					}
 				}
 			}

@@ -191,6 +191,8 @@ public:
 	ReferencableExprAST(llvm::Type* type = llvm::Type::getVoidTy(Context), unsigned type_attr = 0,
 	                    SourceLocation Loc = CurLoc, bool is_unknown_type = false)
 		: ExprAST(type, type_attr, Loc, is_unknown_type) {}
+	ReferencableExprAST(const ExprAST& callee, std::string Name = "")
+		: ExprAST(callee), Name(std::move(Name)) {}
 	// get a reference to the value
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
@@ -386,32 +388,32 @@ public:
 };
 
 /// FunctionExprAST - classic named functions (not function pointers)
-class FunctionExprAST : public ExprAST {
+class FunctionExprAST : public ReferencableExprAST {
 
 public:
 	std::unique_ptr<ExprAST> Exponent = nullptr;
 	std::unique_ptr<FunctionAST> Func = nullptr;
-	std::string Name;
 	bool need_address = false; // for JIT repl - trigger codegen if function reference is desired
 	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos, int selected_proto = 0)
-		: ExprAST(Loc), Name(Name) {
+		: ReferencableExprAST(Loc, Name) {
 		ft = new_FullType((*Protos)[selected_proto]->FT, 0);
 		ft->selected_proto = selected_proto;
 		ft->Protos = Protos;
 	}
 	// function references are created by a pseudo call expression (to be able to match the signature)
 	FunctionExprAST(CallExprAST* call)
-		: ExprAST(*call->Callee), Name(call->Proto->Name), need_address(true) {
+		: ReferencableExprAST(*call->Callee, call->Proto->Name), need_address(true) {
 		ft = new_FullType(call->Proto->FT, 0);
 		ft->Protos = new_AnonProto(call->Proto, call->Loc);
 	}
 	FunctionExprAST(SourceLocation Loc, std::unique_ptr<FunctionAST> _Func)
-		: ExprAST(Loc), Func(std::move(_Func)), Name(Func->Proto->Name) {
+		: ReferencableExprAST(Loc, _Func->Proto->Name), Func(std::move(_Func)) {
 		ft = new_FullType(Func->Proto->FT, 0);
 		ft->Protos = new_AnonProto(Func->Proto, Loc);
 	}
 	const std::string &getName() const { return Name; }
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail, bool constref) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);
