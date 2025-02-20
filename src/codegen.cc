@@ -1120,7 +1120,8 @@ static std::pair<llvm::Type*,llvm::Value*> GetReference(ExprAST* RHS, FullVar*& 
 		Val = t_v.second;
 		if (Val) {
 			type = t_v.first;
-			is_referencing = BaseVar->full_var;
+			if (BaseVar)
+				is_referencing = BaseVar->full_var;
 		}
 	}
 	if (!Val)

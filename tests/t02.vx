@@ -55,13 +55,13 @@ def fplmm f64
 	return 12.0625
 end
 
-# &qjkq3r = fplmm
+&qjkq3r = fplmm
 
-# global pqb5t = qjkq3r
+global pqb5t = qjkq3r
 
-# def test_function_reference_2 bool
-# 	return pqb5t == 12.0625
-# end
+def test_function_reference_2 bool
+	return pqb5t == 12.0625
+end
 
 def v [5]i32
 	p = [3, 8, -17, 123, -1074]
