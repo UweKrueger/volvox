@@ -1803,7 +1803,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			return nullptr;
 		if (NextTokPrecedence() <= ExprPrec) {
 			if (LHS->ft->type && (LHS->ft->type->isFunctionTy() ||
-			                      LHS->ft->type == llvm_closure_type || dynamic_cast<TypeExprAST*>(LHS.get())))
+			                      LHS->ft->type == llvm_closure_type || dynamic_cast<TypeExprAST*>(LHS.get())) && (ExprPrec >> 8) != -(int)tok_ref)
 				// function call without argument, e.g. "abort"
 				LHS = std::make_unique<CallExprAST>(LHS->Loc, std::move(LHS), std::vector<std::unique_ptr<ExprAST>>{});
 			return LHS;
