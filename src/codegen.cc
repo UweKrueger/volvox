@@ -1937,9 +1937,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (opclass != OpDeclAssign && opclass != OpGlobalDeclAssign)
 			RHS->desired_type = LHSE->ft->type;
 		// Codegen the RHS.
-		uint64_t allocsz = LREF ?
-			get_ref_alloc_sz(LHSE->ft->type) :
-			(LHSE->ft->type && LHSE->ft->type->isSized()) ?
+		uint64_t allocsz = (LHSE->ft->type && LHSE->ft->type->isSized()) ?
 			TheModule->getDataLayout().getTypeAllocSize(LHSE->ft->type) :
 			0; // if size is compile time const
 		llvm::Value* Val = nullptr;
@@ -1965,23 +1963,15 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		           dynamic_cast<BranchExprAST*>(RHS.get())) {
 				is_call_expr = true;
 		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
-			auto ValR = RHS_Lval->codegen_ref(true, !LREF);
+			auto ValR = RHS_Lval->codegen_ref(true, true);
 			if (!ValR.second) {
-				if (LREF) {
-					errs() << RHS->Loc << ": reference requires lvalue for initialization\n";
-				}
 				if (ValR.first)
 					goto use_val;
 				errs() << RHS->Loc << ": unable to generate code for RHS of assignment\n";
 				return nullptr;
 			}
 			// update allocsz in case codegen_ref() has revealed a fixed compile time size
-			if (LREF) {
-				is_referencing = RHS_Lval->getBase()->full_var;
-				rname = &RHS_Lval->getBase()->Name;
-			}
-			else
-				allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
+			allocsz = RHS_Lval->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(RHS_Lval->ft->type) : 0;
 			if (!allocsz) {
 				if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(RHS_Lval->ft->type)) {
 					AllocSize = RHS_Lval->getAllocSize(&elem_type);
@@ -2000,7 +1990,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 				}
 			} else {
-				if (!LREF && allocsz <= sret_limit && !is_constructor_call) {
+				if (allocsz <= sret_limit && !is_constructor_call) {
 					Val = RHS_Lval->ref2val(ValR);
 					if (!Val)
 						goto use_val;;
@@ -2009,11 +1999,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					ValPtr = ValR.second;
 			}
 			goto have_val_or_valptr;
-		} else {
-			if (LREF) {
-				errs() << RHS->Loc << ": reference requires lvalue for initialization\n";
-				return nullptr;
-			}
 		}
 	use_val:
 		if (allocsz <= sret_limit && !is_constructor_call) {
@@ -2030,7 +2015,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	have_val_or_valptr:
 		// Look up the name.
-		ExprAST* MaybeVar = LREF ? LREF->Operand.get() : LHS.get();
+		ExprAST* MaybeVar = LHS.get();
 		if (auto RegularVar = dynamic_cast<VariableExprAST*>(MaybeVar)) {
 			varname = RegularVar->getName().c_str();
 			FullVar* full_var = RegularVar->full_var;
@@ -2138,36 +2123,10 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		} else if (ValPtr) {
 			if (allocsz) {
 				llvm::AllocaInst* Alloca;
-				if (LREF) {
-					entry->ft.type_attr |= A_ptrref;
-					auto align = TheModule->getDataLayout().getPrefTypeAlign(ValPtr->getType());
-					Alloca = Builder->CreateAlloca(ValPtr->getType(), nullptr, varname);
-					entry->mark_as_referencing(is_referencing);
-					if (ValPtr->getType()->isPointerTy()) {
-						Builder->CreateAlignedStore(ValPtr, Alloca, align);
-						entry->val = Alloca;
-					} else {
-						if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ValPtr->getType())) {
-							unsigned max_el = struct_type->getNumElements() - 1;
-							llvm::Value* val = llvm::UndefValue::get(struct_type);
-							for (unsigned i=0; i<max_el; i++)
-								val = Builder->CreateInsertValue(val, Builder->CreateExtractValue(ValPtr, i), i);
-							Builder->CreateAlignedStore(Builder->CreateExtractValue(ValPtr, max_el), Alloca, align);
-							val = Builder->CreateInsertValue(
-								val, Builder->CreatePointerCast(
-									Alloca, struct_type->getElementType(max_el)), max_el);
-							entry->val = val;
-						} else {
-							errs() << LHS->Loc << ": internal error - inconsistent reference initialization for'" << varname << "'\n";
-							return nullptr;
-						}
-					}
-				} else {
-					auto align = getAlignment(allocsz);
-					Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
-					Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
-					entry->val = Alloca;
-				}
+				auto align = getAlignment(allocsz);
+				Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+				Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
+				entry->val = Alloca;
 			} else {
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
