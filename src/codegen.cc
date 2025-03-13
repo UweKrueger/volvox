@@ -2792,7 +2792,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 // as insertion point for destructors, etc
 //
 std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranch(
-	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>& bBranch, bool isElse)
+	BranchDescription& bBranch, bool isElse)
 {
 	std::vector<std::unique_ptr<ExprAST>>& Branch = bBranch.first;
 	BreakDescription& brk_descr = bBranch.second;

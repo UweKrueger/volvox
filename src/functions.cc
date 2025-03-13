@@ -1510,7 +1510,7 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 	return true;
 }
 
-void HandleReturn(std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>& bBranch, llvm::Value* RetVal)
+void HandleReturn(BranchDescription& bBranch, llvm::Value* RetVal)
 {
 	bool already_returned = false; // set if both branches of last 'if ... else ...' end with 'return'
 	std::vector<std::unique_ptr<ExprAST>>& Branch = bBranch.first;

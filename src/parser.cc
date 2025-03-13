@@ -1035,7 +1035,7 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 	return Cond;
 }
 
-static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<std::string>,VarTable,bool,bool,int,unsigned> ParseElse(
+static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind);
 
 std::map<std::string,FullVar*> get_destruct_vars(int b_lev) {
@@ -1088,7 +1088,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	locals_table.emplace_back();
 	current_branch_part.push_back(0);
 	unsigned max_brk_level = 0;
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> Then;
+	std::vector<BranchDescription> Then;
 	for (;;) {
 		auto [list, e_kind, level] = ParseExprList();
 		if (level > max_brk_level)
@@ -1151,10 +1151,10 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	                                   res_t, kind == tok_elif ? tok_if : kind, always_return);
 }
 
-static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>>,std::set<std::string>,VarTable,bool,bool,int,unsigned> ParseElse(
+static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,bool,bool,int,unsigned> ParseElse(
 	VarTable& then_locals_table, SourceLocation& Loc, TokenKind kind, int ThenEndkind)
 {
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>, BreakDescription>> Else;
+	std::vector<BranchDescription> Else;
 	std::set<std::string> merged_vars;
 	int then_end_kind;
 	bool have_else = false;
@@ -1177,7 +1177,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			have_else = true;
 		} else {
 			errs() << CurLoc << ": 'else', 'elif' or 'end' expected (branch has returned unconditionally so any statement would be dead code)\n";
-			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+			std::vector<BranchDescription> ret_vec;
 			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 			return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
@@ -1185,7 +1185,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 	if (have_else) {
 		if (kind == tok_repeat) {
 			errs() << CurLoc << ": 'else' not allowed with 'repeat'\n";
-			std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+			std::vector<BranchDescription> ret_vec;
 			ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 			return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
@@ -1197,7 +1197,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			auto elifif_expr = dynamic_cast<IfExprAST*>(elif_expr.get());
 			if (!elifif_expr) {
 				errs() << CurLoc << ": invalid 'if ... elif' structure\n";
-				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+				std::vector<BranchDescription> ret_vec;
 				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 				return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 			}
@@ -1236,7 +1236,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 			}
 			if (!Else.back().second.end_kind && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
-				std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+				std::vector<BranchDescription> ret_vec;
 				ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 				return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 			}
@@ -1247,7 +1247,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 					getNextToken();
 				} else {
 					errs() << CurLoc << ": 'end' expected\n";
-					std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+					std::vector<BranchDescription> ret_vec;
 					ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 					return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 				}
@@ -1284,7 +1284,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 						new_then_var.branch_parts->pop_back();
 						if (!locals_table.back().insert(then_node.getKey(), new_then_var)) {
 							errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-							std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+							std::vector<BranchDescription> ret_vec;
 							ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 							return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 						}
@@ -1320,7 +1320,7 @@ static std::tuple<std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,Br
 					}
 					if (!success) {
 						errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
-						std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> ret_vec;
+						std::vector<BranchDescription> ret_vec;
 						ret_vec.push_back({ std::vector<std::unique_ptr<ExprAST>>(), BreakDescription{0} });
 						return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, 0 };
 					}
@@ -1569,7 +1569,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			return nullptr;
 		}
 	}
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> Body;
+	std::vector<BranchDescription> Body;
 	unsigned max_brk_level = 0;
 	for (;;) {
 		auto [list, e_kind, level] = ParseExprList();
@@ -2822,7 +2822,7 @@ parse_body:
 	unsigned b_lev = 1;
 	std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
 	int end_knd = Elist.second;
-	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBranch = {
+	BranchDescription bBranch = {
 		std::move(Elist.first),
 		BreakDescription{
 			.vars_to_destruct = std::move(destr_vars),
@@ -2935,7 +2935,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::pair<std::unique_ptr<ExprAST
 		}
 		ExprList.push_back(std::move(std::make_unique<LiteralExprAST>(Token((long long)JIT_SUCCESS_MAGIC))));
 	}
-	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBranch = {
+	BranchDescription bBranch = {
 		std::move(ExprList),
 		BreakDescription{
 			.vars_to_destruct = std::move(destr_vars),

@@ -974,7 +974,7 @@ std::unique_ptr<FunctionAST> PrepareMain(const char* main_name, const char* ret_
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
-	return std::make_unique<FunctionAST>(ProtoRef, std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>{}, std::move(unmangledName));
+	return std::make_unique<FunctionAST>(ProtoRef, BranchDescription{}, std::move(unmangledName));
 }
 
 bool FinishMain() {
@@ -993,10 +993,10 @@ bool FinishTestRuns() {
 	if (comp_mode == comp_jit) {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
 	} else {
-		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _then;
+		std::vector<BranchDescription> _then;
 		_then.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, BreakDescription{ .end_kind = tok_else } });
 		_then[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _else;
+		std::vector<BranchDescription> _else;
 		_else.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, BreakDescription{ .end_kind = tok_end } });
 		_else[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		std::set<std::string> _merged_vars;
@@ -1024,7 +1024,7 @@ std::unique_ptr<FunctionAST> CreateMain(const char* main_name, bool have_return 
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	lex.module->FunctionProtos[unmangledName].push_back(std::move(Proto));
-	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBody = {
+	BranchDescription bBody = {
 		std::move(GlobalExprList),
 		BreakDescription{
 			.end_kind = tok_return,
@@ -1124,10 +1124,10 @@ std::unique_ptr<FunctionAST> CreateTestRuns() {
 		GlobalExprList.push_back(std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)));
 		return CreateMain("test_main", true, "bool");
 	} else {
-		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _then;
+		std::vector<BranchDescription> _then;
 		_then.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, BreakDescription{ .end_kind = tok_else } });
 		_then[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(0LL))));
-		std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _else;
+		std::vector<BranchDescription> _else;
 		_else.push_back({ std::vector<std::unique_ptr<ExprAST>>{}, BreakDescription{ .end_kind = tok_end } });
 		_else[0].first.push_back(std::move(std::make_unique<LiteralExprAST>(Token(1LL))));
 		std::set<std::string> _merged_vars;

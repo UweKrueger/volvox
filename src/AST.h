@@ -357,11 +357,11 @@ public:
 	llvm::Function* cleanup_codegen();
 	PrototypeAST* Proto = nullptr;
 	std::string unmangledName;
-	std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> bBody;
+	BranchDescription bBody;
 	std::vector<std::unique_ptr<ExprAST>>& Body;
 	int return_val_idx = -1;
 	FunctionAST(PrototypeAST* Proto,
-	            std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription> _bBody, std::string unmName, int return_val_idx = -1)
+	            BranchDescription _bBody, std::string unmName, int return_val_idx = -1)
 		: Proto(Proto), bBody(std::move(_bBody)), Body(bBody.first),
 		  unmangledName(std::move(unmName)),
 		  return_val_idx(return_val_idx) {}
@@ -984,7 +984,7 @@ inline void dump_branch_parts(std::vector<unsigned>* v) {
 class BranchExprAST : public ExprAST {
 public:
 	// branches, end-kinds
-	std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> Then, Else;
+	std::vector<BranchDescription> Then, Else;
 	unsigned max_brk_level = 0; // if >1 this expr must be considered as brk-like for
 	                   // variable validation
 protected:
@@ -1001,8 +1001,8 @@ public:
 	bool always_return = false;
 	BranchExprAST(SourceLocation Loc, llvm::Type* type, unsigned type_attr,
 	              bool is_unknown_type, const char* errmsg,
-	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Then,
-	              std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,
+	              std::vector<BranchDescription> _Then,
+	              std::vector<BranchDescription> _Else,
 	              VarTable _then_locals_table, VarTable _else_locals_table, unsigned max_brk_level,
 	              std::set<std::string> _merged_vars,
 	              std::unique_ptr<ExprAST> _Cond = nullptr, TokenKind if_kind = (TokenKind)0,
@@ -1014,7 +1014,7 @@ public:
 	  Cond(std::move(_Cond)), if_kind(if_kind),
 	  always_return(always_return), errmsg(errmsg) {}
 	std::tuple<llvm::Value*, llvm::Instruction*, int> createCondBranch(
-		std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>& bBranch, bool isElse);
+		BranchDescription& bBranch, bool isElse);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
@@ -1029,8 +1029,8 @@ class IfExprAST : public BranchExprAST {
 
 public:
 	IfExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Cond,
-	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Then,
-	          std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,
+	          std::vector<BranchDescription> _Then,
+	          std::vector<BranchDescription> _Else,
 	          VarTable _then_locals_table, VarTable _else_locals_table, unsigned max_brk_level,
 	          std::set<std::string> _merged_vars,
 	          std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t, TokenKind if_kind = tok_if,
@@ -1101,8 +1101,8 @@ public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, unsigned max_brk_level, std::set<std::string> _merged_vars, std::unique_ptr<ExprAST> _Key,
 	           std::unique_ptr<ExprAST> _Value, std::string _KeyName, std::string _ValueName,
-	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Body,
-	           std::vector<std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>> _Else,
+	           std::vector<BranchDescription> _Body,
+	           std::vector<BranchDescription> _Else,
 	           FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
 	           volvoxc::FullType* KeyFT = nullptr,
 	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)

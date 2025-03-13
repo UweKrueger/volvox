@@ -1539,7 +1539,18 @@ struct BreakDescription {
 	unsigned break_level; // semantic - not number of brk
 };
 
-extern void HandleReturn(std::pair<std::vector<std::unique_ptr<ExprAST>>,BreakDescription>& Branch, llvm::Value* RetVal);
+// workaround for buggy std::pair on MSVC
+struct BranchDescription {
+	std::vector<std::unique_ptr<ExprAST>> first;
+	BreakDescription second;
+	BranchDescription() = default;
+	BranchDescription(std::vector<std::unique_ptr<ExprAST>> _first, BreakDescription _second)
+		: first(std::move(first)), second(std::move(_second)) {}
+	BranchDescription(BranchDescription&& src)
+		: first(std::move(src.first)), second(std::move(src.second)) {}
+};
+
+extern void HandleReturn(BranchDescription& Branch, llvm::Value* RetVal);
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::unique_ptr<ExprAST>& expr) {
 	if (expr)
