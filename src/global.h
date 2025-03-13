@@ -1545,7 +1545,7 @@ struct BranchDescription {
 	BreakDescription second;
 	BranchDescription() = default;
 	BranchDescription(std::vector<std::unique_ptr<ExprAST>> _first, BreakDescription _second)
-		: first(std::move(first)), second(std::move(_second)) {}
+		: first(std::move(_first)), second(std::move(_second)) {}
 	BranchDescription(BranchDescription&& src)
 		: first(std::move(src.first)), second(std::move(src.second)) {}
 };
