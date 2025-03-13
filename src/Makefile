@@ -11,12 +11,14 @@ PREFIX := /usr
 ifeq ($(shell test -x C\:/Program\ Files/LLVM/bin/llvm-config.exe && echo -n true),true)
 	PREFIX := C:/Program\ Files/LLVM
 	SUFFIX := .exe
+	EXE := .exe
 	NIXTYPE := msvc
 	TARGET := -Wno-deprecated -D_AMD64_
 	# TARGET := -target x86_64-pc-windows-gnu -Wno-gcc-compat
-	LINKEXTRAFLAGS := -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32
+	LINKEXTRAFLAGS := "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\$(VCToolsVersion)\lib\x64\setargv.obj" -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32 -lntdll
 	# LINKEXTRAFLAGS := -lpthread
 else
+EXE :=
 ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := -devel
@@ -196,7 +198,7 @@ endif
 endif
 endif
 
-PROG = $(TARGETDIR)volvox
+PROG = $(TARGETDIR)volvox$(EXE)
 
 CCOBJS := main.o codegen.o parser.o lexer.o token.o functions.o threads.o arrays.o types.o mangler.o environment.o
 OBJS := $(CCOBJS) $(EXTRAOBJS) $(EDITLINEOBJS)
@@ -216,7 +218,8 @@ LIBVOLVOXBASE := libvolvox.dll
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
 LIBVOLVOXSONAMESPEC :=
 EXTRAINC := -I../include
-RPATH := -Wl,/stack:10000000 -Wl,-defaultlib:ucrt
+RPATH := -Wl,/stack:10000000
+# -Wl,-defaultlib:ucrt
 else
 LIBVOLVOXBASE := libvolvox.so
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
