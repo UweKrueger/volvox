@@ -15,7 +15,9 @@
 #include <minwindef.h>
 #include <minwinbase.h>
 #include <wtypes.h>
+#if !defined(_MSC_VER)
 #include <unistd.h>
+#endif
 #include <apisetcconv.h>
 #include <wincon.h>
 #endif

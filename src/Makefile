@@ -11,10 +11,11 @@ PREFIX := /usr
 ifeq ($(shell test -x C\:/Program\ Files/LLVM/bin/llvm-config.exe && echo -n true),true)
 	PREFIX := C:/Program\ Files/LLVM
 	SUFFIX := .exe
-	NIXTYPE := mingw64
-	TARGET := -target x86_64-pc-windows-gnu -Wno-gcc-compat
-	# LINKEXTRAFLAGS := -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32 -lucrt
-	LINKEXTRAFLAGS := -lpthread
+	NIXTYPE := msvc
+	TARGET := -Wno-deprecated -D_AMD64_
+	# TARGET := -target x86_64-pc-windows-gnu -Wno-gcc-compat
+	LINKEXTRAFLAGS := -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32
+	# LINKEXTRAFLAGS := -lpthread
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
 	PREFIX := /usr/local
@@ -116,8 +117,8 @@ ifeq ($(shell uname),Haiku)
 	EDITLINEOBJS := # we use system provided BSD editline
 	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
 else
-ifeq ($(NIXTYPE),mingw64) # only a reminder - none of the available 'mingw' versions works ;-(
-	CPPEXTRAFLAGS :=
+ifeq ($(NIXTYPE),msvc) # only a reminder - none of the available 'mingw' versions works ;-(
+	CXXEXTRAFLAGS := -DWNATIVELIB -I../stubinclude -target x86_64-pc-windows-gnu
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
 else
@@ -136,14 +137,18 @@ endif
 endif
 endif
 
+ifneq ($(NIXTYPE),msvc)
+	CXXEXTRAFLAGS := $(CPPEXTRAFLAGS)
+endif
+
 LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
 
 CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))
 
-ifeq ($(NIXTYPE),mingw64)
+ifeq ($(NIXTYPE),msvc)
 	CXXFLAGS := -I"C:/Program Files/LLVM/include" -I../include/editline -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++20 -DLINKER="\"C:/Program Files/LLVM/bin/clang.exe\"" -frtti $(CPPEXTRAFLAGS)
-	LDFLAGS := -L"C:/Program Files/LLVM/lib" -lLLVM-18
+	LDFLAGS := -L"C:/Program Files/LLVM/lib" $(shell $(LLVMCONFIG) --libnames | sed -e "s/.lib//g" -e "s/LLVM/-lLLVM/g")
 	PIC :=
 else
 	CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -std=c++20 -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
@@ -168,6 +173,9 @@ ifeq ($(CC),gcc-14)
 else
 	CXX := clang++$(SUFFIX)
 	LINK := clang++$(SUFFIX)
+ifeq ($(NIXTYPE),msvc)
+	AR := llvm-ar
+else
 ifeq ($(shell type -path llvm-ar$(SUFFIX)),)
 ifeq ($(shell type -path llvm-ar),)
 # Alpine Linux has a special form...
@@ -177,6 +185,7 @@ else
 endif
 else
 	AR := llvm-ar$(SUFFIX)
+endif
 endif
 ifeq ($(shell test $(LLVMVERSION) -ge 18; echo $$?),0)
 	PCH := $(PRJH:%.hh=%.hh.pch)
@@ -194,6 +203,9 @@ OBJS := $(CCOBJS) $(EXTRAOBJS) $(EDITLINEOBJS)
 
 LIBOBJS := map.o str.o array.o
 LIBCOBJS := str_c.o threads_c.o
+ifeq ($(NIXTYPE),msvc)
+	LIBCOBJS := $(LIBCOBJS) getopt.o
+endif
 LIBOBJSLTO := map.lto.o str.lto.o array.lto.o
 LIBCOBJSLTO := str_c.lto.o threads_c.lto.o
 
@@ -204,22 +216,13 @@ LIBVOLVOXBASE := libvolvox.dll
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
 LIBVOLVOXSONAMESPEC :=
 EXTRAINC := -I../include
-RPATH :=
-LINK := llvm-link
-else
-ifeq ($(NIXTYPE),mingw64)
-LIBVOLVOXBASE := libvolvox.dll
-LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
-LIBVOLVOXSONAMESPEC :=
-EXTRAINC := -I../include
-RPATH := -Wl,--stack=10000000
+RPATH := -Wl,/stack:10000000 -Wl,-defaultlib:ucrt
 else
 LIBVOLVOXBASE := libvolvox.so
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
 LIBVOLVOXSONAMESPEC := -Wl,-soname,$(LIBVOLVOXSONAME)
 EXTRAINC :=
 RPATH := -Wl,-rpath,$(shell pwd)/../lib
-endif
 endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
 LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
@@ -237,10 +240,10 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 	$(CXX) $(TARGET) -c $(CXXFLAGS) $(OPT) $(INCPCH) $(EXTRAINC) $<
 
 %.o: ../clib/%.cc
-	$(CXX) $(TARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
+	$(CXX) $(TARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CXXEXTRAFLAGS) $(PIC) $(OPT) $<
 
 %.lto.o: ../clib/%.cc
-	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
+	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CXXEXTRAFLAGS) $(PIC) $(OPT) $<
 
 %.o: ../clib/%.c
 	$(CC) $(TARGET) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(PIC) $(OPT) $<
@@ -248,7 +251,7 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 %.lto.o: ../clib/%.c
 	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
 
-ifeq ($(NIXTYPE),mingw64)
+ifeq ($(NIXTYPE),msvc)
 %.o: ../wineditline/%.c
 	$(CC) $(TARGET) -c $(EXTRAINC) $(OPT) $<
 endif
@@ -264,7 +267,7 @@ endif
 
 $(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
 	$(CC) $(TARGET) -shared $(PIC) $(LIBVOLVOXSONAMESPEC) -o $@ $+
-ifeq ($(NIXTYPE),mingw64)
+ifeq ($(NIXTYPE),msvc)
 	cp $(LIBVOLVOX) ..
 else
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
