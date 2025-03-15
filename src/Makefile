@@ -120,7 +120,7 @@ ifeq ($(shell uname),Haiku)
 	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
 else
 ifeq ($(NIXTYPE),msvc) # only a reminder - none of the available 'mingw' versions works ;-(
-	MINGWEXTRAFLAGS := -DWNATIVELIB -I../stubinclude -target x86_64-pc-windows-gnu
+	MINGWEXTRAFLAGS := -target x86_64-pc-windows-gnu
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
 else
@@ -206,6 +206,8 @@ ifeq ($(NIXTYPE),msvc)
 endif
 LIBOBJSLTO := map.lto.o str.lto.o array.lto.o
 LIBCOBJSLTO := str_c.lto.o threads_c.lto.o
+LIBOBJSMINGW := map.mingw.o str.mingw.o array.mingw.o
+LIBCOBJSMINGW := str_c.mingw.o threads_c.mingw.o
 
 LIBVOLVOXVERS := 0
 LIBVOLVOXLTONAME := libvolvox.lto.a
@@ -263,7 +265,7 @@ ifeq ($(NIXTYPE),msvc)
 	$(CC) $(TARGET) -c $(EXTRAINC) $(OPT) $<
 endif
 
-all: $(PROG) $(LIBVOLVOX) $(LIBVOLVOXLTO)
+all: $(PROG) $(LIBVOLVOX) $(LIBVOLVOXLTO) $(LIBVOLVOXMINGW)
 
 $(PCH): $(PRJH) ../include/VolvoxJIT.h ../clib/map.h ../clib/types.h ../clib/str.h AST.h global.h
 ifeq ($(CC),gcc)

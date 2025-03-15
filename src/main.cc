@@ -2306,9 +2306,10 @@ int main(int argc, char* argv[]) {
 					}
 				}
 #ifdef _WIN32
-				strlcat(libpath, (lto_mode == lto_thin) ? "\\lib\\libvolvox.lto.a" : "\\lib\\libvolvox.a", lp_sz);
+				// TODO: support non-LTO
+				strlcat(libpath, (lto_mode == lto_thin) ? "\\lib\\libvolvox.mingw.a" : "\\lib\\libvolvox.mingw.a", lp_sz);
 #else
-				strlcat(libpath, (lto_mode == lto_thin) ? "/lib/libvolvox.lto.a" : "/lib/libvolvox.a", lp_sz);
+				strlcat(libpath, (lto_mode == lto_thin) ? "/lib/libvolvox.mingw.a" : "/lib/libvolvox.mingw.a", lp_sz);
 #endif
 			}
 #if defined(_WIN32)
