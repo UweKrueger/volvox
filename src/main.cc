@@ -2404,7 +2404,9 @@ int main(int argc, char* argv[]) {
 			else { // target msvc
 				linker_argv.push_back(stack_size); // native Windows
 				linker_argv.push_back(exe_out);
-				linker_argv.push_back(const_cast<char*>("-defaultlib:ucrt"));
+				// linker_argv.push_back(const_cast<char*>("-defaultlib:ucrt"));
+				linker_argv.push_back(const_cast<char*>("-defaultlib:libcmt"));
+				// linker_argv.push_back(const_cast<char*>("-defaultlib:oldnames"));
 				linker_argv.push_back(const_cast<char*>("-defaultlib:legacy_stdio_definitions"));
 				linker_argv.push_back(libpath);
 				linker_argv.push_back(libdirs[0]);

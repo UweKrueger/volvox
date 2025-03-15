@@ -145,7 +145,7 @@ CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))
 
 ifeq ($(NIXTYPE),msvc)
-	CXXFLAGS := -I"C:/Program Files/LLVM/include" -I../include/editline -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++20 -DLINKER="\"C:/Program Files/LLVM/bin/clang.exe\"" -frtti $(CPPEXTRAFLAGS)
+	CXXFLAGS := -I"C:/Program Files/LLVM/include" -I../include/editline -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++20 -frtti $(CPPEXTRAFLAGS)
 	LDFLAGS := -L"C:/Program Files/LLVM/lib" $(shell $(LLVMCONFIG) --libnames | sed -e "s/.lib//g" -e "s/LLVM/-lLLVM/g")
 	PIC :=
 else
