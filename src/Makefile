@@ -120,7 +120,7 @@ ifeq ($(shell uname),Haiku)
 	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
 else
 ifeq ($(NIXTYPE),msvc) # only a reminder - none of the available 'mingw' versions works ;-(
-	CXXEXTRAFLAGS := -DWNATIVELIB -I../stubinclude -target x86_64-pc-windows-gnu
+	MINGWEXTRAFLAGS := -DWNATIVELIB -I../stubinclude -target x86_64-pc-windows-gnu
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
 else
@@ -137,10 +137,6 @@ endif
 endif
 endif
 endif
-endif
-
-ifneq ($(NIXTYPE),msvc)
-	CXXEXTRAFLAGS := $(CPPEXTRAFLAGS)
 endif
 
 LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
@@ -213,6 +209,7 @@ LIBCOBJSLTO := str_c.lto.o threads_c.lto.o
 
 LIBVOLVOXVERS := 0
 LIBVOLVOXLTONAME := libvolvox.lto.a
+LIBVOLVOXMINGWNAME := libvolvox.mingw.a
 ifeq ($(NIXTYPE),msvc)
 LIBVOLVOXBASE := libvolvox.dll
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE)
@@ -230,6 +227,7 @@ endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
 LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
 LIBVOLVOXLTO := ../lib/$(LIBVOLVOXLTONAME)
+LIBVOLVOXMINGW := ../lib/$(LIBVOLVOXMINGWNAME)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
@@ -243,16 +241,22 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 	$(CXX) $(TARGET) -c $(CXXFLAGS) $(OPT) $(INCPCH) $(EXTRAINC) $<
 
 %.o: ../clib/%.cc
-	$(CXX) $(TARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CXXEXTRAFLAGS) $(PIC) $(OPT) $<
+	$(CXX) $(TARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
 
 %.lto.o: ../clib/%.cc
-	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CXXEXTRAFLAGS) $(PIC) $(OPT) $<
+	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
+
+%.mingw.o: ../clib/%.cc
+	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(MINGWEXTRAFLAGS) $(PIC) $(OPT) $<
 
 %.o: ../clib/%.c
 	$(CC) $(TARGET) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(PIC) $(OPT) $<
 
 %.lto.o: ../clib/%.c
 	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
+
+%.mingw.o: ../clib/%.c
+	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) $(MINGWEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
 
 ifeq ($(NIXTYPE),msvc)
 %.o: ../wineditline/%.c
@@ -277,6 +281,10 @@ else
 endif
 
 $(LIBVOLVOXLTO): $(LIBOBJSLTO) $(LIBCOBJSLTO)
+	rm -f $@
+	$(AR) -qc $@ $+
+
+$(LIBVOLVOXMINGW): $(LIBOBJSMINGW) $(LIBCOBJSMINGW)
 	rm -f $@
 	$(AR) -qc $@ $+
 

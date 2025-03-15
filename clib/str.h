@@ -7,6 +7,13 @@
 
 #include <inttypes.h>
 #include <stdbool.h>
+#if defined(WNATIVELIB)
+#include <winstub.h>
+#else
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#endif
 
 // format flags
 

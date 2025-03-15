@@ -783,3 +783,74 @@ namespace volvox {
 	}
 
 }
+
+#ifdef _MSC_VER
+
+/* In Volvox we always use standard "Itanium" mangling, however MSVC++ uses a different mangling scheme.
+   For this reason we provide C-Style function wrappers with our mangling scheme */
+
+_CDECL volvox::map::Node* _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(
+	volvox::map::Node** root_ptr, const char* key, volvox::map::Value value, int value_size, volvox::map::Node** target)
+{
+	return volvox::map::volvoxstring_insert(root_ptr, key, value, value_size, target);
+}
+
+_CDECL volvox::map::Node* _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(
+	volvox::map::Node** root_ptr, const char* key, volvox::map::Value value, int value_size, volvox::map::Node** target)
+{
+	return volvox::map::string_insert(root_ptr, key, value, value_size, target);
+}
+
+_CDECL volvox::map::Value* _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(volvox::map::Node* root, const char* key)
+{
+	return volvox::map::volvoxstring_get(root, key);
+}
+
+_CDECL volvox::map::Value* _ZN6volvox3map10string_getEPNS0_4NodeEPKc(volvox::map::Node* root, const char* key)
+{
+	return volvox::map::string_get(root, key);
+}
+
+_CDECL void _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(
+	volvox::map::Node* root, void (*destruct)(volvox::map::Value* ptr))
+{
+	volvox::map::destroy(root, destruct);
+}
+
+_CDECL volvox::map::Node* _ZN6volvox3map3MinEPNS0_4NodeE(volvox::map::Node* node)
+{
+	return volvox::map::Min( node);
+}
+
+_CDECL volvox::map::Node* _ZN6volvox3map3MaxEPNS0_4NodeE(volvox::map::Node* node)
+{
+	return volvox::map::Max( node);
+}
+
+_CDECL volvox::map::Node* _ZN6volvox3map7iter_upEPNS0_4NodeE(volvox::map::Node* elem)
+{
+	return volvox::map::iter_up(elem);
+}
+
+_CDECL volvox::map::Node* _ZN6volvox3map9iter_downEPNS0_4NodeE(volvox::map::Node* elem)
+{
+	return volvox::map::iter_down(elem);
+}
+
+_CDECL volvox::map::Node* _ZN6volvox3map11num_new_mapEv()
+{
+	return volvox::map::num_new_map();
+}
+
+_CDECL volvox::map::Node* _ZN6volvox3map17string_tag_insertEPPNS0_4NodeEPKcjNS0_5ValueEiS3_(
+	volvox::map::Node** root_ptr, const char* key, unsigned tag, volvox::map::Value value, int value_size, volvox::map::Node** target)
+{
+	return volvox::map::string_tag_insert(root_ptr, key, tag, value, value_size, target);
+}
+
+_CDECL bool _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, const char* key, void (*destruct)(volvox::map::Value* ptr))
+{
+	return volvox::map::string_delete(root_ptr, key, destruct);
+}
+
+#endif

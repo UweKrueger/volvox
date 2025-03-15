@@ -263,3 +263,31 @@ namespace volvox {
 #endif
 	}
 }
+
+#ifdef _MSC_VER
+
+/* In Volvox we always use standard "Itanium" mangling, however MSVC++ uses a different mangling scheme.
+   For this reason we provide C-Style function wrappers with our mangling scheme */
+
+_CDECL void _ZN6volvox9free_globEP13volvox_glob_t(volvox_glob_t* rets) {
+	volvox::free_glob(rets);
+}
+
+_CDECL volvox_glob_t _ZN6volvox4globEPKc(const char* pattern) {
+	return volvox::glob(pattern);
+}
+
+_CDECL volvox_glob_t _ZN6volvox4globEPKcS1_(const char* bases, const char* patterntail) {
+	return volvox::glob(bases, patterntail);
+}
+
+_CDECL bool _ZN6volvox5spawnEPiS0_S0_S0_PKPc(int* pid, int* child_stdin, int* child_stdout,
+                                             int* child_stderr, char* const argv[]) {
+	return volvox::spawn(pid, child_stdin, child_stdout, child_stderr, argv);
+}
+
+_CDECL int _ZN6volvox4waitEi(int pid) {
+	return volvox::wait(pid);
+}
+
+#endif
