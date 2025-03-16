@@ -1551,6 +1551,11 @@ struct BranchDescription {
 };
 
 extern void HandleReturn(BranchDescription& Branch, llvm::Value* RetVal);
+extern void CreateFree(llvm::Value* buf);
+extern llvm::Value* CreateMalloc(llvm::Value* elem_sz, llvm::Value* n_elem, const llvm::Twine &Name = "");
+inline llvm::Value* CreateMalloc(llvm::Value* sz, const llvm::Twine &Name = "") {
+	return CreateMalloc(sz, getSize(1), Name);
+}
 
 inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, std::unique_ptr<ExprAST>& expr) {
 	if (expr)

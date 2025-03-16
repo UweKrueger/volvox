@@ -296,17 +296,7 @@ llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
 	size_t cap = n_elem + 3; // maybe increase this value
 	size_t alloc_size = cap * elem_sz;
 	llvm::Value* AllocSz = getSize(alloc_size);
-#if LLVM_VERSION_MAJOR >= 18
-	llvm::Value* Malloc = Builder->CreateMalloc(
-		llvm_size_type, llvm::Type::getInt8Ty(Context),
-		AllocSz, nullptr, nullptr, "vec");
-#else
-	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
-		Builder->GetInsertBlock(),
-		llvm_size_type, llvm::Type::getInt8Ty(Context),
-		AllocSz, nullptr, nullptr, "vec");
-	Malloc = Builder->Insert(Malloc);
-#endif
+	llvm::Value* Malloc = CreateMalloc(AllocSz, "vec");
 	Builder->CreateStore(Malloc, __ptr_ptr);
 	Builder->CreateStore(getSize(n_elem), size_ptr);
 	Builder->CreateStore(getSize(cap), cap_ptr);
@@ -1401,15 +1391,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 						ArrayAlloc = Builder->CreateAlloca(elem_type, Len, varname);
 					else {
 						if (!jit_repl) {
-#if LLVM_VERSION_MAJOR >= 18
-							ArrayAlloc = Builder->CreateMalloc(llvm_size_type, llvm::Type::getInt8Ty(Context),
-							                                   ElemSize, Len, nullptr, varname);
-#else
-							ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-							                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
-							                                          ElemSize, Len, nullptr, varname);
-							ArrayAlloc = Builder->Insert(ArrayAlloc);
-#endif
+							ArrayAlloc = CreateMalloc(ElemSize, Len, varname);
 						} else {
 							const char* jit_malloc = "__jit_managed_malloc";
 							auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();

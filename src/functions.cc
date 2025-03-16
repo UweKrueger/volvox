@@ -599,21 +599,47 @@ void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 	TheFunction->insert(TheFunction->end(), DestructorBB);
 	Builder->SetInsertPoint(DestructorBB);
 	auto cstr = Volvox2CStr2(v, subtrahend);
+	CreateFree(cstr);
+	Builder->CreateBr(ContBB);
+	TheFunction->insert(TheFunction->end(), ContBB);
+	Builder->SetInsertPoint(ContBB);
+}
+
+void CreateFree(llvm::Value* buf) {
 #if LLVM_VERSION_MAJOR >= 18
 #ifdef _MSC_VER
 	const char* __free = "__free";
 	auto __free_proto = (*lex.findProtos(__free))[0].get();
 	auto __free_fn = getFunction(__free_proto);
-	Builder->CreateCall(__free_proto->FT, __free_fn, std::vector<llvm::Value*>({ cstr }));
+	Builder->CreateCall(__free_proto->FT, __free_fn, std::vector<llvm::Value*>({ buf }));
 #else
-	Builder->CreateFree(cstr);
+	Builder->CreateFree(buf);
 #endif
 #else
-	Builder->Insert(llvm::CallInst::CreateFree(cstr, DestructorBB));
+	Builder->Insert(llvm::CallInst::CreateFree(cstr, Builder->GetInsertBlock()));
 #endif
-	Builder->CreateBr(ContBB);
-	TheFunction->insert(TheFunction->end(), ContBB);
-	Builder->SetInsertPoint(ContBB);
+}
+
+llvm::Value* CreateMalloc(llvm::Value* elem_sz, llvm::Value* n_elem, const llvm::Twine &Name) {
+#if LLVM_VERSION_MAJOR >= 18
+#ifdef _MSC_VER
+	const char* __malloc = "__malloc";
+	auto __malloc_proto = (*lex.findProtos(__malloc))[0].get();
+	auto __malloc_fn = getFunction(__malloc_proto);
+	return Builder->CreateCall(__malloc_proto->FT, __malloc_fn, std::vector<llvm::Value*>({ Builder->CreateMul(elem_sz, n_elem) }));
+#else
+	return Builder->CreateMalloc(
+		llvm_size_type, llvm::Type::getInt8Ty(Context),
+		elem_sz, n_elem,
+		nullptr, Name);
+#endif
+#else
+	auto ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
+	                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
+	                                          elem_sz, n_elem,
+	                                          nullptr, Name);
+	return Builder->Insert(ArrayAlloc);
+#endif
 }
 
 void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before) {

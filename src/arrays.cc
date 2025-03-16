@@ -147,6 +147,11 @@ extern "C" DLLEXPORT void* __jit_managed_malloc(size_t s) {
 	return adr;
 }
 
+extern "C" DLLEXPORT void* __jit_malloc(size_t s) {
+	void* adr = malloc(s);
+	return adr;
+}
+
 extern "C" DLLEXPORT void __jit_free(void* buf) {
 	// fprintf(stderr, "### free called for %p\n", buf);
 	free(buf);
@@ -178,18 +183,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 				ArrayAlloc = CreateEntryBlockAlloca(alloc_arr_type, Name);
 			else {
 				if (!jit_repl) {
-#if LLVM_VERSION_MAJOR >= 18
-					ArrayAlloc = Builder->CreateMalloc(
-						llvm_size_type, llvm::Type::getInt8Ty(Context),
-						ElemSize, Len,
-						nullptr, Name);
-#else
-					ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-					                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
-					                                          ElemSize, Len,
-					                                          nullptr, Name);
-					ArrayAlloc = Builder->Insert(ArrayAlloc);
-#endif
+					ArrayAlloc = CreateMalloc(ElemSize, Len, Name);
 				} else {
 					const char* jit_malloc = "__jit_managed_malloc";
 					auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();
@@ -204,18 +198,7 @@ static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, ll
 			ArrayAlloc = Builder->CreateAlloca(elem_type, Len, Name);
 		else {
 			if (!jit_repl) {
-#if LLVM_VERSION_MAJOR >= 18
-				ArrayAlloc = Builder->CreateMalloc(
-					llvm_size_type, llvm::Type::getInt8Ty(Context),
-					ElemSize, Len,
-					nullptr, Name);
-#else
-				ArrayAlloc = llvm::CallInst::CreateMalloc(Builder->GetInsertBlock(),
-				                                          llvm_size_type, llvm::Type::getInt8Ty(Context),
-				                                          ElemSize, Len,
-				                                          nullptr, Name);
-				ArrayAlloc = Builder->Insert(ArrayAlloc);
-#endif
+				ArrayAlloc = CreateMalloc(ElemSize, Len, Name);
 			} else {
 				const char* jit_malloc = "__jit_managed_malloc";
 				auto jit_malloc_proto = (*lex.findProtos(jit_malloc))[0].get();

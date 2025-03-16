@@ -186,17 +186,7 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 	// TODO: handle vararg
 	args_type = llvm::StructType::get(Context, types);
 	llvm::Value* AllocSz = getSize(TheModule->getDataLayout().getTypeAllocSize(args_type));
-#if LLVM_VERSION_MAJOR >= 18
-	llvm::Value* Malloc = Builder->CreateMalloc(
-		llvm_size_type, llvm::Type::getInt8Ty(Context),
-		AllocSz, nullptr, nullptr, "threadcontext");
-#else
-	llvm::Value* Malloc = llvm::CallInst::CreateMalloc(
-		Builder->GetInsertBlock(),
-		llvm_size_type, llvm::Type::getInt8Ty(Context),
-		AllocSz, nullptr, nullptr, "threadcontext");
-	Malloc = Builder->Insert(Malloc);
-#endif
+	llvm::Value* Malloc = CreateMalloc(AllocSz, "threadcontext");
 	refcount_adr = Builder->CreateStructGEP(args_type, Malloc, 0);
 	 // reference counter contains number of references - 1
 	CreateAtomicStore(Builder->getInt32(target ? 1 : 0), refcount_adr);
@@ -288,11 +278,7 @@ llvm::Value* CreateReleaseRefC(llvm::Value* ptr, std::function<llvm::Value*(llvm
 	if (ValDestructor)
 		if (!ValDestructor(ptr))
 			return nullptr;
-#if LLVM_VERSION_MAJOR >= 18
-	Builder->CreateFree(ptr);
-#else
-	Builder->Insert(llvm::CallInst::CreateFree(ptr, freeBB));
-#endif
+	CreateFree(ptr);
 	Builder->CreateBr(contBB);
 	TheFunction->insert(TheFunction->end(), keepBB);
 	Builder->SetInsertPoint(keepBB);

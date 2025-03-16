@@ -16,7 +16,8 @@ cdecl err_printf(s cstring, ...)
 cdecl __jit_managed_malloc(s size_t) voidptr
 cdecl(raise) _raise(signal int)
 cdecl __transformcstr2volvox(s cstring, cap size_t) string
-cdecl(malloc) __malloc(n_bytes size_t) voidptr
+cdecl(malloc) ___malloc(n_bytes size_t) voidptr
+cdecl __jit_malloc(n_bytes size_t) voidptr
 cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) ___free(buf voidptr)
 cdecl __jit_free(buf voidptr)
@@ -37,6 +38,13 @@ inline def __free(buf voidptr)
 		__jit_free buf
 	else
 		___free buf
+end end
+
+inline def __malloc(n_bytes size_t) voidptr
+	if __LLVM_JIT && __Environment_Idx == 2
+		return __jit_malloc(n_bytes)
+	else
+		return ___malloc(n_bytes)
 end end
 
 inline def panic(s string)
