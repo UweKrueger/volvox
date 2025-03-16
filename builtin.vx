@@ -18,7 +18,8 @@ cdecl(raise) _raise(signal int)
 cdecl __transformcstr2volvox(s cstring, cap size_t) string
 cdecl(malloc) __malloc(n_bytes size_t) voidptr
 cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
-cdecl(free) __free(buf voidptr)
+cdecl(free) ___free(buf voidptr)
+cdecl __jit_free(buf voidptr)
 cdecl(memcpy) __memcpy(dest voidptr, src voidptr, n size_t) voidptr
 cdecl(memmove) __memmove(dest voidptr, src voidptr, n size_t) voidptr
 cdecl __setup_console()
@@ -30,6 +31,13 @@ cdecl(_write) __write_windows(fd int, buf cstring, count u32) int
 cdecl _printstrn(fd int, s string)
 cdecl _printstr(fd int, s string)
 cdecl abort()
+
+inline def __free(buf voidptr)
+	if __LLVM_JIT && __Environment_Idx == 2
+		__jit_free buf
+	else
+		___free buf
+end end
 
 inline def panic(s string)
 	_printstr(2, s)

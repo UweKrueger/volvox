@@ -147,6 +147,11 @@ extern "C" DLLEXPORT void* __jit_managed_malloc(size_t s) {
 	return adr;
 }
 
+extern "C" DLLEXPORT void __jit_free(void* buf) {
+	// fprintf(stderr, "### free called for %p\n", buf);
+	free(buf);
+}
+
 static std::pair<llvm::Value*,llvm::Value*> StoreArrayValue(llvm::Value* val, llvm::Type* elem_type,
                                                             std::vector<llvm::Value*>& Dims, const llvm::Twine& Name = "") {
 	auto ElemSize = getSize(TheModule->getDataLayout().getTypeAllocSize(elem_type));

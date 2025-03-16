@@ -600,7 +600,14 @@ void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
 	Builder->SetInsertPoint(DestructorBB);
 	auto cstr = Volvox2CStr2(v, subtrahend);
 #if LLVM_VERSION_MAJOR >= 18
+#ifdef _MSC_VER
+	const char* __free = "__free";
+	auto __free_proto = (*lex.findProtos(__free))[0].get();
+	auto __free_fn = getFunction(__free_proto);
+	Builder->CreateCall(__free_proto->FT, __free_fn, std::vector<llvm::Value*>({ cstr }));
+#else
 	Builder->CreateFree(cstr);
+#endif
 #else
 	Builder->Insert(llvm::CallInst::CreateFree(cstr, DestructorBB));
 #endif
