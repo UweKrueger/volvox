@@ -3,14 +3,9 @@
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
-#if defined(WNATIVELIB)
-#include <winstub.h>
-#endif
-#if !defined(_WIN32) || defined(__MINGW32__) && !defined(WNATIVELIB)
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#endif
+#include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <inttypes.h>

@@ -4,24 +4,17 @@
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
 #include <inttypes.h>
-#if defined(WNATIVELIB)
-#include <winstub.h>
-#endif
-#if !defined(_WIN32) || defined(__MINGW32__) && !defined(WNATIVELIB)
 #include <stdio.h>
-#include <unistd.h>
-#endif
-#if defined(_WIN32) && !defined(WNATIVELIB)
-#include <minwindef.h>
-#include <minwinbase.h>
-#include <wtypes.h>
 #if !defined(_MSC_VER)
 #include <unistd.h>
 #endif
+#if defined(_WIN32)
+#include <minwindef.h>
+#include <minwinbase.h>
+#include <wtypes.h>
 #include <apisetcconv.h>
 #include <wincon.h>
-#endif
-#ifndef _WIN32
+#else
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <termios.h>

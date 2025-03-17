@@ -29,6 +29,7 @@ cdecl(pipe2) __pipe2(fds voidptr, flags int) int
 cdecl(close) __close(fd int) int
 cdecl(write) __write_posix(fd int, buf cstring, count size_t) ssize_t
 cdecl(_write) __write_windows(fd int, buf cstring, count u32) int
+cdecl(strlen) _strlen(s cstring) size_t
 cdecl _printstrn(fd int, s string)
 cdecl _printstr(fd int, s string)
 cdecl abort()
@@ -67,10 +68,10 @@ inline def _write(fd int, buf cstring, count size_t) ssize_t
 	if __Environment_Idx == 2
 		# Windows write only allows writing < 2^31 bytes
 		# a loop would not be atomic, so there is no real workaround
-		if (count >= (1UL << 31))
-			panicn "write on Windows only allows buffer size < 2^31\n"
+		if (count >= (1UL << 32))
+			panicn "write on Windows only allows buffer size < 2^32\n"
 		end
-		return __write_windows(fd, buf, int(count))
+		return __write_windows(fd, buf, u32(count))
 	else
 		return __write_posix(fd, buf, count)
 end end
@@ -84,8 +85,8 @@ inline def print(...) int
 	return __builtin_print(1, true, true, va_args)
 end
 
-inline def printn(s string) int
-	return int(_write(1, s, s.len))
+inline def printn(s cstring) int
+	return int(_write(1, s, _strlen(s)))
 end
 
 inline def printn(...) int
@@ -96,8 +97,8 @@ inline def eprint(...) int
 	return __builtin_print(2, true, true, va_args)
 end
 
-inline def eprintn(s string) int
-	return int(_write(2, s, s.len))
+inline def eprintn(s cstring) int
+	return int(_write(2, s, _strlen(s)))
 end
 
 inline def eprintn(...) int
