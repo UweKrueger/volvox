@@ -473,6 +473,7 @@ extern llvm::Type* llvm_bool_type;
 extern llvm::Type* llvm_interface_type;
 extern llvm::Type* llvm_c32_type;
 extern llvm::Type* llvm_va_arg_ref_type;
+extern llvm::Type* llvm_string_type;
 extern llvm::Type* llvm_vec_type;
 extern llvm::Type* llvm_closure_type;
 extern llvm::PointerType* llvm_ptr_type;

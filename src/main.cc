@@ -108,6 +108,7 @@ llvm::Type* llvm_bool_type = nullptr;
 llvm::Type* llvm_interface_type = nullptr;
 llvm::Type* llvm_c32_type = nullptr;
 llvm::Type* llvm_va_arg_ref_type = nullptr;
+llvm::Type* llvm_string_type = nullptr;
 llvm::Type* llvm_vec_type = nullptr;
 llvm::Type* llvm_closure_type = nullptr;
 llvm::PointerType* llvm_ptr_type = nullptr;
@@ -215,11 +216,6 @@ void init(const llvm::Triple& triple) {
 		llvm_c32_type = llvm::FixedVectorType::get(llvm::Type::getFloatTy(Context), 2);
 	lex.add_type("c32", llvm_c32_type, nullptr, A_complex);
 	c32_type = lex.get_full_type("c32");
-	lex.add_type("string", llvm_ptr_type,
-	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
-	                                                    std::nullopt,
-	                                                    "string") : nullptr, A_string);
-	string_type = lex.get_full_type("string");
 	lex.add_type("cstring", llvm_ptr_type,
 	             DBuilder ? DBuilder->createPointerType(DBuilder->createBasicType("i8", 8, llvm::dwarf::DW_ATE_signed_char), 64, 0,
 	                                                    std::nullopt,

@@ -460,6 +460,8 @@ bool Lexer::next_input_file() {
 			llvm_vec_type = vec_type->type;
 			closure_type = lex.get_full_type("__closure");
 			llvm_closure_type = closure_type->type;
+			string_type = lex.get_full_type("string");
+			llvm_string_type = string_type->type;
 			builtin_input_file = nullptr;
 			if (inject_console_setup && comp_mode != comp_jit) {
 				std::string consetup = "__setup_console";

@@ -6,6 +6,18 @@
 const _verbose := __VERBOSE
 const _range_check := true
 
+cdecl __string_dup(s voidptr) voidptr
+
+
+type string {
+	voidptr
+}
+
+def string
+	if bool(this.voidptr)
+		this.voidptr = __string_dup(this.voidptr)
+end end
+
 cdecl exit(n int)
 cdecl strcmp(s1 cstring, s2 cstring) i32
 cdecl strncmp(s1 cstring, s2 cstring, len size_t) i32
@@ -164,7 +176,7 @@ type __map_value union {
 	f32
 	f64
 	__size_offset
-	string
+	voidptr
 }
 type __map_key union {
 	u64
@@ -246,7 +258,6 @@ cdecl __string_make_writable(&s string) string
 cdecl __cstr2volvoxstr(s cstring, l size_t, h bool) string
 cdecl __cstr2volvox(s cstring) string
 cdecl __volvox2cstr(s string) cstring
-cdecl __string_dup(s string) string
 cdecl(strdup) __strdup(s cstring) cstring
 cdecl _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
 cdecl _ZN9ArrayNodeD1Ev(&a ArrayNode)

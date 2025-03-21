@@ -1,0 +1,20 @@
+def fplmm(u string) f64
+	print u
+	return 12.0625
+end
+
+&qjkq3r = fplmm("")
+
+global pqb5t = qjkq3r("Loppt")
+
+print pqb5t
+
+a = "LLoop"
+
+b = "OOo"
+
+c = a + b
+
+q = fplmm(c)
+
+print q
