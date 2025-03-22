@@ -6,45 +6,16 @@
 const _verbose := __VERBOSE
 const _range_check := true
 
+# compile builtins
+cdecl __load_size(adr voidptr) size_t
+cdecl __store_size(adr voidptr, val size_t) size_t
+
 cdecl __string_dup(s voidptr) voidptr
-
-
-type string {
-	voidptr
-}
-
-def string
-	if bool(this.voidptr)
-		this.voidptr = __string_dup(this.voidptr)
-end end
-
-cdecl exit(n int)
-cdecl strcmp(s1 cstring, s2 cstring) i32
-cdecl strncmp(s1 cstring, s2 cstring, len size_t) i32
-cdecl(printf) _printf(s cstring, ...) int
-cdecl strtod(s cstring, endptr voidptr) f64
-cdecl __printerr()
-cdecl err_printf(s cstring, ...)
-cdecl __jit_managed_malloc(s size_t) voidptr
-cdecl(raise) _raise(signal int)
-cdecl __transformcstr2volvox(s cstring, cap size_t) string
 cdecl(malloc) ___malloc(n_bytes size_t) voidptr
 cdecl __jit_malloc(n_bytes size_t) voidptr
 cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) ___free(buf voidptr)
 cdecl __jit_free(buf voidptr)
-cdecl(memcpy) __memcpy(dest voidptr, src voidptr, n size_t) voidptr
-cdecl(memmove) __memmove(dest voidptr, src voidptr, n size_t) voidptr
-cdecl __setup_console()
-cdecl(eventfd) __eventfd(initval int, flags int) int
-cdecl(pipe2) __pipe2(fds voidptr, flags int) int
-cdecl(close) __close(fd int) int
-cdecl(write) __write_posix(fd int, buf cstring, count size_t) ssize_t
-cdecl(_write) __write_windows(fd int, buf cstring, count u32) int
-cdecl(strlen) _strlen(s cstring) size_t
-cdecl _printstrn(fd int, s string)
-cdecl _printstr(fd int, s string)
-cdecl abort()
 
 inline def __free(buf voidptr)
 	if __LLVM_JIT && __Environment_Idx == 2
@@ -59,6 +30,47 @@ inline def __malloc(n_bytes size_t) voidptr
 	else
 		return ___malloc(n_bytes)
 end end
+
+type string {
+	voidptr
+}
+
+def string
+	if bool(this.voidptr)
+		this.voidptr = __string_dup(this.voidptr)
+end end
+
+def ~string
+	if bool(this.voidptr)
+		cap = __load_size(voidptr(size_t(this.voidptr) + (__OS_Bitwidth>>3)))
+		if cap != 0
+			len = __load_size(this.voidptr)
+			buf = voidptr((size_t(this.voidptr) - len) & !((__OS_Bitwidth>>3)-1))
+			__free(buf)
+end end end
+
+cdecl exit(n int)
+cdecl strcmp(s1 cstring, s2 cstring) i32
+cdecl strncmp(s1 cstring, s2 cstring, len size_t) i32
+cdecl(printf) _printf(s cstring, ...) int
+cdecl strtod(s cstring, endptr voidptr) f64
+cdecl __printerr()
+cdecl err_printf(s cstring, ...)
+cdecl __jit_managed_malloc(s size_t) voidptr
+cdecl(raise) _raise(signal int)
+cdecl __transformcstr2volvox(s cstring, cap size_t) string
+cdecl(memcpy) __memcpy(dest voidptr, src voidptr, n size_t) voidptr
+cdecl(memmove) __memmove(dest voidptr, src voidptr, n size_t) voidptr
+cdecl __setup_console()
+cdecl(eventfd) __eventfd(initval int, flags int) int
+cdecl(pipe2) __pipe2(fds voidptr, flags int) int
+cdecl(close) __close(fd int) int
+cdecl(write) __write_posix(fd int, buf cstring, count size_t) ssize_t
+cdecl(_write) __write_windows(fd int, buf cstring, count u32) int
+cdecl(strlen) _strlen(s cstring) size_t
+cdecl _printstrn(fd int, s string)
+cdecl _printstr(fd int, s string)
+cdecl abort()
 
 inline def panic(s string)
 	_printstr(2, s)

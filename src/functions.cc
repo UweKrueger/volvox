@@ -928,6 +928,37 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		// TODO: calculate run-time size of arrays when 'codegen_dims()' is available
 		return getSize(allocsz);
 	}
+	if (Proto && Proto->Name == "__load_size") {
+		if (Args.size() != 1) {
+			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 1 argument\n";
+			return nullptr;
+		}
+		auto arg = Args[0].get();
+		arg->desired_type = llvm_ptr_type;
+		llvm::Value* adr = arg->codegen();
+		if (!adr) {
+			errs() << arg->Loc << ": invalid argument\n";
+			return nullptr;
+		}
+		return Builder->CreateLoad(llvm_size_type, adr);
+	}
+	if (Proto && Proto->Name == "__store_size") {
+		if (Args.size() != 2) {
+			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 1 argument\n";
+			return nullptr;
+		}
+		Args[0]->desired_type = llvm_ptr_type;
+		Args[1]->desired_type = llvm_size_type;
+		llvm::Value* adr = Args[0]->codegen();
+		llvm::Value* val = Args[1]->codegen();
+		if (!adr || !val) {
+			errs() << (adr ? Args[1]->Loc : Args[0]->Loc) << ": invalid argument\n";
+			return nullptr;
+		}
+		llvm::Value* old_val = Builder->CreateLoad(llvm_size_type, adr);
+		Builder->CreateStore(val, adr);
+		return old_val;
+	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}

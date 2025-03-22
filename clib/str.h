@@ -79,7 +79,7 @@ typedef int ssize_t;
 #define volvox2cstr(v) ((v) ? (char*)((uintptr_t)((v) - *(size_t*)(v)) & ~((sizeof(size_t)-1))) : "")
 #else
 #define volvox_string_len(v) (*(size_t*)v - 1)
-#define volvox2cstr(v) (char*)((uintptr_t)(v - *(size_t*)v) & ~((sizeof(size_t)-1)))
+#define volvox2cstr(v) (char*)((uintptr_t)(v - *(size_t*)v) & ~(sizeof(size_t)-1))
 #endif
 #endif
 #ifndef STR_WRITE
