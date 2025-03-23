@@ -2291,6 +2291,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		Kind = 0;
 		getNextToken(eSemi);
 		break;
+	case tok_assign:
+		if (IdentifierStr == "=")
+			goto unexpected;
 	case tok_add:
 	case tok_mult:
 	case tok_pow:
@@ -2299,7 +2302,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		// errs() << "Operator Method for " << *ReceiverType << " " << FnName << "\n";
 		break;
 	default:
-		errs() << CurLoc << ": expected token '" << CurTok << "' - expected prototype name or operator\n";
+	unexpected:
+		errs() << CurLoc << ": unexpected token '" << CurTok << "' - expected prototype name or operator\n";
 		return nullptr;
 	}
 	if (CurTok.kind == '=') {
