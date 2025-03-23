@@ -35,11 +35,6 @@ type string {
 	voidptr
 }
 
-def string
-	if bool(this.voidptr)
-		this.voidptr = __string_dup(this.voidptr)
-end end
-
 def ~string
 	if bool(this.voidptr)
 		cap = __load_size(voidptr(size_t(this.voidptr) + (__OS_Bitwidth>>3)))
@@ -48,6 +43,42 @@ def ~string
 			buf = voidptr((size_t(this.voidptr) - len) & !((__OS_Bitwidth>>3)-1))
 			__free(buf)
 end end end
+
+inline def string
+	if bool(this.voidptr)
+		this.voidptr = __string_dup(this.voidptr)
+end end
+
+inline def string(p voidptr)
+	this.voidptr = p
+end
+
+cdecl __string_add(l voidptr, r voidptr) voidptr
+cdecl __string_add_assign(&b voidptr, r voidptr)
+cdecl __string_mult(n size_t, r voidptr) voidptr
+cdecl __string_add_c_assign(&b voidptr, r cstring)
+cdecl __string_mult_assign(&b voidptr, f size_t)
+# cdecl __string_make_writable(&s voidptr) voidptr
+
+inline def string+(s string) string
+	return string(__string_add(this.voidptr, s.voidptr))
+end
+
+inline def string+=(s string)
+	__string_add_assign(this.voidptr, s.voidptr)
+end
+
+inline def size_t*(s string) string
+	return string(__string_mult(this, s.voidptr))
+end
+
+inline def string+=(s cstring)
+	__string_add_c_assign(this.voidptr, s)
+end
+
+inline def string*=(f size_t)
+	__string_mult_assign(this.voidptr, f)
+end
 
 cdecl exit(n int)
 cdecl strcmp(s1 cstring, s2 cstring) i32
@@ -261,12 +292,6 @@ cdecl _ZN6volvox3map3MinEPNS0_4NodeE(&root __map_node) voidptr
 cdecl _ZN6volvox3map7iter_upEPNS0_4NodeE(&node __map_node) voidptr
 cdecl _ZN6volvox3map3MaxEPNS0_4NodeE(&root __map_node) voidptr
 cdecl _ZN6volvox3map9iter_downEPNS0_4NodeE(&node __map_node) voidptr
-cdecl __string_add(l string, r string) string
-cdecl __string_mult(n size_t, r string) string
-cdecl __string_add_assign(&b string, r string)
-cdecl __string_add_c_assign(&b string, r cstring)
-cdecl __string_mult_assign(&b string, f size_t)
-cdecl __string_make_writable(&s string) string
 cdecl __cstr2volvoxstr(s cstring, l size_t, h bool) string
 cdecl __cstr2volvox(s cstring) string
 cdecl __volvox2cstr(s string) cstring
