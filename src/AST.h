@@ -119,12 +119,12 @@ public:
 		     tok.int_type.is_signed) || tok.kind == tok_ptr_lit) ? A_signed : 0),
 		          Loc, tok.is_unknown_type), Val(tok.Val) {
 		if (tok.kind == tok_str_lit) {
-			ft->type_attr |= A_string;
+			ft->type = llvm_string_type;
 			tok.Val.Ptr = nullptr; // has been moved manually - avoid free by destructor
 		}
 	}
 	~LiteralExprAST() {
-		if (ft->type && ft->type->getTypeID() == llvm::Type::PointerTyID && !(ft->type_attr & A_signed))
+		if (ft->type && ft->type == llvm_string_type)
 			free((void*)Val.Ptr);
 	}
 #ifndef NDEBUG

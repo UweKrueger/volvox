@@ -796,7 +796,16 @@ public:
 		key = _key;
 		auto it = key32_table.find(key);
 		if (it == key32_table.end()) {
+			union { VOLVOX_gen_val_type_t ty; unsigned key; } string_key = {
+				.ty = {
+					.ID = (VOLVOX_TypeID)llvm_string_type->getTypeID(),
+					.SubclassData = ((genType*)llvm_string_type)->SubClassData()
+				}
+			};
+			if (_key == string_key.key)
+				return string_type;
 			errs() << llvm::format("Internal error: Could not find %p type key 0x%08x\n", &key32_table, key);
+			abort();
 			return nullptr;
 		}
 		bool is_signed = int_type.is_signed && (
