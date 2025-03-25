@@ -680,7 +680,9 @@ llvm::Value* createJITStringConst(const char* str, size_t Len, const llvm::Twine
 	const char* new_cstr = volvox2cstr(v_str);
 	jit_string_consts.push_back(new_cstr);
 	llvm::Constant* iadr = getSize((uintptr_t)v_str);
-	return Builder->CreateIntToPtr(iadr, llvm_ptr_type);
+	llvm::Value* strptr = Builder->CreateIntToPtr(iadr, llvm_ptr_type);
+	llvm::Value* res = llvm::UndefValue::get(llvm_string_type);
+	return Builder->CreateInsertValue(res, strptr, 0);
 }
 
 llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name) {
@@ -697,10 +699,12 @@ llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &N
 	                                   llvmstr, Name, nullptr, llvm::GlobalVariable::NotThreadLocal, 0);
 	GV->setUnnamedAddr(llvm::GlobalValue::UnnamedAddr::Global);
 	GV->setAlignment(llvm::Align(target_bytes));
-	return Builder->CreateIntToPtr(
+	llvm::Value* strptr = Builder->CreateIntToPtr(
 		Builder->CreateAdd(
 			Builder->CreatePtrToInt(GV, llvm_size_type),
 			getSize(l_alloc - 2*target_bytes)), llvm_ptr_type);
+	llvm::Value* res = llvm::UndefValue::get(llvm_string_type);
+	return Builder->CreateInsertValue(res, strptr, 0);
 }
 
 llvm::Value* createJITCStringConst(const char* str) {

@@ -143,6 +143,10 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 	}
 no_explicit_constructor:
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(expr_type)) {
+		if (expr_type == llvm_string_type && desired_type->isPointerTy()
+		    /* && (desired_attr & A_cstring) */) {
+			return [=](llvm::Value* v) { return Volvox2CStr(Builder->CreateExtractValue(v, 0)); };
+		}
 		if (!struct_type->hasName())
 			return NoConversion; // TODO: return nullptr - and handle this in caller
 		llvm::SmallString<128> buf = llvm::StringRef("_ZN");
@@ -189,12 +193,12 @@ no_explicit_constructor:
 			return nullptr;
 		}
 	}
-	if (desired_type->isPointerTy())
+	if (desired_type->isPointerTy()) {
 		if (is_explicit) // e.g. voidptr(0)
 			return [=](llvm::Value* v) { return Builder->CreateIntToPtr(v, llvm_ptr_type, "inttoptr"); };
 		else
 			return AutoErr(Loc, expr_type, desired_type, expr_is_signed, desired_is_signed, "int -> voidptr");
-	else if (expr_type->isPointerTy()) {
+	} else if (expr_type->isPointerTy()) {
 		if (is_explicit) {
 			if (desired_type == llvm_size_type)
 				return [=](llvm::Value* v) { return Builder->CreatePtrToInt(v, desired_type, "ptrtoint"); };
@@ -490,7 +494,7 @@ static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRe
 	return { nullptr, 0, false, opclass, err_msg };
 }
 
-// When imaginary objects are involved thiungs are somewhat different
+// When imaginary objects are involved things are somewhat different
 
 // result_type, result attributes, result is unknown type, Operator Class, errormessage
 std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getComplexRes(

@@ -2033,7 +2033,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 	valid_void:
 		if (BinKind == tok_invisible) {
 			auto lit = dynamic_cast<LiteralExprAST*>(RHS.get());
-			if (lit && !(lit->ft->type_attr & A_string)) {
+			if (lit && lit->ft->type != llvm_string_type) {
 				// we forbid 'a 2' instead of '2 a', or '12 34' instead of 408
 				// because usually these are cases of a missing ',' separator ('a, 2'; '12, 34')
 				errs() << lit->Loc << ": literal number as RHS of invisible operator not allowed - maybe you forgot a ',' or an explicit operator\n";
