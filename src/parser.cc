@@ -2178,7 +2178,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	bool isVarArgs = false;
 	bool this_is_value = false; // TODO: check modules of type/constructor
 	volvoxc::FullType* tmp_rec_type = nullptr;
-	const char* operators = ".+-*/%^"; // for operator methods - '.' means normal method
+	const char* operators = ".+-*/%^<>!="; // for operator methods - '.' means normal method
 	int operator_idx = -1;
 	std::string TheFn = IdentifierStr;
 	if (!(visibility & A_closure)) {
@@ -2297,9 +2297,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	case tok_add:
 	case tok_mult:
 	case tok_pow:
+	case tok_cmp:
 		FnName = IdentifierStr;
 		getNextToken();
-		// errs() << "Operator Method for " << *ReceiverType << " " << FnName << "\n";
 		break;
 	default:
 	unexpected:
