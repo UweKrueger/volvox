@@ -574,7 +574,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Key->getType())) {
 			if (arr_ty->getNumElements() == 1) {
 				Key = Builder->CreateExtractValue(_Key, 0);
-				if (Key->getType()->isPointerTy())
+				if (Key->getType() == llvm_string_type)
 					goto key_ok;
 			}
 		}
@@ -582,7 +582,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		return { nullptr, nullptr };
 	key_ok:
 		const char* getter;
-		if (Field->ft->elem_type[0].type == llvm_ptr_type) // string key type
+		if (Field->ft->elem_type[0].type == llvm_string_type) // string key type
 			getter = "_ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc";
 		else {
 			errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";

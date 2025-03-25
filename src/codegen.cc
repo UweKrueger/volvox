@@ -181,7 +181,7 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		KSDbgInfo.emitLocation(this);
 	}
 	const char* inserter;
-	if (ft->elem_type[0].type == llvm_ptr_type) // string key type
+	if (ft->elem_type[0].type == llvm_string_type) // string key type
 		inserter = "_ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_";
 	else {
 		errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
