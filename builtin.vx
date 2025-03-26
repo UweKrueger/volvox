@@ -44,10 +44,10 @@ def ~string
 			__free(buf)
 end end end
 
-inline def string
-	if bool(this.voidptr)
-		this.voidptr = __string_dup(this.voidptr)
-end end
+# inline def string
+# 	if bool(this.voidptr)
+# 		this.voidptr = __string_dup(this.voidptr)
+# end end
 
 inline def string(p voidptr)
 	this.voidptr = p
@@ -68,6 +68,10 @@ end
 
 inline def string+=(s string)
 	__string_add_assign(this.voidptr, s.voidptr)
+end
+
+inline def string*(f size_t) string
+	return string(__string_mult(f, this.voidptr))
 end
 
 inline def size_t*(s string) string

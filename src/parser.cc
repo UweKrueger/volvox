@@ -1983,7 +1983,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						BinLoc, std::move(LHS), std::move(m_ident), Protos);
 					std::vector<std::unique_ptr<ExprAST>> Arg;
 					Arg.push_back(std::move(RHS));
-					return std::make_unique<CallExprAST>(BinLoc, std::move(method), std::move(Arg));
+					LHS = std::make_unique<CallExprAST>(BinLoc, std::move(method), std::move(Arg));
+					continue;
+				} else if (BinOp != "," && BinOp != "=" && BinOp != ":") {
+					errs() << BinLoc << ": no operator method for " << *LHS->ft << BinOp << *RHS->ft << " declared\n";
+					return nullptr;
 				}
 			}
 			if (RHS_type->isStructTy() || (RHS_attr & A_complex)) {
@@ -1995,7 +1999,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 						BinLoc, std::move(RHS), std::move(m_ident), Protos);
 					std::vector<std::unique_ptr<ExprAST>> Arg;
 					Arg.push_back(std::move(LHS));
-					return std::make_unique<CallExprAST>(BinLoc, std::move(method), std::move(Arg));
+					LHS = std::make_unique<CallExprAST>(BinLoc, std::move(method), std::move(Arg));
+					continue;
+				} else if (BinOp != "," && BinOp != "=" && BinOp != ":") {
+					errs() << BinLoc << ": no (reverse) operator method for " << *LHS->ft << BinOp << *RHS->ft << " declared\n";
+					return nullptr;
 				}
 			}
 		}
