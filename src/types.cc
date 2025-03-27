@@ -589,13 +589,21 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type)
 {
-	if ((left_attr & (A_string | A_cstring)) || (right_attr & (A_string | A_cstring)))
-		return getStringRes(left_type, right_type, Op, left_attr, right_attr);
+	// if ((left_attr & (A_string | A_cstring)) || (right_attr & (A_string | A_cstring)))
+	// 	return getStringRes(left_type, right_type, Op, left_attr, right_attr);
+	auto opclass = getOpClass(Op);
+	if (!left_type && (opclass == OpColon || opclass == OpComma || opclass == OpTernary))
+		return { llvm::Type::getVoidTy(Context), left_attr, false, opclass, nullptr };
+	if (left_type->isStructTy() || left_type->isArrayTy() || left_type->isPointerTy()) {
+		if (right_type == left_type)
+			return { left_type, left_attr & right_attr, false, opclass, nullptr };
+		else
+			return { nullptr, 0, false, opclass, "non-numeric LHS and RHS do not match\n" };
+	}
 	bool left_is_signed = (left_attr & A_signed);
 	bool right_is_signed = (right_attr & A_signed);
 	auto [left_bitwidth, left_is_float] = getBitWidth(left_type);
 	auto [right_bitwidth, right_is_float] = getBitWidth(right_type);
-	auto opclass = getOpClass(Op);
 	if (opclass != OpComma && opclass != OpBitwise && opclass != OpColon && opclass != OpTernary) {
 		if (left_bitwidth == 1 && right_bitwidth != 1)
 			return { nullptr, 0, false, opclass, "LHS of type 'bool' cannot be combined with numeric RHS value\n" };

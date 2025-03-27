@@ -2007,10 +2007,15 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				}
 			}
 		}
-		auto res_t = is_decl ? std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{
-			nullptr, 0, false, OpDeclAssign, nullptr } :
-			getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
-			           LHS_is_unknown_type, RHS_is_unknown_type);
+		auto res_t = (is_decl || BinOp == ",")
+			? std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{
+			is_decl ? nullptr : llvm::Type::getVoidTy(Context), 0, false, is_decl ? OpDeclAssign : getOpClass(BinOp.c_str()), nullptr }
+			: getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
+			             LHS_is_unknown_type, RHS_is_unknown_type);
+		if (!std::get<0>(res_t) && BinOp == ":") {
+			std::get<0>(res_t) = llvm::Type::getVoidTy(Context);
+			std::get<4>(res_t) = nullptr;
+		}
 		if (std::get<4>(res_t)) {
 			errs() << BinLoc << ": " << llvm::format(std::get<4>(res_t), BinOp.c_str());
 			return nullptr;
