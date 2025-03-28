@@ -304,6 +304,15 @@ static const char* prt_aggregate_elem(char** s, unsigned* cap, unsigned* pos, co
 static void print_struct(char** s, unsigned* cap, unsigned* pos, const VOLVOX_RtType* struct_type, const char* elem_ptr,
                          unsigned num_fields, int indent, int w, int p, unsigned flags)
 {
+	if (struct_type->name && !strcmp(struct_type->name, "string")) {
+		const char* prt = *(const char**)elem_ptr;
+#ifdef NO_NULLPTR_STRING
+		prtstring(s, cap, pos, volvox2cstr(prt), w, flags);
+#else
+		prtstring(s, cap, pos, prt ? volvox2cstr(prt) : "", w, flags);
+#endif
+		return;
+	}
 	if (struct_type->name && !strcmp(struct_type->name, "complex")) {
 		if (p <= 0)
 			p = F64_DEFAULT_PRECISION;
