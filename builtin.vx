@@ -59,8 +59,8 @@ cdecl __string_mult(n size_t, r voidptr) voidptr
 cdecl __string_add_c_assign(&b voidptr, r cstring)
 cdecl __string_mult_assign(&b voidptr, f size_t)
 # cdecl __string_make_writable(&s voidptr) voidptr
-cdecl strcmp(s1 cstring, s2 cstring) i32
-cdecl strncmp(s1 cstring, s2 cstring, len size_t) i32
+cdecl strcmp(s1 cstring, s2 cstring) int
+cdecl strncmp(s1 cstring, s2 cstring, len size_t) int
 
 inline def string+(s string) string
 	return string(__string_add(this.voidptr, s.voidptr))
@@ -92,16 +92,20 @@ end
 
 inline def string.len size_t; return this.size - 1; end
 
+inline def string.cmp(s cstring) int
+	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & !size_t((__OS_Bitwidth>>3)-1)), s)
+end
+
 inline def string<(s cstring) bool
-	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & !size_t((__OS_Bitwidth>>3)-1)), s) < 0
+	return this.cmp(s) < 0
 end
 
 inline def string==(s cstring) bool
-	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & !size_t((__OS_Bitwidth>>3)-1)), s) == 0
+	return this.cmp(s) == 0
 end
 
 inline def string>(s cstring) bool
-	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & !size_t((__OS_Bitwidth>>3)-1)), s) > 0
+	return this.cmp(s) > 0
 end
 
 inline def cstring==(s string) bool; return s == this; end
