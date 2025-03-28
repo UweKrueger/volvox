@@ -86,10 +86,33 @@ inline def string*=(f size_t)
 	__string_mult_assign(this.voidptr, f)
 end
 
-inline def string==(s cstring) bool
-	len = __load_size(this.voidptr)
-	return strcmp(cstring voidptr((size_t(this.voidptr) - len) & !size_t((__OS_Bitwidth>>3)-1)), s) == 0
+inline def string.size size_t
+	return __load_size(this.voidptr)
 end
+
+inline def string.len size_t; return this.size - 1; end
+
+inline def string<(s cstring) bool
+	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & !size_t((__OS_Bitwidth>>3)-1)), s) < 0
+end
+
+inline def string==(s cstring) bool
+	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & !size_t((__OS_Bitwidth>>3)-1)), s) == 0
+end
+
+inline def string>(s cstring) bool
+	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & !size_t((__OS_Bitwidth>>3)-1)), s) > 0
+end
+
+inline def cstring==(s string) bool; return s == this; end
+inline def string!=(c cstring) bool; return !(this == c); end
+inline def cstring!=(s string) bool; return s != this; end
+inline def cstring>(s string) bool; return s < this; end
+inline def cstring<(s string) bool; return s > this; end
+inline def string<=(s cstring) bool; return !(s > this); end
+inline def string>=(s cstring) bool; return !(s < this); end
+inline def cstring>=(s string) bool; return !(s < this); end
+inline def cstring<=(s string) bool; return !(s > this); end
 
 cdecl exit(n int)
 cdecl(printf) _printf(s cstring, ...) int
