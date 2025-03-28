@@ -423,11 +423,11 @@ def WQrem(s string) f64
 	return 67.5
 end
 
-ghbzd4t = string()
+ghbzd4t = "" # string()
 
 ghbzd4t = "Kfe@ ug"
 
-oooddfg = string()
+oooddfg = string{}
 
 WQrem(oooddfg = "jkgkj")
 
