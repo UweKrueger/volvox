@@ -556,6 +556,23 @@ char Lexer::peek() {
 	return c;
 }
 
+char Lexer::peek2() {
+	if (CurChar & 0xff00)
+		return '\0';
+	char c = CurChar & 0xff;
+	if (!isblank(c))
+		return linebuf[Loc.Col];
+	int max_i = linelen - Loc.Col;
+	int i = 0;
+	for (; i < max_i; i++) {
+		c = linebuf[Loc.Col + i];
+		if (!isblank(c))
+			break;
+	}
+	c = linebuf[Loc.Col + i + 1];
+	return c;
+}
+
 // get next character in current line - not treating blanks special
 // i.e. the character might not belong to a token
 // used to distinguish "[3]type" from "[3] vec2"

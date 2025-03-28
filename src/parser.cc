@@ -2174,6 +2174,9 @@ static std::tuple<std::vector<std::unique_ptr<ExprAST>>, int, unsigned> ParseExp
 	return { std::move(expr_list), end_kind, max_brk_level };
 }
 
+// for operator methods - '.' means normal method - '=' must be last
+#define OVERLOAD_OPERATORS ".+-*/%^<>!="
+
 /// prototype
 ///   := id '(' id* ')'
 ///   := binary LETTER number? (id, id)
@@ -2191,9 +2194,9 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	bool isVarArgs = false;
 	bool this_is_value = false; // TODO: check modules of type/constructor
 	volvoxc::FullType* tmp_rec_type = nullptr;
-	const char* operators = ".+-*/%^<>!="; // for operator methods - '.' means normal method
 	int operator_idx = -1;
 	std::string TheFn = IdentifierStr;
+	const char* operators = OVERLOAD_OPERATORS;
 	if (!(visibility & A_closure)) {
 		if (CurTok.kind != tok_identifier) {
 			errs() << CurLoc << ": identifier expected (function name or receiver type)\n";
@@ -2211,8 +2214,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		// have eaten the '~' already in ParseDefinition()
 		tmp_rec_type = lex.get_full_type(IdentifierStr.c_str());
 		auto op_ptr = strchr(operators, lex.peek());
-		if (op_ptr)
+		if (op_ptr) {
 			operator_idx = op_ptr - operators;
+			if (operator_idx == ARRAY_SIZE(OVERLOAD_OPERATORS) - 2 && lex.peek2() != '=')
+				operator_idx = -1;
+		}
 		if (visibility & A_interface) {
 			visibility |= A_method;
 			ReceiverType = interface_ref_type;

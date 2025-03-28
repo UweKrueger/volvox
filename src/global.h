@@ -1326,6 +1326,7 @@ public:
 	Token get_str_tok(int terminator);
 	Token purge_line();
 	char peek();
+	char peek2();
 	char peek_strict();
 	std::pair<char,bool> peek2_strict();
 	char look_back_strict();
