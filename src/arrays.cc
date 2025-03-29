@@ -792,13 +792,16 @@ llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
 	auto sprt_fn = getFunction(sprt_proto);
 	llvm::Value* result = Builder->CreateCall(sprt_proto->FT, sprt_fn, values);
 	if (!target) {
+		llvm::Value* res_store = CreateEntryBlockAlloca(result->getType());
+		Builder->CreateStore(result, res_store);
 		FullVar tmp = {
-			.val = result,
+			.val = res_store,
 			.ft = {
-				.type = llvm_ptr_type,
-				.type_attr = A_string | A_rvalue
+				.type = llvm_string_type,
+				.type_attr = A_rvalue | A_destructor
 			}
 		};
+		tmp.destructor = getDestructor(string_type);
 		expr_temps.push_back(tmp);
 	}
 	return handle(target, result);
