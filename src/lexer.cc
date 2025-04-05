@@ -1001,6 +1001,10 @@ if (CurChar == 'i') {
 		IdentifierStr = CurChar;
 		CurChar = advance();
 		return tok_ref;
+	case ':':
+		IdentifierStr = CurChar;
+		CurChar = advance();
+		return tok_move;
 	case '?':
 		IdentifierStr = CurChar;
 		CurChar = advance();
@@ -1028,12 +1032,12 @@ if (CurChar == 'i') {
 		} else {
 			return tok_selector;
 		}
-	case '<':
+		/* case '<':
 		if (linebuf[Loc.Col] == '-') {
 			IdentifierStr = "<-";
 			CurChar = advance();
 			return tok_unary;
-		}
+			} */
 		// else passthrough
 	default:
 		// Otherwise, just return the character as its ascii value.

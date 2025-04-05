@@ -48,6 +48,7 @@
 #define A_closure (1U<<28)
 #define A_untyped (1U<<29)
 #define A_interface (1U<<30)
+#define A_move   (1U<<31)
 
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)

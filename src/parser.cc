@@ -411,6 +411,9 @@ static std::pair<std::string,volvoxc::FullType*> ParseTypedIdent(int terminator,
 	case tok_optional:
 		attribs |= (A_ref | A_optional);
 		break;
+	case tok_move:
+		attribs |= A_move;
+		break;
 	default:
 		goto no_attribute;;
 	}
