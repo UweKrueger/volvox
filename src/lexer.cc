@@ -1001,10 +1001,6 @@ if (CurChar == 'i') {
 		IdentifierStr = CurChar;
 		CurChar = advance();
 		return tok_ref;
-	case ':':
-		IdentifierStr = CurChar;
-		CurChar = advance();
-		return tok_move;
 	case '?':
 		IdentifierStr = CurChar;
 		CurChar = advance();
