@@ -617,7 +617,7 @@ void CreateFree(llvm::Value* buf) {
 	Builder->CreateFree(buf);
 #endif
 #else
-	Builder->Insert(llvm::CallInst::CreateFree(cstr, Builder->GetInsertBlock()));
+	Builder->Insert(llvm::CallInst::CreateFree(buf, Builder->GetInsertBlock()));
 #endif
 }
 
