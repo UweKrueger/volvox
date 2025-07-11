@@ -3499,7 +3499,16 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 		if (if_kind == tok_while) {
+#if LLVM_VERSION_MAJOR >= 20
+			for (llvm::Instruction &I : *CondBB) {
+				if (!llvm::isa<llvm::PHINode>(I)) {
+					firstWhile = &I;
+					break;
+				}
+			}
+#else
 			firstWhile = CondBB->getFirstNonPHI();
+#endif
 			CondBB = Builder->GetInsertBlock();
 		} else if (if_kind == tok_if) {
 			if (auto static_cond = llvm::dyn_cast<llvm::ConstantInt>(CondV))
