@@ -13,6 +13,9 @@
 #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
 #include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
 #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
+#if LLVM_VERSION_MAJOR >= 21
+#include "llvm/ExecutionEngine/Orc/SelfExecutorProcessControl.h"
+#endif
 #if LLVM_VERSION_MAJOR >= 17
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorSymbolDef.h"
 #endif
@@ -43,7 +46,11 @@ namespace llvm {
 				: ES(std::move(ES)), DL(std::move(DL)), Mangle(*this->ES, this->DL),
 				  JTMB(_JTMB),
 				  ObjectLayer(*this->ES,
-				              []() { return std::make_unique<SectionMemoryManager>(); }),
+				              [](
+#if LLVM_VERSION_MAJOR >= 21
+					              const MemoryBuffer &
+#endif
+					              ) { return std::make_unique<SectionMemoryManager>(); }),
 				  CompileLayer(*this->ES, ObjectLayer,
 				               std::make_unique<ConcurrentIRCompiler>(std::move(_JTMB))),
 				  MainJD(this->ES->createBareJITDylib("<main>")) {

@@ -2076,6 +2076,9 @@ int main(int argc, char* argv[]) {
 		TargetTriple = "x86_64-pc-windows-gnu";
 	else
 		TargetTriple = llvm::sys::getDefaultTargetTriple();
+#if LLVM_VERSION_MAJOR >= 21
+	auto Triple = llvm::Triple(TargetTriple);
+#endif
 	if (strstr(TargetTriple.c_str(), "-alpine-"))
 		gen_pie = true;
 	if (gen_pie)
@@ -2119,9 +2122,13 @@ int main(int argc, char* argv[]) {
 		}
 	} else {
 		TheTargetMachine =
-			Target->createTargetMachine(TargetTriple, CPU, Features, target_opts, RM,
-			                            std::nullopt,
-			                            codegenopt);
+			Target->createTargetMachine(
+#if LLVM_VERSION_MAJOR >= 21
+				Triple,
+#else
+				TargetTriple,
+#endif
+				CPU, Features, target_opts, RM, std::nullopt, codegenopt);
 	}
 	if (verbosity >= 1) {
 		if (TheTargetMachine->useEmulatedTLS())
@@ -2144,7 +2151,13 @@ int main(int argc, char* argv[]) {
 	target_bytes = target_bits >> 3;
 	target_mask = (uint64_t)-1 >> (64 - target_bits);
 	if (comp_mode == comp_obj) {
-		TheModule->setTargetTriple(TargetTriple);
+		TheModule->setTargetTriple(
+#if LLVM_VERSION_MAJOR >= 21
+			Triple
+#else
+			TargetTriple
+#endif
+			);
 		TheModule->setDataLayout(TheTargetMachine->createDataLayout());
 		// auto strrep = TheModule->getDataLayout().getStringRepresentation();
 		// errs() << "Data Layout: >" << strrep << "<\n";
