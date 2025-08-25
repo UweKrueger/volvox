@@ -197,24 +197,28 @@ public:
 	// if this is an rvalue and silent_fail=true then the llvm::Type is returned
 	// but the llvm::Value is NULL
 	// constref = true means generated reference is not used to modify object
+	// this method should not be called directly
 	virtual std::pair<llvm::Type*,llvm::Value*> codegen_ref_(
 		bool silent_fail = false, bool constref = false) {
 		return { nullptr, nullptr };
 	}
+	// callable method
+	// we allow `codegen_ref()` to be called more than once for the same object
+	// to avoid conflicts (and to speed things up) we have a cache
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref(
 		bool silent_fail = false, bool constref = false) {
+		if (!ref_cache.first)
+			ref_cache = codegen_ref_(silent_fail, constref);
 		if (ref_cache.first) {
 			if (!ref_cache.second && !silent_fail)
 				errs() << Loc << ": cannot get reference\n";
-			return ref_cache;
-		}
-		// auto res = codegen_ref_(silent_fail, constref);
-		// if (res.second)
-		// 	errs() << Loc << ": got reference " << *res.second << "\n";
-		// return res;
-		return codegen_ref_(silent_fail, constref);
+		} else
+			errs() << Loc << ": rerror getting reference\n";
+		return ref_cache;
 	}
+	// get vector dimensions and element size
 	virtual std::vector<llvm::Value*> _getAllocSize(llvm::Type** el_ty = nullptr);
+	// get (variable or const) size of complete object referenced
 	virtual llvm::Value* getAllocSize(llvm::Type** el_ty = nullptr) override;
 	virtual VariableExprAST* getBase() { return nullptr; }
 };
