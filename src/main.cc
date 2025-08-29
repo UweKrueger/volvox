@@ -246,7 +246,7 @@ void init(const llvm::Triple& triple) {
 		std::make_unique<PrototypeAST>(
 			SourceLocation(), "dim", std::vector<std::string>{ "order" }, 0,
 			SourceLocation(), false, size_type,
-			std::vector<volvoxc::FullType*>{ integer_type },
+			std::vector<volvoxc::FullType*>{ integer_type }, std::vector<arg_needs_constructor_t>{},
 			std::vector<SourceLocation>{ SourceLocation() }),
 		SourceLocation("<builtin array method>", 0, 0));
 	// create build in constexprs to describe target

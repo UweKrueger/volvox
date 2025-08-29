@@ -1,9 +1,11 @@
-#pragma once
-/*
+/* -*- mode: c++ -*-
+ *
  * Copyright © Uwe Krüger 2021, 2022, 2023, 2024, 2025
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
  */
+#pragma once
+
 #include "../clib/map.h"
 #include "../clib/types.h"
 #include "../clib/str.h"
@@ -1021,6 +1023,14 @@ inline llvm::Value* getInterfaceArrayValue(llvm::Value* val, llvm::ArrayType* ar
 extern llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name = "");
 extern uint64_t get_ref_alloc_sz(llvm::Type* type);
 
+// if a value-function argument is moved inside the function body and is used
+// in the caller afterwards we might have to call the standard constructor
+enum arg_needs_constructor_t : uint8_t {
+	arg_no_constructor = 0,
+	arg_needs_constructor,
+	maybe_arg_needs_constructor, // we only have a decl but no def, so we do not know, yet
+};
+
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number
 /// of arguments the function takes), as well as if it is an operator.
@@ -1029,6 +1039,7 @@ class PrototypeAST {
 public:
 	std::vector<std::string> Args;
 	std::vector<volvoxc::FullType*> ArgTypes = {};
+	std::vector<arg_needs_constructor_t> ArgNeedsConstructor = {};
 	std::vector<llvm::Type*> LLVMArgTypes = {}; // to get LLVM function type
 	std::vector<llvm::AttributeSet> ArgAttrs = {};
 	std::vector<SourceLocation> ArgPos;
@@ -1051,6 +1062,7 @@ public:
 	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
 	             unsigned IsOperator = 0, volvoxc::FullType* RetType_ = nullptr,
 	             std::vector<volvoxc::FullType*> ArgTypes = {},
+	             std::vector<arg_needs_constructor_t> _ArgNeedsConstructor = {},
 	             std::vector<SourceLocation> _ArgPos = {}, std::string _returnName = "",
 	             bool IsVarArgs = false);
 	llvm::Value* codegen(bool need_address = false);

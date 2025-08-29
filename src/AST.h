@@ -1,4 +1,5 @@
-/*
+/* -*- mode: c++ -*-
+ *
  * Copyright © Uwe Krüger 2021, 2022, 2023, 2024, 2025
  * Licensed under the Apache License, Version 2.0
  * see file LICENSE or https://www.apache.org/licenses/LICENSE-2.0.txt
@@ -323,6 +324,10 @@ public:
 	std::vector<FnArg> fn_args;
 	std::unique_ptr<ExprAST> Callee;
 	std::vector<std::unique_ptr<ExprAST>> Args;
+	// When a value arg is not used after this call it may be moved instead
+	// of being copied, i.e. we can skip calling the default contructor.
+	// To know this during codegen we keep track here.
+	std::vector<bool> is_referenced_after_call;
 	PrototypeAST* Proto = nullptr;
 	ssize_t vtable_offs = -1;
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,

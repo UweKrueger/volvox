@@ -2190,6 +2190,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 	unsigned Kind = 0; // 0 = identifier, 1 = unary, 2 = binary, 3 reverse binary.
 	std::vector<std::string> ArgNames;
 	std::vector<volvoxc::FullType*> ArgTypes;
+	std::vector<arg_needs_constructor_t> ArgNeedsConstructor = {};
 	std::vector<SourceLocation> ArgPos;
 	bool isVarArgs = false;
 	bool this_is_value = false; // TODO: check modules of type/constructor
@@ -2497,7 +2498,7 @@ nobrace:
 		}
 		visibility |= A_pub;
 	}
-	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind, RetType, ArgTypes, ArgPos, std::move(returnName), isVarArgs);
+	return std::make_unique<PrototypeAST>(FnLoc, FnName, ArgNames, visibility, retLoc, Kind, RetType, ArgTypes, ArgNeedsConstructor, ArgPos, std::move(returnName), isVarArgs);
 }
 
 // return -2 for conflict, -1 for new Proto, 0...n for matching index
@@ -2591,12 +2592,12 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 					proto->retLoc, proto->Name, std::vector<std::string>{ "this" },
 					A_method | A_interface | A_getter, proto->retLoc,
 					0, proto->RetType, std::vector<volvoxc::FullType*>{ proto->ArgTypes[0] },
-					std::vector<SourceLocation>{ proto->retLoc });
+					std::vector<arg_needs_constructor_t>{}, std::vector<SourceLocation>{ proto->retLoc });
 				setter_proto = std::make_unique<PrototypeAST>(
 					proto->retLoc, proto->Name, std::vector<std::string>{ "this", "assignment_RHS" },
 					A_method | A_interface | A_setter, proto->retLoc,
 					0, proto->RetType, std::vector<volvoxc::FullType*>{ proto->ArgTypes[0], proto->RetType },
-					std::vector<SourceLocation>{ proto->retLoc, proto->retLoc });
+					std::vector<arg_needs_constructor_t>{}, std::vector<SourceLocation>{ proto->retLoc, proto->retLoc });
 				is_getter_setter_field = true;
 			} else {
 				errs() << proto->retLoc << ": getter/setter has to be in the form 'method=type' inside interface declaration\n";
