@@ -593,6 +593,14 @@ struct int_val_type_t {
 	unsigned is_signed : 1; // signed int?
 };
 
+// if a value-function argument is moved inside the function body and is used
+// in the caller afterwards we might have to call the standard constructor
+enum arg_needs_constructor_t : uint8_t {
+	arg_needs_no_constructor = 0,
+	arg_needs_constructor,
+	maybe_arg_needs_constructor, // we only have a decl but no def, so we do not know, yet
+};
+
 struct FullVar {
 	union {
 		// Function local "stack" variables store the address in 'val'.
@@ -618,6 +626,7 @@ struct FullVar {
 	llvm::Function* destructor = nullptr;
 	llvm::Instruction* constructor = nullptr; // to erase in auto-conversion to move
 	FullVar** possible_references = nullptr; // if 'this' is accessed, constructors of those can't be elided
+	arg_needs_constructor_t* needs_constructor = nullptr;
 	SourceLocation decl_loc;
 	unsigned n_p_r = 0; // number of possible references
 	unsigned c_p_r = 0;
@@ -1022,14 +1031,6 @@ inline llvm::Value* getInterfaceArrayValue(llvm::Value* val, llvm::ArrayType* ar
 }
 extern llvm::Value* createStringConst(const char* str, size_t Len, const llvm::Twine &Name = "");
 extern uint64_t get_ref_alloc_sz(llvm::Type* type);
-
-// if a value-function argument is moved inside the function body and is used
-// in the caller afterwards we might have to call the standard constructor
-enum arg_needs_constructor_t : uint8_t {
-	arg_no_constructor = 0,
-	arg_needs_constructor,
-	maybe_arg_needs_constructor, // we only have a decl but no def, so we do not know, yet
-};
 
 /// PrototypeAST - This class represents the "prototype" for a function,
 /// which captures its name, and its argument names (thus implicitly the number

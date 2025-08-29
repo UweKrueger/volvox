@@ -2368,6 +2368,11 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				type = new_FullType(*type, A_by_value);
 		}
 		ArgTypes.push_back(type);
+		// If we have to call the copy constructor for the argument depends
+		// on the implementation, so we cannot know while parsing the prototype
+		// but at least we know for sure that we don't need one if there is none
+		ArgNeedsConstructor.push_back(
+			(type->type_attr & A_constructor) ? maybe_arg_needs_constructor : arg_needs_no_constructor);
 		if (CurTok.kind == ')')
 			break;
 		Eat(',');
@@ -2725,6 +2730,9 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			.decl_loc = Proto->ArgPos[i],
 			.ft = *Proto->ArgTypes[i]
 		};
+		if (i < Proto->ArgNeedsConstructor.size()
+		    && Proto->ArgNeedsConstructor[i] != arg_needs_no_constructor)
+			fv.needs_constructor = &Proto->ArgNeedsConstructor[i];
 		if (!fv.ft.type->isSized() || !TheModule->getDataLayout().getTypeAllocSize(fv.ft.type))
 			if (!(fv.ft.type_attr & A_ref))
 				fv.ft.type_attr |= (A_immutable | A_ref);
