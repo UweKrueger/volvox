@@ -579,7 +579,30 @@ extern llvm::DISubprogram *SP;
 extern llvm::DIFile *Unit;
 extern volvoxc::FullType* theFunction_ret_ft;
 extern bool theFunction_struct_ret;
-extern std::vector<unsigned> current_branch_part;
+
+struct branch_part_t {
+	unsigned int conditional : 16; // how many BranchExprAST in this level
+	unsigned int branch : 1; // 0=then, 1=else
+	unsigned int brk_part : 15;
+};
+
+extern std::vector<branch_part_t> current_branch_part;
+
+class LogicalLocation {
+public:
+	uint64_t Pos;
+	std::vector<branch_part_t> Branch;
+	LogicalLocation() = delete;
+	LogicalLocation(const SourceLocation& src, const std::vector<branch_part_t>& Branch) :
+		Pos((uint64_t)src.Col | ((uint64_t)src.Line << 32)), Branch(Branch) {}
+	LogicalLocation(const LogicalLocation&) = default;
+	~LogicalLocation() = default;
+	// this location might be evaluated after other location
+	bool operator>(const LogicalLocation& other) const;
+	// this location might be evaluated before other location
+	bool operator<(const LogicalLocation& other) const { return other > *this; }
+};
+
 extern FunctionAST* currentFunction;
 #ifdef _WIN32
 extern std::vector<HMODULE> extra_dlls;
@@ -630,7 +653,7 @@ struct FullVar {
 	SourceLocation decl_loc;
 	unsigned n_p_r = 0; // number of possible references
 	unsigned c_p_r = 0;
-	std::vector<unsigned>* branch_parts = nullptr; // 'brk' splits branch in multiple parts
+	std::vector<branch_part_t>* branch_parts = nullptr; // 'brk' splits branch in multiple parts
 	volvoxc::FullType ft = {0};
 	bool may_reference(FullVar* v) {
 		for (unsigned i=0; i<n_p_r; i++)

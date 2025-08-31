@@ -975,18 +975,18 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
 
-inline void dump_branch_parts(std::vector<unsigned>* v) {
+inline void dump_branch_parts(std::vector<branch_part_t>* v) {
 	if (!v) {
 		errs() << " - no levels\n";
 		return;
 	}
 	errs() << " - levels: " << v->size() << "\n";
 	for (auto p: *v) {
-		if (p & (1U << 31))
+		if (p.branch)
 			errs() << "  else: ";
 		else
 			errs() << "  then: ";
-		errs() << ((p & 0x7fff000) >> 16) << " " << (p & 0xffff) << "\n";
+		errs() << p.brk_part << " " << p.conditional << "\n";
 	}
 }
 

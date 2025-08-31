@@ -33,6 +33,7 @@ ProtoListElem** anon_protos_end = &anon_protos;
 // semantically it does. Keep track of syntactic nesting delta for each semantic level.
 // Used to find merge point for multi level 'brk'
 std::vector<uint8_t> syntax_nesting;
+std::vector<uint8_t> CurrentBranch;
 
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
@@ -41,9 +42,22 @@ bool parseOk = true;
 // we keek track, where we are. Currently it is only used to know *if* we are inside a branch
 // so the implementation is too sophisticated - let's keep it though for debugging purposes
 //
-std::vector<unsigned> current_branch_part;
+std::vector<branch_part_t> current_branch_part;
 
 return_kind_t function_return_kind = return_expr; // main function return status value
+
+bool LogicalLocation::operator>(const LogicalLocation& other) const {
+	if (Pos <= other.Pos)
+		return false;
+	size_t min_depth = (Branch.size() < other.Branch.size()) ? Branch.size() : other.Branch.size();
+	for (int i=0; i<min_depth; i++) {
+		if (Branch[i].conditional > other.Branch[i].conditional)
+			return true;
+		if (Branch[i].branch != other.Branch[i].branch)
+			return false;
+	}
+	return false;
+}
 
 Token& getNextToken(eXpect expect, int terminator) {
 	CurTok = lex.gettok(expect, terminator);
@@ -1086,7 +1100,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 			return nullptr;
 	}
 	locals_table.emplace_back();
-	current_branch_part.push_back(0);
+	current_branch_part.push_back(branch_part_t{0});
 	unsigned max_brk_level = 0;
 	std::vector<BranchDescription> Then;
 	for (;;) {
@@ -1106,7 +1120,7 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 				} });
 		if (!is_brk)
 			break;
-		current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
+		current_branch_part.back().brk_part++;
 	}
 	if (!Then.back().second.end_kind && Then.back().first.empty()) {
 		errs() << CurLoc << ": malformed branch expression\n";
@@ -1114,7 +1128,6 @@ static std::unique_ptr<ExprAST> ParseIfExpr(int terminator = 0) {
 	}
 	VarTable then_locals_table = std::move(locals_table.back());
 	locals_table.pop_back();
-	// current_branch_part.pop_back();
 	auto [Else, merged_vars, else_locals_table, have_else, success, then_end_kind, else_level] = ParseElse(then_locals_table, IfLoc, kind, Then.back().second.end_kind);
 	if (else_level > max_brk_level)
 		max_brk_level = else_level;
@@ -1190,7 +1203,9 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 			return { std::move(ret_vec), std::move(merged_vars), VarTable{}, false, false, then_end_kind, max_brk_level };
 		}
 		locals_table.emplace_back();
-		current_branch_part.back() = (1U << 31); // code else branch as 1st bit set
+		current_branch_part.back() = branch_part_t{
+			.branch = 1 // else branch
+		};
 		if (CurTok.kind == tok_elif) {
 			// TODO: modify elif counter vector
 			auto elif_expr = ParseIfExpr();
@@ -1232,7 +1247,7 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 						} });
 				if (~(~Else.back().second.end_kind & ((1<<16)-1)) != tok_brk)
 					break;
-				current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
+				current_branch_part.back().brk_part++;
 			}
 			if (!Else.back().second.end_kind && Else.back().first.empty()) {
 				errs() << CurLoc << ": invalid 'if ... else' structure\n";
@@ -1258,14 +1273,14 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 	}
 	current_branch_part.pop_back();
 	if (!current_branch_part.empty())
-		current_branch_part.back()++; // to distinguist from other BranchExprs in enclosing level
+		current_branch_part.back().conditional++; // to distinguist from other BranchExprs in enclosing level
 	VarTable else_locals_table = have_else ? std::move(locals_table.back()) : VarTable();
 	if (kind == tok_repeat) {
 		if (then_locals_table.table) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				auto then_var = fullVar(then_node);
 				// only add vars declared before 1st 'brk' to outer scope
-				if (!((unsigned)then_var->branch_parts->back() & 0xffff0000)) {
+				if (!then_var->branch_parts->back().brk_part) {
 					if (then_var->ft.type_attr & (A_destructor | A_string | A_map)) {
 						std::string then_var_name(then_node.getKey());
 						merged_vars.insert(std::move(then_var_name));
@@ -1275,12 +1290,12 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *then_var)) {
 							fv->ft.type_attr |= A_mainvar;
 							success = true;
-							fv->branch_parts = new std::vector<unsigned>(*then_var->branch_parts);
+							fv->branch_parts = new std::vector<branch_part_t>(*then_var->branch_parts);
 							fv->branch_parts->pop_back();
 						}
 					} else {
 						auto new_then_var = *then_var;
-						new_then_var.branch_parts = new std::vector<unsigned>(*then_var->branch_parts);
+						new_then_var.branch_parts = new std::vector<branch_part_t>(*then_var->branch_parts);
 						new_then_var.branch_parts->pop_back();
 						if (!locals_table.back().insert(then_node.getKey(), new_then_var)) {
 							errs() << Loc << ": Variable '" << then_node.getKey() << "' already exists in outer scope\n";
@@ -1299,7 +1314,7 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 				FullVar* else_var = else_locals_table[then_node.getKey()];
 				// only add to outer scope if declared before 1st 'brk' in each branch
 				FullVar* then_var = fullVar(then_node);
-				if (else_var && !(then_var->branch_parts->back() & 0xffff0000) && !(else_var->branch_parts->back() & 0x7fff0000)) {
+				if (else_var && !then_var->branch_parts->back().brk_part && !else_var->branch_parts->back().brk_part) {
 					if (then_var->ft.type_attr & (A_destructor | A_string | A_map)) {
 						std::string then_var_name(then_node.getKey());
 						merged_vars.insert(std::move(then_var_name));
@@ -1309,12 +1324,12 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 						if (auto fv = lex.module->globals_table.insert(then_node.getKey(), *else_var)) {
 							fv->ft.type_attr |= A_mainvar;
 							success = true;
-							fv->branch_parts = new std::vector<unsigned>(*else_var->branch_parts);
+							fv->branch_parts = new std::vector<branch_part_t>(*else_var->branch_parts);
 							fv->branch_parts->pop_back();
 						}
 					} else {
 						auto new_else_var = *else_var;
-						new_else_var.branch_parts = new std::vector<unsigned>(*else_var->branch_parts);
+						new_else_var.branch_parts = new std::vector<branch_part_t>(*else_var->branch_parts);
 						new_else_var.branch_parts->pop_back();
 						success = locals_table.back().insert(then_node.getKey(), new_else_var);
 					}
@@ -1330,7 +1345,7 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 					if (verbosity >= 2) {
 						errs() << CurLoc << ": ***not*** added '" << then_node.getKey() << "' to outer scope ";
 						if (else_var && else_var->branch_parts)
-							errs() << fullVar(then_node)->branch_parts->back() << " " << else_var->branch_parts->back() << "\n";
+							errs() << fullVar(then_node)->branch_parts->back().brk_part << " " << else_var->branch_parts->back().brk_part << "\n";
 						else
 							errs() << "<\n";
 					}
@@ -1435,7 +1450,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		FullVar fv = {
 			.val = nullptr,
 			.decl_loc = LHS->Loc,
-			.branch_parts = new std::vector<unsigned>(current_branch_part),
+			.branch_parts = new std::vector<branch_part_t>(current_branch_part),
 			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{0}
 		};
 		fv.ft.type = type;
@@ -1488,7 +1503,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	syntax_nesting.push_back(1);
 	// condition - expect bool.
 	locals_table.emplace_back();
-	current_branch_part.push_back(0);
+	current_branch_part.push_back(branch_part_t{0});
 	auto KeyVal = ParseExpression(tok_in);
 	bool descending;
 	switch (CurTok.kind) {
@@ -1588,9 +1603,8 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 				} });
 		if (~(~Body.back().second.end_kind & ((1<<16)-1)) != tok_brk)
 			break;
-		current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
+		current_branch_part.back().brk_part++;
 	}
-	// current_branch_part.pop_back();
 	if (!Body.back().second.end_kind && Body.back().first.empty())
 		return nullptr;
 	VarTable then_locals_table = std::move(locals_table.back());
@@ -2121,10 +2135,6 @@ static std::tuple<std::vector<std::unique_ptr<ExprAST>>, int, unsigned> ParseExp
 					if (I->max_brk_level) {
 						if (max_brk_level < I->max_brk_level)
 							max_brk_level = I->max_brk_level - 1;
-						if (I->max_brk_level > 1)
-							// consider this a new branch part since the rest of this branch
-							// might not be preformed do to multi level 'brk'
-							current_branch_part.back() = ((unsigned)current_branch_part.back() & 0xffff0000) + 0x10000;
 					} else if (I->Then.back().second.end_kind == tok_return && I->Else.back().second.end_kind == tok_return) {
 						// both branches do return and there is no break
 						// TODO: stricter checks for multi level break
