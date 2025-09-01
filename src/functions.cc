@@ -324,7 +324,7 @@ do_analyze:
 			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list, false});
 			if (!is_list) {
 				if (auto var_expr = dynamic_cast<VariableExprAST*>(arg.get())) {
-					if (var_expr->full_var)
+					if (var_expr->full_var && !(arg->ft->type_attr & (A_mainvar | A_global)))
 						var_expr->full_var->var_usage_markers.emplace_back(
 							var_expr->Loc, current_branch_part, &fn_args.back().is_referenced_after_call);
 				}

@@ -271,6 +271,19 @@ public:
 			ft = &full_var->ft;
 			if (ft->type_attr & A_untyped)
 				is_unknown_type = true;
+			if (!full_var->var_usage_markers.empty()) {
+				LogicalLocation lloc(Loc, current_branch_part);
+				// errs() << Loc << ": varname " << Name << " " << lloc << "\n";
+				for (auto it = full_var->var_usage_markers.begin(); it != full_var->var_usage_markers.end(); ) {
+					if (lloc > it->loc) {
+						if (it->flag_ptr)
+							*it->flag_ptr = true;
+						// errs() << "### marking " << it->loc << "\n";
+						full_var->var_usage_markers.erase(it);
+					} else
+						it++;
+				}
+			}
 		}
 		// if the variable name has not found in the databases we don't generate
 		// an error message here because this VariableExprAST could be the LHS of
@@ -282,6 +295,18 @@ public:
 			ft = &fv->ft;
 			if (ft->type_attr & A_untyped)
 				is_unknown_type = true;
+			if (!full_var->var_usage_markers.empty()) {
+				LogicalLocation lloc(Loc, current_branch_part);
+				// errs() << Loc << ": varname2 " << Name << " " << lloc << "\n";
+				for (auto it = full_var->var_usage_markers.begin(); it != full_var->var_usage_markers.end(); ) {
+					if (lloc > it->loc) {
+						// errs() << "### marking " << it->loc << "\n";
+						*it->flag_ptr = true;
+						full_var->var_usage_markers.erase(it);
+					} else
+						it++;
+				}
+			}
 		}
 		else
 			ft = nullptr;

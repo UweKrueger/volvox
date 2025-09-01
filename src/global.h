@@ -604,6 +604,11 @@ public:
 	bool operator<(const LogicalLocation& other) const { return other > *this; }
 };
 
+inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, const LogicalLocation& log_loc) {
+	out << (log_loc.Pos >> 32) << ":" << (log_loc.Pos & 0xffffffff);
+	return out;
+}
+
 extern FunctionAST* currentFunction;
 #ifdef _WIN32
 extern std::vector<HMODULE> extra_dlls;
