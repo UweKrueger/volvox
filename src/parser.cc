@@ -56,7 +56,7 @@ bool LogicalLocation::operator>(const LogicalLocation& other) const {
 		if (Branch[i].branch != other.Branch[i].branch)
 			return false;
 	}
-	return false;
+	return true;
 }
 
 Token& getNextToken(eXpect expect, int terminator) {
