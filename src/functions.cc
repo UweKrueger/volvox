@@ -307,7 +307,7 @@ do_analyze:
 		                        static_cast<bool>(method->Receiver->ft->type_attr & A_signed),
 		                        method->Receiver->is_unknown_type});
 	else if (type_expr && type_expr->ft->type->isStructTy())
-		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, type_expr->ft->type_attr, false, false});
+		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, type_expr->ft->type_attr, false, false, false});
 	else if (select_expr)
 		Name = select_expr->FieldName;
 	if (!type_expr || type_expr->ft->type->isStructTy()) {
@@ -321,7 +321,14 @@ do_analyze:
 					return;
 				}
 			}
-			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list});
+			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list, false});
+			if (!is_list) {
+				if (auto var_expr = dynamic_cast<VariableExprAST*>(arg.get())) {
+					if (var_expr->full_var)
+						var_expr->full_var->var_usage_markers.emplace_back(
+							var_expr->Loc, current_branch_part, &fn_args.back().is_referenced_after_call);
+				}
+			}
 		}
 		std::vector<std::unique_ptr<PrototypeAST>>* protos;
 		if (type_expr) {

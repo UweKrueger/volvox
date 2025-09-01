@@ -383,10 +383,11 @@ inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc
 
 struct FnArg {
 	std::function<llvm::Value*(llvm::Value*)> Conv = nullptr;
-	llvm::Type* argtype;
-	unsigned argtype_attr;
-	bool arg_unknown_type;
-	bool is_anonymous_list;
+	llvm::Type* argtype = nullptr;
+	unsigned argtype_attr = 0;
+	bool arg_unknown_type = false;
+	bool is_anonymous_list = false;
+	bool is_referenced_after_call = false;
 	bool arg_signed() { return argtype_attr & A_signed; }
 };
 
@@ -624,6 +625,17 @@ enum arg_needs_constructor_t : uint8_t {
 	maybe_arg_needs_constructor, // we only have a decl but no def, so we do not know, yet
 };
 
+class var_usage_marker_t {
+public:
+	LogicalLocation loc;
+	bool* flag_ptr;
+	var_usage_marker_t() = delete;
+	var_usage_marker_t(const SourceLocation& src,
+	                   const std::vector<branch_part_t>& Branch, bool* flag_ptr)
+		: loc(src, Branch), flag_ptr(flag_ptr) {}
+	~var_usage_marker_t() = default;
+};
+
 struct FullVar {
 	union {
 		// Function local "stack" variables store the address in 'val'.
@@ -653,6 +665,7 @@ struct FullVar {
 	SourceLocation decl_loc;
 	unsigned n_p_r = 0; // number of possible references
 	unsigned c_p_r = 0;
+	std::vector<var_usage_marker_t> var_usage_markers;
 	std::vector<branch_part_t>* branch_parts = nullptr; // 'brk' splits branch in multiple parts
 	volvoxc::FullType ft = {0};
 	bool may_reference(FullVar* v) {
