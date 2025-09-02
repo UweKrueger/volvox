@@ -33,7 +33,6 @@
 #define A_constructor_value_return (1U<<17) // e.g. "def f64()"
 #define A_global (1U<<18) // in jit jit all main symbols are global for LLVM, so an additional flag for logical visibility is needed
 #define A_inline (1U<<19) // function
-#define A_modified (1U<<19) // variable
 #define A_c_api  (1U<<20)
 #define A_by_value (1U<<20)
 #define A_destructor (1U<<21) // fn is destructor or type has destructor
