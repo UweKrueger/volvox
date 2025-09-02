@@ -1493,7 +1493,7 @@ bool FunctionAST::prepare_codegen() {
 		ret_ptr = this_ret_ptr = TheFunction->getArg(ArgIdx++);
 	else
 		ret_ptr = this_ret_ptr = nullptr;
-	for (; ArgIdx < TheFunction->arg_size(); ArgIdx++) {
+	for (int ConstrIdx=0; ArgIdx < TheFunction->arg_size(); ArgIdx++, ConstrIdx++) {
 		auto Arg = TheFunction->getArg(ArgIdx);
 		FullVar* mapitem = locals_table.back()[Arg->getName().str().c_str()];
 		if (!mapitem) {
@@ -1520,6 +1520,8 @@ bool FunctionAST::prepare_codegen() {
 		// destructors for function arguments should always be called
 		// by the caller
 		mapitem->destructor = nullptr;
+		if (Proto->ArgNeedsConstructor[ConstrIdx])
+			mapitem->needs_constructor = &Proto->ArgNeedsConstructor[ConstrIdx];
 		if (comp_mode == comp_dbg) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
@@ -1669,6 +1671,10 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	currentFunction = old_currentFunction;
 	theFunction_ret_ft = old_theFunction_ret_ft;
 	theFunction_struct_ret = old_theFunction_struct_ret;
+	if (success)
+		for (auto& flag: Proto->ArgNeedsConstructor)
+			if (flag == maybe_arg_needs_constructor)
+				flag = arg_needs_no_constructor;
 	return success ? TheFunction : nullptr;
 }
 

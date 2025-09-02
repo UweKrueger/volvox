@@ -2235,6 +2235,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			UnmagledReceiverTypeName = "interface";
 			ArgNames.push_back("this");
 			ArgTypes.push_back(ReceiverType);
+			ArgNeedsConstructor.push_back(arg_needs_no_constructor);
 			ArgPos.push_back(CurLoc);
 		} else {
 			if (tmp_rec_type) {
@@ -2276,6 +2277,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 						ReceiverType->type_attr |= A_ref;
 					ArgNames.push_back("this");
 					ArgTypes.push_back(ReceiverType);
+					ArgNeedsConstructor.push_back(arg_needs_no_constructor);
 					ArgPos.push_back(CurLoc);
 				} else {
 					if (visibility & A_constructor) {
@@ -2358,6 +2360,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				ArgNames.push_back("va_args");
 				ArgPos.push_back(El_Pos);
 				ArgTypes.push_back(va_arg_type);
+				ArgNeedsConstructor.push_back(arg_needs_no_constructor);
 			}
 			break;
 		}
@@ -2381,7 +2384,8 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		// on the implementation, so we cannot know while parsing the prototype
 		// but at least we know for sure that we don't need one if there is none
 		ArgNeedsConstructor.push_back(
-			(type->type_attr & A_constructor) ? maybe_arg_needs_constructor : arg_needs_no_constructor);
+			((type->type_attr & A_constructor) && !(type->type_attr & A_ref))
+			? maybe_arg_needs_constructor : arg_needs_no_constructor);
 		if (CurTok.kind == ')')
 			break;
 		Eat(',');
