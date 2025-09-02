@@ -33,7 +33,6 @@ ProtoListElem** anon_protos_end = &anon_protos;
 // semantically it does. Keep track of syntactic nesting delta for each semantic level.
 // Used to find merge point for multi level 'brk'
 std::vector<uint8_t> syntax_nesting;
-std::vector<uint8_t> CurrentBranch;
 
 extern llvm::ExitOnError ExitOnErr;
 bool parseOk = true;
@@ -2732,6 +2731,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		function_return_kind = return_variable;
 	else
 		function_return_kind = return_expr;
+	current_branch_part.push_back(branch_part_t{0});
 	prompt_indent++;
 	auto sz = Proto->Args.size();
 	// initialize local vars lookup table with function arguments
@@ -2872,6 +2872,7 @@ parse_body:
 			.break_level = b_lev
 		}
 	};
+	current_branch_part.clear();
 	return std::make_unique<FunctionAST>(ProtoRef, std::move(bBranch), std::move(unmangledName));
 }
 

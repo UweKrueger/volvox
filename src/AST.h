@@ -279,7 +279,7 @@ public:
 						if (it->flag_ptr)
 							*it->flag_ptr = true;
 						// errs() << "### marking " << it->loc << "\n";
-						full_var->var_usage_markers.erase(it);
+						it = full_var->var_usage_markers.erase(it);
 					} else
 						it++;
 				}
@@ -302,7 +302,7 @@ public:
 					if (lloc > it->loc) {
 						// errs() << "### marking " << it->loc << "\n";
 						*it->flag_ptr = true;
-						full_var->var_usage_markers.erase(it);
+						it = full_var->var_usage_markers.erase(it);
 					} else
 						it++;
 				}
