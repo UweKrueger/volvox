@@ -1087,7 +1087,7 @@ public:
 	std::vector<SourceLocation> ArgPos;
 	std::vector<llvm::Value*> implicitArgs; // for built-in methods
 	volvoxc::FullType* RetType = nullptr;
-	std::string returnName; // for named Return or "this" for non-struct constructors
+	std::string returnName; // for named return or "this" for non-struct constructors
 	SourceLocation retLoc;
 	llvm::FunctionType* FT = nullptr;
 	llvm::Constant* const_result = nullptr;

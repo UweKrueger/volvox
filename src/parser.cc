@@ -2504,6 +2504,9 @@ nobrace:
 				ArgTypes[1]->type_attr &= ~A_ref;
 			ArgPos[0] = ArgPos[1];
 			ArgPos[1] = pos_tmp;
+			auto needs_constr_tmp = ArgNeedsConstructor[0];
+			ArgNeedsConstructor[0] = ArgNeedsConstructor[1];
+			ArgNeedsConstructor[1] = needs_constr_tmp;
 		} else {
 			errs() << ArgPos[0] << ": at least one of receiver or argument must be a declared type\n";
 			return nullptr;
@@ -2610,12 +2613,12 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 					proto->retLoc, proto->Name, std::vector<std::string>{ "this" },
 					A_method | A_interface | A_getter, proto->retLoc,
 					0, proto->RetType, std::vector<volvoxc::FullType*>{ proto->ArgTypes[0] },
-					std::vector<arg_needs_constructor_t>{}, std::vector<SourceLocation>{ proto->retLoc });
+					std::vector<arg_needs_constructor_t>{ arg_needs_no_constructor }, std::vector<SourceLocation>{ proto->retLoc });
 				setter_proto = std::make_unique<PrototypeAST>(
 					proto->retLoc, proto->Name, std::vector<std::string>{ "this", "assignment_RHS" },
 					A_method | A_interface | A_setter, proto->retLoc,
 					0, proto->RetType, std::vector<volvoxc::FullType*>{ proto->ArgTypes[0], proto->RetType },
-					std::vector<arg_needs_constructor_t>{}, std::vector<SourceLocation>{ proto->retLoc, proto->retLoc });
+					std::vector<arg_needs_constructor_t>{ arg_needs_no_constructor, arg_needs_no_constructor }, std::vector<SourceLocation>{ proto->retLoc, proto->retLoc });
 				is_getter_setter_field = true;
 			} else {
 				errs() << proto->retLoc << ": getter/setter has to be in the form 'method=type' inside interface declaration\n";
