@@ -2377,14 +2377,15 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		if (!(type->type_attr & (A_ref | A_interface))) {
 			uint64_t arg_size = type->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(type->type) : 0;
 			if (!arg_size || arg_size > sret_limit)
-				type = new_FullType(*type, A_by_value);
+				type = new_FullType(*type, A_by_value | A_ref);
 		}
 		ArgTypes.push_back(type);
 		// If we have to call the copy constructor for the argument depends
 		// on the implementation, so we cannot know while parsing the prototype
 		// but at least we know for sure that we don't need one if there is none
 		ArgNeedsConstructor.push_back(
-			((type->type_attr & A_constructor) && !(type->type_attr & A_ref))
+			((type->type_attr & A_constructor) &&
+			 ((type->type_attr & A_by_value) || !(type->type_attr & A_ref)))
 			? maybe_arg_needs_constructor : arg_needs_no_constructor);
 		if (CurTok.kind == ')')
 			break;
