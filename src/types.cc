@@ -970,7 +970,12 @@ PrototypeAST::PrototypeAST(SourceLocation Loc, const std::string &Name,
 				fn_arg_type = ref_type;
 				ArgAttrs.push_back(llvm::AttributeSet());
 			} else if (argtype->type_attr & A_by_value) { // Arguments > sret_limit bytes are always passed as pointer using copy-on-write
-				ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+				if (argtype->type_attr & A_constructor)
+					ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+							llvm::Attribute::getWithByRefType(Context, argtype->type),
+							llvm::Attribute::getWithDereferenceableBytes(Context, argsize) }));
+				else
+					ArgAttrs.push_back(llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
 							llvm::Attribute::getWithByValType(Context, argtype->type) }));
 				fn_arg_type = llvm_ptr_type;
 			} else {
