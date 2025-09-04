@@ -708,14 +708,15 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 				return Builder->CreateMul(Size, getSize(size));
 			return Builder->getInt32(order);
 		}
-		if (Struct->ft->type->isPointerTy() && (Struct->ft->type_attr & A_string)) {
+		/* if (Struct->ft->type->isPointerTy() && (Struct->ft->type_attr & A_string)) {
 			llvm::Value* s = Struct->codegen_raw();
+			errs() << Loc << ": #### have string";
 			auto Sz = Builder->CreateAnd(Builder->CreateLoad(llvm_size_type, s),
 			                             getSize(target_mask >> 1));
 			if (!FieldIndex)
 				return Sz;
 			return Builder->CreateSub(Sz, getSize(1));
-		}
+		} */
 		llvm::Value* Store = nullptr;
 		if (Struct->needs_target() || Struct->ft->type_attr & A_union) {
 			Store = CreateEntryBlockAlloca(Struct->ft->type);
@@ -1986,10 +1987,11 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (RHS->ft->type_attr & A_use_target) {
 				postpone_valgen = true;
 			} else {
-				if (RHS->ft->type_attr & A_string)
+				/* if (RHS->ft->type_attr & A_string) {
+					errs() << Loc << ": use string val\n";
 					Val = RHS->codegen_raw((llvm::Value*)(intptr_t)-1);
-				else
-					Val = RHS->codegen(true);
+				} else */
+				Val = RHS->codegen(true);
 				if (!Val)
 					return nullptr;
 			}

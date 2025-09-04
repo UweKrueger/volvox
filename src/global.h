@@ -670,7 +670,7 @@ struct FullVar {
 	SourceLocation decl_loc;
 	unsigned n_p_r = 0; // number of possible references
 	unsigned c_p_r = 0;
-	std::vector<var_usage_marker_t> var_usage_markers;
+	std::vector<var_usage_marker_t>* var_usage_markers = nullptr;
 	std::vector<branch_part_t>* branch_parts = nullptr; // 'brk' splits branch in multiple parts
 	volvoxc::FullType ft = {0};
 	bool may_reference(FullVar* v) {
@@ -693,9 +693,13 @@ struct FullVar {
 			free((void*)this->mangled_name);
 		}
 		free((void*)this->possible_references);
+		/* delete var_usage_markers;
+		   - this is done at end of main() using "all_usage_markers" */
 		delete branch_parts;
 	}
 };
+
+extern std::vector<std::vector<var_usage_marker_t>*> all_usage_markers;
 
 struct FVListElem {
 	FVListElem* next = nullptr;
@@ -990,13 +994,9 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 		Builder->CreateCall(FT, fv->destructor, val);
 		if (before)
 			Builder->SetInsertPoint(oldBB);
-	} else if (fv->ft.type->isPointerTy()) {
+	} else if (fv->ft.type->isPointerTy() && (fv->ft.type_attr & A_map)) {
 		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? val : Builder->CreateLoad(llvm_ptr_type, val);
-		if (fv->ft.type_attr & A_string) {
-			InsertStringDestructor(v, before);
-		} else if (fv->ft.type_attr & A_map) {
-			InsertMapDestructor(v, before);
-		}
+		InsertMapDestructor(v, before);
 	}
 }
 

@@ -21,6 +21,7 @@ std::vector<FullVar> expr_temps; // to call destructors immediatelly after expr
 std::vector<HMODULE> extra_dlls; // loaded by '__link_extra' at runtime in JIT mode
 #endif
 std::map<std::string,SourceLocation> defined_functions;
+std::vector<std::vector<var_usage_marker_t>*> all_usage_markers;
 
 // global function to find method protos
 std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName) {
@@ -324,9 +325,14 @@ do_analyze:
 			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list, false});
 			if (!is_list) {
 				if (auto var_expr = dynamic_cast<VariableExprAST*>(arg.get())) {
-					if (var_expr->full_var && !(arg->ft->type_attr & (A_mainvar | A_global)))
-						var_expr->full_var->var_usage_markers.emplace_back(
+					if (var_expr->full_var && !(arg->ft->type_attr & (A_mainvar | A_global))) {
+						if (!var_expr->full_var->var_usage_markers) {
+							var_expr->full_var->var_usage_markers = new std::vector<var_usage_marker_t>();
+							all_usage_markers.push_back(var_expr->full_var->var_usage_markers);
+						}
+						var_expr->full_var->var_usage_markers->emplace_back(
 							var_expr->Loc, current_branch_part, &fn_args.back().is_referenced_after_call);
+					}
 				}
 			}
 		}

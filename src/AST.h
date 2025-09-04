@@ -271,15 +271,15 @@ public:
 			ft = &full_var->ft;
 			if (ft->type_attr & A_untyped)
 				is_unknown_type = true;
-			if (!full_var->var_usage_markers.empty()) {
+			if (full_var->var_usage_markers && !full_var->var_usage_markers->empty()) {
 				LogicalLocation lloc(Loc, current_branch_part);
 				// errs() << Loc << ": varname " << Name << " " << lloc << "\n";
-				for (auto it = full_var->var_usage_markers.begin(); it != full_var->var_usage_markers.end(); ) {
+				for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
 					if (lloc > it->loc) {
 						if (it->flag_ptr)
 							*it->flag_ptr = true;
 						// errs() << "### marking " << it->loc << "\n";
-						it = full_var->var_usage_markers.erase(it);
+						it = full_var->var_usage_markers->erase(it);
 					} else
 						it++;
 				}
@@ -295,14 +295,14 @@ public:
 			ft = &fv->ft;
 			if (ft->type_attr & A_untyped)
 				is_unknown_type = true;
-			if (!full_var->var_usage_markers.empty()) {
+			if (full_var->var_usage_markers && !full_var->var_usage_markers->empty()) {
 				LogicalLocation lloc(Loc, current_branch_part);
 				// errs() << Loc << ": varname2 " << Name << " " << lloc << "\n";
-				for (auto it = full_var->var_usage_markers.begin(); it != full_var->var_usage_markers.end(); ) {
+				for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
 					if (lloc > it->loc) {
 						// errs() << "### marking " << it->loc << "\n";
 						*it->flag_ptr = true;
-						it = full_var->var_usage_markers.erase(it);
+						it = full_var->var_usage_markers->erase(it);
 					} else
 						it++;
 				}

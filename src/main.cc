@@ -2535,5 +2535,7 @@ int main(int argc, char* argv[]) {
 		free((void*)str);
 	for (auto str: jit_string_consts)
 		free((void*)str);
+	for (auto usage_markers: all_usage_markers)
+		delete usage_markers;
 	return result;
 }
