@@ -971,7 +971,6 @@ extern void InsertArrayConDestructor(
 extern void InsertDestructors(VarTable& t, llvm::Value* retp);
 extern void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars = nullptr, llvm::Value* retp = nullptr);
 extern void InsertDestructors(std::vector<FullVar>& t);
-extern void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 extern void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before = nullptr);
 extern llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind);
 extern bool jit_repl;

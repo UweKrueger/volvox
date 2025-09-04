@@ -593,32 +593,6 @@ llvm::Value* Volvox2CStr(llvm::Value* v) {
 #endif
 }
 
-void InsertStringDestructor(llvm::Value* v, llvm::Instruction* before) {
-	// TODO: handle 'before' (is this even needed?)
-	llvm::BasicBlock* enterBB = Builder->GetInsertBlock();
-	llvm::Function* TheFunction = enterBB->getParent();
-	llvm::BasicBlock* ContBB = llvm::BasicBlock::Create(Context, "contdestr");
-#ifndef NO_NULLPTR_STRING
-	llvm::BasicBlock* DestructorBB0 = llvm::BasicBlock::Create(Context, "stringdestr0");
-	llvm::Value* IsNotNull = Builder->CreateIsNotNull(Builder->CreatePtrToInt(v, llvm_size_type));
-	Builder->CreateCondBr(IsNotNull, DestructorBB0, ContBB);
-	TheFunction->insert(TheFunction->end(), DestructorBB0);
-	Builder->SetInsertPoint(DestructorBB0);
-#endif
-	auto subtrahend = Volvox2CStr1(v);
-	llvm::Value* destructflag = getArrayCap(v);
-	destructflag = Builder->CreateIsNotNull(destructflag);
-	llvm::BasicBlock* DestructorBB = llvm::BasicBlock::Create(Context, "stringdestr");
-	Builder->CreateCondBr(destructflag, DestructorBB, ContBB);
-	TheFunction->insert(TheFunction->end(), DestructorBB);
-	Builder->SetInsertPoint(DestructorBB);
-	auto cstr = Volvox2CStr2(v, subtrahend);
-	CreateFree(cstr);
-	Builder->CreateBr(ContBB);
-	TheFunction->insert(TheFunction->end(), ContBB);
-	Builder->SetInsertPoint(ContBB);
-}
-
 void CreateFree(llvm::Value* buf) {
 #if LLVM_VERSION_MAJOR >= 18
 #ifdef _MSC_VER
