@@ -793,7 +793,7 @@ llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
 			// TODO: get Offset from vtable comparison
 			return nullptr;
 		} else {
-			// target type is empty interface -> completely skip vtable
+			// target type is empty interface -> completely skip the vtable
 			Offset = Builder->CreateLoad(llvm_size_type, rttype_ptr);
 		}
 		val = Builder->CreateExtractValue(inter_face, 1);
