@@ -1,6 +1,6 @@
 # Functions that are available without loading any module
 # some are implemented in clib of std-libc, some are inline
-# and some are hard coded in the compiler
+# and some are hard coded
 
 # use this to trigger informative messages
 const _verbose := __VERBOSE
