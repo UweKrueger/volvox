@@ -932,7 +932,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (Proto && Proto->Name == "__store_size") {
 		if (Args.size() != 2) {
-			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 1 argument\n";
+			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 2 arguments\n";
 			return nullptr;
 		}
 		Args[0]->desired_type = llvm_ptr_type;
@@ -1172,6 +1172,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, getSize(n_volovox_va_arg), 0);
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, volvox_var_array, 1);
 	}
+	if (fn_args.size() != Args.size()+arg_offs)
+		errs() << Loc << ": ### Internal compiler error - fn_args: " << fn_args.size() << " Args: " << Args.size() << " arg_offs: " << arg_offs << " n_proto_args: " << n_proto_args << "\n";
 	for (unsigned i = 0; i < Args.size(); ++i) {
 		if (is_volvox_variadic && (i+arg_offs) >= n_proto_args) {
 			unsigned idx = (i+arg_offs) - n_proto_args;
@@ -1184,23 +1186,29 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 			continue;
 		}
-		if ((i+arg_offs) < n_proto_args && Proto->ArgTypes[i+arg_offs]->type_attr & A_interface) {
-			auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(Args[i]), Proto->ArgTypes[i+arg_offs]);
-			llvm::Value* interface_val = interface_expr->codegen_raw(nullptr);
-			if (!interface_val)
-				return nullptr;
-			ArgsV.push_back(interface_val);
-			continue;
-		}
+		bool is_var_array = false;
 		bool by_val = false;
-		bool is_var_array = (i+arg_offs) < n_proto_args
-			&& Proto->ArgTypes[i+arg_offs]->type->isArrayTy()
-			&& !Proto->FT->getFunctionParamType(i+arg_offs)->isArrayTy();
-		bool is_address = (i+arg_offs) < n_proto_args
-			&& ((by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal))
-			    || Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
-			    || is_var_array);
-		by_val = by_val || (i+arg_offs < n_proto_args && (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value));
+		bool is_address = false;
+		if (i+arg_offs < n_proto_args) {
+			if (Proto->ArgTypes[i+arg_offs]->type_attr & A_interface) {
+				auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(Args[i]), Proto->ArgTypes[i+arg_offs]);
+				llvm::Value* interface_val = interface_expr->codegen_raw(nullptr);
+				if (!interface_val)
+					return nullptr;
+				ArgsV.push_back(interface_val);
+				continue;
+			}
+			is_var_array =
+				Proto->ArgTypes[i+arg_offs]->type->isArrayTy()
+				&& !Proto->FT->getFunctionParamType(i+arg_offs)->isArrayTy();
+			by_val = Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal);
+			is_address =
+				by_val
+				|| Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
+				|| is_var_array
+				|| (i+arg_offs < n_proto_args && (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value));
+			by_val = by_val || Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value;
+		}
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
 			if (!arg) {
