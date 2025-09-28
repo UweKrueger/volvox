@@ -1240,6 +1240,20 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					errs() << Args[i]->Loc << ": cannot create function call argument\n";
 					return nullptr;
 				}
+				if (is_moved) {
+					// we set the original value to zero to invalidate the object
+					// the destructor is supposed to ignore this value
+					if (auto arg_ref_expr = dynamic_cast<ReferencableExprAST*>(Args[i].get())) {
+						auto ty_ref = arg_ref_expr->codegen_ref();
+						if (!ty_ref.second)
+							return nullptr;
+						auto nullval = llvm::Constant::getNullValue(ty_ref.first);
+						Builder->CreateStore(nullval, ty_ref.second);
+					} else {
+						errs() << Args[i]->Loc << ": object to move not referencable\n";
+						return nullptr;
+					}
+				}
 				if ((i+arg_offs) < n_proto_args && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
 					if (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor) {
 						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
