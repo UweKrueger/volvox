@@ -1172,8 +1172,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, getSize(n_volovox_va_arg), 0);
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, volvox_var_array, 1);
 	}
-	if (fn_args.size() != Args.size()+arg_offs)
-		errs() << Loc << ": ### Internal compiler error - fn_args: " << fn_args.size() << " Args: " << Args.size() << " arg_offs: " << arg_offs << " n_proto_args: " << n_proto_args << "\n";
+	if (fn_args.size() != Args.size()+arg_offs || Proto->ArgNeedsConstructor.size() != n_proto_args+(is_volvox_variadic ? 1 : 0))
+		errs() << Loc << ": ### Internal compiler error - fn_args: " << fn_args.size() << " Args: " << Args.size() << " arg_offs: " << arg_offs << " n_proto_args: " << n_proto_args << " NeedsConstructor: " << Proto->ArgNeedsConstructor.size() << "\n";
 	for (unsigned i = 0; i < Args.size(); ++i) {
 		if (is_volvox_variadic && (i+arg_offs) >= n_proto_args) {
 			unsigned idx = (i+arg_offs) - n_proto_args;
@@ -1189,6 +1189,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		bool is_var_array = false;
 		bool by_val = false;
 		bool is_address = false;
+		bool needs_constructor_call = false;
+		bool is_moved = false;
 		if (i+arg_offs < n_proto_args) {
 			if (Proto->ArgTypes[i+arg_offs]->type_attr & A_interface) {
 				auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(Args[i]), Proto->ArgTypes[i+arg_offs]);
@@ -1208,6 +1210,11 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				|| is_var_array
 				|| (i+arg_offs < n_proto_args && (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value));
 			by_val = by_val || Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value;
+			// we treat 'maybe_arg_needs_constructor' like 'arg_needs_constructor' in the following
+			// lines for now. Maybe we optimize this sometime by introducing a declaration for
+			// a constructor wrapper that is defined once we know if the the call is needed
+			needs_constructor_call = Proto->ArgNeedsConstructor[i+arg_offs] && fn_args[i+arg_offs].is_referenced_after_call;
+			is_moved = Proto->ArgNeedsConstructor[i+arg_offs] && !fn_args[i+arg_offs].is_referenced_after_call;
 		}
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
@@ -1226,7 +1233,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				real_arg_type = Args[i]->ft->type;
 			llvm::Value* arg = nullptr;
 			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get()) || dynamic_cast<TypeExprAST*>(Args[i].get());
-			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor))) {
+			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) || needs_constructor_call || is_moved) {
 				arg = Builder->CreateAlloca(Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type, nullptr, "target");
 				auto voidval = Args[i]->codegen_raw(arg);
 				if (!voidval || !voidval->getType()->isVoidTy()) {
