@@ -496,8 +496,8 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars, llvm::Value* retp) {
 	// errs() << " *** destructors for ";
 	for (auto it = destr_vars.begin(); it != destr_vars.end(); it++) {
-		errs() << it->second->decl_loc << ": ### Destructor for '" << it->first << "': "
-		       << (void*)(it->second->destructor) << "\n";
+		// errs() << it->second->decl_loc << ": ### Destructor for '" << it->first << "': "
+		//  << (void*)(it->second->destructor) << "\n";
 		if (!merged_vars || !merged_vars->contains(it->first)) {
 			if (it->second->val != retp) {
 				// errs() << it->first << " ";
@@ -1259,8 +1259,14 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						errs() << Args[i]->Loc << ": object to move not referencable\n";
 						return nullptr;
 					}
-				}
-				if ((i+arg_offs) < n_proto_args && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
+				} else if (needs_constructor_call) {
+					auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
+					if (!F) {
+						errs() << Args[i]->Loc << ": internal error - default constructor not found for " << *Proto->ArgTypes[i+arg_offs] << "\n";
+						return nullptr;
+					} else
+						Builder->CreateCall(F, { arg });
+				} else if ((i+arg_offs) < n_proto_args && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
 					if (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor) {
 						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
 						if (!F) {
