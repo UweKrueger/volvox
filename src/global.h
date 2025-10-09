@@ -273,6 +273,7 @@ extern llvm::orc::ThreadSafeContext TS_Context;
 #define Context *TS_Context.getContext()
 extern SourceLocation CurLoc;
 extern bool inside_function;
+extern bool inside_loop;
 extern return_kind_t function_return_kind;
 extern int prompt_indent;
 extern uint64_t stacksize;

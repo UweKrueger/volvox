@@ -483,6 +483,7 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 	for (auto var_node = t.first(); var_node; ++var_node) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
+		// errs() << fv->decl_loc << ": ### Destructor for '" << var_node.getKey() << "'\n";
 		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && fv->val && fv->val != retp
 		    && (!var_adr || fv->val != var_adr))
 			InsertDestructor(fv);
@@ -494,7 +495,9 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 //
 void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars, llvm::Value* retp) {
 	// errs() << " *** destructors for ";
-	for (auto it = destr_vars.begin(); it != destr_vars.end(); it++)
+	for (auto it = destr_vars.begin(); it != destr_vars.end(); it++) {
+		errs() << it->second->decl_loc << ": ### Destructor for '" << it->first << "': "
+		       << (void*)(it->second->destructor) << "\n";
 		if (!merged_vars || !merged_vars->contains(it->first)) {
 			if (it->second->val != retp) {
 				// errs() << it->first << " ";
@@ -504,6 +507,7 @@ void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std:
 	// 	else
 	// 		errs() << "!" << it->first << " ";
 	// errs() << "\n";
+	}
 }
 
 // insert destructors for intermediate results - this is done afer each complete expression
@@ -1214,7 +1218,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			// lines for now. Maybe we optimize this sometime by introducing a declaration for
 			// a constructor wrapper that is defined once we know if the the call is needed
 			needs_constructor_call = Proto->ArgNeedsConstructor[i+arg_offs] && fn_args[i+arg_offs].is_referenced_after_call;
-			is_moved = Proto->ArgNeedsConstructor[i+arg_offs] && !fn_args[i+arg_offs].is_referenced_after_call;
+			is_moved = Proto->ArgNeedsConstructor[i+arg_offs]
+				&& !fn_args[i+arg_offs].is_referenced_after_call
+				&& !inside_loop;
 		}
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();

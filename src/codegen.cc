@@ -10,6 +10,7 @@
 //===----------------------------------------------------------------------===//
 
 bool inside_function = false;
+bool inside_loop = false;
 const char* last_shadow_saver = nullptr;
 const char* last_shadow_restorer = nullptr;
 const char* last_thread_constructor_caller = nullptr;
@@ -3423,22 +3424,31 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	const char* loopBBName;
 	const char* contName;
 	// find good label names to make blocks recognizable in IR
+	bool is_loop;
 	switch (if_kind) {
 	case tok_if:
 		loopBBName = "then";
 		contName = "ifcont";
+		is_loop = false;
 		break;
 	case tok_repeat:
 		loopBBName = "repeat";
 		contName = "repeatcont";
+		is_loop = true;
 		break;
 	case tok_for:
 		loopBBName = "for";
 		contName = "forcont";
+		is_loop = true;
 		break;
-	default:
+	case tok_while:
 		loopBBName = "loop";
 		contName = "whilecont";
+		is_loop = true;
+		break;
+	default:
+		errs() << Loc << ": internal compiler error - token of branch expr unknown\n";
+		abort();
 	}
 	llvm::BasicBlock* ThenBB = (TheFunction && if_kind != tok_if) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
 	llvm::Instruction* firstWhile = nullptr;
@@ -3612,6 +3622,9 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		else
 			BlockToJump = MergeBB;
 		int then_max = Then.size() - 1;
+		bool old_inside_loop = inside_loop;
+		if (is_loop)
+			inside_loop = true;
 		for (int n=0; n <= then_max; n++) {
 			if (n == then_max)
 				merge_points.back().BB = BlockToJump;
@@ -3621,6 +3634,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (!n)
 				thenLast = _thenLast;
 		}
+		inside_loop = old_inside_loop;
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		merge_points.pop_back();
