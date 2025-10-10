@@ -497,8 +497,10 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 			return { nullptr, nullptr };
 		}
 	}
-	if (!constref && full_var->needs_constructor)
+	if (!constref && full_var->needs_constructor) {
 		*full_var->needs_constructor = arg_needs_constructor;
+		errs() << Loc << ": ### marking argument " << Name << " as referenced\n";
+	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
 	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && jit_repl) {

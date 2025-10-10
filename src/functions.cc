@@ -1526,6 +1526,16 @@ bool FunctionAST::prepare_codegen() {
 			errs() << "\n";
 			abort();
 		}
+		if (mapitem->needs_constructor
+		    && *mapitem->needs_constructor != arg_needs_no_constructor
+		    && (mapitem->ft.type_attr & A_destructor))
+		{
+			mapitem->destructor = getConstructorOrDestructor(&mapitem->ft, true);
+			errs() << mapitem->decl_loc << ": ### insert destructor " << mapitem->destructor << "\n";
+		} else {
+			// destructors for function argument is called by the caller
+			mapitem->destructor = nullptr;
+		}
 		if (Arg->hasByValAttr() || Arg->hasByRefAttr() || mapitem->ft.type->isArrayTy() && !Arg->getType()->isArrayTy()) {
 			mapitem->val = Arg;
 		} else {
@@ -1538,9 +1548,6 @@ bool FunctionAST::prepare_codegen() {
 			// Add storage to variable in symbol table.
 			mapitem->val = Alloca;
 		}
-		// destructors for function arguments should always be called
-		// by the caller
-		mapitem->destructor = nullptr;
 		if (Proto->ArgNeedsConstructor[ConstrIdx])
 			mapitem->needs_constructor = &Proto->ArgNeedsConstructor[ConstrIdx];
 		if (comp_mode == comp_dbg) {
