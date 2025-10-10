@@ -481,6 +481,7 @@ extern llvm::Type* llvm_string_type;
 extern llvm::Type* llvm_vec_type;
 extern llvm::Type* llvm_closure_type;
 extern llvm::PointerType* llvm_ptr_type;
+extern llvm::FunctionType* constr_destr_fn_type;
 extern volvoxc::FullType* void_type;
 extern volvoxc::FullType* bool_type;
 extern volvoxc::FullType* char_type;

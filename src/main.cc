@@ -112,6 +112,7 @@ llvm::Type* llvm_string_type = nullptr;
 llvm::Type* llvm_vec_type = nullptr;
 llvm::Type* llvm_closure_type = nullptr;
 llvm::PointerType* llvm_ptr_type = nullptr;
+llvm::FunctionType* constr_destr_fn_type = nullptr;
 volvoxc::FullType* void_type = nullptr;
 volvoxc::FullType* bool_type = nullptr;
 volvoxc::FullType* char_type = nullptr;
@@ -241,6 +242,7 @@ void init(const llvm::Triple& triple) {
 	va_arg_type = new_FullType(llvm_va_arg_type, A_va_arg | A_ref | A_by_value, nullptr, nullptr, interface_type);
 	std::vector<llvm::Type*> llvm_va_arg_ref_struct_types = { llvm_size_type, llvm_ptr_type };
 	llvm_va_arg_ref_type = llvm::StructType::get(Context, llvm_va_arg_ref_struct_types);
+	constr_destr_fn_type = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
 	// often needed prototype
 	int_int_proto = new_AnonProto(
 		std::make_unique<PrototypeAST>(

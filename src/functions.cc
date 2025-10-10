@@ -63,8 +63,7 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 		return nullptr;
 	if (auto F = TheModule->getFunction(thename))
 		return F;
-	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
-	auto F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, thename, TheModule.get());
+	auto F = llvm::Function::Create(constr_destr_fn_type, llvm::Function::ExternalLinkage, thename, TheModule.get());
 	return F;
 }
 
