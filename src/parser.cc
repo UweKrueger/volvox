@@ -2235,7 +2235,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 			UnmagledReceiverTypeName = "interface";
 			ArgNames.push_back("this");
 			ArgTypes.push_back(ReceiverType);
-			ArgNeedsConstructor.push_back(arg_needs_no_constructor);
+			ArgNeedsConstructor.push_back(arg_is_borrowed_or_pod);
 			ArgPos.push_back(CurLoc);
 		} else {
 			if (tmp_rec_type) {
@@ -2277,7 +2277,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 						ReceiverType->type_attr |= A_ref;
 					ArgNames.push_back("this");
 					ArgTypes.push_back(ReceiverType);
-					ArgNeedsConstructor.push_back(arg_needs_no_constructor);
+					ArgNeedsConstructor.push_back(arg_is_borrowed_or_pod);
 					ArgPos.push_back(CurLoc);
 				} else {
 					if (visibility & A_constructor) {
@@ -2360,7 +2360,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 				ArgNames.push_back("va_args");
 				ArgPos.push_back(El_Pos);
 				ArgTypes.push_back(va_arg_type);
-				ArgNeedsConstructor.push_back(arg_needs_no_constructor);
+				ArgNeedsConstructor.push_back(arg_is_borrowed_or_pod);
 			}
 			break;
 		}
@@ -2383,10 +2383,16 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 		// If we have to call the copy constructor for the argument depends
 		// on the implementation, so we cannot know while parsing the prototype
 		// but at least we know for sure that we don't need one if there is none
-		ArgNeedsConstructor.push_back(
-			((type->type_attr & A_constructor) &&
-			 ((type->type_attr & A_by_value) || !(type->type_attr & A_ref)))
-			? maybe_arg_needs_constructor : arg_needs_no_constructor);
+		arg_needs_constructor_t argflags = arg_is_borrowed_or_pod;
+		if ((type->type_attr & A_by_value) || !(type->type_attr & A_ref)) {
+			if (type->type_attr & A_constructor)
+				set_arg_flag(&argflags, arg_has_constructor);
+// 			if (type->type_attr & A_destructor)
+// 				set_arg_flag(&argflags, arg_has_destructor);
+			if (argflags != arg_is_borrowed_or_pod)
+			  set_arg_flag(&argflags, maybe_arg_is_owned);
+		}
+		ArgNeedsConstructor.push_back(argflags);
 		if (CurTok.kind == ')')
 			break;
 		Eat(',');
@@ -2614,12 +2620,12 @@ volvoxc::FullType* ParseInterface(unsigned attribs, eXpect expect,
 					proto->retLoc, proto->Name, std::vector<std::string>{ "this" },
 					A_method | A_interface | A_getter, proto->retLoc,
 					0, proto->RetType, std::vector<volvoxc::FullType*>{ proto->ArgTypes[0] },
-					std::vector<arg_needs_constructor_t>{ arg_needs_no_constructor }, std::vector<SourceLocation>{ proto->retLoc });
+					std::vector<arg_needs_constructor_t>{ arg_is_borrowed_or_pod }, std::vector<SourceLocation>{ proto->retLoc });
 				setter_proto = std::make_unique<PrototypeAST>(
 					proto->retLoc, proto->Name, std::vector<std::string>{ "this", "assignment_RHS" },
 					A_method | A_interface | A_setter, proto->retLoc,
 					0, proto->RetType, std::vector<volvoxc::FullType*>{ proto->ArgTypes[0], proto->RetType },
-					std::vector<arg_needs_constructor_t>{ arg_needs_no_constructor, arg_needs_no_constructor }, std::vector<SourceLocation>{ proto->retLoc, proto->retLoc });
+					std::vector<arg_needs_constructor_t>{ arg_is_borrowed_or_pod, arg_is_borrowed_or_pod }, std::vector<SourceLocation>{ proto->retLoc, proto->retLoc });
 				is_getter_setter_field = true;
 			} else {
 				errs() << proto->retLoc << ": getter/setter has to be in the form 'method=type' inside interface declaration\n";
@@ -2749,8 +2755,10 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			.ft = *Proto->ArgTypes[i]
 		};
 		if (i < Proto->ArgNeedsConstructor.size()
-		    && Proto->ArgNeedsConstructor[i] != arg_needs_no_constructor)
+		    && Proto->ArgNeedsConstructor[i] != arg_is_borrowed_or_pod)
 			fv.needs_constructor = &Proto->ArgNeedsConstructor[i];
+		else
+			fv.needs_constructor = nullptr;
 		if (!fv.ft.type->isSized() || !TheModule->getDataLayout().getTypeAllocSize(fv.ft.type))
 			if (!(fv.ft.type_attr & A_ref))
 				fv.ft.type_attr |= (A_immutable | A_ref);

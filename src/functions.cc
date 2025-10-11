@@ -1225,9 +1225,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			// lines for now. Maybe we optimize this sometime by introducing a declaration for
 			// a constructor wrapper that is defined once we know if the the call is needed
 			needs_constructor_call = Proto->ArgNeedsConstructor[i+arg_offs] && fn_args[i+arg_offs].is_referenced_after_call;
-			is_moved = Proto->ArgNeedsConstructor[i+arg_offs]
+			is_moved = (get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned)
+			            || get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned))
 				&& !fn_args[i+arg_offs].is_referenced_after_call
 				&& !inside_loop;
+			if (is_moved)
+				errs() << Args[i]->Loc << ": mark arg as moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
 		}
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
@@ -1534,7 +1537,8 @@ bool FunctionAST::prepare_codegen() {
 			abort();
 		}
 		if (mapitem->needs_constructor
-		    && *mapitem->needs_constructor != arg_needs_no_constructor
+		    && (get_arg_flag(*mapitem->needs_constructor, arg_is_owned)
+		        || get_arg_flag(*mapitem->needs_constructor, maybe_arg_is_owned))
 		    && (mapitem->ft.type_attr & A_destructor))
 		{
 			mapitem->destructor = getConstructorOrDestructor(&mapitem->ft, true);
@@ -1708,8 +1712,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	theFunction_struct_ret = old_theFunction_struct_ret;
 	if (success)
 		for (auto& flag: Proto->ArgNeedsConstructor)
-			if (flag == maybe_arg_needs_constructor)
-				flag = arg_needs_no_constructor;
+			unset_arg_flag(&flag, maybe_arg_is_owned);
 	return success ? TheFunction : nullptr;
 }
 

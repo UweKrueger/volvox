@@ -627,10 +627,26 @@ struct int_val_type_t {
 // if a value-function argument is moved inside the function body and is used
 // in the caller afterwards we might have to call the standard constructor
 enum arg_needs_constructor_t : uint8_t {
-	arg_needs_no_constructor = 0,
-	arg_needs_constructor,
-	maybe_arg_needs_constructor, // we only have a decl but no def, so we do not know, yet
+	arg_is_borrowed_or_pod = 0, // plain old data = constructor, destructor don't exist, borrowed = not needed
+	arg_is_owned = (1<<0), // the caller moves arg or makes a copy (and calls constructor)
+	maybe_arg_is_owned = (1<<1), // undecided - we have no implementation, yet. Caller calls shadow constructor
+	arg_has_constructor = (1<<2),
+	arg_has_destructor = (1<<3),
+	arg_needs_shadow_constructor = (1<<4) // there was a decl before impl - so create shadow constructor
+		// the shadow constructor migth be empty if arg_is_owned is unset
 };
+
+inline bool get_arg_flag(arg_needs_constructor_t val, arg_needs_constructor_t flag) {
+	return (bool)((uint8_t)val & (uint8_t)flag);
+}
+
+inline void set_arg_flag(arg_needs_constructor_t* val, arg_needs_constructor_t flag) {
+	*val = (arg_needs_constructor_t)((uint8_t)*val | (uint8_t)flag);
+}
+
+inline void unset_arg_flag(arg_needs_constructor_t* val, arg_needs_constructor_t flag) {
+	*val = (arg_needs_constructor_t)((uint8_t)*val & ~(uint8_t)flag);
+}
 
 class var_usage_marker_t {
 public:

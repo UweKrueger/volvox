@@ -249,7 +249,7 @@ void init(const llvm::Triple& triple) {
 			SourceLocation(), "dim", std::vector<std::string>{ "order" }, 0,
 			SourceLocation(), false, size_type,
 			std::vector<volvoxc::FullType*>{ integer_type },
-			std::vector<arg_needs_constructor_t>{ arg_needs_no_constructor },
+			std::vector<arg_needs_constructor_t>{ arg_is_borrowed_or_pod },
 			std::vector<SourceLocation>{ SourceLocation() }),
 		SourceLocation("<builtin array method>", 0, 0));
 	// create build in constexprs to describe target
