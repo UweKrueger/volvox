@@ -1541,8 +1541,9 @@ bool FunctionAST::prepare_codegen() {
 		        || get_arg_flag(*mapitem->needs_constructor, maybe_arg_is_owned))
 		    && (mapitem->ft.type_attr & A_destructor))
 		{
-			mapitem->destructor = getConstructorOrDestructor(&mapitem->ft, true);
-			errs() << mapitem->decl_loc << ": ### insert destructor " << mapitem->destructor << "\n";
+			std::string mangled_fn_name = TheFunction->getName().str();
+			mapitem->destructor = getShadowConstructorDestructor(mangled_fn_name, ConstrIdx, true);
+			// errs() << mapitem->decl_loc << ": ### insert destructor " << mapitem->destructor << "\n";
 		} else {
 			// destructors for function argument is called by the caller
 			mapitem->destructor = nullptr;
@@ -1692,7 +1693,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 		KSDbgInfo.LexicalBlocks.pop_back();
 	}
 	// Validate the generated code, checking for consistency.
-	bool success = finishFunctionOrModule(TheFunction, 1, finishModule, getNewModule);
+	bool success = finishFunctionOrModule(TheFunction, 1, false, false);
 	if (success) {
 		std::string& FnName = Proto->Name;
 		if (FnName != "__anon_expr") {
@@ -1703,6 +1704,29 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 				success = false;
 			}
 		}
+		std::string mangled_fn_name = TheFunction->getName().str();
+		int idx=0;
+		for (auto& flag: Proto->ArgNeedsConstructor) {
+			if (get_arg_flag(flag, maybe_arg_is_owned) && (Proto->ArgTypes[idx]->type_attr & A_destructor)) {
+				auto destr_shadow_fn = getShadowConstructorDestructor(mangled_fn_name, idx, true);
+				auto BB = llvm::BasicBlock::Create(Context, "entry", destr_shadow_fn);
+				Builder->SetInsertPoint(BB);
+				llvm::Value* Arg = destr_shadow_fn->getArg(0);
+				if (get_arg_flag(flag, arg_is_owned)) {
+					auto destr_fn =  getConstructorOrDestructor(Proto->ArgTypes[idx], true);
+					if (!destr_fn)
+						abort();
+					Builder->CreateCall(constr_destr_fn_type, destr_fn, std::vector<llvm::Value*>{ Arg });
+				}
+				Builder->CreateRetVoid();
+				success = success && finishFunctionOrModule(destr_shadow_fn, 1, false, false);
+				if (!success)
+					break;
+			}
+			unset_arg_flag(&flag, maybe_arg_is_owned);
+			idx++;
+		}
+		success = success && finishFunctionOrModule(nullptr, 1, finishModule, getNewModule);
 	}
 	ret_ptr = nullptr;
 	theFunction_ret_ft = nullptr;
@@ -1710,9 +1734,6 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 	currentFunction = old_currentFunction;
 	theFunction_ret_ft = old_theFunction_ret_ft;
 	theFunction_struct_ret = old_theFunction_struct_ret;
-	if (success)
-		for (auto& flag: Proto->ArgNeedsConstructor)
-			unset_arg_flag(&flag, maybe_arg_is_owned);
 	return success ? TheFunction : nullptr;
 }
 

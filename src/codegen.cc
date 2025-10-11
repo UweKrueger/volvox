@@ -499,7 +499,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 	}
 	if (!constref && full_var->needs_constructor) {
 		set_arg_flag(full_var->needs_constructor, arg_is_owned);
-		errs() << Loc << ": ### marking argument " << Name << " as referenced\n";
+		// errs() << Loc << ": ### marking argument " << Name << " as referenced\n";
 	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
