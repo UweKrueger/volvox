@@ -54,6 +54,14 @@ llvm::Function* getConversion(std::string& mangled_name) {
 	return F;
 }
 
+llvm::Function* getShadowConstructorDestructor(std::string& mangled_name, int n, bool destructor) {
+	auto thename = "___" + mangled_name + "_arg" + std::to_string(n) + (destructor ? "_destr" : "_constr");
+	if (auto F = TheModule->getFunction(thename))
+		return F;
+	auto F = llvm::Function::Create(constr_destr_fn_type, llvm::Function::ExternalLinkage, thename, TheModule.get());
+	return F;
+}
+
 llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor) {
 	auto Names = AutoMethods.find(ft->mangled_name);
 	if (Names == AutoMethods.end())
