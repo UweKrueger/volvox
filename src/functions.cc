@@ -1228,9 +1228,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			is_moved = (get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned)
 			            || get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned))
 				&& !fn_args[i+arg_offs].is_referenced_after_call
+				&& inside_function // TODO: move when constructor invalidated
 				&& !inside_loop;
 			if (is_moved)
 				errs() << Args[i]->Loc << ": mark arg as moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
+			else
+				errs() << Args[i]->Loc << ": not moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
 		}
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
 			llvm::Value* arg = Args[i]->codegen();
