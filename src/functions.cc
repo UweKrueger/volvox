@@ -1224,18 +1224,23 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			// we treat 'maybe_arg_needs_constructor' like 'arg_needs_constructor' in the following
 			// lines for now. Maybe we optimize this sometime by introducing a declaration for
 			// a constructor wrapper that is defined once we know if the the call is needed
-			needs_constructor_call = Proto->ArgNeedsConstructor[i+arg_offs] && fn_args[i+arg_offs].is_referenced_after_call;
+			needs_constructor_call = Proto->ArgNeedsConstructor[i+arg_offs]
+				&& (fn_args[i+arg_offs].is_referenced_after_call
+				    || !inside_function); // TODO: force move when constructor invalidated
 			is_moved = (get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned)
 			            || get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned))
 				&& !fn_args[i+arg_offs].is_referenced_after_call
-				&& inside_function // TODO: move when constructor invalidated
+				&& inside_function // TODO: force move when constructor invalidated
 				&& !inside_loop;
+#if 0
 			if (is_moved)
 				errs() << Args[i]->Loc << ": mark arg as moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
 			else
 				errs() << Args[i]->Loc << ": not moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
+#endif
 		}
 		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
+			// errs() << Args[i]->Loc << ": ### function argument 1\n";
 			llvm::Value* arg = Args[i]->codegen();
 			if (!arg) {
 				errs() << Args[i]->Loc << ": error generating function argument\n";
@@ -1245,6 +1250,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				arg = Volvox2CStr(arg);
 			ArgsV.push_back(arg);
 		} else {
+			// errs() << Args[i]->Loc << ": ### function argument 2\n";
 			llvm::Type* real_arg_type;
 			if ((i+arg_offs) < n_proto_args)
 				real_arg_type = Args[i]->desired_type = Proto->ArgTypes[i+arg_offs]->type;
@@ -1253,6 +1259,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* arg = nullptr;
 			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get()) || dynamic_cast<TypeExprAST*>(Args[i].get());
 			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) || needs_constructor_call || is_moved) {
+				// errs() << Args[i]->Loc << ": ### function argument 22\n";
 				arg = Builder->CreateAlloca(Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type, nullptr, "target");
 				auto voidval = Args[i]->codegen_raw(arg);
 				if (!voidval || !voidval->getType()->isVoidTy()) {
@@ -1260,6 +1267,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					return nullptr;
 				}
 				if (is_moved) {
+					// errs() << Args[i]->Loc << ": ### function argument moved\n";
 					// we set the original value to zero to invalidate the object
 					// the destructor is supposed to ignore this value
 					if (auto arg_ref_expr = dynamic_cast<ReferencableExprAST*>(Args[i].get())) {
@@ -1273,6 +1281,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						return nullptr;
 					}
 				} else if (needs_constructor_call) {
+					// errs() << Args[i]->Loc << ": ### function argument not moved 1\n";
 					auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
 					if (!F) {
 						errs() << Args[i]->Loc << ": internal error - default constructor not found for " << *Proto->ArgTypes[i+arg_offs] << "\n";
@@ -1325,6 +1334,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					}
 				} else {
 					arg = Args[i]->codegen();
+					// errs() << Args[i]->Loc << ": ### function argument 23 " << needs_constructor_call << is_moved << "\n";
+
 					//errs() << Loc << ": valarg #" << i << " " << *arg << ' ' << Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal) << '\n';
 				}
 			}
