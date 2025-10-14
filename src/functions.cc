@@ -1260,7 +1260,13 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get()) || dynamic_cast<TypeExprAST*>(Args[i].get());
 			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) || needs_constructor_call || is_moved) {
 				// errs() << Args[i]->Loc << ": ### function argument 22\n";
-				arg = Builder->CreateAlloca(Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type, nullptr, "target");
+				llvm::Type* arg_type = Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type;
+				if (jit_repl) {
+					llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, arg_type, false, llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(arg_type));
+					GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(arg_type));
+					arg = GV;
+				} else
+					arg = Builder->CreateAlloca(arg_type, nullptr, "target");
 				auto voidval = Args[i]->codegen_raw(arg);
 				if (!voidval || !voidval->getType()->isVoidTy()) {
 					errs() << Args[i]->Loc << ": cannot create function call argument\n";
