@@ -1226,7 +1226,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			// a constructor wrapper that is defined once we know if the the call is needed
 			needs_constructor_call = Proto->ArgNeedsConstructor[i+arg_offs]
 				&& (fn_args[i+arg_offs].is_referenced_after_call
-				    || !inside_function); // TODO: force move when constructor invalidated
+				    || !inside_function) // TODO: force move when constructor invalidated
+				&& (get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned)
+				    || get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned));
 			is_moved = (get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned)
 			            || get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned))
 				&& !fn_args[i+arg_offs].is_referenced_after_call
@@ -1261,7 +1263,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) || needs_constructor_call || is_moved) {
 				// errs() << Args[i]->Loc << ": ### function argument 22\n";
 				llvm::Type* arg_type = Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type;
-				if (jit_repl) {
+				if (jit_repl && !inside_function) {
 					llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, arg_type, false, llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(arg_type));
 					GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(arg_type));
 					arg = GV;

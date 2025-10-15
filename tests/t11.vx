@@ -1,0 +1,111 @@
+global n_KlamP_constructor = 0
+global n_KlamP_destructor = 0
+
+type KlamP {
+    a f64
+    b int
+}
+
+def KlamP
+    this.b++
+	n_KlamP_constructor += this.b
+	print "KlamP constructor called ${this.a} ${this.b}"
+end
+
+def ~KlamP
+	n_KlamP_destructor += this.b
+    print "KlamP destructor called ${this.a} ${this.b}"
+	this.b = -17
+end
+
+# modify by-val function argument, i.e. take ownership and call destructor
+def own_KlamP(x KlamP) int
+	y = KlamP{ a: 12.3, b: 7 }
+	r = y.b
+	x.b += 5
+	# print("own_KlamP( called", r, x.b)
+	return r
+end
+
+def test_copy_constructor_1 bool
+	x = KlamP
+	r = own_KlamP(x)
+	return r == 8 && n_KlamP_constructor == 9 && n_KlamP_destructor == 14
+end
+
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+global x_KlamP1 = KlamP
+global r_KlamP1 = own_KlamP(x_KlamP1)
+
+def test_copy_constructor_2 bool
+	return r_KlamP1 == 8 && n_KlamP_constructor == 11 && n_KlamP_destructor == 15
+end
+
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+# read by-val function argument -> caller keeps ownership 
+def borrow_KlamP(x KlamP) int
+	y = KlamP{ a: 12.3, b: x.b+7 }
+	r = y.b
+	# print("borrow_KlamP called", r, x.b)
+	return r
+end
+
+global x_KlamP2 = KlamP
+global r_KlamP2 = borrow_KlamP(x_KlamP2)
+
+def test_copy_constructor_3 bool
+	return r_KlamP2 == 9
+end
+
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+def test_copy_constructor_4 bool
+	x = KlamP{ a: 1.5, b: 0 }
+	print n_KlamP_destructor
+	r = borrow_KlamP(x)
+	print n_KlamP_destructor
+	return r == 9 && n_KlamP_constructor == 10 && n_KlamP_destructor == 9
+end
+
+# use x after passing ownership -> make a valid copy
+def k_copy_KlamP_own(x KlamP) int
+	# print("k called1", x.b)
+	x.b = 55
+	r = own_KlamP x
+	x.b += 23
+	# print("k called", r, x.b)
+	return r
+end
+
+# don't use after passing ownership -> move, i.e invalidate own object
+def k_move_KlamP_borrow(x KlamP) int
+	# print("k called1", x.b)
+	x.b = 55
+	r = borrow_KlamP x
+	# print("k called", r)
+	return r
+end
+
+# use x after borrowing -> modify and call destructor ourself
+def k_copy_KlamP_borrow(x KlamP) int
+	# print("k called1", x.b)
+	x.b = 55
+	r = own_KlamP x
+	x.b += 23
+	# print("k called", r, x.b)
+	return r
+end
+
+# don't use after borrowing -> call destructor ourself
+def k_move_KlamP_own(x KlamP) int
+	# print("k called1", x.b)
+	x.b = 55
+	r = own_KlamP x
+	# print("k called", r)
+	return r
+end
