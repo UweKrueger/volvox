@@ -22,7 +22,7 @@ def own_KlamP(x KlamP) int
 	y = KlamP{ a: 12.3, b: 7 }
 	r = y.b
 	x.b += 5
-	# print("own_KlamP( called", r, x.b)
+	# print("own_KlamP() called", r, x.b)
 	return r
 end
 
@@ -79,6 +79,15 @@ def k_copy_KlamP_own(x KlamP) int
 	return r
 end
 
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+def test_copy_constructor_5 bool
+	x = KlamP
+	r = k_copy_KlamP_own x
+	return r == 8 && n_KlamP_constructor == 65 && n_KlamP_destructor == 147
+end
+
 # don't use after passing ownership -> move, i.e invalidate own object
 def k_move_KlamP_borrow(x KlamP) int
 	# print("k called1", x.b)
@@ -88,21 +97,47 @@ def k_move_KlamP_borrow(x KlamP) int
 	return r
 end
 
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+def test_copy_constructor_6 bool
+	x = KlamP
+	r = k_move_KlamP_borrow x
+	return r == 63 && n_KlamP_constructor == 64 && n_KlamP_destructor == 118
+end
+
 # use x after borrowing -> modify and call destructor ourself
-def k_copy_KlamP_borrow(x KlamP) int
+def k_move_KlamP_borrow2(x KlamP) int
 	# print("k called1", x.b)
 	x.b = 55
-	r = own_KlamP x
-	x.b += 23
-	# print("k called", r, x.b)
+	r = borrow_KlamP x
+	x.b++
+	# print("k called", r)
 	return r
 end
 
-# don't use after borrowing -> call destructor ourself
-def k_move_KlamP_own(x KlamP) int
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+def test_copy_constructor_7 bool
+	x = KlamP
+	r = k_move_KlamP_borrow2 x
+	return r == 63 && n_KlamP_constructor == 64 && n_KlamP_destructor == 119
+end
+# don't use x after passing ownership -> move
+def k_copy_KlamP_own2(x KlamP) int
 	# print("k called1", x.b)
 	x.b = 55
 	r = own_KlamP x
 	# print("k called", r)
 	return r
+end
+
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+def test_copy_constructor_8 bool
+	x = KlamP
+	r = k_copy_KlamP_own2 x
+	return r == 8 && n_KlamP_constructor == 9 && n_KlamP_destructor == 68
 end
