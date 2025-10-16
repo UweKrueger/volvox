@@ -633,11 +633,17 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 			return std::make_unique<ModuleExprAST>(LitLoc, im->second.Loc, std::move(IdName));
 		}
 	// or a type name
-	if (auto type = lex.get_full_type(IdName.c_str())) {
-		if (CurTok.kind == '{')
-			if (auto s = ParseStructExpr(type, terminator))
+	if (auto ft = lex.get_full_type(IdName.c_str())) {
+		if (CurTok.kind == '{') {
+			if (auto s = ParseStructExpr(ft, terminator))
 				return s;
-		return std::make_unique<TypeExprAST>(LitLoc, std::move(IdName), type);
+		}
+		else if (CurTok.kind == ';')
+			if (llvm::isa<llvm::StructType>(ft->type)) {
+				auto list = std::make_unique<ListExprAST>(LitLoc);
+				return std::make_unique<StructExprAST>(LitLoc, ft, std::move(list));
+			}
+		return std::make_unique<TypeExprAST>(LitLoc, std::move(IdName), ft);
 	}
 	// last resort: yet undeclared variable name - used in declaration "x := ..."
 	return std::make_unique<VariableExprAST>(LitLoc, IdName);
