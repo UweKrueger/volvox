@@ -9,13 +9,12 @@ type KlamP {
 def KlamP
     this.b++
 	n_KlamP_constructor += this.b
-	print "KlamP constructor called ${this.a} ${this.b}"
+	# print "KlamP constructor called ${this.a} ${this.b}"
 end
 
 def ~KlamP
 	n_KlamP_destructor += this.b
-    print "KlamP destructor called ${this.a} ${this.b}"
-	this.b = -17
+    # print "KlamP destructor called ${this.a} ${this.b}"
 end
 
 # modify by-val function argument, i.e. take ownership and call destructor
@@ -66,9 +65,7 @@ n_KlamP_destructor = 0
 
 def test_copy_constructor_4 bool
 	x = KlamP{ a: 1.5, b: 0 }
-	print n_KlamP_destructor
 	r = borrow_KlamP(x)
-	print n_KlamP_destructor
 	return r == 9 && n_KlamP_constructor == 10 && n_KlamP_destructor == 9
 end
 

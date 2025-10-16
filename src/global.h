@@ -1000,7 +1000,7 @@ inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::In
 
 inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before = nullptr) {
 	if (fv->destructor) {
-		if (jit_repl)
+		if (jit_repl && !inside_function)
 			fv->destructor = getDestructor(&fv->ft);
 		llvm::BasicBlock* oldBB;
 		if (before) {
