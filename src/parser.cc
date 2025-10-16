@@ -638,7 +638,11 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 			if (auto s = ParseStructExpr(ft, terminator))
 				return s;
 		}
-		else if (CurTok.kind == ';')
+		else if (CurTok.kind == ';'
+		         || CurTok.kind < 0
+		         && CurTok.kind > tok_selector
+		         && CurTok.kind != tok_colon
+		         && CurTok.kind != tok_invisible)
 			if (llvm::isa<llvm::StructType>(ft->type)) {
 				auto list = std::make_unique<ListExprAST>(LitLoc);
 				return std::make_unique<StructExprAST>(LitLoc, ft, std::move(list));
