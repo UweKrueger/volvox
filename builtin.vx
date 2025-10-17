@@ -48,10 +48,14 @@ def ~string
 			__free(buf)
 end end end
 
-# inline def string
-# 	if bool(this.voidptr)
-# 		this.voidptr = __string_dup(this.voidptr)
-# end end
+def string
+	if bool(this.voidptr)
+		this.voidptr = __string_dup(this.voidptr)
+end end
+
+def string(p voidptr)
+	this.voidptr = p
+end
 
 cdecl __string_add(l voidptr, r voidptr) voidptr
 cdecl __string_add_assign(&b voidptr, r voidptr)

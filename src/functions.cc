@@ -1299,8 +1299,24 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						auto nullval = llvm::Constant::getNullValue(ty_ref.first);
 						Builder->CreateStore(nullval, ty_ref.second);
 					} else {
-						errs() << Args[i]->Loc << ": object to move not referencable\n";
-						return nullptr;
+						if (!llvm_string_type) {
+							string_type = lex.get_full_type("string");
+							if (!string_type) {
+								errs() << CurLoc << ": internal error - string literal used before string type is declared\n";
+								exit(1);
+							}
+							llvm_string_type = string_type->type;
+						}
+						if (Args[i]->ft->type == llvm_string_type) {
+							arg = CreateEntryBlockAlloca(llvm_string_type);
+							if (!Args[i]->codegen_raw(arg)) {
+								errs() << Args[i]->Loc << ": error generating string\n";
+								return nullptr;
+							}
+						} else {
+							errs() << Args[i]->Loc << ": object to move not referencable" << *Args[i]->ft->type << "\n";
+							return nullptr;
+						}
 					}
 				} else if (needs_constructor_call) {
 					// errs() << Args[i]->Loc << ": ### function argument not moved 1\n";
