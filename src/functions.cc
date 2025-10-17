@@ -971,24 +971,38 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				llvm::Value* expr = Args[0]->codegen_raw();
 				if (!expr)
 					return nullptr;
+				if (!llvm_string_type) {
+					string_type = lex.get_full_type("string");
+					if (!string_type) {
+						errs() << CurLoc << ": internal error - string literal used before string type is declared\n";
+						exit(1);
+					}
+					llvm_string_type = string_type->type;
+				}
+				// errs() << Loc << ": ### type expr " << *expr->getType() << " | " << *ft << " | " << *ft->type << " " << llvm_string_type << "\n";
 				std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
-				if (expr->getType()->isPointerTy() && (ft->type_attr & (A_string | A_cstring))) {
+				if (expr->getType()->isPointerTy() && ((ft->type_attr & (A_string | A_cstring)) || ft->type == llvm_string_type)) {
 					// special handling for string types
 					if ((Args[0]->ft->type_attr & A_string)
 					    && (ft->type_attr & A_cstring)) {
-						conv = Volvox2CStr;
+						return handle(target, Volvox2CStr(expr));
 					} else if ((Args[0]->ft->type_attr & A_cstring)
 					         && (ft->type_attr & A_string)) {
 						auto converter_name = "__cstr2volvox";
 						auto converter_proto = (*lex.findProtos(converter_name))[0].get();
 						auto converter = getFunction(converter_proto);
-						return Builder->CreateCall(converter_proto->FT, converter, std::vector<llvm::Value*>({ expr }));
+						return handle_d_1(string_type, Builder->CreateCall(converter_proto->FT, converter, std::vector<llvm::Value*>({ expr })), target, Loc);
+					} else if (ft->type == llvm_string_type) {
+						llvm::Value* the_struct = llvm::UndefValue::get(llvm_string_type);
+						the_struct = Builder->CreateInsertValue(the_struct, expr, 0);
+						return handle_d_1(string_type, the_struct, target, Loc);
 					} else {
-						conv = NoConversion;
+						return handle(target, expr);
 					}
-				} else
+				} else {
 					conv = getConv(expr->getType(), ft->type, Loc, (bool)(Args[0]->ft->type_attr & A_signed),
 					               (bool)(ft->type_attr & A_signed), true, false, nullptr);
+				}
 				if (conv)
 					return conv(expr);
 				else

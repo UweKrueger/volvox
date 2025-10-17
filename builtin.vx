@@ -53,10 +53,6 @@ end end end
 # 		this.voidptr = __string_dup(this.voidptr)
 # end end
 
-inline def string(p voidptr)
-	this.voidptr = p
-end
-
 cdecl __string_add(l voidptr, r voidptr) voidptr
 cdecl __string_add_assign(&b voidptr, r voidptr)
 cdecl __string_mult(n size_t, r voidptr) voidptr
@@ -67,7 +63,8 @@ cdecl strcmp(s1 cstring, s2 cstring) int
 cdecl strncmp(s1 cstring, s2 cstring, len size_t) int
 
 inline def string+(s string) string
-	return string(__string_add(this.voidptr, s.voidptr))
+	r = string(__string_add(this.voidptr, s.voidptr))
+	return r
 end
 
 inline def string+=(s string)
@@ -75,11 +72,13 @@ inline def string+=(s string)
 end
 
 inline def string*(f size_t) string
-	return string(__string_mult(f, this.voidptr))
+	r = string(__string_mult(f, this.voidptr))
+	return r
 end
 
 inline def size_t*(s string) string
-	return string(__string_mult(this, s.voidptr))
+	r = string(__string_mult(this, s.voidptr))
+	return r
 end
 
 inline def string+=(s cstring)
