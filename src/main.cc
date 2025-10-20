@@ -94,6 +94,9 @@ extern "C" int volvox_try_wait(int pid);
 // Code Generation Globals
 //===----------------------------------------------------------------------===//
 
+#if LLVM_VERSION_MAJOR >= 21
+llvm::LLVMContext* TheContext = nullptr;
+#endif
 llvm::orc::ThreadSafeContext TS_Context;
 std::unique_ptr<llvm::Module> TheModule = nullptr;
 std::unique_ptr<llvm::IRBuilder<>> Builder = nullptr;
@@ -2052,7 +2055,11 @@ int main(int argc, char* argv[]) {
 	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create(codegenopt));
 	}
-	TS_Context = llvm::orc::ThreadSafeContext(std::move(std::make_unique<llvm::LLVMContext>()));
+	auto tmp_ctx = std::make_unique<llvm::LLVMContext>();
+#if LLVM_VERSION_MAJOR >= 21
+	TheContext = tmp_ctx.get();
+#endif
+	TS_Context = llvm::orc::ThreadSafeContext(std::move(tmp_ctx));
 
 	InitializeModuleAndPassManager();
 #ifndef LEGACY_PASS_MANAGER

@@ -270,7 +270,12 @@ extern bool have_return;
 extern int return_value;
 extern int sret_limit;
 extern llvm::orc::ThreadSafeContext TS_Context;
+#if LLVM_VERSION_MAJOR >= 21
+extern llvm::LLVMContext* TheContext;
+#define Context *TheContext
+#else
 #define Context *TS_Context.getContext()
+#endif
 extern SourceLocation CurLoc;
 extern bool inside_function;
 extern bool inside_loop;

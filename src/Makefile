@@ -37,14 +37,14 @@ ifeq ($(shell test -x /usr/local/bin/llvm-config-18 && echo -n true),true)
 	SUFFIX := -18
 	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm18/lib -lreadline -rdynamic
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config-17 && echo -n true),true)
+ifeq ($(shell test -x /usr/local/bin/llvm-config-21 && echo -n true),true)
 	PREFIX := /usr/local
-	SUFFIX := -17
-	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm17/lib -lreadline -rdynamic
+	SUFFIX := -21
+	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm21/lib -lreadline -rdynamic
 # readline on OpenBSD is GPLv2 - if you want a pure non-GPL build you can
 # use (a very old) libedit by using the following line and adding
 # "-DMONOCHROME_PROMPT=1" to CPPEXTRAFLAGS below 
-#	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm16/lib -ledit
+#	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm21/lib -ledit
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-19 && echo -n true),true)
 	SUFFIX := -19
