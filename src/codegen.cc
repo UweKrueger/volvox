@@ -1228,7 +1228,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 		}
 	}
-	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex | A_thread) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor | A_thread));
+	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex | A_constructor | A_thread) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor | A_constructor | A_thread));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
 	if (Val) {
@@ -2088,7 +2088,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		llvm::Type* type = RHS->ft->type;
-		unsigned attribs = RHS->ft->type_attr & (A_signed | A_string | A_map | A_closure);
+		unsigned attribs = RHS->ft->type_attr & (A_signed | A_cstring | A_string | A_map | A_closure);
 		entry->ft.type = type;
 		entry->ft.type_attr |= attribs;
 		if (Val) {

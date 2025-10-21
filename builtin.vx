@@ -16,6 +16,7 @@ cdecl __jit_malloc(n_bytes size_t) voidptr
 cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) ___free(buf voidptr)
 cdecl __jit_free(buf voidptr)
+cdecl(printf) _printf(s cstring, ...) int
 
 inline def __free(buf voidptr)
 	if __LLVM_JIT && __Environment_Idx == 2
@@ -50,6 +51,7 @@ end end end
 
 def string
 	if bool(this.voidptr)
+		# _printf "Got String\n"
 		this.voidptr = __string_dup(this.voidptr)
 end end
 
@@ -126,7 +128,6 @@ inline def cstring>=(s string) bool; return !(s < this); end
 inline def cstring<=(s string) bool; return !(s > this); end
 
 cdecl exit(n int)
-cdecl(printf) _printf(s cstring, ...) int
 cdecl strtod(s cstring, endptr voidptr) f64
 cdecl __printerr()
 cdecl err_printf(s cstring, ...)
