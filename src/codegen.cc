@@ -1142,9 +1142,15 @@ static inline const char* global_kind_str(unsigned flags) {
 
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, ":=");
-	if (rhs_is_constexpr && !(sym_kind & (A_global | A_const))) {
-		errs() << expr->Loc << ": using ':=' is only valid when declaring 'const' or 'global' variables\n";
-		return nullptr;
+	if (rhs_is_constexpr) {
+		if ((expr->RHS->ft->type_attr & (A_constructor | A_destructor)) && expr->RHS->ft->type != llvm_string_type) {
+			errs() << expr->Loc << ": using ':=' not allowed for type having default constructor or destructor\n";
+			return nullptr;
+		}
+		if (!(sym_kind & (A_global | A_const))) {
+			errs() << expr->Loc << ": using ':=' is only valid when declaring 'const' or 'global' variables\n";
+			return nullptr;
+		}
 	}
 	VariableExprAST* LHSE = dynamic_cast<VariableExprAST*>(expr->LHS.get());
 	ReferenceExprAST* LREF;
@@ -1158,7 +1164,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		return nullptr;
 	}
 	bool initialization_from_main = !jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
-	bool prepare_setter_fn = jit_repl && (!rhs_is_constexpr && !expr->RHS->ft->type->isFunctionTy() || (expr->RHS->ft->type_attr & A_constructor));
+	bool prepare_setter_fn = jit_repl && !rhs_is_constexpr && (!expr->RHS->ft->type->isFunctionTy() || (expr->RHS->ft->type_attr & (A_constructor | A_string)));
 	const std::string& unmangled_name = LHSE->getName();
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
 		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
@@ -1257,7 +1263,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		}
 		needs_store = !use_target;
 	}
-	bool needs_call = (needs_store || use_target || needs_constructor) && !initialization_from_main;
+	bool needs_call = (needs_store || use_target || needs_constructor) && !initialization_from_main && !rhs_is_constexpr;
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF) {
 			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";

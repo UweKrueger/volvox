@@ -52,8 +52,10 @@ end end end
 def string
 	if bool(this.voidptr)
 		# _printf "Got String\n"
-		this.voidptr = __string_dup(this.voidptr)
-end end
+		cap = __load_size(voidptr(size_t(this.voidptr) + (__OS_Bitwidth>>3)))
+		if cap != 0
+			this.voidptr = __string_dup(this.voidptr)
+end end end
 
 def string(p voidptr)
 	this.voidptr = p

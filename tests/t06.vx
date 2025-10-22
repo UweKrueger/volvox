@@ -267,7 +267,7 @@ end
 def ~QwER
 end
 
-global eewc := QwER{ w: 2 }
+global eewc = QwER{ w: 2 }
 
 def test_constructor_for_global bool
 	return eewc.h == 3 && eewc.w == 35
