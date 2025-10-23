@@ -2792,6 +2792,7 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 	llvm::Value* BranchV = nullptr;
 	llvm::Instruction* firstBreak = nullptr; // needed as insertion point to prepare merged vars
 	auto for_expr = dynamic_cast<ForExprAST*>(this);
+	bool branch_returns_value = false;
 	if (EndKind == tok_return) {
 		if (for_expr) {
 			errs() << Loc << ": 'return' at end of 'for' loop not allowed - use 'if' instead\n";
@@ -2803,6 +2804,7 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 				return { nullptr, nullptr, 0 };
 			}
 			Branch.back()->desired_type = theFunction_ret_ft->type;
+			branch_returns_value = true;
 		}
 	}
 	if (Branch.empty()) {
@@ -2811,9 +2813,13 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 		llvm::Value* ret_target = nullptr;
 		unsigned n_exprs = Branch.size();
 		for (auto& expr : Branch) {
-			if (theFunction_struct_ret && !(--n_exprs))
-				// TODO: handle automatic converstions in this case (?)
-				BranchV = expr->codegen_raw(ret_ptr);
+			if (!(--n_exprs) && branch_returns_value)
+				if (theFunction_struct_ret)
+					BranchV = expr->codegen_raw(ret_ptr);
+				else {
+					BranchV = expr->codegen((void*)(intptr_t)(-1));
+					errs() << expr->Loc << ": no destructor\n";
+				}
 			else
 				BranchV = expr->codegen();
 			InsertDestructors(expr_temps);
