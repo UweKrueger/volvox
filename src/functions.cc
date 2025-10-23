@@ -761,9 +761,9 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 
 llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 	if (auto F = TheModule->getFunction((*ft->Protos)[ft->selected_proto]->Name)) {
-		return handle(target, F);
+		return handle(target, F, Loc, ft->type_attr);
 	}
-	return handle(target, (*ft->Protos)[ft->selected_proto]->codegen(need_address));
+	return handle(target, (*ft->Protos)[ft->selected_proto]->codegen(need_address), Loc, ft->type_attr);
 }
 
 std::pair<llvm::Type*,llvm::Value*> FunctionExprAST::codegen_ref_(bool silent_fail, bool constref) {
@@ -985,7 +985,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					// special handling for string types
 					if ((Args[0]->ft->type_attr & A_string)
 					    && (ft->type_attr & A_cstring)) {
-						return handle(target, Volvox2CStr(expr));
+						return handle(target, Volvox2CStr(expr), Loc, ft->type_attr);
 					} else if ((Args[0]->ft->type_attr & A_cstring)
 					         && (ft->type_attr & A_string)) {
 						auto converter_name = "__cstr2volvox";
@@ -997,7 +997,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						the_struct = Builder->CreateInsertValue(the_struct, expr, 0);
 						return handle_d_1(string_type, the_struct, target, Loc);
 					} else {
-						return handle(target, expr);
+						return handle(target, expr, Loc, ft->type_attr);
 					}
 				} else {
 					conv = getConv(expr->getType(), ft->type, Loc, (bool)(Args[0]->ft->type_attr & A_signed),
@@ -1069,9 +1069,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				order++;
 			}
 			if (size)
-				return handle(target, getSize(size));
+				return handle(target, getSize(size), Loc, ft->type_attr);
 			if (Size)
-				return handle(target, Size);
+				return handle(target, Size, Loc, ft->type_attr);
 			if (Dim) {
 				errs() << Loc << ": argument of 'dim' (" << theidx << ") must be less than order of tensor ("
 				       << order << ")\n";
@@ -1082,7 +1082,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* DimsArray = llvm::UndefValue::get(dim_arr_type);
 			for (int i=0; i<dims_array.size(); i++)
 				DimsArray = Builder->CreateInsertElement(DimsArray, dims_array[i], i);
-			return handle(target, Builder->CreateExtractElement(DimsArray, arg));
+			return handle(target, Builder->CreateExtractElement(DimsArray, arg), Loc, ft->type_attr);
 		}
 	}
 	if (!Proto)

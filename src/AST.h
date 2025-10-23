@@ -20,11 +20,18 @@
 // Abstract Syntax Tree (aka Parse Tree)
 //===----------------------------------------------------------------------===//
 
-inline static llvm::Value* handle(llvm::Value* target, llvm::Value* val) {
+inline static llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, unsigned type_attr) {
 	if (!val)
 		return nullptr;
-	if (!target || (intptr_t)target == -1)
+	if (!target || (intptr_t)target == -1) {
+		if (!target && (type_attr & A_destructor)) {
+			if (val->getType() == llvm_string_type)
+				errs() << Loc << ": #### need string destructor\n";
+			else
+				errs() << Loc << ": ######### need " << *val->getType() << " destructor\n";
+		}
 		return val;
+	}
 	Builder->CreateStore(val, target);
 	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
@@ -883,7 +890,7 @@ public:
 			errs() << Loc << ": cannot get address of expression\n";
 			return nullptr;
 		}
-		return handle(target, Builder->CreatePointerCast(ptr, llvm_ptr_type));
+		return handle(target, Builder->CreatePointerCast(ptr, llvm_ptr_type), Loc, ft->type_attr);
 	}
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override {
 		auto pair = Operand->codegen_ref(silent_fail, false);
