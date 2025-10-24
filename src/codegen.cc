@@ -2817,7 +2817,7 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 				if (theFunction_struct_ret)
 					BranchV = expr->codegen_raw(ret_ptr);
 				else {
-					BranchV = expr->codegen((void*)(intptr_t)(-1));
+					BranchV = expr->codegen(true);
 					errs() << expr->Loc << ": no destructor\n";
 				}
 			else

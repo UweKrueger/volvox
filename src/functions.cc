@@ -1637,10 +1637,12 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 	ret_ptr = this_ret_ptr;
 	theFunction_ret_ft = ret_ft;
 	Builder->SetInsertPoint(BB);
+	bool branch_returns_value = false;
 	if (bBody.second.end_kind == tok_return && !Proto->RetType->type->isVoidTy()) {
 		if (thisBody.empty() || !thisBody.back())
 			return false;
 		thisBody.back()->desired_type = Proto->RetType->type;
+		branch_returns_value = true;
 	}
 	if (return_val_idx < 0)
 		return_val_idx = thisBody.size() - 1;
@@ -1649,13 +1651,26 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 			if (!return_val_idx && this_ret_ptr) {
 				RetVal = Expr->codegen_raw(this_ret_ptr);
 			} else {
-				llvm::Value* tmp = CreateEntryBlockAlloca(Expr->ft->type);
-				if (!Expr->codegen_raw(tmp))
+				llvm::Value* target = CreateEntryBlockAlloca(Expr->ft->type);
+				if (!Expr->codegen_raw(target))
 					return false;
-				RetVal = Builder->CreateLoad(Expr->ft->type, tmp);
+				RetVal = Builder->CreateLoad(Expr->ft->type, target);
+				if (return_val_idx && (Expr->ft->type_attr & A_destructor)) {
+					auto destructor = getConstructorOrDestructor(Expr->ft, true);
+					FullVar tmp = {
+						.val = target,
+						.destructor = destructor,
+						.ft = *Expr->ft
+					};
+					expr_temps.push_back(tmp);
+					errs() << Expr->Loc << ": #### marking expr for destruction\n";
+				}
 			}
 		} else {
-			RetVal = Expr->codegen();
+			if (return_val_idx)
+				RetVal = Expr->codegen();
+			else
+				RetVal = Expr->codegen(true);
 		}
 		if (RetVal) {
 			if (!return_val_idx--)
