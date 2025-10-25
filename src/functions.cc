@@ -1670,7 +1670,7 @@ bool FunctionAST::prepare_codegen() {
 	return true;
 }
 
-bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) {
+bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, bool main_partial) {
 	ret_ptr = this_ret_ptr;
 	theFunction_ret_ft = ret_ft;
 	Builder->SetInsertPoint(BB);
@@ -1685,7 +1685,7 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 		return_val_idx = thisBody.size() - 1;
 	for (auto& Expr : thisBody) {
 		if (Expr->needs_target()) {
-			if (!return_val_idx && this_ret_ptr) {
+			if (!main_partial && !return_val_idx && this_ret_ptr) {
 				RetVal = Expr->codegen_raw(this_ret_ptr);
 			} else {
 				llvm::Value* target = CreateEntryBlockAlloca(Expr->ft->type);
@@ -1704,13 +1704,16 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody) 
 				}
 			}
 		} else {
-			if (return_val_idx)
+			if (main_partial || return_val_idx) {
+				errs() << Expr->Loc << ": ... generate with destructor " << return_val_idx << " " << thisBody.size() << "\n";
 				RetVal = Expr->codegen();
-			else
+			} else {
+				errs() << Expr->Loc << ": ... generate without destructor " << return_val_idx << " " << thisBody.size() << "\n";
 				RetVal = Expr->codegen(true);
+			}
 		}
 		if (RetVal) {
-			if (!return_val_idx--)
+			if (!main_partial && !return_val_idx--)
 				InterRetVal = RetVal; // hack for interactive JIT to return value of Expr instead of println()
 			if (comp_mode == comp_dbg) {
 				KSDbgInfo.emitLocation(Expr.get());

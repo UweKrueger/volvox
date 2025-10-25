@@ -157,7 +157,7 @@ std::vector<std::string> modulestack;
    import path */
 bool Lexer::push_state(std::vector<std::string> _import_path, std::string _as, std::map<std::string, SourceLocation> _fromlist) {
 	if (MainFunction) {
-		if (!MainFunction->process_body(GlobalExprList)) {
+		if (!MainFunction->process_body(GlobalExprList, true)) {
 			errs() << CurLoc << ": unable to process accumulated expressions for main function\n";
 			exit(1);
 		}
@@ -425,7 +425,7 @@ void Lexer::pop_state() {
 		abort();
 	}
 	if (MainFunction) {
-		if (!MainFunction->process_body(GlobalExprList)) {
+		if (!MainFunction->process_body(GlobalExprList, true)) {
 			errs() << CurLoc << ": unable to process accumulated expressions for main function\n";
 			exit(1);
 		}

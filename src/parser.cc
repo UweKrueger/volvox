@@ -1083,7 +1083,7 @@ void get_destruct_vars_main(std::map<std::string,FullVar*>& destr_vars) {
 		FullVar* fullV = fullVar(t);
 		if (fullV->ft.type_attr & (A_destructor | A_string | A_map)) {
 			std::string key(t.getKey());
-			// errs() << key << " ";
+			errs() << fullV->decl_loc << "%%%%%%%% destruct var " << key << "\n";
 			destr_vars.insert({ std::move(key), fullV });
 		}
 	}

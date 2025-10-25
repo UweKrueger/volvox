@@ -1012,8 +1012,7 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 			oldBB = Builder->GetInsertBlock();
 			Builder->SetInsertPoint(before);
 		}
-		auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
-		Builder->CreateCall(FT, fv->destructor, val);
+		Builder->CreateCall(constr_destr_fn_type, fv->destructor, std::vector<llvm::Value*>{ val });
 		if (before)
 			Builder->SetInsertPoint(oldBB);
 	} else if (fv->ft.type->isPointerTy() && (fv->ft.type_attr & A_map)) {

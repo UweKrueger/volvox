@@ -405,7 +405,7 @@ public:
 	volvoxc::FullType* old_theFunction_ret_ft = nullptr;
 	bool old_theFunction_struct_ret = false;
 	bool prepare_codegen();
-	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody);
+	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, bool main_partial = false);
 	llvm::Function* finish_codegen(bool finishModule = false, bool getNewModule = false);
 	llvm::Function* cleanup_codegen();
 	PrototypeAST* Proto = nullptr;
