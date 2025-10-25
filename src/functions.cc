@@ -1713,7 +1713,7 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, 
 			}
 		}
 		if (RetVal) {
-			if (!main_partial && !return_val_idx--)
+			if (!return_val_idx--)
 				InterRetVal = RetVal; // hack for interactive JIT to return value of Expr instead of println()
 			if (comp_mode == comp_dbg) {
 				KSDbgInfo.emitLocation(Expr.get());
