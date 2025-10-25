@@ -63,6 +63,11 @@ llvm::Function* getShadowConstructorDestructor(std::string& mangled_name, int n,
 }
 
 llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor) {
+	// errs() << "####### mangled_name: " << ft->mangled_name;
+	// if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type)) {
+	// 	errs() << " real name: " << struct_ty->getName();
+	// }
+	// errs() << "\n";
 	auto Names = AutoMethods.find(ft->mangled_name);
 	if (Names == AutoMethods.end())
 		return nullptr;
@@ -287,6 +292,35 @@ check_selected_proto:
 			return -1;
 		}
 	return selected_idx;
+}
+
+llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft) {
+	if (!val)
+		return nullptr;
+	if (val->getType()->isVoidTy())
+		return val;
+	if (!target || (intptr_t)target == -1) {
+		if (!target && (ft->type_attr & A_destructor)) {
+			auto destructor = getConstructorOrDestructor(ft, true);
+			if (!destructor) {
+				errs() << Loc << ": cannot find destructor for type " << *ft << "\n";
+				abort();
+			}
+			errs() << Loc << ": #### need destructor\n";
+			llvm::Value* tmpstore = CreateEntryBlockAlloca(val->getType());
+			Builder->CreateStore(val, tmpstore);
+			FullVar tmp = {
+				.val = tmpstore,
+				.destructor = destructor,
+				.ft = *ft
+			};
+			expr_temps.push_back(tmp);		
+		} else
+			errs() << Loc << ": ##### no destructor needed\n";
+		return val;
+	}
+	Builder->CreateStore(val, target);
+	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
 
 CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
@@ -761,9 +795,9 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 
 llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 	if (auto F = TheModule->getFunction((*ft->Protos)[ft->selected_proto]->Name)) {
-		return handle(target, F, Loc, ft->type_attr);
+		return handle(target, F, Loc, ft);
 	}
-	return handle(target, (*ft->Protos)[ft->selected_proto]->codegen(need_address), Loc, ft->type_attr);
+	return handle(target, (*ft->Protos)[ft->selected_proto]->codegen(need_address), Loc, ft);
 }
 
 std::pair<llvm::Type*,llvm::Value*> FunctionExprAST::codegen_ref_(bool silent_fail, bool constref) {
@@ -985,7 +1019,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					// special handling for string types
 					if ((Args[0]->ft->type_attr & A_string)
 					    && (ft->type_attr & A_cstring)) {
-						return handle(target, Volvox2CStr(expr), Loc, ft->type_attr);
+						return handle(target, Volvox2CStr(expr), Loc, ft);
 					} else if ((Args[0]->ft->type_attr & A_cstring)
 					         && (ft->type_attr & A_string)) {
 						auto converter_name = "__cstr2volvox";
@@ -997,7 +1031,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						the_struct = Builder->CreateInsertValue(the_struct, expr, 0);
 						return handle_d_1(string_type, the_struct, target, Loc);
 					} else {
-						return handle(target, expr, Loc, ft->type_attr);
+						return handle(target, expr, Loc, ft);
 					}
 				} else {
 					conv = getConv(expr->getType(), ft->type, Loc, (bool)(Args[0]->ft->type_attr & A_signed),
@@ -1069,9 +1103,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				order++;
 			}
 			if (size)
-				return handle(target, getSize(size), Loc, ft->type_attr);
+				return handle(target, getSize(size), Loc, ft);
 			if (Size)
-				return handle(target, Size, Loc, ft->type_attr);
+				return handle(target, Size, Loc, ft);
 			if (Dim) {
 				errs() << Loc << ": argument of 'dim' (" << theidx << ") must be less than order of tensor ("
 				       << order << ")\n";
@@ -1082,12 +1116,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* DimsArray = llvm::UndefValue::get(dim_arr_type);
 			for (int i=0; i<dims_array.size(); i++)
 				DimsArray = Builder->CreateInsertElement(DimsArray, dims_array[i], i);
-			return handle(target, Builder->CreateExtractElement(DimsArray, arg), Loc, ft->type_attr);
+			return handle(target, Builder->CreateExtractElement(DimsArray, arg), Loc, ft);
 		}
 	}
 	if (!Proto)
 		return nullptr;
-	if (Proto->visibility & A_constructor && type_expr) {
+	if ((Proto->visibility & A_constructor) && type_expr) {
 		uint64_t allocsz = TheModule->getDataLayout().getTypeAllocSize(type_expr->ft->type);
 		llvm::Value* ret_val = nullptr;
 		if ((!target || (intptr_t)target == -1) && (allocsz > sret_limit || (type_expr->ft->type_attr & A_constructor)))
@@ -1123,7 +1157,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* getter = nullptr;
 	llvm::Value* setter = nullptr;
 	llvm::Value* method_adr = nullptr;
-	if (Proto->visibility & A_method && !(Proto->visibility & A_constructor)) {
+	if ((Proto->visibility & A_method) && !(Proto->visibility & A_constructor)) {
 		if (auto method = dynamic_cast<MethodExprAST*>(Callee.get())) {
 			llvm::Value* receiver_ref = nullptr;
 			if (auto receiver_lval = dynamic_cast<LvalueExprAST*>(method->Receiver.get())) {
@@ -1408,7 +1442,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		// Callee was a function symbol like `sin`
 		if (Proto->const_result)
 			return Proto->const_result;
-		return Builder->CreateCall(FT, F, std::move(ArgsV));
+		errs() << Loc << ": have target " << target << "\n";
+		return handle(target, Builder->CreateCall(FT, F, std::move(ArgsV)), Loc, ft);
+		// return Builder->CreateCall(FT, F, std::move(ArgsV));
 	} else {
 		// theFunction is a function pointer, i.e. a function call address (e.g. loaded from a variable)
 		if (getter) {
@@ -1458,12 +1494,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			// PN->addIncoming(retVal_field, fieldBB);
 			// PN->addIncoming(retVal_call, callBB);
 			llvm::Value* PN = Builder->CreateLoad(Proto->RetType->type, PN_store);
-			return PN;
+			return handle(target, PN, Loc, ft);
 		}
 		// errs() << Loc << ": ### call expr with function pointer " << *theFunction << "\n";
 		if (theFunction->getType()->isPointerTy())
 			// interface method or simple function pointer
-			return Builder->CreateCall(FT, theFunction, std::move(ArgsV));
+			return handle(target, Builder->CreateCall(FT, theFunction, std::move(ArgsV)), Loc, ft);
 		if (auto closure_ty = llvm::dyn_cast<llvm::StructType>(theFunction->getType())) {
 			// closure: pointer pair - function pointer and pointer to captured variables
 			llvm::Value* closure_fn_ptr = Builder->CreateExtractValue(theFunction, 0);
@@ -1503,7 +1539,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::PHINode* PN = Builder->CreatePHI(ret_ty, 2, "closure_ret");
 			PN->addIncoming(simpleRes, callBB_simple);
 			PN->addIncoming(closureRes, callBB_closure);
-			return PN;
+			return handle(target, PN, Loc, ft);
 		}
 		errs() << Loc << ": internal error - cannot create function call\n";
 		return nullptr;

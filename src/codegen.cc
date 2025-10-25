@@ -80,20 +80,20 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 			if (auto it = llvm::dyn_cast<llvm::IntegerType>(desired_type))
 				bw = it->getBitWidth();
 			else if (desired_type->isDoubleTy() || desired_type->isFloatTy())
-				return handle(target, llvm::ConstantFP::get(desired_type, ft->type_attr & A_signed ? (double)Val.Int : (double)Val.Uint), Loc, ft->type_attr);
+				return handle(target, llvm::ConstantFP::get(desired_type, ft->type_attr & A_signed ? (double)Val.Int : (double)Val.Uint), Loc, ft);
 		}
 		if (!bw)
 			bw = ft->type->getIntegerBitWidth();
 		if (bw == 1) // bool - treat anything != 0 as 'true'
 			if (Val.Uint)
-				return handle(target, Builder->getTrue(), Loc, ft->type_attr);
+				return handle(target, Builder->getTrue(), Loc, ft);
 			else
-				return handle(target, Builder->getFalse(), Loc, ft->type_attr);
+				return handle(target, Builder->getFalse(), Loc, ft);
 		else {
 			auto the_val = llvm::ConstantInt::get(llvm::IntegerType::get(Context, bw), Val.Uint, ft->type_attr & A_signed);
 			if (ConstexprIntOverflow(Loc, the_val, Val.Uint, ft->type_attr))
 				return nullptr;
-			return handle(target, the_val, Loc, ft->type_attr);
+			return handle(target, the_val, Loc, ft);
 		}
 	}
 	case llvm::Type::HalfTyID:
@@ -105,16 +105,16 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 		auto the_val = llvm::ConstantFP::get(ft->type, Val.Float);
 		if (type_id != llvm::Type::DoubleTyID && ConstexprFPOverflow(Loc, llvm::cast<llvm::ConstantFP>(the_val), Val.Float))
 			return nullptr;
-		return handle(target, the_val, Loc, ft->type_attr);
+		return handle(target, the_val, Loc, ft);
 	}
 	case llvm::Type::PointerTyID:
 		// if (ft->type_attr & A_signed)
-		return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm_ptr_type), Loc, ft->type_attr);
+		return handle(target, Builder->CreateIntToPtr(llvm::ConstantInt::get(llvm_size_type, Val.Uint, false), llvm_ptr_type), Loc, ft);
 		// else fallthrough
 	default:
 		if (ft->type == llvm_string_type) {
 			llvm::Value* theString = createStringConst(Val.CStr, Val.Len);
-			return handle(target, theString, Loc, ft->type_attr);
+			return handle(target, theString, Loc, ft);
 		}
 		errs() << "internal compiler error: unhandled literal type " << *ft->type << "\n";
 		return nullptr;
@@ -171,7 +171,7 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* vv = Elements[i]->codegen();
 			V = Builder->CreateInsertValue(V, vv, i, "listpush");
 		}
-		return handle(target, V, Loc, ft->type_attr);
+		return handle(target, V, Loc, ft);
 	} else {
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 	}
@@ -402,7 +402,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			} else
 				V = Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
 		}
-		return handle(target, V, Loc, ft->type_attr);
+		return handle(target, V, Loc, ft);
 	} else {
 		errs() << Loc << ": '" << *ft << "' is not an aggregate type so it cannot be initialized using '{}'\n";
 		return nullptr;
@@ -414,7 +414,7 @@ llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	if (V.first && V.second) {
 		if (V.first->isSized())
 			// Load the value.
-			return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()), Loc, ft->type_attr);
+			return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()), Loc, ft);
 		else
 			errs() << Loc << ": internal error - attempt to load value of unknown size\n";
 	}
@@ -440,10 +440,13 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 	}
 	auto V = codegen_ref(false, true);
 	if (V.first && V.second && V.second->getType()->isPointerTy()) {
+		if (!target)
+			// suppress destructor call for variable value
+			target = (llvm::Value*)(intptr_t)(-1);
 		// Load the value.
 		if (full_var->ft.type_attr & A_atomic)
-			return handle(target, CreateAtomicLoad(V.first, V.second, Name.c_str()), Loc, ft->type_attr);
-		return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()), Loc, ft->type_attr);
+			return handle(target, CreateAtomicLoad(V.first, V.second, Name.c_str()), Loc, ft);
+		return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()), Loc, ft);
 	}
 	return nullptr;
 }
@@ -675,7 +678,7 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		return codegen_complex(target);
 	auto V = codegen_ref(true, true);
 	if (auto val = ref2val(V))
-		return handle(target, val, Loc, ft->type_attr);
+		return handle(target, val, Loc, ft);
 	if (V.first) {
 		if (auto arr_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type)) {
 			// handle builtin array methods
@@ -743,7 +746,7 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 			} else {
 				val = extractStructFieldValue(Store, struct_val, Struct->ft, ft, FieldIndex);
 			}
-			return handle(target, val, Loc, ft->type_attr);
+			return handle(target, val, Loc, ft);
 		}
 	}
 	errs() << Loc << ": cannot generate code for select expression\n";
@@ -898,7 +901,7 @@ have_rttype:
 	llvm::Value* the_struct = llvm::UndefValue::get(struct_type);
 	the_struct = Builder->CreateInsertValue(the_struct, rttype_ptr, 0);
 	the_struct = Builder->CreateInsertValue(the_struct, val, 1);
-	return handle(target, the_struct, Loc, ft->type_attr);
+	return handle(target, the_struct, Loc, ft);
 }
 
 llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
@@ -911,9 +914,9 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 		auto One = llvm::ConstantInt::get(int_ty, 1);
 		if (Operand->ft->type_attr & A_atomic) {
 			if (Opcode[0] == '+')
-				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add, OperandV.second, One), Loc, ft->type_attr);
+				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Add, OperandV.second, One), Loc, ft);
 			else
-				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Sub, OperandV.second, One), Loc, ft->type_attr);
+				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::Sub, OperandV.second, One), Loc, ft);
 		}
 		llvm::Value* oldVal = Builder->CreateLoad(int_ty, OperandV.second);
 		llvm::Value* newVal;
@@ -922,14 +925,14 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 		else
 			newVal = Builder->CreateSub(oldVal, One);
 		Builder->CreateStore(newVal, OperandV.second);
-		return handle(target, oldVal, Loc, ft->type_attr);
+		return handle(target, oldVal, Loc, ft);
 	} else if (OperandV.first->isFloatingPointTy()) {
 		auto One = Builder->CreateUIToFP(Builder->getInt32(1), OperandV.first);
 		if (Operand->ft->type_attr & A_atomic) {
 			if (Opcode[0] == '+')
-				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::FAdd, OperandV.second, One), Loc, ft->type_attr);
+				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::FAdd, OperandV.second, One), Loc, ft);
 			else
-				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::FSub, OperandV.second, One), Loc, ft->type_attr);
+				return handle(target, CreateAtomicRMW(llvm::AtomicRMWInst::BinOp::FSub, OperandV.second, One), Loc, ft);
 		}
 		llvm::Value* oldVal = Builder->CreateLoad(OperandV.first, OperandV.second);
 		llvm::Value* newVal;
@@ -938,7 +941,7 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 		else
 			newVal = Builder->CreateFSub(oldVal, One);
 		Builder->CreateStore(newVal, OperandV.second);
-		return handle(target, oldVal, Loc, ft->type_attr);
+		return handle(target, oldVal, Loc, ft);
 	}
 	errs() << Operand->Loc << ": postfix operator not supported for type '" << *OperandV.first << "'\n";
 	return nullptr;
@@ -959,9 +962,9 @@ llvm::Value* UnaryExprAST::codegen_raw(llvm::Value* target) {
 	case llvm::Type::DoubleTyID:
 		switch (Opcode[0]) {
 		case '+':
-			return handle(target, OperandV, Loc, ft->type_attr);
+			return handle(target, OperandV, Loc, ft);
 		case '-':
-			return handle(target, Builder->CreateFNeg(OperandV, "negftmp"), Loc, ft->type_attr);
+			return handle(target, Builder->CreateFNeg(OperandV, "negftmp"), Loc, ft);
 		// TODO: case '&'
 		default:
 			errs() << "unary operator '" << Opcode[0] << "' undefined for floats";
@@ -974,11 +977,11 @@ llvm::Value* UnaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 		switch (Opcode[0]) {
 		case '+':
-			return handle(target, OperandV, Loc, ft->type_attr);
+			return handle(target, OperandV, Loc, ft);
 		case '-':
-			return handle(target, Builder->CreateNeg(OperandV, "negtmp"), Loc, ft->type_attr);
+			return handle(target, Builder->CreateNeg(OperandV, "negtmp"), Loc, ft);
 		case '!':
-			return handle(target, Builder->CreateNot(OperandV, "nottmp"), Loc, ft->type_attr);
+			return handle(target, Builder->CreateNot(OperandV, "nottmp"), Loc, ft);
 		default:
 			errs() << "unary operator '" << Opcode[0] << "' undefined for integers";
 			return nullptr;
@@ -1946,8 +1949,10 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			is_call_expr = true;
 			if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
 				// check that this is not just an explicit basic type conversion like 'f64(i)'
-				if (llvm::isa<llvm::StructType>(type_expr->ft->type))
+				if (llvm::isa<llvm::StructType>(type_expr->ft->type)) {
 					is_constructor_call = true;
+					errs() << Loc << ": have constructor call\n";
+				}
 		} else if (dynamic_cast<BinaryExprAST*>(RHS.get()) ||
 		           dynamic_cast<PostfixExprAST*>(RHS.get()) ||
 		           dynamic_cast<UnaryExprAST*>(RHS.get()) ||
@@ -2000,6 +2005,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					errs() << Loc << ": use string val\n";
 					Val = RHS->codegen_raw((llvm::Value*)(intptr_t)-1);
 				} else */
+				errs() << Loc << ": **** generate Val\n";
 				Val = RHS->codegen(true);
 				if (!Val)
 					return nullptr;
@@ -2138,8 +2144,11 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				}
 			}
 		} else if (allocsz > sret_limit || is_constructor_call) {
+			if (Loc.Line == 75)
+				errs() << Loc << ": ++++++ target call " << allocsz << " " << is_constructor_call << *RHS->ft << " " << varname << "\n";
 			auto align = getAlignment(allocsz);
-			auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+			// auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
+			auto Alloca = CreateEntryBlockAlloca(RHS->ft->type, varname);
 			auto voidval = RHS->codegen_raw(Alloca);
 			if (!voidval)
 				return nullptr;
@@ -2148,6 +2157,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			entry->val = Alloca;
+			errs() << Loc << ": ++++++ var created\n";
 		} else {
 			errs() << "unhandled case\n";
 			return nullptr;
@@ -2776,7 +2786,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		errs() << Loc << ": unexpected operator '" << Op << "' in this context\n";
 		return nullptr;
 	}
-	return handle(target, result, Loc, ft->type_attr);
+	return handle(target, result, Loc, ft);
 }
 
 // create if/while/repeat/for or else branch
@@ -3858,9 +3868,9 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		return llvm::UndefValue::get(ft->type);
 	else {
 		if (CTcond == CTcond_true)
-			return handle(target, ThenV, Loc, ft->type_attr);
+			return handle(target, ThenV, Loc, ft);
 		else if (CTcond == CTcond_false)
-			return handle(target, ElseV, Loc, ft->type_attr);
+			return handle(target, ElseV, Loc, ft);
 		auto merge = merge_values(Then.back().first.back()->ft->type, ThenV, (if_kind == tok_while || if_kind == tok_for) ?
 		                          CondBB : ThenBB, thenLast, Else.back().first.back()->ft->type, ElseV, ElseBB, elseLast,
 		                          firstWhile, enterBB, Then.back().first.back()->Loc, Else.back().first.back()->Loc);
@@ -3868,7 +3878,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			ft = new_FullType(*ft);
 			ft-> type = merge.first;
 		}
-		return handle(target, merge.second, Loc, ft->type_attr);
+		return handle(target, merge.second, Loc, ft);
 	}
 }
 

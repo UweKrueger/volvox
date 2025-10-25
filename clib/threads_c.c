@@ -36,7 +36,7 @@ _DECL void* __create_thread(void* f, void* arg, bool detached) {
 		if (!res)
 			return NULL;
 		else
-			return (void*)(intptr_t)(-1);;
+			return (void*)(intptr_t)(-1);
 	}
 	return (void*)t;
 #else
