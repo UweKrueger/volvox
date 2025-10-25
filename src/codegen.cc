@@ -2077,7 +2077,8 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					// declarations have no return type
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				// call destructor for OldVal if discarded
-				return handle_d(target, OldVal, LHS->ft->type_attr);
+				errs() << Loc << ": old value destructor " << target << " " << *OldVal << " " << (bool)(LHS->ft->type_attr & A_destructor) << "\n";
+				return handle(target, OldVal, LHS->Loc, LHS->ft);
 			}
 		}
 	not_found:

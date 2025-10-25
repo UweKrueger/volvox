@@ -314,6 +314,7 @@ llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, 
 				.destructor = destructor,
 				.ft = *ft
 			};
+			tmp.ft.type_attr &= ~A_globally_visible;
 			expr_temps.push_back(tmp);		
 		} else
 			errs() << Loc << ": ##### no destructor needed\n";

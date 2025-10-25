@@ -1044,7 +1044,7 @@ inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nul
 		if (fv->ft.type_attr & A_rvalue)
 			return; // constexpr -> nothing to do
 		if (!fv->mangled_name) {
-			errs() << "Global Destructors: no mangled name\n";
+			errs() << "Global Destructors: no mangled name for variable declared at " << fv->decl_loc << "\n";
 			return;
 		}
 		V = TheModule->getGlobalVariable(fv->mangled_name, true);
