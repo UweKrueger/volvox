@@ -1956,6 +1956,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		} else if (dynamic_cast<BinaryExprAST*>(RHS.get()) ||
 		           dynamic_cast<PostfixExprAST*>(RHS.get()) ||
 		           dynamic_cast<UnaryExprAST*>(RHS.get()) ||
+		           dynamic_cast<InterpStrLitExprAST*>(RHS.get()) ||
 		           dynamic_cast<BranchExprAST*>(RHS.get())) {
 				is_call_expr = true;
 		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
@@ -2105,6 +2106,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		entry->ft.type = type;
 		entry->ft.type_attr |= attribs;
 		if (Val) {
+			errs() << Loc << ": ******** have val\n";
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
 			if (comp_mode == comp_dbg) {
@@ -2117,9 +2119,11 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				                        Builder->GetInsertBlock());
 			}
 		} else if (postpone_valgen) {
+			errs() << Loc << ": ******** have postponed val\n";
 			entry->val = CreateEntryBlockAlloca(type);
 			RHS->codegen_raw(entry->val);
 		} else if (ValPtr) {
+			errs() << Loc << ": ******** use valptr " << *ValPtr << "\n";
 			if (allocsz) {
 				llvm::AllocaInst* Alloca;
 				auto align = getAlignment(allocsz);
@@ -2145,8 +2149,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				}
 			}
 		} else if (allocsz > sret_limit || is_constructor_call) {
-			if (Loc.Line == 75)
-				errs() << Loc << ": ++++++ target call " << allocsz << " " << is_constructor_call << *RHS->ft << " " << varname << "\n";
 			auto align = getAlignment(allocsz);
 			// auto Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 			auto Alloca = CreateEntryBlockAlloca(RHS->ft->type, varname);
