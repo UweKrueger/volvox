@@ -1326,6 +1326,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		else
 			fv->ft.type_attr &= ~A_rvalue;
 	}
+	errs() << expr->LHS->Loc << ": ---- var " << varname << " " << (bool)(fv->ft.type_attr & A_mainvar) << "\n";
 	if (is_referencing)
 		fv->mark_as_referencing(is_referencing);
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
@@ -2006,7 +2007,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					errs() << Loc << ": use string val\n";
 					Val = RHS->codegen_raw((llvm::Value*)(intptr_t)-1);
 				} else */
-				errs() << Loc << ": **** generate Val\n";
 				Val = RHS->codegen(true);
 				if (!Val)
 					return nullptr;
@@ -2078,7 +2078,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					// declarations have no return type
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				// call destructor for OldVal if discarded
-				errs() << Loc << ": old value destructor " << target << " " << *OldVal << " " << (bool)(LHS->ft->type_attr & A_destructor) << "\n";
 				return handle(target, OldVal, LHS->Loc, LHS->ft);
 			}
 		}
@@ -2106,7 +2105,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		entry->ft.type = type;
 		entry->ft.type_attr |= attribs;
 		if (Val) {
-			errs() << Loc << ": ******** have val\n";
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
 			if (comp_mode == comp_dbg) {
@@ -2119,11 +2117,9 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				                        Builder->GetInsertBlock());
 			}
 		} else if (postpone_valgen) {
-			errs() << Loc << ": ******** have postponed val\n";
 			entry->val = CreateEntryBlockAlloca(type);
 			RHS->codegen_raw(entry->val);
 		} else if (ValPtr) {
-			errs() << Loc << ": ******** use valptr " << *ValPtr << "\n";
 			if (allocsz) {
 				llvm::AllocaInst* Alloca;
 				auto align = getAlignment(allocsz);
@@ -2829,10 +2825,8 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 			if (!(--n_exprs) && branch_returns_value)
 				if (theFunction_struct_ret)
 					BranchV = expr->codegen_raw(ret_ptr);
-				else {
+				else
 					BranchV = expr->codegen(true);
-					errs() << expr->Loc << ": no destructor\n";
-				}
 			else
 				BranchV = expr->codegen();
 			InsertDestructors(expr_temps);

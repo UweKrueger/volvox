@@ -306,7 +306,6 @@ llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, 
 				errs() << Loc << ": cannot find destructor for type " << *ft << "\n";
 				abort();
 			}
-			errs() << Loc << ": #### need destructor\n";
 			llvm::Value* tmpstore = CreateEntryBlockAlloca(val->getType());
 			Builder->CreateStore(val, tmpstore);
 			FullVar tmp = {
@@ -316,8 +315,7 @@ llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, 
 			};
 			tmp.ft.type_attr &= ~A_globally_visible;
 			expr_temps.push_back(tmp);		
-		} else
-			errs() << Loc << ": ##### no destructor needed\n";
+		}
 		return val;
 	}
 	Builder->CreateStore(val, target);
@@ -367,11 +365,12 @@ do_analyze:
 			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list, false});
 			if (!is_list) {
 				if (auto var_expr = dynamic_cast<VariableExprAST*>(arg.get())) {
-					if (var_expr->full_var && !(arg->ft->type_attr & (A_mainvar | A_global))) {
+					if (var_expr->full_var && !(var_expr->full_var->ft.type_attr & (A_mainvar | A_global))) {
 						if (!var_expr->full_var->var_usage_markers) {
 							var_expr->full_var->var_usage_markers = new std::vector<var_usage_marker_t>();
 							all_usage_markers.push_back(var_expr->full_var->var_usage_markers);
 						}
+						errs() << arg->Loc << ": §§§§§ usage marker added for " << var_expr->full_var->decl_loc << "\n";
 						var_expr->full_var->var_usage_markers->emplace_back(
 							var_expr->Loc, current_branch_part, &fn_args.back().is_referenced_after_call);
 					}
@@ -1443,7 +1442,6 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		// Callee was a function symbol like `sin`
 		if (Proto->const_result)
 			return Proto->const_result;
-		errs() << Loc << ": have target " << target << "\n";
 		return handle(target, Builder->CreateCall(FT, F, std::move(ArgsV)), Loc, ft);
 		// return Builder->CreateCall(FT, F, std::move(ArgsV));
 	} else {
@@ -1700,15 +1698,12 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, 
 						.ft = *Expr->ft
 					};
 					expr_temps.push_back(tmp);
-					errs() << Expr->Loc << ": #### marking expr for destruction\n";
 				}
 			}
 		} else {
 			if (main_partial || return_val_idx) {
-				errs() << Expr->Loc << ": ... generate with destructor " << return_val_idx << " " << thisBody.size() << "\n";
 				RetVal = Expr->codegen();
 			} else {
-				errs() << Expr->Loc << ": ... generate without destructor " << return_val_idx << " " << thisBody.size() << "\n";
 				RetVal = Expr->codegen(true);
 			}
 		}

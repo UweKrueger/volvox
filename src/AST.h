@@ -316,10 +316,9 @@ public:
 				is_unknown_type = true;
 			if (full_var->var_usage_markers && !full_var->var_usage_markers->empty()) {
 				LogicalLocation lloc(Loc, current_branch_part);
-				// errs() << Loc << ": varname2 " << Name << " " << lloc << "\n";
 				for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
 					if (lloc > it->loc) {
-						// errs() << "### marking " << it->loc << "\n";
+						errs() << Loc << "!!!!  marking " << it->loc << "\n";
 						*it->flag_ptr = true;
 						it = full_var->var_usage_markers->erase(it);
 					} else
