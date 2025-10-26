@@ -20,8 +20,8 @@ llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 				out << 'S';
 			if (ft->type_attr & (A_const | A_cstring))
 				out << 'K'; // C++ 'const char*' is what C functions typically expect - use 'PKc' for that
-			if (ft->type_attr & (A_string | A_cstring))
-				out << 'c'; // C++ 'char*' - this is not really the same as Volvox 'string', but close
+			if (ft->type_attr & A_cstring)
+				out << 'c'; // C++ 'char*'
 			else if (!ft->elem_type || ft->elem_type->type->isVoidTy())
 				out << 'v'; // C++ 'void*' - Volvox 'voidptr' - used for any C-specific pointer
 			else {

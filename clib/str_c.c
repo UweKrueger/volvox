@@ -183,20 +183,13 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, unsigned long long v
                     unsigned bits, int w, int p, unsigned flags);
 
 static void prt_pointer(char** s, unsigned* cap, unsigned* pos, const char* ptr, unsigned w, unsigned attr, unsigned flags) {
-#ifndef NO_NULLPTR_STRING
-	if (attr & A_string)
-		prtstring(s, cap, pos, ptr ? volvox2cstr(ptr) : "", w, flags);
+	if (attr & A_cstring)
+		if (!ptr)
+			prtstring(s, cap, pos, "<nil>", w, 0);
+		else
+			prtstring(s, cap, pos, ptr, w, flags);
 	else
-#endif
-	if (!ptr)
-		prtstring(s, cap, pos, "<nil>", w, 0);
-	else if (attr & A_cstring)
-		prtstring(s, cap, pos, ptr, w, flags);
-#ifdef NO_NULLPTR_STRING
-	else if (attr & A_string)
-		prtstring(s, cap, pos, volvox2cstr(ptr), w, flags);
-#endif
-	else
+		/* prtstring(s, cap, pos, ptr ? volvox2cstr(ptr) : "", w, flags); */
 		prt_int(s, cap, pos, (unsigned long long)(size_t)ptr, 8*sizeof(size_t),
 		        w, -1, flags | FMT_ZEROPAD | FMT_DISPLAY_HEX | FMT_UNSIGNED);
 }

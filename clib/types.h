@@ -23,7 +23,6 @@
 #define A_setter  (1U<<9) // Tyte.field=(val t) t
 #define A_mainvar (1U<<10) // global for LLVM
 #define A_union  (1U<<11)
-#define A_string (1U<<12)
 #define A_cstring (1U<<13)
 #define A_va_arg (1U<<14) // array of interfaces
 #define A_optional (1U<<15)

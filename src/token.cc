@@ -357,14 +357,6 @@ Token::Token(const std::string& str, char Closing)
 		             .is_signed = false };
 		return;
 	}
-	if (!llvm_string_type) {
-		string_type = lex.get_full_type("string");
-		if (!string_type) {
-			errs() << CurLoc << ": internal error - string literal used before string type is declared\n";
-			exit(1);
-		}
-		llvm_string_type = string_type->type;
-	}
 	auto llvmtype = llvm_string_type;
 	gen_type = { .ID = (VOLVOX_TypeID)llvmtype->getTypeID(), .SubclassData = ((genType*)llvmtype)->SubClassData() };
 	Val.CStr = (char*)malloc(str.size() + 1);

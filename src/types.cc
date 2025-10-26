@@ -464,36 +464,6 @@ normal_return:
 	return { desired_left_type, desired_right_type, nullptr };
 }
 
-// result_type, result attributes, result is unknown type, Operator Class, errormessage
-static std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getStringRes(
-	llvm::Type* left_type, llvm::Type* right_type, 
-	const char* Op, unsigned left_attr, unsigned right_attr)
-{
-	auto opclass = getOpClass(Op);
-	const char* err_msg = nullptr;
-	if (!strcmp(Op, "+") || !strcmp(Op, "=")) {
-		if ((left_attr & (A_string | A_cstring)) && (right_attr & (A_string | A_cstring)))
-			return { llvm_ptr_type, A_string, false, opclass, nullptr };
-		if (!(left_attr & (A_string | A_cstring)))
-			err_msg = "LHS of operator '%s' is no string (but RHS is)\n";
-		else
-			err_msg = "RHS of operator '%s' is no string (but LHS is)\n";
-	} else if (!strcmp(Op, "*")) {
-		if (left_type->isIntegerTy() || right_type->isIntegerTy())
-			return { llvm_ptr_type, A_string, false, opclass, nullptr };
-		if (left_attr & A_string)
-			err_msg = "RHS of operator '%s' must be an integer as LHS is a string\n";
-		else
-			err_msg = "LHS of operator '%s' must be an integer as RHS is a string\n";
-	} else if (!strcmp(Op, "+=") && (left_attr & A_string)) {
-		return { llvm::Type::getVoidTy(Context), 0, false, opclass, nullptr };
-	} else if (opclass == OpColon || opclass == OpDeclAssign || opclass == OpComma)
-		return { nullptr, 0, false, opclass, nullptr };
-	else if (opclass == OpComparison)
-		return { llvm::Type::getInt1Ty(Context), 0, false, opclass, nullptr };
-	return { nullptr, 0, false, opclass, err_msg };
-}
-
 // When imaginary objects are involved things are somewhat different
 
 // result_type, result attributes, result is unknown type, Operator Class, errormessage
@@ -589,8 +559,6 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	llvm::Type* left_type, llvm::Type* right_type, const char* Op,
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type)
 {
-	// if ((left_attr & (A_string | A_cstring)) || (right_attr & (A_string | A_cstring)))
-	// 	return getStringRes(left_type, right_type, Op, left_attr, right_attr);
 	auto opclass = getOpClass(Op);
 	if (!left_type && (opclass == OpColon || opclass == OpComma || opclass == OpTernary))
 		return { llvm::Type::getVoidTy(Context), left_attr, false, opclass, nullptr };
@@ -1205,8 +1173,6 @@ llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned t
 	if (llvm::isa<llvm::PointerType>(type)) {
 		if (type_attr & A_map)
 			return out << "map[" << ft_elem_type[0] << "]" << ft_elem_type[1];
-		else if (type_attr & A_string)
-			return out << "string";
 		else if (type_attr & A_cstring)
 			return out << "cstring";
 	}

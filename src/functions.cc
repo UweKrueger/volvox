@@ -214,20 +214,7 @@ int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* 
 				if (candidate < 0)
 					fnargs[i].Conv = nullptr; // for variadic args - but see comment above
 			} else {
-				if (fnargs[i].argtype && fnargs[i].argtype->isPointerTy() && proto->ArgTypes[i]->type->isPointerTy()) {
-					if ((fnargs[i].argtype_attr & A_string) && (proto->ArgTypes[i]->type_attr & A_string)
-					    || (fnargs[i].argtype_attr & A_cstring) && (proto->ArgTypes[i]->type_attr & A_cstring)
-					    || !(fnargs[i].argtype_attr & (A_string | A_cstring)) && !(proto->ArgTypes[i]->type_attr & (A_string | A_cstring))) {
-						conv = nullptr;
-						match_kind = exact_match;
-					} else if ((fnargs[i].argtype_attr & A_string) && (proto->ArgTypes[i]->type_attr & A_cstring)) {
-						conv = Volvox2CStr;
-						match_kind = conversion_match;
-					} else {
-						conv = nullptr;
-						match_kind = untyped_match;
-					}
-				} else if (fnargs[i].argtype && fnargs[i].argtype->isPointerTy() && !(fnargs[i].argtype_attr & A_string)
+				if (fnargs[i].argtype && fnargs[i].argtype->isPointerTy()
 				           && (proto->ArgTypes[i]->type_attr & A_optional)) {
 					conv = nullptr;
 					match_kind = exact_match;
@@ -556,7 +543,7 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
 		// errs() << fv->decl_loc << ": ### Destructor for '" << var_node.getKey() << "'\n";
-		if ((fv->ft.type_attr & (A_destructor | A_string | A_map)) && fv->val && fv->val != retp
+		if ((fv->ft.type_attr & (A_destructor | A_map)) && fv->val && fv->val != retp
 		    && (!var_adr || fv->val != var_adr))
 			InsertDestructor(fv);
 	}
@@ -587,7 +574,7 @@ void InsertDestructors(std::vector<FullVar>& t) {
 	if (t.empty())
 		return;
 	for (auto& fv: t) {
-		if (fv.ft.type_attr & (A_destructor | A_string | A_map))
+		if (fv.ft.type_attr & (A_destructor | A_map))
 			InsertDestructor(&fv);
 	}
 	t.clear();
@@ -892,7 +879,7 @@ llvm::Value* StringDup(llvm::Value* str) {
 llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	bool is_error = Proto && Proto->Name == "__error";
 	if (is_error || Proto && Proto->Name == "__link_extra") {
-		if (Args.empty() || !(Args[0]->ft->type_attr & A_string)) {
+		if (Args.empty() || Args[0]->ft->type != llvm_string_type) {
 			errs() << Loc << ": '" << Proto->Name << "()' requires at least 1 argument\n";
 			return nullptr;
 		}
@@ -900,7 +887,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			errs() << Loc << ':';
 		for (auto& arg: Args) {
 			if (auto lit = dynamic_cast<LiteralExprAST*>(arg.get())) {
-				if (!(arg->ft->type_attr & A_string) || !strlen(lit->Val.CStr)) {
+				if (arg->ft->type != llvm_string_type || !strlen(lit->Val.CStr)) {
 					if (is_error)
 						errs() << '\n';
 					errs() << Loc << ": " << Proto->Name << " requires constant non-empty string literals as arguments\n";
@@ -1036,23 +1023,14 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				llvm::Value* expr = Args[0]->codegen_raw();
 				if (!expr)
 					return nullptr;
-				if (!llvm_string_type) {
-					string_type = lex.get_full_type("string");
-					if (!string_type) {
-						errs() << CurLoc << ": internal error - string literal used before string type is declared\n";
-						exit(1);
-					}
-					llvm_string_type = string_type->type;
-				}
-				// errs() << Loc << ": ### type expr " << *expr->getType() << " | " << *ft << " | " << *ft->type << " " << llvm_string_type << "\n";
 				std::function<llvm::Value*(llvm::Value*)> conv = nullptr;
-				if (expr->getType()->isPointerTy() && ((ft->type_attr & (A_string | A_cstring)) || ft->type == llvm_string_type)) {
+				if (expr->getType()->isPointerTy() && ((ft->type_attr & A_cstring) || ft->type == llvm_string_type)) {
 					// special handling for string types
-					if ((Args[0]->ft->type_attr & A_string)
+					if (Args[0]->ft->type == llvm_string_type
 					    && (ft->type_attr & A_cstring)) {
 						return handle(target, Volvox2CStr(expr), Loc, ft);
 					} else if ((Args[0]->ft->type_attr & A_cstring)
-					         && (ft->type_attr & A_string)) {
+					         && ft->type == llvm_string_type) {
 						auto converter_name = "__cstr2volvox";
 						auto converter_proto = (*lex.findProtos(converter_name))[0].get();
 						auto converter = getFunction(converter_proto);
@@ -1320,14 +1298,14 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				errs() << Args[i]->Loc << ": not moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
 #endif
 		}
-		if (!is_address && (Args[i]->ft->type_attr & (A_string | A_cstring))) {
+		if (!is_address && (Args[i]->ft->type_attr & A_cstring)) {
 			// errs() << Args[i]->Loc << ": ### function argument 1\n";
 			llvm::Value* arg = Args[i]->codegen();
 			if (!arg) {
 				errs() << Args[i]->Loc << ": error generating function argument\n";
 				return nullptr;
 			}
-			if ((Args[i]->ft->type_attr & A_string) && ((i+arg_offs) >= n_proto_args || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
+			if (Args[i]->ft->type == llvm_string_type && ((i+arg_offs) >= n_proto_args || Proto->ArgTypes[i+arg_offs]->type_attr & A_cstring))
 				arg = Volvox2CStr(arg);
 			ArgsV.push_back(arg);
 		} else {
@@ -1364,14 +1342,6 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						auto nullval = llvm::Constant::getNullValue(ty_ref.first);
 						Builder->CreateStore(nullval, ty_ref.second);
 					} else {
-						if (!llvm_string_type) {
-							string_type = lex.get_full_type("string");
-							if (!string_type) {
-								errs() << CurLoc << ": internal error - string literal used before string type is declared\n";
-								exit(1);
-							}
-							llvm_string_type = string_type->type;
-						}
 						if (Args[i]->ft->type == llvm_string_type) {
 							arg = CreateEntryBlockAlloca(llvm_string_type);
 							if (!Args[i]->codegen_raw(arg)) {

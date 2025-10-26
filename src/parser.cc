@@ -1068,7 +1068,7 @@ std::map<std::string,FullVar*> get_destruct_vars(int b_lev) {
 		auto& table = locals_table[sz-n];
 		for (auto t = table.first(); (bool)t; ++t) {
 			FullVar* fullV = fullVar(t);
-			if (fullV->ft.type_attr & (A_destructor | A_string | A_map)) {
+			if (fullV->ft.type_attr & (A_destructor | A_map)) {
 				std::string key(t.getKey());
 				destr_vars.insert({ std::move(key), fullV });
 			}
@@ -1081,7 +1081,7 @@ void get_destruct_vars_main(std::map<std::string,FullVar*>& destr_vars) {
 	auto& table = lex.module->globals_table;
 	for (auto t = table.first(); (bool)t; ++t) {
 		FullVar* fullV = fullVar(t);
-		if (fullV->ft.type_attr & (A_destructor | A_string | A_map)) {
+		if (fullV->ft.type_attr & (A_destructor | A_map)) {
 			std::string key(t.getKey());
 			destr_vars.insert({ std::move(key), fullV });
 		}
@@ -1289,7 +1289,7 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 				auto then_var = fullVar(then_node);
 				// only add vars declared before 1st 'brk' to outer scope
 				if (!then_var->branch_parts->back().brk_part) {
-					if (then_var->ft.type_attr & (A_destructor | A_string | A_map)) {
+					if (then_var->ft.type_attr & (A_destructor | A_map)) {
 						std::string then_var_name(then_node.getKey());
 						merged_vars.insert(std::move(then_var_name));
 					}
@@ -1323,7 +1323,7 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 				// only add to outer scope if declared before 1st 'brk' in each branch
 				FullVar* then_var = fullVar(then_node);
 				if (else_var && !then_var->branch_parts->back().brk_part && !else_var->branch_parts->back().brk_part) {
-					if (then_var->ft.type_attr & (A_destructor | A_string | A_map)) {
+					if (then_var->ft.type_attr & (A_destructor | A_map)) {
 						std::string then_var_name(then_node.getKey());
 						merged_vars.insert(std::move(then_var_name));
 					}
@@ -1476,7 +1476,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 				errs() << (RHS ? (*RHS)->Loc : CurLoc) << ": RHS of reference declaration must be an lvalue\n";
 				return { nullptr, new_var_none };
 			}
-		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & (A_destructor | A_string | A_map))) {
+		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & (A_destructor | A_map))) {
 			fv.ft.type_attr |= A_destructor;
 		}
 		if (verbosity >= 2) {

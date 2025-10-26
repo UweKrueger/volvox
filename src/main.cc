@@ -689,6 +689,7 @@ static void HandleTypeDef(unsigned share_kind) {
 		last_defined_type = new_node->key.string;
 	if (verbosity >= 2)
 		errs() << "defined type - ft: " << ft << " " << *ft << ", " << ft->type << " as " << *ft->type << '\n';
+	// special handling for some builtin types
 	if (!strcmp(ft->mangled_name, "7complex")) {
 		ft->type_attr |= A_complex;
 		new_node = lex.add_type("c64", ft, replace);
@@ -696,6 +697,12 @@ static void HandleTypeDef(unsigned share_kind) {
 		if (replace) {
 			errs() << "internal error: cannot declare 'c64' as alias for 'complex'\n";
 			abort();
+		}
+	}
+	if (!llvm_string_type) {
+		if (!strcmp(ft->mangled_name, "6string")) {
+			string_type = ft;
+			llvm_string_type = ft->type;
 		}
 	}
 }

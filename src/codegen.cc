@@ -714,15 +714,6 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 				return Builder->CreateMul(Size, getSize(size));
 			return Builder->getInt32(order);
 		}
-		/* if (Struct->ft->type->isPointerTy() && (Struct->ft->type_attr & A_string)) {
-			llvm::Value* s = Struct->codegen_raw();
-			errs() << Loc << ": #### have string";
-			auto Sz = Builder->CreateAnd(Builder->CreateLoad(llvm_size_type, s),
-			                             getSize(target_mask >> 1));
-			if (!FieldIndex)
-				return Sz;
-			return Builder->CreateSub(Sz, getSize(1));
-		} */
 		llvm::Value* Store = nullptr;
 		if (Struct->needs_target() || Struct->ft->type_attr & A_union) {
 			Store = CreateEntryBlockAlloca(Struct->ft->type);
@@ -1006,7 +997,6 @@ enum TypeClass {
 	is_float,
 	is_int,
 	is_complex,
-	is_string,
 	is_other
 };
 
@@ -1167,7 +1157,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		return nullptr;
 	}
 	bool initialization_from_main = !jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
-	bool prepare_setter_fn = jit_repl && !rhs_is_constexpr && (!expr->RHS->ft->type->isFunctionTy() || (expr->RHS->ft->type_attr & (A_constructor | A_string)));
+	bool prepare_setter_fn = jit_repl && !rhs_is_constexpr && (!expr->RHS->ft->type->isFunctionTy() || (expr->RHS->ft->type_attr & (A_constructor | A_map)));
 	const std::string& unmangled_name = LHSE->getName();
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
 		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
@@ -1237,7 +1227,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 		}
 	}
-	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_string | A_cstring | A_map | A_complex | A_constructor | A_thread) : (A_signed | A_string | A_cstring | A_map | A_complex | A_destructor | A_constructor | A_thread));
+	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_cstring | A_map | A_complex | A_constructor | A_thread) : (A_signed | A_cstring | A_map | A_complex | A_destructor | A_constructor | A_thread));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
 	if (Val) {
@@ -1723,8 +1713,8 @@ std::tuple<llvm::FunctionType*,llvm::Function*,llvm::Type*> findModAssign(
 	llvm::Type* des_ty = LHS_ft->type;
 	if (LHS_ft->type->isPointerTy()) {
 		if (!strcmp(Op, "+=")) {
-			if (LHS_ft->type_attr & A_string) {
-				if (RHS_ft->type_attr & A_string)
+			if (LHS_ft->type == llvm_string_type) {
+				if (RHS_ft->type == llvm_string_type)
 					func_name = "__string_add_assign";
 				else if (RHS_ft->type_attr & A_cstring)
 					func_name = "__string_add_c_assign";
@@ -1925,7 +1915,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			RHS = std::make_unique<BinaryExprAST>(
 				Loc, newOp, std::move(new_LHS), std::move(RHS),
 				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
-					ft->type, ft->type_attr & (A_signed | A_string | A_map), is_unknown_type, getOpClass(newOp), err_msg });
+					ft->type, ft->type_attr & (A_signed | A_map), is_unknown_type, getOpClass(newOp), err_msg });
 		}
 		if (opclass != OpDeclAssign && opclass != OpGlobalDeclAssign)
 			RHS->desired_type = LHSE->ft->type;
@@ -1999,10 +1989,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (RHS->ft->type_attr & A_use_target) {
 				postpone_valgen = true;
 			} else {
-				/* if (RHS->ft->type_attr & A_string) {
-					errs() << Loc << ": use string val\n";
-					Val = RHS->codegen_raw((llvm::Value*)(intptr_t)-1);
-				} else */
 				Val = RHS->codegen(true);
 				if (!Val)
 					return nullptr;
@@ -2097,7 +2083,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		llvm::Type* type = RHS->ft->type;
-		unsigned attribs = RHS->ft->type_attr & (A_signed | A_cstring | A_string | A_map | A_closure);
+		unsigned attribs = RHS->ft->type_attr & (A_signed | A_cstring | A_map | A_closure);
 		entry->ft.type = type;
 		entry->ft.type_attr |= attribs;
 		if (Val) {
@@ -2227,13 +2213,10 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 	TypeClass typeclass = is_unknown;
 	switch(L->getType()->getTypeID()) {
 	case llvm::Type::IntegerTyID:
-		if (R && R->getType()->getTypeID() == llvm::Type::PointerTyID && RHS->ft && (RHS->ft->type_attr & A_string))
-			typeclass = is_string;
+		if (ft->type_attr & A_complex)
+			typeclass = is_complex;
 		else
-			if (ft->type_attr & A_complex)
-				typeclass = is_complex;
-			else
-				typeclass = is_int;
+			typeclass = is_int;
 		break;
 	case llvm::Type::HalfTyID:
 	case llvm::Type::BFloatTyID:
@@ -2243,11 +2226,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (ft->type_attr & A_complex)
 			typeclass = is_complex;
 		break;
-	case llvm::Type::PointerTyID:
-		if (LHS->ft->type_attr & A_string) {
-			typeclass = is_string;
-			break;
-		}
 	default:
 		typeclass = is_unknown;
 	}
@@ -2261,23 +2239,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		case is_float:
 			result = Builder->CreateFAdd(L, R, "addtmp");
 			break;
-		case is_string: {
-			std::string stradd = "__string_add";
-			auto stradd_proto = (*lex.findProtos(stradd))[0].get();
-			auto stradd_fn = getFunction(stradd_proto);
-			result = Builder->CreateCall(stradd_proto->FT, stradd_fn, std::vector<llvm::Value*>{ L, R });
-			if (!target) {
-				FullVar tmp = {
-					.val = result,
-					.ft = {
-						.type = llvm_ptr_type,
-						.type_attr = A_string | A_rvalue
-					}
-				};
-				expr_temps.push_back(tmp);
-			}
-			break;
-		}
 		case is_complex:
 			if (ft->type->isIntegerTy()) {
 				// MSVC-ABI
@@ -2373,38 +2334,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			result = Builder->CreateFMul(L, R, "multmp");
 			if (left_is_imag && right_is_imag)
 				result = Builder->CreateFNeg(result);
-			break;
-		case is_string: {
-			llvm::Value* theFactor = nullptr;
-			llvm::Value* theString = nullptr;
-			if (L->getType()->getTypeID() == llvm::Type::IntegerTyID) {
-				theFactor = L;
-				// being here indicates that at least one operand is a string
-				theString = R;
-			} else if (R->getType()->getTypeID() == llvm::Type::IntegerTyID) {
-				theFactor = R;
-				theString = L;
-			} else {
-				errs() << Loc << "If one side of '" << Op << "' is a string the other has be an integer\n";
-				break;
-			}
-			if (theFactor->getType() != llvm_size_type)
-				theFactor = Builder->CreateIntCast(theFactor, llvm_size_type, false);
-			std::string strmult = "__string_mult";
-			auto strmult_proto = (*lex.findProtos(strmult))[0].get();
-			auto strmult_fn = getFunction(strmult_proto);
-			result = Builder->CreateCall(strmult_proto->FT, strmult_fn, std::vector<llvm::Value*>{ theFactor, theString });
-			if (!target) {
-				FullVar tmp = {
-					.val = result,
-					.ft = {
-						.type = llvm_ptr_type,
-						.type_attr = A_string | A_rvalue
-					}
-				};
-				expr_temps.push_back(tmp);
-			}
-		}
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
@@ -2582,9 +2511,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			case is_float:
 				result = Builder->CreateFCmpONE(L, R, "neftmp");
 				break;
-			case is_string:
-				result = Builder->CreateICmpNE(compare_strings(L, R), Builder->getInt32(0));
-				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 				return nullptr;
@@ -2607,9 +2533,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			break;
 		case is_float:
 			result = Builder->CreateFCmpOEQ(L, R, "eqftmp");
-			break;
-		case is_string:
-			result = Builder->CreateICmpEQ(compare_strings(L, R), Builder->getInt32(0));
 			break;
 		default:
 			errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
@@ -2636,9 +2559,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			case is_float:
 				result = Builder->CreateFCmpOLE(L, R, "leftmp");
-				break;
-			case is_string:
-				result = Builder->CreateICmpSLE(compare_strings(L, R), Builder->getInt32(0));
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
@@ -2674,9 +2594,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			case is_float:
 				result = Builder->CreateFCmpOLT(L, R, "ltftmp");
 				break;
-			case is_string:
-				result = Builder->CreateICmpSLT(compare_strings(L, R), Builder->getInt32(0));
-				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
 				return nullptr;
@@ -2703,9 +2620,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			case is_float:
 				result = Builder->CreateFCmpOGE(L, R, "geftmp");
-				break;
-			case is_string:
-				result = Builder->CreateICmpSGE(compare_strings(L, R), Builder->getInt32(0));
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
@@ -2753,9 +2667,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				break;
 			case is_float:
 				result = Builder->CreateFCmpOGT(L, R, "gtftmp");
-				break;
-			case is_string:
-				result = Builder->CreateICmpSGT(compare_strings(L, R), Builder->getInt32(0));
 				break;
 			default:
 				errs() << Loc << ": operator '" << Op << "' cannot be used for type " << *L->getType() << "\n";
@@ -3355,7 +3266,7 @@ bool ForExprAST::SetupLoop() {
 					llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, key))),
 				llvm_ptr_type);
 			llvm::Value* value_ptr;
-			if (ValueFT->type_attr & A_string) {
+			if (ValueFT->type == llvm_string_type) {
 				llvm::Value* offset_ptr = Builder->CreateIntToPtr(
 					Builder->CreateAdd(
 						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
@@ -3851,7 +3762,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
-			if (then_var->ft.type_attr & (A_destructor | A_string | A_map))
+			if (then_var->ft.type_attr & (A_destructor | A_map))
 				InsertDestructor(then_var, StackRestoreInst);
 		}
 	}

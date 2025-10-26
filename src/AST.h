@@ -64,12 +64,12 @@ inline static llvm::Value* handle_d_1(volvoxc::FullType* ft, llvm::Value* val, l
 
 inline static llvm::Value* handle_d(llvm::Value* target, llvm::Value* val, unsigned attribs) {
 	if (!target || (intptr_t)target == -1) {
-		if (!target && (attribs & (A_destructor | A_map | A_string))) {
+		if (!target && (attribs & (A_destructor | A_map))) {
 			FullVar tmp = {
 				.val = val,
 				.ft = {
 					.type = llvm_ptr_type,
-					.type_attr = (attribs & (A_destructor | A_map | A_string)) | A_rvalue
+					.type_attr = (attribs & (A_destructor | A_map)) | A_rvalue
 				}
 			};
 			expr_temps.push_back(tmp);
@@ -522,7 +522,7 @@ public:
 						       << FieldName << "'\n";
 						ft = nullptr;
 					}
-				} else if (Struct->ft->type_attr & A_string) {
+				} else if (Struct->ft->type == llvm_string_type) {
 					if (!strcmp(FieldName, "size")) {
 						FieldIndex = 0;
 						ft = size_type;
