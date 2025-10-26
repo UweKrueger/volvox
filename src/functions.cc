@@ -80,6 +80,38 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 	return F;
 }
 
+void InsertDestructor(FullVar* fv, llvm::Instruction* before) {
+	if (!fv) {
+		errs() << "InsertDestructor(): internal error no variable\n";
+		return;
+	}
+	llvm::Value* V;
+	if ((fv->ft.type_attr & A_mainvar) && jit_repl && !(llvm::isa<llvm::ArrayType>(fv->ft.type) && (!fv->ft.type->isSized() || TheModule->getDataLayout().getTypeAllocSize(fv->ft.type) == 0)) || (fv->ft.type_attr & A_globally_visible)) { // global variable
+		if (fv->ft.type_attr & A_rvalue)
+			return; // constexpr -> nothing to do
+		if (!fv->mangled_name) {
+			errs() << "Global Destructors: no mangled name for variable declared at " << fv->decl_loc << "\n";
+			return;
+		}
+		V = TheModule->getGlobalVariable(fv->mangled_name, true);
+		if (!V) {
+			auto GV = new llvm::GlobalVariable(*TheModule, fv->storage_type,
+			                                   false, link_type(fv->ft.type_attr),
+			                                   nullptr, fv->mangled_name, nullptr,
+			                                   tls_model(fv->ft.type_attr),
+			                                   0, true);
+			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(fv->storage_type));
+			V = GV;
+		}
+	} else {
+		V = fv->val;
+	}
+	if (llvm::isa<llvm::ArrayType>(fv->ft.type))
+		InsertArrayDestructor(fv, V, before);
+	else
+		InsertSingleDestructor(fv, V, before);
+}
+
 inline static uintptr_t getFnAddress(std::function<llvm::Value*(llvm::Value*)> f) {
     typedef llvm::Value* (fnType)(llvm::Value*);
     fnType** fnPointer = f.template target<fnType*>();
@@ -313,7 +345,7 @@ llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, 
 				.destructor = destructor,
 				.ft = *ft
 			};
-			tmp.ft.type_attr &= ~A_globally_visible;
+			tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
 			expr_temps.push_back(tmp);		
 		}
 		return val;

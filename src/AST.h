@@ -30,6 +30,7 @@ inline static void handle_d_0(volvoxc::FullType* ft, llvm::Value* target) {
 			.destructor = destructor,
 			.ft = *ft
 		};
+		tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
 		expr_temps.push_back(tmp);		
 	}
 }
@@ -49,6 +50,7 @@ inline static llvm::Value* handle_d_1(volvoxc::FullType* ft, llvm::Value* val, l
 					.type_attr = A_destructor | A_rvalue
 				}
 			};
+			tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
 			expr_temps.push_back(tmp);
 		}
 	} else {

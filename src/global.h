@@ -1033,37 +1033,7 @@ inline static auto link_type(unsigned attr) {
 		llvm::GlobalValue::InternalLinkage;
 }
 
-inline static void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr) {
-	if (!fv) {
-		errs() << "InsertDestructor(): internal error no variable\n";
-		return;
-	}
-	llvm::Value* V;
-	if ((fv->ft.type_attr & A_mainvar) && jit_repl && !(llvm::isa<llvm::ArrayType>(fv->ft.type) && (!fv->ft.type->isSized() || TheModule->getDataLayout().getTypeAllocSize(fv->ft.type) == 0)) || (fv->ft.type_attr & A_globally_visible)) { // global variable
-		if (fv->ft.type_attr & A_rvalue)
-			return; // constexpr -> nothing to do
-		if (!fv->mangled_name) {
-			errs() << "Global Destructors: no mangled name for variable declared at " << fv->decl_loc << "\n";
-			return;
-		}
-		V = TheModule->getGlobalVariable(fv->mangled_name, true);
-		if (!V) {
-			auto GV = new llvm::GlobalVariable(*TheModule, fv->storage_type,
-			                                   false, link_type(fv->ft.type_attr),
-			                                   nullptr, fv->mangled_name, nullptr,
-			                                   tls_model(fv->ft.type_attr),
-			                                   0, true);
-			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(fv->storage_type));
-			V = GV;
-		}
-	} else {
-		V = fv->val;
-	}
-	if (llvm::isa<llvm::ArrayType>(fv->ft.type))
-		InsertArrayDestructor(fv, V, before);
-	else
-		InsertSingleDestructor(fv, V, before);
-}
+extern void InsertDestructor(FullVar* fv, llvm::Instruction* before = nullptr);
 
 inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 	if (auto C = llvm::dyn_cast<llvm::CallInst>(V))
