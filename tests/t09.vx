@@ -52,15 +52,15 @@ def dFmmJ(n int, &c []f64) f64
 	c[3] = 7.5
 	return n * c[n]
 end
-5555
+
 global qHgDF = dFmmJ(2, gggKl)
-6666
+
 global qHgDG = gggKl[3]
-7777
+
 def test_var_array_call_2 bool
 	return qHgDF == 27.5 && qHgDG == 7.5
 end
-8888
+
 pL2E = [ 2.625, 7.0625, -23.75 ]
 
 def dFkkL2(n int, a []f64) f64

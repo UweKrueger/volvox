@@ -370,7 +370,6 @@ do_analyze:
 							var_expr->full_var->var_usage_markers = new std::vector<var_usage_marker_t>();
 							all_usage_markers.push_back(var_expr->full_var->var_usage_markers);
 						}
-						errs() << arg->Loc << ": §§§§§ usage marker added for " << var_expr->full_var->decl_loc << "\n";
 						var_expr->full_var->var_usage_markers->emplace_back(
 							var_expr->Loc, current_branch_part, &fn_args.back().is_referenced_after_call);
 					}

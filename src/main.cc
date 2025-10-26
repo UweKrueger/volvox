@@ -2222,7 +2222,6 @@ int main(int argc, char* argv[]) {
 			FinishTestRuns();
 		else
 			FinishMain();
-		errs() << "----- processing body of main (" << GlobalExprList.size() << " expressions)\n";
 		if (!MainFunction->process_body(GlobalExprList)) {
 			errs() << "error processing body of main function\n";
 			exit(1);

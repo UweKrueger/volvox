@@ -1326,7 +1326,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		else
 			fv->ft.type_attr &= ~A_rvalue;
 	}
-	errs() << expr->LHS->Loc << ": ---- var " << varname << " " << (bool)(fv->ft.type_attr & A_mainvar) << "\n";
 	if (is_referencing)
 		fv->mark_as_referencing(is_referencing);
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
@@ -1501,8 +1500,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			} else {
 				fv->val = Builder->CreateIntToPtr(getSize((uintptr_t)varptr), llvm_ptr_type);
 			}
-			// fv->ft.type_attr &= ~A_mainvar;
-			errs() << expr->Loc << ": ++++++++++ removing mainvar\n";
 		}
 		ExitOnErr(RT->remove());
 	}
@@ -1951,10 +1948,8 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			is_call_expr = true;
 			if (auto type_expr = dynamic_cast<TypeExprAST*>(callexpr->Callee.get()))
 				// check that this is not just an explicit basic type conversion like 'f64(i)'
-				if (llvm::isa<llvm::StructType>(type_expr->ft->type)) {
+				if (llvm::isa<llvm::StructType>(type_expr->ft->type))
 					is_constructor_call = true;
-					errs() << Loc << ": have constructor call\n";
-				}
 		} else if (dynamic_cast<BinaryExprAST*>(RHS.get()) ||
 		           dynamic_cast<PostfixExprAST*>(RHS.get()) ||
 		           dynamic_cast<UnaryExprAST*>(RHS.get()) ||
@@ -2157,7 +2152,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			entry->val = Alloca;
-			errs() << Loc << ": ++++++ var created\n";
 		} else {
 			errs() << "unhandled case\n";
 			return nullptr;

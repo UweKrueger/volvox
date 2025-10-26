@@ -791,6 +791,5 @@ llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
 	}
 	auto sprt_fn = getFunction(sprt_proto);
 	llvm::Value* result = Builder->CreateCall(sprt_proto->FT, sprt_fn, values);
-	errs() << Loc << ": got interp string " << (void*)target << " " << *ft << " " << *result << "\n";
 	return handle(target, result, Loc, ft);
 }

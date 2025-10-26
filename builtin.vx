@@ -59,7 +59,7 @@ end end end
 
 def string(p voidptr)
 	this.voidptr = p
-	_printf "Made String from voidptr\n"
+	# _printf "Made String from voidptr\n"
 end
 
 cdecl __string_add(l voidptr, r voidptr) voidptr

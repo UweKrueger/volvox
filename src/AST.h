@@ -318,7 +318,6 @@ public:
 				LogicalLocation lloc(Loc, current_branch_part);
 				for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
 					if (lloc > it->loc) {
-						errs() << Loc << "!!!!  marking " << it->loc << "\n";
 						*it->flag_ptr = true;
 						it = full_var->var_usage_markers->erase(it);
 					} else

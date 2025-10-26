@@ -1522,7 +1522,6 @@ inline FullVar* lookup_var(const char* Name) {
 	for (int i = locals_table.size() - 1; i >= 0; i--) {
 		full_var = locals_table[i][Name];
 		if (full_var) {
-			errs() << "### local var " << Name << " " << (void*)full_var  << " " << (bool)(full_var->ft.type_attr & A_mainvar) << "\n";
 			return full_var;
 		}
 	}
@@ -1538,8 +1537,6 @@ inline FullVar* lookup_var(const char* Name) {
 		full_var = lex.source_stack.front().module->globals_table[Name];
 	if (full_var && !(full_var->ft.type_attr & A_global) && inside_function)
 		full_var = nullptr;
-	if (full_var)
-		errs() << "### global var " << Name << " " << (void*)full_var << " " << (bool)(full_var->ft.type_attr & A_mainvar) << "\n";
 	return full_var;
 }
 
