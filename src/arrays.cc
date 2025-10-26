@@ -23,7 +23,7 @@ llvm::Value* FixedArrayExprAST::getArrayLitVal(llvm::ArrayType* initializer_type
 				ini = Builder->CreateInsertValue(ini, getArrayLitVal(llvm::cast<llvm::ArrayType>(sub_type), sub_list), idx, "arrlitsub");
 			else {
 				List->Elements[idx]->desired_type = sub_type;
-				ini = Builder->CreateInsertValue(ini, List->Elements[idx]->codegen(), idx, "arrlitval");
+				ini = Builder->CreateInsertValue(ini, List->Elements[idx]->codegen(true), idx, "arrlitval");
 	//	iter_idx++;
 			}
 	return ini;

@@ -168,7 +168,7 @@ llvm::Value* ListExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Type* list_type = llvm::StructType::get(Context, types);
 		llvm::Value *V = llvm::UndefValue::get(list_type);
 		for (unsigned i = 0; i < Elements.size(); ++i) {
-			llvm::Value* vv = Elements[i]->codegen();
+			llvm::Value* vv = Elements[i]->codegen(true);
 			V = Builder->CreateInsertValue(V, vv, i, "listpush");
 		}
 		return handle(target, V, Loc, ft);
@@ -210,9 +210,9 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* do_replace = CreateEntryBlockAlloca(llvm_ptr_type);
 	for (unsigned i=0; i<keys.size(); i++) {
 		keys[i]->desired_type = ft->elem_type[0].type;
-		llvm::Value* Key = keys[i]->codegen();
+		llvm::Value* Key = keys[i]->codegen(true);
 		values[i]->desired_type = ft->elem_type[1].type;
-		llvm::Value* Value0 = values[i]->codegen();
+		llvm::Value* Value0 = values[i]->codegen(true);
 		auto valsz = TheModule->getDataLayout().getTypeAllocSize(Value0->getType());
 		if (valsz > 8) {
 			errs() << values[i]->Loc << ": size of map element value (" << valsz << " byte) exceeds maximum of 8 byte\n";
@@ -265,7 +265,7 @@ llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
 	llvm::Value* do_replace = CreateEntryBlockAlloca(llvm_ptr_type);
 	for (auto& elem: Elements) {
 		elem->desired_type = ft->elem_type[0].type;
-		llvm::Value* Elem = elem->codegen();
+		llvm::Value* Elem = elem->codegen(true);
 		Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), do_replace);
 		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
 				ptr, Elem, llvm::Constant::getNullValue(llvm::Type::getInt64Ty(Context)), Builder->getInt32(0), do_replace });
@@ -344,7 +344,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		}
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i]) {
-				llvm::Value* ini = initializers[i]->codegen();
+				llvm::Value* ini = initializers[i]->codegen(true);
 				if (!ini)
 					return nullptr;
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(ini->getType())) {
