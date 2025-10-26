@@ -506,7 +506,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
-	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && jit_repl) {
+	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && jit_repl && !(llvm::isa<llvm::ArrayType>(full_var->ft.type) && (!full_var->ft.type->isSized() || TheModule->getDataLayout().getTypeAllocSize(full_var->ft.type) == 0))) {
 		// global variable or main var in interactive JIT
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
@@ -1501,7 +1501,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			} else {
 				fv->val = Builder->CreateIntToPtr(getSize((uintptr_t)varptr), llvm_ptr_type);
 			}
-			fv->ft.type_attr &= ~A_mainvar;
+			// fv->ft.type_attr &= ~A_mainvar;
+			errs() << expr->Loc << ": ++++++++++ removing mainvar\n";
 		}
 		ExitOnErr(RT->remove());
 	}
