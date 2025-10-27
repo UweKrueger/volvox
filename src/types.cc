@@ -123,7 +123,7 @@ std::function<llvm::Value*(llvm::Value*)> getConv(
 			if (struct_type->hasName()) {
 				llvm::SmallString<128> buf = llvm::StringRef("_ZN");
 				llvm::raw_svector_ostream mangled(buf);
-				mangled << struct_type->getName()  << "C2E";
+				mangled << struct_type->getName()  << "C1E";
 				auto ft = new_FullType(expr_type, expr_is_signed ? A_signed : 0);
 				std::string m_name;
 				if (auto expr_struct = llvm::dyn_cast<llvm::StructType>(expr_type)) {
@@ -1089,7 +1089,7 @@ void destroy_FV(MapValue* mapval) {
 	var->destroy();
 }
 
-llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_constructor) {
+llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_constructor, bool is_basic) {
 	if (!ft->mangled_name || !(ft->type_attr & (is_constructor ? A_constructor : A_destructor)) && !is_created)
 		return nullptr;
 	std::string fn_name = "_Z";
@@ -1106,7 +1106,7 @@ llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_co
 		fn_name += 'N';
 		fn_name += ft->mangled_name;
 	}
-	fn_name += (is_constructor ? "C2Ev" : "D2Ev");
+	fn_name += (is_constructor ? (is_basic ? "C2Ev" : "C1Ev") : "D1Ev");
 	if (!is_created)
 		if (auto F = TheModule->getFunction(fn_name))
 			return F;

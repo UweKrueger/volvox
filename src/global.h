@@ -919,7 +919,7 @@ extern MapNode* keyword_toks; // all language keywords like 'if', 'else', 'fn', 
 extern void init_token_map();
 
 extern void destroy_FV(MapValue* mapval);
-extern llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created = false, bool is_constructor = false);
+extern llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created = false, bool is_constructor = false, bool is_basic = false);
 extern std::map<std::string,FullVar*> get_destruct_vars_main();
 
 class VarTable : public Table {

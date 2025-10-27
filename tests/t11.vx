@@ -141,3 +141,26 @@ def test_copy_constructor_8 bool
 	r = k_copy_KlamP_own2 x
 	return r == 8 && n_KlamP_constructor == 9 && n_KlamP_destructor == 68
 end
+
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+type KlaQ {
+	x KlamP
+	y f64
+}
+
+def test_copy_to_struct_1 bool
+	a = KlamP { b: 5 }
+	v1 = n_KlamP_constructor
+	b = KlaQ { x: a, y: -7.25 }
+	c = a.a
+	return v1 == 6 && n_KlamP_constructor == 13
+end
+
+def test_move_to_struct_1 bool
+	a = KlamP { b: 5 }
+	v1 = n_KlamP_constructor
+	b = KlaQ { x: a, y: -7.25 }
+	return v1 == 6 && n_KlamP_constructor == 6
+end

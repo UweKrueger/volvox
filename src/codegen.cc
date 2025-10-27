@@ -339,8 +339,8 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			auto node = StructFieldType((MapNode*)((uintptr_t)mv - ((uintptr_t)&ft->fields->value - (uintptr_t)ft->fields)));
 			unsigned index = node.getIndex();
 			auto field_ft = node.getFt();
-			ini->desired_type = field_ft->type;
-			initializers[(ft->type_attr & A_union) ? 0 : index] = std::move(ini);
+			ini.first->desired_type = field_ft->type;
+			initializers[(ft->type_attr & A_union) ? 0 : index] = std::move(ini.first);
 		}
 		for (unsigned i=0; i<initializers.size(); i++) {
 			if (initializers[i]) {

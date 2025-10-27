@@ -968,7 +968,7 @@ public:
 
 class StructExprAST : public ExprAST {
 public:
-	std::map<std::string, std::unique_ptr<ExprAST>> Fields;
+	std::map<std::string, std::pair<std::unique_ptr<ExprAST>,bool>> Fields; // bool: is referenced after call
 	StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::unique_ptr<ListExprAST> list)
 		: ExprAST(ft, Loc) {
 		for (auto& field: list->Elements) {
@@ -990,9 +990,21 @@ public:
 					else
 						errs() << field_val->LHS->Loc << " field name expected\n";
 					if (field_key) {
-						auto insert = Fields.try_emplace(*field_key, std::move(field_val->RHS));
+						auto insert = Fields.try_emplace(*field_key, std::pair<std::unique_ptr<ExprAST>,bool>{ std::move(field_val->RHS), false });
 						if (!insert.second)
 							errs() << field_val->LHS->Loc << ": field '" << field_key << "' already initialized\n";
+						if (auto var_expr = dynamic_cast<VariableExprAST*>(field_val->RHS.get())) {
+							// it might be possible to move the variable if it isn't used later
+							// so keep track of it - see CallExprAST::CallExprAST() for more details
+							if (var_expr->full_var && !(var_expr->full_var->ft.type_attr & (A_mainvar | A_global))) {
+								if (!var_expr->full_var->var_usage_markers) {
+									var_expr->full_var->var_usage_markers = new std::vector<var_usage_marker_t>();
+									all_usage_markers.push_back(var_expr->full_var->var_usage_markers);
+								}
+								var_expr->full_var->var_usage_markers->emplace_back(
+									var_expr->Loc, current_branch_part, &insert.first->second.second);
+							}
+						}
 					}
 					continue;
 				}
