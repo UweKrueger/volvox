@@ -62,7 +62,7 @@ llvm::Function* getShadowConstructorDestructor(std::string& mangled_name, int n,
 	return F;
 }
 
-llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor) {
+llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor, bool basic) {
 	// errs() << "####### mangled_name: " << ft->mangled_name;
 	// if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 	// 	errs() << " real name: " << struct_ty->getName();
@@ -71,7 +71,8 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 	auto Names = AutoMethods.find(ft->mangled_name);
 	if (Names == AutoMethods.end())
 		return nullptr;
-	std::string& thename = destructor ? Names->second.second : Names->second.first;
+	std::string& thename = destructor ? std::get<1>(Names->second) :
+		basic ? std::get<2>(Names->second) : std::get<0>(Names->second);
 	if (thename.empty())
 		return nullptr;
 	if (auto F = TheModule->getFunction(thename))
@@ -703,9 +704,11 @@ void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before) {
 
 static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool is_constructor) {
 	if (llvm::isa<llvm::StructType>(ft->type)) {
+		// we only get here if no constructor/destructor has been defined explicitly
+		// check if any fields need constructor calls
 		auto D = getDestructor(ft, true, is_constructor);
 		auto thisarg = D->getArg(0);
-		llvm::BasicBlock *BB = llvm::BasicBlock::Create(Context, "entry", D);
+		llvm::BasicBlock* BB = llvm::BasicBlock::Create(Context, "entry", D);
 		Builder->SetInsertPoint(BB);
 		bool needs_destructors = insert_field_destructors(ft, thisarg, is_constructor);
 		if (!needs_destructors) {
@@ -714,10 +717,20 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 		}
 		Builder->CreateRetVoid();
 		if (is_constructor)
-			AutoMethods[ft->mangled_name].first = std::string(D->getName());
+			std::get<0>(AutoMethods[ft->mangled_name]) = std::string(D->getName());
 		else
-			AutoMethods[ft->mangled_name].second = std::string(D->getName());
+			std::get<1>(AutoMethods[ft->mangled_name]) = std::string(D->getName());
 		finishFunctionOrModule(D, 1, false);
+		if (is_constructor) {
+			// provide an empty basic constructor
+			auto basicD = getDestructor(ft, true, is_constructor, true);
+			auto thatarg = basicD->getArg(0);
+			BB = llvm::BasicBlock::Create(Context, "entry", basicD);
+			Builder->SetInsertPoint(BB);
+			Builder->CreateRetVoid();
+			std::get<2>(AutoMethods[ft->mangled_name]) = std::string(basicD->getName());
+			finishFunctionOrModule(basicD, 1, false);
+		}
 		ft->type_attr |= (is_constructor ? A_constructor : A_destructor);
 	}
 }

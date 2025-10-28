@@ -16,7 +16,7 @@ Lexer lex;
 Token CurTok;
 std::vector<const char*> module_names = {};
 std::map<std::string,llvm::FunctionType*> Conversions;
-std::map<std::string,std::pair<std::string,std::string>> AutoMethods;
+std::map<std::string,std::tuple<std::string,std::string,std::string>> AutoMethods;
 
 //                     vtable_t                                  method name             prototype                        embedded interfaces
 std::vector<std::tuple<llvm::ArrayType*,std::unique_ptr<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>,std::vector<volvoxc::FullType*>>> InterfaceProtos;
@@ -2806,7 +2806,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	}
 	if (visibility & A_constructor) {
 		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) // default constructor
-			AutoMethods[Proto->ArgTypes[0]->mangled_name].first = Proto->Name;
+			std::get<0>(AutoMethods[Proto->ArgTypes[0]->mangled_name]) = Proto->Name;
 		else if (!(Proto->visibility & A_conversion) && Proto->RetType && !Proto->RetType->type->isVoidTy()) {
 			Proto->visibility &= ~A_method;
 			if (!check_and_add_proto(lex.module->FunctionProtos[unmangledName], std::move(Proto), unmangledName))
@@ -2815,7 +2815,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		} else
 			Conversions[Proto->Name] = Proto->FT;
 	} else if (visibility & A_destructor)
-		AutoMethods[Proto->ArgTypes[0]->mangled_name].second = Proto->Name;
+		std::get<1>(AutoMethods[Proto->ArgTypes[0]->mangled_name]) = Proto->Name;
 	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type;
 		if (Proto->ArgTypes[0]->type->isStructTy())
