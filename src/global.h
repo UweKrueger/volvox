@@ -922,7 +922,7 @@ extern MapNode* keyword_toks; // all language keywords like 'if', 'else', 'fn', 
 extern void init_token_map();
 
 extern void destroy_FV(MapValue* mapval);
-extern llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created = false, bool is_constructor = false, bool is_basic = false);
+extern llvm::Function* createConstructorOrDestructorFnProto(volvoxc::FullType* ft, bool is_constructor = false, bool is_basic = false);
 extern std::map<std::string,FullVar*> get_destruct_vars_main();
 
 class VarTable : public Table {
@@ -943,7 +943,7 @@ public:
 			return nullptr;
 		auto fv = (FullVar*)((char*)&res->value + res->value.offset);
 		if (!(fv->ft.type_attr & A_ref) && (fv->ft.type_attr & A_destructor))
-			fv->destructor = getDestructor(&fv->ft);
+			fv->destructor = getConstructorOrDestructor(&fv->ft, true);
 		return fv;
 	}
 	FullVar* operator[](const char* key) {
@@ -1009,7 +1009,7 @@ inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::In
 inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before = nullptr) {
 	if (fv->destructor) {
 		if (jit_repl && !inside_function)
-			fv->destructor = getDestructor(&fv->ft);
+			fv->destructor = getConstructorOrDestructor(&fv->ft, true);
 		llvm::BasicBlock* oldBB;
 		if (before) {
 			oldBB = Builder->GetInsertBlock();

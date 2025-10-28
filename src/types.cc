@@ -1089,8 +1089,8 @@ void destroy_FV(MapValue* mapval) {
 	var->destroy();
 }
 
-llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_constructor, bool is_basic) {
-	if (!ft->mangled_name || !(ft->type_attr & (is_constructor ? A_constructor : A_destructor)) && !is_created)
+llvm::Function* createConstructorOrDestructorFnProto(volvoxc::FullType* ft, bool is_constructor, bool is_basic) {
+	if (!ft->mangled_name)
 		return nullptr;
 	std::string fn_name = "_Z";
 	if (ft->mangled_name[0] == 'N') {
@@ -1107,9 +1107,6 @@ llvm::Function* getDestructor(volvoxc::FullType* ft, bool is_created, bool is_co
 		fn_name += ft->mangled_name;
 	}
 	fn_name += (is_constructor ? (is_basic ? "C2Ev" : "C1Ev") : "D1Ev");
-	if (!is_created)
-		if (auto F = TheModule->getFunction(fn_name))
-			return F;
 	auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
 	auto F = llvm::Function::Create(FT, llvm::Function::ExternalLinkage, fn_name, TheModule.get());
 	auto thisarg = F->getArg(0);

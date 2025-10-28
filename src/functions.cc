@@ -63,11 +63,8 @@ llvm::Function* getShadowConstructorDestructor(std::string& mangled_name, int n,
 }
 
 llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor, bool basic) {
-	// errs() << "####### mangled_name: " << ft->mangled_name;
-	// if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(ft->type)) {
-	// 	errs() << " real name: " << struct_ty->getName();
-	// }
-	// errs() << "\n";
+	if (!ft->mangled_name)
+		return nullptr;
 	auto Names = AutoMethods.find(ft->mangled_name);
 	if (Names == AutoMethods.end())
 		return nullptr;
@@ -470,7 +467,7 @@ llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& Va
 void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
                               volvoxc::FullType* array_elem_type, llvm::Value* val, llvm::Instruction* before,
                               bool is_constructor) {
-	llvm::Function* destructor = getDestructor(array_elem_type, false, is_constructor);
+	llvm::Function* destructor = getConstructorOrDestructor(array_elem_type, !is_constructor);
 	if (!destructor)
 		return;
 	auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType());
@@ -589,7 +586,7 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 			needs_destructors = true;
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
-			llvm::Function* field_destructor = getDestructor(el_ft, false, is_constructor);
+			llvm::Function* field_destructor = getConstructorOrDestructor(el_ft, !is_constructor);
 			auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
 			Builder->CreateCall(FT, field_destructor, elem_ref);
 		} else if (isa<llvm::ArrayType>(el_ft->type) && (el_ft->elem_type->type_attr & (is_constructor ? A_constructor : A_destructor))) {
@@ -706,7 +703,7 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 	if (llvm::isa<llvm::StructType>(ft->type)) {
 		// we only get here if no constructor/destructor has been defined explicitly
 		// check if any fields need constructor calls
-		auto D = getDestructor(ft, true, is_constructor);
+		auto D = createConstructorOrDestructorFnProto(ft, is_constructor);
 		auto thisarg = D->getArg(0);
 		llvm::BasicBlock* BB = llvm::BasicBlock::Create(Context, "entry", D);
 		Builder->SetInsertPoint(BB);
@@ -723,7 +720,7 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 		finishFunctionOrModule(D, 1, false);
 		if (is_constructor) {
 			// provide an empty basic constructor
-			auto basicD = getDestructor(ft, true, is_constructor, true);
+			auto basicD = createConstructorOrDestructorFnProto(ft, is_constructor, true);
 			auto thatarg = basicD->getArg(0);
 			BB = llvm::BasicBlock::Create(Context, "entry", basicD);
 			Builder->SetInsertPoint(BB);
