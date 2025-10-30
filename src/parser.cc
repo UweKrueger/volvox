@@ -16,6 +16,8 @@ Lexer lex;
 Token CurTok;
 std::vector<const char*> module_names = {};
 std::map<std::string,llvm::FunctionType*> Conversions;
+
+//       type                   C1          D1          C2          D2
 std::map<std::string,std::tuple<std::string,std::string,std::string,std::string>> AutoMethods;
 
 //                     vtable_t                                  method name             prototype                        embedded interfaces
@@ -2806,7 +2808,9 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 	}
 	std::tuple<std::string,std::string,std::string,std::string>* AutoMethod = nullptr;
 	if (visibility & A_constructor) {
-		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) { // default constructor
+		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) {
+			// default constructor
+			// errs() << Proto->retLoc << ": ++++ " << Proto->ArgTypes[0]->mangled_name << " basic constructor " << Proto->Name << "\n";
 			AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
 			std::get<2>(*AutoMethod) = Proto->Name;
 		} else if (!(Proto->visibility & A_conversion) && Proto->RetType && !Proto->RetType->type->isVoidTy()) {
@@ -2817,6 +2821,7 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		} else
 			Conversions[Proto->Name] = Proto->FT;
 	} else if (visibility & A_destructor) {
+		// errs() << Proto->retLoc << ": ---- " << Proto->ArgTypes[0]->mangled_name << " basic destructor " << Proto->Name << "\n";
 		AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
 		std::get<3>(*AutoMethod) = Proto->Name;
 	}

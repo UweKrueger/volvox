@@ -244,7 +244,7 @@ n_KlamP_constructor = 0
 n_KlamP_destructor = 0
 
 def test_substruct_constructors_destructors_2 bool
-	x = do_KlamQ_calculations
+	x = do_KlamQ2_calculations
 	return x == 3.75 && n_KlamQ_constructor == 5 && n_KlamQ_destructor == 5 && n_KlamP_constructor == 5 && n_KlamP_destructor == 5
 end
 
