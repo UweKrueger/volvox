@@ -35,51 +35,6 @@ inline static void handle_d_0(volvoxc::FullType* ft, llvm::Value* target) {
 	}
 }
 
-inline static llvm::Value* handle_d_1(volvoxc::FullType* ft, llvm::Value* val, llvm::Value* target, SourceLocation Loc) {
-	llvm::Value* tmptarget;
-	if (!target && (ft->type_attr & A_destructor)) {
-		tmptarget = CreateEntryBlockAlloca(llvm_string_type);
-		Builder->CreateStore(val, tmptarget);
-		if (ft->type_attr & A_destructor) {
-			auto destructor = getConstructorOrDestructor(ft, true);
-			FullVar tmp = {
-				.val = tmptarget,
-				.destructor = destructor,
-				.ft = {
-					.type = llvm_ptr_type,
-					.type_attr = A_destructor | A_rvalue
-				}
-			};
-			tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
-			expr_temps.push_back(tmp);
-		}
-	} else {
-		if (target && (intptr_t)target != -1) {
-			Builder->CreateStore(val, target);
-			return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-		}
-	}
-	return val;
-}
-
-inline static llvm::Value* handle_d(llvm::Value* target, llvm::Value* val, unsigned attribs) {
-	if (!target || (intptr_t)target == -1) {
-		if (!target && (attribs & (A_destructor | A_map))) {
-			FullVar tmp = {
-				.val = val,
-				.ft = {
-					.type = llvm_ptr_type,
-					.type_attr = (attribs & (A_destructor | A_map)) | A_rvalue
-				}
-			};
-			expr_temps.push_back(tmp);
-		}
-		return val;
-	}
-	Builder->CreateStore(val, target);
-	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-}
-
 /// ExprAST - Base class for all expression nodes.
 
 class InterfaceExprAST : public ExprAST {
