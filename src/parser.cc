@@ -16,7 +16,7 @@ Lexer lex;
 Token CurTok;
 std::vector<const char*> module_names = {};
 std::map<std::string,llvm::FunctionType*> Conversions;
-std::map<std::string,std::tuple<std::string,std::string,std::string>> AutoMethods;
+std::map<std::string,std::tuple<std::string,std::string,std::string,std::string>> AutoMethods;
 
 //                     vtable_t                                  method name             prototype                        embedded interfaces
 std::vector<std::tuple<llvm::ArrayType*,std::unique_ptr<std::map<std::string,std::vector<std::unique_ptr<PrototypeAST>>>>,std::vector<volvoxc::FullType*>>> InterfaceProtos;
@@ -2804,18 +2804,22 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		prompt_indent = 0;
 		return nullptr;
 	}
+	std::tuple<std::string,std::string,std::string,std::string>* AutoMethod = nullptr;
 	if (visibility & A_constructor) {
-		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) // default constructor
-			std::get<0>(AutoMethods[Proto->ArgTypes[0]->mangled_name]) = Proto->Name;
-		else if (!(Proto->visibility & A_conversion) && Proto->RetType && !Proto->RetType->type->isVoidTy()) {
+		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) { // default constructor
+			AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
+			std::get<2>(*AutoMethod) = Proto->Name;
+		} else if (!(Proto->visibility & A_conversion) && Proto->RetType && !Proto->RetType->type->isVoidTy()) {
 			Proto->visibility &= ~A_method;
 			if (!check_and_add_proto(lex.module->FunctionProtos[unmangledName], std::move(Proto), unmangledName))
 				return nullptr;
 			goto parse_body;
 		} else
 			Conversions[Proto->Name] = Proto->FT;
-	} else if (visibility & A_destructor)
-		std::get<1>(AutoMethods[Proto->ArgTypes[0]->mangled_name]) = Proto->Name;
+	} else if (visibility & A_destructor) {
+		AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
+		std::get<3>(*AutoMethod) = Proto->Name;
+	}
 	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type;
 		if (Proto->ArgTypes[0]->type->isStructTy())
@@ -2898,7 +2902,8 @@ parse_body:
 		}
 	};
 	current_branch_part.clear();
-	return std::make_unique<FunctionAST>(ProtoRef, std::move(bBranch), std::move(unmangledName));
+	return std::make_unique<FunctionAST>(ProtoRef, std::move(bBranch), std::move(unmangledName),
+	                                     -1, AutoMethod);
 }
 
 std::pair<std::unique_ptr<ExprAST>,int> GetTopLevelExpression(unsigned sym_kind) {

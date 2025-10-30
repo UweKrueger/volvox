@@ -156,13 +156,16 @@ llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<
 		}
 	}
 	if (flags & A_destructor)
-		// strip '~' from beginning of unmangled name
-		mangled << name.size()-1 << name.c_str()+1 << "D1";
-	else if (flags & A_constructor)
-		if (flags & A_base_constructor)
-			mangled << name.size() << name << "C2";
+		if (flags & A_full_constr_destr)
+			// strip '~' from beginning of unmangled name
+			mangled << name.size()-1 << name.c_str()+1 << "D1";
 		else
+			mangled << name.size()-1 << name.c_str()+1 << "D2";
+	else if (flags & A_constructor)
+		if (flags & A_full_constr_destr)
 			mangled << name.size() << name << "C1";
+		else
+			mangled << name.size() << name << "C2";
 	else if (is_op)
 		buf = MangleOp(buf, name, reverse, unary);
 	else

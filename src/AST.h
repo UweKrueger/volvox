@@ -403,6 +403,7 @@ public:
 	FullVar* RetVar = nullptr;
 	FunctionAST* old_currentFunction = nullptr;
 	volvoxc::FullType* old_theFunction_ret_ft = nullptr;
+	std::tuple<std::string,std::string,std::string,std::string>* AutoMethod = nullptr;
 	bool old_theFunction_struct_ret = false;
 	bool prepare_codegen();
 	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, bool main_partial = false);
@@ -414,10 +415,11 @@ public:
 	std::vector<std::unique_ptr<ExprAST>>& Body;
 	int return_val_idx = -1;
 	FunctionAST(PrototypeAST* Proto,
-	            BranchDescription _bBody, std::string unmName, int return_val_idx = -1)
+	            BranchDescription _bBody, std::string unmName, int return_val_idx = -1,
+	            std::tuple<std::string,std::string,std::string,std::string>* AutoMethod = nullptr)
 		: Proto(Proto), bBody(std::move(_bBody)), Body(bBody.first),
 		  unmangledName(std::move(unmName)),
-		  return_val_idx(return_val_idx) {}
+		  return_val_idx(return_val_idx), AutoMethod(AutoMethod) {}
 	llvm::Function* codegen(bool finishModule = false, bool getNewModule = false) {
 		if (prepare_codegen() && process_body(Body))
 			return finish_codegen(finishModule, getNewModule);

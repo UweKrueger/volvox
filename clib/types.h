@@ -10,7 +10,7 @@
 // Type Attributes
 #define A_signed (1U<<0) // only valid for integers
 #define A_imaginary (1U<<0) // only valid for floats
-#define A_base_constructor (1U<<0) // mangle "C2" instead of "C1"
+#define A_full_constr_destr (1U<<0) // mangle "C1/D1" instead of "C2/D2"
 #define A_complex (1U<<8) // for vectors
 #define A_const  (1U<<1)
 #define A_shared (1U<<2)

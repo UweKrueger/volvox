@@ -1748,9 +1748,9 @@ void HandleReturn(BranchDescription& bBranch, llvm::Value* RetVal)
 	if (!already_returned) {
 		if (currentFunction->Proto->RetType->type->isVoidTy()
 		    || (currentFunction->Proto->visibility & A_constructor) && !currentFunction->RetVar) {
-			if (currentFunction->Proto->visibility & A_destructor) {
-				insert_field_destructors(currentFunction->receiver_ft, currentFunction->TheFunction->getArg(0));
-			}
+			// if (currentFunction->Proto->visibility & A_destructor) {
+			// 	insert_field_destructors(currentFunction->receiver_ft, currentFunction->TheFunction->getArg(0));
+			// }
 			InsertDestructors(brk_descr.vars_to_destruct);
 			Builder->CreateRetVoid();
 		} else {
@@ -1815,6 +1815,26 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 				errs() << Proto->retLoc << ": internal compiler error - function '" << FnName << "' seems to have been previously defined\n";
 				errs() << registred.first->second << ": this is the location of the previous definition\n";
 				success = false;
+			} else if (AutoMethod) {
+				// provide "full" versions of constructor/destructor that handles elements
+				auto D = createConstructorOrDestructorFnProto(Proto->ArgTypes[0], (bool)(Proto->visibility & A_constructor));
+				auto thisarg = D->getArg(0);
+				llvm::BasicBlock* BB = llvm::BasicBlock::Create(Context, "entry", D);
+				Builder->SetInsertPoint(BB);
+				if (Proto->visibility & A_destructor)
+					insert_field_destructors(Proto->ArgTypes[0], thisarg, false);
+				Builder->CreateCall(constr_destr_fn_type, TheFunction , std::vector<llvm::Value*>{ thisarg });
+				if (Proto->visibility & A_constructor)
+					insert_field_destructors(Proto->ArgTypes[0], thisarg, true);
+				Builder->CreateRetVoid();
+				success = success && finishFunctionOrModule(D, 1, false, false);
+				if (success) {
+					if (Proto->visibility & A_constructor) {
+						std::get<0>(*AutoMethod) = D->getName();
+					} else {
+						std::get<1>(*AutoMethod) = D->getName();
+					}
+				}
 			}
 		}
 		std::string mangled_fn_name = TheFunction->getName().str();

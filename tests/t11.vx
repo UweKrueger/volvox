@@ -198,9 +198,9 @@ def do_KlamQ_calculations f64
 	w = KlamQ{ x: KlamP2{ a: 3.5, b: 15 }, y: -5.0625 }
 	q = KlamQ{ x: KlamP2{ a: -1.5, b: 13 }, y: 2.25 }
 	r = KlamQ{ x: KlamP2{ a: 1.75, b: -9 }, y: -1.5 }
-	v = r + w + q
-	print v
-	return v.x.a
+	vfh = r + w + q
+	print vfh
+	return vfh.x.a
 end
 
 def test_substruct_constructors_destructors_1 bool
@@ -235,8 +235,8 @@ def do_KlamQ2_calculations f64
 	w = KlamQ2{ x: KlamP2{ a: 3.5, b: 15 }, y: -5.0625 }
 	q = KlamQ2{ x: KlamP2{ a: -1.5, b: 13 }, y: 2.25 }
 	r = KlamQ2{ x: KlamP2{ a: 1.75, b: -9 }, y: -1.5 }
-	v = r + w + q
-	print v
+	vfg = r + w + q
+	print vfg
 	return true
 end
 

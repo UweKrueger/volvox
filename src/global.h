@@ -512,8 +512,8 @@ extern unsigned anon_struct_nr;
 extern std::vector<const char*> module_names;
 extern std::map<std::string,llvm::FunctionType*> Conversions;
 
-// key: mangled type name, values: full constructor, destructor, basic constructor
-extern std::map<std::string,std::tuple<std::string,std::string,std::string>> AutoMethods;
+// key: mangled type name, values: full constructor, destructor, basic constructor, basic destructor
+extern std::map<std::string,std::tuple<std::string,std::string,std::string,std::string>> AutoMethods;
 
 extern llvm::Function* getConversion(std::string& mangled_name);
 extern llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor = false, bool basic = false);
