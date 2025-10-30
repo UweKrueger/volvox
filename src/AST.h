@@ -22,19 +22,6 @@
 
 extern llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft);
 
-inline static void handle_d_0(volvoxc::FullType* ft, llvm::Value* target) {
-	if (ft->type_attr & A_destructor) {
-		auto destructor = getConstructorOrDestructor(ft, true);
-		FullVar tmp = {
-			.val = target,
-			.destructor = destructor,
-			.ft = *ft
-		};
-		tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
-		expr_temps.push_back(tmp);		
-	}
-}
-
 /// ExprAST - Base class for all expression nodes.
 
 class InterfaceExprAST : public ExprAST {

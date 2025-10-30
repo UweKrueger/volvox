@@ -1371,16 +1371,6 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						return nullptr;
 					} else
 						Builder->CreateCall(F, { arg });
-				} else if ((i+arg_offs) < n_proto_args && arg && arg->getType()->isPointerTy() && is_aggregate_lit) {
-					if (Proto->ArgTypes[i+arg_offs]->type_attr & A_constructor) {
-						auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
-						if (!F) {
-							errs() << Args[i]->Loc << ": internal error - default constructor not found for " << *Proto->ArgTypes[i+arg_offs] << "\n";
-							return nullptr;
-						} else
-							Builder->CreateCall(F, { arg });
-					}
-					handle_d_0(Proto->ArgTypes[i+arg_offs], arg);
 				}
 				if (!is_address && !dynamic_cast<InterfaceExprAST*>(Args[i].get()))
 					arg = Builder->CreateLoad(real_arg_type, arg);
