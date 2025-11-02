@@ -339,6 +339,54 @@ llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, 
 	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
 
+llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft) {
+	if (!val)
+		return nullptr;
+	if (val->getType()->isVoidTy())
+		return val;
+	if (!target || (intptr_t)target == -1) {
+		if (ft->type_attr & (A_constructor | A_destructor)) {
+			llvm::Type* val_t = val->getType();
+			llvm::Value* tmpstore = CreateEntryBlockAlloca(val_t);
+			Builder->CreateStore(val, tmpstore);
+			if (!target && (ft->type_attr & A_destructor)) {
+				auto destructor = getConstructorOrDestructor(ft, true);
+				if (!destructor) {
+					errs() << Loc << ": cannot find destructor for type " << *ft << "\n";
+					abort();
+				}
+				FullVar tmp = {
+					.val = tmpstore,
+					.destructor = destructor,
+					.ft = *ft
+				};
+				tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
+				expr_temps.push_back(tmp);
+			}
+			if (ft->type_attr & A_constructor) {
+				auto constructor = getConstructorOrDestructor(ft);
+				if (!constructor) {
+					errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
+					abort();
+				}
+				Builder->CreateCall(constructor, { tmpstore });
+				val = Builder->CreateLoad(val_t, tmpstore);
+			}
+		}
+		return val;
+	}
+	Builder->CreateStore(val, target);
+	if (ft->type_attr & A_constructor) {
+		auto constructor = getConstructorOrDestructor(ft);
+		if (!constructor) {
+			errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
+			abort();
+		}
+		Builder->CreateCall(constructor, { target });
+	}
+	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+}
+
 CallExprAST::CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
             std::vector<std::unique_ptr<ExprAST>> Args_)
 	: ReferencableExprAST(Loc, "*"), Callee(std::move(Callee_)),

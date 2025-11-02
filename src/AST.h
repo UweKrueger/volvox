@@ -21,6 +21,7 @@
 //===----------------------------------------------------------------------===//
 
 extern llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft);
+extern llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft);
 
 /// ExprAST - Base class for all expression nodes.
 

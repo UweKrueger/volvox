@@ -1070,7 +1070,7 @@ std::map<std::string,FullVar*> get_destruct_vars(int b_lev) {
 		auto& table = locals_table[sz-n];
 		for (auto t = table.first(); (bool)t; ++t) {
 			FullVar* fullV = fullVar(t);
-			if (fullV->ft.type_attr & (A_destructor | A_map)) {
+			if ((fullV->ft.type_attr & (A_destructor | A_map)) && !(fullV->ft.type_attr & A_ref)) {
 				std::string key(t.getKey());
 				destr_vars.insert({ std::move(key), fullV });
 			}

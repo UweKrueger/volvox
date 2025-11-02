@@ -384,6 +384,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 						if (llvm::dyn_cast<llvm::StructType>(V->getType())->getElementType(0) == llvm::dyn_cast<llvm::StructType>(ft->type)->getElementType(0)) {
 							llvm::Value* V2 = llvm::UndefValue::get(ft->type);
 							V2 = Builder->CreateInsertValue(V2, Builder->CreateExtractValue(V, 0), 0);
+							// errs() << Loc << ": ### direct struct " << *ft << "\n";
 							return V2;
 						} else if (!Builder->GetInsertBlock()) {
 							errs() << Loc << ": rvalue union literals only supported for 1st max-sized field element\n";
@@ -392,6 +393,14 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 					}
 					llvm::Value* store = (target && (intptr_t)target != -1) ? target : CreateEntryBlockAlloca(ft->type);
 					Builder->CreateStore(V, Builder->CreatePointerCast(store, llvm_ptr_type));
+					// if (ft->type_attr & A_constructor) {
+					// 	auto C = getConstructorOrDestructor(ft);
+					// 	if (!C) {
+					// 		errs() << Loc << ": no constructor found\n";
+					// 		return nullptr;
+					// 	}
+					// 	Builder->CreateCall(C, { store});
+					// }
 					if (!target || (intptr_t)target == -1)
 						return Builder->CreateLoad(ft->type, store);
 					else
@@ -402,7 +411,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			} else
 				V = Builder->CreateInsertValue(V, llvm::Constant::getNullValue(struct_type->getElementType(i)), i , "structzeroinit");
 		}
-		return handle(target, V, Loc, ft);
+		return handleC(target, V, Loc, ft);
 	} else {
 		errs() << Loc << ": '" << *ft << "' is not an aggregate type so it cannot be initialized using '{}'\n";
 		return nullptr;
@@ -1210,6 +1219,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			} else if (dynamic_cast<BinaryExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<PostfixExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<UnaryExprAST*>(expr->RHS.get()) ||
+			           dynamic_cast<StructExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<BranchExprAST*>(expr->RHS.get()))
 				is_call_expr = true;
 			if (is_constructor_call || ((allocsz > sret_limit) && !rhs_is_constexpr))
