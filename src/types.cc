@@ -1212,7 +1212,8 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 }
 
 volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr,
-                                llvm::DIType* ditype, MapNode* fields, volvoxc::FullType* elem_type) {
+                                llvm::DIType* ditype, MapNode* fields, volvoxc::FullType* elem_type,
+                                StructFieldType* fields_by_idx) {
 	volvoxc::FTListElem* new_node = (volvoxc::FTListElem*)malloc(sizeof(volvoxc::FTListElem));
 	new_node->next = nullptr;
 	new_node->ft.type = type;
@@ -1221,6 +1222,7 @@ volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr,
 	new_node->ft.mangled_name = nullptr; // it's an anonymous type
 	new_node->ft.ditype = ditype;
 	new_node->ft.fields = fields;
+	new_node->ft.fields_by_idx = fields_by_idx;
 	new_node->ft.elem_type = elem_type;
 	*anon_types_end = new_node;
 	anon_types_end = &new_node->next;
@@ -1235,6 +1237,21 @@ volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned add_attr
 	*anon_types_end = new_node;
 	anon_types_end = &new_node->next;
 	return &new_node->ft;
+}
+
+void destroy_full_type(MapValue* mapval) {
+	auto ft = (volvoxc::FullType*)((char*)mapval + mapval->offset);
+	if (ft->fields_by_idx) {
+		;
+		// free(ft->fields_by_idx);
+		// errs() << "++++++++++ have ptr: " << (void*)ft->fields_by_idx << "\n";
+	}
+	// In order to really free melloc'ed arrays of FullType we would have
+	// to do a deep copy above or do some reference counting...
+	// Not freeing them is a memory leak - in theory...
+	// However, we keep these structures to the end of the program, instead,
+	// so Valgrind considers them as "still reachable"...
+	// They are ultimately free'ed by the OS...
 }
 
 uint64_t get_ref_alloc_sz(llvm::Type* type) {

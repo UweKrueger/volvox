@@ -325,7 +325,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		llvm::Value* V = llvm::UndefValue::get(ft->type);
 		unsigned num_fields = struct_type->getNumElements();
-		std::vector<std::unique_ptr<ExprAST>> initializers(num_fields);
+		std::vector<std::pair<std::unique_ptr<ExprAST>,bool>> initializers(num_fields);
 		if ((ft->type_attr & A_union) && Fields.size() > 1) {
 			errs() << Loc << ": union literals can have at most one element\n";
 			return nullptr;
@@ -340,19 +340,19 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			unsigned index = node.getIndex();
 			auto field_ft = node.getFt();
 			ini.first->desired_type = field_ft->type;
-			initializers[(ft->type_attr & A_union) ? 0 : index] = std::move(ini.first);
+			initializers[(ft->type_attr & A_union) ? 0 : index] = std::move(ini);
 		}
 		for (unsigned i=0; i<initializers.size(); i++) {
-			if (initializers[i]) {
-				llvm::Value* ini = initializers[i]->codegen(true);
+			if (initializers[i].first) {
+				llvm::Value* ini = initializers[i].first->codegen(true);
 				if (!ini)
 					return nullptr;
 				if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(ini->getType())) {
 					llvm::ArrayType* array_type = nullptr;
-					if (initializers[i]->ft->type)
-						array_type = llvm::dyn_cast<llvm::ArrayType>(initializers[i]->ft->type);
-					else if (initializers[i]->desired_type)
-						array_type = llvm::dyn_cast<llvm::ArrayType>(initializers[i]->desired_type);
+					if (initializers[i].first->ft->type)
+						array_type = llvm::dyn_cast<llvm::ArrayType>(initializers[i].first->ft->type);
+					else if (initializers[i].first->desired_type)
+						array_type = llvm::dyn_cast<llvm::ArrayType>(initializers[i].first->desired_type);
 					if (array_type)
 						ini = expandArrayInitializer(ini, ini_array_type, array_type);
 				}
@@ -360,7 +360,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 					size_t unionsize = TheModule->getDataLayout().getTypeAllocSize(ft->type);
 					size_t valsize = TheModule->getDataLayout().getTypeAllocSize(ini->getType());
 					if (valsize > unionsize) {
-						errs() << initializers[i]->Loc << ": initializer exceeds union size\n";
+						errs() << initializers[i].first->Loc << ": initializer exceeds union size\n";
 						return nullptr;
 					}
 					unsigned szdiff = unionsize - valsize;

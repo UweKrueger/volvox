@@ -305,6 +305,9 @@ namespace volvoxc {
 
 class StructFieldType {
 public:
+	/* In principle we could use C++'s std::map for the compiler itself and this is actually
+	   done in many places. However, it might be a good idea to use the Volvox runtime implementation
+	   for maps in some places - just to make sure these are tested in a real application context */
 	MapNode* node;
 	StructFieldType(MapNode* _node) : node(_node) {}
 	inline StructFieldType& operator++() { node = map_iter_up(node); return *this; }
@@ -335,7 +338,8 @@ namespace volvoxc {
 		unsigned selected_proto = 0; // for function types
 		const char* mangled_name = nullptr; // maybe NULL for anonymous types
 		llvm::DIType* ditype = nullptr;
-		MapNode* fields = nullptr;     // for structs
+		MapNode* fields = nullptr;     // for structs - search by key
+		StructFieldType* fields_by_idx = nullptr;
 		SourceLocation decl_loc;
 		union {
 			FullType* elem_type = nullptr; // for array, vec, map, set, tuple
@@ -362,6 +366,8 @@ namespace volvoxc {
 	};
 
 }
+
+extern void destroy_full_type(MapValue* ptr);
 
 inline bool FullTypes_differ(volvoxc::FullType* a, volvoxc::FullType* b) {
 	return (a || b) && (!a || !b || a->type != b->type || a->type_attr != b->type_attr);
@@ -754,7 +760,8 @@ extern volvoxc::FTListElem* anon_types;
 extern volvoxc::FTListElem** anon_types_end;
 
 extern volvoxc::FullType* new_FullType(llvm::Type* type, unsigned type_attr, llvm::DIType* ditype = nullptr,
-                                       MapNode* fields = nullptr, volvoxc::FullType* elem_type = nullptr);
+                                       MapNode* fields = nullptr, volvoxc::FullType* elem_type = nullptr,
+                                       StructFieldType* fields_by_idx = nullptr);
 
 extern volvoxc::FullType* new_FullType(const volvoxc::FullType& orig, unsigned add_attr = 0,
                                        unsigned add_fields = 0);
@@ -793,7 +800,7 @@ extern std::map<unsigned, llvm::Type*> key32_table;
 class TypeTable : public Table {
 public:
 	TypeTable() = default;
-	~TypeTable() { map_destroy(table, nullptr); }
+	~TypeTable() { map_destroy(table, destroy_full_type); }
 	MapNode* add(const char* name, volvoxc::FullType* ft, MapNode*& target) {
 		bool is_int = ft->type && ft->type->isIntegerTy();
 		bool is_float = ft->type && (ft->type->isFloatTy() || ft->type->isDoubleTy());

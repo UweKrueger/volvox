@@ -364,7 +364,7 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 				expr_temps.push_back(tmp);
 			}
 			if (ft->type_attr & A_constructor) {
-				auto constructor = getConstructorOrDestructor(ft);
+				auto constructor = getConstructorOrDestructor(ft, false, true); // only basic constructor
 				if (!constructor) {
 					errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
 					abort();
@@ -625,8 +625,7 @@ static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* this
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
 			llvm::Function* field_destructor = getConstructorOrDestructor(el_ft, !is_constructor);
-			auto FT = llvm::FunctionType::get(llvm::Type::getVoidTy(Context), { llvm_ptr_type }, false);
-			Builder->CreateCall(FT, field_destructor, elem_ref);
+			Builder->CreateCall(constr_destr_fn_type, field_destructor, elem_ref);
 		} else if (isa<llvm::ArrayType>(el_ft->type) && (el_ft->elem_type->type_attr & (is_constructor ? A_constructor : A_destructor))) {
 			needs_destructors = true;
 			unsigned idx = field.getIndex();
