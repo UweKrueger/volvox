@@ -428,18 +428,8 @@ do_analyze:
 				}
 			}
 			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list, false});
-			if (!is_list) {
-				if (auto var_expr = dynamic_cast<VariableExprAST*>(arg.get())) {
-					if (var_expr->full_var && !(var_expr->full_var->ft.type_attr & (A_mainvar | A_global))) {
-						if (!var_expr->full_var->var_usage_markers) {
-							var_expr->full_var->var_usage_markers = new std::vector<var_usage_marker_t>();
-							all_usage_markers.push_back(var_expr->full_var->var_usage_markers);
-						}
-						var_expr->full_var->var_usage_markers->emplace_back(
-							var_expr->Loc, current_branch_part, &fn_args.back().is_referenced_after_call);
-					}
-				}
-			}
+			if (!is_list)
+				register_usage_marker(arg.get(), &fn_args.back().is_referenced_after_call);
 		}
 		std::vector<std::unique_ptr<PrototypeAST>>* protos;
 		if (type_expr) {
@@ -1339,22 +1329,14 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			// we treat 'maybe_arg_needs_constructor' like 'arg_needs_constructor' in the following
 			// lines for now. Maybe we optimize this sometime by introducing a declaration for
 			// a constructor wrapper that is defined once we know if the the call is needed
-			needs_constructor_call = Proto->ArgNeedsConstructor[i+arg_offs]
-				&& (fn_args[i+arg_offs].is_referenced_after_call
-				    || !inside_function) // TODO: force move when constructor invalidated
-				&& (get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned)
-				    || get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned));
-			is_moved = (get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned)
-			            || get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned))
-				&& !fn_args[i+arg_offs].is_referenced_after_call
-				&& inside_function // TODO: force move when constructor invalidated
-				&& !inside_loop;
-#if 0
+			std::tie(needs_constructor_call, is_moved) = needs_constructor_call_or_is_moved(
+				Proto->ArgNeedsConstructor[i+arg_offs], fn_args[i+arg_offs].is_referenced_after_call);
+/*
 			if (is_moved)
 				errs() << Args[i]->Loc << ": mark arg as moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
 			else
 				errs() << Args[i]->Loc << ": not moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
-#endif
+*/
 		}
 		if (!is_address && (Args[i]->ft->type_attr & A_cstring)) {
 			// errs() << Args[i]->Loc << ": ### function argument 1\n";

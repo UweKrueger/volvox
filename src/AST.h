@@ -911,6 +911,51 @@ public:
 	}
 };
 
+/* When variables are used as by-value function arguments or as struct field
+   initializers it might be desirable to "move" these variables instead
+   of making a valid copy calling the default (copy) constructor.
+   To decide if this is possible we must keep track of the variable in question
+   to know if it it is used later in the caller. So bool "usage_markers" are added to
+   the CallExprAST and StructExprAST and pointers to these flags are added
+   to the FullVar struct in the var table.
+*/
+
+inline void register_usage_marker(ExprAST* expr, bool* mark_ptr) {
+	if (auto var_expr = dynamic_cast<VariableExprAST*>(expr)) {
+		// it might be possible to move the variable if it isn't used later
+		// so keep track of it
+		if (var_expr->full_var && !(var_expr->full_var->ft.type_attr & (A_mainvar | A_global))) {
+			if (!var_expr->full_var->var_usage_markers) {
+				var_expr->full_var->var_usage_markers = new std::vector<var_usage_marker_t>();
+				all_usage_markers.push_back(var_expr->full_var->var_usage_markers);
+			}
+			var_expr->full_var->var_usage_markers->emplace_back(
+				var_expr->Loc, current_branch_part, mark_ptr);
+		}
+	}
+}
+
+/* When doing "codegen*()" for CallExprAST or StructExprAST we can find out
+   based on these usage markers if we need to call the copy constructor
+   and if the destructor needs to be called later (!is_moved). */
+
+inline std::pair<bool,bool> needs_constructor_call_or_is_moved(
+	arg_needs_constructor_t arg_needs_constructor,
+	bool is_referenced_after_call)
+{
+	bool needs_constructor_call =
+		arg_needs_constructor != arg_is_borrowed_or_pod
+		&& (is_referenced_after_call || !inside_function) // TODO: force move when constructor invalidated
+		&& (get_arg_flag(arg_needs_constructor, arg_is_owned)
+		    || get_arg_flag(arg_needs_constructor, maybe_arg_is_owned));
+	bool is_moved = (get_arg_flag(arg_needs_constructor, arg_is_owned)
+	                 || get_arg_flag(arg_needs_constructor, maybe_arg_is_owned))
+		&& !is_referenced_after_call
+		&& inside_function // TODO: force move when constructor invalidated
+		&& !inside_loop;
+	return { needs_constructor_call, is_moved };
+}
+
 class StructExprAST : public ExprAST {
 public:
 	std::map<std::string, std::pair<std::unique_ptr<ExprAST>,bool>> Fields; // bool: is referenced after call
@@ -938,18 +983,7 @@ public:
 						auto insert = Fields.try_emplace(*field_key, std::pair<std::unique_ptr<ExprAST>,bool>{ std::move(field_val->RHS), false });
 						if (!insert.second)
 							errs() << field_val->LHS->Loc << ": field '" << field_key << "' already initialized\n";
-						if (auto var_expr = dynamic_cast<VariableExprAST*>(field_val->RHS.get())) {
-							// it might be possible to move the variable if it isn't used later
-							// so keep track of it - see CallExprAST::CallExprAST() for more details
-							if (var_expr->full_var && !(var_expr->full_var->ft.type_attr & (A_mainvar | A_global))) {
-								if (!var_expr->full_var->var_usage_markers) {
-									var_expr->full_var->var_usage_markers = new std::vector<var_usage_marker_t>();
-									all_usage_markers.push_back(var_expr->full_var->var_usage_markers);
-								}
-								var_expr->full_var->var_usage_markers->emplace_back(
-									var_expr->Loc, current_branch_part, &insert.first->second.second);
-							}
-						}
+						register_usage_marker(field_val->RHS.get(), &insert.first->second.second);
 					}
 					continue;
 				}
