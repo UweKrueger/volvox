@@ -158,10 +158,14 @@ def test_copy_to_struct_1 bool
 	return v1 == 6 && n_KlamP_constructor == 13
 end
 
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
 def test_move_to_struct_1 bool
 	a = KlamP { b: 5 }
 	v1 = n_KlamP_constructor
 	b = KlaQ { x: a, y: -7.25 }
+	print(v1, n_KlamP_constructor)
 	return v1 == 6 && n_KlamP_constructor == 6
 end
 
@@ -176,10 +180,10 @@ def KlamP2
 end
 
 def ~KlamP2
-	n_KlamP_destructor++
-    print "KlamP2 destructor called ${this.a} ${this.b}"
-end
-
+	if this.a != 0 || this.b != 0
+		n_KlamP_destructor++
+		print "KlamP2 destructor called ${this.a} ${this.b}"
+end end
 
 type KlamQ {
 	x KlamP2
