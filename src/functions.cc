@@ -377,7 +377,7 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 	}
 	Builder->CreateStore(val, target);
 	if (ft->type_attr & A_constructor) {
-		auto constructor = getConstructorOrDestructor(ft);
+		auto constructor = getConstructorOrDestructor(ft, false, true);
 		if (!constructor) {
 			errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
 			abort();

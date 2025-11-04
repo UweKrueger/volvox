@@ -423,15 +423,12 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 				field_needs_constructor = arg_is_borrowed_or_pod;
 			auto [ needs_constructor_call, is_moved ] = needs_constructor_call_or_is_moved(
 				field_needs_constructor, initializers[i].second);
-			if (initializers[i].first)
-				errs() << initializers[i].first->Loc << ": is used later " << initializers[i].second << "\n";
 			if (is_moved && initializers[i].first && !needs_constructor_call) {
 				if (auto arg_ref_expr = dynamic_cast<ReferencableExprAST*>(initializers[i].first.get())) {
 					auto ty_ref = arg_ref_expr->codegen_ref();
 					if (!ty_ref.second)
 						return nullptr;
 					auto nullval = llvm::Constant::getNullValue(ty_ref.first);
-					errs() << arg_ref_expr->Loc << ": invalidated initializer\n";
 					Builder->CreateStore(nullval, ty_ref.second);
 				}
 			}
@@ -445,7 +442,6 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 				llvm::Value* tmpstore = CreateEntryBlockAlloca(val_t);
 				Builder->CreateStore(ini, tmpstore);
 				Builder->CreateCall(constructor, { tmpstore });
-				errs() << initializers[i].first->Loc << ": call constructor for initializer\n";
 				ini = Builder->CreateLoad(val_t, tmpstore);
 			}
 			V = Builder->CreateInsertValue(V, ini, i, "structinit");

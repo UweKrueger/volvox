@@ -155,6 +155,7 @@ def test_copy_to_struct_1 bool
 	v1 = n_KlamP_constructor
 	b = KlaQ { x: a, y: -7.25 }
 	c = a.a
+	# print("constructor calls:", v1, n_KlamP_constructor, a.b, b.x.b)
 	return v1 == 6 && n_KlamP_constructor == 13
 end
 
@@ -165,7 +166,7 @@ def test_move_to_struct_1 bool
 	a = KlamP { b: 5 }
 	v1 = n_KlamP_constructor
 	b = KlaQ { x: a, y: -7.25 }
-	print(v1, n_KlamP_constructor)
+	# print(v1, n_KlamP_constructor)
 	return v1 == 6 && n_KlamP_constructor == 6
 end
 
@@ -203,12 +204,13 @@ def do_KlamQ_calculations f64
 	q = KlamQ{ x: KlamP2{ a: -1.5, b: 13 }, y: 2.25 }
 	r = KlamQ{ x: KlamP2{ a: 1.75, b: -9 }, y: -1.5 }
 	vfh = r + w + q
-	print vfh
+	# print vfh
 	return vfh.x.a
 end
 
 def test_substruct_constructors_destructors_1 bool
 	x = do_KlamQ_calculations
+	print("calls:", n_KlamP_constructor, n_KlamP_destructor)
 	return x == 3.75 && n_KlamP_constructor == 5 && n_KlamP_destructor == 5
 end
 
@@ -222,12 +224,12 @@ type KlamQ2 {
 
 def KlamQ2
 	n_KlamQ_constructor++
-	print "KlamQ2 constructor called ${this.x.a} ${this.x.b} ${this.y}"
+	# print "KlamQ2 constructor called ${this.x.a} ${this.x.b} ${this.y}"
 end
 
 def ~KlamQ2
 	n_KlamQ_destructor++
-	print "KlamQ2 destructor called ${this.x.a} ${this.x.b} ${this.y}"
+	# print "KlamQ2 destructor called ${this.x.a} ${this.x.b} ${this.y}"
 end
 
 def KlamQ2+(b KlamQ2) KlamQ2
@@ -240,7 +242,7 @@ def do_KlamQ2_calculations f64
 	q = KlamQ2{ x: KlamP2{ a: -1.5, b: 13 }, y: 2.25 }
 	r = KlamQ2{ x: KlamP2{ a: 1.75, b: -9 }, y: -1.5 }
 	vfg = r + w + q
-	print vfg
+	# print vfg
 	return true
 end
 
