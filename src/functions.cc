@@ -339,7 +339,7 @@ llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, 
 	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
 
-llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft) {
+llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft, bool basic_constructor) {
 	if (!val)
 		return nullptr;
 	if (val->getType()->isVoidTy())
@@ -364,7 +364,7 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 				expr_temps.push_back(tmp);
 			}
 			if (ft->type_attr & A_constructor) {
-				auto constructor = getConstructorOrDestructor(ft, false, true); // only basic constructor
+				auto constructor = getConstructorOrDestructor(ft, false, basic_constructor); // only basic constructor
 				if (!constructor) {
 					errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
 					abort();
@@ -377,7 +377,7 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 	}
 	Builder->CreateStore(val, target);
 	if (ft->type_attr & A_constructor) {
-		auto constructor = getConstructorOrDestructor(ft, false, true);
+		auto constructor = getConstructorOrDestructor(ft, false, basic_constructor);
 		if (!constructor) {
 			errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
 			abort();
@@ -1064,7 +1064,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	if (!Proto) {
 		if (type_expr) {
 			if (Args.empty())
-				return llvm::Constant::getNullValue(ft->type);
+				return handleC(target, llvm::Constant::getNullValue(ft->type), Loc, ft, false);
 			if (Args.size() == 1) {
 				Args[0]->desired_type = ft->type;
 				llvm::Value* expr = Args[0]->codegen_raw();
@@ -1094,7 +1094,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					               (bool)(ft->type_attr & A_signed), true, false, nullptr);
 				}
 				if (conv)
-					return conv(expr);
+					return handle(target, conv(expr), Loc, ft);
 				else
 					return nullptr;
 			}
@@ -1187,11 +1187,11 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		if (!llvm::isa<llvm::StructType>(ft->type)) {
 			switch (Args.size()) {
 			case 0:
-				return llvm::Constant::getNullValue(ft->type);
+				return handle(target, llvm::Constant::getNullValue(ft->type), Loc, ft);
 			case 1:
 				Args[0]->desired_type = ft->type;
 				Args[0]->conv_kind = ft->type_attr & A_signed ? ConvSigned : ConvUnsigned;
-				return Args[0]->codegen();
+				return handle(target, Args[0]->codegen(), Loc, ft);
 			default:
 				errs() << "conversions with #arg!=1 not supported\n";
 				return nullptr;

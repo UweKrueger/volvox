@@ -193,6 +193,7 @@ type KlamQ {
 
 def KlamQ+(b KlamQ) KlamQ
 	r = KlamQ{ x: KlamP2{ a: this.x.a + b.x.a, b: 34 }, y: this.y * b.y }
+	print r.x.a
 	return r
 end
 
@@ -203,8 +204,10 @@ def do_KlamQ_calculations f64
 	w = KlamQ{ x: KlamP2{ a: 3.5, b: 15 }, y: -5.0625 }
 	q = KlamQ{ x: KlamP2{ a: -1.5, b: 13 }, y: 2.25 }
 	r = KlamQ{ x: KlamP2{ a: 1.75, b: -9 }, y: -1.5 }
+	# zzz = r + w
+	# vfh = zzz + q
 	vfh = r + w + q
-	# print vfh
+	print("res:", vfh.x.a)
 	return vfh.x.a
 end
 
