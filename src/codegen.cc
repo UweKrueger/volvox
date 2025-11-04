@@ -424,8 +424,8 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			auto [ needs_constructor_call, is_moved ] = needs_constructor_call_or_is_moved(
 				field_needs_constructor, initializers[i].second);
 			llvm::Value* ini_ref = nullptr;
-			if (auto arg_ref_expr = dynamic_cast<ReferencableExprAST*>(initializers[i].first.get())) {
-				auto ty_ref = arg_ref_expr->codegen_ref();
+			if (auto arg_ref_expr = dynamic_cast<VariableExprAST*>(initializers[i].first.get())) {
+				auto ty_ref = arg_ref_expr->codegen_ref(true);
 				ini_ref = ty_ref.second;
 				if (is_moved && initializers[i].first && !needs_constructor_call) {
 					if (!ini_ref)
