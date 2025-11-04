@@ -237,12 +237,11 @@ public:
 				is_unknown_type = true;
 			if (full_var->var_usage_markers && !full_var->var_usage_markers->empty()) {
 				LogicalLocation lloc(Loc, current_branch_part);
-				// errs() << Loc << ": varname " << Name << " " << lloc << "\n";
 				for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
 					if (lloc > it->loc) {
-						if (it->flag_ptr)
+						if (it->flag_ptr) {
 							*it->flag_ptr = true;
-						// errs() << "### marking " << it->loc << "\n";
+						} else
 						it = full_var->var_usage_markers->erase(it);
 					} else
 						it++;
@@ -255,8 +254,8 @@ public:
 	}
 	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv)
 		: LvalueExprAST(Loc, Name), full_var(fv) {
-		if (fv) {
-			ft = &fv->ft;
+		if (full_var) {
+			ft = &full_var->ft;
 			if (ft->type_attr & A_untyped)
 				is_unknown_type = true;
 			if (full_var->var_usage_markers && !full_var->var_usage_markers->empty()) {
@@ -579,6 +578,89 @@ public:
 	}
 #endif
 };
+// Expression class for a unary '&' operator in rvalues
+// usually to call C functions like f(void*) as f(&x)
+//
+class ReferenceExprAST : public LvalueExprAST {
+public:
+	std::unique_ptr<LvalueExprAST> Operand;
+	ReferenceExprAST(SourceLocation Loc, std::unique_ptr<LvalueExprAST> _Operand, bool is_optional = false)
+		: LvalueExprAST(Loc), Operand(std::move(_Operand)) {
+		if (Operand->ft->type)
+			// get address from expression as 'voidptr' to call C-functions "f(&x)"
+			ft = voidptr_type;
+		else
+			// declare reference "&r := x"
+			ft = new_FullType(*Operand->ft, A_ptrref | (is_optional ? A_optional : 0));
+	}
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
+		auto pair = Operand->codegen_ref(false);
+		llvm::Value* ptr;
+		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(pair.second->getType()))
+			ptr = Builder->CreateExtractValue(pair.second, struct_type->getNumElements() - 1);
+		else if (pair.second->getType()->isPointerTy())
+			ptr = pair.second;
+		else {
+			errs() << Loc << ": cannot get address of expression\n";
+			return nullptr;
+		}
+		return handle(target, Builder->CreatePointerCast(ptr, llvm_ptr_type), Loc, ft);
+	}
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override {
+		auto pair = Operand->codegen_ref(silent_fail, false);
+		ft->type = pair.first;
+		return pair;
+	}
+	VariableExprAST* getBase() override { return nullptr; }
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		ExprAST::dump(out << "unary &", ind);
+		Operand->dump(out, ind + 1);
+		return out;
+	}
+#endif
+};
+
+#define SZ_OPCODE 4
+
+/// BinaryExprAST - Expression class for a binary operator.
+class BinaryExprAST : public ReferencableExprAST {
+	// it's declared "Referencable" to allow "&b = &c = ..."
+public:
+	std::unique_ptr<ExprAST> LHS, RHS;
+	const char* err_msg = nullptr;
+	char Op[SZ_OPCODE] = { 0, 0, 0, 0 };
+	OpClass opclass = OpNormal;
+	ReferenceExprAST* LREF = nullptr;
+	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
+	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, unsigned, bool, OpClass,
+	              const char*> res_t = { llvm::Type::getVoidTy(Context), 0, false, OpDeclAssign, nullptr });
+	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	llvm::Value* codegen_atomic_Xassign(llvm::Type* typ, llvm::Value* val);
+	llvm::Value* codegen_atomic_CmpExchange(llvm::Type* typ, llvm::Value* ptr);
+	llvm::Value* codegen_ternary(llvm::Value* target = nullptr);
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(
+		bool silent_fail = false, bool constref = false) override;
+	bool needs_target() override { return (opclass == OpAssign || opclass == OpModAssign) && LHS->ft && LHS->ft->type && LHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(LHS->ft->type) == 0; }
+	llvm::Value* alloc_size() override {
+		if (opclass == OpAssign || opclass == OpModAssign)
+			return LHS->alloc_size();
+		return ((ExprAST*)this)->alloc_size();
+	}
+	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override {
+		if (opclass == OpAssign || opclass == OpModAssign)
+			return LHS->codegen_dims();
+		return ((ExprAST*)this)->codegen_dims();
+	}
+#ifndef NDEBUG
+	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
+		ExprAST::dump(out << "binary" << Op, ind);
+		LHS->dump(indent(out, ind) << "LHS:", ind + 1);
+		RHS->dump(indent(out, ind) << "RHS:", ind + 1);
+		return out;
+	}
+#endif
+};
 
 class ListExprAST : public ExprAST {
 public:
@@ -723,7 +805,6 @@ public:
 #endif
 };
 
-#define SZ_OPCODE 4
 /// UnaryExprAST - Expression class for a unary operator (-x, !e)
 class UnaryExprAST : public ExprAST {
 	char Opcode[SZ_OPCODE] = { 0, 0, 0, 0 };
@@ -795,112 +876,6 @@ public:
 #endif
 };
 
-// Expression class for a unary '&' operator in rvalues
-// usually to call C functions like f(void*) as f(&x)
-//
-class ReferenceExprAST : public LvalueExprAST {
-public:
-	std::unique_ptr<LvalueExprAST> Operand;
-	ReferenceExprAST(SourceLocation Loc, std::unique_ptr<LvalueExprAST> _Operand, bool is_optional = false)
-		: LvalueExprAST(Loc), Operand(std::move(_Operand)) {
-		if (Operand->ft->type)
-			// get address from expression as 'voidptr' to call C-functions "f(&x)"
-			ft = voidptr_type;
-		else
-			// declare reference "&r := x"
-			ft = new_FullType(*Operand->ft, A_ptrref | (is_optional ? A_optional : 0));
-	}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override {
-		auto pair = Operand->codegen_ref(false);
-		llvm::Value* ptr;
-		if (auto struct_type = llvm::dyn_cast<llvm::StructType>(pair.second->getType()))
-			ptr = Builder->CreateExtractValue(pair.second, struct_type->getNumElements() - 1);
-		else if (pair.second->getType()->isPointerTy())
-			ptr = pair.second;
-		else {
-			errs() << Loc << ": cannot get address of expression\n";
-			return nullptr;
-		}
-		return handle(target, Builder->CreatePointerCast(ptr, llvm_ptr_type), Loc, ft);
-	}
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override {
-		auto pair = Operand->codegen_ref(silent_fail, false);
-		ft->type = pair.first;
-		return pair;
-	}
-	VariableExprAST* getBase() override { return nullptr; }
-#ifndef NDEBUG
-	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "unary &", ind);
-		Operand->dump(out, ind + 1);
-		return out;
-	}
-#endif
-};
-
-/// BinaryExprAST - Expression class for a binary operator.
-class BinaryExprAST : public ReferencableExprAST {
-	// it's declared "Referencable" to allow "&b = &c = ..."
-public:
-	std::unique_ptr<ExprAST> LHS, RHS;
-	const char* err_msg = nullptr;
-	char Op[SZ_OPCODE] = { 0, 0, 0, 0 };
-	OpClass opclass = OpNormal;
-	ReferenceExprAST* LREF = nullptr;
-	BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_ptr<ExprAST> _LHS,
-	              std::unique_ptr<ExprAST> _RHS, std::tuple<llvm::Type*, unsigned, bool, OpClass,
-	              const char*> res_t = { llvm::Type::getVoidTy(Context), 0, false, OpDeclAssign, nullptr })
-		: ReferencableExprAST(std::get<0>(res_t), std::get<1>(res_t), Loc, std::get<2>(res_t)),
-		  LHS(std::move(_LHS)), RHS(std::move(_RHS)), err_msg(std::get<4>(res_t)), opclass(std::get<3>(res_t)),
-		  LREF(dynamic_cast<ReferenceExprAST*>(LHS.get()))
-		{
-			strlcpy(Op, _Op, SZ_OPCODE);
-			if (opclass == OpDeclAssign)
-				LHS->ft = RHS->ft;
-			if (opclass == OpRange && ft && ft->type) {
-				auto limits_type_name = lex.get_type_name(ft->type, (bool)(ft->type_attr & A_signed));
-				if (limits_type_name) {
-#define RANGE_PREFIX "__range_"
-#define RANGE_PREFIX_SIZE ARRAY_SIZE(RANGE_PREFIX) /* including terminating 0 */
-					size_t name_sz = ARRAY_SIZE(RANGE_PREFIX) + strlen(limits_type_name);
-					auto range_type_name = (char*)alloca(name_sz);
-					strlcpy(range_type_name, RANGE_PREFIX, name_sz);
-					strlcpy(range_type_name + (RANGE_PREFIX_SIZE - 1), limits_type_name, name_sz-(RANGE_PREFIX_SIZE - 1));
-					ft = lex.get_full_type(range_type_name);
-					if (ft)
-						return;
-				} else
-					ft = nullptr;
-				errs() << Loc << ": cannot create range from types " << *LHS->ft->type << " and " << *RHS->ft->type << "\n";
-			}
-		}
-	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	llvm::Value* codegen_atomic_Xassign(llvm::Type* typ, llvm::Value* val);
-	llvm::Value* codegen_atomic_CmpExchange(llvm::Type* typ, llvm::Value* ptr);
-	llvm::Value* codegen_ternary(llvm::Value* target = nullptr);
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(
-		bool silent_fail = false, bool constref = false) override;
-	bool needs_target() override { return (opclass == OpAssign || opclass == OpModAssign) && LHS->ft && LHS->ft->type && LHS->ft->type->isSized() && TheModule->getDataLayout().getTypeAllocSize(LHS->ft->type) == 0; }
-	llvm::Value* alloc_size() override {
-		if (opclass == OpAssign || opclass == OpModAssign)
-			return LHS->alloc_size();
-		return ((ExprAST*)this)->alloc_size();
-	}
-	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override {
-		if (opclass == OpAssign || opclass == OpModAssign)
-			return LHS->codegen_dims();
-		return ((ExprAST*)this)->codegen_dims();
-	}
-#ifndef NDEBUG
-	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
-		ExprAST::dump(out << "binary" << Op, ind);
-		LHS->dump(indent(out, ind) << "LHS:", ind + 1);
-		RHS->dump(indent(out, ind) << "RHS:", ind + 1);
-		return out;
-	}
-#endif
-};
-
 class TypeExprAST : public ExprAST {
 public:
 	std::string Name;
@@ -959,39 +934,7 @@ inline std::pair<bool,bool> needs_constructor_call_or_is_moved(
 class StructExprAST : public ExprAST {
 public:
 	std::map<std::string, std::pair<std::unique_ptr<ExprAST>,bool>> Fields; // bool: is referenced after call
-	StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::unique_ptr<ListExprAST> list)
-		: ExprAST(ft, Loc) {
-		for (auto& field: list->Elements) {
-			if (auto field_val = dynamic_cast<BinaryExprAST*>(field.get())) {
-				if (field_val->Op[0] == ':' && !field_val->Op[1]) {
-					std::string* field_key = nullptr;
-					// we are only interested in the "ident" of the LHS of "ident: value"
-					// the parser might have found the ident in tables so we have to handle these cases
-					// it does not seem sensible to declare a common base class "NamedExprAST" to derive
-					// these cases because 'VariableExprAST' is derived from 'LvalueExprAST', the others are not
-					if (auto nameAST = dynamic_cast<VariableExprAST*>(field_val->LHS.get()))
-						field_key = &nameAST->Name;
-					else if (auto nameAST = dynamic_cast<FunctionExprAST*>(field_val->LHS.get()))
-						field_key = &nameAST->Name;
-					else if (auto nameAST = dynamic_cast<IdentExprAST*>(field_val->LHS.get()))
-						field_key = &nameAST->Name;
-					else if (auto nameAST = dynamic_cast<TypeExprAST*>(field_val->LHS.get()))
-						field_key = &nameAST->Name;
-					else
-						errs() << field_val->LHS->Loc << " field name expected\n";
-					if (field_key) {
-						auto insert = Fields.try_emplace(*field_key, std::pair<std::unique_ptr<ExprAST>,bool>{ std::move(field_val->RHS), false });
-						if (!insert.second)
-							errs() << field_val->LHS->Loc << ": field '" << field_key << "' already initialized\n";
-						register_usage_marker(field_val->RHS.get(), &insert.first->second.second);
-					}
-					continue;
-				}
-				errs() << field->Loc << ": initializer with ':' expected - not '" << field_val->Op << "'\n";
-			}
-			errs() << field->Loc << ": binary expression as initializer expected\n";
-		}
-	}
+	StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::unique_ptr<ListExprAST> list);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	bool needs_target() override {
 		if (!ft) {
