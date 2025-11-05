@@ -227,12 +227,12 @@ type KlamQ2 {
 
 def KlamQ2
 	n_KlamQ_constructor++
-	# print "KlamQ2 constructor called ${this.x.a} ${this.x.b} ${this.y}"
+	print "KlamQ2 constructor called ${this.x.a} ${this.x.b} ${this.y}"
 end
 
 def ~KlamQ2
 	n_KlamQ_destructor++
-	# print "KlamQ2 destructor called ${this.x.a} ${this.x.b} ${this.y}"
+	print "KlamQ2 destructor called ${this.x.a} ${this.x.b} ${this.y}"
 end
 
 def KlamQ2+(b KlamQ2) KlamQ2
