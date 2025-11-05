@@ -733,7 +733,7 @@ struct FullVar {
 };
 
 extern std::vector<std::vector<var_usage_marker_t>*> all_usage_markers;
-extern llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Value* arg, llvm::Type* real_arg_type, bool is_address, bool is_moved, bool needs_constructor_call);
+extern llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* real_arg_type, bool is_address, bool is_moved, bool needs_constructor_call, llvm::Value* val = nullptr);
 
 struct FVListElem {
 	FVListElem* next = nullptr;

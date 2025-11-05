@@ -1357,7 +1357,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* arg = nullptr;
 			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get()) || dynamic_cast<TypeExprAST*>(Args[i].get());
 			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) || needs_constructor_call || is_moved)
-				arg = HandleMove(Args[i].get(), Proto->ArgTypes[i+arg_offs], arg, real_arg_type, is_address, is_moved, needs_constructor_call);
+				arg = HandleMove(Args[i].get(), Proto->ArgTypes[i+arg_offs], real_arg_type, is_address, is_moved, needs_constructor_call);
 			if (!arg) {
 				if (is_address) {
 					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
@@ -1710,18 +1710,23 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, 
 	return true;
 }
 
-llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Value* arg, llvm::Type* real_arg_type, bool is_address, bool is_moved, bool needs_constructor_call) {
-	llvm::Type* arg_type = expr->desired_type ? expr->desired_type : expr->ft->type;
+llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* real_arg_type, bool is_address, bool is_moved, bool needs_constructor_call, llvm::Value* val) {
+	llvm::Type* arg_type = val ? val->getType() : expr->desired_type ? expr->desired_type : expr->ft->type;
+	llvm::Value* arg;
 	if (jit_repl && !inside_function) {
 		llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, arg_type, false, llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(arg_type));
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(arg_type));
 		arg = GV;
 	} else
 		arg = CreateEntryBlockAlloca(arg_type);
-	auto voidval = expr->codegen_raw(arg);
-	if (!voidval || !voidval->getType()->isVoidTy()) {
-		errs() << expr->Loc << ": cannot create function call argument\n";
-		return nullptr;
+	if (val) {
+		Builder->CreateStore(val, arg);
+	} else {
+		auto voidval = expr->codegen_raw(arg);
+		if (!voidval || !voidval->getType()->isVoidTy()) {
+			errs() << expr->Loc << ": cannot create function call argument\n";
+			return nullptr;
+		}
 	}
 	if (is_moved) {
 		// errs() << expr->Loc << ": ### function argument moved\n";
