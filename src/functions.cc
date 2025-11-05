@@ -1356,54 +1356,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				real_arg_type = Args[i]->ft->type;
 			llvm::Value* arg = nullptr;
 			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get()) || dynamic_cast<TypeExprAST*>(Args[i].get());
-			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) || needs_constructor_call || is_moved) {
-				// errs() << Args[i]->Loc << ": ### function argument 22\n";
-				llvm::Type* arg_type = Args[i]->desired_type ? Args[i]->desired_type : Args[i]->ft->type;
-				if (jit_repl && !inside_function) {
-					llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, arg_type, false, llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(arg_type));
-					GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(arg_type));
-					arg = GV;
-				} else
-					arg = Builder->CreateAlloca(arg_type, nullptr, "target");
-				auto voidval = Args[i]->codegen_raw(arg);
-				if (!voidval || !voidval->getType()->isVoidTy()) {
-					errs() << Args[i]->Loc << ": cannot create function call argument\n";
-					return nullptr;
-				}
-				if (is_moved) {
-					// errs() << Args[i]->Loc << ": ### function argument moved\n";
-					// we set the original value to zero to invalidate the object
-					// the destructor is supposed to ignore this value
-					if (auto arg_ref_expr = dynamic_cast<ReferencableExprAST*>(Args[i].get())) {
-						auto ty_ref = arg_ref_expr->codegen_ref();
-						if (!ty_ref.second)
-							return nullptr;
-						auto nullval = llvm::Constant::getNullValue(ty_ref.first);
-						Builder->CreateStore(nullval, ty_ref.second);
-					} else {
-						if (Args[i]->ft->type == llvm_string_type) {
-							arg = CreateEntryBlockAlloca(llvm_string_type);
-							if (!Args[i]->codegen_raw(arg)) {
-								errs() << Args[i]->Loc << ": error generating string\n";
-								return nullptr;
-							}
-						} else {
-							errs() << Args[i]->Loc << ": object to move not referencable" << *Args[i]->ft->type << "\n";
-							return nullptr;
-						}
-					}
-				} else if (needs_constructor_call) {
-					// errs() << Args[i]->Loc << ": ### function argument not moved 1\n";
-					auto F = getConstructorOrDestructor(Proto->ArgTypes[i+arg_offs]);
-					if (!F) {
-						errs() << Args[i]->Loc << ": internal error - default constructor not found for " << *Proto->ArgTypes[i+arg_offs] << "\n";
-						return nullptr;
-					} else
-						Builder->CreateCall(F, { arg });
-				}
-				if (!is_address && !dynamic_cast<InterfaceExprAST*>(Args[i].get()))
-					arg = Builder->CreateLoad(real_arg_type, arg);
-			}
+			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) || needs_constructor_call || is_moved)
+				arg = HandleMove(Args[i].get(), Proto->ArgTypes[i+arg_offs], arg, real_arg_type, is_address, is_moved, needs_constructor_call);
 			if (!arg) {
 				if (is_address) {
 					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
@@ -1754,6 +1708,44 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, 
 	theFunction_ret_ft = nullptr;
 	expr_temps.clear();
 	return true;
+}
+
+llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Value* arg, llvm::Type* real_arg_type, bool is_address, bool is_moved, bool needs_constructor_call) {
+	llvm::Type* arg_type = expr->desired_type ? expr->desired_type : expr->ft->type;
+	if (jit_repl && !inside_function) {
+		llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, arg_type, false, llvm::GlobalValue::InternalLinkage, llvm::Constant::getNullValue(arg_type));
+		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(arg_type));
+		arg = GV;
+	} else
+		arg = CreateEntryBlockAlloca(arg_type);
+	auto voidval = expr->codegen_raw(arg);
+	if (!voidval || !voidval->getType()->isVoidTy()) {
+		errs() << expr->Loc << ": cannot create function call argument\n";
+		return nullptr;
+	}
+	if (is_moved) {
+		// errs() << expr->Loc << ": ### function argument moved\n";
+		// we set the original value to zero to invalidate the object
+		// the destructor is supposed to ignore this value
+		if (auto arg_ref_expr = dynamic_cast<VariableExprAST*>(expr)) {
+			auto ty_ref = arg_ref_expr->codegen_ref();
+			if (!ty_ref.second)
+				return nullptr;
+			auto nullval = llvm::Constant::getNullValue(ty_ref.first);
+			Builder->CreateStore(nullval, ty_ref.second);
+		}
+	} else if (needs_constructor_call) {
+		// errs() << expr->Loc << ": ### function argument not moved 1\n";
+		auto F = getConstructorOrDestructor(proto_ft);
+		if (!F) {
+			errs() << expr->Loc << ": internal error - default constructor not found for " << *proto_ft << "\n";
+			return nullptr;
+		} else
+			Builder->CreateCall(F, { arg });
+	}
+	if (!is_address && !dynamic_cast<InterfaceExprAST*>(expr))
+		arg = Builder->CreateLoad(real_arg_type, arg);
+	return arg;
 }
 
 void HandleReturn(BranchDescription& bBranch, llvm::Value* RetVal)
