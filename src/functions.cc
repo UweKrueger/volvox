@@ -1762,6 +1762,13 @@ void HandleReturn(BranchDescription& bBranch, llvm::Value* RetVal)
 		if (auto ifexpr = dynamic_cast<IfExprAST*>(Branch.back().get()))
 			already_returned = ifexpr->always_return;
 	if (!already_returned) {
+		VariableExprAST* ret_var = Branch.empty() ? nullptr
+			: dynamic_cast<VariableExprAST*>(Branch.back().get()); // suppress destructor for "return ret_var"
+		llvm::Value* var_ptr;
+		if (ret_var) {
+			var_ptr = ret_var->codegen_ref(true).second;
+		} else
+			var_ptr = nullptr;
 		if (currentFunction->Proto->RetType->type->isVoidTy()
 		    || (currentFunction->Proto->visibility & A_constructor) && !currentFunction->RetVar) {
 			// if (currentFunction->Proto->visibility & A_destructor) {
@@ -1779,7 +1786,7 @@ void HandleReturn(BranchDescription& bBranch, llvm::Value* RetVal)
 				}
 				if (!RetVal->getType()->isVoidTy() && !currentFunction->RetVar)
 					Builder->CreateStore(RetVal, ret_ptr);
-				InsertDestructors(brk_descr.vars_to_destruct, nullptr, ret_ptr);
+				InsertDestructors(brk_descr.vars_to_destruct, nullptr, var_ptr);
 				Builder->CreateRetVoid();
 			} else {
 				if (currentFunction->RetVar) {
@@ -1789,15 +1796,7 @@ void HandleReturn(BranchDescription& bBranch, llvm::Value* RetVal)
 					InsertDestructors(brk_descr.vars_to_destruct, nullptr, RetVal);
 				else {
 					llvm::Value* re_ptr = nullptr;
-					if (!Branch.empty())
-						if (auto lval = dynamic_cast<LvalueExprAST*>(Branch.back().get())) {
-							llvm::Type* dummy;
-							std::tie(dummy, re_ptr) = lval->codegen_ref(true);
-							if (dummy && re_ptr)
-								if (auto struct_type = llvm::dyn_cast<llvm::StructType>(re_ptr->getType()))
-									re_ptr = Builder->CreateExtractValue((re_ptr), struct_type->getNumElements() - 1);
-						}
-					InsertDestructors(brk_descr.vars_to_destruct, nullptr, re_ptr);
+					InsertDestructors(brk_descr.vars_to_destruct, nullptr, var_ptr);
 				}
 				Builder->CreateRet(CheckTailCall(RetVal));
 				if (!currentFunction->ArgIdx && Branch.size() == 1 && currentFunction->TheFunction->hasFnAttribute(llvm::Attribute::AlwaysInline))
