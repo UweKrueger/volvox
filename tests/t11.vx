@@ -252,7 +252,42 @@ def test_substruct_constructors_destructors_2 bool
 	return x == 3.75 && n_KlamQ_constructor == 5 && n_KlamQ_destructor == 5 && n_KlamP_constructor == 5 && n_KlamP_destructor == 5
 end
 
-# print n_KlamP_constructor
-# print n_KlamP_destructor
-# print n_KlamQ_constructor
-# print n_KlamQ_destructor
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+
+def do_KlamQ_calculations2 f64
+	w = KlamQ{ x: KlamP2{ a: 3.5, b: 15 }, y: -5.0625 }
+	q = KlamQ{ x: KlamP2{ a: -1.5, b: 13 }, y: 2.25 }
+	r = KlamQ{ x: KlamP2{ a: 1.75, b: -9 }, y: -1.5 }
+	vfh = r + w + q
+	return vfh.x.a
+end
+
+def test_substruct_constructors_destructors_3 bool
+	x = do_KlamQ_calculations2
+	return x == 3.75 && n_KlamP_constructor == 5 && n_KlamP_destructor == 5
+end
+
+def do_KlamQ2_calculations2 f64
+	w = KlamQ2{ x: KlamP2{ a: 3.5, b: 15 }, y: -5.0625 }
+	q = KlamQ2{ x: KlamP2{ a: -1.5, b: 13 }, y: 2.25 }
+	r = KlamQ2{ x: KlamP2{ a: 1.75, b: -9 }, y: -1.5 }
+	vfg = r + w + q
+	# print vfg
+	return vfg.x.a
+end
+
+n_KlamP_constructor = 0
+n_KlamP_destructor = 0
+n_KlamQ_constructor = 0
+n_KlamQ_destructor = 0
+
+def test_substruct_constructors_destructors_4 bool
+	x = do_KlamQ2_calculations2
+	return x == 3.75 && n_KlamQ_constructor == 5 && n_KlamQ_destructor == 5 && n_KlamP_constructor == 5 && n_KlamP_destructor == 5
+end
+
+print n_KlamP_constructor
+print n_KlamP_destructor
+print n_KlamQ_constructor
+print n_KlamQ_destructor
