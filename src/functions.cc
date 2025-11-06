@@ -1254,6 +1254,21 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						errs() << Loc << ": cannot create function call\n";
 						return nullptr;
 					}
+					// register destructor call for intermediate receiver
+					if (method->Receiver->ft->type_attr & A_destructor) {
+						auto destructor = getConstructorOrDestructor(method->Receiver->ft, true);
+						if (!destructor) {
+							errs() << method->Receiver->Loc << ": cannot find destructor for type " << *method->Receiver->ft << "\n";
+							abort();
+						}
+						FullVar tmp = {
+							.val = receiver_ref,
+							.destructor = destructor,
+							.ft = *method->Receiver->ft
+						};
+						tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
+						expr_temps.push_back(tmp);
+					}
 				} else {
 					receiver_ref = StoreValue(method->Receiver->codegen(), method->Receiver->ft);
 				}

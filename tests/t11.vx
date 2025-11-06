@@ -287,7 +287,7 @@ def test_substruct_constructors_destructors_4 bool
 	return x == 3.75 && n_KlamQ_constructor == 5 && n_KlamQ_destructor == 5 && n_KlamP_constructor == 5 && n_KlamP_destructor == 5
 end
 
-print n_KlamP_constructor
-print n_KlamP_destructor
-print n_KlamQ_constructor
-print n_KlamQ_destructor
+# print n_KlamP_constructor
+# print n_KlamP_destructor
+# print n_KlamQ_constructor
+# print n_KlamQ_destructor
