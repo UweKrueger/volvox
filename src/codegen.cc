@@ -412,15 +412,13 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 				}
 			} else
 				ini = llvm::Constant::getNullValue(struct_type->getElementType(i));
-			arg_needs_constructor_t field_needs_constructor = arg_is_owned;
+			arg_needs_constructor_t field_needs_constructor = arg_is_borrowed_or_pod; // 0
 			if (ft->fields_by_idx[i].getFt()->type_attr & A_constructor)
 				field_needs_constructor = (arg_needs_constructor_t)(
-					(uint8_t)field_needs_constructor | (uint8_t)arg_has_constructor);
-			else if (ft->fields_by_idx[i].getFt()->type_attr & A_destructor)
+					(uint8_t)field_needs_constructor | (uint8_t)arg_has_constructor | (uint8_t)arg_is_owned);
+			if (ft->fields_by_idx[i].getFt()->type_attr & A_destructor)
 				field_needs_constructor = (arg_needs_constructor_t)(
-					(uint8_t)field_needs_constructor | (uint8_t)arg_has_destructor);
-			else
-				field_needs_constructor = arg_is_borrowed_or_pod;
+					(uint8_t)field_needs_constructor | (uint8_t)arg_has_destructor | (uint8_t)arg_is_owned);
 			auto [ needs_constructor_call, is_moved ] = needs_constructor_call_or_is_moved(
 				field_needs_constructor, initializers[i].second);
 			if (initializers[i].first && (is_moved || needs_constructor_call))
