@@ -331,7 +331,7 @@ llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, 
 				.ft = *ft
 			};
 			tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
-			expr_temps.push_back(tmp);		
+			expr_temps.push_back(tmp);
 		}
 		return val;
 	}
@@ -1739,14 +1739,30 @@ llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* 
 			auto nullval = llvm::Constant::getNullValue(ty_ref.first);
 			Builder->CreateStore(nullval, ty_ref.second);
 		}
-	} else if (needs_constructor_call) {
-		// errs() << expr->Loc << ": ### function argument not moved 1\n";
-		auto F = getConstructorOrDestructor(proto_ft);
-		if (!F) {
-			errs() << expr->Loc << ": internal error - default constructor not found for " << *proto_ft << "\n";
-			return nullptr;
-		} else
-			Builder->CreateCall(F, { arg });
+	} else {
+		if (needs_constructor_call) {
+			// errs() << expr->Loc << ": ### function argument not moved 1\n";
+			auto F = getConstructorOrDestructor(proto_ft);
+			if (!F) {
+				errs() << expr->Loc << ": internal error - default constructor not found for " << *proto_ft << "\n";
+				return nullptr;
+			} else
+				Builder->CreateCall(F, { arg });
+		}
+		if ((proto_ft->type_attr & A_destructor) && !dynamic_cast<VariableExprAST*>(expr)) {
+			auto destructor = getConstructorOrDestructor(proto_ft, true);
+			if (!destructor) {
+				errs() << expr->Loc << ": cannot find destructor for type " << *proto_ft << "\n";
+				abort();
+			}
+			FullVar tmp = {
+				.val = arg,
+				.destructor = destructor,
+				.ft = *proto_ft
+			};
+			tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
+			expr_temps.push_back(tmp);		
+		}
 	}
 	if (!is_address && !dynamic_cast<InterfaceExprAST*>(expr))
 		arg = Builder->CreateLoad(real_arg_type, arg);
