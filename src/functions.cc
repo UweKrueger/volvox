@@ -311,30 +311,18 @@ check_selected_proto:
 	return selected_idx;
 }
 
+// Store value to target, otherwise register for destruction unless target == suppress_destructor_flag
+
 llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft) {
 	if (!val)
 		return nullptr;
 	if (val->getType()->isVoidTy())
 		return val;
-	if (!target || (intptr_t)target == -1) {
-		if (!target && (ft->type_attr & A_destructor)) {
-			auto destructor = getConstructorOrDestructor(ft, true);
-			if (!destructor) {
-				errs() << Loc << ": cannot find destructor for type " << *ft << "\n";
-				abort();
-			}
-			llvm::Value* tmpstore = CreateEntryBlockAlloca(val->getType());
-			Builder->CreateStore(val, tmpstore);
-			FullVar tmp = {
-				.val = tmpstore,
-				.destructor = destructor,
-				.ft = *ft
-			};
-			tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
-			expr_temps.push_back(tmp);
-		}
+	if (!target) {
+		register_destructor(Loc, ft, val, true);
 		return val;
-	}
+	} else if (target == suppress_destructor_flag)
+		return val;
 	Builder->CreateStore(val, target);
 	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
@@ -344,25 +332,13 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 		return nullptr;
 	if (val->getType()->isVoidTy())
 		return val;
-	if (!target || (intptr_t)target == -1) {
+	if (!target || target == suppress_destructor_flag) {
 		if (ft->type_attr & (A_constructor | A_destructor)) {
 			llvm::Type* val_t = val->getType();
 			llvm::Value* tmpstore = CreateEntryBlockAlloca(val_t);
 			Builder->CreateStore(val, tmpstore);
-			if (!target && (ft->type_attr & A_destructor)) {
-				auto destructor = getConstructorOrDestructor(ft, true);
-				if (!destructor) {
-					errs() << Loc << ": cannot find destructor for type " << *ft << "\n";
-					abort();
-				}
-				FullVar tmp = {
-					.val = tmpstore,
-					.destructor = destructor,
-					.ft = *ft
-				};
-				tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
-				expr_temps.push_back(tmp);
-			}
+			if (target != suppress_destructor_flag)
+				register_destructor(Loc, ft, tmpstore);
 			if (ft->type_attr & A_constructor) {
 				auto constructor = getConstructorOrDestructor(ft, false, basic_constructor); // only basic constructor
 				if (!constructor) {
@@ -1255,20 +1231,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						return nullptr;
 					}
 					// register destructor call for intermediate receiver
-					if (method->Receiver->ft->type_attr & A_destructor) {
-						auto destructor = getConstructorOrDestructor(method->Receiver->ft, true);
-						if (!destructor) {
-							errs() << method->Receiver->Loc << ": cannot find destructor for type " << *method->Receiver->ft << "\n";
-							abort();
-						}
-						FullVar tmp = {
-							.val = receiver_ref,
-							.destructor = destructor,
-							.ft = *method->Receiver->ft
-						};
-						tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
-						expr_temps.push_back(tmp);
-					}
+					register_destructor(method->Receiver->Loc, method->Receiver->ft, receiver_ref);
 				} else {
 					receiver_ref = StoreValue(method->Receiver->codegen(), method->Receiver->ft);
 				}
@@ -1688,16 +1651,9 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, 
 				llvm::Value* target = CreateEntryBlockAlloca(Expr->ft->type);
 				if (!Expr->codegen_raw(target))
 					return false;
+				if (return_val_idx)
+					register_destructor(Expr->Loc, Expr->ft, target);
 				RetVal = Builder->CreateLoad(Expr->ft->type, target);
-				if (return_val_idx && (Expr->ft->type_attr & A_destructor)) {
-					auto destructor = getConstructorOrDestructor(Expr->ft, true);
-					FullVar tmp = {
-						.val = target,
-						.destructor = destructor,
-						.ft = *Expr->ft
-					};
-					expr_temps.push_back(tmp);
-				}
 			}
 		} else {
 			if (main_partial || return_val_idx) {
@@ -1764,20 +1720,8 @@ llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* 
 			} else
 				Builder->CreateCall(F, { arg });
 		}
-		if ((proto_ft->type_attr & A_destructor) && !dynamic_cast<VariableExprAST*>(expr)) {
-			auto destructor = getConstructorOrDestructor(proto_ft, true);
-			if (!destructor) {
-				errs() << expr->Loc << ": cannot find destructor for type " << *proto_ft << "\n";
-				abort();
-			}
-			FullVar tmp = {
-				.val = arg,
-				.destructor = destructor,
-				.ft = *proto_ft
-			};
-			tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
-			expr_temps.push_back(tmp);		
-		}
+		if (!dynamic_cast<VariableExprAST*>(expr))
+			register_destructor(expr->Loc, proto_ft, arg);
 	}
 	if (!is_address && !dynamic_cast<InterfaceExprAST*>(expr))
 		arg = Builder->CreateLoad(real_arg_type, arg);

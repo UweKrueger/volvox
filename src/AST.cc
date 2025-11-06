@@ -271,3 +271,25 @@ std::pair<bool,bool> needs_constructor_call_or_is_moved(
 		&& !inside_loop;
 	return { needs_constructor_call, is_moved };
 }
+
+void register_destructor(SourceLocation& Loc, volvoxc::FullType* ft, llvm::Value* adr, bool is_value) {
+	if (!(ft->type_attr & A_destructor))
+		return; // nothing to do
+	auto destructor = getConstructorOrDestructor(ft, true);
+	if (!destructor) {
+		errs() << Loc << ": cannot find destructor for type " << *ft << "\n";
+		abort();
+	}
+	if (is_value) { // adr is actually a value that needs to be stored
+		llvm::Value* tmpstore = CreateEntryBlockAlloca(adr->getType());
+		Builder->CreateStore(adr, tmpstore);
+		adr = tmpstore;
+	}
+	FullVar tmp = {
+		.val = adr,
+		.destructor = destructor,
+		.ft = *ft
+	};
+	tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
+	expr_temps.push_back(tmp);
+}

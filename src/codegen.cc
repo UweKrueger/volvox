@@ -394,14 +394,6 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 					}
 					llvm::Value* store = (target && (intptr_t)target != -1) ? target : CreateEntryBlockAlloca(ft->type);
 					Builder->CreateStore(V, Builder->CreatePointerCast(store, llvm_ptr_type));
-					// if (ft->type_attr & A_constructor) {
-					// 	auto C = getConstructorOrDestructor(ft);
-					// 	if (!C) {
-					// 		errs() << Loc << ": no constructor found\n";
-					// 		return nullptr;
-					// 	}
-					// 	Builder->CreateCall(C, { store});
-					// }
 					if (!target || (intptr_t)target == -1)
 						return Builder->CreateLoad(ft->type, store);
 					else
@@ -465,7 +457,7 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 	if (V.first && V.second && V.second->getType()->isPointerTy()) {
 		if (!target)
 			// suppress destructor call for variable value
-			target = (llvm::Value*)(intptr_t)(-1);
+			target = suppress_destructor_flag;
 		// Load the value.
 		if (full_var->ft.type_attr & A_atomic)
 			return handle(target, CreateAtomicLoad(V.first, V.second, Name.c_str()), Loc, ft);

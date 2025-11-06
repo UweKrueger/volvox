@@ -690,6 +690,7 @@ struct FullVar {
 		//
 		llvm::Type* storage_type;
 	};
+	llvm::Value* valid_flag = nullptr;
 	union {
 		// global variables need a mangled name for C++-compatible linkage
 		//
@@ -1532,6 +1533,8 @@ enum ConversionKind : uint8_t {
 	ConvUnsigned
 };
 
+#define suppress_destructor_flag (llvm::Value*)(intptr_t)(-1)
+
 /// ExprAST - Base class for all expression nodes.
 class ExprAST {
 public:
@@ -1576,8 +1579,7 @@ public:
 	// - (void*)0: the generated value is returned. Since it is not stored (e.g. to a variable) it is assumed that it's
 	//      an intermediate value (e.g. '(b + c)' in 'x = a * (b + c)' and a potential destructor call for the
 	//      value is registred
-	// - (void*)(-1): like '(void*)0' but no destructor call is registred. This is needed to create compile time const
-	//      initializers for use with ':='
+	// - suppress_destructor_flag: like '(void*)0' but no destructor call is registred.
 	virtual llvm::Value* codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
 	virtual bool needs_target() { return false; } // e.g. struct return in CallExpr
 	// there are cases where the storage size, i.e. the dimensions of a tensor ist needed

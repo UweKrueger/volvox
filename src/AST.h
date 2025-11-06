@@ -747,6 +747,7 @@ extern void register_usage_marker(ExprAST* expr, bool* mark_ptr);
 extern std::pair<bool,bool> needs_constructor_call_or_is_moved(
 	arg_needs_constructor_t arg_needs_constructor,
 	bool is_referenced_after_call);
+extern void register_destructor(SourceLocation& Loc, volvoxc::FullType* ft, llvm::Value* adr, bool is_value = false);
 
 class StructExprAST : public ExprAST {
 public:
