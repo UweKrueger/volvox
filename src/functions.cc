@@ -1308,12 +1308,12 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			// a constructor wrapper that is defined once we know if the the call is needed
 			std::tie(needs_constructor_call, is_moved) = needs_constructor_call_or_is_moved(
 				Proto->ArgNeedsConstructor[i+arg_offs], fn_args[i+arg_offs].is_referenced_after_call);
-/*
+
 			if (is_moved)
 				errs() << Args[i]->Loc << ": mark arg as moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
 			else
 				errs() << Args[i]->Loc << ": not moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
-*/
+
 		}
 		if (!is_address && (Args[i]->ft->type_attr & A_cstring)) {
 			// errs() << Args[i]->Loc << ": ### function argument 1\n";
@@ -1847,6 +1847,10 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 					break;
 			}
 			unset_arg_flag(&flag, maybe_arg_is_owned);
+			if (!get_arg_flag(flag, arg_is_owned)) {
+				unset_arg_flag(&flag, arg_has_constructor);
+				unset_arg_flag(&flag, arg_has_destructor);
+			}
 			idx++;
 		}
 		success = success && finishFunctionOrModule(nullptr, 1, finishModule, getNewModule);

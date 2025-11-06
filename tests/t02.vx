@@ -10,12 +10,12 @@ global a0 := [3.4, 6.7, -12.3, 3.1, -13.1]
 
 global r542p = 0.0
 
-def u [5]f64
+def uPkL [5]f64
 	p = [3.3, 1.2, -4.5 + r542p, 6.75, 8.08e12]
 	return p
 end
 
-a0 = u
+a0 = uPkL
 
 def fv f64
 	z = 3
@@ -40,7 +40,7 @@ end
 
 
 def h [5]f64
-	&v = u
+	&v = uPkL
 	r542p = 3.5
 	q = v
 	return q
@@ -80,7 +80,7 @@ def rpyyx(x [5]f64) f64
 end
 
 def test_nested_call_with_array_result bool
-	wq = rpyyx(u)
+	wq = rpyyx(uPkL)
 	return wq == 6.75
 end
 

@@ -693,7 +693,7 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 		return codegen_complex(target);
 	auto V = codegen_ref(true, true);
 	if (auto val = ref2val(V))
-		return handle(target, val, Loc, ft);
+		return handleC(target, val, Loc, ft, false);
 	if (V.first) {
 		if (auto arr_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type)) {
 			// handle builtin array methods
@@ -1226,6 +1226,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			           dynamic_cast<PostfixExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<UnaryExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<StructExprAST*>(expr->RHS.get()) ||
+			           dynamic_cast<SelectExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<BranchExprAST*>(expr->RHS.get()))
 				is_call_expr = true;
 			if (is_constructor_call || ((allocsz > sret_limit) && !rhs_is_constexpr))
@@ -1961,6 +1962,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		           dynamic_cast<UnaryExprAST*>(RHS.get()) ||
 		           dynamic_cast<InterpStrLitExprAST*>(RHS.get()) ||
 		           dynamic_cast<StructExprAST*>(RHS.get()) ||
+		           dynamic_cast<SelectExprAST*>(RHS.get()) ||
 		           dynamic_cast<BranchExprAST*>(RHS.get())) {
 				is_call_expr = true;
 		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
