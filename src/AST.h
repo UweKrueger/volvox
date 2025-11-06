@@ -229,49 +229,8 @@ class VariableExprAST : public LvalueExprAST {
 
 public:
 	FullVar* full_var; // description in local or global database
-	VariableExprAST(SourceLocation Loc, const std::string &Name)
-		: LvalueExprAST(Loc, Name), full_var(lookup_var(Name.c_str())) {
-		if (full_var) {
-			ft = &full_var->ft;
-			if (ft->type_attr & A_untyped)
-				is_unknown_type = true;
-			if (full_var->var_usage_markers && !full_var->var_usage_markers->empty()) {
-				LogicalLocation lloc(Loc, current_branch_part);
-				for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
-					if (lloc > it->loc) {
-						if (it->flag_ptr) {
-							*it->flag_ptr = true;
-						} else
-						it = full_var->var_usage_markers->erase(it);
-					} else
-						it++;
-				}
-			}
-		}
-		// if the variable name has not found in the databases we don't generate
-		// an error message here because this VariableExprAST could be the LHS of
-		// an initialization e.g. `a = 42`
-	}
-	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv)
-		: LvalueExprAST(Loc, Name), full_var(fv) {
-		if (full_var) {
-			ft = &full_var->ft;
-			if (ft->type_attr & A_untyped)
-				is_unknown_type = true;
-			if (full_var->var_usage_markers && !full_var->var_usage_markers->empty()) {
-				LogicalLocation lloc(Loc, current_branch_part);
-				for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
-					if (lloc > it->loc) {
-						*it->flag_ptr = true;
-						it = full_var->var_usage_markers->erase(it);
-					} else
-						it++;
-				}
-			}
-		}
-		else
-			ft = nullptr;
-	}
+	VariableExprAST(SourceLocation Loc, const std::string &Name);
+	VariableExprAST(SourceLocation Loc, const std::string &Name, FullVar* fv);
 	const std::string &getName() const { return Name; }
 	VariableExprAST* getBase() override { return this; }
 	// create reference to this variable - second result is the storage_type
@@ -434,84 +393,7 @@ public:
 	std::unique_ptr<IdentExprAST> Field;
 	const char* FieldName = nullptr;
 	unsigned FieldIndex = (unsigned)(-1);
-	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field) :
-		LvalueExprAST(Loc), Struct(std::move(_Struct)), Field(std::move(_Field))
-		{
-			FieldName = Field->Name.c_str();
-			if (Struct->ft && Struct->ft->type) {
-				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Struct->ft->type)) {
-					// for regular method call (having regular struct or interface as receiver)
-					// 'getSelect()' in parser.cc creates a MethodExprAST (see above)
-					// here we handle compiler built-in methods and regular struct fields
-					if (Struct->ft->type_attr & A_thread) {
-						if (!strcmp(FieldName, "wait")) {
-							FieldIndex = 0;
-							ft = Struct->ft->elem_type;
-						} else if (!strcmp(FieldName, "kill")) {
-							FieldIndex = 1;
-							ft = void_type;
-						} else {
-							errs() << Struct->Loc << ": threads do not have a method '" << FieldName << "'\n";
-							ft = nullptr;
-						}
-					} else if (MapValue* mv = map_string_get(Struct->ft->fields, FieldName)) {
-						FieldIndex = *(unsigned*)((char*)mv + mv->offset);
-						char* adr = (char*)mv + mv->offset + 4;
-						memcpy(&ft, adr, sizeof(void*));
-					} else {
-						llvm::StringRef struct_name = struct_type->hasName() ?
-							struct_type->getName() :
-							"<anonymous>";
-						errs() << Struct->Loc << ": struct type '" << struct_name << "' has no field named '"
-						       << FieldName << "'\n";
-						ft = nullptr;
-					}
-				} else if (Struct->ft->type == llvm_string_type) {
-					if (!strcmp(FieldName, "size")) {
-						FieldIndex = 0;
-						ft = size_type;
-					} else if (!strcmp(FieldName, "len")) {
-						FieldIndex = 1;
-						ft = size_type;
-					} else {
-						errs() << Struct->Loc << ": strings do not have a property '" << FieldName << "'\n";
-						ft = nullptr;
-					}
-				} else if ((Struct->ft->type_attr & A_complex) && Struct->ft->type == llvm_c32_type) {
-					if (!strcmp(FieldName, "real")) {
-						FieldIndex = 0;
-						ft = f32_type;
-					} else if (!strcmp(FieldName, "imag")) {
-						FieldIndex = 1;
-						ft = f32_type;
-					} else {
-						errs() << Struct->Loc << ": c32 objects do not have a property '" << FieldName << "'\n";
-						ft = nullptr;
-					}
-				} else if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Struct->ft->type)) {
-					if (!strcmp(FieldName, "size")) {
-						FieldIndex = 0;
-						ft = size_type;
-					} else if (!strcmp(FieldName, "order")) {
-						FieldIndex = 1;
-						ft = integer_type;
-					} else if (!strcmp(FieldName, "dim")) {
-						auto fntype = llvm::FunctionType::get(llvm_size_type, { llvm_int_type }, false);
-						ft = new_FullType(fntype, 0);
-						ft->Protos = int_int_proto;
-					} else {
-						errs() << Struct->Loc << ": arrays do not have a property '" << FieldName << "'\n";
-						ft = nullptr;
-					}
-				} else {
-					errs() << Struct->Loc << ": LHS of '.' must be a struct (not " << *Struct->ft->type << ")\n";
-					ft = nullptr;
-				}
-			} else {
-				errs() << Struct->Loc << ": LHS of '.' has no defined type\n";
-				ft = nullptr;
-			}
-		}
+	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field);
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen_complex(llvm::Value* target = nullptr);
@@ -534,33 +416,7 @@ public:
 	int num_dims_to_strip_from_val = 0;
 	bool const_ref;
 	IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
-	             std::unique_ptr<ExprAST> Index_, bool const_ref = false) :
-		LvalueExprAST(Loc), Field(std::move(Field_)), Index(std::move(Index_)), const_ref(const_ref)
-		{
-			if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(Field->ft->type)) {
-				llvm::Type* elem_type = array_type->getElementType();
-				if (elem_type == Field->ft->elem_type->type) {
-					*ft = *Field->ft->elem_type;
-				} else {
-					*ft = *Field->ft;
-					ft->type = elem_type;
-				}
-				return;
-			} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
-				if (Field->ft->type_attr & A_map) {
-					ft = &Field->ft->elem_type[1];
-					return;
-				} else {
-					errs() << Loc << ": invalid index expression\n";
-					ft = nullptr;
-				}
-			} else if (Field->ft->type == llvm_vec_type) {
-				ft = Field->ft->elem_type;
-				return;
-			}
-			errs() << Index->Loc << ": index for non array expression " << *Field->ft << ' ' << Field->ft->type_attr << "\n";
-			ft->type = nullptr;
-		}
+	             std::unique_ptr<ExprAST> Index_, bool const_ref = false);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	std::vector<llvm::Value*> _getAllocSize(llvm::Type** el_ty = nullptr) override;
@@ -578,6 +434,7 @@ public:
 	}
 #endif
 };
+
 // Expression class for a unary '&' operator in rvalues
 // usually to call C functions like f(void*) as f(&x)
 //
@@ -886,50 +743,10 @@ public:
 	}
 };
 
-/* When variables are used as by-value function arguments or as struct field
-   initializers it might be desirable to "move" these variables instead
-   of making a valid copy calling the default (copy) constructor.
-   To decide if this is possible we must keep track of the variable in question
-   to know if it it is used later in the caller. So bool "usage_markers" are added to
-   the CallExprAST and StructExprAST and pointers to these flags are added
-   to the FullVar struct in the var table.
-*/
-
-inline void register_usage_marker(ExprAST* expr, bool* mark_ptr) {
-	if (auto var_expr = dynamic_cast<VariableExprAST*>(expr)) {
-		// it might be possible to move the variable if it isn't used later
-		// so keep track of it
-		if (var_expr->full_var && !(var_expr->full_var->ft.type_attr & (A_mainvar | A_global))) {
-			if (!var_expr->full_var->var_usage_markers) {
-				var_expr->full_var->var_usage_markers = new std::vector<var_usage_marker_t>();
-				all_usage_markers.push_back(var_expr->full_var->var_usage_markers);
-			}
-			var_expr->full_var->var_usage_markers->emplace_back(
-				var_expr->Loc, current_branch_part, mark_ptr);
-		}
-	}
-}
-
-/* When doing "codegen*()" for CallExprAST or StructExprAST we can find out
-   based on these usage markers if we need to call the copy constructor
-   and if the destructor needs to be called later (!is_moved). */
-
-inline std::pair<bool,bool> needs_constructor_call_or_is_moved(
+extern void register_usage_marker(ExprAST* expr, bool* mark_ptr);
+extern std::pair<bool,bool> needs_constructor_call_or_is_moved(
 	arg_needs_constructor_t arg_needs_constructor,
-	bool is_referenced_after_call)
-{
-	bool needs_constructor_call =
-		arg_needs_constructor != arg_is_borrowed_or_pod
-		&& (is_referenced_after_call || !inside_function) // TODO: force move when constructor invalidated
-		&& (get_arg_flag(arg_needs_constructor, arg_is_owned)
-		    || get_arg_flag(arg_needs_constructor, maybe_arg_is_owned));
-	bool is_moved = (get_arg_flag(arg_needs_constructor, arg_is_owned)
-	                 || get_arg_flag(arg_needs_constructor, maybe_arg_is_owned))
-		&& !is_referenced_after_call
-		&& inside_function // TODO: force move when constructor invalidated
-		&& !inside_loop;
-	return { needs_constructor_call, is_moved };
-}
+	bool is_referenced_after_call);
 
 class StructExprAST : public ExprAST {
 public:
