@@ -357,3 +357,108 @@ print n_KlamP_constructor
 print n_KlamP_destructor
 print n_KlamQ_constructor
 print n_KlamQ_destructor
+
+type KlamP3 {
+    a f64
+    b int
+	hhpp f64
+}
+
+# sizeof(KlamP3) > sret_limit, so internally always called by reference
+
+def KlamP3
+	this.a += 0.125
+	n_KlamP_constructor++
+	# print "KlamP3 constructor called ${this.a} ${this.b}"
+end
+
+def ~KlamP3
+	if this.a != 0 || this.b != 0
+		n_KlamP_destructor++
+		# print "KlamP3 destructor called ${this.a} ${this.b}"
+end end
+
+type KlamQ3 {
+	x KlamP3
+	y f64
+}
+
+def KlamQ3
+	n_KlamQ_constructor++
+	# print "KlamQ3 constructor called ${this.x.a} ${this.x.b} ${this.y}"
+end
+
+def ~KlamQ3
+	n_KlamQ_destructor++
+	# print "KlamQ3 destructor called ${this.x.a} ${this.x.b} ${this.y}"
+end
+
+def KlamQ3+(b KlamQ3) KlamQ3
+	r = KlamQ3{ x: KlamP3{ a: this.x.a + b.x.a, b: 34 }, y: this.y * b.y }
+	return r
+end
+
+def get_substruct_constructors_destructors_4 f64
+	r = KlamQ3{ x: KlamP3{ a: 1.75, b: -9 }, y: -1.5 }
+	n_KlamP_constructor = 0
+	n_KlamP_destructor = 0
+	n_KlamQ_constructor = 0
+	n_KlamQ_destructor = 0
+	q = r.x
+	return q.a
+end
+
+def test_get_substruct_constructors_destructors_4 bool
+	w = get_substruct_constructors_destructors_4
+	return w == 2. && n_KlamP_constructor == 1 && n_KlamQ_constructor == 0 && n_KlamP_destructor == 2 && n_KlamQ_destructor == 1
+end
+
+def get_field_elem_owned_2(k KlamP3) f64
+	u = k.a
+	k.b = 1
+	return u
+end
+
+def get_substruct_constructors_destructors_5 f64
+	r = KlamQ3{ x: KlamP3{ a: 1.75, b: -9 }, y: -1.5 }
+	n_KlamP_constructor = 0
+	n_KlamP_destructor = 0
+	n_KlamQ_constructor = 0
+	n_KlamQ_destructor = 0
+	q = get_field_elem_owned_2 r.x
+	r.x.a += 0.5
+	return q
+end
+
+def test_get_substruct_constructors_destructors_5 bool
+	w = get_substruct_constructors_destructors_5
+	print w
+	return w == 2. && n_KlamP_constructor == 1 && n_KlamQ_constructor == 0 && n_KlamP_destructor == 2 && n_KlamQ_destructor == 1
+end
+
+print n_KlamP_constructor
+print n_KlamP_destructor
+print n_KlamQ_constructor
+print n_KlamQ_destructor
+
+def get_field_elem_borrowed_2(k KlamP3) f64
+	u = k.a
+	return u
+end
+
+def get_substruct_constructors_destructors_6 f64
+	r = KlamQ3{ x: KlamP3{ a: 1.75, b: -9 }, y: -1.5 }
+	n_KlamP_constructor = 0
+	n_KlamP_destructor = 0
+	n_KlamQ_constructor = 0
+	n_KlamQ_destructor = 0
+	q = get_field_elem_borrowed_2 r.x
+	r.x.a += 0.5
+	return q
+end
+
+def test_get_substruct_constructors_destructors_6 bool
+	w = get_substruct_constructors_destructors_6
+	print w
+	return w == 1.875 && n_KlamP_constructor == 0 && n_KlamQ_constructor == 0 && n_KlamP_destructor == 1 && n_KlamQ_destructor == 1
+end
