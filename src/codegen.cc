@@ -318,7 +318,7 @@ llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (target && (intptr_t)target != -1)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	return Builder->CreateLoad(ft->type, Malloc);
+	return Builder->CreateLoad(ft->type, Target);
 }
 
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
