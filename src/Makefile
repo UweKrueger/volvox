@@ -139,6 +139,10 @@ endif
 endif
 endif
 
+ifeq ($(shell test -f /etc/alpine-release && echo -n true),true)
+	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DVOLVOX_LTO_LINKER=/usr/bin/ld.lld
+endif
+
 LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
 
 CC = clang$(SUFFIX)
