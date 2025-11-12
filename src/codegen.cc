@@ -436,6 +436,20 @@ llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
+llvm::Value* LvalueExprAST::codegen_borrow() {
+	if (desired_type && desired_type != ft->type || (ft->type_attr & A_rvalue) )
+		return codegen();
+	auto V = codegen_ref(false, true);
+	if (V.first && V.second) {
+		if (V.first->isSized())
+			// Load the value.
+			return Builder->CreateLoad(V.first, V.second, Name.c_str());
+		else
+			errs() << Loc << ": internal error - attempt to load value of unknown size\n";
+	}
+	return nullptr;
+}
+
 llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 	if (!full_var) {
 		errs() << Loc << ": there is no known variable/constant/function/module named '" << Name << "'\n";

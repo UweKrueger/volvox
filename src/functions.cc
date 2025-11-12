@@ -1302,18 +1302,18 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 				|| Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByRef)
 				|| is_var_array
 				|| (i+arg_offs < n_proto_args && (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value));
-			by_val = by_val || Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value;
+			by_val = by_val || (Proto->ArgTypes[i+arg_offs]->type_attr & A_by_value);
 			// we treat 'maybe_arg_needs_constructor' like 'arg_needs_constructor' in the following
 			// lines for now. Maybe we optimize this sometime by introducing a declaration for
 			// a constructor wrapper that is defined once we know if the the call is needed
 			std::tie(needs_constructor_call, is_moved) = needs_constructor_call_or_is_moved(
 				Proto->ArgNeedsConstructor[i+arg_offs], fn_args[i+arg_offs].is_referenced_after_call);
-
+/*
 			if (is_moved)
 				errs() << Args[i]->Loc << ": mark arg as moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
 			else
 				errs() << Args[i]->Loc << ": not moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
-
+*/
 		}
 		if (!is_address && (Args[i]->ft->type_attr & A_cstring)) {
 			// errs() << Args[i]->Loc << ": ### function argument 1\n";
@@ -1367,10 +1367,13 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						}
 					}
 				} else {
-					arg = Args[i]->codegen();
-					// errs() << Args[i]->Loc << ": ### function argument 23 " << needs_constructor_call << is_moved << "\n";
+					// errs() << Args[i]->Loc << ": ### function argument 23 " << needs_constructor_call << is_moved << " " << *Args[i]->ft << "\n";
+					// errs() << Loc << ": valarg #" << i << " " << *arg << ' ' << Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal) << '\n';
+					if ((i+arg_offs) < n_proto_args && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) && Proto->ArgNeedsConstructor[i+arg_offs] == arg_is_borrowed_or_pod)
+						arg = Args[i]->codegen_borrow();
+					else
+						arg = Args[i]->codegen();
 
-					//errs() << Loc << ": valarg #" << i << " " << *arg << ' ' << Proto->ArgAttrs[i+arg_offs].hasAttribute(llvm::Attribute::ByVal) << '\n';
 				}
 			}
 			if (!arg) {

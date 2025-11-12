@@ -202,6 +202,7 @@ public:
 	bool error_already_printed = false;
 	std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims() override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+	llvm::Value* codegen_borrow() override;
 	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
 		if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
 			return Builder->CreateLoad(ref.first, ref.second, Name.c_str());

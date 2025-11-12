@@ -1591,6 +1591,12 @@ public:
 	virtual llvm::Value* codegen(bool suppress_destructor = false) {
 		return convert_raw(codegen_raw((llvm::Value*)((intptr_t)(-(int)suppress_destructor))));
 	}
+	virtual llvm::Value* codegen_borrow() {
+		return codegen();
+	}
+	virtual llvm::Value* codegen_move() {
+		return codegen(true);
+	}
 	int getLine() const { return Loc.Line; }
 	int getCol() const { return Loc.Col; }
 #ifndef NDEBUG
