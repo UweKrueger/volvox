@@ -62,13 +62,6 @@ public:
 		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
 	virtual ~ExprAST() {}
 	virtual llvm::Value* getAllocSize(llvm::Type** el_ty = nullptr) { return getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)); }
-	// generate an llvm::Value* for this expression. 'target' may be:
-	// - a pointer value: in this case the generated value is directly stored and "void" is returned
-	// - (void*)0: the generated value is returned. Since it is not stored (e.g. to a variable) it is assumed that it's
-	//      an intermediate value (e.g. '(b + c)' in 'x = a * (b + c)' and a potential destructor call for the
-	//      value is registred
-	// - suppress_destructor_flag: like '(void*)0' but no destructor call is registred.
-	virtual llvm::Value* codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
 	virtual bool needs_target() { return false; } // e.g. struct return in CallExpr
 	// there are cases where the storage size, i.e. the dimensions of a tensor ist needed
 	// before the elements can be calculated, e.g. to reserve space
@@ -76,12 +69,26 @@ public:
 	virtual llvm::Value* alloc_size();
 	std::tuple<llvm::Value*,llvm::Value*,unsigned> alloc_dims();
 	llvm::Value* convert_raw(llvm::Value* rawV);
+	// generate an llvm::Value* for this expression. 'target' may be:
+	// - a pointer value: in this case the generated value is directly stored,
+	//   and "void" is returned. The Constructor ist called for parts of variables
+	//   (VariableExprAST, SelectExprAST, IndexExprAST) 
+	// - (void*)0: the generated value is returned. Since it is not stored (e.g. to
+	//   a variable) it is assumed that it's an intermediate value (e.g. '(b + c)'
+	//   in 'x = a * (b + c)' and a potential destructor call for the value is registred
+	//   unless it's a variable part in which case no constructor is called
+	// - suppress_destructor_flag: like '(void*)0' but no destructor call is registred.
+	virtual llvm::Value* codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
+	// return value of expression - fully constructed unless part of variable
+	// register destructor unless suppress_destructor is set or value is part of variable
+	// do conversion if desired_type != type
 	virtual llvm::Value* codegen(bool suppress_destructor = false) {
 		return convert_raw(codegen_raw((llvm::Value*)((intptr_t)(-(int)suppress_destructor))));
 	}
 	virtual llvm::Value* codegen_borrow() {
 		return codegen();
 	}
+	// return 
 	virtual llvm::Value* codegen_move() {
 		return codegen(true);
 	}

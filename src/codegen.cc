@@ -436,6 +436,10 @@ llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
+
+// This method is essentially identical to the default implementation of
+// codegen_raw(suppress_destructor_flag);
+// it is used for cases where codegen_raw() is overwritten
 llvm::Value* LvalueExprAST::codegen_borrow() {
 	if (desired_type && desired_type != ft->type || (ft->type_attr & A_rvalue) )
 		return codegen();
