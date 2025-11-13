@@ -24,6 +24,75 @@ extern llvm::Value* handle(llvm::Value* target, llvm::Value* val, SourceLocation
 extern llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc, volvoxc::FullType* ft, bool basic_constructor = true);
 
 /// ExprAST - Base class for all expression nodes.
+class ExprAST {
+public:
+	SourceLocation Loc;
+	volvoxc::FullType* ft = nullptr;
+	llvm::Type* desired_type = nullptr;
+	ConversionKind conv_kind = ConvImplicit;
+	bool is_unknown_type = false;
+
+	// construct from type and attributes
+	ExprAST(const ExprAST& s) = default;
+	ExprAST(SourceLocation Loc) : ft(new_FullType(nullptr, 0)), Loc(Loc) {}
+	ExprAST(llvm::Type* type = llvm::Type::getVoidTy(Context), unsigned type_attr = 0,
+	        SourceLocation Loc = CurLoc, bool is_unknown_type = false)
+		: ft(nullptr), Loc(Loc),
+		  is_unknown_type(is_unknown_type)
+		{
+			if (type)
+				if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(type)) {
+					if (struct_ty->hasName())
+						ft = lex.get_full_type(struct_ty->getName().str().c_str());
+				}
+			if (!ft)
+				ft = new_FullType(type, type_attr);
+		}
+	ExprAST(std::pair<llvm::Type*, unsigned> p, SourceLocation Loc = CurLoc)
+		: ft(new_FullType(p.first, p.second)), Loc(Loc) {}
+	// construct from key and attributes. The A_signed flag is already
+	// looked up when the key is searched
+	ExprAST(unsigned key, unsigned add_attr, SourceLocation Loc = CurLoc,
+	        bool is_unknown_type = false)
+		: ft(lex.get_full_type(key)), Loc(Loc), is_unknown_type(is_unknown_type)
+		{
+			ft->type_attr |= add_attr;
+		}
+	ExprAST(volvoxc::FullType* full_type, SourceLocation Loc = CurLoc, bool is_unknown_type = false)
+		: ft(full_type ? full_type : new_FullType(nullptr, 0)), Loc(Loc), is_unknown_type(is_unknown_type) {}
+	virtual ~ExprAST() {}
+	virtual llvm::Value* getAllocSize(llvm::Type** el_ty = nullptr) { return getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)); }
+	// generate an llvm::Value* for this expression. 'target' may be:
+	// - a pointer value: in this case the generated value is directly stored and "void" is returned
+	// - (void*)0: the generated value is returned. Since it is not stored (e.g. to a variable) it is assumed that it's
+	//      an intermediate value (e.g. '(b + c)' in 'x = a * (b + c)' and a potential destructor call for the
+	//      value is registred
+	// - suppress_destructor_flag: like '(void*)0' but no destructor call is registred.
+	virtual llvm::Value* codegen_raw(llvm::Value* target = nullptr) = 0; // target used by sret
+	virtual bool needs_target() { return false; } // e.g. struct return in CallExpr
+	// there are cases where the storage size, i.e. the dimensions of a tensor ist needed
+	// before the elements can be calculated, e.g. to reserve space
+	virtual std::pair<llvm::Type*,std::unique_ptr<std::vector<llvm::Value*>>> codegen_dims();
+	virtual llvm::Value* alloc_size();
+	std::tuple<llvm::Value*,llvm::Value*,unsigned> alloc_dims();
+	llvm::Value* convert_raw(llvm::Value* rawV);
+	virtual llvm::Value* codegen(bool suppress_destructor = false) {
+		return convert_raw(codegen_raw((llvm::Value*)((intptr_t)(-(int)suppress_destructor))));
+	}
+	virtual llvm::Value* codegen_borrow() {
+		return codegen();
+	}
+	virtual llvm::Value* codegen_move() {
+		return codegen(true);
+	}
+	int getLine() const { return Loc.Line; }
+	int getCol() const { return Loc.Col; }
+#ifndef NDEBUG
+	virtual llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) {
+		return out << ':' << getLine() << ':' << getCol() << '\n';
+	}
+#endif
+};
 
 class InterfaceExprAST : public ExprAST {
 	std::unique_ptr<ExprAST> expr;
@@ -133,6 +202,73 @@ public:
 			free(p);
 	}
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
+};
+
+/// PrototypeAST - This class represents the "prototype" for a function,
+/// which captures its name, and its argument names (thus implicitly the number
+/// of arguments the function takes), as well as if it is an operator.
+class PrototypeAST {
+
+public:
+	std::vector<std::string> Args;
+	std::vector<volvoxc::FullType*> ArgTypes = {};
+	std::vector<arg_needs_constructor_t> ArgNeedsConstructor = {};
+	std::vector<llvm::Type*> LLVMArgTypes = {}; // to get LLVM function type
+	std::vector<llvm::AttributeSet> ArgAttrs = {};
+	std::vector<SourceLocation> ArgPos;
+	std::vector<llvm::Value*> implicitArgs; // for built-in methods
+	volvoxc::FullType* RetType = nullptr;
+	std::string returnName; // for named return or "this" for non-struct constructors
+	SourceLocation retLoc;
+	llvm::FunctionType* FT = nullptr;
+	llvm::Constant* const_result = nullptr;
+	unsigned IsOperator = 0;
+	unsigned visibility = 0;
+	bool IsStructRet = false; // 1st arg is pointer to allocated mem to return the struct using call by reference
+	bool IsVarArgs = false;
+	int Line;
+	llvm::GlobalValue::LinkageTypes link_typ;
+	std::string Name;
+	ssize_t vtable_offs = -1;
+	PrototypeAST(const PrototypeAST& proto) = default;
+	PrototypeAST(SourceLocation Loc, const std::string &Name,
+	             std::vector<std::string> Args, unsigned visibility = 0, SourceLocation retLoc = CurLoc,
+	             unsigned IsOperator = 0, volvoxc::FullType* RetType_ = nullptr,
+	             std::vector<volvoxc::FullType*> ArgTypes = {},
+	             std::vector<arg_needs_constructor_t> _ArgNeedsConstructor = {},
+	             std::vector<SourceLocation> _ArgPos = {}, std::string _returnName = "",
+	             bool IsVarArgs = false);
+	llvm::Value* codegen(bool need_address = false);
+	const std::string &getName() const { return Name; }
+
+	bool isUnaryOp() const { return IsOperator && Args.size() == 1; }
+	bool isBinaryOp() const { return IsOperator && Args.size() == 2; }
+
+	char getOperatorName() const {
+		assert(isUnaryOp() || isBinaryOp());
+		return Name[Name.size() - 1];
+	}
+	// return -2 for conflict, -1 for new Proto, 0...n for matching index
+	int conflicts(std::vector<std::unique_ptr<PrototypeAST>>& protos);
+	int getLine() const { return Line; }
+};
+
+inline std::vector<std::unique_ptr<PrototypeAST>>* new_AnonProto(PrototypeAST* proto, SourceLocation Loc) {
+	ProtoListElem* new_node = new ProtoListElem(std::make_unique<PrototypeAST>(*proto));
+	new_node->protos[0]->retLoc = Loc;
+	new_node->next = nullptr;
+	*anon_protos_end = new_node;
+	anon_protos_end = &new_node->next;
+	return &new_node->protos;
+};
+
+inline std::vector<std::unique_ptr<PrototypeAST>>* new_AnonProto(std::unique_ptr<PrototypeAST> proto, SourceLocation Loc) {
+	ProtoListElem* new_node = new ProtoListElem(std::move(proto));
+	new_node->protos[0]->retLoc = Loc;
+	new_node->next = nullptr;
+	*anon_protos_end = new_node;
+	anon_protos_end = &new_node->next;
+	return &new_node->protos;
 };
 
 inline bool is_cfn(std::vector<std::unique_ptr<PrototypeAST>>* Proto) {
