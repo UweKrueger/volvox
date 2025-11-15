@@ -547,7 +547,6 @@ cleanup:
 }
 
 static void HandleExtern(unsigned visibility) {
-	getNextToken();
 	if (auto Proto = ParseExtern(visibility)) {
 		// "cdecl(rename) unmangled(...)"
 		std::string unmangledName = Proto->getName();
@@ -1235,7 +1234,7 @@ static void MainLoop() {
 			goto startmainloop;
 		case tok_cdecl:
 			sym_kind |= A_c_api;
-			if (lex.peek() == '(') {
+			if (lex.peek() == '(') { // renamed C-function "cdecl(sinf) sin(x f32) f32"
 				getNextToken();
 				getNextToken();
 				if (CurTok.kind != tok_identifier) {
@@ -1253,12 +1252,18 @@ static void MainLoop() {
 			} else {
 				cdecl_rename.clear();
 			}
+		case tok_undecl:
+			// we have a passthru from above, so exclude that
+			if (!(sym_kind & A_c_api))
+				sym_kind |= A_undecl;
 		case tok_decl:
 			if (sym_kind & A_inline) {
-				errs() << CurLoc << ": '" << (CurTok.kind == tok_decl ? "decl" : "cdecl") << " cannot be used in combination with " << tok_inline << '\n';
+				errs() << CurLoc << ": '" << CurTok.kind
+				       << " cannot be used in combination with " << tok_inline << '\n';
 				purgeLine();
-			} else
+			} else {
 				HandleExtern(sym_kind);
+			}
 			goto startmainloop;
 		case tok_import:
 		case tok_from:

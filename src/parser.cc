@@ -2729,22 +2729,31 @@ void setMangledName(PrototypeAST* Proto, unsigned visibility) {
 	}
 }
 
+static bool ParseFnVisibility(unsigned& visibility) {
+	getNextToken(eSemi); // eat def/decl/cdecl/undecl
+	if (CurTok.kind != tok_identifier) {
+		if (CurTok.kind == tok_const)
+			visibility |= A_const;
+		else if (CurTok.kind == tok_init)
+			visibility |= A_init;
+		else if (CurTok.kind == tok_clone)
+			visibility |= A_clone;
+		else if (CurTok.kind == tok_unary && IdentifierStr == "~")
+			visibility |= A_destructor;
+		else {
+			errs() << CurLoc << ": invalid operator '" << IdentifierStr << "' in function prototype\n";
+			return false;
+		}
+		getNextToken(eSemi);
+	}
+	return true;
+}
+
 /// definition := 'def' prototype expression
 std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
-	if (!(visibility & A_closure)) {
-		getNextToken(eSemi); // eat 'def'
-		if (CurTok.kind != tok_identifier) {
-			if (CurTok.kind == tok_const)
-				visibility |= A_const;
-			else if (CurTok.kind == tok_unary && IdentifierStr == "~")
-				visibility |= A_destructor;
-			else {
-				errs() << CurLoc << ": invalid operator '" << IdentifierStr << "' in function definition\n";
-				return nullptr;
-			}
-			getNextToken(eSemi);
-		}
-	}
+	if (!(visibility & A_closure))
+		if (!ParseFnVisibility(visibility))
+			return nullptr;
 	auto theLoc = CurLoc;
 	auto Proto = ParsePrototype(visibility);
 	if (!Proto) {
@@ -3036,5 +3045,7 @@ std::unique_ptr<FunctionAST> ParseTopLevelExpr(std::pair<std::unique_ptr<ExprAST
 /// external := 'extern' prototype
 std::unique_ptr<PrototypeAST> ParseExtern(unsigned& visibility) {
 	visibility |= (A_extern | A_pub);
+	if (!ParseFnVisibility(visibility))
+		return nullptr;
 	return ParsePrototype(visibility);
 }

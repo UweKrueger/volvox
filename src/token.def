@@ -37,9 +37,12 @@ TOKEN(ctype) \
 TOKEN(interface) \
 TOKEN(decl) \
 TOKEN(cdecl) \
+TOKEN(undecl) \
 TOKEN(inline) \
 TOKEN(def) \
 TOKEN(cdef) \
+TOKEN(clone) \
+TOKEN(init) \
 TOKEN(false) /* built-in values - not exactly keywords */ \
 TOKEN(true) \
 TOKEN(nil) \

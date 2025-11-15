@@ -560,8 +560,12 @@ std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> getResType(
 	unsigned left_attr, unsigned right_attr, bool left_is_unknown_type, bool right_is_unknown_type)
 {
 	auto opclass = getOpClass(Op);
-	if (!left_type && (opclass == OpColon || opclass == OpComma || opclass == OpTernary))
-		return { llvm::Type::getVoidTy(Context), left_attr, false, opclass, nullptr };
+	if (!left_type) {
+		if (opclass == OpColon || opclass == OpComma || opclass == OpTernary)
+			return { llvm::Type::getVoidTy(Context), left_attr, false, opclass, nullptr };
+		else
+			return { nullptr, 0, false, opclass, "no LHS type\n" };
+	}
 	if (left_type->isStructTy() || left_type->isArrayTy() || left_type->isPointerTy()) {
 		if (right_type == left_type)
 			return { left_type, left_attr & right_attr, false, opclass, nullptr };

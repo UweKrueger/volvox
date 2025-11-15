@@ -289,6 +289,17 @@ type __map_node_ref {
 type __map_value_ref {
 	&value __map_value
 }
+
+type __map {
+	__ptr voidptr
+	count size_t
+}
+
+def ~__map
+	if bool(this.__ptr)
+		__free this.__ptr
+end end
+
 type __range_u8 {
 	min u8
 	max u8

@@ -16,15 +16,18 @@
 #define A_shared (1U<<2)
 #define A_unique (1U<<3)
 #define A_atomic (1U<<4)
+#define A_init   (1U<<4) // // for constructor that can only be used as initialization constructor
 #define A_ref    (1U<<5) // function arg is reference
 #define A_ptrref (1U<<6) // reference that is a (mutable) pointer internally
 #define A_map    (1U<<7) // llvm-type is key type
+#define A_undecl (1U<<7) // (clone/init/default) constructor declaration the is forbidden (clone/init/default)
 #define A_signed_key (1U<<8) //for maps with integer key
 #define A_getter (1U<<8) // for interface prototype
-#define A_setter  (1U<<9) // Tyte.field=(val t) t
+#define A_setter (1U<<9) // Tyte.field=(val t) t
 #define A_mainvar (1U<<10) // global for LLVM
 #define A_union  (1U<<11)
-#define A_cstring (1U<<13)
+#define A_cstring (1U<<13) // for pointer type - otherwise voidptr
+#define A_clone (1U<<13) // for constructor that can only be used as copy constructor
 #define A_va_arg (1U<<14) // array of interfaces
 #define A_optional (1U<<15)
 // symbol visibility attributes
