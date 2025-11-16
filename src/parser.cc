@@ -2811,7 +2811,6 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			errs() << Proto->retLoc << ": internal error - named return but no return type\n";
 		}
 	}
-	bool implicit_method = false;
 	auto ProtoRef = Proto.get();
 	std::string unmangledName = Proto->getName();
 	setMangledName(ProtoRef, visibility);
@@ -2827,7 +2826,6 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) {
 			// default constructor
 			// errs() << Proto->retLoc << ": ++++ " << Proto->ArgTypes[0]->mangled_name << " basic constructor " << Proto->Name << "\n";
-			implicit_method = true;
 			AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
 			std::get<2>(*AutoMethod) = Proto->Name;
 		} else if (!(Proto->visibility & A_conversion) && Proto->RetType && !Proto->RetType->type->isVoidTy()) {
@@ -2839,7 +2837,6 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 			Conversions[Proto->Name] = Proto->FT;
 	} else if (visibility & A_destructor) {
 		// errs() << Proto->retLoc << ": ---- " << Proto->ArgTypes[0]->mangled_name << " basic destructor " << Proto->Name << "\n";
-		implicit_method = true;
 		AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
 		std::get<3>(*AutoMethod) = Proto->Name;
 	}
