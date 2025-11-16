@@ -20,7 +20,7 @@
 #define A_ref    (1U<<5) // function arg is reference
 #define A_ptrref (1U<<6) // reference that is a (mutable) pointer internally
 #define A_map    (1U<<7) // llvm-type is key type
-#define A_undecl (1U<<7) // (clone/init/default) constructor declaration the is forbidden (clone/init/default)
+#define A_delete (1U<<7) // (clone/init/default) constructor declaration the is forbidden (clone/init/default)
 #define A_signed_key (1U<<8) //for maps with integer key
 #define A_getter (1U<<8) // for interface prototype
 #define A_setter (1U<<9) // Tyte.field=(val t) t

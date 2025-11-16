@@ -1252,10 +1252,10 @@ static void MainLoop() {
 			} else {
 				cdecl_rename.clear();
 			}
-		case tok_undecl:
+		case tok_delete:
 			// we have a passthru from above, so exclude that
 			if (!(sym_kind & A_c_api))
-				sym_kind |= A_undecl;
+				sym_kind |= A_delete;
 		case tok_decl:
 			if (sym_kind & A_inline) {
 				errs() << CurLoc << ": '" << CurTok.kind

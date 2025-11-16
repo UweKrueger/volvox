@@ -2730,7 +2730,7 @@ void setMangledName(PrototypeAST* Proto, unsigned visibility) {
 }
 
 static bool ParseFnVisibility(unsigned& visibility) {
-	getNextToken(eSemi); // eat def/decl/cdecl/undecl
+	getNextToken(eSemi); // eat def/decl/cdecl/delete
 	if (CurTok.kind != tok_identifier) {
 		if (CurTok.kind == tok_const)
 			visibility |= A_const;

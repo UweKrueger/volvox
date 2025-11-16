@@ -37,7 +37,7 @@ TOKEN(ctype) \
 TOKEN(interface) \
 TOKEN(decl) \
 TOKEN(cdecl) \
-TOKEN(undecl) \
+TOKEN(delete) \
 TOKEN(inline) \
 TOKEN(def) \
 TOKEN(cdef) \
