@@ -897,7 +897,11 @@ extern void register_destructor(SourceLocation& Loc, volvoxc::FullType* ft, llvm
 class StructExprAST : public ExprAST {
 public:
 	std::map<std::string, std::pair<std::unique_ptr<ExprAST>,SourceLocation*>> Fields; // SourceLocation: point of usage after call
+	unsigned num_fields;
+	bool codegen_done = false;
+	std::vector<std::pair<std::unique_ptr<ExprAST>,SourceLocation*>> initializers;
 	StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::unique_ptr<ListExprAST> list);
+	~StructExprAST();
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	bool needs_target() override {
 		if (!ft) {

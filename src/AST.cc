@@ -34,7 +34,10 @@ BinaryExprAST::BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_pt
 }
 
 StructExprAST::StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::unique_ptr<ListExprAST> list)
-	: ExprAST(ft, Loc) {
+	: ExprAST(ft, Loc), num_fields(llvm::dyn_cast<llvm::StructType>(ft->type) ?
+	                               llvm::dyn_cast<llvm::StructType>(ft->type)->getNumElements() : 0),
+	  initializers(num_fields)
+{
 	for (auto& field: list->Elements) {
 		if (auto field_val = dynamic_cast<BinaryExprAST*>(field.get())) {
 			if (field_val->Op[0] == ':' && !field_val->Op[1]) {
@@ -72,6 +75,12 @@ StructExprAST::StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::uni
 		}
 		errs() << field->Loc << ": binary expression as initializer expected\n";
 	}
+}
+
+StructExprAST::~StructExprAST() {
+	if (!codegen_done) // codege has not been processed, so clean up Fields
+		for (auto& [fname, ini]: Fields)
+			free(ini.second);
 }
 
 VariableExprAST::VariableExprAST(SourceLocation Loc, const std::string &Name)

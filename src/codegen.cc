@@ -322,10 +322,10 @@ llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
+	codegen_done = true;
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		llvm::Value* V = llvm::UndefValue::get(ft->type);
 		unsigned num_fields = struct_type->getNumElements();
-		std::vector<std::pair<std::unique_ptr<ExprAST>,SourceLocation*>> initializers(num_fields);
 		if ((ft->type_attr & A_union) && Fields.size() > 1) {
 			errs() << Loc << ": union literals can have at most one element\n";
 			return nullptr;
