@@ -520,8 +520,9 @@ extern std::vector<const char*> module_names;
 extern std::map<std::string,llvm::FunctionType*> Conversions;
 
 // key: mangled type name, values: full constructor, full destructor, basic constructor, basic destructor
-//                                     C1          D1          C2          D2
+//                                     C1 (clone)  D1          C2 (init)   D2
 extern std::map<std::string,std::tuple<std::string,std::string,std::string,std::string>> AutoMethods;
+constexpr std::string invalid_constructor = "!";
 
 extern llvm::Function* getConversion(std::string& mangled_name);
 extern llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor = false, bool basic = false);

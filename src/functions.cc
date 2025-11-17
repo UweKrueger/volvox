@@ -72,6 +72,10 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 		basic ? std::get<2>(Names->second) : std::get<0>(Names->second);
 	if (thename.empty())
 		return nullptr;
+	if (!destructor && thename == invalid_constructor) {
+		errs() << "constructor has been invalidated\n";
+		return nullptr;
+	}
 	if (auto F = TheModule->getFunction(thename))
 		return F;
 	auto F = llvm::Function::Create(constr_destr_fn_type, llvm::Function::ExternalLinkage, thename, TheModule.get());
@@ -726,12 +730,13 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 			return;
 		}
 		Builder->CreateRetVoid();
-		if (is_constructor)
-			std::get<0>(AutoMethods[ft->mangled_name]) = std::string(D->getName());
-		else
+		if (is_constructor) {
+			if (std::get<0>(AutoMethods[ft->mangled_name]) != invalid_constructor)
+				std::get<0>(AutoMethods[ft->mangled_name]) = std::string(D->getName());
+		} else
 			std::get<1>(AutoMethods[ft->mangled_name]) = std::string(D->getName());
 		finishFunctionOrModule(D, 1, false);
-		if (is_constructor) {
+		if (is_constructor && std::get<2>(AutoMethods[ft->mangled_name]) != invalid_constructor) {
 			// provide an empty basic constructor
 			auto basicD = createConstructorOrDestructorFnProto(ft, is_constructor, true);
 			auto thatarg = basicD->getArg(0);
@@ -1809,7 +1814,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 				errs() << Proto->retLoc << ": internal compiler error - function '" << FnName << "' seems to have been previously defined\n";
 				errs() << registred.first->second << ": this is the location of the previous definition\n";
 				success = false;
-			} else if (AutoMethod) {
+			} else if (AutoMethod && !((Proto->visibility & A_constructor) && std::get<0>(*AutoMethod) == invalid_constructor)) {
 				// provide "full" versions of constructor/destructor that handles elements
 				auto D = createConstructorOrDestructorFnProto(Proto->ArgTypes[0], (bool)(Proto->visibility & A_constructor));
 				auto thisarg = D->getArg(0);

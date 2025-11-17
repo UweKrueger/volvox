@@ -2821,13 +2821,29 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		prompt_indent = 0;
 		return nullptr;
 	}
+	bool is_default_constructor = false;
 	std::tuple<std::string,std::string,std::string,std::string>* AutoMethod = nullptr;
 	if (visibility & A_constructor) {
 		if (Proto->ArgTypes.size() == 1 && (!Proto->RetType || Proto->RetType->type->isVoidTy()) && Proto->returnName.empty()) {
-			// default constructor
+			is_default_constructor = true;
 			// errs() << Proto->retLoc << ": ++++ " << Proto->ArgTypes[0]->mangled_name << " basic constructor " << Proto->Name << "\n";
+			if (!(visibility & (A_init | A_clone)))
+				// no restricting keyword means both cases are handled with this construct
+				visibility |= (A_init | A_clone);
 			AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
-			std::get<2>(*AutoMethod) = Proto->Name;
+			if (visibility & A_init) {
+				if (std::get<2>(*AutoMethod) == invalid_constructor) {
+					errs() << Proto->retLoc << ": constructor of this kind has been deleted\n";
+					return nullptr;
+				}
+				std::get<2>(*AutoMethod) = Proto->Name;
+			}
+			if (visibility & A_clone) {
+				if (std::get<0>(*AutoMethod) == invalid_constructor) {
+					errs() << Proto->retLoc << ": constructor of this kind has been deleted\n";
+					return nullptr;
+				}
+			}
 		} else if (!(Proto->visibility & A_conversion) && Proto->RetType && !Proto->RetType->type->isVoidTy()) {
 			Proto->visibility &= ~A_method;
 			if (!check_and_add_proto(lex.module->FunctionProtos[unmangledName], std::move(Proto), unmangledName))
@@ -2839,6 +2855,15 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 		// errs() << Proto->retLoc << ": ---- " << Proto->ArgTypes[0]->mangled_name << " basic destructor " << Proto->Name << "\n";
 		AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
 		std::get<3>(*AutoMethod) = Proto->Name;
+	}
+	if (!is_default_constructor) {
+		if (visibility & A_clone) {
+			errs() << Proto->retLoc << ": 'clone' keyword only allowed for default constructor\n";
+			return nullptr;
+		} else if (visibility & A_init) {
+			errs() << Proto->retLoc << ": 'init' keyword only allowed for default constructor\n";
+			return nullptr;
+		}
 	}
 	if (Proto->visibility & A_method) {
 		std::string mangled_receiver_type;

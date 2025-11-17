@@ -548,6 +548,31 @@ cleanup:
 
 static void HandleExtern(unsigned visibility) {
 	if (auto Proto = ParseExtern(visibility)) {
+		if (visibility & A_delete) {
+			if (!(visibility & A_constructor) || Proto->ArgTypes.size() != 1 || (Proto->RetType && !Proto->RetType->type->isVoidTy()) || !Proto->returnName.empty()) {
+				errs() << Proto->retLoc << ": 'delete' only allowed for default constructor\n";
+				goto cleanup;
+			}
+			if (!(visibility & (A_init | A_clone)))
+				// no restricting keyword means both cases are handled with this construct
+				visibility |= (A_init | A_clone);
+			std::tuple<std::string,std::string,std::string,std::string>* AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
+			if (visibility & A_init) {
+				if (!std::get<2>(*AutoMethod).empty()) {
+					errs() << Proto->retLoc << ": 'delete' conflicts with previous declaration of constructor\n";
+					goto cleanup;
+				}
+				std::get<2>(*AutoMethod) = invalid_constructor;
+			}
+			if (visibility & A_clone) {
+				if (!std::get<0>(*AutoMethod).empty()) {
+					errs() << Proto->retLoc << ": 'delete' conflicts with previous declaration of constructor\n";
+					goto cleanup;
+				}
+				std::get<0>(*AutoMethod) = invalid_constructor;
+			}
+			return;
+		}
 		// "cdecl(rename) unmangled(...)"
 		std::string unmangledName = Proto->getName();
 		setMangledName(Proto.get(), visibility);
