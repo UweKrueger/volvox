@@ -325,11 +325,12 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		llvm::Value* V = llvm::UndefValue::get(ft->type);
 		unsigned num_fields = struct_type->getNumElements();
-		std::vector<std::pair<std::unique_ptr<ExprAST>,bool>> initializers(num_fields);
+		std::vector<std::pair<std::unique_ptr<ExprAST>,SourceLocation*>> initializers(num_fields);
 		if ((ft->type_attr & A_union) && Fields.size() > 1) {
 			errs() << Loc << ": union literals can have at most one element\n";
 			return nullptr;
 		}
+		// convert from name-based initializer map to index based initializers
 		for (auto& [fname, ini]: Fields) {
 			MapValue* mv = map_string_get(ft->fields, fname.c_str());
 			if (!mv) {
@@ -373,8 +374,8 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 						V = llvm::UndefValue::get(struct_type);
 						V = Builder->CreateInsertValue(V, ini, 0, "unioninit");
 						auto char0 = Builder->getInt8(0);
-						for (unsigned i = szdiff; i; i--)
-							V = Builder->CreateInsertValue(V, char0, i, "unionpadding");
+						for (unsigned k = szdiff; k; k--)
+							V = Builder->CreateInsertValue(V, char0, k, "unionpadding");
 					} else {
 						std::vector<llvm::Type*> types{ ini->getType() };
 						auto struct_type = llvm::StructType::get(Context, types);
@@ -394,7 +395,8 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 					}
 					llvm::Value* store = (target && (intptr_t)target != -1) ? target : CreateEntryBlockAlloca(ft->type);
 					Builder->CreateStore(V, Builder->CreatePointerCast(store, llvm_ptr_type));
-					if (!target || (intptr_t)target == -1)
+					free(initializers[i].second);
+					if (!target || target == suppress_destructor_flag)
 						return Builder->CreateLoad(ft->type, store);
 					else
 						return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
@@ -411,11 +413,13 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			if (ft->fields_by_idx[i].getFt()->type_attr & A_destructor)
 				field_needs_constructor = (arg_needs_constructor_t)(
 					(uint8_t)field_needs_constructor | (uint8_t)arg_has_destructor | (uint8_t)arg_is_owned);
+			SourceLocation* laterUsage = initializers[i].second;
 			auto [ needs_constructor_call, is_moved ] = needs_constructor_call_or_is_moved(
-				field_needs_constructor, initializers[i].second);
+				field_needs_constructor, (bool)laterUsage);
 			if (initializers[i].first && (is_moved || needs_constructor_call))
-				ini = HandleMove(initializers[i].first.get(), initializers[i].first->ft, ini->getType(), false, is_moved, needs_constructor_call, ini);
+				ini = HandleMove(initializers[i].first.get(), initializers[i].first->ft, ini->getType(), false, is_moved, needs_constructor_call, ini, laterUsage);
 			V = Builder->CreateInsertValue(V, ini, i, "structinit");
+			free(laterUsage);
 		}
 		return handleC(target, V, Loc, ft);
 	} else {
@@ -2183,11 +2187,11 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			// no explicit constructor call but there is a default constructor
 			auto F = getConstructorOrDestructor(&entry->ft);
 			if (!F) {
-				errs() << Loc << ": internal error - default constructor not found for " << *entry->ft.type << ".\n";
+				// TODO: actually do check if move is possible
+				errs() << Loc << ": clone constructor not available for type " << *entry->ft.type << " and move is not possible\n";
 				return nullptr;
-			} else {
-				Builder->CreateCall(F, { entry->val });
 			}
+			Builder->CreateCall(F, { entry->val });
 		}
 		ft->type = llvm::Type::getVoidTy(Context);
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));

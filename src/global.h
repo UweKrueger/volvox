@@ -400,7 +400,7 @@ struct FnArg {
 	unsigned argtype_attr = 0;
 	bool arg_unknown_type = false;
 	bool is_anonymous_list = false;
-	bool is_referenced_after_call = false;
+	SourceLocation* is_referenced_after_call = nullptr;
 	bool arg_signed() { return argtype_attr & A_signed; }
 };
 
@@ -668,10 +668,10 @@ inline void unset_arg_flag(arg_needs_constructor_t* val, arg_needs_constructor_t
 class var_usage_marker_t {
 public:
 	LogicalLocation loc;
-	bool* flag_ptr;
+	SourceLocation** flag_ptr;
 	var_usage_marker_t() = delete;
 	var_usage_marker_t(const SourceLocation& src,
-	                   const std::vector<branch_part_t>& Branch, bool* flag_ptr)
+	                   const std::vector<branch_part_t>& Branch, SourceLocation** flag_ptr)
 		: loc(src, Branch), flag_ptr(flag_ptr) {}
 	~var_usage_marker_t() = default;
 };
@@ -736,7 +736,10 @@ struct FullVar {
 };
 
 extern std::vector<std::vector<var_usage_marker_t>*> all_usage_markers;
-extern llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* real_arg_type, bool is_address, bool is_moved, bool needs_constructor_call, llvm::Value* val = nullptr);
+extern llvm::Value* HandleMove(
+	ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* real_arg_type,
+	bool is_address, bool is_moved, bool needs_constructor_call,
+	llvm::Value* val = nullptr, SourceLocation* laterUsage = nullptr);
 
 struct FVListElem {
 	FVListElem* next = nullptr;

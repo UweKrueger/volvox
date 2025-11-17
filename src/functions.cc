@@ -393,7 +393,7 @@ do_analyze:
 		                        static_cast<bool>(method->Receiver->ft->type_attr & A_signed),
 		                        method->Receiver->is_unknown_type});
 	else if (type_expr && type_expr->ft->type->isStructTy())
-		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, type_expr->ft->type_attr, false, false, false});
+		fn_args.push_back(FnArg{nullptr, type_expr->ft->type, type_expr->ft->type_attr, false, false, nullptr});
 	else if (select_expr)
 		Name = select_expr->FieldName;
 	if (!type_expr || type_expr->ft->type->isStructTy()) {
@@ -407,7 +407,7 @@ do_analyze:
 					return;
 				}
 			}
-			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list, false});
+			fn_args.push_back(FnArg{nullptr, arg->ft->type, arg->ft->type_attr, arg->is_unknown_type, is_list, nullptr});
 			if (!is_list)
 				register_usage_marker(arg.get(), &fn_args.back().is_referenced_after_call);
 		}
@@ -445,6 +445,11 @@ do_analyze:
 		if (functionexpr)
 			functionexpr->ft->selected_proto = selected_proto;
 	}
+}
+
+CallExprAST::~CallExprAST() {
+	for (auto& arg: fn_args)
+		free(arg.is_referenced_after_call);
 }
 
 void DebugInfo::emitLocation(ExprAST *AST) {
@@ -1289,6 +1294,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		bool is_address = false;
 		bool needs_constructor_call = false;
 		bool is_moved = false;
+		SourceLocation* laterUsage = nullptr;
 		if (i+arg_offs < n_proto_args) {
 			if (Proto->ArgTypes[i+arg_offs]->type_attr & A_interface) {
 				auto interface_expr = std::make_unique<InterfaceExprAST>(std::move(Args[i]), Proto->ArgTypes[i+arg_offs]);
@@ -1311,9 +1317,10 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			// we treat 'maybe_arg_needs_constructor' like 'arg_needs_constructor' in the following
 			// lines for now. Maybe we optimize this sometime by introducing a declaration for
 			// a constructor wrapper that is defined once we know if the the call is needed
+			laterUsage = fn_args[i+arg_offs].is_referenced_after_call;
 			std::tie(needs_constructor_call, is_moved) = needs_constructor_call_or_is_moved(
 				Proto->ArgNeedsConstructor[i+arg_offs],
-				fn_args[i+arg_offs].is_referenced_after_call || dynamic_cast<SelectExprAST*>(Args[i].get()));
+				(bool)laterUsage || dynamic_cast<SelectExprAST*>(Args[i].get()));
 /*
 			if (is_moved)
 				errs() << Args[i]->Loc << ": mark arg as moved " << *Proto->ArgTypes[i+arg_offs] << " " << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], maybe_arg_is_owned) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_constructor) << get_arg_flag(Proto->ArgNeedsConstructor[i+arg_offs], arg_has_destructor) << "\n";
@@ -1341,7 +1348,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			llvm::Value* arg = nullptr;
 			bool is_aggregate_lit = dynamic_cast<StructExprAST*>(Args[i].get()) || dynamic_cast<ListExprAST*>(Args[i].get()) || dynamic_cast<TypeExprAST*>(Args[i].get());
 			if (Args[i]->needs_target() || is_aggregate_lit && (Proto->ArgTypes[i+arg_offs]->type_attr & (A_constructor | A_destructor)) || needs_constructor_call || is_moved)
-				arg = HandleMove(Args[i].get(), Proto->ArgTypes[i+arg_offs], real_arg_type, is_address, is_moved, needs_constructor_call);
+				arg = HandleMove(Args[i].get(), Proto->ArgTypes[i+arg_offs], real_arg_type, is_address, is_moved, needs_constructor_call, nullptr, laterUsage);
 			if (!arg) {
 				if (is_address) {
 					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
@@ -1690,7 +1697,9 @@ bool FunctionAST::process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, 
 	return true;
 }
 
-llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* real_arg_type, bool is_address, bool is_moved, bool needs_constructor_call, llvm::Value* val) {
+llvm::Value* HandleMove(
+	ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* real_arg_type, bool is_address,
+	bool is_moved, bool needs_constructor_call, llvm::Value* val, SourceLocation* laterUsage) {
 	llvm::Type* arg_type = val ? val->getType() : expr->desired_type ? expr->desired_type : expr->ft->type;
 	llvm::Value* arg;
 	if (jit_repl && !inside_function) {
@@ -1724,7 +1733,9 @@ llvm::Value* HandleMove(ExprAST* expr, volvoxc::FullType* proto_ft, llvm::Type* 
 			// errs() << expr->Loc << ": ### function argument not moved 1\n";
 			auto F = getConstructorOrDestructor(proto_ft);
 			if (!F) {
-				errs() << expr->Loc << ": internal error - default constructor not found for " << *proto_ft << "\n";
+				errs() << expr->Loc << ": clone constructor not available for type " << *proto_ft << " and move is not possible\n";
+				if (laterUsage)
+					errs() << *laterUsage << ": this is the location of later usage\n";
 				return nullptr;
 			} else
 				Builder->CreateCall(F, { arg });

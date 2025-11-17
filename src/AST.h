@@ -421,6 +421,7 @@ public:
 	ssize_t vtable_offs = -1;
 	CallExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Callee_,
 	            std::vector<std::unique_ptr<ExprAST>> Args = {});
+	~CallExprAST();
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	bool needs_target() override { return Proto && (Proto->IsStructRet || ((Proto->visibility & A_constructor) && Proto->returnName.empty())); }
 #ifndef NDEBUG
@@ -887,7 +888,7 @@ public:
 	}
 };
 
-extern void register_usage_marker(ExprAST* expr, bool* mark_ptr);
+extern void register_usage_marker(ExprAST* expr, SourceLocation** mark_ptr);
 extern std::pair<bool,bool> needs_constructor_call_or_is_moved(
 	arg_needs_constructor_t arg_needs_constructor,
 	bool is_referenced_after_call);
@@ -895,7 +896,7 @@ extern void register_destructor(SourceLocation& Loc, volvoxc::FullType* ft, llvm
 
 class StructExprAST : public ExprAST {
 public:
-	std::map<std::string, std::pair<std::unique_ptr<ExprAST>,bool>> Fields; // bool: is referenced after call
+	std::map<std::string, std::pair<std::unique_ptr<ExprAST>,SourceLocation*>> Fields; // SourceLocation: point of usage after call
 	StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::unique_ptr<ListExprAST> list);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	bool needs_target() override {

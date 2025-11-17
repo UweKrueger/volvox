@@ -58,7 +58,7 @@ StructExprAST::StructExprAST(SourceLocation Loc, volvoxc::FullType* ft, std::uni
 				}
 				if (field_key) {
 					auto RHS_ptr = field_val->RHS.get();
-					auto insert = Fields.try_emplace(*field_key, std::pair<std::unique_ptr<ExprAST>,bool>{ std::move(field_val->RHS), false });
+					auto insert = Fields.try_emplace(*field_key, std::pair<std::unique_ptr<ExprAST>,SourceLocation*>{ std::move(field_val->RHS), nullptr });
 					if (!insert.second) {
 						errs() << field_val->LHS->Loc << ": field '" << field_key << "' already initialized\n";
 						ft = nullptr;
@@ -85,7 +85,9 @@ VariableExprAST::VariableExprAST(SourceLocation Loc, const std::string &Name)
 			for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
 				if (lloc > it->loc) {
 					if (it->flag_ptr) {
-						*it->flag_ptr = true;
+						auto save_loc = (SourceLocation*)malloc(sizeof(SourceLocation));
+						*save_loc = Loc;
+						*it->flag_ptr = save_loc;
 					} else
 						it = full_var->var_usage_markers->erase(it);
 				} else
@@ -108,7 +110,9 @@ VariableExprAST::VariableExprAST(SourceLocation Loc, const std::string &Name, Fu
 			LogicalLocation lloc(Loc, current_branch_part);
 			for (auto it = full_var->var_usage_markers->begin(); it != full_var->var_usage_markers->end(); ) {
 				if (lloc > it->loc) {
-					*it->flag_ptr = true;
+					auto save_loc = (SourceLocation*)malloc(sizeof(SourceLocation));
+					*save_loc = Loc;
+					*it->flag_ptr = save_loc;
 					it = full_var->var_usage_markers->erase(it);
 				} else
 					it++;
@@ -236,7 +240,7 @@ IndexExprAST::IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
    to the FullVar struct in the var table.
 */
 
-void register_usage_marker(ExprAST* expr, bool* mark_ptr) {
+void register_usage_marker(ExprAST* expr, SourceLocation** mark_ptr) {
 	if (auto var_expr = dynamic_cast<VariableExprAST*>(expr)) {
 		// it might be possible to move the variable if it isn't used later
 		// so keep track of it

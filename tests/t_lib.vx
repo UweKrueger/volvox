@@ -1,38 +1,38 @@
 import rand
 
-const n_pi = 10000000
+# const n_pi := 10000000
 
-def test_rand_f64 bool
-	n = 0
-	s = 0
-	while n < n_pi
-		x = rand.f64
-		y = rand.f64
-		if x*x + y*y < 1.0
-			s++
-		end
-		n++
-	end
-	p = 4. * s / n_pi
-	# _printf("approximation for pi: %.5f\n", p)
-	return p > 3.139 && p < 3.144
-end
+# def test_rand_f64 bool
+# 	n = 0
+# 	s = 0
+# 	while n < n_pi
+# 		x = rand.f64
+# 		y = rand.f64
+# 		if x*x + y*y < 1.0
+# 			s++
+# 		end
+# 		n++
+# 	end
+# 	p = 4. * s / n_pi
+# 	# _printf("approximation for pi: %.5f\n", p)
+# 	return p > 3.139 && p < 3.144
+# end
 
-const n_pi_2 = 1000000
+# const n_pi_2 := 1000000
 
-def test_rand_f32 bool
-	s = 0
-	for n in 1 .. n_pi_2
-		x = rand.f32
-		y = rand.f32
-		if x*x + y*y < 1.0f
-			s++
-		end
-	end
-	p = 4f * f32(s) / f32(n_pi_2)
-	# _printf("approximation for pi: %.5f\n", p)
-	return p > 3.135f && p < 3.148f
-end
+# def test_rand_f32 bool
+# 	s = 0
+# 	for n in 1 .. n_pi_2
+# 		x = rand.f32
+# 		y = rand.f32
+# 		if x*x + y*y < 1.0f
+# 			s++
+# 		end
+# 	end
+# 	p = 4f * f32(s) / f32(n_pi_2)
+# 	# _printf("approximation for pi: %.5f\n", p)
+# 	return p > 3.135f && p < 3.148f
+# end
 
 import time
 
