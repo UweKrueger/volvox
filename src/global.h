@@ -532,7 +532,9 @@ inline const char* invalidation_loc(std::string& constructor_name) {
 }
 
 extern llvm::Function* getConversion(std::string& mangled_name);
-extern llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor = false, bool basic = false);
+extern llvm::Function* getConstructorOrDestructor(
+	volvoxc::FullType* ft, bool destructor = false, bool basic = false,
+	std::string* deletion_loc = nullptr);
 extern llvm::SmallString<128> MangleBase(llvm::SmallString<128> buf, const std::vector<std::string>& path,
                                          const std::string& name, const char* receiver_type_name = nullptr,
                                          unsigned flags = 0, bool is_op = false, bool reverse = false,
@@ -1013,9 +1015,9 @@ extern std::vector<std::unique_ptr<ExprAST>> GlobalExprList;
 extern std::vector<const char*> jit_string_consts;
 extern std::vector<std::tuple<llvm::Constant*,std::string,unsigned>> pending_globals;
 extern std::vector<std::tuple<void*,llvm::Value**,llvm::Type*>> pending_arrays;
-extern void InsertArrayConDestructor(
+extern bool InsertArrayConDestructor(
 	llvm::Type* elem_type, volvoxc::FullType* array_elem_type, llvm::Value* val,
-	llvm::Instruction* before = nullptr, bool is_constructor = false);
+	llvm::Instruction* before = nullptr, bool is_constructor = false, std::string* deletion_loc = nullptr);
 extern void InsertDestructors(VarTable& t, llvm::Value* retp);
 extern void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars = nullptr, llvm::Value* retp = nullptr);
 extern void InsertDestructors(std::vector<FullVar>& t);

@@ -62,7 +62,7 @@ llvm::Function* getShadowConstructorDestructor(std::string& mangled_name, int n,
 	return F;
 }
 
-llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor, bool basic) {
+llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor, bool basic, std::string* deletion_loc) {
 	if (!ft->mangled_name)
 		return nullptr;
 	auto Names = AutoMethods.find(ft->mangled_name);
@@ -73,8 +73,12 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 	if (thename.empty())
 		return nullptr;
 	if (!destructor && is_deleted(thename)) {
-		errs() << invalidation_loc(thename) << ": info: " << (basic ? "init" : "clone ")
-		       << "constructor of type " << *ft << " has been deleted here\n";
+		if (deletion_loc) { // suppress normal error message
+			*deletion_loc = invalidation_loc(thename);
+		} else {
+			errs() << invalidation_loc(thename) << ": info: " << (basic ? "init" : "clone ")
+			       << "constructor of type " << *ft << " has been deleted here\n";
+		}
 		return nullptr;
 	}
 	if (auto F = TheModule->getFunction(thename))
@@ -488,12 +492,12 @@ llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Twine& Va
 	return TmpB.CreateAlloca(type, nullptr, VarName);
 }
 
-void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
+bool InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
                               volvoxc::FullType* array_elem_type, llvm::Value* val, llvm::Instruction* before,
-                              bool is_constructor) {
-	llvm::Function* destructor = getConstructorOrDestructor(array_elem_type, !is_constructor);
+                              bool is_constructor, std::string* deletion_loc) {
+	llvm::Function* destructor = getConstructorOrDestructor(array_elem_type, !is_constructor, false, deletion_loc);
 	if (!destructor)
-		return;
+		return false;
 	auto struct_type = llvm::dyn_cast<llvm::StructType>(val->getType());
 	llvm::Value* AllocSize = getSize(1);
 	unsigned i = 0;
@@ -551,6 +555,7 @@ void InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 		TheFunction->insert(TheFunction->end(), ContBB);
 		Builder->SetInsertPoint(ContBB);
 	}
+	return true;
 }
 
 // insert destructors for given var table - retp is a pointer to the function return value
@@ -602,21 +607,32 @@ void InsertDestructors(std::vector<FullVar>& t) {
 	t.clear();
 }
 
-static bool insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* thisarg, bool is_constructor = false) {
-	bool needs_destructors = false;
+enum field_con_de_structors_state : uint8_t {
+	field_con_de_structors_needed,
+	field_con_de_structors_not_needed,
+	field_con_de_structors_deleted
+};
+
+static field_con_de_structors_state insert_field_destructors(volvoxc::FullType* ft, llvm::Argument* thisarg,
+                                                             bool is_constructor = false,
+                                                             std::string* deletion_loc = nullptr) {
+	field_con_de_structors_state needs_destructors = field_con_de_structors_not_needed;
 	for (auto field = ft->first(); field; ++field) {
 		auto el_ft = field.getFt();
 		if (el_ft->type_attr & (is_constructor ? A_constructor : A_destructor)) {
-			needs_destructors = true;
+			needs_destructors = field_con_de_structors_needed;
+			llvm::Function* field_destructor = getConstructorOrDestructor(el_ft, !is_constructor, false, deletion_loc);
+			if (!field_destructor)
+				return field_con_de_structors_deleted;
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
-			llvm::Function* field_destructor = getConstructorOrDestructor(el_ft, !is_constructor);
 			Builder->CreateCall(constr_destr_fn_type, field_destructor, elem_ref);
 		} else if (isa<llvm::ArrayType>(el_ft->type) && (el_ft->elem_type->type_attr & (is_constructor ? A_constructor : A_destructor))) {
-			needs_destructors = true;
+			needs_destructors = field_con_de_structors_needed;
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
-			InsertArrayConDestructor(el_ft->type, el_ft->elem_type, elem_ref, nullptr, is_constructor);
+			if (!InsertArrayConDestructor(el_ft->type, el_ft->elem_type, elem_ref, nullptr, is_constructor, deletion_loc))
+				return field_con_de_structors_deleted;
 		}
 	}
 	return needs_destructors;
@@ -730,8 +746,8 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 		auto thisarg = D->getArg(0);
 		llvm::BasicBlock* BB = llvm::BasicBlock::Create(Context, "entry", D);
 		Builder->SetInsertPoint(BB);
-		bool needs_destructors = insert_field_destructors(ft, thisarg, is_constructor);
-		if (!needs_destructors) {
+		auto needs_destructors = insert_field_destructors(ft, thisarg, is_constructor);
+		if (needs_destructors != field_con_de_structors_needed) {
 			D->eraseFromParent();
 			return;
 		}

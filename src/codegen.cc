@@ -418,6 +418,8 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 				field_needs_constructor, (bool)laterUsage);
 			if (initializers[i].first && (is_moved || needs_constructor_call))
 				ini = HandleMove(initializers[i].first.get(), initializers[i].first->ft, ini->getType(), false, is_moved, needs_constructor_call, ini, laterUsage);
+			if (!ini)
+				return nullptr;
 			V = Builder->CreateInsertValue(V, ini, i, "structinit");
 			free(laterUsage);
 		}
