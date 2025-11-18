@@ -2832,11 +2832,13 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 				visibility |= (A_init | A_clone);
 			AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
 			if (visibility & A_init) {
-				if (std::get<2>(*AutoMethod) == invalid_constructor) {
+				auto& method_name = std::get<2>(*AutoMethod);
+				if (is_deleted(method_name)) {
 					errs() << Proto->retLoc << ": constructor of this kind has been deleted\n";
+					errs() << invalidation_loc(method_name) << ": this is the location of the invalidation\n";
 					return nullptr;
 				}
-				std::get<2>(*AutoMethod) = Proto->Name;
+				method_name = Proto->Name;
 			}
 			if (visibility & A_clone) {
 				if (std::get<0>(*AutoMethod) == invalid_constructor) {

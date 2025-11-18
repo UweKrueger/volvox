@@ -72,8 +72,9 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 		basic ? std::get<2>(Names->second) : std::get<0>(Names->second);
 	if (thename.empty())
 		return nullptr;
-	if (!destructor && thename == invalid_constructor) {
-		errs() << "constructor has been invalidated\n";
+	if (!destructor && is_deleted(thename)) {
+		errs() << invalidation_loc(thename) << ": info: " << (basic ? "init" : "clone ")
+		       << "constructor of type " << *ft << " has been deleted here\n";
 		return nullptr;
 	}
 	if (auto F = TheModule->getFunction(thename))
@@ -736,12 +737,12 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 		}
 		Builder->CreateRetVoid();
 		if (is_constructor) {
-			if (std::get<0>(AutoMethods[ft->mangled_name]) != invalid_constructor)
+			if (!is_deleted(std::get<0>(AutoMethods[ft->mangled_name])))
 				std::get<0>(AutoMethods[ft->mangled_name]) = std::string(D->getName());
 		} else
 			std::get<1>(AutoMethods[ft->mangled_name]) = std::string(D->getName());
 		finishFunctionOrModule(D, 1, false);
-		if (is_constructor && std::get<2>(AutoMethods[ft->mangled_name]) != invalid_constructor) {
+		if (is_constructor && !is_deleted(std::get<2>(AutoMethods[ft->mangled_name]))) {
 			// provide an empty basic constructor
 			auto basicD = createConstructorOrDestructorFnProto(ft, is_constructor, true);
 			auto thatarg = basicD->getArg(0);
@@ -1729,17 +1730,17 @@ llvm::Value* HandleMove(
 			Builder->CreateStore(nullval, ty_ref.second);
 		}
 	} else {
-		if (needs_constructor_call && dynamic_cast<VariableExprAST*>(expr)) {
-			// errs() << expr->Loc << ": ### function argument not moved 1\n";
-			auto F = getConstructorOrDestructor(proto_ft);
-			if (!F) {
-				errs() << expr->Loc << ": clone constructor not available for type " << *proto_ft << " and move is not possible\n";
-				if (laterUsage)
-					errs() << *laterUsage << ": this is the location of later usage\n";
-				return nullptr;
-			} else
-				Builder->CreateCall(F, { arg });
-		}
+		if (needs_constructor_call)
+			if (auto var_expr = dynamic_cast<VariableExprAST*>(expr)) {
+				auto F = getConstructorOrDestructor(proto_ft);
+				if (!F) {
+					errs() << expr->Loc << ": clone constructor not available for type " << *proto_ft << " and move is not possible\n";
+					if (laterUsage)
+						errs() << *laterUsage << ": info: " << var_expr->Name << " is used later here\n";
+					return nullptr;
+				} else
+					Builder->CreateCall(F, { arg });
+			}
 		if (!dynamic_cast<VariableExprAST*>(expr) && is_address)
 			register_destructor(expr->Loc, proto_ft, arg);
 	}
@@ -1825,7 +1826,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 				errs() << Proto->retLoc << ": internal compiler error - function '" << FnName << "' seems to have been previously defined\n";
 				errs() << registred.first->second << ": this is the location of the previous definition\n";
 				success = false;
-			} else if (AutoMethod && !((Proto->visibility & A_constructor) && std::get<0>(*AutoMethod) == invalid_constructor)) {
+			} else if (AutoMethod && !((Proto->visibility & A_constructor) && is_deleted(std::get<0>(*AutoMethod)))) {
 				// provide "full" versions of constructor/destructor that handles elements
 				auto D = createConstructorOrDestructorFnProto(Proto->ArgTypes[0], (bool)(Proto->visibility & A_constructor));
 				auto thisarg = D->getArg(0);

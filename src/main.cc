@@ -562,14 +562,14 @@ static void HandleExtern(unsigned visibility) {
 					errs() << Proto->retLoc << ": 'delete' conflicts with previous declaration of constructor\n";
 					goto cleanup;
 				}
-				std::get<2>(*AutoMethod) = invalid_constructor;
+				std::get<2>(*AutoMethod) = invalid_constructor + Proto->retLoc.str();
 			}
 			if (visibility & A_clone) {
 				if (!std::get<0>(*AutoMethod).empty()) {
 					errs() << Proto->retLoc << ": 'delete' conflicts with previous declaration of constructor\n";
 					goto cleanup;
 				}
-				std::get<0>(*AutoMethod) = invalid_constructor;
+				std::get<0>(*AutoMethod) = invalid_constructor + Proto->retLoc.str();
 			}
 			return;
 		}

@@ -237,6 +237,7 @@ public:
 		: File(File), Line(Line), Col(Col) {}
 	SourceLocation(const SourceLocation& orig) = default;
 	operator bool() { return (bool)File; }
+	std::string str() const;
 };
 
 extern std::string IdentifierStr; // string parsed as CurTok
@@ -383,7 +384,7 @@ extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValue
 
 extern llvm::ArrayType* MakeInterfaceArrayType(llvm::ArrayType* array_type);
 
-inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, SourceLocation& Loc) {
+inline llvm::raw_ostream& operator<<(llvm::raw_ostream& out, const SourceLocation& Loc) {
 	if (!Loc.File)
 		out << "<unknown location>";
 	else {
@@ -523,6 +524,12 @@ extern std::map<std::string,llvm::FunctionType*> Conversions;
 //                                     C1 (clone)  D1          C2 (init)   D2
 extern std::map<std::string,std::tuple<std::string,std::string,std::string,std::string>> AutoMethods;
 constexpr std::string invalid_constructor = "!";
+inline bool is_deleted(std::string& constructor_name) {
+	return !constructor_name.empty() && constructor_name.front() == '!';
+}
+inline const char* invalidation_loc(std::string& constructor_name) {
+	return constructor_name.c_str() + 1;
+}
 
 extern llvm::Function* getConversion(std::string& mangled_name);
 extern llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructor = false, bool basic = false);

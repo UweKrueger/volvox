@@ -306,3 +306,12 @@ void register_destructor(SourceLocation& Loc, volvoxc::FullType* ft, llvm::Value
 	tmp.ft.type_attr &= ~(A_globally_visible | A_mainvar);
 	expr_temps.push_back(tmp);
 }
+
+std::string SourceLocation::str() const {
+	llvm::SmallString<128> buf;
+	llvm::raw_svector_ostream locstr(buf);
+	locstr.enable_colors(true);
+	locstr << *this;
+	std::string res(buf);
+	return res;
+}
