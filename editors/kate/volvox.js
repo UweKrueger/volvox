@@ -11,9 +11,17 @@ var katescript = {
 // required katepart js libraries
 require ("range.js");
 
-var BlockStart = /\s*([\(\{\[]|(fn|if|while|for|lock|repeat|loop)\b)/;
-var BlockElse = /\s*(else|elif)\b/;
+var BlockStart = /\s*([\(\{\[]|(def|cdef|if|while|for|lock|repeat|loop)\b)/;
+var BlockElse = /\s*(else|elif|brk)\b/;
+// TODO: we should better use a loop here, but >4 brk in one line are rare
+var BlockElse2 = /\s*brk  *brk\b/;
+var BlockElse3 = /\s*brk  *brk  *brk\b/;
+var BlockElse4 = /\s*brk  *brk  *brk  *brk\b/;
 var BlockEnd = /([\)\]\}]|\bend\b)/;
+var BlockEnd2 = /([\)\]\}]  *[\)\]\}]|\bend  *end\b)/;
+var BlockEnd3 = /([\)\]\}]  *[\)\]\}]  *[\)\]\}]|\bend  *end  *end\b)/;
+var BlockEnd4 = /([\)\]\}]  *[\)\]\}]  *[\)\]\}]  *[\)\]\}]|\bend  *end  *end  *end\b)/;
+var BlockEnd5 = /([\)\]\}]  *[\)\]\}]  *[\)\]\}]  *[\)\]\}]  *[\)\]\}]|\bend  *end  *end  *end  *end\b)/;
 var indent_width = 4;
 
 triggerCharacters = "{}[]():;#";
@@ -45,6 +53,26 @@ function indent(line, indentWidth, ch)
 		var elseIndent = document.toVirtualColumn(b4line, document.firstColumn(b4line));
 		if (!(BlockStart.test(document.line(b4line)))) {
 			elseIndent -= indent_width;
+			if (BlockElse2.test(document.line(elseLine))) {
+				elseIndent -= indent_width;
+				if (BlockElse3.test(document.line(elseLine))) {
+					elseIndent -= indent_width;
+					if (BlockElse4.test(document.line(elseLine))) {
+						elseIndent -= indent_width;
+					}
+				}
+			} else if (BlockEnd2.test(document.line(elseLine))) {
+				elseIndent -= indent_width;
+				if (BlockEnd3.test(document.line(elseLine))) {
+					elseIndent -= indent_width;
+					if (BlockEnd4.test(document.line(elseLine))) {
+						elseIndent -= indent_width;
+						if (BlockEnd5.test(document.line(elseLine))) {
+							elseIndent -= indent_width;
+						}
+					}
+				}
+			}
 		}
 		if (ch == '\n') {
 			var curIndent = document.toVirtualColumn(elseLine, document.firstColumn(elseLine)) / indent_width;
@@ -56,6 +84,15 @@ function indent(line, indentWidth, ch)
 		}
 	}
 	if (BlockStart.test(document.line(prevLine)) || BlockElse.test(document.line(prevLine))) {
+		if (BlockElse2.test(document.line(prevLine))) {
+			if (BlockElse3.test(document.line(prevLine))) {
+				if (BlockElse4.test(document.line(prevLine))) {
+					return lastindent + 4*indent_width;
+				}
+				return lastindent + 3*indent_width;
+			}
+			return lastindent + 2*indent_width;
+		}
 		return lastindent + indent_width;
 	}
 		

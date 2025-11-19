@@ -28,8 +28,11 @@
       <item>interface</item>
       <item>decl</item>
       <item>cdecl</item>
+      <item>delete</item>
       <item>inline</item>
       <item>thread</item>
+      <item>clone</item>
+      <item>init</item>
     </list>
 
     <list name="startcontrol">
@@ -45,6 +48,7 @@
     <list name="elsecontrol">
       <item>else</item>
       <item>elif</item>
+      <item>brk</item>
     </list>
 
     <list name="endcontrol">

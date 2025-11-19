@@ -14,14 +14,14 @@ if [ $status != 0 ]; then
 	exit $status
 fi
 
-mkdir -p "${HOME}/.local/share/katepart5/syntax"
+mkdir -p "${HOME}/.local/share/org.kde.syntax-highlighting/syntax"
 status=$?
 if [ $status != 0 ]; then
 	exit $status
 fi
 
 
-cp -v "${FILE_DIR}/volvox.xml" "${HOME}/.local/share/katepart5/syntax"
+cp -v "${FILE_DIR}/volvox.xml" "${HOME}/.local/share/org.kde.syntax-highlighting/syntax"
 status=$?
 if [ $status != 0 ]; then
 	exit $status
