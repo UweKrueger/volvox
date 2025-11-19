@@ -1,0 +1,30 @@
+type QtKvcX {
+    a f64
+    b int
+}
+
+delete clone QtKvcX
+
+def init QtKvcX
+    this.b++
+end
+
+def ~QtKvcX
+    print "QtKvcX destructor called ${this.a} ${this.b}"
+end
+
+def f(x QtKvcX) f64
+	x.a += 1.25
+	z = x.a
+	return z
+end
+
+def g
+	y = QtKvcX{ a: 0.75, b: 17 }
+	print "got ${y.b}" # expect 18
+	z = f y
+	print "done $z ${y.a}"
+end
+
+g
+

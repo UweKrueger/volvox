@@ -315,3 +315,12 @@ std::string SourceLocation::str() const {
 	std::string res(buf);
 	return res;
 }
+
+std::string volvoxc::FullType::str() const {
+	llvm::SmallString<128> buf;
+	llvm::raw_svector_ostream locstr(buf);
+	locstr.enable_colors(true);
+	locstr << *this;
+	std::string res(buf);
+	return res;
+}

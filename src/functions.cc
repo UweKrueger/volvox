@@ -349,12 +349,16 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 			if (target != suppress_destructor_flag)
 				register_destructor(Loc, ft, tmpstore);
 			if (ft->type_attr & A_constructor) {
-				auto constructor = getConstructorOrDestructor(ft, false, basic_constructor); // only basic constructor
-				if (!constructor) {
-					errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
-					abort();
-				}
-				Builder->CreateCall(constructor, { tmpstore });
+				std::string deletion_loc;
+				auto constructor = getConstructorOrDestructor(ft, false, basic_constructor, &deletion_loc); // only basic constructor
+				if (constructor)
+					Builder->CreateCall(constructor, { tmpstore });
+				else
+					if (!deletion_loc.empty()) {
+						errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
+						errs() << deletion_loc << ": info: constructor has been deleted here.\n";
+						return nullptr;
+					}
 				val = Builder->CreateLoad(val_t, tmpstore);
 			}
 		}
@@ -362,12 +366,17 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 	}
 	Builder->CreateStore(val, target);
 	if (ft->type_attr & A_constructor) {
-		auto constructor = getConstructorOrDestructor(ft, false, basic_constructor);
-		if (!constructor) {
-			errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
-			abort();
+		std::string deletion_loc;
+		auto constructor = getConstructorOrDestructor(ft, false, basic_constructor, &deletion_loc);
+		if (constructor)
+			Builder->CreateCall(constructor, { target });
+		else {
+			if (!deletion_loc.empty()) {
+				errs() << Loc << ": cannot find constructor for type " << *ft << "\n";
+				errs() << deletion_loc << ": info: constructor has been deleted here.\n";
+				return nullptr;
+			}
 		}
-		Builder->CreateCall(constructor, { target });
 	}
 	return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 }
@@ -623,7 +632,7 @@ static field_con_de_structors_state insert_field_destructors(volvoxc::FullType* 
 			needs_destructors = field_con_de_structors_needed;
 			llvm::Function* field_destructor = getConstructorOrDestructor(el_ft, !is_constructor, false, deletion_loc);
 			if (!field_destructor)
-				return field_con_de_structors_deleted;
+				return (deletion_loc && !deletion_loc->empty()) ? field_con_de_structors_deleted : field_con_de_structors_not_needed;
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
 			Builder->CreateCall(constr_destr_fn_type, field_destructor, elem_ref);
@@ -632,7 +641,7 @@ static field_con_de_structors_state insert_field_destructors(volvoxc::FullType* 
 			unsigned idx = field.getIndex();
 			llvm::Value* elem_ref = Builder->CreateConstGEP2_32(ft->type, thisarg, 0, idx);
 			if (!InsertArrayConDestructor(el_ft->type, el_ft->elem_type, elem_ref, nullptr, is_constructor, deletion_loc))
-				return field_con_de_structors_deleted;
+				return (deletion_loc && !deletion_loc->empty()) ? field_con_de_structors_deleted : field_con_de_structors_not_needed;
 		}
 	}
 	return needs_destructors;
@@ -746,9 +755,14 @@ static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool 
 		auto thisarg = D->getArg(0);
 		llvm::BasicBlock* BB = llvm::BasicBlock::Create(Context, "entry", D);
 		Builder->SetInsertPoint(BB);
-		auto needs_destructors = insert_field_destructors(ft, thisarg, is_constructor);
+		std::string deletion_loc;
+		auto needs_destructors = insert_field_destructors(ft, thisarg, is_constructor, &deletion_loc);
 		if (needs_destructors != field_con_de_structors_needed) {
 			D->eraseFromParent();
+			if (needs_destructors == field_con_de_structors_deleted) {
+				std::get<0>(AutoMethods[ft->mangled_name]) = invalid_constructor + deletion_loc + "(subfield)";
+				ft->type_attr |= A_constructor;
+			}
 			return;
 		}
 		Builder->CreateRetVoid();

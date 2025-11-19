@@ -355,6 +355,7 @@ namespace volvoxc {
 		// iterate over struct fields
 		StructFieldType first() { return StructFieldType(map_min(fields)); }
 		StructFieldType last() { return StructFieldType(map_max(fields)); }
+		std::string str() const;
 	};
 
 	/* Named types can be kept in a map using the name as key.

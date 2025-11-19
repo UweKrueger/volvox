@@ -1,0 +1,37 @@
+type QtKxcX {
+    a f64
+    b int
+	tt f64
+}
+
+delete clone QtKxcX
+
+def QtKxcX(z f64)
+    this.b++
+	this.a = z * 1.5
+end
+
+def ~QtKxcX
+    print "QtKvcX destructor called ${this.a} ${this.b}"
+end
+
+type HdfT {
+	q f32
+	pp QtKxcX
+}
+
+def f(x HdfT) f64
+	x.q += 1.25
+	z = x.pp.a
+	return z
+end
+
+def g
+	y = QtKxcX 0.75
+	print "got ${y.b}" # expect 18
+	z = HdfT{ q: 45.75, pp: y }
+	uu = f z
+	print z.pp.b
+end
+
+g
