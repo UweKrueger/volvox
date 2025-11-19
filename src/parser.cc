@@ -2832,19 +2832,22 @@ std::unique_ptr<FunctionAST> ParseDefinition(unsigned& visibility) {
 				visibility |= (A_init | A_clone);
 			AutoMethod = &AutoMethods[Proto->ArgTypes[0]->mangled_name];
 			if (visibility & A_init) {
-				auto& method_name = std::get<2>(*AutoMethod);
-				if (is_deleted(method_name)) {
-					errs() << Proto->retLoc << ": constructor of this kind has been deleted\n";
-					errs() << invalidation_loc(method_name) << ": this is the location of the invalidation\n";
+				auto& init_constructor_name = std::get<2>(*AutoMethod);
+				if (is_deleted(init_constructor_name)) {
+					errs() << Proto->retLoc << ": init constructor of type '" << *Proto->ArgTypes[0] << "' has been deleted\n";
+					errs() << invalidation_loc(init_constructor_name) << ": info: this is the location of the invalidation\n";
 					return nullptr;
 				}
-				method_name = Proto->Name;
+				init_constructor_name = Proto->Name;
 			}
 			if (visibility & A_clone) {
-				if (std::get<0>(*AutoMethod) == invalid_constructor) {
-					errs() << Proto->retLoc << ": constructor of this kind has been deleted\n";
+				auto& clone_constructor_name = std::get<0>(*AutoMethod);
+				if (is_deleted(clone_constructor_name)) {
+					errs() << Proto->retLoc << ": clone constructor of type '" << *Proto->ArgTypes[0] << "' has been deleted\n";
+					errs() << invalidation_loc(clone_constructor_name) << ": info: this is the location of the invalidation\n";
 					return nullptr;
 				}
+				clone_constructor_name = Proto->Name;
 			}
 		} else if (!(Proto->visibility & A_conversion) && Proto->RetType && !Proto->RetType->type->isVoidTy()) {
 			Proto->visibility &= ~A_method;
