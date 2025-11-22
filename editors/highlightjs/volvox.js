@@ -1,0 +1,25 @@
+hljs.registerLanguage(
+	"volvox",
+	function(e){
+		var t={cN:"variable",
+			   v:[{b:/\$[\w\d#@][\w\d_]*/},
+				  {b:/\$\{(.*?)}/}]},
+			s={cN:"string",
+			   b:/"/,
+			   e:/"/,
+			   c:[e.BE,
+				  t,
+				  {cN:"variable",
+				   b:/\$\(/,
+				   e:/\)/,
+				   c:[e.BE]}]},
+			a={cN:"string",b:/'/,e:/'/};
+		return{aliases:["vx"],
+			   l:/\b-?[a-z_][0-9a-z_]*\b/,
+			   k:{keyword:"brk elif else end def cdef if repeat return until while for",
+				  literal:"true false nil",
+				  built_in:"cstring f16 f32 f64 i16 i32 i64 i8 int interface real size_t ssize_t string u16 u32 u64 u8 union voidptr thread inline atomic shared unique const global cdecl decl delete clone init from import pub type ctype dim order abs min max exit sizeof panic",
+				  _:"in from as"},
+			   c:[{cN:"meta",
+				   b:/^#![^\n]+volvox\s*$/,r:10},
+				  e.HCM,s,a,t]}});

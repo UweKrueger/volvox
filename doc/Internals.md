@@ -48,7 +48,7 @@ extern int h(S* x);
 To use these functions in Volvox code we have to declare the type `S` and
 functions `f` and `g` with a matching signatures:
 
-```Volvox
+```volvox
 # Declare type
 
 type S {
@@ -85,6 +85,18 @@ The function `h()` can only be called with `a` as argument:
 
 ```Volvox
 cdecl h(unique S x)
+
+def ghd f32
+	z=3
+	if z < 7
+		z = 0
+	brk
+		z = 1
+	end
+	print "Got $z as ${z+0}."
+	c = 'p'
+	return 6.5 + z
+end
 
 v = h(a)
 # a has been moved and is not valid any more

@@ -1,0 +1,7 @@
+The file volvox.js is a dirty hack that is only meant to be appended
+to the file highlight.pack.js of the Markdown editor "marker".
+
+I've been using this editor to write some of the documentation and
+needed a quick solution...
+
+Don't use this file unless you know exactly what you are doing.
