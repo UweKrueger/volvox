@@ -1,0 +1,160 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+
+ This file is part of GtkSourceView
+
+ Author: Uwe Krüger <uwe_debbug@arcor.de>
+ Copyright (C) 2025 Uwe Krüger <uwe_debbug@arcor.de>
+
+ GtkSourceView is free software; you can redistribute it and/or
+ modify it under the terms of the GNU Lesser General Public
+ License as published by the Free Software Foundation; either
+ version 2.1 of the License, or (at your option) any later version.
+
+ GtkSourceView is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ Lesser General Public License for more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with this library; if not, see <http://www.gnu.org/licenses/>.
+
+-->
+<language id="volvox" name="Volvox" version="2.0" _section="Source">
+  <metadata>
+    <property name="mimetypes">application/x-volvox;text/x-volvox</property>
+    <property name="globs">*.vx</property>
+    <property name="line-comment-start">#</property>
+  </metadata>
+
+  <styles>
+    <style id="comment"           name="Comment"               map-to="def:comment"/>
+    <style id="keyword"           name="Keyword"               map-to="def:keyword"/>
+    <style id="declarator"        name="Declarator"            map-to="def:preprocessor"/>
+    <style id="string"            name="String"                map-to="def:string"/>
+    <style id="escaped-character" name="Escaped Character"     map-to="def:special-char"/>
+    <style id="constant"          name="Constant"              map-to="def:constant"/>
+    <style id="function"          name="Builtin Function"      map-to="def:builtin"/>
+    <style id="type"              name="Builtin Type"          map-to="def:type"/>
+  </styles>
+
+  <definitions>
+    <context id="volvox" class="no-spell-check">
+      <include>
+        <context id="comment" style-ref="comment">
+          <start>#</start>
+          <end>$</end>
+        </context>
+
+        <context id="string" end-at-line-end="true" style-ref="string">
+          <start>"</start>
+          <end>"</end>
+          <include>
+            <context id="escape" style-ref="escaped-character">
+              <match>\\.</match>
+            </context>
+          </include>
+        </context>
+
+        <context id="char" end-at-line-end="true" style-ref="string">
+          <start>'</start>
+          <end>'</end>
+          <include>
+            <context ref="escape"/>
+          </include>
+        </context>
+
+        <context ref="def:decimal"/>
+        <context ref="def:float"/>
+
+        <context id="keywords" style-ref="keyword">
+          <keyword>def</keyword>
+          <keyword>cdef</keyword>
+          <keyword>for</keyword>
+          <keyword>if</keyword>
+          <keyword>while</keyword>
+          <keyword>repeat</keyword>
+          <keyword>lock</keyword>
+          <keyword>else</keyword>
+          <keyword>elif</keyword>
+          <keyword>brk</keyword>
+          <keyword>until</keyword>
+          <keyword>end</keyword>
+        </context>
+
+        <context id="declarators" style-ref="declarator">
+          <keyword>chan</keyword>
+          <keyword>set</keyword>
+          <keyword>map</keyword>
+          <keyword>self</keyword>
+          <keyword>packed</keyword>
+          <keyword>union</keyword>
+          <keyword>const</keyword>
+          <keyword>unique</keyword>
+          <keyword>obj</keyword>
+          <keyword>shared</keyword>
+          <keyword>atomic</keyword>
+          <keyword>global</keyword>
+          <keyword>pub</keyword>
+          <keyword>as</keyword>
+          <keyword>from</keyword>
+          <keyword>import</keyword>
+          <keyword>type</keyword>
+          <keyword>ctype</keyword>
+          <keyword>interface</keyword>
+          <keyword>decl</keyword>
+          <keyword>cdecl</keyword>
+          <keyword>delete</keyword>
+          <keyword>inline</keyword>
+          <keyword>thread</keyword>
+          <keyword>clone</keyword>
+          <keyword>init</keyword>
+          <keyword>in</keyword>
+          <keyword>return</keyword>
+        </context>
+
+        <context id="types" style-ref="type">
+          <keyword>int</keyword>
+          <keyword>unsigned</keyword>
+          <keyword>size_t</keyword>
+          <keyword>ssize_t</keyword>
+          <keyword>real</keyword>
+          <keyword>bool</keyword>
+          <keyword>i8</keyword>
+          <keyword>i16</keyword>
+          <keyword>i32</keyword>
+          <keyword>i64</keyword>
+          <keyword>u8</keyword>
+          <keyword>u16</keyword>
+          <keyword>u32</keyword>
+          <keyword>u64</keyword>
+          <keyword>f16</keyword>
+          <keyword>f32</keyword>
+          <keyword>f64</keyword>
+          <keyword>string</keyword>
+          <keyword>cstring</keyword>
+          <keyword>voidptr</keyword>
+        </context>
+
+        <context id="constants" style-ref="constant">
+          <keyword>true</keyword>
+          <keyword>false</keyword>
+          <keyword>nil</keyword>
+        </context>
+
+        <context id="builtinfuncs" style-ref="function">
+          <keyword>dim</keyword>
+          <keyword>order</keyword>
+          <keyword>abs</keyword>
+          <keyword>min</keyword>
+          <keyword>max</keyword>
+          <keyword>exit</keyword>
+          <keyword>sizeof</keyword>
+          <keyword>panic</keyword>
+        </context>
+
+      </include>
+    </context>
+
+  </definitions>
+</language>
