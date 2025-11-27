@@ -2118,20 +2118,24 @@ int main(int argc, char* argv[]) {
 	llvm::InitializeAllTargetMCs();
 	llvm::InitializeAllAsmParsers();
 	llvm::InitializeAllAsmPrinters();
-	std::string TargetTriple;
+	std::string TripleStr;
 	if (target_mingw)
-		TargetTriple = "x86_64-pc-windows-gnu";
+		TripleStr = "x86_64-pc-windows-gnu";
 	else
-		TargetTriple = llvm::sys::getDefaultTargetTriple();
+		TripleStr = llvm::sys::getDefaultTargetTriple();
 #if LLVM_VERSION_MAJOR >= 21
-	auto Triple = llvm::Triple(TargetTriple);
+	auto Triple = llvm::Triple(TripleStr);
 #endif
-	if (strstr(TargetTriple.c_str(), "-alpine-"))
+	if (strstr(TripleStr.c_str(), "-alpine-"))
 		gen_pie = true;
 	if (gen_pie)
 		gen_pic = true;
 	std::string Error;
-	auto Target = llvm::TargetRegistry::lookupTarget(TargetTriple, Error);
+#if LLVM_VERSION_MAJOR >= 21
+	auto Target = llvm::TargetRegistry::lookupTarget(Triple, Error);
+#else
+	auto Target = llvm::TargetRegistry::lookupTarget(TripleStr, Error);
+#endif
 	// Print an error and exit if we couldn't find the requested target.
 	// This generally occurs if we've forgotten to initialise the
 	// TargetRegistry or we have a bogus target triple.
@@ -2140,7 +2144,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (verbosity >= 1) {
-		errs() << "Target: " << TargetTriple << '\n';
+		errs() << "Target: " << TripleStr << '\n';
 		errs() << "Host: " LLVM_HOST_TRIPLE "\n";
 		errs() << "LLVM Version: " LLVM_VERSION_STRING "\n";
 	}
@@ -2173,7 +2177,7 @@ int main(int argc, char* argv[]) {
 #if LLVM_VERSION_MAJOR >= 21
 				Triple,
 #else
-				TargetTriple,
+				TripleStr,
 #endif
 				CPU, Features, target_opts, RM, std::nullopt, codegenopt);
 	}
@@ -2192,7 +2196,7 @@ int main(int argc, char* argv[]) {
 		target_bits = 16;
 	else {
 		errs() << "fatal: cannot get pointer size of target '"
-		       << TargetTriple << "'\n";
+		       << TripleStr << "'\n";
 		exit(1);
 	}
 	target_bytes = target_bits >> 3;
@@ -2202,7 +2206,7 @@ int main(int argc, char* argv[]) {
 #if LLVM_VERSION_MAJOR >= 21
 			Triple
 #else
-			TargetTriple
+			TripleStr
 #endif
 			);
 		TheModule->setDataLayout(TheTargetMachine->createDataLayout());
