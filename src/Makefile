@@ -46,6 +46,9 @@ ifeq ($(shell test -x /usr/local/bin/llvm-config-21 && echo -n true),true)
 # "-DMONOCHROME_PROMPT=1" to CPPEXTRAFLAGS below 
 #	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm21/lib -ledit
 else
+ifeq ($(shell test -x /usr/bin/llvm-config-22 && echo -n true),true)
+	SUFFIX := -22
+else
 ifeq ($(shell test -x /usr/bin/llvm-config-19 && echo -n true),true)
 	SUFFIX := -19
 else
@@ -73,6 +76,7 @@ else
 ifeq ($(shell test -x /usr/pkg/bin/llvm-config && echo -n true),true)
 	PREFIX := /usr/pkg
 	SUFFIX :=
+endif
 endif
 endif
 endif
