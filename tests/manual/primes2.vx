@@ -1,0 +1,19 @@
+from file import stdin
+
+printn "Please enter a number: "
+a = stdin.readul
+b = a
+while true
+	d = 2UL
+	while true
+		r = b % d
+		if r == 0
+			print d
+			b /= d
+		else
+			d++
+		end
+		print "leave $b"
+brk brk b == 1
+	end
+end

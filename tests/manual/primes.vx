@@ -1,0 +1,20 @@
+const n_primes_requested := 20000
+
+n_primes_found = 0
+count = 1
+
+repeat
+	n_denom = 0
+	for k in 1..count
+		if count % k == 0
+			n_denom++
+		end
+	brk n_denom > 2
+	end
+	if n_denom == 2
+		print count
+		n_primes_found++
+	end
+	count++
+until n_primes_found >= n_primes_requested
+return 0

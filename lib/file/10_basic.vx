@@ -89,9 +89,9 @@ end
 # The default constructor then assigns the correct file pointer based
 # on these flags.
 
-pub global stdin  := File{ _flags: flag_stdin }
-pub global stdout := File{ _flags: flag_stdout }
-pub global stderr := File{ _flags: flag_stderr }
+pub global stdin  = File{ _flags: flag_stdin }
+pub global stdout = File{ _flags: flag_stdout }
+pub global stderr = File{ _flags: flag_stderr }
 
 # open file for read/write (like '>' in shell scripts)
 # - if file name exists truncate it to size 0
