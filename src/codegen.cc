@@ -3633,7 +3633,12 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 				MapValue* node = then_node.getValue();
 				auto then_var = (FullVar*)((char*)node + node->offset);
-				FullVar* entry = locals_table.back()[then_node.getKey()];
+				FullVar* entry = nullptr;
+				if (locals_table.empty()) {
+					entry = lex.module->globals_table[then_node.getKey()];
+				} else {
+					entry = locals_table.back()[then_node.getKey()];
+				}
 				if (!entry) {
 					errs() << "internal error, could not find merge variable '" << then_node.getKey() << "' in outer scope\n";
 					abort();
