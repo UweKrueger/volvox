@@ -329,6 +329,57 @@ def test_2level_break_2 bool
 	return ttqwl(10, 17) == 20
 end
 
+global sum_factors = 0UL
+
+def getdiv_repeat(a u64)
+	b = a
+	repeat
+		d = 2UL
+		repeat
+			r = b % d
+			if r == 0
+				sum_factors += d
+				b /= d
+			else
+				d++
+			end
+	brk brk b == 1
+		until false
+	until false
+end
+
+def test_2level_break_3 bool
+	getdiv_repeat(124)
+	return sum_factors == 35
+end
+
+sum_factors = 0UL
+
+def getdiv_while(a u64) u64
+	b = a
+	c = 0UL
+	while true
+		d = 2UL
+		while true
+			r = b % d
+			if r == 0
+				sum_factors += d
+				b /= d
+			else
+				d++
+			end
+	brk brk b == 1
+			c++
+		end
+	end
+	return c
+end
+
+def test_2level_break_4 bool
+	p = getdiv_while(124)
+	return sum_factors == 35 && p == 31
+end
+
 global wwqgh9 = 0
 
 type LLMJ {

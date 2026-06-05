@@ -29,7 +29,6 @@ std::vector<MergePointDescription> merge_points; // for multi level brk
 // nestlevel / branch / branchpart(for break)
 // each branchpoint holds a vector (with size break_level) of index triples to identify
 
-std::vector<llvm::BasicBlock*> cont_points;
 //===----------------------------------------------------------------------===//
 // Code Generation
 //===----------------------------------------------------------------------===//
@@ -2836,8 +2835,8 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 		else if (!BranchV)
 			BranchV = llvm::Constant::getNullValue(ft->type);
 		InsertDestructors(brk_descr.vars_to_destruct, merge_points[merge_points.size()-1].merged_vars);
-		if (cont_points.back() && !(for_expr && !isElse))
-			firstBreak = Builder->CreateBr(cont_points.back());
+		if (merge_points.back().contBB && !(for_expr && !isElse))
+			firstBreak = Builder->CreateBr(merge_points.back().contBB);
 	}
 	return { BranchV, firstBreak, brk_depth };
 }
@@ -3581,9 +3580,9 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		locals_table.push_back(std::move(then_locals_table));
 		merge_points.push_back(MergePointDescription{
 				.BB = MergeBB,
+				.contBB = MergeBB,
 				.merged_vars = &this->merged_vars
 			}); // for multi level brk
-		cont_points.push_back(MergeBB);
 		llvm::BasicBlock* BlockToJump;
 		if (if_kind == tok_for) {
 			for_expr->SetupLoop();
@@ -3599,7 +3598,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			inside_loop = true;
 		for (int n=0; n <= then_max; n++) {
 			if (n == then_max)
-				cont_points.back() = BlockToJump;
+				merge_points.back().contBB = BlockToJump;
 			unsigned brk_level;
 			llvm::Instruction* _thenLast;
 			std::tie(ThenV, _thenLast, brk_level) = createCondBranch(Then[n], false);
@@ -3610,7 +3609,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		if (Then.size() == 1)
 			thenConstV = llvm::dyn_cast<llvm::Constant>(ThenV);
 		merge_points.pop_back();
-		cont_points.pop_back();
 		then_locals_table = std::move(locals_table.back());
 		locals_table.pop_back();
 		if (!ThenV) {
@@ -3671,9 +3669,9 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			locals_table.push_back(std::move(else_locals_table));
 			merge_points.push_back(MergePointDescription{
 					.BB = MergeBB,
+					.contBB = MergeBB,
 					.merged_vars = &this->merged_vars
 				}); // for multi level brk
-			cont_points.push_back(MergeBB);
 			VarTable* old_IfWhileVarTable = IfWhileVarTable;
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = &then_locals_table;
@@ -3690,7 +3688,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			if (CTcond == CTcond_undef)
 				IfWhileVarTable = old_IfWhileVarTable;
 			merge_points.pop_back();
-			cont_points.pop_back();
 			else_locals_table = std::move(locals_table.back());
 			locals_table.pop_back();
 			if (!ElseV) {

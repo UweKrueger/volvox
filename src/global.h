@@ -762,11 +762,11 @@ extern std::vector<FullVar> expr_temps;
 
 struct MergePointDescription {
 	llvm::BasicBlock* BB;
+	llvm::BasicBlock* contBB;
 	std::set<std::string>* merged_vars;
 };
 
 extern std::vector<MergePointDescription> merge_points; // for multi level brk
-extern std::vector<llvm::BasicBlock*> cont_points;
 
 // small hack to access protected method
 class genType : protected llvm::Type {
