@@ -766,6 +766,7 @@ struct MergePointDescription {
 };
 
 extern std::vector<MergePointDescription> merge_points; // for multi level brk
+extern std::vector<llvm::BasicBlock*> cont_points;
 
 // small hack to access protected method
 class genType : protected llvm::Type {
