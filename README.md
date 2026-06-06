@@ -45,12 +45,33 @@ end
 
 ```volvox
 s = 0
+
 for n in 1..7
 	for m in 3..5
 		s += n
 brk brk m == 2*n
 		s += m
 end end
+
 print s
 ```
 `22`
+
+#### Conditions
+
+```volvox
+x = 23.25
+
+if x < 10
+	x += 2
+elif x <= 15
+	x += 12.75
+elif x < 20
+	x *= 5
+else
+	x += 1.5
+end
+
+print x
+```
+`24.75`

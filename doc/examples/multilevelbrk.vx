@@ -1,8 +1,10 @@
 s = 0
+
 for n in 1..7
 	for m in 3..5
 		s += n
 brk brk m == 2*n
 		s += m
 end end
+
 print s
