@@ -1808,10 +1808,10 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 				(*vec_protos)[0]->ArgTypes.erase((*vec_protos)[0]->ArgTypes.begin() + 1);
 				(*vec_protos)[0]->ArgAttrs.erase((*vec_protos)[0]->ArgAttrs.begin() + 1);
 				(*vec_protos)[0]->ArgPos.erase((*vec_protos)[0]->ArgPos.begin() + 1);
-				if ((*vec_protos)[0]->returnName.empty()) {
+				if (real_method == "__push" || real_method == "__insert") {
 					(*vec_protos)[0]->ArgTypes[1] = new_FullType(*LHS->ft->elem_type, A_ref);
 				} else {
-					(*vec_protos)[0]->RetType = LHS->ft->elem_type;
+					(*vec_protos)[0]->RetType = void_type;
 				}
 				return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), vec_protos);
 			}

@@ -530,6 +530,40 @@ def test_global_vec_3 bool
 	return hQ[0] + hQ[1] == 87.375
 end
 
+def test_vec_push_1 bool
+	hQ = vec{ 9.25, 78.125, -7.0625, 89 }
+	a = 99.5
+	hQ.push a
+	a = -78.25
+	hQ.push a
+	hQ.push(12.25)
+	hQ.push(2.25)
+	hQ.push(-15.75)
+	hQ.push(6.0625)
+	hQ.push(1.125)
+	hQ.push(0.0625)
+	hQ.push(11.5)
+	return hQ.size == 13 && hQ.cap >= 13 && hQ[4] == 99.5 && hQ[12] == 11.5
+end
+
+def test_vec_insert_1 bool
+	hQ = vec{ 9.25, 78.125, -7.0625, 89 }
+	hQ.insert(99.5, 2)
+	return hQ.size == 5 && hQ[2] == 99.5 && hQ[1] == 78.125 && hQ[3] == -7.0625
+end
+
+def test_vec_pop_1 bool
+	hQ = vec{ 9.25, 78.125, -7.0625, 89 }
+	hQ.pop
+	return hQ.size == 3 && hQ[2] == -7.0625
+end
+
+def test_vec_remove_1 bool
+	hQ = vec{ 9.25, 78.125, -7.0625, 89 }
+	hQ.remove 1
+	return hQ.size == 3 && hQ[0] == 9.25 && hQ[1] == -7.0625 && hQ[2] == 89
+end
+
 def test_ptr_bool_conv bool
 	gw = __malloc 100000
 	qu = voidptr(0)
@@ -547,6 +581,14 @@ def test_named_return_1 bool
 	z = named_return_example(2.5, 3.75)
 	return z == 10
 end
+
+type ___big_dummy { # sz > sret_limit - used as return type to enforce sret
+	d0 f64
+	d1 f64
+	d2 f64
+	d3 f64
+	d4 f64
+}
 
 def named_return_example2(a f64, b f64) (dfg ___big_dummy)
 	if a > b

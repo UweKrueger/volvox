@@ -817,14 +817,6 @@ inline def c32^(e c32) c32
 	return __cpow(this, e)
 end
 
-type ___big_dummy { # sz > sret_limit - used as return type to enforce sret
-	d0 f64
-	d1 f64
-	d2 f64
-	d3 f64
-	d4 f64
-}
-
 type __vec {
 	__ptr voidptr
 	__size size_t
@@ -833,6 +825,7 @@ type __vec {
 
 def ~__vec
 	if bool(this.__ptr)
+		# TODO: call destructors for elements
 		__free this.__ptr
 end end
 
@@ -892,20 +885,20 @@ inline def __vec.__insert(_elem_sz size_t, &_elem_ptr voidptr, index size_t)
 	__memcpy(elem_ptr, &_elem_ptr, _elem_sz)
 end
 
-inline def __vec.__pop(_elem_sz size_t) (_res ___big_dummy)
+inline def __vec.__pop(_elem_sz size_t)
 	if this.__size == 0
 		err_printf("vec: pop_back not possible as vec is empty\n")
 		abort
 	end
+	# TODO: call destructor
 	this.__size--
-	__memcpy(&_res, voidptr(size_t(this.__ptr) + _elem_sz * this.__size), _elem_sz)
 end
 
-inline def __vec.__remove(_elem_sz size_t, index size_t) (_res ___big_dummy)
+inline def __vec.__remove(_elem_sz size_t, index size_t)
 	elem_ptr = voidptr(size_t(this.__ptr) + _elem_sz * index)
 	elem_ptr_end = voidptr(size_t(elem_ptr) + _elem_sz)
 	upper_block_sz = (this.__size - index - 1) * _elem_sz
-	__memcpy(&_res, elem_ptr, _elem_sz)
+	# TODO: call destructor
 	__memmove(elem_ptr, elem_ptr_end, upper_block_sz)
 	this.__size--
 end
