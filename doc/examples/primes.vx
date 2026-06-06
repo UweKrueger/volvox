@@ -1,0 +1,8 @@
+for n in 2..100000
+	repeat
+		for m in 2..n-1
+	brk brk n % m == 0
+		end
+		print "$n is prime"
+	until true
+end end
