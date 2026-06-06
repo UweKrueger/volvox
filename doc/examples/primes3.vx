@@ -1,0 +1,35 @@
+const max_prim := 1000
+
+const max_idx := (max_prim >> 6)
+
+global primes = vec[u64]{}
+
+for i in 0 .. max_idx
+	primes.push 0UL
+end
+
+n_primes_found = 0
+
+def is_prime(i int) bool
+	idx = i >> 6
+	mask = 1UL << (i % 64)
+	return (primes[idx] & mask) == 0
+end
+
+def flag_non_prime(i int)
+	idx = i >> 6
+	mask = 1UL << (i % 64)
+	primes[idx] |= mask
+end
+
+for n in 2..max_prim
+	if is_prime n
+		print n
+		n_primes_found++
+		f = n + n
+		while f <= max_prim
+			flag_non_prime f
+			f += n
+end end end
+
+print "found $n_primes_found primes"
