@@ -1,0 +1,12 @@
+prims = vec[i32]{}
+
+for n in 2..1000
+	repeat
+		for i in 0 .. i32(prims.size)-1
+	brk brk n % prims[i] == 0
+		end
+		print "$n is prime"
+		prims.push n
+	until true
+end end
+print "found ${prims.size} prims"
