@@ -1306,7 +1306,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, getSize(n_volovox_va_arg), 0);
 		volvox_var_array_ref = Builder->CreateInsertValue(volvox_var_array_ref, volvox_var_array, 1);
 	}
-	if (fn_args.size() != Args.size()+arg_offs || Proto->ArgNeedsConstructor.size() != n_proto_args+(is_volvox_variadic ? 1 : 0))
+	if (fn_args.size() != Args.size()+arg_offs || Proto->ArgNeedsConstructor.size() != n_proto_args+Proto->implicitArgs.size()+(is_volvox_variadic ? 1 : 0))
 		errs() << Loc << ": ### Internal compiler error - fn_args: " << fn_args.size() << " Args: " << Args.size() << " arg_offs: " << arg_offs << " n_proto_args: " << n_proto_args << " NeedsConstructor: " << Proto->ArgNeedsConstructor.size() << "\n";
 	for (unsigned i = 0; i < Args.size(); ++i) {
 		if (is_volvox_variadic && (i+arg_offs) >= n_proto_args) {
