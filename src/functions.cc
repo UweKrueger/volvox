@@ -122,7 +122,7 @@ void InsertDestructor(FullVar* fv, llvm::Instruction* before) {
 inline static uintptr_t getFnAddress(std::function<llvm::Value*(llvm::Value*)> f) {
     typedef llvm::Value* (fnType)(llvm::Value*);
     fnType** fnPointer = f.template target<fnType*>();
-    return (uintptr_t)*fnPointer;
+    return fnPointer ? (uintptr_t)*fnPointer : (uintptr_t)0;
 }
 
 static void printArgTypes(std::vector<FnArg>& fnargs, unsigned offset = 0) {
@@ -313,8 +313,9 @@ check_selected_proto:
 	auto selected_proto = (*protos)[selected_idx].get();
 	for (int i=0; i<selected_proto->ArgTypes.size(); i++)
 		if ((selected_proto->ArgTypes[i]->type_attr & A_ref) && fnargs[i].Conv && getFnAddress(fnargs[i].Conv) != (uintptr_t)NoConversion) {
-			errs() << Loc << ": cannot call '" << (name ? name : "fn") << "()' candidate with matching signature would require conversion of "
-			       << i+1 << (!i ? "st" : (i==1) ? "nd" : (i==2) ? "rd" : "th") << " argument which is passed by reference\n";
+			int k = i - selected_proto->implicitArgs.size();
+			errs() << Loc << ": cannot call '" << (name ? name : "fn") << "()': candidate with matching signature would require conversion of "
+			       << k+1 << (!k ? "st" : (k==1) ? "nd" : (k==2) ? "rd" : "th") << " argument which is passed by reference\n";
 			return -1;
 		}
 	return selected_idx;
