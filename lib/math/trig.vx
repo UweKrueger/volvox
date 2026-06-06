@@ -1,3 +1,5 @@
+pub const pi := 3.1415926535897932385
+
 # C functions for "double"
 pub cdecl sin(x f64) f64
 pub cdecl cos(x f64) f64

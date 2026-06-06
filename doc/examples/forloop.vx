@@ -1,0 +1,3 @@
+for n in 1..3
+	printn "$n * $n = ${n * n}\n"
+end

@@ -1,3 +1,4 @@
+const pub e := 2.7182818284590452354
 
 pub cdecl cbrt(x f64) f64
 pub cdecl erf(x f64) f64
