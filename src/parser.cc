@@ -2989,7 +2989,7 @@ std::pair<std::unique_ptr<ExprAST>,int> GetTopLevelExpression(unsigned sym_kind)
 }
 
 std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E) {
-	std::string print = "print";
+	std::string print = "echo";
 	auto print_proto = lex.findProtos(print);
 	if (!print_proto) {
 		errs() << "Fatal error: could not find 'print' function\n";
