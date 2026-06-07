@@ -9,12 +9,12 @@ type KlamP {
 def KlamP
     this.b++
 	n_KlamP_constructor += this.b
-	# echo "KlamP constructor called ${this.a} ${this.b}"
+	echo "KlamP constructor called ${this.a} ${this.b}"
 end
 
 def ~KlamP
 	n_KlamP_destructor += this.b
-    # echo "KlamP destructor called ${this.a} ${this.b}"
+    echo "KlamP destructor called ${this.a} ${this.b}"
 end
 
 # modify by-val function argument, i.e. take ownership and call destructor
@@ -22,7 +22,7 @@ def own_KlamP(x KlamP) int
 	y = KlamP{ a: 12.3, b: 7 }
 	r = y.b
 	x.b += 5
-	# echo("own_KlamP() called", r, x.b)
+	echo("own_KlamP() called", r, x.b)
 	return r
 end
 
@@ -49,7 +49,7 @@ n_KlamP_destructor = 0
 def borrow_KlamP(x KlamP) int
 	y = KlamP{ a: 12.3, b: x.b+7 }
 	r = y.b
-	# echo("borrow_KlamP called", r, x.b)
+	echo("borrow_KlamP called", r, x.b)
 	return r
 end
 
@@ -71,11 +71,11 @@ end
 
 # use x after passing ownership -> make a valid copy
 def k_copy_KlamP_own(x KlamP) int
-	# echo("k called1", x.b)
+	echo("k called1", x.b)
 	x.b = 55
 	r = own_KlamP x
 	x.b += 23
-	# echo("k called", r, x.b)
+	echo("k called", r, x.b)
 	return r
 end
 
@@ -90,10 +90,10 @@ end
 
 # don't use after passing ownership -> move, i.e invalidate own object
 def k_move_KlamP_borrow(x KlamP) int
-	# echo("k called1", x.b)
+	echo("k called2", x.b)
 	x.b = 55
 	r = borrow_KlamP x
-	# echo("k called", r)
+	echo("k called3", r)
 	return r
 end
 
@@ -108,11 +108,11 @@ end
 
 # use x after borrowing -> modify and call destructor ourself
 def k_move_KlamP_borrow2(x KlamP) int
-	# echo("k called1", x.b)
+	echo("k called4", x.b)
 	x.b = 55
 	r = borrow_KlamP x
 	x.b++
-	# echo("k called", r)
+	echo("k called5", r)
 	return r
 end
 
@@ -126,10 +126,10 @@ def test_copy_constructor_7 bool
 end
 # don't use x after passing ownership -> move
 def k_copy_KlamP_own2(x KlamP) int
-	# echo("k called1", x.b)
+	echo("k called6", x.b)
 	x.b = 55
 	r = own_KlamP x
-	# echo("k called", r)
+	echo("k called7", r)
 	return r
 end
 
@@ -155,7 +155,7 @@ def test_copy_to_struct_1 bool
 	v1 = n_KlamP_constructor
 	b = KlaQ { x: a, y: -7.25 }
 	c = a.a
-	# echo("constructor calls:", v1, n_KlamP_constructor, a.b, b.x.b)
+	echo("constructor calls:", v1, n_KlamP_constructor, a.b, b.x.b)
 	return v1 == 6 && n_KlamP_constructor == 13
 end
 
@@ -166,7 +166,7 @@ def test_move_to_struct_1 bool
 	a = KlamP { b: 5 }
 	v1 = n_KlamP_constructor
 	b = KlaQ { x: a, y: -7.25 }
-	# echo(v1, n_KlamP_constructor)
+	echo(v1, n_KlamP_constructor)
 	return v1 == 6 && n_KlamP_constructor == 6
 end
 
@@ -178,13 +178,13 @@ type KlamP2 {
 def KlamP2
 	this.a += 0.125
 	n_KlamP_constructor++
-	# echo "KlamP2 constructor called ${this.a} ${this.b}"
+	echo "KlamP2 constructor called ${this.a} ${this.b}"
 end
 
 def ~KlamP2
 	if this.a != 0 || this.b != 0
 		n_KlamP_destructor++
-		# echo "KlamP2 destructor called ${this.a} ${this.b}"
+		echo "KlamP2 destructor called ${this.a} ${this.b}"
 end end
 
 type KlamQ {
