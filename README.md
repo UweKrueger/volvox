@@ -2,21 +2,24 @@
 
 ### Key Features:
 
-* Simple and concise syntax — designed for humans
+* Simple and concise syntax — designed for humans: colons, semicolons, braces and parentheses only where really unavoidable
+* Indentation not significant for compiler/interpreter but helpful for humans
 * The same source code can be run in the JIT-interpreter or be compiled to a native executable
 * Statically typed and polymorphic
 
 ### Examples
 
-#### Simple Arithmetic - Integer ("`int`")
+#### Simple Arithmetic — Integer ("`int`")
 ```volvox
 45 / 6
 ```
 `7`
 
-#### Floating Point ("`real`")
+Result of expressions are implicitly printed in interactive mode. Otherwise use "`echo`" to do this explicitly.
+
+#### Simple Arithmetic — Floating Point ("`real`")
 ```volvox
-45. / 6
+echo (45. / 6)
 ```
 `7.5`
 
@@ -26,15 +29,19 @@
 from math import pi, sin
 
 alpha = pi / 6
-sin alpha
+echo sin alpha
 ```
 `0.4999999999999999`
 
+Function calls with one argument don't need parentheses and have right-to-left associativity, i.e. "`echo sin alpha`" has the same meaning as "`echo(sin(alpha))`"
+
 #### For Loop and String Interpolation
+
+Use "`echon`" to suppress implicit quotation marks (and newlines) — similar to "`echo -n`" in `bash`.
 
 ```volvox
 for n in 1..3
-	printn "$n * $n = ${n * n}\n"
+	echon "$n * $n = ${n * n}\n"
 end
 ```
 `1 * 1 = 1`  
@@ -42,6 +49,8 @@ end
 `3 * 3 = 9`
 
 #### Multi Level Break
+
+The break condition is placed right behind the `brk` command(s). The default indentation indicates to which level the jump will go.
 
 ```volvox
 s = 0
@@ -52,10 +61,13 @@ for n in 1..7
 brk brk m == 2*n
 		s += m
 end end
+# multi level break will jump here
 
-print s
+echo s
 ```
 `22`
+
+A hash sign (`#`) marks the rest of the line as comment.
 
 #### Conditions
 
@@ -72,6 +84,8 @@ else
 	x += 1.5
 end
 
-print x
+echo x
 ```
 `24.75`
+
+Similar to `bash` — but without semicolon or "`then`".

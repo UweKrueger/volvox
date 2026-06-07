@@ -12,7 +12,7 @@ def QtKxcX(z f64)
 end
 
 def ~QtKxcX
-    print "QtKvcX destructor called ${this.a} ${this.b}"
+    echo "QtKvcX destructor called ${this.a} ${this.b}"
 end
 
 type HdfT {
@@ -28,10 +28,10 @@ end
 
 def g
 	y = QtKxcX 0.75
-	print "got ${y.b}" # expect 18
+	echo "got ${y.b}" # expect 18
 	z = HdfT{ q: 45.75, pp: y }
 	uu = f z
-	print z.pp.b
+	echo z.pp.b
 end
 
 g

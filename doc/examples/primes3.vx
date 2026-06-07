@@ -24,7 +24,7 @@ end
 
 for n in 2..max_prim
 	if is_prime n
-		print n
+		echo n
 		n_primes_found++
 		f = n + n
 		while f <= max_prim
@@ -32,4 +32,4 @@ for n in 2..max_prim
 			f += n
 end end end
 
-print "found $n_primes_found primes"
+echo "found $n_primes_found primes"

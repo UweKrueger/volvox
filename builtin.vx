@@ -183,27 +183,27 @@ cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 decl __builtin_sprint(widths voidptr, precisions voidptr, flagss voidptr, strings voidptr, ...) string
 decl __builtin_print(fd int, csv bool, nl bool, ...) int
 
-inline def print(...) int
+inline def echo(...) int
 	return __builtin_print(1, true, true, va_args)
 end
 
-inline def printn(s cstring) int
+inline def echon(s cstring) int
 	return int(_write(1, s, _strlen(s)))
 end
 
-inline def printn(...) int
+inline def echon(...) int
 	return __builtin_print(1, false, false, va_args)
 end
 
-inline def eprint(...) int
+inline def eecho(...) int
 	return __builtin_print(2, true, true, va_args)
 end
 
-inline def eprintn(s cstring) int
+inline def eechon(s cstring) int
 	return int(_write(2, s, _strlen(s)))
 end
 
-inline def eprintn(...) int
+inline def eechon(...) int
 	return __builtin_print(2, false, false, va_args)
 end
 

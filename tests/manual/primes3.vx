@@ -7,16 +7,16 @@ def getdiv(a u64)
 		while true
 			r = b % d
 			if r == 0
-				print d
+				echo d
 				b /= d
 			else
 				d++
 			end
-			print "leave $b"
+			echo "leave $b"
 	brk brk b == 1
 		end
 end end
 
-printn "Please enter a number: "
+echon "Please enter a number: "
 a = stdin.readul
 getdiv a

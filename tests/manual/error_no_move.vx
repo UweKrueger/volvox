@@ -10,7 +10,7 @@ def init QtKvcX
 end
 
 def ~QtKvcX
-    print "QtKvcX destructor called ${this.a} ${this.b}"
+    echo "QtKvcX destructor called ${this.a} ${this.b}"
 end
 
 def f(x QtKvcX) f64
@@ -21,9 +21,9 @@ end
 
 def g
 	y = QtKvcX{ a: 0.75, b: 17 }
-	print "got ${y.b}" # expect 18
+	echo "got ${y.b}" # expect 18
 	z = f y
-	print "done $z ${y.a}"
+	echo "done $z ${y.a}"
 end
 
 g

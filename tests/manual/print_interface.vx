@@ -40,7 +40,7 @@ end
 
 def g(x QQwMYx, m f64) f64
 	uwq = x.ttz(m, 4)
-	print x
+	echo x
 	return 12.5 + uwq
 end
 
@@ -58,7 +58,7 @@ end
 
 def ooo(i int, x QQwMYx) f64
 	p = x.oper(i + 12.7)
-	print(i, x)
+	echo(i, x)
 	return p * 2.5
 end
 

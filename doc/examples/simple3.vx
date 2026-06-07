@@ -1,4 +1,4 @@
 from math import pi, sin
 
 alpha = pi / 6
-sin alpha
+echo sin alpha

@@ -1,5 +1,5 @@
 def fplmm(u string) f64
-	print u
+	echo u
 	return 12.0625
 end
 
@@ -7,7 +7,7 @@ end
 
 global pqb5t = qjkq3r("Loppt")
 
-print pqb5t
+echo pqb5t
 
 a = "LLoop"
 
@@ -17,4 +17,4 @@ c = a + b
 
 q = fplmm(c)
 
-print q
+echo q

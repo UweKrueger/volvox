@@ -5,4 +5,4 @@ def faculty(n u64) u64
 		return n * faculty(n - 1)
 end end
 
-print faculty 20
+echo faculty 20

@@ -6,5 +6,6 @@ for n in 1..7
 brk brk m == 2*n
 		s += m
 end end
+# multi level break will jump here
 
-print s
+echo s

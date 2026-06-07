@@ -24,13 +24,13 @@ def flag_non_prime(i int)
 	primes[idx] |= mask
 end
 
-print 2
+echo 2
 n_primes_found++
 
 n = 3
 while n <= max_prim
 	if is_prime n
-		print n
+		echo n
 		n_primes_found++
 		f = 3 * n
 		while f <= max_prim
@@ -40,4 +40,4 @@ while n <= max_prim
 	n += 2
 end
 
-print "found $n_primes_found primes"
+echo "found $n_primes_found primes"

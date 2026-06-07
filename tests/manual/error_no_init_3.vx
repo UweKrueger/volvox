@@ -7,17 +7,17 @@ type QtKxcX {
 delete QtKxcX
 
 def clone QtKxcX
-	print "cloning ${this.b}"
+	echo "cloning ${this.b}"
 end
 
 def QtKxcX(z f64)
     this.b++
 	this.a = z * 1.5
-	print "QtKvcX constructor called ${this.a} ${this.b}"
+	echo "QtKvcX constructor called ${this.a} ${this.b}"
 end
 
 def ~QtKxcX
-    print "QtKvcX destructor called ${this.a} ${this.b}"
+    echo "QtKvcX destructor called ${this.a} ${this.b}"
 end
 
 type HdfT {
@@ -33,10 +33,10 @@ end
 
 def g
 	y = QtKxcX 0.75
-	print "got ${y.b}" # expect 18
+	echo "got ${y.b}" # expect 18
 	z = HdfT{ q: 45.75, pp: QtKxcX{ b: 5 } }
 	uu = f z
-	print uu
+	echo uu
 end
 
 g

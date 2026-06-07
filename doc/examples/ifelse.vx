@@ -10,4 +10,4 @@ else
 	x += 1.5
 end
 
-print x
+echo x

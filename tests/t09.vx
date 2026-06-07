@@ -249,7 +249,7 @@ def gLgT(x QQwOi) bool
 	q = x.ppt
 	x.ppt = -3.5
 	r = x.ppt
-	#print(p,q,r)
+	#echo(p,q,r)
 	#oooo = "$p $q $r"
 	return p == 3.25 && q == 5.46875 && r == 4.25
 end
@@ -279,7 +279,7 @@ def g2LgT(x QQwOi) bool
 	r = x.ppt
 	s = 7.3
 	#oopp = "$s $p $q $r"
-	#print(p,q,r)
+	#echo(p,q,r)
 	return p == 13.25 && q == 6.25 && r == -3.5
 end
 
@@ -388,29 +388,29 @@ type LLMJ {
 
 def ~LLMJ
 	wwqgh9 += 3 + 2*this.x
-	# print "Destuctor ${this.x}"
+	# echo "Destuctor ${this.x}"
 end
 
 def nmntr(y int) int
 	if y > 6
 		if y > 10
 			r = LLMJ{ x: 17 }
-			# print "created ${r.x}"
+			# echo "created ${r.x}"
 		brk y > 12
 			q = LLMJ{ x: 23 }
-			# print "created ${q.x}"
+			# echo "created ${q.x}"
 		else
 			r = LLMJ{ x: 19 }
-			# print "created ${r.x}"
+			# echo "created ${r.x}"
 	brk brk y < 8
-			# print "no brk"
+			# echo "no brk"
 			wwqgh9 += 100
 			return 7
 		end
-		# print "intermediate"
+		# echo "intermediate"
 		wwqgh9 += 1000
 	end
-	# print "Finish"
+	# echo "Finish"
 	wwqgh9 *= 2
 	return 9
 end
@@ -471,7 +471,7 @@ end
 # the following should not cause SEGV
 
 def WQrem(s string) f64
-	# print "SSS> $s <--"
+	# echo "SSS> $s <--"
 	return 67.5
 end
 

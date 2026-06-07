@@ -7,11 +7,11 @@ type QtKxcX {
 #delete clone QtKxcX
 
 def QtKxcX
-	print "QtKvcX destructor called ${this.a} ${this.b}"
+	echo "QtKvcX destructor called ${this.a} ${this.b}"
 end
 
 def ~QtKxcX
-    print "QtKvcX destructor called ${this.a} ${this.b}"
+    echo "QtKvcX destructor called ${this.a} ${this.b}"
 end
 
 def QtKxcX(z f64)
@@ -25,28 +25,28 @@ type HdfT {
 }
 
 # def HdfT
-# 	print "HdfT constructor called ${this.pp.a} ${this.pp.b}"
+# 	echo "HdfT constructor called ${this.pp.a} ${this.pp.b}"
 # end
 
 # def ~HdfT
-# 	print "HdfT destructor called ${this.pp.a} ${this.pp.b}"
+# 	echo "HdfT destructor called ${this.pp.a} ${this.pp.b}"
 # end
 
 def f(x HdfT) f64
 	x.q += 1.25
 	x.pp.a += 2.25
-	print "inside f: ${x.pp.a} ${x.pp.b}"
+	echo "inside f: ${x.pp.a} ${x.pp.b}"
 	z = x.pp.a
 	return z
 end
 
 def g
 	y = QtKxcX 0.75
-	print "got ${y.a} ${y.b}" # expect 1.25 1
+	echo "got ${y.a} ${y.b}" # expect 1.25 1
 	z = HdfT{ q: 45.75, pp: y }
 	uu = f z
-	printn "after f\n"
-	print uu
+	echon "after f\n"
+	echo uu
 end
 
 g

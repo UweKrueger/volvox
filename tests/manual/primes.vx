@@ -12,7 +12,7 @@ repeat
 	brk n_denom > 2
 	end
 	if n_denom == 2
-		print count
+		echo count
 		n_primes_found++
 	end
 	count++

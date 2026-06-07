@@ -72,7 +72,7 @@ end
 # case the method close() has to be called manually
 #
 pub inline def ~File
-	print "destructor called"
+	# echo "destructor called"
 	if bool(this._flags & autoclose) && bool(this.voidptr)
 	   fclose(this.voidptr)
 	end

@@ -310,7 +310,7 @@ type OOWq union {
 
 def test_union_1 bool
 	lk = OOWq{ y: -55435476.0625 }
-	# print(lk.x, lk.y, lk.z[5])
+	# echo(lk.x, lk.y, lk.z[5])
 	if arch.isBigEndian
 		return lk.x == -1047892218 && lk.y == -55435476.0625 && lk.z[5] == 128
 	else
@@ -359,7 +359,7 @@ global hfdsw233 = OOWq{ z: [18]u8{ 6, 7 } }
 global hfdsw234 = OOWq{ z: [ 6hhu, 7hhu ] }
 
 def test_array_field_init_1 bool
-	# print(hfdsw233.t, f337.z[1], f337.z[7])
+	# echo(hfdsw233.t, f337.z[1], f337.z[7])
 	if arch.isBigEndian
 		return hfdsw233.t == 434315889064542208 && f337.z[1] == 7 && f337.z[7] == 0
 	else
@@ -368,7 +368,7 @@ def test_array_field_init_1 bool
 end
 
 def test_array_field_init_2 bool
-	# print(hfdsw234.t, f337.z[1], f337.z[7])
+	# echo(hfdsw234.t, f337.z[1], f337.z[7])
 	if arch.isBigEndian
 		return hfdsw234.t == 434315889064542208 && f337.z[1] == 7 && f337.z[7] == 0
 	else
