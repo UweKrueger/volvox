@@ -8,9 +8,6 @@ set CLANGLLVMPKG=clang+llvm-%LLVM_VER%-x86_64-pc-windows-msvc.tar.xz
 set MINGWPKG=mingw-%MINGW_VER%-stdc++-%GCC_VER%-ucrt.tgz
 set GCCPKG=gcc-%GCC_VER%-mingw-%MINGW_VER%-ucrt.tgz
 
-:: find out OS Version
-for /f "tokens=4-5 delims=[.] " %%i in ('ver') do set OSVER=%%i.%%j
-
 if not "%~1"=="" if not "%~1"=="mingw+llvm" if not "%~1"=="gcc+llvm" if not "%~1"=="llvm+mingw" if not "%~1"=="llvm+gcc" if not "%~1"=="mingw" if not "%~1"=="gcc" goto opterr
 
 if "%~2"=="" goto ok_arg2
@@ -88,20 +85,10 @@ exit /b 1
 
 :llvmdiravail
 echo extracting llvm+clang to "C:\Program Files"
-if "%OSVER%"=="10.0" (
-    echo detected Windows 10 - trying 7-Zip + native tar as extractor
-	if exist "C:\Program Files\7-Zip\7z.exe" (
-	    7z x -so %CLANGLLVMPKG% | tar -x -f - -C "C:\Program Files"
-		if ERRORLEVEL 1 exit /b %ERRORLEVEL%
-	) else (
-	    echo 7-Zip not found - please install it from https://www.7-zip.org
-		exit /b 1
-	)
-) else (
-    echo detected Windows 11 - using native "tar" as extractor
-    tar -x -J -f %CLANGLLVMPKG% -C "C:\Program Files"
-    @if ERRORLEVEL 1 exit /b %ERRORLEVEL%
-)
+
+tar -x -J -f %CLANGLLVMPKG% -C "C:\Program Files"
+@if ERRORLEVEL 1 exit /b %ERRORLEVEL%
+
 rename "C:\Program Files\clang+llvm-%LLVM_VER%-x86_64-pc-windows-msvc" "LLVM"
 if ERRORLEVEL 1 exit /b %ERRORLEVEL%
 echo LLVM infrastructure successfully installed in "C:\Program Files\LLVM\"
