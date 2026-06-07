@@ -2,25 +2,29 @@
 
 ### Key Features:
 
-* Simple and concise syntax — designed for humans: colons, semicolons, braces and parentheses only where really unavoidable
-* Indentation not significant for compiler/interpreter but helpful for humans
-* The same source code can be run in the JIT-interpreter or be compiled to a native executable
-* Statically typed and polymorphic
+* Simple, concise syntax — designed for humans; punctuation (colons, semicolons, braces and parentheses) appears only when strictly necessary.
+* Indentation is insignificant for compiler/interpreter but remains a helpful visual cue for developers.
+* Dual execution mode — the same source file can be run instantly via the JIT‑interpreter or compiled to a native executable.
+* Strong static typing with support for polymorphism – types are checked at compile time.
 
 ### Examples
 
 #### Simple Arithmetic — Integer ("`int`")
+
 ```volvox
 45 / 6
 ```
+
 `7`
 
 Result of expressions are implicitly printed in interactive mode. Otherwise use "`echo`" to do this explicitly.
 
 #### Simple Arithmetic — Floating Point ("`real`")
+
 ```volvox
 echo (45. / 6)
 ```
+
 `7.5`
 
 #### Call Library Functions
@@ -31,6 +35,7 @@ from math import pi, sin
 alpha = pi / 6
 echo sin alpha
 ```
+
 `0.4999999999999999`
 
 Function calls with one argument don't need parentheses and have right-to-left associativity, i.e. "`echo sin alpha`" has the same meaning as "`echo(sin(alpha))`"
@@ -44,6 +49,7 @@ for n in 1..3
 	echon "$n * $n = ${n * n}\n"
 end
 ```
+
 `1 * 1 = 1`  
 `2 * 2 = 4`  
 `3 * 3 = 9`
@@ -86,6 +92,7 @@ end
 
 echo x
 ```
+
 `24.75`
 
 Similar to `bash` — but without semicolon or "`then`".
