@@ -13,7 +13,8 @@ cdecl __store_size(adr voidptr, val size_t) size_t
 cdecl __string_dup(s voidptr) voidptr
 cdecl(malloc) ___malloc(n_bytes size_t) voidptr
 cdecl __jit_malloc(n_bytes size_t) voidptr
-cdecl(realloc) __realloc(buf voidptr, n_bytes size_t) voidptr
+cdecl(realloc) ___realloc(buf voidptr, n_bytes size_t) voidptr
+cdecl __jit_realloc(buf voidptr, n_bytes size_t) voidptr
 cdecl(free) ___free(buf voidptr)
 cdecl __jit_free(buf voidptr)
 cdecl(printf) _printf(s cstring, ...) int
@@ -30,6 +31,13 @@ inline def __malloc(n_bytes size_t) voidptr
 		return __jit_malloc(n_bytes)
 	else
 		return ___malloc(n_bytes)
+end end
+
+inline def __realloc(buf voidptr, n_bytes size_t) voidptr
+	if __LLVM_JIT && __Environment_Idx == 2
+		return __jit_realloc(buf, n_bytes)
+	else
+		return ___realloc(buf, n_bytes)
 end end
 
 # for debugging purposes
@@ -861,7 +869,7 @@ end
 
 inline def __vec.__push(_elem_sz size_t, &_elem_ptr voidptr)
 	if this.__cap <= this.__size
-		this.__cap = this.__cap + this.__cap / 2 + 8
+		this.__cap = this.__cap + this.__cap / 2 + 8 * _elem_sz
 		this.__ptr = __realloc(this.__ptr, _elem_sz * this.__cap)
 	end
 	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.__size++), &_elem_ptr, _elem_sz)

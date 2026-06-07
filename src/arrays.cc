@@ -141,6 +141,9 @@ static void StoreArray(llvm::Value* ArrayAlloc, llvm::Value* ArrData, std::vecto
 // allocated from global context, so we can free them when the interpreter
 // finishes and make Valgrind happy...
 //
+// also memory mangement functions are not DLL-exported on Windows
+// so for JIT mode we need wrappers
+
 extern "C" DLLEXPORT void* __jit_managed_malloc(size_t s) {
 	void* adr = malloc(s);
 	jit_main_variables.emplace_back((char*)adr);
@@ -149,6 +152,11 @@ extern "C" DLLEXPORT void* __jit_managed_malloc(size_t s) {
 
 extern "C" DLLEXPORT void* __jit_malloc(size_t s) {
 	void* adr = malloc(s);
+	return adr;
+}
+
+extern "C" DLLEXPORT void* __jit_realloc(void* buf, size_t s) {
+	void* adr = realloc(buf, s);
 	return adr;
 }
 
