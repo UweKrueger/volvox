@@ -1,6 +1,6 @@
 ### Installation on Windows
 
-In order to compile and run Volvox on Windows you need the LLVM packages and a compiler infrastructure. While it is in principle possible to use Microsoft Visual Studio for the latter the recommended way is to use `clang`, `mingw` and some GNU tools to compile and run Volvox.
+In order to compile and run Volvox on Windows you need the LLVM packages and a compiler infrastructure. While it is in principle possible to use Microsoft Visual Studio for the latter the recommended way is to use `clang`, `mingw` and some GNU tools to compile and run Volvox. However it is still necessary to have Microsoft Visual Studio installed.
 
 #### 1. Compile Mingw
 
@@ -19,4 +19,17 @@ wget https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.7/clang
 
 Copy all three archives to your Windows system. Unpack the Volvox sources there and move the archives to the directory `volvox\mingw`.
 
-Now you have to make a decision if you want to install `gcc` in addition to `clang` it is not needed by Volvox but might be nice to have. Become `Administrator`, go to the directory `volvox\mingw` and run the installation batch file:
+Now you have to make a decision if you want to install `gcc` in addition to `clang`. It is not needed by Volvox but might be nice to have so that's the option shown here. Become `Administrator`, go to the directory `volvox\mingw` and run the installation batch file:
+
+```cmd
+install-3rd.bat llvm+gcc
+```
+
+In addition to LLVM and Mingw this also installs `make.exe` (GNU make) and `ldd.exe` (an `ldd` version that does not depend on MSYS or Cygwin). Add `C:\Program Files\LLVM\bin` to your `PATH` environment variable.
+
+Now you should be able to build Volvox. Open an `x64 Native Tools Command Prompt for VS 2022` and change to the `volvox` directory. Run:
+
+```cmd
+make -j8
+```
+
