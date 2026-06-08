@@ -1,11 +1,13 @@
 # ![Volvox](doc/volvox.svg) Volvox Programming Language
 
+Volvox is a modern programming language designed for clarity, conciseness, and flexibility.
+
 ### Key Features:
 
-* Simple, concise syntax — designed for humans; punctuation (colons, semicolons, braces and parentheses) appears only when strictly necessary.
-* Indentation is insignificant for compiler/interpreter but remains a helpful visual cue for developers.
-* Dual execution mode — the same source file can be run instantly via the JIT‑interpreter or compiled to a native executable.
-* Strong static typing with support for polymorphism – types are checked at compile time.
+* **Human-Centric Syntax**: A clean design where punctuation (colons, semicolons, braces, and parentheses) is used only where strictly necessary.
+* **Flexible Layout**: Indentation is ignored by the compiler and interpreter, serving as a visual aid for developers rather than a syntactic requirement.
+* **Dual Execution Mode**: Source files can be executed instantly via a JIT-interpreter or compiled into high-performance native executables.
+* **Strong Static Typing**: Ensures type safety at compile time while supporting polymorphism for flexibility.
 
 ### Examples
 
@@ -17,7 +19,7 @@
 
 `7`
 
-Result of expressions are implicitly printed in interactive mode. Otherwise use "`echo`" to do this explicitly.
+The results of expressions are implicitly printed in interactive mode. Otherwise use "`echo`" to do this explicitly.
 
 #### Simple Arithmetic — Floating Point ("`real`")
 
@@ -38,7 +40,7 @@ echo sin alpha
 
 `0.4999999999999999`
 
-Function calls with one argument don't need parentheses and have right-to-left associativity, i.e. "`echo sin alpha`" has the same meaning as "`echo(sin(alpha))`"
+Function calls with a single argument do not require parentheses and are evaluated with right-to-left associativity, i.e. "`echo sin alpha`" has the same meaning as "`echo(sin(alpha))`"
 
 #### For Loop and String Interpolation
 
@@ -56,7 +58,7 @@ end
 
 #### Multi Level Break
 
-The break condition is placed right behind the `brk` command(s). The default indentation indicates to which level the jump will go.
+The break condition follows the `brk` command. Multiple `brk` keywords allow jumping across multiple nesting levels.
 
 ```volvox
 s = 0
@@ -73,7 +75,7 @@ echo s
 ```
 `22`
 
-A hash sign (`#`) marks the rest of the line as comment.
+Comments are marked with the hash sign (`#`).
 
 #### Conditions
 
@@ -95,4 +97,4 @@ echo x
 
 `24.75`
 
-Similar to `bash` — but without semicolon or "`then`".
+The conditional syntax is streamlined, removing the need for `then` keywords or semicolons.

@@ -1750,7 +1750,7 @@ llvm::Value* HandleMove(
 		}
 	}
 	if (is_moved) {
-		// errs() << expr->Loc << ": ### function argument moved\n";
+		errs() << expr->Loc << ": ### function argument moved\n";
 		// we set the original value to zero to invalidate the object
 		// the destructor is supposed to ignore this value
 		if (auto arg_ref_expr = dynamic_cast<VariableExprAST*>(expr)) {
