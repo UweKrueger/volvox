@@ -1640,7 +1640,7 @@ bool FunctionAST::prepare_codegen() {
 		{
 			std::string mangled_fn_name = TheFunction->getName().str();
 			mapitem->destructor = getShadowConstructorDestructor(mangled_fn_name, ConstrIdx, true);
-			// errs() << mapitem->decl_loc << ": ### insert destructor " << mapitem->destructor << "\n";
+			errs() << mapitem->decl_loc << ": ### insert destructor " << mapitem->destructor << "\n";
 		} else {
 			// destructors for function argument is called by the caller
 			mapitem->destructor = nullptr;
@@ -1884,6 +1884,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 		for (auto& flag: Proto->ArgNeedsConstructor) {
 			if (get_arg_flag(flag, maybe_arg_is_owned) && (Proto->ArgTypes[idx]->type_attr & A_destructor)) {
 				auto destr_shadow_fn = getShadowConstructorDestructor(mangled_fn_name, idx, true);
+				errs() << "Create Shadow " << mangled_fn_name << "\n";
 				auto BB = llvm::BasicBlock::Create(Context, "entry", destr_shadow_fn);
 				Builder->SetInsertPoint(BB);
 				llvm::Value* Arg = destr_shadow_fn->getArg(0);
@@ -1892,11 +1893,14 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 					if (!destr_fn)
 						abort();
 					Builder->CreateCall(constr_destr_fn_type, destr_fn, std::vector<llvm::Value*>{ Arg });
+					errs() << "call created\n";
 				}
 				Builder->CreateRetVoid();
 				success = success && finishFunctionOrModule(destr_shadow_fn, 1, false, false);
-				if (!success)
+				if (!success) {
+					errs() << "no success\n";
 					break;
+				}
 			}
 			unset_arg_flag(&flag, maybe_arg_is_owned);
 			if (!get_arg_flag(flag, arg_is_owned)) {
