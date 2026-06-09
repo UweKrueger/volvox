@@ -88,6 +88,27 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 	return F;
 }
 
+void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before = nullptr) {
+	if (fv->destructor) {
+		errs() << fv->decl_loc << ": have destructor for var \n";
+		if (jit_repl && !inside_function)
+			fv->destructor = getConstructorOrDestructor(&fv->ft, true);
+		llvm::BasicBlock* oldBB;
+		if (before) {
+			oldBB = Builder->GetInsertBlock();
+			Builder->SetInsertPoint(before);
+		}
+		Builder->CreateCall(constr_destr_fn_type, fv->destructor, std::vector<llvm::Value*>{ val });
+		if (before)
+			Builder->SetInsertPoint(oldBB);
+	} else if (fv->ft.type->isPointerTy() && (fv->ft.type_attr & A_map)) {
+		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? val : Builder->CreateLoad(llvm_ptr_type, val);
+		InsertMapDestructor(v, before);
+	} else {
+		errs() << fv->decl_loc << ": no destructor for var \n";
+	}
+}
+
 void InsertDestructor(FullVar* fv, llvm::Instruction* before) {
 	if (!fv) {
 		errs() << "InsertDestructor(): internal error no variable\n";
