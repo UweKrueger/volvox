@@ -1,35 +1,58 @@
 ### Installation on Windows
 
-In order to compile and run Volvox on Windows you need the LLVM packages and a compiler infrastructure. While it is in principle possible to use Microsoft Visual Studio for the latter the recommended way is to use `clang`, `mingw` and some GNU tools to compile and run Volvox. However it is still necessary to have Microsoft Visual Studio installed.
+To compile and run Volvox on Windows, you need the LLVM packages and a supporting compiler infrastructure. While Microsoft Visual Studio can be used, the recommended approach is to use `clang`, `mingw`, and a selection of GNU tools. Please note that **Microsoft Visual Studio must still be installed** to **build** Volvox[^1] even though it's no runtime requirement.
 
-#### 1. Compile Mingw
+#### 1. Setting up the Toolchain (Mingw)
 
-The easiest way to compile `mingw` is to do a cross compilation on a Linux machine. Unpack the Volvox sources and go to the `mingw` directory and run the build script:
- 
+The most efficient way to obtain a compatible `mingw` environment is via cross-compilation on a Linux machine. 
+
+1. Unpack the Volvox sources on your Linux machine.
+2. Navigate to the `mingw` directory and run the build script:
+   
 ```bash
 cd volvox/mingw
 ./build-mingw.sh
 ```
 
-If everything went fine there should be two archive files in this directory: `gcc-14.3.0-mingw-v14.0.0-ucrt.tgz` and `mingw-v14.0.0-stdc++-14.3.0-ucrt.tgz`. You should also get the LLVM binary archive:
+Upon successful completion, two archive files will be created in this directory: `gcc-14.3.0-mingw-v14.0.0-ucrt.tgz` and `mingw-v14.0.0-stdc++-14.3.0-ucrt.tgz`. Additionally, download the LLVM binary archive:
 
 ```bash
 wget https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.7/clang+llvm-22.1.7-x86_64-pc-windows-msvc.tar.xz
 ```
 
-Copy all three archives to your Windows system. Unpack the Volvox sources there and move the archives to the directory `volvox\mingw`.
+#### 2. Installation on Windows
 
-Now you have to make a decision if you want to install `gcc` in addition to `clang`. It is not needed by Volvox but might be nice to have so that's the option shown here. Become `Administrator`, go to the directory `volvox\mingw` and run the installation batch file:
+Copy all three archives to your Windows system. Unpack the Volvox sources and move the archives into the `volvox\mingw` directory.
+
+You can choose whether to install `gcc` in addition to `mingw`. While `gcc` is not required for Volvox, it is recommended for general development. To proceed with the installation:
+
+1. Open a command prompt with **Administrator privileges**.
+2. Navigate to the `volvox\mingw` directory.
+3. Run the installation batch file (use `llvm+gcc` for LLVM, mingw and gcc, or just `llvm+mingw` for LLVM and mingw only):
 
 ```cmd
 install-3rd.bat llvm+gcc
 ```
 
-In addition to LLVM and Mingw this also installs `make.exe` (GNU make) and `ldd.exe` (an `ldd` version that does not depend on MSYS or Cygwin). Add `C:\Program Files\LLVM\bin` to your `PATH` environment variable.
+This script installs LLVM, Mingw, `make.exe` (GNU Make), and `ldd.exe` (a standalone version of `ldd`). 
 
-Now you should be able to build Volvox. Open an `x64 Native Tools Command Prompt for VS 2022` and change to the `volvox` directory. Run:
+**Important:** Add `C:\Program Files\LLVM\bin` to your system `PATH` environment variable.
+
+#### 3. Provide Bash
+
+The `Makefile` uses the `bash` shell which requires a POSIX layer and thus can't be build with `mingw`.  
+The easiest way to get a working `bash.exe` is by installing Git for Windows.
+
+#### 4. Building Volvox
+
+Once the toolchain is configured, you can build Volvox:
+
+1. Open the **x64 Native Tools Command Prompt for VS 2022**.
+2. Change the directory to the `volvox` root folder.
+3. Execute the build command:
 
 ```cmd
 make -j8
 ```
 
+[^1]: The resulting `volvox.exe` is an `msvc` binary but it can create both `ming` binaries (using the toolchain that is created by `build-mingw.sh`) and `msvc` binaries (using libraries from a Microsoft Visual Studio installation).
