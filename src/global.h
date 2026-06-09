@@ -1034,6 +1034,7 @@ inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::In
 
 inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before = nullptr) {
 	if (fv->destructor) {
+		errs() << fv->decl_loc << ": have destructor for var \n";
 		if (jit_repl && !inside_function)
 			fv->destructor = getConstructorOrDestructor(&fv->ft, true);
 		llvm::BasicBlock* oldBB;
