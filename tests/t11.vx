@@ -29,6 +29,7 @@ end
 def test_copy_constructor_1 bool
 	x = KlamP
 	r = own_KlamP(x)
+	echo (r, n_KlamP_constructor, n_KlamP_destructor)
 	return r == 8 && n_KlamP_constructor == 9 && n_KlamP_destructor == 14
 end
 
