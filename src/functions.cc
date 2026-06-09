@@ -1885,7 +1885,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 		for (auto& flag: Proto->ArgNeedsConstructor) {
 			if (get_arg_flag(flag, maybe_arg_is_owned) && (Proto->ArgTypes[idx]->type_attr & A_destructor)) {
 				auto destr_shadow_fn = getShadowConstructorDestructor(mangled_fn_name, idx, true);
-				errs() << "Create Shadow " << mangled_fn_name << "\n";
+				errs() << "Create Shadow " << mangled_fn_name << " " << *destr_shadow_fn << "\n";
 				auto BB = llvm::BasicBlock::Create(Context, "entry", destr_shadow_fn);
 				Builder->SetInsertPoint(BB);
 				llvm::Value* Arg = destr_shadow_fn->getArg(0);
@@ -1894,7 +1894,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 					if (!destr_fn)
 						abort();
 					Builder->CreateCall(constr_destr_fn_type, destr_fn, std::vector<llvm::Value*>{ Arg });
-					errs() << "call created\n";
+					errs() << "call created " << constr_destr_fn_type << " " << *destr_fn << "\n";
 				}
 				Builder->CreateRetVoid();
 				success = success && finishFunctionOrModule(destr_shadow_fn, 1, false, false);
