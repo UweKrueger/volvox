@@ -1048,6 +1048,8 @@ inline static void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::I
 	} else if (fv->ft.type->isPointerTy() && (fv->ft.type_attr & A_map)) {
 		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? val : Builder->CreateLoad(llvm_ptr_type, val);
 		InsertMapDestructor(v, before);
+	} else {
+		errs() << fv->decl_loc << ": no destructor for var \n";
 	}
 }
 
