@@ -370,13 +370,13 @@ type KlamP3 {
 def KlamP3
 	this.a += 0.125
 	n_KlamP_constructor++
-	# echo "KlamP3 constructor called ${this.a} ${this.b}"
+	echo "KlamP3 constructor called ${this.a} ${this.b}"
 end
 
 def ~KlamP3
 	if this.a != 0 || this.b != 0
 		n_KlamP_destructor++
-		# echo "KlamP3 destructor called ${this.a} ${this.b}"
+		echo "KlamP3 destructor called ${this.a} ${this.b}"
 end end
 
 type KlamQ3 {
@@ -386,12 +386,12 @@ type KlamQ3 {
 
 def KlamQ3
 	n_KlamQ_constructor++
-	# echo "KlamQ3 constructor called ${this.x.a} ${this.x.b} ${this.y}"
+	echo "KlamQ3 constructor called ${this.x.a} ${this.x.b} ${this.y}"
 end
 
 def ~KlamQ3
 	n_KlamQ_destructor++
-	# echo "KlamQ3 destructor called ${this.x.a} ${this.x.b} ${this.y}"
+	echo "KlamQ3 destructor called ${this.x.a} ${this.x.b} ${this.y}"
 end
 
 def KlamQ3+(b KlamQ3) KlamQ3
@@ -433,7 +433,7 @@ end
 
 def test_get_substruct_constructors_destructors_5 bool
 	w = get_substruct_constructors_destructors_5
-	# echo w
+	echo( w, n_KlamP_constructor, n_KlamQ_constructor, n_KlamP_destructor, n_KlamQ_destructor)
 	return w == 2. && n_KlamP_constructor == 1 && n_KlamQ_constructor == 0 && n_KlamP_destructor == 2 && n_KlamQ_destructor == 1
 end
 

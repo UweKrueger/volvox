@@ -2408,7 +2408,7 @@ static std::unique_ptr<PrototypeAST> ParsePrototype(unsigned& visibility) {
 // 				set_arg_flag(&argflags, arg_has_destructor);
 			if (argflags != arg_is_borrowed_or_pod) {
 			  set_arg_flag(&argflags, maybe_arg_is_owned);
-			  errs() << ArgLoc << ": maybe_arg_is_owned\n";
+			  // errs() << ArgLoc << ": maybe_arg_is_owned\n";
 			}
 		}
 		ArgNeedsConstructor.push_back(argflags);

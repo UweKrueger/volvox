@@ -56,7 +56,7 @@ llvm::Function* getConversion(std::string& mangled_name) {
 
 llvm::Function* getShadowConstructorDestructor(std::string& mangled_name, int n, bool destructor) {
 	auto thename = "___" + mangled_name + "_arg" + std::to_string(n) + (destructor ? "_destr" : "_constr");
-	errs() << "Get shadow " << thename << "\n";
+	// errs() << "Get shadow " << thename << "\n";
 	if (auto F = TheModule->getFunction(thename))
 		return F;
 	auto F = llvm::Function::Create(constr_destr_fn_type, llvm::Function::ExternalLinkage, thename, TheModule.get());
@@ -90,7 +90,7 @@ llvm::Function* getConstructorOrDestructor(volvoxc::FullType* ft, bool destructo
 
 void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before = nullptr) {
 	if (fv->destructor) {
-		errs() << fv->decl_loc << ": have destructor for var \n";
+		// errs() << fv->decl_loc << ": have destructor for var \n";
 		if (jit_repl && !inside_function)
 			fv->destructor = getConstructorOrDestructor(&fv->ft, true);
 		llvm::BasicBlock* oldBB;
@@ -104,8 +104,6 @@ void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* be
 	} else if (fv->ft.type->isPointerTy() && (fv->ft.type_attr & A_map)) {
 		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? val : Builder->CreateLoad(llvm_ptr_type, val);
 		InsertMapDestructor(v, before);
-	} else {
-		errs() << fv->decl_loc << ": no destructor for var \n";
 	}
 }
 
@@ -1662,7 +1660,7 @@ bool FunctionAST::prepare_codegen() {
 		{
 			std::string mangled_fn_name = TheFunction->getName().str();
 			mapitem->destructor = getShadowConstructorDestructor(mangled_fn_name, ConstrIdx, true);
-			errs() << mapitem->decl_loc << ": ### insert destructor " << mapitem->destructor << "\n";
+			// ^<errs() << mapitem->decl_loc << ": ### insert destructor " << mapitem->destructor << "\n";
 		} else {
 			// destructors for function argument is called by the caller
 			mapitem->destructor = nullptr;
@@ -1772,7 +1770,7 @@ llvm::Value* HandleMove(
 		}
 	}
 	if (is_moved) {
-		errs() << expr->Loc << ": ### function argument moved\n";
+		// errs() << expr->Loc << ": ### function argument moved\n";
 		// we set the original value to zero to invalidate the object
 		// the destructor is supposed to ignore this value
 		if (auto arg_ref_expr = dynamic_cast<VariableExprAST*>(expr)) {
@@ -1906,7 +1904,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 		for (auto& flag: Proto->ArgNeedsConstructor) {
 			if (get_arg_flag(flag, maybe_arg_is_owned) && (Proto->ArgTypes[idx]->type_attr & A_destructor)) {
 				auto destr_shadow_fn = getShadowConstructorDestructor(mangled_fn_name, idx, true);
-				errs() << "Create Shadow " << mangled_fn_name << " " << *destr_shadow_fn << "\n";
+				// errs() << "Create Shadow " << mangled_fn_name << " " << *destr_shadow_fn << "\n";
 				auto BB = llvm::BasicBlock::Create(Context, "entry", destr_shadow_fn);
 				Builder->SetInsertPoint(BB);
 				llvm::Value* Arg = destr_shadow_fn->getArg(0);
@@ -1915,7 +1913,7 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 					if (!destr_fn)
 						abort();
 					Builder->CreateCall(constr_destr_fn_type, destr_fn, std::vector<llvm::Value*>{ Arg });
-					errs() << "call created " << constr_destr_fn_type << " " << *destr_fn << "\n";
+					// errs() << "call created " << constr_destr_fn_type << " " << *destr_fn << "\n";
 				}
 				Builder->CreateRetVoid();
 				success = success && finishFunctionOrModule(destr_shadow_fn, 1, false, false);
