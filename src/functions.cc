@@ -1913,8 +1913,9 @@ llvm::Function* FunctionAST::finish_codegen(bool finishModule, bool getNewModule
 					if (!destr_fn)
 						abort();
 					Builder->CreateCall(constr_destr_fn_type, destr_fn, std::vector<llvm::Value*>{ Arg });
-					// errs() << "call created " << constr_destr_fn_type << " " << *destr_fn << "\n";
-				}
+					// errs() << Proto->ArgPos[idx] << ": call created " << constr_destr_fn_type << " " << *destr_fn << "\n";
+				} /* else
+				     errs() << Proto->ArgPos[idx] << ": no destructor call\n"; */
 				Builder->CreateRetVoid();
 				success = success && finishFunctionOrModule(destr_shadow_fn, 1, false, false);
 				if (!success) {
