@@ -11,24 +11,6 @@ Volvox is a modern programming language designed for clarity, conciseness, and f
 
 ### Examples
 
-#### Simple Arithmetic — Integer ("`int`")
-
-```volvox
-45 / 6
-```
-
-`7`
-
-The results of expressions are implicitly printed in interactive mode. Otherwise use "`echo`" to do this explicitly.
-
-#### Simple Arithmetic — Floating Point ("`real`")
-
-```volvox
-echo (45. / 6)
-```
-
-`7.5`
-
 #### Call Library Functions
 
 ```volvox
@@ -44,11 +26,9 @@ Function calls with a single argument do not require parentheses and are evaluat
 
 #### For Loop and String Interpolation
 
-Use "`echon`" to suppress implicit quotation marks (and newlines) — similar to "`echo -n`" in `bash`.
-
 ```volvox
 for n in 1..3
-	echon "$n * $n = ${n * n}\n"
+	echo "$n * $n = ${n * n}"
 end
 ```
 
@@ -109,3 +89,7 @@ A variable can be initialized in conditional branches and accessed later — as 
 ### Installation
 
 see [Install](doc/Install.md)
+
+### First Steps
+
+see [First Steps](doc/FirstSteps.md)

@@ -192,6 +192,10 @@ decl __builtin_sprint(widths voidptr, precisions voidptr, flagss voidptr, string
 decl __builtin_print(fd int, csv bool, nl bool, ...) int
 
 inline def echo(...) int
+	return __builtin_print(1, false, true, va_args)
+end
+
+inline def echoc(...) int
 	return __builtin_print(1, true, true, va_args)
 end
 
