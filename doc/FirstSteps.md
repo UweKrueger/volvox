@@ -25,4 +25,4 @@ echo (45. / 6)
 
 The second line "`4`" is the "result" of the `echo` command — the number of characters printed including the newline character.
 
-Implicit printing of expressions results can be suppressed by starting `volvox` 
+Implicit printing of expressions results in interactive mode can be suppressed by starting `volvox` with the option `-fno-print-results` or `-fno-pres`. On the other hand it can be enabled for non-interactive modes with `-fprint-results` or `-fpres`.

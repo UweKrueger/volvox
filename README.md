@@ -46,7 +46,7 @@ s = 0
 for n in 1..7
 	for m in 3..5
 		s += n
-brk brk m == 2*n
+brk brk m == 2*n # Exit both loops when condition is met
 		s += m
 end end
 # multi level break will jump here
@@ -86,10 +86,6 @@ echo x
 
 A variable can be initialized in conditional branches and accessed later — as long as it is initialized in *all* branches. 
 
-### Installation
+### Quick Start
 
-see [Install](doc/Install.md)
-
-### First Steps
-
-see [First Steps](doc/FirstSteps.md)
+To get started, see [Installation Guide](doc/Install.md) and [First Steps](doc/FirstSteps.md).

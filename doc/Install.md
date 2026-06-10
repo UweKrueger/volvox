@@ -53,7 +53,7 @@ This script installs LLVM, Mingw, `make.exe` (GNU Make), and `ldd.exe` (a standa
 
 #### 3. Provide Bash
 
-The `Makefile` uses the `bash` shell which requires a POSIX layer and thus can't be build with `mingw`.  
+The `Makefile` uses the `bash` shell which requires a POSIX layer and thus can't be built with `mingw`.  
 The easiest way to get a working `bash.exe` is by installing Git for Windows.
 
 #### 4. Building Volvox
@@ -97,7 +97,7 @@ There are a bunch of test cases in the directory `tests`. The `volvox` executabl
 
 ### Installation
 
-When the built was successful there should be an executable named "`volvox.exe`" (on Windows) or "`volvox`" (on Unix systems).
+When the build was successful there should be an executable named "`volvox.exe`" (on Windows) or "`volvox`" (on Unix systems).
 
 There is no "`make install`" but to test Volvox it is not necessary to install anything. Just call the `volvox` executable with fully qualified path.
 
