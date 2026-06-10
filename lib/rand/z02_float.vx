@@ -36,6 +36,10 @@ pub inline def f64
 	end
 end
 
+pub inline def real
+	this = f64
+end
+
 # create an equally distributed random real in the range [0; limit)
 #
 pub inline def f64(limit f64)
@@ -44,6 +48,14 @@ end
 
 pub inline def f64(min_value f64, limit f64)
 	this = min_value + f64(limit - min_value)
+end
+
+pub inline def real(limit real)
+	this = f64(limit)
+end
+
+pub inline def real(min_value real, limit real)
+	this = f64(min_value, limit)
 end
 
 type FU32 union {

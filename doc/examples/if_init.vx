@@ -1,0 +1,18 @@
+import rand
+
+# get random floating point number from [0..10)
+h = rand.real 10
+
+if h < 5
+	if h < 2.5
+		x = 2
+	else
+		x = 4
+	end
+else
+	x = 8
+end
+
+# `x` has been initialized in all branches
+# so we can read its value
+echo x

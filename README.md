@@ -77,27 +77,34 @@ echo s
 
 Comments are marked with the hash sign (`#`).
 
-#### Conditions
+#### Conditions and Initialisation
+
+The conditional syntax is streamlined, removing the need for `then` keywords or semicolons. 
 
 ```volvox
-x = 23.25
+import rand
 
-if x < 10
-	x += 2
-elif x <= 15
-	x += 12.75
-elif x < 20
-	x *= 5
+# get random floating point number from [0..10)
+h = rand.real 10
+
+if h < 5
+	if h < 2.5
+		x = 2
+	else
+		x = 4
+	end
 else
-	x += 1.5
+	x = 8
 end
 
+# `x` has been initialized in all branches
+# so we can read its value
 echo x
 ```
 
-`24.75`
+`4` (or `2` or `8`)
 
-The conditional syntax is streamlined, removing the need for `then` keywords or semicolons.
+A variable can be initialized in conditional branches and accessed later — as long as it is initialized in *all* branches. 
 
 ### Installation
 
