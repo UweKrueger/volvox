@@ -98,3 +98,7 @@ echo x
 `24.75`
 
 The conditional syntax is streamlined, removing the need for `then` keywords or semicolons.
+
+### Installation
+
+see [Install](doc/Install.md)
