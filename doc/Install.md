@@ -80,9 +80,24 @@ gmake -j8
 
 Please note that BSD systems are not the main development platform for Volvox, so there may be issues. In particular on OpenBSD the compiler and interpreter (or to be more precise: the LLVM backend) might produce illegal instructions (at least for real hardware with newer CPUs).
 
+### Test Compiler / Interpreter
+
+There are a bunch of test cases in the directory `tests`. The `volvox` executable can be run in three modes (on Windows use backslashes, i.e. type `.\volvox` instead of `./volvox`):
+
+1. Non-Interactive JIT-Interpreter:  
+   `./volvox -t -j tests/t*.vx`  
+   This will JIT-compile all test cases run them and exit.
+2. Interactive JIT-Interpreter:  
+   `./volvox -t -J tests/t*.vx`  
+   This will JIT-compile and run each command one by one as if it had been entered interactively. The interpreter will leave a prompt to enter further commands. Just type `return 0` or enter an End-Of-File symbol to exit (`Ctrl-D` on Linux / `Crtl-Z Return` on Windows).
+3. Native Compiler:  
+   `./volvox -t -o all_tests tests/t*.vx`  
+   This will create an executable binary `all_tests[.exe]`. Run it with   
+   `./all_tests`
+
 ### Installation
 
-When building was successful there should be an executable named "`volvox.exe`" (on Windows) or "`volvox`" (on Unix systems).
+When the built was successful there should be an executable named "`volvox.exe`" (on Windows) or "`volvox`" (on Unix systems).
 
 There is no "`make install`" but to test Volvox it is not necessary to install anything. Just call the `volvox` executable with fully qualified path.
 
