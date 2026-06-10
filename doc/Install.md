@@ -103,4 +103,4 @@ There is no "`make install`" but to test Volvox it is not necessary to install a
 
 However, if you want to install the compiler, you can copy the executable to some `bin` directory that is part of your `PATH` and copy the `lib` directory parallel to that `bin` directory.
 
-Now it's time to try your [First Steps](doc/FirstSteps.md).
+Now it's time to try your [First Steps](FirstSteps.md).
