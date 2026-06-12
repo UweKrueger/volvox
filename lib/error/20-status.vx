@@ -1,3 +1,5 @@
 # Values that indicate non-normal status' but are not passed though errno
 
 pub const EOF := -1
+
+pub cdecl strerror(errnum int) cstring

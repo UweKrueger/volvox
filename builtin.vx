@@ -208,7 +208,7 @@ inline def echon(...) int
 end
 
 inline def eecho(...) int
-	return __builtin_print(2, true, true, va_args)
+	return __builtin_print(2, false, true, va_args)
 end
 
 inline def eechon(s cstring) int

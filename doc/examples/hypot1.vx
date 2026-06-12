@@ -1,0 +1,18 @@
+from file import File, stdin, stdout
+import math
+
+stdout.write "Program to calculate the hypotenuse of a right-angled triangle\n"
+stdout.write "Enter 0 as length of one of the legs to end program.\n\n"
+
+while true
+	# prompt for value without appending `newline`
+	stdout.write "1. leg: "
+	# read `real` value
+	a = stdin.readr
+brk a == 0
+	stdout.write "2. leg: "
+	b = stdin.readr
+brk b == 0
+	c = math.sqrt(a*a + b*b)
+	stdout.write "length of hypotenuse: $c\n"
+end

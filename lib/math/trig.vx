@@ -7,13 +7,15 @@ pub cdecl tan(x f64) f64
 pub cdecl asin(x f64) f64
 pub cdecl acos(x f64) f64
 pub cdecl atan(x f64) f64
-pub cdecl atan2(y f64, x f64) f64
+# pub cdecl atan2(y f64, x f64) f64
 pub cdecl sinh(x f64) f64
 pub cdecl cosh(x f64) f64
 pub cdecl tanh(x f64) f64
 pub cdecl asinh(x f64) f64
 pub cdecl acosh(x f64) f64
 pub cdecl atanh(x f64) f64
+# pub cdecl hypot(x f64, y f64) f64
+
 # C functions for "float"
 pub cdecl(sinf) sin(x f32) f32
 pub cdecl(cosf) cos(x f32) f32
@@ -21,10 +23,11 @@ pub cdecl(tanf) tan(x f32) f32
 pub cdecl(asinf) asin(x f32) f32
 pub cdecl(acosf) acos(x f32) f32
 pub cdecl(atanf) atan(x f32) f32
-pub cdecl(atan2f) atan2(y f32, x f32) f32
+# pub cdecl(atan2f) atan2(y f32, x f32) f32
 pub cdecl(sinhf) sinh(x f32) f32
 pub cdecl(coshf) cosh(x f32) f32
 pub cdecl(tanhf) tanh(x f32) f32
 pub cdecl(asinhf) asinh(x f32) f32
 pub cdecl(acoshf) acosh(x f32) f32
 pub cdecl(atanhf) atanh(x f32) f32
+# pub cdecl(hypotf) hypot(x f32, y f32) f32

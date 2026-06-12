@@ -1,0 +1,17 @@
+import file
+from math import sqrt
+from error import strerror
+
+outfile = file.new "results.txt"
+if outfile.err != 0
+	eecho "Error creating new file \"results.txt\": ${strerror(outfile.err)}"
+	exit 1
+end
+
+for a in 0.0 .. 10.0
+	for b in 0.0 .. 10.0
+		c = sqrt(a*a + b*b)
+		outfile.write "$a² + $b² = $c²\n"
+end end
+
+return 0
