@@ -574,9 +574,14 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 				VarName += lex.CurChar;
 				lex.CurChar = lex.advance();
 			} while (lex.CurChar == '_' || isalnum(lex.CurChar));
-			expr = std::make_unique<VariableExprAST>(CurLoc, VarName);
-			if (!expr->ft->type) {
+			if (auto fv = lookup_var(VarName.c_str()))
+				expr = std::make_unique<VariableExprAST>(CurLoc, VarName, fv);
+			else {
 				errs() << CurLoc << ": unknown variable name '" << VarName << "'\n";
+				goto handle_error;
+			}
+			if (!expr->ft->type) {
+				errs() << CurLoc << ": variable '" << VarName << " has unknown type'\n";
 				goto handle_error;
 			}
 		}

@@ -6,7 +6,6 @@ pub cdecl erfc(x f64) f64
 pub cdecl exp(x f64) f64
 pub cdecl exp2(x f64) f64
 pub cdecl expm1(x f64) f64
-pub cdecl hypot(x f64, y f64) f64
 pub cdecl ilogb(x f64) i32
 pub cdecl j0(x f64) f64
 pub cdecl j1(x f64) f64
@@ -29,7 +28,6 @@ pub cdecl(erfcf) erfc(x f32) f32
 pub cdecl(expf) exp(x f32) f32
 pub cdecl(exp2f) exp2(x f32) f32
 pub cdecl(expm1f) expm1(x f32) f32
-pub cdecl(hypotf) hypot(x f32, y f32) f32
 pub cdecl(ilogbf) ilogb(x f32) i32
 pub cdecl(j0f) j0(x f32) f32
 pub cdecl(j1f) j1(x f32) f32

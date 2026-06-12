@@ -185,3 +185,7 @@ Error creating new file "results.txt": File exists
 ```
 
 It might be desirable to overwrite existing files. In this case we can use "`file.create`" instead of "`file.new`".
+
+Furthermore calculating the sum of squares might overflow (i.e. become greater than the maximum supported `real` value) even if none of the three sides of the triangle would. For this reason there is a special function `hypot` to calculate the hypotenuse.
+
+The file [`hypot4.vx`](examples/hypot4.vx) includes these changes.

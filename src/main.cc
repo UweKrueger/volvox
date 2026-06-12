@@ -2501,7 +2501,7 @@ int main(int argc, char* argv[]) {
 						linker_argv.push_back(rpath);
 					}
 				}
-				if (needs_libm)
+				if (true || needs_libm)
 					linker_argv.push_back(const_cast<char*>("-lm"));
 				if (needs_pthread) {
 					linker_argv.push_back(const_cast<char*>("-lpthread"));
