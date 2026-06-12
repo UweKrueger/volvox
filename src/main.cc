@@ -208,6 +208,7 @@ void init(const llvm::Triple& triple) {
 	lex.add_type("u32", llvm::Type::getInt32Ty(Context), DBuilder ? DBuilder->createBasicType("u32", 32, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	lex.add_type("u64", llvm::Type::getInt64Ty(Context), DBuilder ? DBuilder->createBasicType("u64", 64, llvm::dwarf::DW_ATE_unsigned) : nullptr);
 	lex.add_type("f16", llvm::Type::getBFloatTy(Context), DBuilder ? DBuilder->createBasicType("f16", 16, llvm::dwarf::DW_ATE_float) : nullptr);
+	lex.add_type("float", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("float", 32, llvm::dwarf::DW_ATE_float) : nullptr);
 	lex.add_type("f32", llvm::Type::getFloatTy(Context), DBuilder ? DBuilder->createBasicType("f32", 32, llvm::dwarf::DW_ATE_float) : nullptr);
 	f32_type = lex.get_full_type("f32");
 	lex.add_type("f64", llvm::Type::getDoubleTy(Context), DBuilder ? DBuilder->createBasicType("f64", 64, llvm::dwarf::DW_ATE_float) : nullptr);
