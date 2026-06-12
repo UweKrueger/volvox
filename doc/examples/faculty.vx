@@ -1,8 +1,0 @@
-def faculty(n u64) u64
-	if n == 0
-		return 1
-	else
-		return n * faculty(n - 1)
-end end
-
-echo faculty 20

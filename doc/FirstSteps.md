@@ -43,39 +43,39 @@ Using Volvox interactively can be helpful to tests small fragment of code. For m
 
 #### Functions
 
-Create a file [`faculty.vx`](examples/faculty.vx) with the following content:
+Create a file [`factorial.vx`](examples/factorial.vx) with the following content:
 
 ```volvox
-def faculty(n u64) u64
+def factorial(n u64) u64
 	if n == 0
 		return 1
 	else
-		return n * faculty(n - 1)
+		return n * factorial(n - 1)
 end end
 
-echo faculty 20
+echo factorial 20
 ```
 
-Functions are defined with the keyword `def` followed by the signature and the return type. Here we use `u64`, i.e. a 64 bit unsigned to get a maximum available valid range for the results. The function implements the usual recursive algorithm to calculate a faculty.
+Functions are defined with the keyword `def` followed by the signature and the return type. Here we use `u64`, i.e. a 64 bit unsigned to get a maximum available valid range for the results. The function implements the usual recursive algorithm to calculate a factorial.
 
 #### Compilation
 
 To compile the file type:
 
 ```bash
-volvox faculty.vx
+volvox factorial.vx
 ```
 
 Prepend the relative or absolute path of your `volvox` binary if is not in your `PATH`.
 
-The command should create an executable file named `faculty` (or `faculty.exe`). If you run the file the result `2432902008176640000` will be printed to `stdout`.
+The command should create an executable file named `factorial` (or `factorial.exe`). If you run the file the result `2432902008176640000` will be printed to `stdout`.
 
 #### Non-Interactive Interpreter
 
 It is not necessary to compile the file to an executable. You cat run the JIT-interpreter with
 
 ```bash
-volvox -j faculty.vx
+volvox -j factorial.vx
 ```
 
 #### Interactive Interpreter
@@ -84,10 +84,12 @@ It is also possible to JIT-compile execute the commands of a file one by one and
 
 
 ```bash
-volvox -J faculty.vx
+volvox -J factorial.vx
 ```
 
 This mode can be helpful for debugging purposes — in particular the first lines of a file can be run while there are still errors in the following lines.
+
+Unless your program finishes with a `return` or `exit` command you are left with an interactive prompt to enter further commands.
 
 ### Input / Output
 
@@ -134,22 +136,22 @@ end
 
 We have also imported the whole library `math` which contains a large number of useful mathematical functions. Since we haven't declared which identifiers to import we must prepend the `sqrt` function with its library name as qualifier: `math.sqrt`.
 
-Until now we always printed our results to the console. For real world applications it is necessary to redirect output to a named file like "`results.txt`". In principle we could use shell redirection for that. Let's go back to out first file `faculty.vx` and compile a binary:
+Until now we always printed our results to the console. For real world applications it is necessary to redirect output to a named file like "`results.txt`". In principle we could use shell redirection for that. Let's go back to out first file `factorial.vx` and compile a binary:
 
 ```bash
-volvox faculty.vx
+volvox factorial.vx
 ```
 
-Then we can run this binary and use a greater sign to redirect stdout (file descriptor `0`)to a file:
+Then we can run this binary and use a greater sign to redirect stdout (file descriptor `1`)to a file:
 
 ```bash
-./faculty > results.txt
+./factorial > results.txt
 ```
 
 It is also possible to redirect `stderr` (file descriptor `2`) this way:
 
 ```bash
-./faculty 2> errors.txt
+./factorial 2> errors.txt
 ```
 
 This works on Windows, too, except that you should write "`.\`" instead of "`./`".
