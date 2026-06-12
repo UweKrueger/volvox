@@ -1466,6 +1466,7 @@ enum ConversionKind : uint8_t {
 };
 
 #define suppress_destructor_flag (llvm::Value*)(intptr_t)(-1)
+#define suppress_constructor_flag (llvm::Value*)(intptr_t)(-2)
 
 struct BreakDescription {
 	llvm::Instruction* destructors_insertion_point;

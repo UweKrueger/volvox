@@ -365,6 +365,8 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 	if (!target || target == suppress_destructor_flag) {
 		if (ft->type_attr & (A_constructor | A_destructor)) {
 			llvm::Type* val_t = val->getType();
+			if (ft->type_attr & A_global)
+				errs() << "have global\n";
 			llvm::Value* tmpstore = CreateEntryBlockAlloca(val_t);
 			Builder->CreateStore(val, tmpstore);
 			if (target != suppress_destructor_flag)
@@ -385,7 +387,9 @@ llvm::Value* handleC(llvm::Value* target, llvm::Value* val, SourceLocation& Loc,
 		}
 		return val;
 	}
-	Builder->CreateStore(val, target);
+	// Builder->CreateStore(val, target);
+	auto align = TheModule->getDataLayout().getPrefTypeAlign(val->getType());
+	Builder->CreateAlignedStore(val, target, align, false);
 	if (ft->type_attr & A_constructor) {
 		std::string deletion_loc;
 		auto constructor = getConstructorOrDestructor(ft, false, basic_constructor, &deletion_loc);

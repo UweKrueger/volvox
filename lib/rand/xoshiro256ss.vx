@@ -42,7 +42,7 @@ end
 
 # thread local state
 #
-global s = State4{}
+global s := State4{}
 
 # function names for random functions are the same as the type they produce
 # technically these functions are constructors, so the result is assigned

@@ -82,7 +82,9 @@ public:
 	// return value of expression - fully constructed unless part of variable
 	// register destructor unless suppress_destructor is set or value is part of variable
 	// do conversion if desired_type != type
-	virtual llvm::Value* codegen(bool suppress_destructor = false) {
+	virtual llvm::Value* codegen(bool suppress_destructor = false, bool suppress_constructor = false) {
+		if (suppress_constructor)
+			return convert_raw(codegen_raw((llvm::Value*)((intptr_t)(-2))));
 		return convert_raw(codegen_raw((llvm::Value*)((intptr_t)(-(int)suppress_destructor))));
 	}
 	virtual llvm::Value* codegen_borrow() {
@@ -380,7 +382,7 @@ public:
 	// create reference to this variable - second result is the storage_type
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
-	llvm::Value* codegen(bool suppress_destructor = false) override;
+	llvm::Value* codegen(bool suppress_destructor = false, bool suppress_constructor = false) override;
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {
 		return ExprAST::dump(out << Name, ind);

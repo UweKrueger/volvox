@@ -382,7 +382,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 						V = llvm::UndefValue::get(struct_type);
 						V = Builder->CreateInsertValue(V, ini, 0, "unioninit");
 					}
-					if (!target || (intptr_t)target == -1) {
+					if (!target || (intptr_t)target == -1|| (intptr_t)target == -2) {
 						if (llvm::dyn_cast<llvm::StructType>(V->getType())->getElementType(0) == llvm::dyn_cast<llvm::StructType>(ft->type)->getElementType(0)) {
 							llvm::Value* V2 = llvm::UndefValue::get(ft->type);
 							V2 = Builder->CreateInsertValue(V2, Builder->CreateExtractValue(V, 0), 0);
@@ -423,6 +423,9 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 			V = Builder->CreateInsertValue(V, ini, i, "structinit");
 			free(laterUsage);
 		}
+		// errs() << Loc << ": have Value " << *V << " " << target << "\n";
+		if ((intptr_t)target == -2)
+			return V;
 		return handleC(target, V, Loc, ft);
 	} else {
 		errs() << Loc << ": '" << *ft << "' is not an aggregate type so it cannot be initialized using '{}'\n";
@@ -490,7 +493,7 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 	return nullptr;
 }
 
-llvm::Value* VariableExprAST::codegen(bool suppress_destructor) {
+llvm::Value* VariableExprAST::codegen(bool suppress_destructor, bool suppress_constructor) {
 	auto rawV = codegen_raw((llvm::Value*)((intptr_t)(-(int)suppress_destructor)));
 	if (!rawV)
 		return nullptr;
@@ -1175,8 +1178,8 @@ static inline const char* global_kind_str(unsigned flags) {
 std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind) {
 	bool rhs_is_constexpr = !strcmp(expr->Op, ":=");
 	if (rhs_is_constexpr) {
-		if ((expr->RHS->ft->type_attr & (A_constructor | A_destructor)) && expr->RHS->ft->type != llvm_string_type) {
-			errs() << expr->Loc << ": using ':=' not allowed for type having default constructor or destructor\n";
+		if ((expr->RHS->ft->type_attr & (A_constructor | A_destructor)) && expr->RHS->ft->type == llvm_string_type) {
+			errs() << expr->Loc << ": using ':=' not allowed for strings\n";
 			return nullptr;
 		}
 		if (!(sym_kind & (A_global | A_const))) {
@@ -1195,9 +1198,9 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		errs() << LHSE->Loc << ": LHS of declaration must be a variable name\n";
 		return nullptr;
 	}
-	bool initialization_from_main = !jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
-	bool prepare_setter_fn = jit_repl && !rhs_is_constexpr && (!expr->RHS->ft->type->isFunctionTy() || (expr->RHS->ft->type_attr & (A_constructor | A_map)));
 	const std::string& unmangled_name = LHSE->getName();
+	bool initialization_from_main = !jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
+	bool prepare_setter_fn = jit_repl && !expr->RHS->ft->type->isFunctionTy() && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & (A_constructor | A_map)));
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
 		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
 		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using ':='\n";
@@ -1251,21 +1254,26 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			           dynamic_cast<UnaryExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<StructExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<SelectExprAST*>(expr->RHS.get()) ||
-			           dynamic_cast<BranchExprAST*>(expr->RHS.get()))
+			           dynamic_cast<BranchExprAST*>(expr->RHS.get())) {
 				is_call_expr = true;
+			}
 			if (is_constructor_call || ((allocsz > sret_limit) && !rhs_is_constexpr))
 				use_target = true;
 		} else if (expr->RHS->ft->type_attr & A_map)
 			use_target = true;
-		needs_constructor = !is_call_expr && (expr->RHS->ft->type_attr & A_constructor);
-		if (!use_target && (!initialization_from_main || rhs_is_constexpr)) {
+		needs_constructor = (!is_call_expr || dynamic_cast<StructExprAST*>(expr->RHS.get()) && rhs_is_constexpr) && (expr->RHS->ft->type_attr & A_constructor);
+		if (!use_target && !initialization_from_main || rhs_is_constexpr) {
 			if (rhs_is_constexpr && (sym_kind & A_const) && expr->RHS->is_unknown_type)
 				if (expr->RHS->ft->type->isIntegerTy())
 					expr->RHS->desired_type = llvm::Type::getInt64Ty(Context);
-			Val = expr->RHS->codegen(true);
-			allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
-			if (allocsz && !Val)
-				return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
+			if (rhs_is_constexpr && (sym_kind & A_global) && expr->RHS->ft->type->isStructTy()) {
+				Val = expr->RHS->codegen(true, true);
+			} else {
+				Val = expr->RHS->codegen(true);
+				allocsz = expr->RHS->ft->type->isSized() ? TheModule->getDataLayout().getTypeAllocSize(expr->RHS->ft->type) : 0;
+				if (allocsz && !Val)
+					return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
+			}
 		}
 	}
 	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_cstring | A_map | A_complex | A_constructor | A_thread) : (A_signed | A_cstring | A_map | A_complex | A_destructor | A_constructor | A_thread));
@@ -1297,7 +1305,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		}
 		needs_store = !use_target;
 	}
-	bool needs_call = (needs_store || use_target || needs_constructor) && !initialization_from_main && !rhs_is_constexpr;
+	bool needs_call = (needs_store || use_target || needs_constructor) && !initialization_from_main && !(rhs_is_constexpr && !needs_constructor);
 	if (needs_store && (sym_kind & A_global)) {
 		if (LREF) {
 			errs() << expr->LHS->Loc << ": references are not allowed to be global or const\n";
@@ -1482,8 +1490,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		}
 		if (jit_extra_thread && (sym_kind & A_global)) {
 			auto V = GetShadowHandle(initializer, varname);
-			auto Vval = Builder->CreateLoad(initializer->getType(), GV);
-			Builder->CreateStore(Vval, V);
+			// auto Vval = Builder->CreateLoad(initializer->getType(), GV);
+			auto align = getAlignment((size_t)(TheModule->getDataLayout().getTypeStoreSize(initializer->getType())));
+			auto Vval = Builder->CreateAlignedLoad(initializer->getType(), GV, align, false);
+			Builder->CreateAlignedStore(Vval, V, align, false);
 		}
 		InsertDestructors(expr_temps);
 		if (jit_extra_thread && last_shadow_saver) {

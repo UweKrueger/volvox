@@ -424,7 +424,7 @@ akd6 = akd6 + akd5
 
 akd6
 
-const akd7 := "hfd"
+const akd7 = "hfd"
 
 akd7
 
