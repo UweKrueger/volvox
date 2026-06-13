@@ -113,6 +113,7 @@ llvm::Type* llvm_c32_type = nullptr;
 llvm::Type* llvm_va_arg_ref_type = nullptr;
 llvm::Type* llvm_string_type = nullptr;
 llvm::Type* llvm_vec_type = nullptr;
+llvm::Type* llvm_map_type = nullptr;
 llvm::Type* llvm_closure_type = nullptr;
 llvm::PointerType* llvm_ptr_type = nullptr;
 llvm::FunctionType* constr_destr_fn_type = nullptr;
@@ -129,6 +130,7 @@ volvoxc::FullType* voidptr_type = nullptr;
 volvoxc::FullType* c32_type = nullptr;
 volvoxc::FullType* string_type = nullptr;
 volvoxc::FullType* vec_type = nullptr;
+volvoxc::FullType* map_type = nullptr;
 volvoxc::FullType* closure_type = nullptr;
 
 #ifdef LEGACY_PASS_MANAGER
