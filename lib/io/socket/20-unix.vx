@@ -1,5 +1,5 @@
 
-type UnixSocket union {
+struct UnixSocket union {
 	handle ssize_t
 	err u32
 }
@@ -12,7 +12,7 @@ pub const UNIX_PATH_MAX	:= if os.isWindows || os.isLinux
 		104
 	end
 
-type sockaddr_un {
+struct sockaddr_un {
 	sun_family u16
 	sun_path [UNIX_PATH_MAX]i8
 }
@@ -35,7 +35,7 @@ end
 
 from error import ENAMETOOLONG
 
-type ucred {
+struct ucred {
 	pid u32
 	uid u32
 	gid u32

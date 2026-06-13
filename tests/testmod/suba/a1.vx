@@ -1,4 +1,4 @@
-type QQrt {
+struct QQrt {
 	q [5]f64
 	pp f64
 }

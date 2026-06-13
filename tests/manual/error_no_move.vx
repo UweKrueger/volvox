@@ -1,4 +1,4 @@
-type QtKvcX {
+struct QtKvcX {
     a f64
     b int
 }

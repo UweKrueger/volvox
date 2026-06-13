@@ -1,4 +1,4 @@
-type utf8_sequence union {
+struct utf8_sequence union {
 	byte [4]u8
 	err u32
 }

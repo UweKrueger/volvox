@@ -1,7 +1,7 @@
 import .. as lop
 from ...testmod.suba import QQrt
 
-type CCv {
+struct CCv {
 	w QQrt
 	z lop.DDfg
 }

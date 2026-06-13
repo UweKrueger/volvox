@@ -254,7 +254,7 @@ def test_imported_constructor_3 bool
 	return x.s == -6.5
 end
 
-type QwER {
+struct QwER {
 	h i32
 	w i32
 }
@@ -295,12 +295,12 @@ lkt
 
 import arch
 
-type GFds {
+struct GFds {
 	n i32
 	m i32
 }
 
-type OOWq union {
+struct OOWq union {
 	x i32
 	y f64
 	z [18]u8
@@ -352,7 +352,7 @@ def test_global_union bool
 	end
 end
 
-type JFzu { z [8]u8, u i8, v f32 }
+struct JFzu { z [8]u8, u i8, v f32 }
 
 global f337 = JFzu{ z: [8]u8{ 6, 7, 6, 7, 6 } }
 global hfdsw233 = OOWq{ z: [18]u8{ 6, 7 } }

@@ -1,6 +1,6 @@
 from time import sleep
 
-type AALL {
+struct AALL {
 	r f64
 	x f64
 }

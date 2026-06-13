@@ -1,7 +1,7 @@
 global n_KlamP_constructor = 0
 global n_KlamP_destructor = 0
 
-type KlamP {
+struct KlamP {
     a f64
     b int
 }
@@ -147,7 +147,7 @@ end
 n_KlamP_constructor = 0
 n_KlamP_destructor = 0
 
-type KlaQ {
+struct KlaQ {
 	x KlamP
 	y f64
 }
@@ -172,7 +172,7 @@ def test_move_to_struct_1 bool
 	return v1 == 6 && n_KlamP_constructor == 6
 end
 
-type KlamP2 {
+struct KlamP2 {
     a f64
     b int
 }
@@ -189,7 +189,7 @@ def ~KlamP2
 		# echo "KlamP2 destructor called ${this.a} ${this.b}"
 end end
 
-type KlamQ {
+struct KlamQ {
 	x KlamP2
 	y f64
 }
@@ -218,7 +218,7 @@ end
 global n_KlamQ_constructor = 0
 global n_KlamQ_destructor = 0
 
-type KlamQ2 {
+struct KlamQ2 {
 	x KlamP2
 	y f64
 }
@@ -360,7 +360,7 @@ end
 # echo n_KlamP_destructor
 # echo n_KlamQ_destructor
 
-type KlamP3 {
+struct KlamP3 {
     a f64
     b int
 	hhpp f64
@@ -380,7 +380,7 @@ def ~KlamP3
 		# echo "KlamP3 destructor called ${this.a} ${this.b}"
 end end
 
-type KlamQ3 {
+struct KlamQ3 {
 	x KlamP3
 	y f64
 }

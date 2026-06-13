@@ -24,7 +24,7 @@ inline def rotl(x u64, k int) u64
 	return (x << k) | (x >> (64 - k))
 end
 
-type State4 {
+struct State4 {
 	s [4]u64
 }
 

@@ -56,7 +56,7 @@ def test_array_call_by_ref_3 bool
 end
 
 
-type QwF packed {
+struct QwF packed {
 	o2a i32
 	pgh f64
 	rtt f32
@@ -71,12 +71,12 @@ def test_packed_struct_1 bool
 	return lfg.pgh == 0. && lfg.o2a == 4234 && lfg.rtt == 34.5
 end
 
-type XXt {
+struct XXt {
 	a i32
 	b f64
 }
 
-type YYt {
+struct YYt {
 	rz i32
 	w XXt
 }
@@ -126,7 +126,7 @@ def test_struct_return_1 bool
 	return hsm.rz == 14 && hsm.w.a == -63 && hsm.w.b == -11.125
 end
 
-type PPl {
+struct PPl {
 	b i32
 	t i32
 }
@@ -177,7 +177,7 @@ def test_big_struct_arg_3 bool
 	return llqr == 66.5
 end
 
-type ZZu {
+struct ZZu {
 	p i32
 	aq [2][3]f64
 }
@@ -221,7 +221,7 @@ def test_method_call_3 bool
 	return gghd == -1292.5 && qql.aq[0][1] == -17.125
 end
 
-type JdDDeS {
+struct JdDDeS {
 	x f64
 	y f64
 	z f64

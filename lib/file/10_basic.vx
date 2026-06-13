@@ -34,7 +34,7 @@ const flag_stderr        := 0x0c
 #   - have to be closed manually
 #   - used for stdin, stdout and stderr but not recommended otherwise
 
-type File {
+struct File {
 	voidptr    # libc FILE pointer as returned by fopen()
 	_flags u32 # to indicate autoclose, stdin/stdout/stderr
 	err u32

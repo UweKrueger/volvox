@@ -4,7 +4,7 @@ interface QQwMYx {
 	oper(p string) f64
 }
 
-type HHnMYx {
+struct HHnMYx {
 	n i32
 	p f64
 	z f64
@@ -22,7 +22,7 @@ def HHnMYx.ttz(a f64, b i32) f64
 	return a * this.n + b
 end
 
-type P4MYx {
+struct P4MYx {
 	m i32
 }
 

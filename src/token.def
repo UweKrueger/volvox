@@ -32,8 +32,8 @@ TOKEN(pub) \
 TOKEN(as) \
 TOKEN(from) \
 TOKEN(import) \
-TOKEN(type) \
-TOKEN(ctype) \
+TOKEN(struct) \
+TOKEN(cstruct) \
 TOKEN(interface) \
 TOKEN(decl) \
 TOKEN(cdecl) \

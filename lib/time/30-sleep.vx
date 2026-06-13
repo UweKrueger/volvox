@@ -9,7 +9,7 @@ from error import EINTR
 
 # duration in 100ns ticks
 #
-type Duration {
+struct Duration {
 	i64
 }
 

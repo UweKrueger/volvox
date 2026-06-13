@@ -27,7 +27,7 @@ end
 # We cut the 'tm_' from field elements that have a "human expected" meaning
 # Others are prefixed with '_' and virtual attributes are provided
 #
-type tm {
+struct tm {
 	sec int      # normally 0..59, may be 60 for leap seconds
 	min int      # 0..59
 	hour int     # 0..23

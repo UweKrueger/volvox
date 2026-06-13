@@ -1,4 +1,4 @@
-type GQhKL {
+struct GQhKL {
 	a int
 	b f64
 	c i64

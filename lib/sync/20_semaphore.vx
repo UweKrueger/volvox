@@ -50,12 +50,12 @@ pub const SEMVMX := if os.isWindows
 
 # Use union of different representations to make Semaphore type at most 16 bytes in size
 
-type Semaphore {
+struct Semaphore {
 	handle ssize_t
 	err u32
 }
 
-type pipehandle_t union {
+struct pipehandle_t union {
 	fds [2]int
 	ssize_t
 }
@@ -166,7 +166,7 @@ pub inline def Semaphore.post bool
 	return this.post(1)
 end
 
-type pollfd {
+struct pollfd {
 	fd int
 	events i16
 	revents i16

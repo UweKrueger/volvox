@@ -27,7 +27,7 @@ import limits
 #         USB-Stick, SD-Card, etc). To ensure this, an additional "sync"
 #         is required.
 
-type Fd {
+struct Fd {
 	fd int
 }
 

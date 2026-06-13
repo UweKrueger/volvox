@@ -13,7 +13,7 @@ from error import ENOSYS
 
 # Unix timestamp in 1ns resolution
 #
-type timespec {
+struct timespec {
 	sec i64      # seconds - might be i32 on some archs, but see below
     nsec ssize_t # nanoseconds
 }
@@ -21,7 +21,7 @@ type timespec {
 # Only for 32-bit FreeBSD and 32-bit Haiku
 # all other systems have some kind of 64-bit-time_t
 #
-type timespec32 {
+struct timespec32 {
 	sec i32  # seconds
 	nsec i32 # nanoseconds
 }
@@ -116,7 +116,7 @@ pub const tick_period = 1.0d / tick_frequency
 # the number of ticks since program start. To calculate them we need the (system dependent)
 # timestamp when the program has started as a base
 
-type common_timestamp union {
+struct common_timestamp union {
 	i64
 	timespec
 }
@@ -193,14 +193,14 @@ end
 
 # Windows timestamp in 0.1µs resolution
 #
-type FILETIME {
+struct FILETIME {
 	dwLowDateTime u32
 	dwHighDateTime u32
 }
 
 # time in 100ns ticks since January 1, 1601 00:00:00 UTC
 #
-type TimeStamp {
+struct TimeStamp {
 	u64
 }
 
@@ -210,7 +210,7 @@ type TimeStamp {
 # allocation by reference to get a value from the system. So we can make sure
 # it's always aligned like a 64 bit type.
 
-type _TimeStamp union {
+struct _TimeStamp union {
 	FILETIME
 	TimeStamp
 }
@@ -250,7 +250,7 @@ cdecl __time64(nn voidptr) i64
 cdecl __time50(nn voidptr) i64
 
 # to avoid the year 2038 problem we always use a 64 bit time_t
-type time_t {
+struct time_t {
 	i64
 }
 

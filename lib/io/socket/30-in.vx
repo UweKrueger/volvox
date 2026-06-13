@@ -1,4 +1,4 @@
-type IpSocket {
+struct IpSocket {
 	handle ssize_t
 	err u32
 }
@@ -21,12 +21,12 @@ pub inline def htonl(x u32) u32
 	end
 end
 
-type in_addr union {
+struct in_addr union {
 	__s4_addr [4]u8
 	u32
 }
 
-type sockaddr_in {
+struct sockaddr_in {
 	sin_family u16
 	sin_port u16
 	sin_addr in_addr

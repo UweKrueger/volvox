@@ -197,7 +197,7 @@ def test_string_len_4 bool
 	return ("fgjhhgf" + "12").len == 9
 end
 
-type RtzRi {
+struct RtzRi {
 	x f64
 	y int
 	z f64
@@ -354,7 +354,7 @@ def test_int_for_8 bool
 	return res == 27 && t == 7 
 end
 
-type Qhddf {
+struct Qhddf {
 	s int
 }
 

@@ -1,4 +1,4 @@
-type sockaddr_any union {
+struct sockaddr_any union {
 	sockaddr
 	sockaddr_un
 	sockaddr_in
@@ -89,7 +89,7 @@ end
 cdecl listen(s int, backlog int) int
 cdecl(listen) win_listen(s size_t, backlog int) int
 
-type ListeningSocket {
+struct ListeningSocket {
 	handle ssize_t
 	err int
 }

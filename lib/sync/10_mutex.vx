@@ -16,7 +16,7 @@ const __MUTEX_ATTR_SIZE := if os.isLinux
 
 cdecl pthread_mutexattr_destroy(attr voidptr) int
 
-type mutex_attr union {
+struct mutex_attr union {
 	voidptr
 	size_t
 	bytes [__MUTEX_ATTR_SIZE]u8
@@ -53,14 +53,14 @@ const __MUTEX_SIZE := if os.isLinux
 		arch.bitwidth >> 3
 	end
 
-type mutex
+struct mutex
 
 cdecl CreateMutexA(lpMutexAttributes voidptr, bInitialOwner bool, lpName cstring) size_t
 cdecl CloseHandle(handle size_t) bool
 cdecl pthread_mutex_init(&m mutex, &attr mutex_attr) int
 cdecl pthread_mutex_destroy(&m mutex) int
 
-type mutex union {
+struct mutex union {
 	voidptr
 	size_t
 	bytes [__MUTEX_SIZE]u8

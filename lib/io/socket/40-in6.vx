@@ -1,15 +1,15 @@
-type Ip6Socket {
+struct Ip6Socket {
 	handle ssize_t
 	err u32
 }
 
-type in6_addr union {
+struct in6_addr union {
 	__s6_addr [16]u8
 	__s6_addr16 [8]u16
 	__s6_addr32 [4]u32
 }
 
-type sockaddr_in6 {
+struct sockaddr_in6 {
 	sin6_family u16
 	sin6_port u16
 	sin6_flowinfo u32

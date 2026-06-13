@@ -1,9 +1,9 @@
-type KKljh {
+struct KKljh {
 	d i32
 	e f64
 }
 
-type Olgj {
+struct Olgj {
 	j i32
 	s f64
 }

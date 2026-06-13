@@ -3,18 +3,18 @@ import limits
 import ._winsock
 from .. import Fd
 
-type Socket {
+struct Socket {
 	handle ssize_t
 	err u32
 }
 
-type sockaddr {
+struct sockaddr {
 	len    u8
 	family u8
 	data   [14]u8
 }
 
-type sockaddr_storage {
+struct sockaddr_storage {
 	len    u8
 	family u8
 	pad1   [6]u8

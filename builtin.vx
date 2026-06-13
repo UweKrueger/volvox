@@ -43,7 +43,7 @@ end end
 # for debugging purposes
 cdecl ___wrnum(p voidptr, z size_t, l size_t)
 
-type string {
+struct string {
 	voidptr
 }
 
@@ -225,7 +225,7 @@ cdecl __join_thread(thr voidptr, ctrl_blk voidptr) voidptr
 # Windows (non Mingw) specific thread functions
 cdecl __get_thread_return_idx(adr voidptr) u32
 
-type __thread_control_block {
+struct __thread_control_block {
 	# reference_counter int - not part of type but of shared object
 	eventfd_or_pipe_read int
 	pipe_write int
@@ -239,7 +239,7 @@ inline def ~__thread_control_block
 			__close(this.pipe_write)
 end end end
 
-type __thread { # LLVM type - FullType is call return type with A_thread
+struct __thread { # LLVM type - FullType is call return type with A_thread
 	&control_block __thread_control_block
 	handle voidptr
 }
@@ -251,27 +251,27 @@ cdecl __error(msg string, ...)
 cdecl sizeof(...) size_t
 cdecl typeof(...) string
 
-type _ZN6volvox6RtTypeE packed {
+struct _ZN6volvox6RtTypeE packed {
 	key u32
 	attr u32
 	typesize u64
 	name string
 	fields string
 }
-type _ZN6volvox13RtStructFieldE {
+struct _ZN6volvox13RtStructFieldE {
 	FieldName string
 	&rttype _ZN6volvox6RtTypeE
 }
-type ArrayNode {
+struct ArrayNode {
 	data string
 	dim u64
 	cap u64
 }
-type __size_offset {
+struct __size_offset {
 	offset u32
 	size u32
 }
-type __map_value union {
+struct __map_value union {
 	u64
 	i64
 	u32
@@ -281,7 +281,7 @@ type __map_value union {
 	__size_offset
 	voidptr
 }
-type __map_key union {
+struct __map_key union {
 	u64
 	i64
 	u32
@@ -289,21 +289,21 @@ type __map_key union {
 	f64
 	str [8]u8
 }
-type __map_node {
+struct __map_node {
 	&parent __map_node
 	&leftChild __map_node
 	&rightChild __map_node
 	value __map_value
 	key __map_key
 }
-type __map_node_ref {
+struct __map_node_ref {
 	&node __map_node
 }
-type __map_value_ref {
+struct __map_value_ref {
 	&value __map_value
 }
 
-type __map {
+struct __map {
 	__ptr voidptr
 	count size_t
 }
@@ -313,43 +313,43 @@ def ~__map
 		__free this.__ptr
 end end
 
-type __range_u8 {
+struct __range_u8 {
 	min u8
 	max u8
 }
-type __range_u16 {
+struct __range_u16 {
 	min u16
 	max u16
 }
-type __range_u32 {
+struct __range_u32 {
 	min u32
 	max u32
 }
-type __range_u64 {
+struct __range_u64 {
 	min u64
 	max u64
 }
-type __range_i8 {
+struct __range_i8 {
 	min i8
 	max i8
 }
-type __range_i16 {
+struct __range_i16 {
 	min i16
 	max i16
 }
-type __range_i32 {
+struct __range_i32 {
 	min i32
 	max i32
 }
-type __range_i64 {
+struct __range_i64 {
 	min i64
 	max i64
 }
-type __range_f32 {
+struct __range_f32 {
 	min f32
 	max f32
 }
-type __range_f64 {
+struct __range_f64 {
 	min f64
 	max f64
 }
@@ -525,7 +525,7 @@ inline def min(a u16, b u16) u16; return a<=b ? a : b; end
 inline def min(a u32, b u32) u32; return a<=b ? a : b; end
 inline def min(a u64, b u64) u64; return a<=b ? a : b; end
 
-type complex {
+struct complex {
 	real
 	imag f64
 }
@@ -830,7 +830,7 @@ inline def c32^(e c32) c32
 	return __cpow(this, e)
 end
 
-type __vec {
+struct __vec {
 	__ptr voidptr
 	__size size_t
 	__cap size_t
@@ -916,7 +916,7 @@ inline def __vec.__remove(_elem_sz size_t, index size_t)
 	this.__size--
 end
 
-type __closure {
+struct __closure {
 	__fn_ptr voidptr
 	__captureds_ptr voidptr
 }

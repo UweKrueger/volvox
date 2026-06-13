@@ -1299,12 +1299,12 @@ static void MainLoop() {
 				finish_constructors_and_destructor();
 			HandleImport();
 			break;
-		case tok_ctype:
+		case tok_cstruct:
 			sym_kind |= A_c_api;
 		case tok_interface:
 			if (!(sym_kind & A_c_api))
 				sym_kind |= A_interface;
-		case tok_type:
+		case tok_struct:
 			if (sym_kind & A_pub)
 				errs() << CurLoc << ": 'pub' is not needed for (c)type/interface declarations\n";
 			if (last_defined_type)

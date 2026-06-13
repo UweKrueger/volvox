@@ -1,6 +1,6 @@
 # stop watch to measure and accumulate time intervals
 #
-type StopWatch {
+struct StopWatch {
 	begin i64
 	finish i64
 }

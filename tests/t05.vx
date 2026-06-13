@@ -37,14 +37,14 @@ def test_non_const_size_main_array bool
 	return jjf04 == 4.75
 end
 
-type XX {
+struct XX {
 	a i32
 	b f64
 }
 
 global cntd = 10
 
-type YY {
+struct YY {
 	r i32
 	w XX
 }
@@ -116,7 +116,7 @@ def test_destructor_repeat_stack_restore_1 bool
 	return cntd == 1 && p == 27
 end
 
-type LL {
+struct LL {
 	a i32
 	p YY
 }
@@ -152,7 +152,7 @@ def test_array_destructor_2 bool
 	return cntd == 63
 end
 
-type QQ {
+struct QQ {
 	a [5]YY
 }
 
@@ -165,7 +165,7 @@ def test_array_destructor_3 bool
 	return cntd == 171
 end
 
-type RR {
+struct RR {
 	z f64
 	a [5]YY
 }

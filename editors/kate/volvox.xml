@@ -23,8 +23,8 @@
       <item>as</item>
       <item>from</item>
       <item>import</item>
-      <item>type</item>
-      <item>ctype</item>
+      <item>struct</item>
+      <item>cstruct</item>
       <item>interface</item>
       <item>decl</item>
       <item>cdecl</item>

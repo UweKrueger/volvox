@@ -19,7 +19,7 @@ import arch.os
 #
 cdecl getrandom(&buf u64, n size_t, flags u32) ssize_t
 cdecl arc4random_buf(&buf u64, n size_t)
-type FILETIME {
+struct FILETIME {
 	dwLowDateTime u32
 	dwHighDateTime u32
 }

@@ -152,7 +152,7 @@ interface QQwMYx {
 	oper(p string) f64
 }
 
-type HHnMYx {
+struct HHnMYx {
 	n i32
 	p f64
 	z f64
@@ -170,7 +170,7 @@ def HHnMYx.ttz(a f64, b i32) f64
 	return a * this.n + b
 end
 
-type P4MYx {
+struct P4MYx {
 	m i32
 }
 
@@ -220,7 +220,7 @@ interface QQwOi {
 	ttz(ap f64, xx i32) f64
 }
 
-type HHnOi {
+struct HHnOi {
 	n i32
 	p f64
 	z f64
@@ -259,7 +259,7 @@ def test_interface_4 bool
 	return gLgT(r)
 end
 
-type HPnOi {
+struct HPnOi {
 	u f64
 	ppt f64
 }
@@ -382,7 +382,7 @@ end
 
 global wwqgh9 = 0
 
-type LLMJ {
+struct LLMJ {
 	x int
 }
 
@@ -582,7 +582,7 @@ def test_named_return_1 bool
 	return z == 10
 end
 
-type ___big_dummy { # sz > sret_limit - used as return type to enforce sret
+struct ___big_dummy { # sz > sret_limit - used as return type to enforce sret
 	d0 f64
 	d1 f64
 	d2 f64

@@ -1,4 +1,4 @@
-type QtKxcX {
+struct QtKxcX {
     a f64
     b int
 	tt f64
@@ -15,7 +15,7 @@ def ~QtKxcX
     echo "QtKvcX destructor called ${this.a} ${this.b}"
 end
 
-type HdfT {
+struct HdfT {
 	q f32
 	pp QtKxcX
 }
