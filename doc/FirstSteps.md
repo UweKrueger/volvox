@@ -1,5 +1,7 @@
 # First Steps
 
+This file gives some idea of the language. See [Specification](./Specification.md) for a more complete language description.
+
 #### Interactive Mode
 
 To start the interactive interpreter just run `volvox` without parameters. You will get an input prompt indicating the line number. You can type the following example lines followed by Return.

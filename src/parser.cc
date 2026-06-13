@@ -85,8 +85,8 @@ static inline int GetTokPrecedence() {
 // same as above but take into account that some operators are right binding
 static inline int NextTokPrecedence() {
 	int prec = GetTokPrecedence();
-	// assignments and the invisible operator are right binding
-	if (CurTok.kind == tok_assign || CurTok.kind == tok_invisible)
+	// assignments and the invisible operator and `^` are right binding
+	if (CurTok.kind == tok_assign || CurTok.kind == tok_invisible || CurTok.kind == tok_pow)
 		prec++;
 	return prec;
 }
