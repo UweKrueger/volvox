@@ -249,6 +249,7 @@ type __thread { # LLVM type - FullType is call return type with A_thread
 cdecl __link_extra(library string, ...)
 cdecl __error(msg string, ...)
 cdecl sizeof(...) size_t
+cdecl typeof(...) string
 
 type _ZN6volvox6RtTypeE packed {
 	key u32

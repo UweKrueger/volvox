@@ -1068,6 +1068,72 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		// TODO: calculate run-time size of arrays when 'codegen_dims()' is available
 		return getSize(allocsz);
 	}
+	if (Proto && Proto->Name == "typeof") {
+		if (Args.size() != 1) {
+			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 1 argument\n";
+			return nullptr;
+		}
+		size_t offset = 0;
+		size_t length = 0;
+		auto arg = Args[0].get();
+		if (!arg->ft || !arg->ft->type) {
+			errs() << arg->Loc << ": invalid argument\n";
+			return nullptr;
+		}
+		std::string cname;
+		if (arg->ft->type == llvm_int_type && (arg->ft->type_attr & A_signed)) {
+			cname = "int";
+		} else if (arg->ft->type->isDoubleTy()) {
+			if (arg->ft->type_attr & A_signed)
+				cname = "imaginary";
+			else
+				cname = "real";
+		} else if (arg->ft->type->isFloatTy()) {
+			if (arg->ft->type_attr & A_signed)
+				cname = "j32";
+			else
+				cname = "float";
+		} else if (arg->ft->type->isIntegerTy() && !(arg->ft->type_attr & A_signed)) {
+			unsigned bitsz = arg->ft->type->getIntegerBitWidth();
+			if (bitsz == 8)
+				cname = "u8";
+			else if (bitsz == 16)
+				cname = "u16";
+			else if (bitsz == 16)
+				cname = "u16";
+			else if (bitsz == 32)
+				cname = "unsigned";
+			else if (bitsz == 64)
+				cname = "u64";
+			else {
+				errs() << arg->Loc << ": invalid integer bitwidth\n";
+				return nullptr;
+			}
+		} else {
+			// use official LLVM name
+			llvm::SmallString<128> buf = llvm::StringRef("");
+			llvm::raw_svector_ostream sname(buf);
+			sname << *arg->ft->type;
+			cname = std::string(buf);
+			if (cname.empty()) {
+				errs() << Loc << ": '" << Proto->Name << "()' canot get type name\n";
+				return nullptr;
+			}
+			if (cname[0] == '%') {
+				offset = 1;
+				length = 1;
+				while (offset + length < cname.size()) {
+					if (cname[offset+length] == ' ')
+						break;
+					length++;
+				}
+			}
+		}
+		if (offset == 0)
+			length = cname.size();
+		llvm::Value* typname = createStringConst(cname.c_str() + offset, length);
+		return typname;
+	}
 	if (Proto && Proto->Name == "__load_size") {
 		if (Args.size() != 1) {
 			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 1 argument\n";

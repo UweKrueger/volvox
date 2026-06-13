@@ -102,6 +102,37 @@ unsigned = decimmal_unsigned | hexadecimal | octal
 | `cstring` | | C stype string, i.e. address of 1st character  — for C interoperability — automatically converted to `string` if necessary |
 | `voidptr` | `&a` | address of object — for C interoperability |
 
+## Type Propagation
+
+The basic targets of type propagation in Volvox are:
+* do not lose precision but allow reinterpretation
+	- results for small absolute values should be as expected by user
+	- mixed signed / unsigned expressions are propagated to signed
+* do early type propagation so intermediate results are not truncated
+* automatically convert to larger significant bit sizes but not to smaller. Conversions should be reversible.
+* allow explicit conversions to lower bit sizes ignoring overflow
+
+#### Examples
+
+* Early type propagation
+```volvox
+echo (2000000000 * 300000000)
+```
+
+`826015744`
+
+The result remains of type `int` and an overflow occurs.
+
+```volvox
+echo (34L + 2000000000 * 300000000)
+```
+
+`600000000000000034`
+
+The compiler recognizes (because of the 64 bit integer `34L`) that in the end a 64 bit result is required and the factors of the multiplication are propagated to 64 bits before the multiplication is performed.
+
+C does the same for the case 16 bit -> 32 bit but not for 32 bit -> 64 bit.
+
 ## Libraries / Modules
 ### File Layout
 
