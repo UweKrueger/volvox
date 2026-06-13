@@ -1,6 +1,6 @@
 # ![Volvox](volvox.svg) Volvox Programming Language Specification
 
-### Basic Syntax Elements
+## Basic Syntax Elements
 
 ```EBNF
 digit = "0" ... "9"
@@ -34,7 +34,7 @@ unsigned = decimmal_unsigned | hexadecimal | octal
 | Operator(s) | meaning | associativity |
 | :--- | :--- | :--- |
 | `.` | Selector (`struct.field`, `module.ident`) | left |
-| unary `&` | Address (for C calls) | |
+| unary `&` | Address (for C calls) | prefix |
 | `++`, `--` | Increment, Decrement — return old value | postfix |
 | `^` | power (e.g. `a^2`) | right |
 | unary `+`, `-`, `!`, `~` | signs, logical / bitwise not | prefix |
@@ -53,6 +53,55 @@ unsigned = decimmal_unsigned | hexadecimal | octal
 | `,` | list element separator | left |
 | `=`, `+=`, `-=`, `*=`, `/=` | assignments, return old value | right |
 
+## Builtin Data Types
+### Numeric Types
+#### Integer Types
+
+| Name (Alias) | Range / Spec | Suffix |
+| :--- | :--- | :--- |
+| `i8` | -128 .. 127 | `hh`, `HH` |
+| `i16` | -32768 .. 32767 | `h`, `H` |
+| `int`, `i32` | -2147483648 .. 2147483647 |  |
+| `i64` | -9223372036854775808 .. 9223372036854775807 | `l`, `L` |
+| `i128` | not implemented, yet | `ll`, `LL` |
+| `ssize_t` | signed int large enough to hold pointer value | `z`, `Z` |
+| `u8` | 0 .. 255 | `uhh`, `UHH` |
+| `u16` | 0 .. 65535 | `uh`, `UH` |
+| `unsigned`, `u32` | 0 .. 4294967295 | `u`, `U` |
+| `u64` | 0 .. 18446744073709551615 | `ul`, `UL` |
+| `u128` | not implemented, yet | `ull`, `ULL` |
+| `size_t` | unsigned int large enough to hold pointer value | `uz`, `UZ` |
+
+#### Floating Point Types
+
+| Name (Alias) | Spec | Suffix |
+| :--- | :--- | :--- |
+| `real`, `f64` | IEEE-754 64 bit |  |
+| `float`, `f32` | IEEE-754 32 bit | `f`, `F` |
+
+#### Imaginary and Complex Types
+
+| Name (Alias) | Spec | Suffix |
+| :--- | :--- | :--- |
+| `imaginary`, `j64` | 64 bit imaginary | `i`, `I` |
+| `j32` | 32 bit imaginary | `fi`, `FI` |
+| `complex`, `c64` | sum of `real` and `imaginary` | |
+| `c32` | sum of `float` and `j32` | |
+
+#### Logical Type
+
+| Name | Values |
+| :--- | :--- |
+| `bool` | `false`, `true` |
+
+#### Strings and Pointers
+
+| Name | Syntax | Remarks |
+| :--- | :--- | :--- |
+| `string` | `"A String"` | Volvox string — automatically converted to `cstring` if necessary |
+| `cstring` | | C stype string, i.e. address of 1st character  — for C interoperability — automatically converted to `string` if necessary |
+| `voidptr` | `&a` | address of object — for C interoperability |
+
 ## Libraries / Modules
 ### File Layout
 
@@ -66,7 +115,7 @@ Libraries (in the following also called modules) consist of one or more Volvox f
 /my/path/lib/mylib/sublib/b.vx
 ```
 
-The directory `mylib` is the only place where the library name is defined. This makes it easy to rename a library without touching the files - in particular if relative import paths are used between `mylib` and `mylib.sublib` (see [below](#relative-import-paths))
+The directory `mylib` is the only place where the library name is defined. This makes it easy to rename a library without touching the files — in particular if relative import paths are used between `mylib` and `mylib.sublib` (see [below](#relative-import-paths))
 
 ### Import
 
