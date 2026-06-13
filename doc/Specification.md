@@ -44,9 +44,9 @@ unsigned = decimmal_unsigned | hexadecimal | octal
 |  `>=`, `>`, `==`, `!=`, `<`, `<=` | Comparisons | left |
 | `&` | bitwise and | left |
 | `><` | bitwise exclusive or | left |
-| `|` | bitwise or | left |
+| `\|` | bitwise or | left |
 | `&&` | logical and | left |
-| `||` | logical or | left |
+| `\|\|` | logical or | left |
 | `..` | range (`for n in 1..3`) | left |
 | `:` | field element assignment | left |
 | `? :` | ternary expression | left |
