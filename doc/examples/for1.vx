@@ -1,0 +1,11 @@
+x = 3
+
+for k in 0 .. x
+	echo "$k * $k = ${k^2}"
+	y = 12.75
+else
+	y = -13.5
+end
+
+echoc(x, y)
+

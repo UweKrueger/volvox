@@ -26,7 +26,7 @@ real = decimal_signed ("." [decimal_unsigned] [exponent]) | exponent
 (remark: second dot as in 12.. would be beginning of range)
 float = real "f"
 signed = decimal_signed
-unsigned = decimmal_unsigned | hexadecimal | octal
+unsigned = decimal_unsigned | hexadecimal | octal
 ```
 
 ## Operator Hierarchy
@@ -99,7 +99,7 @@ unsigned = decimmal_unsigned | hexadecimal | octal
 | Name | Syntax | Remarks |
 | :--- | :--- | :--- |
 | `string` | `"A String"` | Volvox string — automatically converted to `cstring` if necessary |
-| `cstring` | | C stype string, i.e. address of 1st character  — for C interoperability — automatically converted to `string` if necessary |
+| `cstring` | | C-stype string, i.e. address of 1st character  — for C interoperability — automatically converted to `string` if necessary |
 | `voidptr` | `&a` | address of object — for C interoperability |
 
 ## Type Propagation
@@ -132,6 +132,115 @@ echo (34L + 2000000000 * 300000000)
 The compiler recognizes (because of the 64 bit integer `34L`) that in the end a 64 bit result is required and the factors of the multiplication are propagated to 64 bits before the multiplication is performed.
 
 C does the same for the case 16 bit -> 32 bit but not for 32 bit -> 64 bit.
+
+## Derived Types
+
+### Arrays
+
+Arrays are aggregates of several elements of the same type, e.g. 4 `real` numbers:
+
+```volvox
+a = [2, -2.25, 1.5, 0.0625]
+echo a[0]
+echo a[3]
+a[1] = 3.5
+echo a
+```
+
+`2`  
+`0.0625`
+`[       2,     3.5,     1.5,  0.0625 ]`
+
+## Conditional Expressions
+
+### if ... elif ... else ... end
+
+```volvox
+x = 23.25
+
+if x < 10
+	x += 2
+elif x <= 15
+	if x < 13
+		x += 12.75
+	end
+elif x < 20
+	x *= 5
+else
+	x += 1.5
+end
+
+echo x
+
+```
+
+This is the most well known conditional expression and works as expected. Please note that there is no `then` keyword.
+
+### while ... else ... end
+
+```volvox
+x = -13.25
+
+while x < 3.5
+	y = x
+	x += 3
+else
+	y = 14.75
+end
+
+echoc(x, y)
+```
+
+`4.75, 1.75`
+
+The body of the `while` loop runs as long as the condition in the head is `true`. If the condition is already false at the first run — and only in this case — the `else` branch is run. Please note that this behaviour is different from Python's.
+Running either the `while` branch or the `else` branch allows variable declarations inside these branches that remain valid after the loop as long as the definitions occur in both branches with the same type.
+
+Try to change the first line in the example is changed to:
+
+```volvox
+x = 13.25
+```
+
+The `else` branch will run and the output will become  
+`13.25, 14.75`
+
+### repeat ... until
+
+The `repeat` loop differs from the `while` loop in the fact that it is run at least once in any case and the condition is checked at the end. It has no `else` branch and variables declared inside the body always remain valid after the end of the loop.
+
+```volvox
+x = -13.25
+
+repeat
+	y = x
+	x += 3
+until x > 3.5
+
+echoc(x, y)
+```
+
+`4.75, 1.75`
+
+If the sign is removed in the first line the output becomes  
+`16.25, 13.25`
+
+### for ... else ... end
+
+```volvox
+x = 3
+
+for k in 0 .. x
+	echo "$k * $k = ${k^2}"
+	y = 12.75
+else
+	y = -13.5
+end
+
+echoc(x, y)
+```
+
+The `for` is very similar to the `while` loop except that the condition is formed by an *iterator* — in this case a range expression `0 .. x`. The range expression can also be an `array` or a `map`
 
 ## Libraries / Modules
 ### File Layout
