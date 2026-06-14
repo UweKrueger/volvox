@@ -194,25 +194,29 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	}
 	auto inserter_fn = getFunction(inserter_proto);
-	llvm::Value* ptr = ((intptr_t)target == -1) ? nullptr : target;
-	if (!ptr) {
-		ptr = CreateEntryBlockAlloca(llvm_map_type);
+	llvm::Value* map_ref = ((intptr_t)target == -1) ? nullptr : target;
+	if (!map_ref) {
+		map_ref = CreateEntryBlockAlloca(llvm_map_type);
 		FullVar tmp = {
-			.val = ptr,
+			.val = map_ref,
 			.ft = {
 				.type = llvm_map_type,
 			}
 		};
 		expr_temps.push_back(tmp);
 	}
+	llvm::Value* ptr = Builder->CreateStructGEP(llvm_map_type, map_ref, 0);
+	llvm::Value* count_ref = Builder->CreateStructGEP(llvm_map_type, map_ref, 1);
+	llvm::Value* valsz_ref = Builder->CreateStructGEP(llvm_map_type, map_ref, 2);
 	Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), ptr);
 	llvm::Value* do_replace = CreateEntryBlockAlloca(llvm_ptr_type);
+	size_t valsz;
 	for (unsigned i=0; i<keys.size(); i++) {
 		keys[i]->desired_type = ft->elem_type[0].type;
 		llvm::Value* Key = keys[i]->codegen(true);
 		values[i]->desired_type = ft->elem_type[1].type;
 		llvm::Value* Value0 = values[i]->codegen(true);
-		auto valsz = TheModule->getDataLayout().getTypeAllocSize(Value0->getType());
+		valsz = TheModule->getDataLayout().getTypeAllocSize(Value0->getType());
 		if (valsz > 8) {
 			errs() << values[i]->Loc << ": size of map element value (" << valsz << " byte) exceeds maximum of 8 byte\n";
 			return 0;
@@ -226,9 +230,11 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
 				ptr, Key, Value, Builder->getInt32(0), do_replace });
 	}
+	Builder->CreateStore(getSize(keys.size()), count_ref);
+	Builder->CreateStore(getSize(valsz), valsz_ref);
 	if (target && (intptr_t)target != -1)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	return Builder->CreateLoad(llvm_ptr_type, ptr);
+	return Builder->CreateLoad(llvm_map_type, map_ref);
 }
 
 llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
@@ -270,7 +276,7 @@ llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
 	}
 	if (target && (intptr_t)target != -1)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	return Builder->CreateLoad(llvm_ptr_type, ptr);
+	return Builder->CreateLoad(llvm_map_type, ptr);
 }
 
 llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {

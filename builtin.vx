@@ -5,6 +5,7 @@
 # use this to trigger informative messages
 const _verbose := __VERBOSE
 const _range_check := true
+const _create_unknown_map_entries_on_access := true
 
 # compile builtins
 cdecl __load_size(adr voidptr) size_t
@@ -338,6 +339,7 @@ cdecl SetLastError(err u32)
 struct __map {
 	__ptr voidptr
 	count size_t
+	__value_size size_t
 }
 
 def ~__map
@@ -345,17 +347,26 @@ def ~__map
 		_ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(this.__ptr, voidptr(size_t(0)))
 end end
 
-def __map.__insert(key string, value u64, value_size i32) voidptr
+def __map.__insert(key string, value u64) voidptr
 	old_node =  __map_node_ref{}
-	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node.node)
+	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, value, 0, &old_node.node)
 	if size_t(old_node.node) == 0
 		this.count++
+		return node
 	end
 	return old_node.node
 end
 
 def __map.__get(key string) voidptr
 	value_ref = _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(this.__ptr, key)
+	if size_t(value_ref.value) == 0
+		if _create_unknown_map_entries_on_access
+			node_ref = this.__insert(key, 0)
+			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+		else
+			eecho "Key $key not fount in map"
+			exit 1
+	end end
 	return value_ref.value
 end
 
