@@ -1165,16 +1165,16 @@ llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned t
 			return print_ft(out, elem_type, type_attr);
 		}
 	}
+	if (type == llvm_map_type) {
+		return out << "map[" << ft_elem_type[0] << "]" << ft_elem_type[1];
+	}
 	if (auto structtype = llvm::dyn_cast<llvm::StructType>(type)) {
 		if (structtype->hasName())
 			return out << structtype->getName();
 		else
 			return out << "<anonymous struct>";
-	}
-	if (llvm::isa<llvm::PointerType>(type)) {
-		if (type_attr & A_map)
-			return out << "map[" << ft_elem_type[0] << "]" << ft_elem_type[1];
-		else if (type_attr & A_cstring)
+	} else if (llvm::isa<llvm::PointerType>(type)) {
+		if (type_attr & A_cstring)
 			return out << "cstring";
 	}
 	return out << *type;
@@ -1183,7 +1183,7 @@ llvm::raw_ostream& print_ft(llvm::raw_ostream& out, llvm::Type* type, unsigned t
 std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(volvoxc::FullType* IteratorType, SourceLocation Loc) {
 	if (!IteratorType || !IteratorType->type)
 		return { nullptr, nullptr, nullptr };
-	if (IteratorType->type_attr & A_map)
+	if (IteratorType->type == llvm_map_type)
 		return { &IteratorType->elem_type[0], &IteratorType->elem_type[1], llvm_ptr_type };
 	if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(IteratorType->type))
 		// array could in principle be size_t, but only in rare cases

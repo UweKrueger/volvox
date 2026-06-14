@@ -224,14 +224,9 @@ IndexExprAST::IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
 			ft->type = elem_type;
 		}
 		return;
-	} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
-		if (Field->ft->type_attr & A_map) {
-			ft = &Field->ft->elem_type[1];
-			return;
-		} else {
-			errs() << Loc << ": invalid index expression\n";
-			ft = nullptr;
-		}
+	} else if (Field->ft->type == llvm_map_type) {
+		ft = &Field->ft->elem_type[1];
+		return;
 	} else if (Field->ft->type == llvm_vec_type) {
 		ft = Field->ft->elem_type;
 		return;

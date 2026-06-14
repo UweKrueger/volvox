@@ -8,29 +8,27 @@
 llvm::raw_ostream& operator<<(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 	if (ft->type_attr & A_ref) // reference
 		out << 'R';
-	if (ft->type->isPointerTy()) {
-		if (ft->type_attr & A_map) {
-			if (ft->elem_type[1].type)
-				out << "U3map" << 'I' << ft->elem_type << 'E' << &ft->elem_type[1];
-			else
-				out << "U3set" << ft->elem_type;
-		} else {
-			out << 'P';
-			if (ft->type_attr & A_shared)
-				out << 'S';
-			if (ft->type_attr & (A_const | A_cstring))
-				out << 'K'; // C++ 'const char*' is what C functions typically expect - use 'PKc' for that
-			if (ft->type_attr & A_cstring)
-				out << 'c'; // C++ 'char*'
-			else if (!ft->elem_type || ft->elem_type->type->isVoidTy())
-				out << 'v'; // C++ 'void*' - Volvox 'voidptr' - used for any C-specific pointer
-			else {
-				if (!(ft->type_attr & (A_unique | A_shared | A_const))) {
-					errs() << "mangler: inconsistend type - pointers must be 'unique', 'shared' or 'const'" << ft << '\n';
-					abort();
-				}
-				out << ft->elem_type; // A "native Volvox pointer" - used for unique objects... ;-)
+	if (ft->type == llvm_map_type) {
+		if (ft->elem_type[1].type)
+			out << "U3map" << 'I' << ft->elem_type << 'E' << &ft->elem_type[1];
+		else
+			out << "U3set" << ft->elem_type;
+	} else if (ft->type->isPointerTy()) {
+		out << 'P';
+		if (ft->type_attr & A_shared)
+			out << 'S';
+		if (ft->type_attr & (A_const | A_cstring))
+			out << 'K'; // C++ 'const char*' is what C functions typically expect - use 'PKc' for that
+		if (ft->type_attr & A_cstring)
+			out << 'c'; // C++ 'char*'
+		else if (!ft->elem_type || ft->elem_type->type->isVoidTy())
+			out << 'v'; // C++ 'void*' - Volvox 'voidptr' - used for any C-specific pointer
+		else {
+			if (!(ft->type_attr & (A_unique | A_shared | A_const))) {
+				errs() << "mangler: inconsistend type - pointers must be 'unique', 'shared' or 'const'" << ft << '\n';
+				abort();
 			}
+			out << ft->elem_type; // A "native Volvox pointer" - used for unique objects... ;-)
 		}
 	} else if (ft->type == llvm_vec_type) {
 		out << "U3vec" << ft->elem_type;

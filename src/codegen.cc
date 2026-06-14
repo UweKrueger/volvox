@@ -185,7 +185,7 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	if (ft->elem_type[0].type == llvm_string_type) // string key type
 		inserter = "_ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_";
 	else {
-		errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
+		errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported, yet\n";
 		return nullptr;
 	}
 	PrototypeAST* inserter_proto = (*lex.findProtos(std::string(inserter)))[0].get();
@@ -196,12 +196,11 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	auto inserter_fn = getFunction(inserter_proto);
 	llvm::Value* ptr = ((intptr_t)target == -1) ? nullptr : target;
 	if (!ptr) {
-		ptr = CreateEntryBlockAlloca(llvm_ptr_type);
+		ptr = CreateEntryBlockAlloca(llvm_map_type);
 		FullVar tmp = {
 			.val = ptr,
 			.ft = {
-				.type = llvm_ptr_type,
-				.type_attr = A_map
+				.type = llvm_map_type,
 			}
 		};
 		expr_temps.push_back(tmp);
@@ -251,12 +250,11 @@ llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
 	auto inserter_fn = getFunction(inserter_proto);
 	llvm::Value* ptr = ((intptr_t)target == -1) ? nullptr : target;
 	if (!ptr) {
-		ptr = CreateEntryBlockAlloca(llvm_ptr_type);
+		ptr = CreateEntryBlockAlloca(llvm_map_type);
 		FullVar tmp = {
 			.val = ptr,
 			.ft = {
-				.type = llvm_ptr_type,
-				.type_attr = A_map
+				.type = llvm_map_type,
 			}
 		};
 		expr_temps.push_back(tmp);
@@ -1200,7 +1198,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	const std::string& unmangled_name = LHSE->getName();
 	bool initialization_from_main = !jit_repl && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
-	bool prepare_setter_fn = jit_repl && !expr->RHS->ft->type->isFunctionTy() && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & (A_constructor | A_map)));
+	bool prepare_setter_fn = jit_repl && !expr->RHS->ft->type->isFunctionTy() && (!rhs_is_constexpr || (expr->RHS->ft->type_attr & A_constructor));
 	if (!rhs_is_constexpr && expr->RHS->ft->type->isArrayTy() && (sym_kind & A_globally_visible)) {
 		errs() << expr->Loc << ": " << global_kind_str(sym_kind)
 		       << " arrays " << *expr->RHS->ft->type << " can only be initialized with a constexpr using ':='\n";
@@ -1259,8 +1257,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			}
 			if (is_constructor_call || ((allocsz > sret_limit) && !rhs_is_constexpr))
 				use_target = true;
-		} else if (expr->RHS->ft->type_attr & A_map)
-			use_target = true;
+		}
 		needs_constructor = (!is_call_expr || dynamic_cast<StructExprAST*>(expr->RHS.get()) && rhs_is_constexpr) && (expr->RHS->ft->type_attr & A_constructor);
 		if (!use_target && !initialization_from_main || rhs_is_constexpr) {
 			if (rhs_is_constexpr && (sym_kind & A_const) && expr->RHS->is_unknown_type)
@@ -1276,7 +1273,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			}
 		}
 	}
-	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_cstring | A_map | A_complex | A_constructor | A_thread) : (A_signed | A_cstring | A_map | A_complex | A_destructor | A_constructor | A_thread));
+	attribs = expr->RHS->ft->type_attr & (LREF ? (A_signed | A_cstring | A_complex | A_constructor | A_thread) : (A_signed | A_cstring | A_complex | A_destructor | A_constructor | A_thread));
 	type = expr->RHS->ft->type;
 	llvm::Constant* initializer = nullptr;
 	if (Val) {
@@ -1966,7 +1963,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			RHS = std::make_unique<BinaryExprAST>(
 				Loc, newOp, std::move(new_LHS), std::move(RHS),
 				std::tuple<llvm::Type*, bool, bool, OpClass, const char*>{
-					ft->type, ft->type_attr & (A_signed | A_map), is_unknown_type, getOpClass(newOp), err_msg });
+					ft->type, ft->type_attr & A_signed, is_unknown_type, getOpClass(newOp), err_msg });
 		}
 		if (opclass != OpDeclAssign && opclass != OpGlobalDeclAssign)
 			RHS->desired_type = LHSE->ft->type;
@@ -2136,7 +2133,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		llvm::Type* type = RHS->ft->type;
-		unsigned attribs = RHS->ft->type_attr & (A_signed | A_cstring | A_map | A_closure);
+		unsigned attribs = RHS->ft->type_attr & (A_signed | A_cstring | A_closure);
 		entry->ft.type = type;
 		entry->ft.type_attr |= attribs;
 		if (Val) {

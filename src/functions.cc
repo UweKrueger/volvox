@@ -101,9 +101,6 @@ void InsertSingleDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* be
 		Builder->CreateCall(constr_destr_fn_type, fv->destructor, std::vector<llvm::Value*>{ val });
 		if (before)
 			Builder->SetInsertPoint(oldBB);
-	} else if (fv->ft.type->isPointerTy() && (fv->ft.type_attr & A_map)) {
-		llvm::Value* v = (fv->ft.type_attr & A_rvalue) ? val : Builder->CreateLoad(llvm_ptr_type, val);
-		InsertMapDestructor(v, before);
 	}
 }
 
@@ -604,7 +601,7 @@ void InsertDestructors(VarTable& t, llvm::Value* retp) {
 		MapValue* node = var_node.getValue();
 		auto fv = (FullVar*)((char*)node + node->offset);
 		// errs() << fv->decl_loc << ": ### Destructor for '" << var_node.getKey() << "'\n";
-		if ((fv->ft.type_attr & (A_destructor | A_map)) && fv->val && fv->val != retp
+		if ((fv->ft.type_attr & A_destructor) && fv->val && fv->val != retp
 		    && (!var_adr || fv->val != var_adr))
 			InsertDestructor(fv);
 	}
@@ -635,7 +632,7 @@ void InsertDestructors(std::vector<FullVar>& t) {
 	if (t.empty())
 		return;
 	for (auto& fv: t) {
-		if (fv.ft.type_attr & (A_destructor | A_map))
+		if (fv.ft.type_attr & A_destructor)
 			InsertDestructor(&fv);
 	}
 	t.clear();
@@ -762,14 +759,6 @@ llvm::Value* CreateMalloc(llvm::Value* elem_sz, llvm::Value* n_elem, const llvm:
 	                                          nullptr, Name);
 	return Builder->Insert(ArrayAlloc);
 #endif
-}
-
-void InsertMapDestructor(llvm::Value* v, llvm::Instruction* before) {
-	std::string destr = "_ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE";
-	PrototypeAST* destr_proto = (*lex.findProtos(destr))[0].get();
-	auto destr_fn = getFunction(destr_proto);
-	auto elem_destructor = llvm::ConstantPointerNull::get(llvm_ptr_type);
-	Builder->CreateCall(destr_proto->FT, destr_fn, std::vector<llvm::Value*>{ v, elem_destructor });
 }
 
 static void check_destructor(const char* type_name, volvoxc::FullType* ft, bool is_constructor) {

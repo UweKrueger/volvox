@@ -258,19 +258,23 @@ struct _ZN6volvox6RtTypeE packed {
 	name string
 	fields string
 }
+
 struct _ZN6volvox13RtStructFieldE {
 	FieldName string
 	&rttype _ZN6volvox6RtTypeE
 }
+
 struct ArrayNode {
 	data string
 	dim u64
 	cap u64
 }
+
 struct __size_offset {
 	offset u32
 	size u32
 }
+
 struct __map_value union {
 	u64
 	i64
@@ -281,6 +285,7 @@ struct __map_value union {
 	__size_offset
 	voidptr
 }
+
 struct __map_key union {
 	u64
 	i64
@@ -289,6 +294,7 @@ struct __map_key union {
 	f64
 	str [8]u8
 }
+
 struct __map_node {
 	&parent __map_node
 	&leftChild __map_node
@@ -296,12 +302,38 @@ struct __map_node {
 	value __map_value
 	key __map_key
 }
+
 struct __map_node_ref {
 	&node __map_node
 }
+
 struct __map_value_ref {
 	&value __map_value
 }
+
+# We do not have a 'c++decl' (yet?). Instead we use 'cdecl' with mangled function names
+#
+cdecl _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&root_ptr voidptr, key string, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(root voidptr, key string) __map_value_ref
+cdecl _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(root voidptr, elem_destructor voidptr)
+cdecl _ZN6volvox3map3MinEPNS0_4NodeE(&root __map_node) voidptr
+cdecl _ZN6volvox3map7iter_upEPNS0_4NodeE(&node __map_node) voidptr
+cdecl _ZN6volvox3map3MaxEPNS0_4NodeE(&root __map_node) voidptr
+cdecl _ZN6volvox3map9iter_downEPNS0_4NodeE(&node __map_node) voidptr
+cdecl __cstr2volvoxstr(s cstring, l size_t, h bool) string
+cdecl __cstr2volvox(s cstring) string
+cdecl __volvox2cstr(s string) cstring
+cdecl(strdup) __strdup(s cstring) cstring
+cdecl _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
+cdecl _ZN9ArrayNodeD1Ev(&a ArrayNode)
+cdecl _ZN9ArrayNode8pushbackEPcy(&a ArrayNode, s string, obj_size u64)
+cdecl getTermSize(fd i32) i32
+cdecl showtestres(fd i32, width i32, testcase string, result bool)
+cdecl enableColorANSI(fd i32) bool
+# only for debugging
+cdecl __modstr(s string, idx i32, c u8)
+cdecl GetLastError() u32
+cdecl SetLastError(err u32)
 
 struct __map {
 	__ptr voidptr
@@ -310,8 +342,22 @@ struct __map {
 
 def ~__map
 	if bool(this.__ptr)
-		__free this.__ptr
+		_ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(this.__ptr, voidptr(size_t(0)))
 end end
+
+def __map.__insert(key string, value u64, value_size i32) voidptr
+	old_node =  __map_node_ref{}
+	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node.node)
+	if size_t(old_node.node) == 0
+		this.count++
+	end
+	return old_node.node
+end
+
+def __map.__get(key string) voidptr
+	value_ref = _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(this.__ptr, key)
+	return value_ref.value
+end
 
 struct __range_u8 {
 	min u8
@@ -353,30 +399,6 @@ struct __range_f64 {
 	min f64
 	max f64
 }
-
-# We do not have a 'c++decl' (yet?). Instead we use 'cdecl' with mangled function names
-#
-cdecl _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&root_ptr voidptr, key string, value u64, value_size i32, &replace voidptr) voidptr
-cdecl _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(root voidptr, key string) __map_value_ref
-cdecl _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(root voidptr, d voidptr)
-cdecl _ZN6volvox3map3MinEPNS0_4NodeE(&root __map_node) voidptr
-cdecl _ZN6volvox3map7iter_upEPNS0_4NodeE(&node __map_node) voidptr
-cdecl _ZN6volvox3map3MaxEPNS0_4NodeE(&root __map_node) voidptr
-cdecl _ZN6volvox3map9iter_downEPNS0_4NodeE(&node __map_node) voidptr
-cdecl __cstr2volvoxstr(s cstring, l size_t, h bool) string
-cdecl __cstr2volvox(s cstring) string
-cdecl __volvox2cstr(s string) cstring
-cdecl(strdup) __strdup(s cstring) cstring
-cdecl _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)
-cdecl _ZN9ArrayNodeD1Ev(&a ArrayNode)
-cdecl _ZN9ArrayNode8pushbackEPcy(&a ArrayNode, s string, obj_size u64)
-cdecl getTermSize(fd i32) i32
-cdecl showtestres(fd i32, width i32, testcase string, result bool)
-cdecl enableColorANSI(fd i32) bool
-# only for debugging
-cdecl __modstr(s string, idx i32, c u8)
-cdecl GetLastError() u32
-cdecl SetLastError(err u32)
 
 inline def __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
 	if index >= length
