@@ -3041,30 +3041,6 @@ bool ForExprAST::PrepareIterator() {
 		iterator_type = iterator->getType();
 	llvm::Value* initializer = nullptr;
 	llvm::Value* Ptr = nullptr;
-	/*
-	if (iterator_type->isPointerTy()) {
-		if (Iterator->ft->type_attr & A_map) {
-			if (!iterator)
-				iterator = Builder->CreateLoad(llvm_ptr_type, iterator_ref);
-			ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
-			std::string map_min_name = "_ZN6volvox3map3MinEPNS0_4NodeE";
-			std::string map_max_name = "_ZN6volvox3map3MaxEPNS0_4NodeE";
-			auto min_proto = (*lex.findProtos(map_min_name))[0].get();
-			auto max_proto = (*lex.findProtos(map_max_name))[0].get();
-			auto min_fn = getFunction(min_proto);
-			auto max_fn = getFunction(max_proto);
-			initializer = Builder->CreateCall(min_proto->FT, min_fn, { iterator });
-			limit = Builder->CreateCall(max_proto->FT, max_fn, { iterator });
-			if (descending) {
-				llvm::Value* tmp = initializer;
-				initializer = limit;
-				limit = tmp;
-			}
-		} else {
-			errs() << Iterator->Loc << ": unsupported iterator type " << *Iterator->ft << "\n";
-			return false;
-		}
-		} else */
 	if (iterator_type->isSingleValueType()) {
 		if (iterator_ref)
 			iterator = Builder->CreateLoad(iterator_type, iterator_ref);
@@ -3102,32 +3078,11 @@ bool ForExprAST::PrepareIterator() {
 		// first try if we have a special methods to iterate iterate
 		std::string start_iterator_method_name = descending ? "__max_iterator" : "__min_iterator";
 		auto start_selector = std::make_unique<IdentExprAST>(Iterator->Loc, start_iterator_method_name);
-		std::string iterator_method_name = descending ? "__iter_down" : "__iter_up";
-		auto iter_selector = std::make_unique<IdentExprAST>(Iterator->Loc, iterator_method_name);
 		auto start_expr = getSelect(Iterator->Loc, std::move(receiver1), std::move(start_selector), true);
 		if (start_expr) {
-			errs() << Iterator->Loc << ": start_expr " << start_expr << "\n";
-			auto iter_expr = getSelect(Iterator->Loc, std::move(receiver2), std::move(iter_selector));
+			iterator_methods = true;
 			if (auto method = dynamic_cast<MethodExprAST*>(start_expr.get()))
 				IteratorStart = std::make_unique<CallExprAST>(Iterator->Loc, std::move(start_expr));
-			if (auto method = dynamic_cast<MethodExprAST*>(iter_expr.get()))
-				Iterator = std::make_unique<CallExprAST>(Iterator->Loc, std::move(iter_expr));
-			if (!Iterator) {
-				errs() << Iterator->Loc << ": struct has no iterator method\n";
-				return false;
-			}
-			std::string value_ref_name = "__value_ref";
-			auto value_ref_selector = std::make_unique<IdentExprAST>(Iterator->Loc, value_ref_name);
-			auto receiver3 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
-			auto value_ref_select = getSelect(Iterator->Loc, std::move(receiver3), std::move(value_ref_selector));
-			if (auto method = dynamic_cast<MethodExprAST*>(value_ref_select.get()))
-				ValueFromIterator = std::make_unique<CallExprAST>(Iterator->Loc, std::move(value_ref_select));
-			std::string key_ref_name = "__key_ref";
-			auto key_ref_selector = std::make_unique<IdentExprAST>(Iterator->Loc, key_ref_name);
-			auto receiver4 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
-			auto key_ref_select = getSelect(Iterator->Loc, std::move(receiver4), std::move(key_ref_selector));
-			if (auto method = dynamic_cast<MethodExprAST*>(key_ref_select.get()))
-				KeyFromIterator = std::make_unique<CallExprAST>(Iterator->Loc, std::move(key_ref_select));
 		} else {
 			if (iterator_ref) {
 				receiver1 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
@@ -3229,11 +3184,28 @@ bool ForExprAST::PrepareIterator() {
 				ValueRef = ValueFV->val = CreateAlloca(Step, align);
 				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
 			}
-		} else if (iterator_type->isPointerTy()) {
-			if (Iterator->ft->type_attr & A_map) {
-				ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
-				Builder->CreateStore(initializer, ptr_storage);
-				ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
+		} else if (iterator_methods) {
+			initializer = IteratorStart->codegen();
+			CurIter = CreateEntryBlockAlloca(llvm_ptr_type);
+			Builder->CreateStore(initializer, CurIter);
+			if (ValueFV) {
+				std::string value_ref_name = "__value_ref";
+				auto value_ref_selector = std::make_unique<IdentExprAST>(Iterator->Loc, value_ref_name);
+				auto receiver3 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
+				auto value_ref_select = getSelect(Iterator->Loc, std::move(receiver3), std::move(value_ref_selector));
+				if (auto method = dynamic_cast<MethodExprAST*>(value_ref_select.get())) {
+					std::unique_ptr<ExprAST> ini = std::make_unique<ConstExprAST>(initializer);
+					std::vector<std::unique_ptr<ExprAST>> args;
+					args.push_back(std::move(ini));
+					auto ValueFromIterator = std::make_unique<CallExprAST>(Iterator->Loc, std::move(value_ref_select),
+					                                                       std::move(args));
+					ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
+					llvm::Value* value0 = Builder->CreateLoad(ValueFV->ft.type, ValueFromIterator->codegen());
+					Builder->CreateStore(value0, ValueRef);
+				} else {
+					errs() << Iterator->Loc << ": has no method '" << value_ref_name << "'\n";
+					return false;
+				}
 			}
 		} else {
 			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
@@ -3266,19 +3238,21 @@ bool ForExprAST::PrepareIterator() {
 		}
 		break;
 	}
-	if (limit->getType()->isIntegerTy()) {
-		if (!Step)
-			Step = llvm::ConstantInt::get(limit->getType(), 1, true);
-	} else if (limit->getType()->isFloatingPointTy()) {
-		if (!Step)
-			Step = llvm::ConstantFP::get(limit->getType(), 1.0);
-		// floats accumulate rounding errors so the precise upper limit might not be hit
-		// we define a target intervall [limit-0.5*Step, limit+0.5*Step)
-		llvm::Value* step_half = Builder->CreateFMul(Step, llvm::ConstantFP::get(limit->getType(), .5));
-		// lower boundary:
-		approx_limit = descending ?
-			Builder->CreateFAdd(limit, step_half) :
-			Builder->CreateFSub(limit, step_half);
+	if (limit) {
+		if (limit->getType()->isIntegerTy()) {
+			if (!Step)
+				Step = llvm::ConstantInt::get(limit->getType(), 1, true);
+		} else if (limit->getType()->isFloatingPointTy()) {
+			if (!Step)
+				Step = llvm::ConstantFP::get(limit->getType(), 1.0);
+			// floats accumulate rounding errors so the precise upper limit might not be hit
+			// we define a target intervall [limit-0.5*Step, limit+0.5*Step)
+			llvm::Value* step_half = Builder->CreateFMul(Step, llvm::ConstantFP::get(limit->getType(), .5));
+			// lower boundary:
+			approx_limit = descending ?
+				Builder->CreateFAdd(limit, step_half) :
+				Builder->CreateFSub(limit, step_half);
+		}
 	}
 	switch (new_Key) {
 	case setter_method_returned:
@@ -3303,6 +3277,12 @@ bool ForExprAST::PrepareIterator() {
 }
 
 llvm::Value* ForExprAST::CreateCondition(bool at_end) {
+	errs() << "CreateCondition() called " << at_end << "\n";
+	if (iterator_methods) {
+		// return Builder->getTrue();
+		llvm::Value* cur_iter_val = Builder->CreateLoad(llvm_size_type, CurIter);
+		return Builder->CreateICmpNE(cur_iter_val, llvm::Constant::getNullValue(llvm_size_type));
+	}
 	llvm::Value* ctrl_var = ptr_storage ?
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);
@@ -3353,6 +3333,10 @@ llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 }
 
 bool ForExprAST::SetupLoop() {
+	if (iterator_methods) {
+		return true;
+	}
+	/*
 	if (iterator_type->isPointerTy()) {
 		if (Iterator->ft->type_attr & A_map) {
 			llvm::Value* node_ptr = Builder->CreateLoad(llvm_ptr_type, ptr_storage);
@@ -3387,11 +3371,32 @@ bool ForExprAST::SetupLoop() {
 			} else
 				errs() << "No ValueRef\n";
 		}
-	}
+		} */
 	return true;
 }
 
 bool ForExprAST::Iterate() {
+	errs() << "Iterate() called\n";
+	if (iterator_methods) {
+		std::string iterator_method_name = descending ? "__iter_down" : "__iter_up";
+		auto iter_selector = std::make_unique<IdentExprAST>(Iterator->Loc, iterator_method_name);
+		auto receiver3 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
+		auto iter_expr = getSelect(Iterator->Loc, std::move(receiver3), std::move(iter_selector));
+		if (auto method = dynamic_cast<MethodExprAST*>(iter_expr.get())) {
+			llvm::Value* cur_iter = Builder->CreateLoad(llvm_ptr_type, CurIter);
+			std::unique_ptr<ExprAST> iter = std::make_unique<ConstExprAST>(cur_iter);
+			std::vector<std::unique_ptr<ExprAST>> args;
+			args.push_back(std::move(iter));
+			auto IteratorExpr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(iter_expr), std::move(args));
+			llvm::Value* new_iter = IteratorExpr->codegen();
+			Builder->CreateStore(new_iter, CurIter);
+			return true;
+		}
+		if (!Iterator) {
+			errs() << Iterator->Loc << ": struct has no iterator method\n";
+			return false;
+		}
+	}
 	llvm::Value* ctrl_var = ptr_storage ?
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);

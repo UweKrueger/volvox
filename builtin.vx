@@ -371,14 +371,18 @@ def __map.__get(key string) voidptr
 end
 
 inline def __map.__min_iterator voidptr
-	return _ZN6volvox3map3MinEPNS0_4NodeE(this.__ptr)
+	mm = _ZN6volvox3map3MinEPNS0_4NodeE(this.__ptr)
+	echo "Min Iterator called ${size_t(this.__ptr)} ${size_t(mm)}\n"
+	return mm
 end
 
 inline def __map.__max_iterator voidptr
+	echo "Max Iterator called\n"
 	return _ZN6volvox3map3MaxEPNS0_4NodeE(this.__ptr)
 end
 
 inline def __map.__iter_up(pos voidptr) voidptr
+	echo "Iterator up called\n"
 	if size_t pos == 0
 		return voidptr 0
 	else
@@ -386,6 +390,7 @@ inline def __map.__iter_up(pos voidptr) voidptr
 end end
 
 inline def __map.__iter_down(pos voidptr) voidptr
+	echo "Iterator down called\n"
 	if size_t pos == 0
 		return voidptr 0
 	else
@@ -393,6 +398,7 @@ inline def __map.__iter_down(pos voidptr) voidptr
 end end
 
 inline def __map.__value_ref(node_ref voidptr) voidptr
+	echo "Value ref called\n"
 	if size_t node_ref == 0
 		return voidptr 0
 	else
@@ -400,6 +406,7 @@ inline def __map.__value_ref(node_ref voidptr) voidptr
 end end
 
 inline def __map.__key_ref(node_ref voidptr) voidptr
+	echo "Key ref called\n"
 	if size_t node_ref == 0
 		return voidptr 0
 	else

@@ -1027,8 +1027,7 @@ enum new_var_kind : uint8_t {
 class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> IteratorStart = nullptr;
 	std::unique_ptr<ExprAST> Iterator = nullptr;
-	std::unique_ptr<ExprAST> KeyFromIterator = nullptr;
-	std::unique_ptr<ExprAST> ValueFromIterator = nullptr;
+	llvm::Value* CurIter = nullptr;
 	llvm::Value* limit = nullptr;
 	llvm::Value* approx_limit = nullptr; // for float
 	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
@@ -1038,7 +1037,7 @@ class ForExprAST : public BranchExprAST {
 	llvm::Value* iterator_ref = nullptr;
 	llvm::Type* iterator_type = nullptr;
 	llvm::Type* ElType = nullptr;
-	llvm::Value* Ptr = nullptr;
+	//llvm::Value* Ptr = nullptr;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
 	FullVar* KeyFV = nullptr;
 	LvalueExprAST* KeyLval = nullptr;
@@ -1054,8 +1053,9 @@ class ForExprAST : public BranchExprAST {
 	std::string KeyName, ValueName;
 	llvm::Align rvalue_align;
 	new_var_kind new_Key, new_Value;
-	bool descending;
-
+	bool descending = false;
+	bool iterator_methods = false;
+	
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, unsigned max_brk_level, std::set<std::string> _merged_vars, std::unique_ptr<ExprAST> _Key,
