@@ -1772,12 +1772,13 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	return nullptr;
 }
 
-std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident) {
+std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident, bool silent_fail) {
 	if (LHS->ft->mangled_name) {
 		if (LHS->ft->type_attr & A_interface) {
 			auto protos = std::get<1>(*LHS->ft->InterfaceProtos)->find(Ident->Name);
 			if (protos == std::get<1>(*LHS->ft->InterfaceProtos)->end()) {
-				errs() << LHS->Loc << ": interface '" << *LHS->ft << "' has no method '" << Ident->Name << "'\n";
+				if (!silent_fail)
+					errs() << LHS->Loc << ": interface '" << *LHS->ft << "' has no method '" << Ident->Name << "'\n";
 				return nullptr;
 			}
 			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
@@ -1822,7 +1823,10 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
 		}
 	}
-	return std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
+	auto expr = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), silent_fail);
+	if (!expr->ft && silent_fail)
+		return nullptr;
+	return expr;
 }
 
 /// binoprhs

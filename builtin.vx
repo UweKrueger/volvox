@@ -370,6 +370,42 @@ def __map.__get(key string) voidptr
 	return value_ref.value
 end
 
+inline def __map.__min_iterator voidptr
+	return _ZN6volvox3map3MinEPNS0_4NodeE(this.__ptr)
+end
+
+inline def __map.__max_iterator voidptr
+	return _ZN6volvox3map3MaxEPNS0_4NodeE(this.__ptr)
+end
+
+inline def __map.__iter_up(pos voidptr) voidptr
+	if size_t pos == 0
+		return voidptr 0
+	else
+		return _ZN6volvox3map7iter_upEPNS0_4NodeE(pos)
+end end
+
+inline def __map.__iter_down(pos voidptr) voidptr
+	if size_t pos == 0
+		return voidptr 0
+	else
+		return _ZN6volvox3map9iter_downEPNS0_4NodeE(pos)
+end end
+
+inline def __map.__value_ref(node_ref voidptr) voidptr
+	if size_t node_ref == 0
+		return voidptr 0
+	else
+		return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+end end
+
+inline def __map.__key_ref(node_ref voidptr) voidptr
+	if size_t node_ref == 0
+		return voidptr 0
+	else
+		return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3) + 8)
+end end
+
 struct __range_u8 {
 	min u8
 	max u8

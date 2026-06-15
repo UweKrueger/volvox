@@ -3041,6 +3041,7 @@ bool ForExprAST::PrepareIterator() {
 		iterator_type = iterator->getType();
 	llvm::Value* initializer = nullptr;
 	llvm::Value* Ptr = nullptr;
+	/*
 	if (iterator_type->isPointerTy()) {
 		if (Iterator->ft->type_attr & A_map) {
 			if (!iterator)
@@ -3063,7 +3064,8 @@ bool ForExprAST::PrepareIterator() {
 			errs() << Iterator->Loc << ": unsupported iterator type " << *Iterator->ft << "\n";
 			return false;
 		}
-	} else if (iterator_type->isSingleValueType()) {
+		} else */
+	if (iterator_type->isSingleValueType()) {
 		if (iterator_ref)
 			iterator = Builder->CreateLoad(iterator_type, iterator_ref);
 		limit = iterator;
@@ -3088,9 +3090,6 @@ bool ForExprAST::PrepareIterator() {
 			limit = tmp;
 		}
 	} else if (iterator_type->isStructTy()) {
-		// to get polymorphism here we only require that the object has field
-		// elements or methods called 'min' and 'max' that return the same single value type
-		// to achive this we construct SelectExprASTs
 		std::unique_ptr<ExprAST> receiver1;
 		std::unique_ptr<ExprAST> receiver2;
 		if (iterator_ref) {
@@ -3100,40 +3099,81 @@ bool ForExprAST::PrepareIterator() {
 			receiver1 = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
 			receiver2 = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
 		}
-		auto selector = std::make_unique<IdentExprAST>(Iterator->Loc, "min");
-		auto min_expr = getSelect(Iterator->Loc, std::move(receiver1), std::move(selector));
-		if (auto method = dynamic_cast<MethodExprAST*>(min_expr.get()))
-			min_expr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(min_expr));
-		// we have to recreate 'receiver' because it has been moved
-		selector = std::make_unique<IdentExprAST>(Iterator->Loc, "max");
-		auto max_expr = getSelect(Iterator->Loc, std::move(receiver2), std::move(selector));
-		if (auto method = dynamic_cast<MethodExprAST*>(max_expr.get()))
-			max_expr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(max_expr));
-		if (!min_expr || !min_expr->ft || !max_expr || !max_expr->ft) {
-			errs() << Iterator->Loc << ": could not find min/max fields of iterator\n";
-			return false;
-		}
-		initializer = min_expr->codegen();
-		limit = max_expr->codegen();
-		if (!initializer || !limit) {
-			errs() << Iterator->Loc << ": could not create code for 'for' range limit\n";
-			return false;
-		}
-		bool signedness_mismatch = (bool)((min_expr->ft->type_attr ^ max_expr->ft->type_attr) & A_signed);
-		if (initializer->getType() != limit->getType() || signedness_mismatch) {
-			errs() << Iterator->Loc << ": types of 'min' (" << *initializer->getType();
-			if (signedness_mismatch)
-				errs() << " - " << (min_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
-			errs() << ") and 'max' (" << *limit->getType();
-			if (signedness_mismatch)
-				errs() << " - " << (max_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
-			errs() << ") do not match\n";
-			return false;
-		}
-		if (descending) {
-			llvm::Value* tmp = initializer;
-			initializer = limit;
-			limit = tmp;
+		// first try if we have a special methods to iterate iterate
+		std::string start_iterator_method_name = descending ? "__max_iterator" : "__min_iterator";
+		auto start_selector = std::make_unique<IdentExprAST>(Iterator->Loc, start_iterator_method_name);
+		std::string iterator_method_name = descending ? "__iter_down" : "__iter_up";
+		auto iter_selector = std::make_unique<IdentExprAST>(Iterator->Loc, iterator_method_name);
+		auto start_expr = getSelect(Iterator->Loc, std::move(receiver1), std::move(start_selector), true);
+		if (start_expr) {
+			errs() << Iterator->Loc << ": start_expr " << start_expr << "\n";
+			auto iter_expr = getSelect(Iterator->Loc, std::move(receiver2), std::move(iter_selector));
+			if (auto method = dynamic_cast<MethodExprAST*>(start_expr.get()))
+				IteratorStart = std::make_unique<CallExprAST>(Iterator->Loc, std::move(start_expr));
+			if (auto method = dynamic_cast<MethodExprAST*>(iter_expr.get()))
+				Iterator = std::make_unique<CallExprAST>(Iterator->Loc, std::move(iter_expr));
+			if (!Iterator) {
+				errs() << Iterator->Loc << ": struct has no iterator method\n";
+				return false;
+			}
+			std::string value_ref_name = "__value_ref";
+			auto value_ref_selector = std::make_unique<IdentExprAST>(Iterator->Loc, value_ref_name);
+			auto receiver3 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
+			auto value_ref_select = getSelect(Iterator->Loc, std::move(receiver3), std::move(value_ref_selector));
+			if (auto method = dynamic_cast<MethodExprAST*>(value_ref_select.get()))
+				ValueFromIterator = std::make_unique<CallExprAST>(Iterator->Loc, std::move(value_ref_select));
+			std::string key_ref_name = "__key_ref";
+			auto key_ref_selector = std::make_unique<IdentExprAST>(Iterator->Loc, key_ref_name);
+			auto receiver4 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
+			auto key_ref_select = getSelect(Iterator->Loc, std::move(receiver4), std::move(key_ref_selector));
+			if (auto method = dynamic_cast<MethodExprAST*>(key_ref_select.get()))
+				KeyFromIterator = std::make_unique<CallExprAST>(Iterator->Loc, std::move(key_ref_select));
+		} else {
+			if (iterator_ref) {
+				receiver1 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
+				receiver2 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
+			} else {
+				receiver1 = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
+				receiver2 = std::make_unique<ConstExprAST>(Iterator->Loc, Iterator->ft, iterator);
+			}
+			// to get polymorphism here we only require that the object has field
+			// elements or methods called 'min' and 'max' that return the same single value type
+			// to achive this we construct SelectExprASTs
+			auto selector = std::make_unique<IdentExprAST>(Iterator->Loc, "min");
+			auto min_expr = getSelect(Iterator->Loc, std::move(receiver1), std::move(selector));
+			if (auto method = dynamic_cast<MethodExprAST*>(min_expr.get()))
+				min_expr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(min_expr));
+			// we have to recreate 'receiver' because it has been moved
+			selector = std::make_unique<IdentExprAST>(Iterator->Loc, "max");
+			auto max_expr = getSelect(Iterator->Loc, std::move(receiver2), std::move(selector));
+			if (auto method = dynamic_cast<MethodExprAST*>(max_expr.get()))
+				max_expr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(max_expr));
+			if (!min_expr || !min_expr->ft || !max_expr || !max_expr->ft) {
+				errs() << Iterator->Loc << ": could not find min/max fields of iterator\n";
+				return false;
+			}
+			initializer = min_expr->codegen();
+			limit = max_expr->codegen();
+			if (!initializer || !limit) {
+				errs() << Iterator->Loc << ": could not create code for 'for' range limit\n";
+				return false;
+			}
+			bool signedness_mismatch = (bool)((min_expr->ft->type_attr ^ max_expr->ft->type_attr) & A_signed);
+			if (initializer->getType() != limit->getType() || signedness_mismatch) {
+				errs() << Iterator->Loc << ": types of 'min' (" << *initializer->getType();
+				if (signedness_mismatch)
+					errs() << " - " << (min_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
+				errs() << ") and 'max' (" << *limit->getType();
+				if (signedness_mismatch)
+					errs() << " - " << (max_expr->ft->type_attr & A_signed ? "" : "un") << "signed";
+				errs() << ") do not match\n";
+				return false;
+			}
+			if (descending) {
+				llvm::Value* tmp = initializer;
+				initializer = limit;
+				limit = tmp;
+			}
 		}
 	} else if (iterator_type->isArrayTy()) {
 		auto [ElType0, Ptr0, Dims] = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);

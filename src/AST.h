@@ -540,7 +540,7 @@ public:
 	std::unique_ptr<IdentExprAST> Field;
 	const char* FieldName = nullptr;
 	unsigned FieldIndex = (unsigned)(-1);
-	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field);
+	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field, bool silent_fail = false);
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen_complex(llvm::Value* target = nullptr);
@@ -553,7 +553,7 @@ public:
 	}
 };
 
-extern std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident);
+extern std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident, bool silent_fail = false);
 
 // IndexExprAST - Expressions like x[2] or y["key"]
 class IndexExprAST : public LvalueExprAST {
@@ -1025,7 +1025,10 @@ enum new_var_kind : uint8_t {
 
 /// ForExprAST - Expression class for for/in.
 class ForExprAST : public BranchExprAST {
+	std::unique_ptr<ExprAST> IteratorStart = nullptr;
 	std::unique_ptr<ExprAST> Iterator = nullptr;
+	std::unique_ptr<ExprAST> KeyFromIterator = nullptr;
+	std::unique_ptr<ExprAST> ValueFromIterator = nullptr;
 	llvm::Value* limit = nullptr;
 	llvm::Value* approx_limit = nullptr; // for float
 	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
