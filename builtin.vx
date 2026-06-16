@@ -371,14 +371,13 @@ def __map.__get(key string) voidptr
 end
 
 inline def __map.__min_iterator voidptr
-	mm = _ZN6volvox3map3MinEPNS0_4NodeE(this.__ptr)
-	echo "Min Iterator called ${size_t(this.__ptr)} ${size_t(mm)}\n"
-	return mm
+	r = __load_size(this.__ptr)
+	return _ZN6volvox3map3MinEPNS0_4NodeE(voidptr(r))
 end
 
 inline def __map.__max_iterator voidptr
-	echo "Max Iterator called\n"
-	return _ZN6volvox3map3MaxEPNS0_4NodeE(this.__ptr)
+	r = __load_size(voidptr(this.__ptr))
+	return _ZN6volvox3map3MaxEPNS0_4NodeE(voidptr(r))
 end
 
 inline def __map.__iter_up(pos voidptr) voidptr

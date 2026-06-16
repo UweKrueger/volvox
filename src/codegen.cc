@@ -3081,8 +3081,11 @@ bool ForExprAST::PrepareIterator() {
 		auto start_expr = getSelect(Iterator->Loc, std::move(receiver1), std::move(start_selector), true);
 		if (start_expr) {
 			iterator_methods = true;
-			if (auto method = dynamic_cast<MethodExprAST*>(start_expr.get()))
+			if (auto method = dynamic_cast<MethodExprAST*>(start_expr.get())) {
 				IteratorStart = std::make_unique<CallExprAST>(Iterator->Loc, std::move(start_expr));
+				CurIter = CreateEntryBlockAlloca(llvm_ptr_type);
+				IteratorStart->codegen(CurIter);
+			}
 		} else {
 			if (iterator_ref) {
 				receiver1 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
@@ -3188,6 +3191,7 @@ bool ForExprAST::PrepareIterator() {
 			initializer = IteratorStart->codegen();
 			CurIter = CreateEntryBlockAlloca(llvm_ptr_type);
 			Builder->CreateStore(initializer, CurIter);
+			/*
 			if (ValueFV) {
 				std::string value_ref_name = "__value_ref";
 				auto value_ref_selector = std::make_unique<IdentExprAST>(Iterator->Loc, value_ref_name);
@@ -3207,6 +3211,7 @@ bool ForExprAST::PrepareIterator() {
 					return false;
 				}
 			}
+			*/
 		} else {
 			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
 			ValueType = ValueFV->ft.type;
@@ -3220,6 +3225,8 @@ bool ForExprAST::PrepareIterator() {
 		if (!ValueRef)
 			return false;
 		ValueType = Value->ft->type;
+		if (iterator_methods)
+			break;
 		if (iterator_type->isArrayTy()) {
 			if (ValueFV->ft.type_attr & A_ptrref) {
 				ptr_storage = ValueFV->val;
@@ -3232,9 +3239,11 @@ bool ForExprAST::PrepareIterator() {
 			}
 			Builder->CreateStore(Ptr, ptr_storage);
 		} else {
-			if (initializer->getType() != ValueType)
-				initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
-			Builder->CreateStore(initializer, ValueRef);
+			if (initializer) {
+				if (initializer->getType() != ValueType)
+					initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
+				Builder->CreateStore(initializer, ValueRef);
+			}
 		}
 		break;
 	}
