@@ -1,5 +1,6 @@
 import arch
 import arch.os
+import arch.environment
 import time
 
 const __MUTEX_ATTR_SIZE := if os.isLinux
