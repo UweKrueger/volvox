@@ -387,18 +387,18 @@ def test_map_var_1 bool
 	return r2 == 13.25
 end
 
-# def test_map_lit_1 bool
-# 	return map[string]i32{ "gfgs": 12, "kdDe": -7, "ABffd": 13 }["kdDe"] == -7
-# end
+def test_map_lit_1 bool
+	return map[string]i32{ "gfgs": 12, "kdDe": -7, "ABffd": 13 }["kdDe"] == -7
+end
 
-# def test_map_lit_2 bool
-# 	v2 = map[string]f64{ "ggs": 12.125, "doDe": -7.0625, "ABfd": 13.0625 }["ABfd"]
-# 	return v2 == 13.0625
-# end
+def test_map_lit_2 bool
+	v2 = map[string]f64{ "ggs": 12.125, "doDe": -7.0625, "ABfd": 13.0625 }["ABfd"]
+	return v2 == 13.0625
+end
 
 # the following test cases are meant to test memory management with valgrind
 
-# map[string]i32{ "g0st": 12, "dpoDe": -79, "ABfdx": 113, "Qwedf": 99, "PO": -6  }["ABfdx"]
+map[string]i32{ "g0st": 12, "dpoDe": -79, "ABfdx": 113, "Qwedf": 99, "PO": -6  }["ABfdx"]
 
 hjhg7 = map[string]f64{ "ggs": 12, "doDe": 2.25, "ABd": -1.0625 }
 

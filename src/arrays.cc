@@ -571,13 +571,8 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		}
 		llvm::Value* vec_elem_ptr = Builder->CreateGEP(ft->type, ptr, Idx);
 		return { ft->type, vec_elem_ptr };
-	} else if (Field->ft->type == llvm_map_type) {
-		auto lval_Field = dynamic_cast<LvalueExprAST*>(Field.get());
-		if (!lval_Field) {
-			errs() << Field->Loc << ": map must be an lvalue\n";
-			return { nullptr, nullptr };
-		}
-		auto [ typ, Map ] = lval_Field->codegen_ref();
+	} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
+		llvm::Value* Map = Field->codegen();
 		if (!Map)
 			return { nullptr, nullptr };
 		llvm::Value* Key;
@@ -594,25 +589,21 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		errs() << Index->Loc << ": invalid map index\n";
 		return { nullptr, nullptr };
 	key_ok:
-		std::string the_method = "__get";
-		auto Ident = std::make_unique<IdentExprAST>(Field->Loc, the_method);
-		auto protos = MethodProtos.find({Field->ft->mangled_name, the_method});
-		if (protos == MethodProtos.end()) {
-			errs() << Field->Loc << ": method proto '" << the_method << "' not found for map\n";
-			return { nullptr, nullptr };
-		}
 		const char* getter;
-		if (Field->ft->elem_type[0].type != llvm_string_type) {
+		if (Field->ft->elem_type[0].type == llvm_string_type) // string key type
+			getter = "_ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc";
+		else {
 			errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
 			return { nullptr, nullptr };
 		}
-		PrototypeAST* getter_proto = protos->second[0].get();
+		PrototypeAST* getter_proto = (*lex.findProtos(std::string(getter)))[0].get();
 		if (!getter_proto) {
 			errs() << Loc << ": prototype " << getter << "() not found\n";
 			return { nullptr, nullptr };
 		}
 		auto getter_fn = getFunction(getter_proto);
-		auto value = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
+		auto value_wrapped = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
+		auto value = Builder->CreateExtractValue(value_wrapped, 0);
 		auto pointee_type = Field->ft->elem_type[1].type;
 		return { pointee_type, value };
 	}

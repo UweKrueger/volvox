@@ -132,7 +132,7 @@ VariableExprAST::VariableExprAST(SourceLocation Loc, const std::string &Name, Fu
 		ft = nullptr;
 }
 
-SelectExprAST::SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field, bool silent_fail) :
+SelectExprAST::SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field) :
 	LvalueExprAST(Loc), Struct(std::move(_Struct)), Field(std::move(_Field))
 {
 	FieldName = Field->Name.c_str();
@@ -160,9 +160,8 @@ SelectExprAST::SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struc
 				llvm::StringRef struct_name = struct_type->hasName() ?
 					struct_type->getName() :
 					"<anonymous>";
-				if (!silent_fail)
-					errs() << Struct->Loc << ": struct type '" << struct_name << "' has no field named '"
-					       << FieldName << "'\n";
+				errs() << Struct->Loc << ": struct type '" << struct_name << "' has no field named '"
+				       << FieldName << "'\n";
 				ft = nullptr;
 			}
 		} else if (Struct->ft->type == llvm_string_type) {
@@ -225,9 +224,14 @@ IndexExprAST::IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
 			ft->type = elem_type;
 		}
 		return;
-	} else if (Field->ft->type == llvm_map_type) {
-		ft = &Field->ft->elem_type[1];
-		return;
+	} else if (auto a_type = llvm::dyn_cast<llvm::PointerType>(Field->ft->type)) {
+		if (Field->ft->type_attr & A_map) {
+			ft = &Field->ft->elem_type[1];
+			return;
+		} else {
+			errs() << Loc << ": invalid index expression\n";
+			ft = nullptr;
+		}
 	} else if (Field->ft->type == llvm_vec_type) {
 		ft = Field->ft->elem_type;
 		return;

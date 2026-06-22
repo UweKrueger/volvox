@@ -540,7 +540,7 @@ public:
 	std::unique_ptr<IdentExprAST> Field;
 	const char* FieldName = nullptr;
 	unsigned FieldIndex = (unsigned)(-1);
-	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field, bool silent_fail = false);
+	SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struct, std::unique_ptr<IdentExprAST> _Field);
 	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen_complex(llvm::Value* target = nullptr);
@@ -553,7 +553,7 @@ public:
 	}
 };
 
-extern std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident, bool silent_fail = false);
+extern std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident);
 
 // IndexExprAST - Expressions like x[2] or y["key"]
 class IndexExprAST : public LvalueExprAST {
@@ -1025,9 +1025,7 @@ enum new_var_kind : uint8_t {
 
 /// ForExprAST - Expression class for for/in.
 class ForExprAST : public BranchExprAST {
-	std::unique_ptr<ExprAST> IteratorStart = nullptr;
 	std::unique_ptr<ExprAST> Iterator = nullptr;
-	llvm::Value* CurIter = nullptr;
 	llvm::Value* limit = nullptr;
 	llvm::Value* approx_limit = nullptr; // for float
 	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
@@ -1037,7 +1035,7 @@ class ForExprAST : public BranchExprAST {
 	llvm::Value* iterator_ref = nullptr;
 	llvm::Type* iterator_type = nullptr;
 	llvm::Type* ElType = nullptr;
-	//llvm::Value* Ptr = nullptr;
+	llvm::Value* Ptr = nullptr;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
 	FullVar* KeyFV = nullptr;
 	LvalueExprAST* KeyLval = nullptr;
@@ -1053,9 +1051,8 @@ class ForExprAST : public BranchExprAST {
 	std::string KeyName, ValueName;
 	llvm::Align rvalue_align;
 	new_var_kind new_Key, new_Value;
-	bool descending = false;
-	bool iterator_methods = false;
-	
+	bool descending;
+
 public:
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, unsigned max_brk_level, std::set<std::string> _merged_vars, std::unique_ptr<ExprAST> _Key,

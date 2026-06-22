@@ -351,9 +351,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					ftpair[1] = *val_ft;
 				} else
 					ftpair[1] = volvoxc::FullType{0};
-				ft = new_FullType(*map_type, attribs);
-				ft->elem_type = ftpair;
-				// ft = new_FullType(llvm_map_type, attribs, nullptr, nullptr, ftpair);
+				ft = new_FullType(llvm_ptr_type, A_map | attribs, nullptr, nullptr, ftpair);
 			} else {
 				ft = new_FullType(*vec_type, attribs);
 				ft->elem_type = key_ft;
@@ -766,7 +764,7 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 		if (is_vec) {
 			ft = new_FullType(*vec_type, 0);
 		} else {
-			ft = new_FullType(*map_type, 0);
+			ft = new_FullType(llvm_ptr_type, A_map);
 		}
 		getNextToken();
 	}
@@ -794,7 +792,12 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 				if (!vec_ast->ft || !vec_ast->ft->type)
 					return nullptr;
 				return vec_ast;
-			} else if (ft->type == llvm_map_type) {
+			} else {
+				errs() << CurLoc << ": internal error - struct literal\n";
+				return nullptr;
+			}
+		case llvm::Type::PointerTyID:
+			if (ft->type_attr & A_map) {
 				std::unique_ptr<ExprAST> map_ast;
 				if (is_set)
 					map_ast = std::make_unique<SetExprAST>(loc, ft, std::move(init_list->Elements));
@@ -803,10 +806,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 				if (!map_ast->ft || !map_ast->ft->type)
 					return nullptr;
 				return map_ast;
-			} else {
-				errs() << CurLoc << ": internal error - struct literal\n";
-				return nullptr;
 			}
+			return nullptr;
 		default:
 			errs() << CurLoc << ": " << *ft->type << " as arrgegate type not implemented\n";
 			return nullptr;
@@ -1080,7 +1081,7 @@ std::map<std::string,FullVar*> get_destruct_vars(int b_lev) {
 		auto& table = locals_table[sz-n];
 		for (auto t = table.first(); (bool)t; ++t) {
 			FullVar* fullV = fullVar(t);
-			if ((fullV->ft.type_attr & A_destructor) && !(fullV->ft.type_attr & A_ref)) {
+			if ((fullV->ft.type_attr & (A_destructor | A_map)) && !(fullV->ft.type_attr & A_ref)) {
 				std::string key(t.getKey());
 				destr_vars.insert({ std::move(key), fullV });
 			}
@@ -1093,7 +1094,7 @@ void get_destruct_vars_main(std::map<std::string,FullVar*>& destr_vars) {
 	auto& table = lex.module->globals_table;
 	for (auto t = table.first(); (bool)t; ++t) {
 		FullVar* fullV = fullVar(t);
-		if (fullV->ft.type_attr & A_destructor) {
+		if (fullV->ft.type_attr & (A_destructor | A_map)) {
 			std::string key(t.getKey());
 			destr_vars.insert({ std::move(key), fullV });
 		}
@@ -1301,7 +1302,7 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 				auto then_var = fullVar(then_node);
 				// only add vars declared before 1st 'brk' to outer scope
 				if (!then_var->branch_parts->back().brk_part) {
-					if (then_var->ft.type_attr & A_destructor) {
+					if (then_var->ft.type_attr & (A_destructor | A_map)) {
 						std::string then_var_name(then_node.getKey());
 						merged_vars.insert(std::move(then_var_name));
 					}
@@ -1335,7 +1336,7 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 				// only add to outer scope if declared before 1st 'brk' in each branch
 				FullVar* then_var = fullVar(then_node);
 				if (else_var && !then_var->branch_parts->back().brk_part && !else_var->branch_parts->back().brk_part) {
-					if (then_var->ft.type_attr & A_destructor) {
+					if (then_var->ft.type_attr & (A_destructor | A_map)) {
 						std::string then_var_name(then_node.getKey());
 						merged_vars.insert(std::move(then_var_name));
 					}
@@ -1488,7 +1489,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 				errs() << (RHS ? (*RHS)->Loc : CurLoc) << ": RHS of reference declaration must be an lvalue\n";
 				return { nullptr, new_var_none };
 			}
-		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
+		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & (A_destructor | A_map))) {
 			fv.ft.type_attr |= A_destructor;
 		}
 		if (verbosity >= 2) {
@@ -1772,13 +1773,12 @@ static std::unique_ptr<ExprAST> ParseUnary(int terminator = 0) {
 	return nullptr;
 }
 
-std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident, bool silent_fail) {
+std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> LHS, std::unique_ptr<IdentExprAST> Ident) {
 	if (LHS->ft->mangled_name) {
 		if (LHS->ft->type_attr & A_interface) {
 			auto protos = std::get<1>(*LHS->ft->InterfaceProtos)->find(Ident->Name);
 			if (protos == std::get<1>(*LHS->ft->InterfaceProtos)->end()) {
-				if (!silent_fail)
-					errs() << LHS->Loc << ": interface '" << *LHS->ft << "' has no method '" << Ident->Name << "'\n";
+				errs() << LHS->Loc << ": interface '" << *LHS->ft << "' has no method '" << Ident->Name << "'\n";
 				return nullptr;
 			}
 			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
@@ -1823,10 +1823,7 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 			return std::make_unique<MethodExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), &protos->second);
 		}
 	}
-	auto expr = std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident), silent_fail);
-	if (!expr->ft && silent_fail)
-		return nullptr;
-	return expr;
+	return std::make_unique<SelectExprAST>(LHS->Loc, std::move(LHS), std::move(Ident));
 }
 
 /// binoprhs
