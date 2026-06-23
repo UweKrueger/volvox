@@ -123,7 +123,7 @@ ifeq ($(shell uname),Haiku)
 	EDITLINEOBJS := # we use system provided BSD editline
 	LINKEXTRAFLAGS := -L/system/develop/lib $(LINKEXTRAFLAGS)
 else
-ifeq ($(NIXTYPE),msvc) # only a reminder - none of the available 'mingw' versions works ;-(
+ifeq ($(NIXTYPE),msvc)
 	MINGWEXTRAFLAGS := -target x86_64-pc-windows-gnu
 	EXTRAOBJS := emutls.o
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
@@ -227,17 +227,18 @@ LIBVOLVOXSONAMESPEC :=
 EXTRAINC := -I../include
 RPATH := -Wl,/stack:10000000
 # -Wl,-defaultlib:ucrt
+LIBVOLVOXMINGW := ../lib/$(LIBVOLVOXMINGWNAME)
 else
 LIBVOLVOXBASE := libvolvox.so
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
 LIBVOLVOXSONAMESPEC := -Wl,-soname,$(LIBVOLVOXSONAME)
 EXTRAINC :=
 RPATH := -Wl,-rpath,$(shell pwd)/../lib
+LIBVOLVOXMINGW := # we might build MINGW stuff on Linux in the future ...
 endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
 LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
 LIBVOLVOXLTO := ../lib/$(LIBVOLVOXLTONAME)
-LIBVOLVOXMINGW := ../lib/$(LIBVOLVOXMINGWNAME)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
