@@ -122,9 +122,18 @@ def test_map_iteration_1 bool
 	s = 0.
 	for i ~in hjhg7
 		s += i
-		# _printf("Value: >%g<\n", i)
 	end
 	return s == 13.1875
+end
+
+def test_map_iteration_1a bool
+	hjhg7 = map[string]f64{}
+	s = 0.
+	for i ~in hjhg7
+		s += i
+		_printf("Value: >%g<\n", i)
+	end
+	return s == 0
 end
 
 global ffsd93 = 0
