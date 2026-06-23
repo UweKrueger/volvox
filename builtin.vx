@@ -5,10 +5,29 @@
 # use this to trigger informative messages
 const _verbose := __VERBOSE
 const _range_check := true
+const _create_unknown_map_entries_on_access := true
 
-# compile builtins
+# compiler builtins - we use `cdecl` to declare prototypes
 cdecl __load_size(adr voidptr) size_t
+cdecl __load_64(adr voidptr) u64
+cdecl __load_32(adr voidptr) u32
+cdecl __load_16(adr voidptr) u16
+cdecl __load_8(adr voidptr) u8
+cdecl __load_real(adr voidptr) real
+cdecl __load_float(adr voidptr) float
+
 cdecl __store_size(adr voidptr, val size_t) size_t
+cdecl __store_64(adr voidptr, val u64) u64
+cdecl __store_32(adr voidptr, val u32) u32
+cdecl __store_16(adr voidptr, val u16) u16
+cdecl __store_8(adr voidptr, val u8) u8
+cdecl __store_real(adr voidptr, val real) real
+cdecl __store_float(adr voidptr, val float) float
+
+cdecl __bitcast_64(val real) u64
+cdecl __bitcast_32(val float) u64
+cdecl __bitcast_real(val u64) real
+cdecl __bitcast_32(val u32) float
 
 cdecl __string_dup(s voidptr) voidptr
 cdecl(malloc) ___malloc(n_bytes size_t) voidptr
@@ -377,6 +396,109 @@ cdecl enableColorANSI(fd i32) bool
 cdecl __modstr(s string, idx i32, c u8)
 cdecl GetLastError() u32
 cdecl SetLastError(err u32)
+
+def __map.__insert_64(key string, value u64) voidptr
+	old_node =  __map_node_ref{}
+	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, value, 0, &old_node.node)
+	if size_t(old_node.node) == 0
+		this.count++
+		return node
+	end
+	return old_node.node
+end
+
+def __map.__insert_real(key string, value real) voidptr
+	old_node =  __map_node_ref{}
+	u64_val = __bitcast_64(value)
+	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, u64_val, 0, &old_node.node)
+	if size_t(old_node.node) == 0
+		this.count++
+		return node
+	end
+	return old_node.node
+end
+
+def __map.__insert_float(key string, value float) voidptr
+	old_node =  __map_node_ref{}
+	u32_val = __bitcast_32(value)
+	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, u64(u32_val), 0, &old_node.node)
+	if size_t(old_node.node) == 0
+		this.count++
+		return node
+	end
+	return old_node.node
+end
+
+def __map.__get(key string) voidptr
+	value_ref = _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(this.__ptr, key)
+	if size_t(value_ref.value) == 0
+		if _create_unknown_map_entries_on_access
+			node_ref = this.__insert_64(key, 0UL)
+			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+		else
+			eecho "Key $key not fount in map"
+			exit 1
+	end end
+	return value_ref.value
+end
+
+inline def __map_get_value_ref(node_ref voidptr) voidptr
+	echo "Value ref called\n"
+	if size_t node_ref == 0
+		return voidptr 0
+	else
+		return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3) - 24)
+end end
+
+inline def __map_get_key_ref(node_ref voidptr) voidptr
+	echo "Key ref called\n"
+	if size_t node_ref == 0
+		return voidptr 0
+	else
+		return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3) + 8)
+end end
+
+inline def __map.__get_size(key string) size_t
+	value_ref = this.__get(key)
+	val = __load_size(value_ref)
+	return val
+end
+
+inline def __map.__get_64(key string) u64
+	value_ref = this.__get(key)
+	val = __load_64(value_ref)
+	return val
+end
+
+inline def __map.__get_32(key string) u32
+	value_ref = this.__get(key)
+	val = __load_32(value_ref)
+	return val
+end
+
+inline def __map.__get_16(key string) u16
+	value_ref = this.__get(key)
+	val = __load_16(value_ref)
+	return val
+end
+
+inline def __map.__get_8(key string) u8
+	value_ref = this.__get(key)
+	val = __load_8(value_ref)
+	return val
+end
+
+inline def __map.__get_real(key string) real
+	value_ref = this.__get(key)
+	val = __load_real(value_ref)
+	return val
+end
+
+inline def __map.__get_float(key string) float
+	value_ref = this.__get(key)
+	val = __load_float(value_ref)
+	return val
+end
 
 inline def __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
 	if index >= length

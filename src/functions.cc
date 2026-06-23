@@ -1134,7 +1134,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* typname = createStringConst(cname.c_str() + offset, length);
 		return typname;
 	}
-	if (Proto && Proto->Name == "__load_size") {
+	if (Proto && !strncmp(Proto->Name.c_str(), "__load_", 7)) {
 		if (Args.size() != 1) {
 			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 1 argument\n";
 			return nullptr;
@@ -1146,9 +1146,26 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			errs() << arg->Loc << ": invalid argument\n";
 			return nullptr;
 		}
-		return Builder->CreateLoad(llvm_size_type, adr);
+		if (Proto->Name == "__load_size")
+			return Builder->CreateLoad(llvm_size_type, adr);
+		else if (Proto->Name == "__load_64")
+			return Builder->CreateLoad(llvm::IntegerType::get(Context, 64), adr);
+		else if (Proto->Name == "__load_32")
+			return Builder->CreateLoad(llvm::IntegerType::get(Context, 32), adr);
+		else if (Proto->Name == "__load_16")
+			return Builder->CreateLoad(llvm::IntegerType::get(Context, 16), adr);
+		else if (Proto->Name == "__load_8")
+			return Builder->CreateLoad(llvm::IntegerType::get(Context, 8), adr);
+		else if (Proto->Name == "__load_real")
+			return Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
+		else if (Proto->Name == "__load_float")
+			return Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
+		else {
+			errs() << Loc << ": '" << Proto->Name << "()' unknown function\n";
+			return nullptr;
+		}
 	}
-	if (Proto && Proto->Name == "__store_size") {
+	if (Proto && !strncmp(Proto->Name.c_str(), "__store_", 8)) {
 		if (Args.size() != 2) {
 			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 2 arguments\n";
 			return nullptr;
@@ -1161,9 +1178,81 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			errs() << (adr ? Args[1]->Loc : Args[0]->Loc) << ": invalid argument\n";
 			return nullptr;
 		}
-		llvm::Value* old_val = Builder->CreateLoad(llvm_size_type, adr);
+		llvm::Value* old_val;
+		if (Proto->Name == "__store_size")
+			old_val = Builder->CreateLoad(llvm_size_type, adr);
+		else if (Proto->Name == "__store_64")
+			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 64), adr);
+		else if (Proto->Name == "__store_32")
+			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 32), adr);
+		else if (Proto->Name == "__store_16")
+			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 16), adr);
+		else if (Proto->Name == "__store_8")
+			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 8), adr);
+		else if (Proto->Name == "__store_real")
+			old_val = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
+		else if (Proto->Name == "__store_float")
+			old_val = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
+		else {
+			errs() << Loc << ": '" << Proto->Name << "()' unknown function\n";
+			return nullptr;
+		}
+		// For storing we can rely on the prototype definition in `builtin.vx`
 		Builder->CreateStore(val, adr);
 		return old_val;
+	} else if (Proto && !strncmp(Proto->Name.c_str(), "__store_", 8)) {
+		if (Args.size() != 2) {
+			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 2 arguments\n";
+			return nullptr;
+		}
+		Args[0]->desired_type = llvm_ptr_type;
+		Args[1]->desired_type = llvm_size_type;
+		llvm::Value* adr = Args[0]->codegen();
+		llvm::Value* val = Args[1]->codegen();
+		if (!adr || !val) {
+			errs() << (adr ? Args[1]->Loc : Args[0]->Loc) << ": invalid argument\n";
+			return nullptr;
+		}
+		llvm::Value* old_val;
+		if (Proto->Name == "__store_size")
+			old_val = Builder->CreateLoad(llvm_size_type, adr);
+		else if (Proto->Name == "__store_64")
+			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 64), adr);
+		else if (Proto->Name == "__store_32")
+			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 32), adr);
+		else if (Proto->Name == "__store_16")
+			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 16), adr);
+		else if (Proto->Name == "__store_8")
+			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 8), adr);
+		else if (Proto->Name == "__store_real")
+			old_val = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
+		else if (Proto->Name == "__store_float")
+			old_val = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
+		else {
+			errs() << Loc << ": '" << Proto->Name << "()' unknown function\n";
+			return nullptr;
+		}
+		// For storing we can rely on the prototype definition in `builtin.vx`
+		Builder->CreateStore(val, adr);
+		return old_val;
+	} else if (Proto && !strncmp(Proto->Name.c_str(), "__bitcast_", 10)) {
+		if (Args.size() != 1) {
+			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 1 argument\n";
+			return nullptr;
+		}
+		llvm::Value* val = Args[0]->codegen();
+		if (Proto->Name == "__bitcast_64")
+			return Builder->CreateBitCast(val, llvm::Type::getInt64Ty(Context));
+		else if (Proto->Name == "__bitcast_32")
+			return Builder->CreateBitCast(val, llvm::Type::getInt32Ty(Context));
+		else if (Proto->Name == "__bitcast_real")
+			return Builder->CreateBitCast(val, llvm::Type::getDoubleTy(Context));
+		else if (Proto->Name == "__bitcast_float")
+			return Builder->CreateBitCast(val, llvm::Type::getFloatTy(Context));
+		else {
+			errs() << Loc << ": '" << Proto->Name << "()' unknown function\n";
+			return nullptr;
+		}
 	}
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);

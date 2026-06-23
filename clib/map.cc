@@ -776,7 +776,6 @@ namespace volvox {
 			return pos.is_parent ? NULL : &pos.node->value; 
 		}
 	}
-
 }
 
 #ifdef _MSC_VER
