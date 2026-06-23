@@ -19,7 +19,6 @@
 #define A_init   (1U<<4) // // for constructor that can only be used as initialization constructor
 #define A_ref    (1U<<5) // function arg is reference
 #define A_ptrref (1U<<6) // reference that is a (mutable) pointer internally
-#define A_map    (1U<<7) // llvm-type is key type
 #define A_delete (1U<<7) // (clone/init/default) constructor declaration the is forbidden (clone/init/default)
 #define A_signed_key (1U<<8) //for maps with integer key
 #define A_getter (1U<<8) // for interface prototype
@@ -54,7 +53,6 @@
 
 #define SHARE_KIND_MASK (A_const|A_shared|A_unique|A_atomic)
 #define VISIBILITY_MASK (A_pub|A_global|A_c_api|A_inline)
-#define A_use_target A_map
 #define A_globally_visible (A_const|A_shared|A_atomic|A_global|A_extern)
 
 #if defined (_MSC_VER)

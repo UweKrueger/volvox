@@ -1073,7 +1073,6 @@ public:
 		  ValueFT(ValueFT), KeyFT(KeyFT), new_Key(new_Key), new_Value(new_Value), descending(descending) {}
 	bool PrepareIterator();
 	llvm::Value* CreateCondition(bool at_end = false);
-	bool SetupLoop();
 	bool Iterate();
 #ifndef NDEBUG
 	llvm::raw_ostream &dump(llvm::raw_ostream &out, int ind) override {

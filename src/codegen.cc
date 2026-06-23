@@ -1919,7 +1919,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 	// Special assign-like ops because we don't want to emit the LHS as an expression.
 	// assign op '=' is a comparison (not an assignment) when a boolean result is expected
 	if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign || opclass == OpAssign || opclass == OpModAssign || opclass == OpCmpExchange) {
-		bool postpone_valgen = false;
 		std::pair<llvm::Type*,llvm::Value*> Variable = { nullptr, nullptr };
 		const char* varname = nullptr;
 		// Assignment requires the LHS to be an identifier.
@@ -2035,13 +2034,9 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	use_val:
 		if (allocsz <= sret_limit && !is_constructor_call) {
-			if (RHS->ft->type_attr & A_use_target) {
-				postpone_valgen = true;
-			} else {
-				Val = RHS->codegen(true);
-				if (!Val)
-					return nullptr;
-			}
+			Val = RHS->codegen(true);
+			if (!Val)
+				return nullptr;
 		}
 	have_val_or_valptr:
 		// Look up the name.
@@ -2078,33 +2073,30 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				}
 				return OldVal;
 			} else {
-				llvm::Value* OldVal = (target && ValPtr && !postpone_valgen) ?
+				llvm::Value* OldVal = (target && ValPtr) ?
 					llvm::UndefValue::get(llvm::Type::getVoidTy(Context)) :
 					(llvm::Value*)Builder->CreateLoad(Variable.first, Variable.second);
-				if (postpone_valgen)
-					RHS->codegen_raw(Variable.second);
-				else
-					if (ValPtr) {
-						llvm::Value* dptr = Variable.second;
-						if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Variable.second->getType())) {
-							dptr = Builder->CreateExtractValue(dptr, struct_type->getNumElements()-1);
-						}
-						if (!allocsz) {
-							llvm::Value* Allocsz = LHSE->alloc_size();
-							auto align = getAlignment(1);
-							if (target)
-								Builder->CreateMemCpy(target, align, dptr, align, Allocsz);
-							Builder->CreateMemCpy(dptr, align, ValPtr, align, Allocsz);
-						} else {
-							auto align = getAlignment(allocsz);
-							if (target)
-								Builder->CreateMemCpy(target, align, dptr, align, allocsz);
-							Builder->CreateMemCpy(dptr, align, ValPtr, align, allocsz);
-						}
+				if (ValPtr) {
+					llvm::Value* dptr = Variable.second;
+					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Variable.second->getType())) {
+						dptr = Builder->CreateExtractValue(dptr, struct_type->getNumElements()-1);
+					}
+					if (!allocsz) {
+						llvm::Value* Allocsz = LHSE->alloc_size();
+						auto align = getAlignment(1);
 						if (target)
-							return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-					} else
-						Builder->CreateStore(Val, Variable.second);
+							Builder->CreateMemCpy(target, align, dptr, align, Allocsz);
+						Builder->CreateMemCpy(dptr, align, ValPtr, align, Allocsz);
+					} else {
+						auto align = getAlignment(allocsz);
+						if (target)
+							Builder->CreateMemCpy(target, align, dptr, align, allocsz);
+						Builder->CreateMemCpy(dptr, align, ValPtr, align, allocsz);
+					}
+					if (target)
+						return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+				} else
+					Builder->CreateStore(Val, Variable.second);
 				if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign)
 					// declarations have no return type
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
@@ -2147,9 +2139,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
 				                        Builder->GetInsertBlock());
 			}
-		} else if (postpone_valgen) {
-			entry->val = CreateEntryBlockAlloca(type);
-			RHS->codegen_raw(entry->val);
 		} else if (ValPtr) {
 			if (allocsz) {
 				llvm::AllocaInst* Alloca;
@@ -3336,49 +3325,6 @@ llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 				return Builder->CreateFCmpOLE(ctrl_var, limit, "for_cond");
 }
 
-bool ForExprAST::SetupLoop() {
-	if (iterator_methods) {
-		return true;
-	}
-	/*
-	if (iterator_type->isPointerTy()) {
-		if (Iterator->ft->type_attr & A_map) {
-			llvm::Value* node_ptr = Builder->CreateLoad(llvm_ptr_type, ptr_storage);
-			llvm::Value* key_ptr = Builder->CreateIntToPtr(
-				Builder->CreateAdd(
-					Builder->CreatePtrToInt(node_ptr, llvm_size_type),
-					llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, key))),
-				llvm_ptr_type);
-			llvm::Value* value_ptr;
-			if (ValueFT->type == llvm_string_type) {
-				llvm::Value* offset_ptr = Builder->CreateIntToPtr(
-					Builder->CreateAdd(
-						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
-						llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, value.offset))),
-					llvm_ptr_type, "mapnode_offset");
-				llvm::Value* Offset = Builder->CreateLoad(llvm_int_type, offset_ptr);
-				value_ptr = Builder->CreateIntToPtr(
-					Builder->CreateAdd(
-						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
-						Builder->CreateIntCast(Offset, llvm_size_type, false)),
-					llvm_ptr_type, "val_ptr");
-			} else {
-				value_ptr = Builder->CreateIntToPtr(
-					Builder->CreateAdd(
-						Builder->CreatePtrToInt(node_ptr, llvm_size_type),
-						llvm::ConstantInt::get(llvm_size_type, offsetof(MapNode, value))),
-					llvm_ptr_type, "val_ptr");
-			}
-			if (ValueRef) {
-				llvm::Value* val = Builder->CreateLoad(ValueFT->type, value_ptr);
-				Builder->CreateStore(val, ValueRef);
-			} else
-				errs() << "No ValueRef\n";
-		}
-		} */
-	return true;
-}
-
 bool ForExprAST::Iterate() {
 	if (iterator_methods) {
 		std::string iterator_method_name = descending ? "__iter_down" : "__iter_up";
@@ -3660,7 +3606,6 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			}); // for multi level brk
 		llvm::BasicBlock* BlockToJump;
 		if (if_kind == tok_for) {
-			for_expr->SetupLoop();
 			BlockToJump = MergeBB;
 		}
 		else if(CondBBstart)
@@ -3887,7 +3832,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		for (auto then_node = then_locals_table.first(); then_node; ++then_node) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
-			if (then_var->ft.type_attr & (A_destructor | A_map))
+			if (then_var->ft.type_attr & A_destructor)
 				InsertDestructor(then_var, StackRestoreInst);
 		}
 	}
