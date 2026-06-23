@@ -1148,6 +1148,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (Proto->Name == "__load_size")
 			return Builder->CreateLoad(llvm_size_type, adr);
+		else if (Proto->Name == "__load_ptr")
+			return Builder->CreateLoad(llvm_ptr_type, adr);
 		else if (Proto->Name == "__load_64")
 			return Builder->CreateLoad(llvm::IntegerType::get(Context, 64), adr);
 		else if (Proto->Name == "__load_32")
@@ -1181,41 +1183,8 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* old_val;
 		if (Proto->Name == "__store_size")
 			old_val = Builder->CreateLoad(llvm_size_type, adr);
-		else if (Proto->Name == "__store_64")
-			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 64), adr);
-		else if (Proto->Name == "__store_32")
-			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 32), adr);
-		else if (Proto->Name == "__store_16")
-			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 16), adr);
-		else if (Proto->Name == "__store_8")
-			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 8), adr);
-		else if (Proto->Name == "__store_real")
-			old_val = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
-		else if (Proto->Name == "__store_float")
-			old_val = Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
-		else {
-			errs() << Loc << ": '" << Proto->Name << "()' unknown function\n";
-			return nullptr;
-		}
-		// For storing we can rely on the prototype definition in `builtin.vx`
-		Builder->CreateStore(val, adr);
-		return old_val;
-	} else if (Proto && !strncmp(Proto->Name.c_str(), "__store_", 8)) {
-		if (Args.size() != 2) {
-			errs() << Loc << ": '" << Proto->Name << "()' requires exactly 2 arguments\n";
-			return nullptr;
-		}
-		Args[0]->desired_type = llvm_ptr_type;
-		Args[1]->desired_type = llvm_size_type;
-		llvm::Value* adr = Args[0]->codegen();
-		llvm::Value* val = Args[1]->codegen();
-		if (!adr || !val) {
-			errs() << (adr ? Args[1]->Loc : Args[0]->Loc) << ": invalid argument\n";
-			return nullptr;
-		}
-		llvm::Value* old_val;
-		if (Proto->Name == "__store_size")
-			old_val = Builder->CreateLoad(llvm_size_type, adr);
+		else if (Proto->Name == "__store_ptr")
+			old_val = Builder->CreateLoad(llvm_ptr_type, adr);
 		else if (Proto->Name == "__store_64")
 			old_val = Builder->CreateLoad(llvm::IntegerType::get(Context, 64), adr);
 		else if (Proto->Name == "__store_32")

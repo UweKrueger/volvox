@@ -9,6 +9,7 @@ const _create_unknown_map_entries_on_access := true
 
 # compiler builtins - we use `cdecl` to declare prototypes
 cdecl __load_size(adr voidptr) size_t
+cdecl __load_ptr(adr voidptr) voidptr
 cdecl __load_64(adr voidptr) u64
 cdecl __load_32(adr voidptr) u32
 cdecl __load_16(adr voidptr) u16
@@ -17,6 +18,7 @@ cdecl __load_real(adr voidptr) real
 cdecl __load_float(adr voidptr) float
 
 cdecl __store_size(adr voidptr, val size_t) size_t
+cdecl __store_ptr(adr voidptr, val voidptr) voidptr
 cdecl __store_64(adr voidptr, val u64) u64
 cdecl __store_32(adr voidptr, val u32) u32
 cdecl __store_16(adr voidptr, val u16) u16
@@ -378,10 +380,10 @@ struct __range_f64 {
 cdecl _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&root_ptr voidptr, key string, value u64, value_size i32, &replace voidptr) voidptr
 cdecl _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(root voidptr, key string) __map_value_ref
 cdecl _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(root voidptr, d voidptr)
-cdecl _ZN6volvox3map3MinEPNS0_4NodeE(&root __map_node) voidptr
-cdecl _ZN6volvox3map7iter_upEPNS0_4NodeE(&node __map_node) voidptr
-cdecl _ZN6volvox3map3MaxEPNS0_4NodeE(&root __map_node) voidptr
-cdecl _ZN6volvox3map9iter_downEPNS0_4NodeE(&node __map_node) voidptr
+cdecl _ZN6volvox3map3MinEPNS0_4NodeE(root voidptr) voidptr
+cdecl _ZN6volvox3map7iter_upEPNS0_4NodeE(node voidptr) voidptr
+cdecl _ZN6volvox3map3MaxEPNS0_4NodeE(root voidptr) voidptr
+cdecl _ZN6volvox3map9iter_downEPNS0_4NodeE(node voidptr) voidptr
 cdecl __cstr2volvoxstr(s cstring, l size_t, h bool) string
 cdecl __cstr2volvox(s cstring) string
 cdecl __volvox2cstr(s string) cstring
@@ -443,15 +445,13 @@ def __map.__get(key string) voidptr
 end
 
 inline def __map_get_value_ref(node_ref voidptr) voidptr
-	echo "Value ref called\n"
 	if size_t node_ref == 0
 		return voidptr 0
 	else
-		return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3) - 24)
+		return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 end end
 
 inline def __map_get_key_ref(node_ref voidptr) voidptr
-	echo "Key ref called\n"
 	if size_t node_ref == 0
 		return voidptr 0
 	else
@@ -499,6 +499,28 @@ inline def __map.__get_float(key string) float
 	val = __load_float(value_ref)
 	return val
 end
+
+inline def __map.__min_iterator voidptr
+	return _ZN6volvox3map3MinEPNS0_4NodeE(this.__ptr)
+end
+
+inline def __map.__max_iterator voidptr
+       return _ZN6volvox3map3MaxEPNS0_4NodeE(this.__ptr)
+end
+
+inline def __map.__iter_up(pos voidptr) voidptr
+       if size_t pos == 0
+               return voidptr 0
+       else
+               return _ZN6volvox3map7iter_upEPNS0_4NodeE(pos)
+end end
+
+inline def __map.__iter_down(pos voidptr) voidptr
+       if size_t pos == 0
+               return voidptr 0
+       else
+               return _ZN6volvox3map9iter_downEPNS0_4NodeE(pos)
+end end
 
 inline def __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
 	if index >= length

@@ -484,3 +484,39 @@ def test_struct_map_2 bool
 	z = a.__get_float("Kscv")
 	return x == -23.0625f && y == 672.25f && z == 0
 end
+
+def test_struct_map_iter_1 bool
+	a = __map
+	a.__insert_64("Kbtr", 436542354367UL)
+	a.__insert_64("llsas", 12UL)
+	dummy = a.__get_64("Kscv")
+	iter = a.__min_iterator
+	vref = __map_get_value_ref(iter)
+	x = __load_64(vref)
+	iter = a.__iter_up(iter)
+	vref = __map_get_value_ref(iter)
+	y = __load_64(vref)
+	iter = a.__iter_up(iter)
+	vref = __map_get_value_ref(iter)
+	z = __load_64(vref)
+	iter = a.__iter_up(iter)
+	return x == 436542354367UL && y == 0 && z == 12 && size_t(iter) == 0
+end
+
+def test_struct_map_iter_2 bool
+	a = __map
+	a.__insert_real("Kbtr", -23.0625)
+	a.__insert_real("llsas", 672.25)
+	dummy = a.__get_real("Kscv")
+	iter = a.__max_iterator
+	vref = __map_get_value_ref(iter)
+	x = __load_real(vref)
+	iter = a.__iter_down(iter)
+	vref = __map_get_value_ref(iter)
+	y = __load_real(vref)
+	iter = a.__iter_down(iter)
+	vref = __map_get_value_ref(iter)
+	z = __load_real(vref)
+	iter = a.__iter_down(iter)
+	return x == 672.25 && y == 0 && z == -23.0625 && size_t(iter) == 0
+end
