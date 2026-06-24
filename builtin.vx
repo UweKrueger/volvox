@@ -76,6 +76,7 @@ def ~string
 			buf = voidptr((size_t(this.voidptr) - len) & !size_t((__OS_Bitwidth>>3)-1))
 
 			# __free makes problems in for iteration - needs investigation
+			# ___wrnum(buf, cap, len)
 			# __free(buf)
 end end end
 
@@ -385,8 +386,8 @@ cdecl _ZN6volvox3map3MinEPNS0_4NodeE(root voidptr) voidptr
 cdecl _ZN6volvox3map7iter_upEPNS0_4NodeE(node voidptr) voidptr
 cdecl _ZN6volvox3map3MaxEPNS0_4NodeE(root voidptr) voidptr
 cdecl _ZN6volvox3map9iter_downEPNS0_4NodeE(node voidptr) voidptr
-cdecl __cstr2volvoxstr(s cstring, l size_t, h bool) string
-cdecl __cstr2volvox(s cstring) string
+cdecl __cstr2volvoxstr(s cstring, l size_t, h bool) voidptr
+cdecl __cstr2volvox(s cstring) voidptr
 cdecl __volvox2cstr(s string) cstring
 cdecl(strdup) __strdup(s cstring) cstring
 cdecl _ZN9ArrayNodeC1Eyy(&a ArrayNode, nelem u64, obj_size u64)

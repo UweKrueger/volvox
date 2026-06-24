@@ -3617,11 +3617,12 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				llvm::Value* ref_of_new_key = Builder->CreateCall(get_key_ref_proto->FT, get_key_ref_fn, { iter });
 				llvm::Value* ctrl_var;
 				if (for_expr->KeyFV->ft.type == llvm_string_type) {
-					llvm::Value* cstr = Builder->CreateLoad(llvm_ptr_type, ref_of_new_key);
 					std::string cstrtovolvox_name = "__cstr2volvox";
 					auto cstrtovolvox_proto = (*lex.findProtos(cstrtovolvox_name))[0].get();
 					auto cstrtovolvox_fn = getFunction(cstrtovolvox_proto);
-					ctrl_var = Builder->CreateCall(cstrtovolvox_proto->FT, cstrtovolvox_fn, { ref_of_new_key });
+					llvm::Value* ctrl_var0 = Builder->CreateCall(cstrtovolvox_proto->FT, cstrtovolvox_fn, { ref_of_new_key });
+					ctrl_var = llvm::UndefValue::get(llvm_string_type);
+					ctrl_var = Builder->CreateInsertValue(ctrl_var, ctrl_var0, (uint64_t)0);
 				} else
 					ctrl_var = Builder->CreateLoad(for_expr->KeyFV->ft.type, ref_of_new_key);
 				if (for_expr->ptr_storage) {

@@ -1236,7 +1236,10 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 						auto converter_name = "__cstr2volvox";
 						auto converter_proto = (*lex.findProtos(converter_name))[0].get();
 						auto converter = getFunction(converter_proto);
-						return handle(target, Builder->CreateCall(converter_proto->FT, converter, std::vector<llvm::Value*>({ expr })), Loc, string_type);
+						llvm::Value* ptr = Builder->CreateCall(converter_proto->FT, converter, std::vector<llvm::Value*>({ expr }));
+						llvm::Value* ret = llvm::UndefValue::get(llvm_string_type);
+						ret = Builder->CreateInsertValue(ret, ptr, (uint64_t)0);
+						return handle(target, ret, Loc, string_type);
 					} else if (ft->type == llvm_string_type) {
 						llvm::Value* the_struct = llvm::UndefValue::get(llvm_string_type);
 						the_struct = Builder->CreateInsertValue(the_struct, expr, 0);
