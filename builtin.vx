@@ -77,7 +77,7 @@ def ~string
 
 			# __free makes problems in for iteration - needs investigation
 			# ___wrnum(buf, cap, len)
-			# __free(buf)
+			__free(buf)
 end end end
 
 def string
