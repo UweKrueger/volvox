@@ -2785,15 +2785,22 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 	if (EndKind != tok_return && ~(~EndKind & ((1<<16)-1)) != tok_brk && !Branch.empty() && Branch.back()->desired_type)
 		Branch.back()->ft->type = Branch.back()->desired_type;
 	if (for_expr && !isElse && EndKind != tok_return && ~(~EndKind & ((1<<16)-1)) != tok_brk) {
-		llvm::Value* cond = for_expr->CreateCondition(true);
-		llvm::BasicBlock* IterateBB = llvm::BasicBlock::Create(Context, "Iterate");
-		firstBreak = Builder->CreateCondBr(cond, IterateBB, merge_points.back().BB);
-		if (TheFunction) {
-			TheFunction->insert(TheFunction->end(), IterateBB);
-			Builder->SetInsertPoint(IterateBB);
+		if (!for_expr->iterator_methods) {
+			llvm::BasicBlock* IterateBB = llvm::BasicBlock::Create(Context, "Iterate");
+			if (!for_expr->iterator_methods) {
+				llvm::Value* cond = for_expr->CreateCondition(true);
+				firstBreak = Builder->CreateCondBr(cond, IterateBB, merge_points.back().BB);
+			}
+			if (TheFunction) {
+				TheFunction->insert(TheFunction->end(), IterateBB);
+				Builder->SetInsertPoint(IterateBB);
+			}
+			for_expr->Iterate();
+			if (!for_expr->iterator_methods)
+				Builder->CreateBr(StackRestoreBB0);
+		} else {
+			for_expr->Iterate();
 		}
-		for_expr->Iterate();
-		Builder->CreateBr(StackRestoreBB0);
 	}
 	if (!BranchV && !isElse && !for_expr) {
 		return { nullptr, nullptr, 0 };
@@ -2830,7 +2837,7 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 		else if (!BranchV)
 			BranchV = llvm::Constant::getNullValue(ft->type);
 		InsertDestructors(brk_descr.vars_to_destruct, merge_points[merge_points.size()-1].merged_vars);
-		if (merge_points.back().contBB && !(for_expr && !isElse))
+		if (merge_points.back().contBB && !(for_expr && !for_expr->iterator_methods && !isElse))
 			firstBreak = Builder->CreateBr(merge_points.back().contBB);
 	}
 	return { BranchV, firstBreak, brk_depth };
@@ -3175,28 +3182,6 @@ bool ForExprAST::PrepareIterator() {
 			Builder->CreateStore(initializer, CurIter);
 			if (ValueFV)
 				ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
-			Iterate();
-			/*
-			if (ValueFV) {
-				std::string value_ref_name = "__value_ref";
-				auto value_ref_selector = std::make_unique<IdentExprAST>(Iterator->Loc, value_ref_name);
-				auto receiver3 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
-				auto value_ref_select = getSelect(Iterator->Loc, std::move(receiver3), std::move(value_ref_selector));
-				if (auto method = dynamic_cast<MethodExprAST*>(value_ref_select.get())) {
-					std::unique_ptr<ExprAST> ini = std::make_unique<ConstExprAST>(initializer);
-					std::vector<std::unique_ptr<ExprAST>> args;
-					args.push_back(std::move(ini));
-					auto ValueFromIterator = std::make_unique<CallExprAST>(Iterator->Loc, std::move(value_ref_select),
-					                                                       std::move(args));
-					ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
-					llvm::Value* value0 = Builder->CreateLoad(ValueFV->ft.type, ValueFromIterator->codegen());
-					Builder->CreateStore(value0, ValueRef);
-				} else {
-					errs() << Iterator->Loc << ": has no method '" << value_ref_name << "'\n";
-					return false;
-				}
-			}
-			*/
 		} else {
 			ValueRef = ValueFV->val = StoreValue(initializer, &ValueFV->ft);
 			ValueType = ValueFV->ft.type;
@@ -3279,10 +3264,6 @@ llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 	llvm::Value* ctrl_var = ptr_storage ?
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);
-	if (llvm::isa<llvm::PointerType>(limit->getType())) // map iteration
-		return Builder->CreateICmpNE(
-			ctrl_var,
-			Builder->CreatePtrToInt(limit, llvm_size_type));
 	if (descending)
 		if (ctrl_var->getType()->isIntegerTy())
 			if (ValueFT->type_attr & A_signed)
@@ -3339,20 +3320,6 @@ bool ForExprAST::Iterate() {
 			auto IteratorExpr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(iter_expr), std::move(args));
 			llvm::Value* new_iter = IteratorExpr->codegen();
 			Builder->CreateStore(new_iter, CurIter);
-			std::string get_value_ref_name = "__map_get_value_ref";
-			auto get_value_ref_proto = (*lex.findProtos(get_value_ref_name))[0].get();
-			auto get_value_ref_fn = getFunction(get_value_ref_proto);
-			llvm::Value* value_ref = Builder->CreateCall(get_value_ref_proto->FT, get_value_ref_fn, { cur_iter });
-			llvm::Value* ctrl_var = Builder->CreateLoad(ValueFV->ft.type, value_ref);
-			if (ptr_storage) {
-				Builder->CreateStore(ctrl_var, ptr_storage);
-				if (!(ValueFV->ft.type_attr & A_ptrref)) {
-					auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-					Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, Step);
-				}
-			} else {
-				Builder->CreateStore(ctrl_var, ValueRef);
-			}
 			return true;
 		}
 		if (!Iterator) {
@@ -3444,14 +3411,12 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 	llvm::BasicBlock* ThenBB = (TheFunction && if_kind != tok_if) ? llvm::BasicBlock::Create(Context, loopBBName) : nullptr;
 	llvm::Instruction* firstWhile = nullptr;
 	if (if_kind == tok_while || if_kind == tok_for) {
-		if (if_kind == tok_while)
-			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "whilecond");
-		else {
+		if (for_expr)
 			if (!for_expr->PrepareIterator())
 				return nullptr;
 			// CondBB = CondBBstart = llvm::BasicBlock::Create(Context, "forcond");
-		}
-		if (!for_expr) {
+		if (if_kind == tok_while || for_expr && for_expr->iterator_methods) {
+			CondBB = CondBBstart = llvm::BasicBlock::Create(Context, for_expr ? "forcond" : "whilecond");
 			Builder->CreateBr(CondBBstart);
 			if (TheFunction) {
 				TheFunction->insert(TheFunction->end(), CondBB);
@@ -3501,7 +3466,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			errs() << Cond->Loc << ": bool type expected as 'if'/'while' condition, not " << *CondV->getType() << "\n";
 			return nullptr;
 		}
-		if (if_kind == tok_while) {
+		if (if_kind == tok_while || for_expr && for_expr->iterator_methods) {
 #if LLVM_VERSION_MAJOR >= 20
 			for (llvm::Instruction &I : *CondBB) {
 				if (!llvm::isa<llvm::PHINode>(I)) {
@@ -3532,7 +3497,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 		}
-		if (if_kind == tok_if || if_kind == tok_for) {
+		if (if_kind == tok_if || for_expr && !for_expr->iterator_methods) {
 			EntryBBend = Builder->GetInsertBlock();
 			ThenBBstart = ThenBB;
 			ElseBBstart = ElseBB;
@@ -3567,7 +3532,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		if (if_kind == tok_repeat)
 			savedStack = Builder->CreatePHI(llvm_ptr_type, 1, "savedstack");
-		if (if_kind == tok_for) {
+		if (for_expr && !for_expr->iterator_methods) {
 #if LLVM_VERSION_MAJOR >= 18
 			StackRestoreInst = Builder->CreateStackRestore(savedStack0);
 #else
@@ -3592,7 +3557,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			TheFunction->insert(TheFunction->end(), ThenBB);
 			Builder->SetInsertPoint(ThenBB);
 		}
-		if (if_kind == tok_while || if_kind == tok_repeat) {
+		if (if_kind == tok_while || if_kind == tok_repeat || for_expr && for_expr->iterator_methods) {
 			savedStack1 = Builder->CreatePHI(llvm_ptr_type, 2, "savedstack1");
 			savedStack1->addIncoming(savedStack0, StackSaveBB);
 			savedStack1->addIncoming(savedStack, StackRestoreBB);
@@ -3605,7 +3570,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				.merged_vars = &this->merged_vars
 			}); // for multi level brk
 		llvm::BasicBlock* BlockToJump;
-		if (if_kind == tok_for) {
+		if (for_expr && !for_expr->iterator_methods) {
 			BlockToJump = MergeBB;
 		}
 		else if(CondBBstart)
@@ -3616,6 +3581,24 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		bool old_inside_loop = inside_loop;
 		if (is_loop)
 			inside_loop = true;
+		if (for_expr && for_expr->iterator_methods) {
+			// we have passed the condition check - it's time to get the value
+			std::string get_value_ref_name = "__map_get_value_ref";
+			auto get_value_ref_proto = (*lex.findProtos(get_value_ref_name))[0].get();
+			auto get_value_ref_fn = getFunction(get_value_ref_proto);
+			llvm::Value* iter = Builder->CreateLoad(llvm_ptr_type, for_expr->CurIter);
+			llvm::Value* ref_of_new_value = Builder->CreateCall(get_value_ref_proto->FT, get_value_ref_fn, { iter });
+			llvm::Value* ctrl_var = Builder->CreateLoad(for_expr->ValueFV->ft.type, ref_of_new_value);
+			if (for_expr->ptr_storage) {
+				Builder->CreateStore(ctrl_var, for_expr->ptr_storage);
+				if (!(for_expr->ValueFV->ft.type_attr & A_ptrref)) {
+					auto align = TheModule->getDataLayout().getPrefTypeAlign(for_expr->ElType);
+					Builder->CreateMemCpy(for_expr->ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, for_expr->Step);
+				}
+			} else {
+				Builder->CreateStore(ctrl_var, for_expr->ValueFV->val);
+			}
+		}
 		for (int n=0; n <= then_max; n++) {
 			if (n == then_max)
 				merge_points.back().contBB = BlockToJump;
@@ -3637,7 +3620,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// Codegen of 'Then' can change the current block, update ThenBB for the PHI.
 		ThenBB = Builder->GetInsertBlock();
-		if (if_kind == tok_while) {
+		if (if_kind == tok_while || for_expr && for_expr->iterator_methods) {
 			condPN->addIncoming(Builder->getInt8(0), ThenBB);
 			savedStack->addIncoming(savedStack1, ThenBB);
 		}
@@ -3718,7 +3701,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			ElseBB = Builder->GetInsertBlock();
 		}
 	}
-	if (if_kind == tok_if || if_kind == tok_for) {
+	if (if_kind == tok_if || for_expr && !for_expr->iterator_methods) {
 		Builder->SetInsertPoint(EntryBBend);
 		if (CTcond != CTcond_undef && if_kind != tok_for) { // at least one branch can be removed
 			if (thenConstV && Then.back().second.end_kind == tok_else && !ft->type->isVoidTy()) {
@@ -3765,7 +3748,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (else_var) {
-				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while) ?
+				auto merge = merge_values(then_var->ft.type, then_var->val, (if_kind == tok_while || for_expr && for_expr->iterator_methods) ?
 				                          CondBB : (if_kind == tok_for) ? thenLast->getParent() : ThenBB, thenLast,
 				                          else_var->ft.type, else_var->val, ElseBB, elseLast, firstWhile, enterBB,
 				                          then_var->decl_loc, else_var->decl_loc, then_node.getKey());

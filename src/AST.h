@@ -1027,36 +1027,35 @@ enum new_var_kind : uint8_t {
 class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> IteratorStart = nullptr;
 	std::unique_ptr<ExprAST> Iterator = nullptr;
-	llvm::Value* CurIter = nullptr;
 	llvm::Value* limit = nullptr;
 	llvm::Value* approx_limit = nullptr; // for float
-	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
-	                                    // value variable there's still an unnamed
-	                                    // control variable pointing to the current elem
 	llvm::Value* iterator = nullptr;
 	llvm::Value* iterator_ref = nullptr;
 	llvm::Type* iterator_type = nullptr;
-	llvm::Type* ElType = nullptr;
-	//llvm::Value* Ptr = nullptr;
 	std::unique_ptr<ExprAST> Key = nullptr, Value = nullptr;
-	FullVar* KeyFV = nullptr;
 	LvalueExprAST* KeyLval = nullptr;
-	FullVar* ValueFV = nullptr;
 	LvalueExprAST* ValueLval = nullptr;
-	llvm::Value* ValueRef = nullptr;
 	llvm::Type* ValueType = nullptr;
 	llvm::Value* KeyRef = nullptr;
 	llvm::Type* KeyType = nullptr;
 	volvoxc::FullType* KeyFT = nullptr;
 	volvoxc::FullType* ValueFT = nullptr;
-	llvm::Value* Step = nullptr;
 	std::string KeyName, ValueName;
 	llvm::Align rvalue_align;
 	new_var_kind new_Key, new_Value;
 	bool descending = false;
-	bool iterator_methods = false;
 	
 public:
+	bool iterator_methods = false;
+	llvm::Value* CurIter = nullptr;
+	FullVar* ValueFV = nullptr;
+	FullVar* KeyFV = nullptr;
+	llvm::Value* ptr_storage = nullptr; // when iterating over array with non-reference
+	                                    // value variable there's still an unnamed
+	                                    // control variable pointing to the current elem
+	llvm::Type* ElType = nullptr;
+	llvm::Value* ValueRef = nullptr;
+	llvm::Value* Step = nullptr;
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, unsigned max_brk_level, std::set<std::string> _merged_vars, std::unique_ptr<ExprAST> _Key,
 	           std::unique_ptr<ExprAST> _Value, std::string _KeyName, std::string _ValueName,
