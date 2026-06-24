@@ -3583,20 +3583,56 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			inside_loop = true;
 		if (for_expr && for_expr->iterator_methods) {
 			// we have passed the condition check - it's time to get the value
-			std::string get_value_ref_name = "__map_get_value_ref";
-			auto get_value_ref_proto = (*lex.findProtos(get_value_ref_name))[0].get();
-			auto get_value_ref_fn = getFunction(get_value_ref_proto);
-			llvm::Value* iter = Builder->CreateLoad(llvm_ptr_type, for_expr->CurIter);
-			llvm::Value* ref_of_new_value = Builder->CreateCall(get_value_ref_proto->FT, get_value_ref_fn, { iter });
-			llvm::Value* ctrl_var = Builder->CreateLoad(for_expr->ValueFV->ft.type, ref_of_new_value);
-			if (for_expr->ptr_storage) {
-				Builder->CreateStore(ctrl_var, for_expr->ptr_storage);
-				if (!(for_expr->ValueFV->ft.type_attr & A_ptrref)) {
-					auto align = TheModule->getDataLayout().getPrefTypeAlign(for_expr->ElType);
-					Builder->CreateMemCpy(for_expr->ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, for_expr->Step);
+			llvm::SmallString<64> buf = llvm::StringRef();
+			llvm::raw_svector_ostream iter_type_name(buf);
+			iter_type_name << *for_expr->Iterator->ft->type;
+			std::string IteratorTypeName;
+			int idx = 1;
+			while (buf[idx] && buf[idx] != ' ') {
+				IteratorTypeName += buf[idx];
+				idx ++;
+			}
+			if (for_expr->ValueFV) {
+				std::string get_value_ref_name = IteratorTypeName + "_get_value_ref";
+				auto get_value_ref_proto = (*lex.findProtos(get_value_ref_name))[0].get();
+				auto get_value_ref_fn = getFunction(get_value_ref_proto);
+				llvm::Value* iter = Builder->CreateLoad(llvm_ptr_type, for_expr->CurIter);
+				llvm::Value* ref_of_new_value = Builder->CreateCall(get_value_ref_proto->FT, get_value_ref_fn, { iter });
+				llvm::Value* ctrl_var = Builder->CreateLoad(for_expr->ValueFV->ft.type, ref_of_new_value);
+				if (for_expr->ptr_storage) {
+					Builder->CreateStore(ctrl_var, for_expr->ptr_storage);
+					if (!(for_expr->ValueFV->ft.type_attr & A_ptrref)) {
+						auto align = TheModule->getDataLayout().getPrefTypeAlign(for_expr->ElType);
+						Builder->CreateMemCpy(for_expr->ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, for_expr->Step);
+					}
+				} else {
+					Builder->CreateStore(ctrl_var, for_expr->ValueFV->val);
 				}
-			} else {
-				Builder->CreateStore(ctrl_var, for_expr->ValueFV->val);
+			}
+			if (for_expr->KeyFV) {
+				std::string get_key_ref_name = IteratorTypeName + "_get_key_ref";
+				auto get_key_ref_proto = (*lex.findProtos(get_key_ref_name))[0].get();
+				auto get_key_ref_fn = getFunction(get_key_ref_proto);
+				llvm::Value* iter = Builder->CreateLoad(llvm_ptr_type, for_expr->CurIter);
+				llvm::Value* ref_of_new_key = Builder->CreateCall(get_key_ref_proto->FT, get_key_ref_fn, { iter });
+				llvm::Value* ctrl_var;
+				if (for_expr->KeyFV->ft.type == llvm_string_type) {
+					llvm::Value* cstr = Builder->CreateLoad(llvm_ptr_type, ref_of_new_key);
+					std::string cstrtovolvox_name = "__cstr2volvox";
+					auto cstrtovolvox_proto = (*lex.findProtos(cstrtovolvox_name))[0].get();
+					auto cstrtovolvox_fn = getFunction(cstrtovolvox_proto);
+					ctrl_var = Builder->CreateCall(cstrtovolvox_proto->FT, cstrtovolvox_fn, { ref_of_new_key });
+				} else
+					ctrl_var = Builder->CreateLoad(for_expr->KeyFV->ft.type, ref_of_new_key);
+				if (for_expr->ptr_storage) {
+					Builder->CreateStore(ctrl_var, for_expr->ptr_storage);
+					if (!(for_expr->KeyFV->ft.type_attr & A_ptrref)) {
+						auto align = TheModule->getDataLayout().getPrefTypeAlign(for_expr->ElType);
+						Builder->CreateMemCpy(for_expr->KeyRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, for_expr->Step);
+					}
+				} else {
+					Builder->CreateStore(ctrl_var, for_expr->KeyFV->val);
+				}
 			}
 		}
 		for (int n=0; n <= then_max; n++) {

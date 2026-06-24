@@ -1026,7 +1026,6 @@ enum new_var_kind : uint8_t {
 /// ForExprAST - Expression class for for/in.
 class ForExprAST : public BranchExprAST {
 	std::unique_ptr<ExprAST> IteratorStart = nullptr;
-	std::unique_ptr<ExprAST> Iterator = nullptr;
 	llvm::Value* limit = nullptr;
 	llvm::Value* approx_limit = nullptr; // for float
 	llvm::Value* iterator = nullptr;
@@ -1036,7 +1035,6 @@ class ForExprAST : public BranchExprAST {
 	LvalueExprAST* KeyLval = nullptr;
 	LvalueExprAST* ValueLval = nullptr;
 	llvm::Type* ValueType = nullptr;
-	llvm::Value* KeyRef = nullptr;
 	llvm::Type* KeyType = nullptr;
 	volvoxc::FullType* KeyFT = nullptr;
 	volvoxc::FullType* ValueFT = nullptr;
@@ -1046,6 +1044,7 @@ class ForExprAST : public BranchExprAST {
 	bool descending = false;
 	
 public:
+	std::unique_ptr<ExprAST> Iterator = nullptr;
 	bool iterator_methods = false;
 	llvm::Value* CurIter = nullptr;
 	FullVar* ValueFV = nullptr;
@@ -1055,6 +1054,7 @@ public:
 	                                    // control variable pointing to the current elem
 	llvm::Type* ElType = nullptr;
 	llvm::Value* ValueRef = nullptr;
+	llvm::Value* KeyRef = nullptr;
 	llvm::Value* Step = nullptr;
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, unsigned max_brk_level, std::set<std::string> _merged_vars, std::unique_ptr<ExprAST> _Key,

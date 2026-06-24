@@ -1,0 +1,8 @@
+hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
+s = 0.
+for i, j in hjhg7
+	echo i
+	echo j
+	s += j
+end
+echo s

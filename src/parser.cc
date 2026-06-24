@@ -1491,6 +1491,9 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		else if (llvm::isa<llvm::ArrayType>(fv.ft.type) && (fv.ft.elem_type->type_attr & A_destructor)) {
 			fv.ft.type_attr |= A_destructor;
 		}
+		// Hack for map iterations
+		if (type == llvm_string_type)
+			fv.ft = *string_type;
 		if (verbosity >= 2) {
 			errs() << CurLoc << ": var " << VarL->Name;
 			dump_branch_parts(fv.branch_parts);
