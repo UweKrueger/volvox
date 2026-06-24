@@ -445,18 +445,11 @@ def __map.__get(key string) voidptr
 end
 
 inline def __map_get_value_ref(node_ref voidptr) voidptr
-	if size_t node_ref == 0
-		eecho "Error: value ref from nullptr!"
-		return voidptr 0
-	else
-		return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+	return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 end end
 
 inline def __map_get_key_ref(node_ref voidptr) voidptr
-	if size_t node_ref == 0
-		return voidptr 0
-	else
-		return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3) + 8)
+	return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3) + 8)
 end end
 
 inline def __map.__get_size(key string) size_t
@@ -510,17 +503,11 @@ inline def __map.__max_iterator voidptr
 end
 
 inline def __map.__iter_up(pos voidptr) voidptr
-	if size_t pos == 0
-		return voidptr 0
-	else
-		return _ZN6volvox3map7iter_upEPNS0_4NodeE(pos)
+	return _ZN6volvox3map7iter_upEPNS0_4NodeE(pos)
 end end
 
 inline def __map.__iter_down(pos voidptr) voidptr
-	if size_t pos == 0
-		return voidptr 0
-	else
-		return _ZN6volvox3map9iter_downEPNS0_4NodeE(pos)
+	return _ZN6volvox3map9iter_downEPNS0_4NodeE(pos)
 end end
 
 inline def __check_array_index(index size_t, length size_t, srcfile cstring, line int, col int)
