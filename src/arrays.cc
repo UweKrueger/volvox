@@ -648,8 +648,8 @@ MapExprAST::MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vecto
 	for (auto& elem: Elements) {
 		if (auto bin_expr = dynamic_cast<BinaryExprAST*>(elem.get())) {
 			if (bin_expr->Op[0] == ':' && !bin_expr->Op[1]) {
-				keys.push_back(bin_expr->LHS.get());
-				values.push_back(bin_expr->RHS.get());
+				keys.push_back(std::move(bin_expr->LHS));
+				values.push_back(std::move(bin_expr->RHS));
 				continue;
 			}
 			errs() << bin_expr->Loc << ": ':' expected\n";

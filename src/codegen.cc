@@ -212,21 +212,33 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 	size_t valsz = TheModule->getDataLayout().getTypeAllocSize(ft->elem_type[1].type);
 	for (unsigned i=0; i<keys.size(); i++) {
 		keys[i]->desired_type = ft->elem_type[0].type;
-		llvm::Value* Key = keys[i]->codegen(true);
 		values[i]->desired_type = ft->elem_type[1].type;
-		llvm::Value* Value0 = values[i]->codegen(true);
-		/*
-		if (ft->elem_type[1].type == llvm_string_type) {
-		llvm::Value* ptr = Builder->CreateExtractValue(Value0, 0);
-			llvm::Value* ValSz = Builder->CreateLoad(llvm_size_type */
-		llvm::Value* Value = Builder->CreateZExtOrBitCast(Value0, llvm::Type::getInt64Ty(Context));
-		if (target_big_endian && valsz != 8) {
-			unsigned shift = (8 - valsz) << 3;
-			Value = Builder->CreateShl(Value, shift);
-		}
 		Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), do_replace);
-		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
-				ptr, Key, Value, Builder->getInt32(0), do_replace });
+		llvm::Value* Key = keys[i]->codegen(true);
+		if (ft->elem_type[1].type == llvm_string_type) {
+			llvm::Value* value_sz_ptr_wrapped = nullptr;
+			auto cstr_val = callMethod(values[i], "_c_str", {}, nullptr, &value_sz_ptr_wrapped);
+			if (!value_sz_ptr_wrapped) // values[i] is an lvalue - just generate
+				value_sz_ptr_wrapped = values[i]->codegen();
+			auto cstr_val_int = Builder->CreatePtrToInt(cstr_val, llvm_size_type);
+			if (target_bytes < 8)
+				cstr_val_int = Builder->CreateZExtOrBitCast(cstr_val_int, llvm::Type::getInt64Ty(Context));
+			llvm::Value* value_sz_ptr = Builder->CreateExtractValue(value_sz_ptr_wrapped, 0);
+			llvm::Value* sz = Builder->CreateLoad(llvm_size_type, value_sz_ptr);
+			if (target_bytes != 4)
+				sz = Builder->CreateIntCast(sz, llvm::Type::getInt32Ty(Context), false);
+			Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
+					ptr, Key, cstr_val_int, sz, do_replace });
+		} else {
+			llvm::Value* Value0 = values[i]->codegen(true);
+			llvm::Value* Value = Builder->CreateZExtOrBitCast(Value0, llvm::Type::getInt64Ty(Context));
+			if (target_big_endian && valsz != 8) {
+				unsigned shift = (8 - valsz) << 3;
+				Value = Builder->CreateShl(Value, shift);
+			}
+			Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
+					ptr, Key, Value, Builder->getInt32(0), do_replace });
+		}
 	}
 	Builder->CreateStore(getSize(keys.size()), count_ref);
 	if (target && (intptr_t)target != -1)
@@ -3082,7 +3094,7 @@ bool ForExprAST::PrepareIterator() {
 		// first try if we have a special methods to iterate iterate
 		std::string start_iterator_method_name = descending ? "__max_iterator" : "__min_iterator";
 		std::vector<std::unique_ptr<ExprAST>> args;
-		if (auto start_iter = callMethod(Iterator, start_iterator_method_name, std::move(args), nullptr, true)) {
+		if (auto start_iter = callMethod(Iterator, start_iterator_method_name, std::move(args), nullptr, nullptr, true)) {
 			iterator_methods = true;
 			CurIter = CreateEntryBlockAlloca(llvm_ptr_type);
 			Builder->CreateStore(start_iter, CurIter);

@@ -536,7 +536,7 @@ inline const char* invalidation_loc(std::string& constructor_name) {
 
 extern std::string get_LLVM_TypeName(llvm::Type* typ);
 extern llvm::Value* callMethod(std::unique_ptr<ExprAST>& obj, const std::string& method_name,
-                               std::vector<std::unique_ptr<ExprAST>> args, llvm::Value* target = nullptr, bool silent_fail = false);
+                               std::vector<std::unique_ptr<ExprAST>> args, llvm::Value* target = nullptr, llvm::Value** obj_val_ret = nullptr, bool silent_fail = false);
 extern llvm::Function* getConversion(std::string& mangled_name);
 extern llvm::Function* getConstructorOrDestructor(
 	volvoxc::FullType* ft, bool destructor = false, bool basic = false,

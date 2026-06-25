@@ -748,8 +748,8 @@ union AggregateKey {
 
 class MapExprAST : public ListExprAST {
 public:
-	std::vector<ExprAST*> keys;
-	std::vector<ExprAST*> values;
+	std::vector<std::unique_ptr<ExprAST>> keys;
+	std::vector<std::unique_ptr<ExprAST>> values;
 	MapExprAST(SourceLocation Loc, volvoxc::FullType* map_ft, std::vector<std::unique_ptr<ExprAST>> _Elements = {});
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 };
