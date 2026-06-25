@@ -1368,3 +1368,17 @@ std::vector<llvm::Value*> IndexExprAST::_getAllocSize(llvm::Type** el_ty) {
 		sizes.push_back(getSize(TheModule->getDataLayout().getTypeAllocSize(ft->type)));
 	return sizes;
 }
+
+std::string get_LLVM_TypeName(llvm::Type* typ) {
+	llvm::SmallString<128> buf = llvm::StringRef();
+	llvm::raw_svector_ostream iter_type_name(buf);
+	iter_type_name << *typ;
+	std::string TypeName;
+	TypeName.reserve(16);
+	int idx = buf[0] == '%' ? 1 : 0;
+	while (buf[idx] && buf[idx] != ' ') {
+		TypeName += buf[idx];
+		idx ++;
+	}
+	return TypeName;
+}

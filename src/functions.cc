@@ -1100,27 +1100,9 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			}
 		} else {
 			// use official LLVM name
-			llvm::SmallString<128> buf = llvm::StringRef("");
-			llvm::raw_svector_ostream sname(buf);
-			sname << *arg->ft->type;
-			cname = std::string(buf);
-			if (cname.empty()) {
-				errs() << Loc << ": '" << Proto->Name << "()' canot get type name\n";
-				return nullptr;
-			}
-			if (cname[0] == '%') {
-				offset = 1;
-				length = 1;
-				while (offset + length < cname.size()) {
-					if (cname[offset+length] == ' ')
-						break;
-					length++;
-				}
-			}
+			cname = get_LLVM_TypeName(arg->ft->type);
 		}
-		if (offset == 0)
-			length = cname.size();
-		llvm::Value* typname = createStringConst(cname.c_str() + offset, length);
+		llvm::Value* typname = createStringConst(cname.c_str(), cname.size());
 		return typname;
 	}
 	if (Proto && !strncmp(Proto->Name.c_str(), "__load_", 7)) {

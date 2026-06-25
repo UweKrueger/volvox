@@ -3583,15 +3583,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			inside_loop = true;
 		if (for_expr && for_expr->iterator_methods) {
 			// we have passed the condition check - it's time to get the value
-			llvm::SmallString<64> buf = llvm::StringRef();
-			llvm::raw_svector_ostream iter_type_name(buf);
-			iter_type_name << *for_expr->Iterator->ft->type;
-			std::string IteratorTypeName;
-			int idx = 1;
-			while (buf[idx] && buf[idx] != ' ') {
-				IteratorTypeName += buf[idx];
-				idx ++;
-			}
+			auto IteratorTypeName = get_LLVM_TypeName(for_expr->Iterator->ft->type);
 			if (for_expr->ValueFV) {
 				std::string get_value_ref_name = IteratorTypeName + "_get_value_ref";
 				auto get_value_ref_proto = (*lex.findProtos(get_value_ref_name))[0].get();

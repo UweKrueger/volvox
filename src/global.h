@@ -534,6 +534,7 @@ inline const char* invalidation_loc(std::string& constructor_name) {
 	return constructor_name.c_str() + 1;
 }
 
+extern std::string get_LLVM_TypeName(llvm::Type* typ);
 extern llvm::Function* getConversion(std::string& mangled_name);
 extern llvm::Function* getConstructorOrDestructor(
 	volvoxc::FullType* ft, bool destructor = false, bool basic = false,

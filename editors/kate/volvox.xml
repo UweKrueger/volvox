@@ -67,6 +67,7 @@
       <item>size_t</item>
       <item>ssize_t</item>
       <item>real</item>
+      <item>float</item>
       <item>bool</item>
       <item>i8</item>
       <item>i16</item>
