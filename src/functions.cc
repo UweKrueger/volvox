@@ -1132,7 +1132,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 		else if (Proto->Name == "__load_real")
 			return Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
 		else if (Proto->Name == "__load_float")
-			return Builder->CreateLoad(llvm::Type::getDoubleTy(Context), adr);
+			return Builder->CreateLoad(llvm::Type::getFloatTy(Context), adr);
 		else {
 			errs() << Loc << ": '" << Proto->Name << "()' unknown function\n";
 			return nullptr;

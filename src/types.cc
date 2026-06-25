@@ -984,7 +984,7 @@ ProtoMatchKind CompareProtos(PrototypeAST* a, PrototypeAST* b) {
 		arg_offset = 1; // do not compare receiver type for interface match
 	for (unsigned i = arg_offset; i<a_sz; i++)
 		if (FullTypes_differ(a->ArgTypes[i], b->ArgTypes[i]))
-			goto different;;
+			goto different;
 	if (FullTypes_differ(a->RetType, b->RetType))
 		return protos_conflicting;
 	if ((a->visibility ^ b->visibility) & A_c_api)
