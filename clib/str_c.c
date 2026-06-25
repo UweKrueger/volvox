@@ -905,6 +905,10 @@ error:
 }
 #endif
 
+typedef struct _volvox_string {
+	void* ptr;
+} volvox_string;
+
 _DECL void _printstrn(int fd, char* s) {
 	if (s) {
 		size_t l = volvox_string_len(s);

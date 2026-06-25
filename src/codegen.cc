@@ -215,6 +215,10 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		llvm::Value* Key = keys[i]->codegen(true);
 		values[i]->desired_type = ft->elem_type[1].type;
 		llvm::Value* Value0 = values[i]->codegen(true);
+		/*
+		if (ft->elem_type[1].type == llvm_string_type) {
+		llvm::Value* ptr = Builder->CreateExtractValue(Value0, 0);
+			llvm::Value* ValSz = Builder->CreateLoad(llvm_size_type */
 		llvm::Value* Value = Builder->CreateZExtOrBitCast(Value0, llvm::Type::getInt64Ty(Context));
 		if (target_big_endian && valsz != 8) {
 			unsigned shift = (8 - valsz) << 3;
@@ -997,12 +1001,12 @@ llvm::Value* UnaryExprAST::codegen_raw(llvm::Value* target) {
 			return handle(target, Builder->CreateFNeg(OperandV, "negftmp"), Loc, ft);
 		// TODO: case '&'
 		default:
-			errs() << "unary operator '" << Opcode[0] << "' undefined for floats";
+			errs() << Loc  << "unary operator '" << Opcode[0] << "' undefined for floats\n";
 			return nullptr;
 		}
 	case llvm::Type::IntegerTyID:
-		if (Opcode[0] != '!' && OperandV->getType()->getIntegerBitWidth() == 1) {
-			errs() << "unary operator '" << Opcode[0] << "' undefined for bool";
+		if (Opcode[0] != '!' && Opcode[0] != '~' && OperandV->getType()->getIntegerBitWidth() == 1) {
+			errs() << Loc  << "unary operator '" << Opcode[0] << "' undefined for bool\n";
 			return nullptr;
 		}
 		switch (Opcode[0]) {
@@ -1010,12 +1014,23 @@ llvm::Value* UnaryExprAST::codegen_raw(llvm::Value* target) {
 			return handle(target, OperandV, Loc, ft);
 		case '-':
 			return handle(target, Builder->CreateNeg(OperandV, "negtmp"), Loc, ft);
+		case '~':
+			if (OperandV->getType()->getIntegerBitWidth() == 1) {
+				errs() << Loc  << "'~' ('bitwise not') is not for 'bool' - use '!' for 'logical not'\n";
+				return nullptr;
+			}
+			return handle(target, Builder->CreateNot(OperandV, "nottmp"), Loc, ft);
 		case '!':
+			if (OperandV->getType()->getIntegerBitWidth() != 1) {
+				errs() << Loc  << "'!' ('logical not') is not for integers - use a comparison or '~' for 'bitwise not'\n";
+				return nullptr;
+			}
 			return handle(target, Builder->CreateNot(OperandV, "nottmp"), Loc, ft);
 		default:
-			errs() << "unary operator '" << Opcode[0] << "' undefined for integers";
-			return nullptr;
+			;
 		}
+		errs() << Loc  << "unary operator '" << Opcode[0] << "' undefined for integers\n";
+		return nullptr;
 	default:
 		// std::vector<volvoxc::FullType*> ArgTypes = { Operand->ft };
 		// auto F = getFunction(std::string("unary") + Opcode, &ArgTypes);

@@ -73,7 +73,7 @@ def ~string
 		cap = __load_size(voidptr(size_t(this.voidptr) + (__OS_Bitwidth>>3)))
 		if cap != 0
 			len = __load_size(this.voidptr)
-			buf = voidptr((size_t(this.voidptr) - len) & !size_t((__OS_Bitwidth>>3)-1))
+			buf = voidptr((size_t(this.voidptr) - len) & ~size_t((__OS_Bitwidth>>3)-1))
 
 			# __free makes problems in for iteration - needs investigation
 			# ___wrnum(buf, cap, len)
@@ -135,8 +135,12 @@ end
 
 inline def string.len size_t; return this.size - 1; end
 
+inline def string._c_str cstring
+	return cstring voidptr((size_t(this.voidptr) - this.size) & ~size_t((__OS_Bitwidth>>3)-1))
+end
+
 inline def string.cmp(s cstring) int
-	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & !size_t((__OS_Bitwidth>>3)-1)), s)
+	return strcmp(cstring voidptr((size_t(this.voidptr) - this.size) & ~size_t((__OS_Bitwidth>>3)-1)), s)
 end
 
 inline def string<(s cstring) bool
