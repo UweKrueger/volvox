@@ -54,6 +54,30 @@ llvm::Function* getConversion(std::string& mangled_name) {
 	return F;
 }
 
+llvm::Value* callMethod(std::unique_ptr<ExprAST>& obj, const std::string& method_name,
+                        std::vector<std::unique_ptr<ExprAST>> args, llvm::Value* target, bool silent_fail) {
+	auto selector = std::make_unique<IdentExprAST>(obj->Loc, method_name);
+	if (auto lval_obj = dynamic_cast<LvalueExprAST*>(obj.get())) {
+		auto [ obj_type, obj_ref ] = lval_obj->codegen_ref();
+		if (!obj_ref) {
+			if (!silent_fail)
+				errs() << obj->Loc << ": cannot get reference tor receiver\n";
+			return nullptr;
+		}
+		auto receiver = std::make_unique<ConstLvalueAST>(obj->Loc, obj->ft, obj_type, obj_ref);
+		auto raw_method_expr = getSelect(obj->Loc, std::move(receiver), std::move(selector), silent_fail);
+		if (!raw_method_expr)
+			return nullptr;
+		if (auto method_expr = dynamic_cast<MethodExprAST*>(raw_method_expr.get())) {
+			auto call_expr = std::make_unique<CallExprAST>(obj->Loc, std::move(raw_method_expr), std::move(args));
+			return call_expr->codegen_raw(target);
+		}
+		if (!silent_fail)
+			errs() << obj->Loc << ": '" << *obj->ft << "' has no method '" << method_name << "'\n";
+	}
+	return nullptr;
+}
+
 llvm::Function* getShadowConstructorDestructor(std::string& mangled_name, int n, bool destructor) {
 	auto thename = "___" + mangled_name + "_arg" + std::to_string(n) + (destructor ? "_destr" : "_constr");
 	// errs() << "Get shadow " << thename << "\n";

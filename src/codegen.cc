@@ -3081,15 +3081,11 @@ bool ForExprAST::PrepareIterator() {
 		}
 		// first try if we have a special methods to iterate iterate
 		std::string start_iterator_method_name = descending ? "__max_iterator" : "__min_iterator";
-		auto start_selector = std::make_unique<IdentExprAST>(Iterator->Loc, start_iterator_method_name);
-		auto start_expr = getSelect(Iterator->Loc, std::move(receiver1), std::move(start_selector), true);
-		if (start_expr) {
+		std::vector<std::unique_ptr<ExprAST>> args;
+		if (auto start_iter = callMethod(Iterator, start_iterator_method_name, std::move(args), nullptr, true)) {
 			iterator_methods = true;
-			if (auto method = dynamic_cast<MethodExprAST*>(start_expr.get())) {
-				IteratorStart = std::make_unique<CallExprAST>(Iterator->Loc, std::move(start_expr));
-				CurIter = CreateEntryBlockAlloca(llvm_ptr_type);
-				IteratorStart->codegen(CurIter);
-			}
+			CurIter = CreateEntryBlockAlloca(llvm_ptr_type);
+			Builder->CreateStore(start_iter, CurIter);
 		} else {
 			if (iterator_ref) {
 				receiver1 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
@@ -3192,9 +3188,6 @@ bool ForExprAST::PrepareIterator() {
 				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
 			}
 		} else if (iterator_methods) {
-			initializer = IteratorStart->codegen();
-			CurIter = CreateEntryBlockAlloca(llvm_ptr_type);
-			Builder->CreateStore(initializer, CurIter);
 			if (ValueFV)
 				ValueRef = ValueFV->val = CreateEntryBlockAlloca(ValueFV->ft.type);
 		} else {
@@ -3324,20 +3317,14 @@ llvm::Value* ForExprAST::CreateCondition(bool at_end) {
 bool ForExprAST::Iterate() {
 	if (iterator_methods) {
 		std::string iterator_method_name = descending ? "__iter_down" : "__iter_up";
-		auto iter_selector = std::make_unique<IdentExprAST>(Iterator->Loc, iterator_method_name);
-		auto receiver3 = std::make_unique<ConstLvalueAST>(Iterator->Loc, Iterator->ft, iterator_type, iterator_ref);
-		auto iter_expr = getSelect(Iterator->Loc, std::move(receiver3), std::move(iter_selector));
-		if (auto method = dynamic_cast<MethodExprAST*>(iter_expr.get())) {
-			llvm::Value* cur_iter = Builder->CreateLoad(llvm_ptr_type, CurIter);
-			std::unique_ptr<ExprAST> iter = std::make_unique<ConstExprAST>(cur_iter);
-			std::vector<std::unique_ptr<ExprAST>> args;
-			args.push_back(std::move(iter));
-			auto IteratorExpr = std::make_unique<CallExprAST>(Iterator->Loc, std::move(iter_expr), std::move(args));
-			llvm::Value* new_iter = IteratorExpr->codegen();
+		llvm::Value* cur_iter = Builder->CreateLoad(llvm_ptr_type, CurIter);
+		std::unique_ptr<ExprAST> iter = std::make_unique<ConstExprAST>(cur_iter);
+		std::vector<std::unique_ptr<ExprAST>> args;
+		args.push_back(std::move(iter));
+		if (auto new_iter = callMethod(Iterator, iterator_method_name, std::move(args))) {
 			Builder->CreateStore(new_iter, CurIter);
 			return true;
-		}
-		if (!Iterator) {
+		} else {
 			errs() << Iterator->Loc << ": struct has no iterator method\n";
 			return false;
 		}
