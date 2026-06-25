@@ -612,8 +612,24 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			return { nullptr, nullptr };
 		}
 		auto getter_fn = getFunction(getter_proto);
-		auto value = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
+		llvm::Value* value = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
 		auto pointee_type = Field->ft->elem_type[1].type;
+		if (pointee_type == llvm_string_type) {
+			std::string cstrtovolvox_name = "__cstr2volvox";
+			auto cstrtovolvox_proto = (*lex.findProtos(cstrtovolvox_name))[0].get();
+			auto cstrtovolvox_fn = getFunction(cstrtovolvox_proto);
+			llvm::Value* offset = Builder->CreateLoad(llvm_int_type, value);
+			llvm::Value* ptr = Builder->CreateIntToPtr(
+				Builder->CreateAdd(
+					Builder->CreatePtrToInt(value, llvm_size_type),
+					Builder->CreateIntCast(offset, llvm_size_type, false)),
+				llvm_ptr_type);
+			llvm::Value* val0 = Builder->CreateCall(cstrtovolvox_proto->FT, cstrtovolvox_fn, { ptr });
+			llvm::Value* value_rval = llvm::UndefValue::get(llvm_string_type);
+			value_rval = Builder->CreateInsertValue(value_rval, val0, (uint64_t)0);
+			value = CreateEntryBlockAlloca(llvm_string_type);
+			Builder->CreateStore(value_rval, value);
+		}
 		return { pointee_type, value };
 	}
 	errs() << "LHS of index expression must be an array (or map) " << *ft->type << "\n";
