@@ -1958,6 +1958,58 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			return nullptr;
 		}
 		if (opclass != OpDeclAssign) {
+			if (auto idx_expr = dynamic_cast<IndexExprAST*>(LHS.get())) {
+				if (idx_expr->Field->ft->type == llvm_map_type && ft->type == llvm_string_type) {
+					if (target) {
+						errs() << LHS->Loc << ": pipe syntax for `map[string]string` not supported - value is of variable size\n";
+						return nullptr;
+					}
+					// this needs special treatment as value is of variable size
+					const char* inserter = "_ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_";
+					PrototypeAST* inserter_proto = (*lex.findProtos(std::string(inserter)))[0].get();
+					if (!inserter_proto) {
+						errs() << Loc << ": prototype " << inserter << "() not found\n";
+						return nullptr;
+					}
+					auto inserter_fn = getFunction(inserter_proto);
+					idx_expr->Index->desired_type = idx_expr->Field->ft->elem_type[0].type;
+					RHS->desired_type = idx_expr->Field->ft->elem_type[1].type;
+					llvm::Value* map_ref = nullptr;
+					llvm::Type* map_type = nullptr;
+					if (auto lval_map = dynamic_cast<LvalueExprAST*>(idx_expr->Field.get()))
+						std::tie(map_type, map_ref) = lval_map->codegen_ref();
+					if (!map_ref) {
+						errs() << idx_expr->Field->Loc << ": map must be an lvalue when used as LHS of assignment\n";
+						return nullptr;
+					}
+					llvm::Value* ptr = Builder->CreateStructGEP(llvm_map_type, map_ref, 0);
+					llvm::Value* Map = idx_expr->Field->codegen();
+					llvm::Value* Key = idx_expr->Index->codegen_raw();
+					if (!Key) {
+						errs() << idx_expr->Index->Loc << ": could not generate key\n";
+						return nullptr;
+					}
+					if (Key->getType()->isArrayTy())
+						Key = Builder->CreateExtractValue(Key, 0);
+					llvm::Value* do_replace = CreateEntryBlockAlloca(llvm_ptr_type);
+					Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), do_replace);
+					// size_t valsz = TheModule->getDataLayout().getTypeAllocSize(ft->elem_type[1].type);
+					llvm::Value* value_sz_ptr_wrapped = nullptr;
+					auto cstr_val = callMethod(RHS, "_c_str", {}, nullptr, &value_sz_ptr_wrapped);
+					if (!value_sz_ptr_wrapped) // RHS is an lvalue - just generate
+						value_sz_ptr_wrapped = RHS->codegen();
+					auto cstr_val_int = Builder->CreatePtrToInt(cstr_val, llvm_size_type);
+					if (target_bytes < 8)
+						cstr_val_int = Builder->CreateZExtOrBitCast(cstr_val_int, llvm::Type::getInt64Ty(Context));
+					llvm::Value* value_sz_ptr = Builder->CreateExtractValue(value_sz_ptr_wrapped, 0);
+					llvm::Value* sz = Builder->CreateLoad(llvm_size_type, value_sz_ptr);
+					if (target_bytes != 4)
+						sz = Builder->CreateIntCast(sz, llvm::Type::getInt32Ty(Context), false);
+					Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
+							ptr, Key, cstr_val_int, sz, do_replace });
+					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+				}
+			}
 			Variable = LHSE->codegen_ref();
 			if (!Variable.second)
 				return nullptr;
