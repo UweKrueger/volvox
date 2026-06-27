@@ -3654,15 +3654,27 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 				std::string get_value_ref_name = IteratorTypeName + "_get_value_ref";
 				llvm::Value* iter = Builder->CreateLoad(llvm_ptr_type, for_expr->CurIter);
 				llvm::Value* ref_of_new_value = callCFunction(for_expr->Iterator->Loc, get_value_ref_name, { iter });
-				llvm::Value* ctrl_var = Builder->CreateLoad(for_expr->ValueFV->ft.type, ref_of_new_value);
+				llvm::Value* value_var;
+				if (for_expr->ValueFV->ft.type == llvm_string_type) {
+					llvm::Value* offset = Builder->CreateLoad(llvm_int_type, ref_of_new_value);
+					llvm::Value* ptr = Builder->CreateIntToPtr(
+						Builder->CreateAdd(
+							Builder->CreatePtrToInt(ref_of_new_value, llvm_size_type),
+							Builder->CreateIntCast(offset, llvm_size_type, false)),
+						llvm_ptr_type);
+					llvm::Value* value_var0 = callCFunction(for_expr->Iterator->Loc, "__cstr2volvox", { ptr });
+					value_var = llvm::UndefValue::get(llvm_string_type);
+					value_var = Builder->CreateInsertValue(value_var, value_var0, (uint64_t)0);
+				} else
+					value_var = Builder->CreateLoad(for_expr->ValueFV->ft.type, ref_of_new_value);
 				if (for_expr->ptr_storage) {
-					Builder->CreateStore(ctrl_var, for_expr->ptr_storage);
+					Builder->CreateStore(value_var, for_expr->ptr_storage);
 					if (!(for_expr->ValueFV->ft.type_attr & A_ptrref)) {
 						auto align = TheModule->getDataLayout().getPrefTypeAlign(for_expr->ElType);
-						Builder->CreateMemCpy(for_expr->ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, for_expr->Step);
+						Builder->CreateMemCpy(for_expr->ValueRef, align, Builder->CreateIntToPtr(value_var, llvm_ptr_type), align, for_expr->Step);
 					}
 				} else {
-					Builder->CreateStore(ctrl_var, for_expr->ValueFV->val);
+					Builder->CreateStore(value_var, for_expr->ValueFV->val);
 				}
 			}
 			if (for_expr->KeyFV) {

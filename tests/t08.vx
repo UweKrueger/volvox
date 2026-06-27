@@ -190,6 +190,27 @@ def test_map_string_string_2 bool
 	return hjhg18["doDe"] == "gheew" && hjhg18["ABdt"] == "m.jdfd"
 end
 
+def test_map_string_string_3 bool
+	keys = " "
+	values = " "
+	dummy = hjhg18["Bdt_kl"]
+	for i, j in hjhg18
+		keys = keys + i + " "
+		values = values + j + " "
+	end
+	return keys == " ABdt Abd Bdt_kl doDe ggq " && values == " m.jdfd 3.456  gheew abc "
+end
+
+def test_map_string_string_4 bool
+	keys = " "
+	values = " "
+	for i, j ~in hjhg18
+		keys = keys + i + " "
+		values = values + j + " "
+	end
+	return keys == " ggq doDe Bdt_kl Abd ABdt " && values == " abc gheew  3.456 m.jdfd "
+end
+
 def string_by_ref(&s string) f64
 	d = strtod(s, voidptr(0))
 	s = "done"
