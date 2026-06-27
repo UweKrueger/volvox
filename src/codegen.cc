@@ -246,6 +246,8 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 					ptr, Key, cstr_val_int, sz, do_replace });
 		} else {
 			llvm::Value* Value0 = values[i]->codegen(true);
+			if (Value0->getType()->isFloatTy())
+				Value0 = Builder->CreateBitCast(Value0, llvm_int_type);
 			llvm::Value* Value = Builder->CreateZExtOrBitCast(Value0, llvm::Type::getInt64Ty(Context));
 			if (target_big_endian && valsz != 8) {
 				unsigned shift = (8 - valsz) << 3;
