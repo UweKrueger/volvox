@@ -398,9 +398,9 @@ cdecl __modstr(s string, idx i32, c u8)
 cdecl GetLastError() u32
 cdecl SetLastError(err u32)
 
-def __map.__insert_64(key string, value u64) voidptr
+def __map.__insert_string(key string, value u64, value_size i32) voidptr
 	old_node = voidptr 0
-	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, value, 0, &old_node)
+	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
 	if size_t(old_node) == 0
 		this.count++
 		return node
@@ -408,10 +408,9 @@ def __map.__insert_64(key string, value u64) voidptr
 	return old_node
 end
 
-def __map.__insert_real(key string, value real) voidptr
+def __map.__insert_i32(key i32, value u64, value_size i32) voidptr
 	old_node = voidptr 0
-	u64_val = __bitcast_64(value)
-	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, u64_val, 0, &old_node)
+	node = _ZN6volvox3map10i32_insertEPPNS0_4NodeEiNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
 	if size_t(old_node) == 0
 		this.count++
 		return node
@@ -419,10 +418,9 @@ def __map.__insert_real(key string, value real) voidptr
 	return old_node
 end
 
-def __map.__insert_float(key string, value float) voidptr
+def __map.__insert_u32(key u32, value u64, value_size i32) voidptr
 	old_node = voidptr 0
-	u32_val = __bitcast_32(value)
-	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, u64(u32_val), 0, &old_node)
+	node = _ZN6volvox3map10u32_insertEPPNS0_4NodeEjNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
 	if size_t(old_node) == 0
 		this.count++
 		return node
@@ -430,15 +428,133 @@ def __map.__insert_float(key string, value float) voidptr
 	return old_node
 end
 
-def __map.__get(key string) voidptr
+def __map.__insert_i64(key i64, value u64, value_size i32) voidptr
+	old_node = voidptr 0
+	node = _ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
+	if size_t(old_node) == 0
+		this.count++
+		return node
+	end
+	return old_node
+end
+
+def __map.__insert_u64(key u64, value u64, value_size i32) voidptr
+	old_node = voidptr 0
+	node = _ZN6volvox3map10u64_insertEPPNS0_4NodeEmNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
+	if size_t(old_node) == 0
+		this.count++
+		return node
+	end
+	return old_node
+end
+
+def __map.__insert_real(key real, value u64, value_size i32) voidptr
+	old_node = voidptr 0
+	node = _ZN6volvox3map10f64_insertEPPNS0_4NodeEdNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
+	if size_t(old_node) == 0
+		this.count++
+		return node
+	end
+	return old_node
+end
+
+def __map.__insert_float(key float, value u64, value_size i32) voidptr
+	old_node = voidptr 0
+	node = _ZN6volvox3map10f32_insertEPPNS0_4NodeEfNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
+	if size_t(old_node) == 0
+		this.count++
+		return node
+	end
+	return old_node
+end
+
+def __map.__get_string(key string) voidptr
 	value_ref = _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(this.__ptr, key)
 	if size_t(value_ref) == 0
 		if _create_unknown_map_entries_on_access
-			node_ref = this.__insert_64(key, 0UL)
+			node_ref = this.__insert_string(key, 0, 0)
 			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 		else
 			eecho "Key $key not fount in map"
-			exit 1
+			return voidptr 0
+	end end
+	return value_ref
+end
+
+def __map.__get_i32(key i32) voidptr
+	value_ref = _ZN6volvox3map7i32_getEPNS0_4NodeEi(this.__ptr, key)
+	if size_t(value_ref) == 0
+		if _create_unknown_map_entries_on_access
+			node_ref = this.__insert_i32(key, 0, 0)
+			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+		else
+			eecho "Key $key not fount in map"
+			return voidptr 0
+	end end
+	return value_ref
+end
+
+def __map.__get_u32(key u32) voidptr
+	value_ref = _ZN6volvox3map7u32_getEPNS0_4NodeEj(this.__ptr, key)
+	if size_t(value_ref) == 0
+		if _create_unknown_map_entries_on_access
+			node_ref = this.__insert_u32(key, 0, 0)
+			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+		else
+			eecho "Key $key not fount in map"
+			return voidptr 0
+	end end
+	return value_ref
+end
+
+def __map.__get_i64(key i64) voidptr
+	value_ref = _ZN6volvox3map7i64_getEPNS0_4NodeEl(this.__ptr, key)
+	if size_t(value_ref) == 0
+		if _create_unknown_map_entries_on_access
+			node_ref = this.__insert_i64(key, 0, 0)
+			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+		else
+			eecho "Key $key not fount in map"
+			return voidptr 0
+	end end
+	return value_ref
+end
+
+def __map.__get_u64(key u64) voidptr
+	value_ref = _ZN6volvox3map7u64_getEPNS0_4NodeEm(this.__ptr, key)
+	if size_t(value_ref) == 0
+		if _create_unknown_map_entries_on_access
+			node_ref = this.__insert_u64(key, 0, 0)
+			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+		else
+			eecho "Key $key not fount in map"
+			return voidptr 0
+	end end
+	return value_ref
+end
+
+def __map.__get_f64(key f64) voidptr
+	value_ref = _ZN6volvox3map7f64_getEPNS0_4NodeEd(this.__ptr, key)
+	if size_t(value_ref) == 0
+		if _create_unknown_map_entries_on_access
+			node_ref = this.__insert_real(key, 0, 0)
+			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+		else
+			eecho "Key $key not fount in map"
+			return voidptr 0
+	end end
+	return value_ref
+end
+
+def __map.__get_f32(key f32) voidptr
+	value_ref = _ZN6volvox3map7f32_getEPNS0_4NodeEf(this.__ptr, key)
+	if size_t(value_ref) == 0
+		if _create_unknown_map_entries_on_access
+			node_ref = this.__insert_float(key, 0, 0)
+			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
+		else
+			eecho "Key $key not fount in map"
+			return voidptr 0
 	end end
 	return value_ref
 end
@@ -477,34 +593,6 @@ end
 
 inline def __map_get_key_ref(node_ref voidptr) voidptr
 	return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3) + 8)
-end
-
-inline def __map.__get_size(key string) size_t
-	return __load_size(this.__get(key))
-end
-
-inline def __map.__get_64(key string) u64
-	return __load_64(this.__get(key))
-end
-
-inline def __map.__get_32(key string) u32
-	return __load_32(this.__get(key))
-end
-
-inline def __map.__get_16(key string) u16
-	return __load_16(this.__get(key))
-end
-
-inline def __map.__get_8(key string) u8
-	return __load_8(this.__get(key))
-end
-
-inline def __map.__get_real(key string) real
-	return __load_real(this.__get(key))
-end
-
-inline def __map.__get_float(key string) float
-	return __load_float(this.__get(key))
 end
 
 inline def __map.__min_iterator voidptr

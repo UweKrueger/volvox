@@ -581,20 +581,46 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		if (!Map)
 			return { nullptr, nullptr };
 		llvm::Value* Key;
+		llvm::Type* llvm_key_type = Field->ft->elem_type[0].type;
+		Index->desired_type = llvm::ArrayType::get(llvm_key_type, 1);
 		llvm::Value* _Key = Index->codegen();
 		if (!_Key)
 			return { nullptr, nullptr };
 		if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Key->getType())) {
 			if (arr_ty->getNumElements() == 1) {
 				Key = Builder->CreateExtractValue(_Key, 0);
-				if (Key->getType() == llvm_string_type)
+				if (Key->getType() == llvm_key_type)
 					goto key_ok;
 			}
 		}
 		errs() << Index->Loc << ": invalid map index\n";
 		return { nullptr, nullptr };
 	key_ok:
-		std::string the_method = "__get";
+		std::string the_method;
+		if (Field->ft->elem_type[0].type == llvm_string_type) // string key type
+			the_method = "__get_string";
+		else if (Field->ft->elem_type[0].type == llvm_int_type
+		         && (Field->ft->elem_type[0].type_attr & A_signed))
+			the_method = "__get_i32";
+		else if (Field->ft->elem_type[0].type == llvm_int_type
+		         && !(Field->ft->elem_type[0].type_attr & A_signed))
+			the_method = "__get_u32";
+		else if (Field->ft->elem_type[0].type == llvm::IntegerType::get(Context, 64)
+		         && (Field->ft->elem_type[0].type_attr & A_signed))
+			the_method = "__get_i64";
+		else if (Field->ft->elem_type[0].type == llvm::IntegerType::get(Context, 64)
+		         && !(Field->ft->elem_type[0].type_attr & A_signed))
+			the_method = "__get_u64";
+		else if (Field->ft->elem_type[0].type == llvm::Type::getDoubleTy(Context)
+		         && !(Field->ft->elem_type[0].type_attr & A_signed))
+			the_method = "__get_f64";
+		else if (Field->ft->elem_type[0].type == llvm::Type::getFloatTy(Context)
+		         && !(Field->ft->elem_type[0].type_attr & A_signed))
+			the_method = "__get_f32";
+		else {
+			errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
+			return { nullptr, nullptr };
+		}
 		auto Ident = std::make_unique<IdentExprAST>(Field->Loc, the_method);
 		auto protos = MethodProtos.find({Field->ft->mangled_name, the_method});
 		if (protos == MethodProtos.end()) {
@@ -602,10 +628,6 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			return { nullptr, nullptr };
 		}
 		const char* getter;
-		if (Field->ft->elem_type[0].type != llvm_string_type) {
-			errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported\n";
-			return { nullptr, nullptr };
-		}
 		PrototypeAST* getter_proto = protos->second[0].get();
 		if (!getter_proto) {
 			errs() << Loc << ": prototype " << getter << "() not found\n";
