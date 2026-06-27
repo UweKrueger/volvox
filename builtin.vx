@@ -355,7 +355,29 @@ struct __range_f64 {
 # We do not have a 'c++decl' (yet?). Instead we use 'cdecl' with mangled function names
 #
 cdecl _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&root_ptr voidptr, key string, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map10i32_insertEPPNS0_4NodeEiNS0_5ValueEiS3_(&root_ptr voidptr, key i32, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map10u32_insertEPPNS0_4NodeEjNS0_5ValueEiS3_(&root_ptr voidptr, key u32, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_(&root_ptr voidptr, key i64, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map10u64_insertEPPNS0_4NodeEmNS0_5ValueEiS3_(&root_ptr voidptr, key u64, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map10f64_insertEPPNS0_4NodeEdNS0_5ValueEiS3_(&root_ptr voidptr, key f64, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map10f32_insertEPPNS0_4NodeEfNS0_5ValueEiS3_(&root_ptr voidptr, key f32, value u64, value_size i32, &replace voidptr) voidptr
+
 cdecl _ZN6volvox3map16volvoxstring_getEPNS0_4NodeEPKc(root voidptr, key string) voidptr
+cdecl _ZN6volvox3map7i32_getEPNS0_4NodeEi(root voidptr, key i32) voidptr
+cdecl _ZN6volvox3map7u32_getEPNS0_4NodeEj(root voidptr, key u32) voidptr
+cdecl _ZN6volvox3map7i64_getEPNS0_4NodeEl(root voidptr, key i64) voidptr
+cdecl _ZN6volvox3map7u64_getEPNS0_4NodeEm(root voidptr, key u64) voidptr
+cdecl _ZN6volvox3map7f64_getEPNS0_4NodeEd(root voidptr, key f64) voidptr
+cdecl _ZN6volvox3map7f32_getEPNS0_4NodeEf(root voidptr, key f32) voidptr
+
+cdecl _ZN6volvox3map19volvoxstring_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(root voidptr, key string, destructor voidptr) bool
+cdecl _ZN6volvox3map10i32_deleteEPPNS0_4NodeEiPFvPNS0_5ValueEE(root voidptr, key i32, destructor voidptr) bool
+cdecl _ZN6volvox3map10u32_deleteEPPNS0_4NodeEjPFvPNS0_5ValueEE(root voidptr, key u32, destructor voidptr) bool
+cdecl _ZN6volvox3map10i64_deleteEPPNS0_4NodeElPFvPNS0_5ValueEE(root voidptr, key i64, destructor voidptr) bool
+cdecl _ZN6volvox3map10u64_deleteEPPNS0_4NodeEmPFvPNS0_5ValueEE(root voidptr, key u64, destructor voidptr) bool
+cdecl _ZN6volvox3map10f64_deleteEPPNS0_4NodeEdPFvPNS0_5ValueEE(root voidptr, key f64, destructor voidptr) bool
+cdecl _ZN6volvox3map10f32_deleteEPPNS0_4NodeEfPFvPNS0_5ValueEE(root voidptr, key f32, destructor voidptr) bool
+
 cdecl _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(root voidptr, d voidptr)
 cdecl _ZN6volvox3map3MinEPNS0_4NodeE(root voidptr) voidptr
 cdecl _ZN6volvox3map7iter_upEPNS0_4NodeE(node voidptr) voidptr

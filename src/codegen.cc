@@ -182,8 +182,23 @@ llvm::Value* MapExprAST::codegen_raw(llvm::Value* target) {
 		KSDbgInfo.emitLocation(this);
 	}
 	const char* inserter;
+	llvm::Type* llvm_i64_type = llvm::IntegerType::get(Context, 64);
+	llvm::Type* llvm_real_type = llvm::Type::getDoubleTy(Context);
+	llvm::Type* llvm_float_type = llvm::Type::getFloatTy(Context);
 	if (ft->elem_type[0].type == llvm_string_type) // string key type
 		inserter = "_ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_int_type && (ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10i32_insertEPPNS0_4NodeEiNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_int_type && !(ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10u32_insertEPPNS0_4NodeEjNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_i64_type && (ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_i64_type && !(ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10u64_insertEPPNS0_4NodeEmNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_real_type && !(ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10f64_insertEPPNS0_4NodeEdNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_float_type && !(ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10f32_insertEPPNS0_4NodeEfNS0_5ValueEiS3_";
 	else {
 		errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported, yet\n";
 		return nullptr;
