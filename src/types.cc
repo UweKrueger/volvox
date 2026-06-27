@@ -1029,7 +1029,7 @@ llvm::Constant* getInterfaceVtable(SourceLocation Loc, volvoxc::FullType* ft,
 			// virtual field - first check if it's a real field
 			size_t idx = protos[0]->vtable_offs;
 			virt_field_ft = protos[0]->RetType;
-			if (MapValue* mv = map_string_get(ft->fields, ident.c_str())) {
+			if (MapValue* mv = map_string_get(&ft->fields, ident.c_str())) {
 				unsigned FieldIndex = *(unsigned*)((char*)mv + mv->offset);
 				auto f_f_loc = (FieldTypeLoc*)((char*)mv + mv->offset + 4);
 				if (FullTypes_differ(f_f_loc->ft, protos[0]->RetType)) {
@@ -1193,7 +1193,7 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 		// a single int/float 'n' can be used as an iterator for the range 0..(n-1)
 		return { nullptr, IteratorType, nullptr };
 	if (llvm::isa<llvm::StructType>(IteratorType->type)) {
-		MapValue* mv = map_string_get(IteratorType->fields, "min");
+		MapValue* mv = map_string_get(&IteratorType->fields, "min");
 		if (mv) {
 			auto adr = (char*)mv + mv->offset + 4;
 			volvoxc::FullType* ft;

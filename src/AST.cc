@@ -152,7 +152,7 @@ SelectExprAST::SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struc
 					errs() << Struct->Loc << ": threads do not have a method '" << FieldName << "'\n";
 					ft = nullptr;
 				}
-			} else if (MapValue* mv = map_string_get(Struct->ft->fields, FieldName)) {
+			} else if (MapValue* mv = map_string_get(&Struct->ft->fields, FieldName)) {
 				FieldIndex = *(unsigned*)((char*)mv + mv->offset);
 				char* adr = (char*)mv + mv->offset + 4;
 				memcpy(&ft, adr, sizeof(void*));

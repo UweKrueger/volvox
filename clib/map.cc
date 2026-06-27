@@ -766,17 +766,17 @@ namespace volvox {
 			return elem;
 		}
 
-		_DECL Value* string_get(Node* root, const char* key) {
-			NodePosition pos = string_find(&root, key);
+		_DECL Value* string_get(Node** root, const char* key) {
+			NodePosition pos = string_find(root, key);
 			return pos.is_parent ? NULL : &pos.node->value;
 		}
 
-		_DECL Value* volvoxstring_get(Node* root, const char* key) {
-			NodePosition pos = string_find(&root, volvox2cstr(key));
+		_DECL Value* volvoxstring_get(Node** root, const char* key) {
+			NodePosition pos = string_find(root, volvox2cstr(key));
 			return pos.is_parent ? NULL : &pos.node->value;
 		}
-#define DEFINE_GET_FOR(typ) Value* typ ## _get(Node* root, typ key) {	  \
-			NodePosition pos = typ ## _find(&root, key); \
+#define DEFINE_GET_FOR(typ) Value* typ ## _get(Node** root, typ key) {	  \
+			NodePosition pos = typ ## _find(root, key); \
 			return pos.is_parent ? NULL : &pos.node->value; \
 		}
 

@@ -727,7 +727,7 @@ startanalysis:
 		IdentifierStr = CurChar;
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
-		if (auto tok_val = map_string_get(keyword_toks, IdentifierStr.c_str())) {
+		if (auto tok_val = map_string_get(&keyword_toks, IdentifierStr.c_str())) {
 			return Token(tok_val->i32);
 		}
 		if (expect == eBinOp) {

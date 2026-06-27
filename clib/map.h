@@ -135,7 +135,7 @@ namespace volvox {
 		_DECL Node* Max(Node* node);
 		_DECL Node* iter_up(Node* elem);
 		_DECL Node* iter_down(Node* elem);
-		_DECL Value* string_get(Node* root, const char* key);
+		_DECL Value* string_get(Node** root, const char* key);
 
 		_DECL void prt_str_int(int bf, Key* key, Value* value);
 		_DECL void prt_str_str(int bf, Key* key, Value* value);

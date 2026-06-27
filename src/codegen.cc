@@ -360,7 +360,7 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 		}
 		// convert from name-based initializer map to index based initializers
 		for (auto& [fname, ini]: Fields) {
-			MapValue* mv = map_string_get(ft->fields, fname.c_str());
+			MapValue* mv = map_string_get(&ft->fields, fname.c_str());
 			if (!mv) {
 				errs() << Loc << ": type '" << *ft << "' has no field '" << fname << "'\n";
 				return nullptr;
