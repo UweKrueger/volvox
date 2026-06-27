@@ -18,8 +18,8 @@ namespace volvox {
 /* balace factor of nodes require only 2 bits and parent pointer is
  * aligned to 8 bytes so these two can share a 64 bit value */
 
-#define PARENT(node) ((Node*)((uintptr_t)node->parent & ~(uintptr_t)0x03))
-#define SET_PARENT(node, p) node->parent = (Node*)((uintptr_t)p | (uintptr_t)node->u_bf)
+#define PARENT(node) ((Node*)((uintptr_t)(node)->parent & ~(uintptr_t)0x03))
+#define SET_PARENT(node, p) node->parent = (Node*)((uintptr_t)(p) | (uintptr_t)(node)->u_bf)
 
 		_DECL Node* string_new_map() { return NULL; }
 		_DECL Node* num_new_map() { return NULL; }
@@ -274,7 +274,7 @@ namespace volvox {
 		static NodePosition string_find(Node** parent_ptr, const char* key) {
 			NodePosition pos;
 			Node* curr;
-			Node* parent = *parent_ptr ? (*parent_ptr)->parent : NULL;
+			Node* parent = *parent_ptr ? PARENT(*parent_ptr) : NULL;
 			for(;;) {
 				curr = *parent_ptr;
 				if (!curr) break;
@@ -308,16 +308,16 @@ namespace volvox {
 #define DEFINE_FIND_FOR(typ) static NodePosition typ ## _find(Node** parent_ptr, typ key) { \
 			NodePosition pos; \
 			Node* curr; \
-			Node* parent = *parent_ptr ? (*parent_ptr)->parent : NULL; \
+			Node* parent = *parent_ptr ? PARENT(*parent_ptr) : NULL; \
 			for(;;) { \
 				curr = *parent_ptr; \
 				if (!curr) break; \
-				if (key == curr->value.typ) { \
-					goto pos_found; \
-				} else if (key > curr->value.typ) { \
+				if (key > curr->key.typ) { \
 					parent_ptr = &curr->rightChild; \
-				} else { \
+				} else if (key < curr->key.typ){ \
 					parent_ptr = &curr->leftChild; \
+				} else { \
+					goto pos_found; \
 				} \
 				parent = curr; \
 			} \
@@ -475,6 +475,12 @@ namespace volvox {
 			fputs(" \"", stdout);
 			fputs(key->string, stdout);
 			printf("\": %d %d\n", bf, value->i32);
+		}
+
+		_DECL void prt_i64_f64(int bf, Key* key, Value* value) {
+			fputs(" \"", stdout);
+			printf("%lld", key->i64);
+			printf("\": %d %f\n", bf, value->f64);
 		}
 
 		_DECL void prt_str_str(int bf, Key* key, Value* value) {

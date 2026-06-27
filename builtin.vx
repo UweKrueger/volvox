@@ -483,7 +483,6 @@ end
 
 def __map.__get_i32(key i32) voidptr
 	value_ref = _ZN6volvox3map7i32_getEPPNS0_4NodeEi(&this.__ptr, key)
-	echo "Have i32 value_ref $value_ref for key $key"
 	if size_t(value_ref) == 0
 		if _create_unknown_map_entries_on_access
 			node_ref = this.__insert_i32(key, 0, 0)
