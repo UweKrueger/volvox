@@ -3652,10 +3652,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			auto IteratorTypeName = get_LLVM_TypeName(for_expr->Iterator->ft->type);
 			if (for_expr->ValueFV) {
 				std::string get_value_ref_name = IteratorTypeName + "_get_value_ref";
-				auto get_value_ref_proto = (*lex.findProtos(get_value_ref_name))[0].get();
-				auto get_value_ref_fn = getFunction(get_value_ref_proto);
 				llvm::Value* iter = Builder->CreateLoad(llvm_ptr_type, for_expr->CurIter);
-				llvm::Value* ref_of_new_value = Builder->CreateCall(get_value_ref_proto->FT, get_value_ref_fn, { iter });
+				llvm::Value* ref_of_new_value = callCFunction(for_expr->Iterator->Loc, get_value_ref_name, { iter });
 				llvm::Value* ctrl_var = Builder->CreateLoad(for_expr->ValueFV->ft.type, ref_of_new_value);
 				if (for_expr->ptr_storage) {
 					Builder->CreateStore(ctrl_var, for_expr->ptr_storage);
@@ -3669,16 +3667,11 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			}
 			if (for_expr->KeyFV) {
 				std::string get_key_ref_name = IteratorTypeName + "_get_key_ref";
-				auto get_key_ref_proto = (*lex.findProtos(get_key_ref_name))[0].get();
-				auto get_key_ref_fn = getFunction(get_key_ref_proto);
 				llvm::Value* iter = Builder->CreateLoad(llvm_ptr_type, for_expr->CurIter);
-				llvm::Value* ref_of_new_key = Builder->CreateCall(get_key_ref_proto->FT, get_key_ref_fn, { iter });
+				llvm::Value* ref_of_new_key = callCFunction(for_expr->Iterator->Loc, get_key_ref_name, { iter });
 				llvm::Value* ctrl_var;
 				if (for_expr->KeyFV->ft.type == llvm_string_type) {
-					std::string cstrtovolvox_name = "__cstr2volvox";
-					auto cstrtovolvox_proto = (*lex.findProtos(cstrtovolvox_name))[0].get();
-					auto cstrtovolvox_fn = getFunction(cstrtovolvox_proto);
-					llvm::Value* ctrl_var0 = Builder->CreateCall(cstrtovolvox_proto->FT, cstrtovolvox_fn, { ref_of_new_key });
+					llvm::Value* ctrl_var0 = callCFunction(for_expr->Iterator->Loc, "__cstr2volvox", { ref_of_new_key });
 					ctrl_var = llvm::UndefValue::get(llvm_string_type);
 					ctrl_var = Builder->CreateInsertValue(ctrl_var, ctrl_var0, (uint64_t)0);
 				} else

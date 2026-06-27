@@ -88,6 +88,17 @@ llvm::Value* callMethod(std::unique_ptr<ExprAST>& obj, const std::string& method
 	return nullptr;
 }
 
+llvm::Value* callCFunction(SourceLocation& Loc, const std::string& c_fn_name, std::vector<llvm::Value*> args, bool silent_fail) {
+	auto fn_proto = (*lex.findProtos(c_fn_name))[0].get();
+	if (!fn_proto) {
+		if (!silent_fail)
+			errs() << Loc << ": cannot find declaration of C-function '" << c_fn_name << "'\n";
+		return nullptr;
+	}
+	auto fn = getFunction(fn_proto);
+	return Builder->CreateCall(fn_proto->FT, fn, std::move(args));
+}
+
 llvm::Function* getShadowConstructorDestructor(std::string& mangled_name, int n, bool destructor) {
 	auto thename = "___" + mangled_name + "_arg" + std::to_string(n) + (destructor ? "_destr" : "_constr");
 	// errs() << "Get shadow " << thename << "\n";
