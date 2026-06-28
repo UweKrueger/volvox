@@ -1802,6 +1802,27 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 			} else if (Ident->Name == "remove") {
 				real_method = "__remove";
 			}
+		} else if (LHS->ft->type == llvm_map_type) {
+			if (Ident->Name == "delete") {
+				llvm::Type* key_type = LHS->ft->elem_type[0].type;
+				bool is_signed = (bool)(LHS->ft->elem_type[0].type_attr & A_signed);
+				if (key_type == llvm_string_type)
+					real_method = "__delete_string";
+				else if (key_type == llvm::Type::getInt64Ty(Context))
+					if (is_signed)
+						real_method = "__delete_i64";
+					else
+						real_method = "__delete_u64";
+				else if (key_type == llvm::Type::getInt32Ty(Context))
+					if (is_signed)
+						real_method = "__delete_i32";
+					else
+						real_method = "__delete_u32";
+				else if (key_type == llvm::Type::getDoubleTy(Context))
+					real_method = "__delete_real";
+				else if (key_type == llvm::Type::getFloatTy(Context))
+					real_method = "__delete_float";
+			}
 		}
 		if (real_method.empty())
 			the_method = &Ident->Name;
