@@ -468,6 +468,34 @@ def __map.__insert_float(key float, value u64, value_size i32) voidptr
 	return old_node
 end
 
+def __map.__delete_string(key string) bool
+	return _ZN6volvox3map19volvoxstring_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
+end
+
+def __map.__delete_i32(key i32) bool
+	return _ZN6volvox3map10i32_deleteEPPNS0_4NodeEiPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
+end
+
+def __map.__delete_u32(key u32) bool
+	return _ZN6volvox3map10u32_deleteEPPNS0_4NodeEjPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
+end
+
+def __map.__delete_i64(key i64) bool
+	return _ZN6volvox3map10i64_deleteEPPNS0_4NodeElPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
+end
+
+def __map.__delete_u64(key u64) bool
+	return _ZN6volvox3map10u64_deleteEPPNS0_4NodeEmPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
+end
+
+def __map.__delete_real(key real) bool
+	return _ZN6volvox3map10f64_deleteEPPNS0_4NodeEdPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
+end
+
+def __map.__delete_float(key float) bool
+	return _ZN6volvox3map10f32_deleteEPPNS0_4NodeEfPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
+end
+
 def __map.__get_string(key string) voidptr
 	value_ref = _ZN6volvox3map16volvoxstring_getEPPNS0_4NodeEPKc(&this.__ptr, key)
 	if size_t(value_ref) == 0
