@@ -1288,6 +1288,10 @@ inline def __vec.__remove(_elem_sz size_t, index size_t)
 	this.__size--
 end
 
+def __vec.__min_iterator voidptr
+	return this.__ptr
+end
+
 struct __closure {
 	__fn_ptr voidptr
 	__captureds_ptr voidptr

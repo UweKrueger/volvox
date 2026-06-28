@@ -156,6 +156,11 @@ SelectExprAST::SelectExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Struc
 				FieldIndex = *(unsigned*)((char*)mv + mv->offset);
 				char* adr = (char*)mv + mv->offset + 4;
 				memcpy(&ft, adr, sizeof(void*));
+			} else if (Struct->ft->type == llvm_vec_type) {
+				if (!strcmp(FieldName, "_element_size")) {
+					ft = size_type;
+					FieldIndex = 0;
+				}
 			} else {
 				llvm::StringRef struct_name = struct_type->hasName() ?
 					struct_type->getName() :

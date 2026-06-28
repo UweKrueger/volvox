@@ -678,7 +678,7 @@ std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref_(
 	bool silent_fail, bool constref) {
 	if (!ft || !ft->type)
 		return { nullptr, nullptr }; // error message was already generated in AST
-	if (Struct->ft->type->isArrayTy() || Struct->ft->type->isPointerTy())
+	if (Struct->ft->type->isArrayTy() || Struct->ft->type->isPointerTy() || Struct->ft->type == llvm_vec_type)
 		goto failure;
 	if (Struct->ft->type_attr & A_thread)
 		goto failure;
@@ -783,6 +783,13 @@ llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
 			if (!FieldIndex)
 				return Builder->CreateMul(Size, getSize(size));
 			return Builder->getInt32(order);
+		}
+		if (Struct->ft->type == llvm_vec_type) {
+			if (FieldIndex == 0) {
+				llvm::Type* elem_ty = Struct->ft->elem_type[0].type;
+				uint64_t sz = TheModule->getDataLayout().getTypeAllocSize(elem_ty);
+				return getSize(sz);
+			}
 		}
 		llvm::Value* Store = nullptr;
 		if (Struct->needs_target() || Struct->ft->type_attr & A_union) {
