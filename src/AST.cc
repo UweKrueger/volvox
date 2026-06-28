@@ -226,7 +226,11 @@ IndexExprAST::IndexExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> Field_,
 		}
 		return;
 	} else if (Field->ft->type == llvm_map_type) {
-		ft = &Field->ft->elem_type[1];
+		if (!Field->ft->elem_type[1].type) {
+			ft = bool_type;
+		}
+		else
+			ft = &Field->ft->elem_type[1];
 		return;
 	} else if (Field->ft->type == llvm_vec_type) {
 		ft = Field->ft->elem_type;

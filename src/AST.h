@@ -323,7 +323,8 @@ public:
 			if (!ref_cache.second && !silent_fail)
 				errs() << Loc << ": cannot get reference\n";
 		} else
-			errs() << Loc << ": error getting reference\n";
+			if (!ref_cache.second) // second is set for reference to set element
+				errs() << Loc << ": error getting reference\n";
 		return ref_cache;
 	}
 	// get vector dimensions and element size

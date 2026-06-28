@@ -363,8 +363,13 @@ static void CheckArrayIndex(llvm::Value* idx, llvm::Value* Len, SourceLocation L
 llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 	// first try to get a reference to the element ...
 	auto V = codegen_ref(true, true);
+	if (Field->ft->type == llvm_map_type && !Field->ft->elem_type[1].type) {
+		llvm::Value* int_value = Builder->CreatePtrToInt(V.second, llvm_size_type);
+		llvm::Value* value_is_valid = Builder->CreateICmpNE(int_value, llvm::Constant::getNullValue(llvm_size_type));
+		return handle(target, value_is_valid, Loc, ft);
+	}
 	if (auto val = ref2val(V))
-		return val;
+		return handle(target, val, Loc, ft);
 	if (V.first) {
 		// we know the type, but field is an rvalue
 		auto fld = Field->codegen();
@@ -423,7 +428,7 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 					       << (len-1) << ")\n";
 				return nullptr;
 			}
-			return Builder->CreateExtractValue(fld, i);
+			return handle(target, Builder->CreateExtractValue(fld, i), Loc, ft);
 		}
 	run_time_len:
 		llvm::Value* ptr = StoreValue(fld_save, Field->ft);
@@ -432,11 +437,11 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 			ptr = Builder->CreateExtractValue(ptr, 1);
 		}
 		CheckArrayIndex(idx, Len, Index->Loc, Index->ft->type_attr & A_signed);
-		return Builder->CreateLoad(
-			array_type->getElementType(),
-			Builder->CreateGEP(array_type->getElementType(),
-			                   Builder->CreatePointerCast(ptr, llvm_ptr_type),
-			                   idx));
+		return handle(target, Builder->CreateLoad(
+			              array_type->getElementType(),
+			              Builder->CreateGEP(array_type->getElementType(),
+			                                 Builder->CreatePointerCast(ptr, llvm_ptr_type),
+			                                 idx)), Loc, ft);
 	} else {
 		errs() << "cound not create code for index expression\n";
 		return nullptr;

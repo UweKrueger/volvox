@@ -353,6 +353,8 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					ftpair[1] = volvoxc::FullType{0};
 				ft = new_FullType(*map_type, attribs);
 				ft->elem_type = ftpair;
+				errs() << CurLoc << ": elems: " << ft->elem_type[0].type << " "
+				       << ft->elem_type[1].type << "\n";
 				// ft = new_FullType(llvm_map_type, attribs, nullptr, nullptr, ftpair);
 			} else {
 				ft = new_FullType(*vec_type, attribs);
