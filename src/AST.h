@@ -350,7 +350,11 @@ public:
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen_borrow() override;
 	virtual llvm::Value* ref2val(std::pair<llvm::Type*,llvm::Value*> ref) {
-		if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
+		if (ref.second && !ref.first) {
+			llvm::Value* int_value = Builder->CreatePtrToInt(ref.second, llvm_size_type);
+			return Builder->CreateICmpNE(int_value, llvm::Constant::getNullValue(llvm_size_type));
+		}
+		else if (ref.second && ref.first->isSized() && TheModule->getDataLayout().getTypeAllocSize(ref.first) > 0)
 			return Builder->CreateLoad(ref.first, ref.second, Name.c_str());
 		else
 			return nullptr;

@@ -261,6 +261,31 @@ def test_map_int_string_1 bool
 	return a == "" && b0 == 3 && b == 4 && c == "gheew" && d == "KlErt"
 end
 
+def test_set_insert_1 bool
+	ggdf16 = set[float]{ 12.0625, -3.125, 5.25 }
+	a = ggdf16[-3.125f]
+	b = ggdf16.count
+	c = ggdf16[4.75f]
+	d = ggdf16.count
+	ggdf16.insert 45.375f
+	e = ggdf16.count
+	f = ggdf16[12.0625f]
+	g45 = ggdf16[45.375f]
+	return true a && b == 3 && !c && d == 3 && e == 4 && f && g45
+end
+
+def test_set_iteration_1 bool
+	ggdf16 = set[string]{ "dkker", "34.234", "D65l_hj", "CaFFe_gh" }
+	ggdf16.insert "Agh3"
+	q = ggdf16.delete "D65l_hj"
+	l = ggdf16.delete "Fewsd"
+	s = " "
+	for k in ggdf16
+		s = s + k + " "
+	end
+	return s == " 34.234 Agh3 CaFFe_gh dkker " && q && !l
+end
+
 def string_by_ref(&s string) f64
 	d = strtod(s, voidptr(0))
 	s = "done"

@@ -648,7 +648,7 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 				Map, Key, constref ? Builder->getFalse() : Builder->getTrue() });
 		auto pointee_type = Field->ft->elem_type[1].type;
 		llvm::Value* ptr0 = nullptr;
-		if (constref || pointee_type == llvm_string_type) {
+		if (pointee_type && (constref || pointee_type == llvm_string_type)) {
 			llvm::Value* int_value = Builder->CreatePtrToInt(value, llvm_size_type);
 			llvm::Value* value_is_valid = Builder->CreateICmpNE(int_value, llvm::Constant::getNullValue(llvm_size_type));
 			auto enterBB = Builder->GetInsertBlock();

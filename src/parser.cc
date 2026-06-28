@@ -1822,6 +1822,29 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 					real_method = "__delete_real";
 				else if (key_type == llvm::Type::getFloatTy(Context))
 					real_method = "__delete_float";
+			} else if (Ident->Name == "insert") {
+				if (LHS->ft->elem_type[1].type) { // this is for sets - no value allowed
+					errs() << LHS->Loc << ": '" << Ident->Name << "' only allowed for sets - not general maps\n";
+					return nullptr;
+				}
+				llvm::Type* key_type = LHS->ft->elem_type[0].type;
+				bool is_signed = (bool)(LHS->ft->elem_type[0].type_attr & A_signed);
+				if (key_type == llvm_string_type)
+					real_method = "__insert_string_0";
+				else if (key_type == llvm::Type::getInt64Ty(Context))
+					if (is_signed)
+						real_method = "__insert_i64_0";
+					else
+						real_method = "__insert_u64_0";
+				else if (key_type == llvm::Type::getInt32Ty(Context))
+					if (is_signed)
+						real_method = "__insert_i32_0";
+					else
+						real_method = "__insert_u32_0";
+				else if (key_type == llvm::Type::getDoubleTy(Context))
+					real_method = "__insert_real_0";
+				else if (key_type == llvm::Type::getFloatTy(Context))
+					real_method = "__insert_float_0";
 			}
 		}
 		if (real_method.empty())

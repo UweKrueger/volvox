@@ -407,6 +407,15 @@ def __map.__insert_string(key string, value u64, value_size i32) voidptr
 	return old_node
 end
 
+def __map.__insert_string_0(key string) bool
+	old_count = this.count
+	node = this.__insert_string(key, 0UL, 0)
+	if this.count > old_count
+		return true
+	else
+		return false
+end end
+
 def __map.__insert_i32(key i32, value u64, value_size i32) voidptr
 	old_node = voidptr 0
 	node = _ZN6volvox3map10i32_insertEPPNS0_4NodeEiNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
@@ -416,6 +425,15 @@ def __map.__insert_i32(key i32, value u64, value_size i32) voidptr
 	end
 	return old_node
 end
+
+def __map.__insert_i32_0(key i32) bool
+	old_count = this.count
+	node = this.__insert_i32(key, 0UL, 0)
+	if this.count > old_count
+		return true
+	else
+		return false
+end end
 
 def __map.__insert_u32(key u32, value u64, value_size i32) voidptr
 	old_node = voidptr 0
@@ -427,6 +445,15 @@ def __map.__insert_u32(key u32, value u64, value_size i32) voidptr
 	return old_node
 end
 
+def __map.__insert_u32_0(key u32) bool
+	old_count = this.count
+	node = this.__insert_u32(key, 0UL, 0)
+	if this.count > old_count
+		return true
+	else
+		return false
+end end
+
 def __map.__insert_i64(key i64, value u64, value_size i32) voidptr
 	old_node = voidptr 0
 	node = _ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
@@ -436,6 +463,15 @@ def __map.__insert_i64(key i64, value u64, value_size i32) voidptr
 	end
 	return old_node
 end
+
+def __map.__insert_i64_0(key i64) bool
+	old_count = this.count
+	node = this.__insert_i64(key, 0UL, 0)
+	if this.count > old_count
+		return true
+	else
+		return false
+end end
 
 def __map.__insert_u64(key u64, value u64, value_size i32) voidptr
 	old_node = voidptr 0
@@ -447,6 +483,15 @@ def __map.__insert_u64(key u64, value u64, value_size i32) voidptr
 	return old_node
 end
 
+def __map.__insert_u64_0(key u64) bool
+	old_count = this.count
+	node = this.__insert_u64(key, 0UL, 0)
+	if this.count > old_count
+		return true
+	else
+		return false
+end end
+
 def __map.__insert_real(key real, value u64, value_size i32) voidptr
 	old_node = voidptr 0
 	node = _ZN6volvox3map10f64_insertEPPNS0_4NodeEdNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
@@ -457,6 +502,15 @@ def __map.__insert_real(key real, value u64, value_size i32) voidptr
 	return old_node
 end
 
+def __map.__insert_real_0(key real) bool
+	old_count = this.count
+	node = this.__insert_real(key, 0UL, 0)
+	if this.count > old_count
+		return true
+	else
+		return false
+end end
+
 def __map.__insert_float(key float, value u64, value_size i32) voidptr
 	old_node = voidptr 0
 	node = _ZN6volvox3map10f32_insertEPPNS0_4NodeEfNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
@@ -466,6 +520,15 @@ def __map.__insert_float(key float, value u64, value_size i32) voidptr
 	end
 	return old_node
 end
+
+def __map.__insert_float_0(key float) bool
+	old_count = this.count
+	node = this.__insert_float(key, 0UL, 0)
+	if this.count > old_count
+		return true
+	else
+		return false
+end end
 
 def __map.__delete_string(key string) bool
 	success = _ZN6volvox3map19volvoxstring_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
