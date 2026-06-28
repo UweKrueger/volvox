@@ -211,6 +211,56 @@ def test_map_string_string_4 bool
 	return keys == " ggq doDe Abd ABdt " && values == " abc gheew 3.456 m.jdfd "
 end
 
+def test_map_string_string_5 bool
+	keys = " "
+	values = " "
+	hjhg18.delete("Abd")
+	for i, j ~in hjhg18
+		keys = keys + i + " "
+		values = values + j + " "
+	end
+	return keys == " ggq doDe ABdt " && values == " abc gheew m.jdfd "
+end
+
+def test_map_float_real_1 bool
+	hjhg19 = map[float]real{ 12.0625: 34.5, -3.125: 3.625, 5.25: -4.5 }
+	a = hjhg19.count
+	b = hjhg19[-3.125f]
+	x = hjhg19[4.75f]
+	c = hjhg19.count
+	hjhg19[17.625f] = -23.5625
+	d = hjhg19.count
+	e = hjhg19[12.0625f]
+	f = hjhg19[17.625f]
+	return a == 3 && b == 3.625 && x == 0 && c == 3 && d == 4 && e == 34.5 && f == -23.5625
+end
+
+def test_map_real_float_1 bool
+	hjhg19 = map[real]float{ 12.0625: 34.5, -3.125: 3.625, 5.25: -4.5 }
+	a = hjhg19.count
+	b = hjhg19[-3.125]
+	x = hjhg19[4.75]
+	c = hjhg19.count
+	hjhg19[17.625] = -23.5625
+	d0 = hjhg19.count
+	hjhg19.delete(-3.125)
+	d = hjhg19.count
+	e = hjhg19[12.0625]
+	f = hjhg19[17.625]
+	return a == 3 && b == 3.625 && x == 0 && c == 3 && d0 == 4 && d == 3 && e == 34.5 && f == -23.5625
+end
+
+def test_map_int_string_1 bool
+	hjhg20 = map[int]string{ 12: "abc", -3: "3.456", 5: "gheew" }
+	a = hjhg20[4]
+	b0 = hjhg20.count
+	hjhg20[-2] = "KlErt"
+	b = hjhg20.count
+	c = hjhg20[5]
+	d = hjhg20[-2]
+	return a == "" && b0 == 3 && b == 4 && c == "gheew" && d == "KlErt"
+end
+
 def string_by_ref(&s string) f64
 	d = strtod(s, voidptr(0))
 	s = "done"
