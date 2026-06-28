@@ -268,10 +268,25 @@ llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
 		KSDbgInfo.emitLocation(this);
 	}
 	const char* inserter;
-	if (ft->elem_type[0].type == llvm_ptr_type) // string key type
+	llvm::Type* llvm_i64_type = llvm::IntegerType::get(Context, 64);
+	llvm::Type* llvm_real_type = llvm::Type::getDoubleTy(Context);
+	llvm::Type* llvm_float_type = llvm::Type::getFloatTy(Context);
+	if (ft->elem_type[0].type == llvm_string_type) // string key type
 		inserter = "_ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_int_type && (ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10i32_insertEPPNS0_4NodeEiNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_int_type && !(ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10u32_insertEPPNS0_4NodeEjNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_i64_type && (ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_i64_type && !(ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10u64_insertEPPNS0_4NodeEmNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_real_type && !(ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10f64_insertEPPNS0_4NodeEdNS0_5ValueEiS3_";
+	else if (ft->elem_type[0].type == llvm_float_type && !(ft->elem_type[0].type_attr & A_signed))
+		inserter = "_ZN6volvox3map10f32_insertEPPNS0_4NodeEfNS0_5ValueEiS3_";
 	else {
-		errs() << Loc << ": sets with type " << ft->elem_type[0] << " not supported\n";
+		errs() << Loc << ": maps with key type " << ft->elem_type[0] << " not supported, yet\n";
 		return nullptr;
 	}
 	PrototypeAST* inserter_proto = (*lex.findProtos(std::string(inserter)))[0].get();
@@ -280,29 +295,33 @@ llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
 		return nullptr;
 	}
 	auto inserter_fn = getFunction(inserter_proto);
-	llvm::Value* ptr = ((intptr_t)target == -1) ? nullptr : target;
-	if (!ptr) {
-		ptr = CreateEntryBlockAlloca(llvm_map_type);
+	llvm::Value* set_ref = ((intptr_t)target == -1) ? nullptr : target;
+	if (!set_ref) {
+		set_ref = CreateEntryBlockAlloca(llvm_map_type);
 		FullVar tmp = {
-			.val = ptr,
+			.val = set_ref,
 			.ft = {
 				.type = llvm_map_type,
 			}
 		};
 		expr_temps.push_back(tmp);
 	}
+	llvm::Value* ptr = Builder->CreateStructGEP(llvm_map_type, set_ref, 0);
+	llvm::Value* count_ref = Builder->CreateStructGEP(llvm_map_type, set_ref, 1);
 	Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), ptr);
 	llvm::Value* do_replace = CreateEntryBlockAlloca(llvm_ptr_type);
-	for (auto& elem: Elements) {
-		elem->desired_type = ft->elem_type[0].type;
-		llvm::Value* Elem = elem->codegen(true);
+	for (unsigned i=0; i<Elements.size(); i++) {
+		Elements[i]->desired_type = ft->elem_type[0].type;
 		Builder->CreateStore(llvm::ConstantPointerNull::get(llvm_ptr_type), do_replace);
+		llvm::Value* Key = Elements[i]->codegen(true);
+		llvm::Value* Value = llvm::Constant::getNullValue(llvm::Type::getInt64Ty(Context));
 		Builder->CreateCall(inserter_proto->FT, inserter_fn, std::vector<llvm::Value*>{
-				ptr, Elem, llvm::Constant::getNullValue(llvm::Type::getInt64Ty(Context)), Builder->getInt32(0), do_replace });
+				ptr, Key, Value, Builder->getInt32(0), do_replace });
 	}
+	Builder->CreateStore(getSize(Elements.size()), count_ref);
 	if (target && (intptr_t)target != -1)
 		return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
-	return Builder->CreateLoad(llvm_map_type, ptr);
+	return Builder->CreateLoad(llvm_map_type, set_ref);
 }
 
 llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
