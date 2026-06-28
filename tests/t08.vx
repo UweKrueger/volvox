@@ -198,11 +198,8 @@ def test_map_string_string_3 bool
 		keys = keys + i + " "
 		values = values + j + " "
 	end
-	if _create_unknown_map_entries_on_access
-		return keys == " ABdt Abd Bdt_kl doDe ggq " && values == " m.jdfd 3.456  gheew abc "
-	else
-		return keys == " ABdt Abd doDe ggq " && values == " m.jdfd 3.456 gheew abc "
-end end
+	return keys == " ABdt Abd doDe ggq " && values == " m.jdfd 3.456 gheew abc "
+end
 
 def test_map_string_string_4 bool
 	keys = " "
@@ -211,11 +208,8 @@ def test_map_string_string_4 bool
 		keys = keys + i + " "
 		values = values + j + " "
 	end
-	if _create_unknown_map_entries_on_access
-		return keys == " ggq doDe Bdt_kl Abd ABdt " && values == " abc gheew  3.456 m.jdfd "
-	else
-		return keys == " ggq doDe Abd ABdt " && values == " abc gheew 3.456 m.jdfd "
-end end
+	return keys == " ggq doDe Abd ABdt " && values == " abc gheew 3.456 m.jdfd "
+end
 
 def string_by_ref(&s string) f64
 	d = strtod(s, voidptr(0))

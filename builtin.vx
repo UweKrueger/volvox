@@ -5,7 +5,6 @@
 # use this to trigger informative messages
 const _verbose := __VERBOSE
 const _range_check := true
-const _create_unknown_map_entries_on_access := false
 
 # compiler builtins - we use `cdecl` to declare prototypes
 cdecl __load_size(adr voidptr) size_t
