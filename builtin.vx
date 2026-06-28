@@ -496,10 +496,10 @@ def __map.__delete_float(key float) bool
 	return _ZN6volvox3map10f32_deleteEPPNS0_4NodeEfPFvPNS0_5ValueEE(&this.__ptr, key , voidptr 0)
 end
 
-def __map.__get_string(key string) voidptr
+def __map.__get_string(key string, create_new bool) voidptr
 	value_ref = _ZN6volvox3map16volvoxstring_getEPPNS0_4NodeEPKc(&this.__ptr, key)
 	if size_t(value_ref) == 0
-		if _create_unknown_map_entries_on_access
+		if create_new
 			node_ref = this.__insert_string(key, 0, 0)
 			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 		else
@@ -508,10 +508,10 @@ def __map.__get_string(key string) voidptr
 	return value_ref
 end
 
-def __map.__get_i32(key i32) voidptr
+def __map.__get_i32(key i32, create_new bool) voidptr
 	value_ref = _ZN6volvox3map7i32_getEPPNS0_4NodeEi(&this.__ptr, key)
 	if size_t(value_ref) == 0
-		if _create_unknown_map_entries_on_access
+		if create_new
 			node_ref = this.__insert_i32(key, 0, 0)
 			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 		else
@@ -520,10 +520,10 @@ def __map.__get_i32(key i32) voidptr
 	return value_ref
 end
 
-def __map.__get_u32(key u32) voidptr
+def __map.__get_u32(key u32, create_new bool) voidptr
 	value_ref = _ZN6volvox3map7u32_getEPPNS0_4NodeEj(&this.__ptr, key)
 	if size_t(value_ref) == 0
-		if _create_unknown_map_entries_on_access
+		if create_new
 			node_ref = this.__insert_u32(key, 0, 0)
 			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 		else
@@ -532,10 +532,10 @@ def __map.__get_u32(key u32) voidptr
 	return value_ref
 end
 
-def __map.__get_i64(key i64) voidptr
+def __map.__get_i64(key i64, create_new bool) voidptr
 	value_ref = _ZN6volvox3map7i64_getEPPNS0_4NodeEl(&this.__ptr, key)
 	if size_t(value_ref) == 0
-		if _create_unknown_map_entries_on_access
+		if create_new
 			node_ref = this.__insert_i64(key, 0, 0)
 			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 		else
@@ -544,10 +544,10 @@ def __map.__get_i64(key i64) voidptr
 	return value_ref
 end
 
-def __map.__get_u64(key u64) voidptr
+def __map.__get_u64(key u64, create_new bool) voidptr
 	value_ref = _ZN6volvox3map7u64_getEPPNS0_4NodeEm(&this.__ptr, key)
 	if size_t(value_ref) == 0
-		if _create_unknown_map_entries_on_access
+		if create_new
 			node_ref = this.__insert_u64(key, 0, 0)
 			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 		else
@@ -556,10 +556,10 @@ def __map.__get_u64(key u64) voidptr
 	return value_ref
 end
 
-def __map.__get_f64(key f64) voidptr
+def __map.__get_f64(key f64, create_new bool) voidptr
 	value_ref = _ZN6volvox3map7f64_getEPPNS0_4NodeEd(&this.__ptr, key)
 	if size_t(value_ref) == 0
-		if _create_unknown_map_entries_on_access
+		if create_new
 			node_ref = this.__insert_real(key, 0, 0)
 			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 		else
@@ -568,10 +568,10 @@ def __map.__get_f64(key f64) voidptr
 	return value_ref
 end
 
-def __map.__get_f32(key f32) voidptr
+def __map.__get_f32(key f32, create_new bool) voidptr
 	value_ref = _ZN6volvox3map7f32_getEPPNS0_4NodeEf(&this.__ptr, key)
 	if size_t(value_ref) == 0
-		if _create_unknown_map_entries_on_access
+		if create_new
 			node_ref = this.__insert_float(key, 0, 0)
 			return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 		else
@@ -581,64 +581,63 @@ def __map.__get_f32(key f32) voidptr
 end
 
 inline def __map_get_value_ref(node_ref voidptr) voidptr
-	if !_create_unknown_map_entries_on_access
-		if size_t(node_ref) == 0
-			return voidptr 0
-	end end
+	if size_t(node_ref) == 0
+		return voidptr 0
+	end
 	return voidptr(size_t(node_ref) + 3 * (__OS_Bitwidth >> 3))
 end
 
 inline def __map_get_value_size(node_ref voidptr) size_t
-	if !_create_unknown_map_entries_on_access
+	if size_t(node_ref) == 0
 		return size_t 0
 	end
 	return __load_size(__map_get_value_ref(node_ref))
 end
 
 inline def __map_get_value_64(node_ref voidptr) u64
-	if !_create_unknown_map_entries_on_access
+	if size_t(node_ref) == 0
 		return 0UL
 	end
 	return __load_64(__map_get_value_ref(node_ref))
 end
 
 inline def __map_get_value_32(node_ref voidptr) u32
-	if !_create_unknown_map_entries_on_access
+	if size_t(node_ref) == 0
 		return 0U
 	end
 	return __load_32(__map_get_value_ref(node_ref))
 end
 
 inline def __map_get_value_16(node_ref voidptr) u16
-	if !_create_unknown_map_entries_on_access
+	if size_t(node_ref) == 0
 		return 0UH
 	end
 	return __load_16(__map_get_value_ref(node_ref))
 end
 
 inline def __map_get_value_8(node_ref voidptr) u8
-	if !_create_unknown_map_entries_on_access
+	if size_t(node_ref) == 0
 		return 0UHH
 	end
 	return __load_8(__map_get_value_ref(node_ref))
 end
 
 inline def __map_get_value_real(node_ref voidptr) real
-	if !_create_unknown_map_entries_on_access
+	if size_t(node_ref) == 0
 		return 0.0
 	end
 	return __load_real(__map_get_value_ref(node_ref))
 end
 
 inline def __map_get_value_float(node_ref voidptr) float
-	if !_create_unknown_map_entries_on_access
+	if size_t(node_ref) == 0
 		return 0.0f
 	end
 	return __load_float(__map_get_value_ref(node_ref))
 end
 
 inline def __map_get_key_ref(node_ref voidptr) voidptr
-	if !_create_unknown_map_entries_on_access
+	if size_t(node_ref) == 0
 		if size_t(node_ref) == 0
 			return voidptr 0
 	end end

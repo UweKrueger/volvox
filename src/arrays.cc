@@ -639,12 +639,16 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			return { nullptr, nullptr };
 		}
 		auto getter_fn = getFunction(getter_proto);
-		llvm::Value* value = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{ Map, Key });
+		/* If the key is not present we want a zero value in case of a query - without
+		   creating a new map node. On the other hand if we are assigning to the index expression
+		   a new node has to be created. We can distinguish these two cases by `constref`
+		   which is set if we come from `codegen_raw()`. If so we store the
+		   zerovalue on the stack and get a reference to this location */
+		llvm::Value* value = Builder->CreateCall(getter_proto->FT, getter_fn, std::vector<llvm::Value*>{
+				Map, Key, constref ? Builder->getFalse() : Builder->getTrue() });
 		auto pointee_type = Field->ft->elem_type[1].type;
-		if (pointee_type == llvm_string_type) {
-			std::string cstrtovolvox_name = "__cstr2volvox";
-			auto cstrtovolvox_proto = (*lex.findProtos(cstrtovolvox_name))[0].get();
-			auto cstrtovolvox_fn = getFunction(cstrtovolvox_proto);
+		llvm::Value* ptr0 = nullptr;
+		if (constref || pointee_type == llvm_string_type) {
 			llvm::Value* int_value = Builder->CreatePtrToInt(value, llvm_size_type);
 			llvm::Value* value_is_valid = Builder->CreateICmpNE(int_value, llvm::Constant::getNullValue(llvm_size_type));
 			auto enterBB = Builder->GetInsertBlock();
@@ -657,31 +661,48 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 				TheFunction->insert(TheFunction->end(), ValidPtr);
 				Builder->SetInsertPoint(ValidPtr);
 			}
-			llvm::Value* offset = Builder->CreateLoad(llvm_int_type, value);
-			llvm::Value* ptr0 = Builder->CreateIntToPtr(
-				Builder->CreateAdd(
-					int_value,
-					Builder->CreateIntCast(offset, llvm_size_type, false)),
-				llvm_ptr_type);
+			if (pointee_type == llvm_string_type) {
+				llvm::Value* offset = Builder->CreateLoad(llvm_int_type, value);
+				ptr0 = Builder->CreateIntToPtr(
+					Builder->CreateAdd(
+						int_value,
+						Builder->CreateIntCast(offset, llvm_size_type, false)),
+					llvm_ptr_type);
+			} else {
+				ptr0 = value;
+			}
 			Builder->CreateBr(MergeBB);
 			if (TheFunction) {
 				TheFunction->insert(TheFunction->end(), NullPtr);
 				Builder->SetInsertPoint(NullPtr);
 			}
-			llvm::Value* ptr1 = llvm::ConstantPointerNull::get(llvm_ptr_type);
+			llvm::Value* ptr1;
+			if (pointee_type == llvm_string_type) {
+				ptr1 = llvm::ConstantPointerNull::get(llvm_ptr_type);
+			} else {
+				ptr1 = CreateEntryBlockAlloca(pointee_type);
+				Builder->CreateStore(llvm::Constant::getNullValue(pointee_type), ptr1);
+			}
 			Builder->CreateBr(MergeBB);
 			if (TheFunction) {
 				TheFunction->insert(TheFunction->end(), MergeBB);
 				Builder->SetInsertPoint(MergeBB);
 			}
-			llvm::PHINode* ptr =Builder->CreatePHI(llvm_ptr_type, 2, "stringvalue");
+			llvm::PHINode* ptr = Builder->CreatePHI(llvm_ptr_type, 2, "stringvalue");
 			ptr->addIncoming(ptr0, ValidPtr);
 			ptr->addIncoming(ptr1, NullPtr);
-			llvm::Value* val0 = Builder->CreateCall(cstrtovolvox_proto->FT, cstrtovolvox_fn, { ptr });
-			llvm::Value* value_rval = llvm::UndefValue::get(llvm_string_type);
-			value_rval = Builder->CreateInsertValue(value_rval, val0, (uint64_t)0);
-			value = CreateEntryBlockAlloca(llvm_string_type);
-			Builder->CreateStore(value_rval, value);
+			if (pointee_type == llvm_string_type) {
+				std::string cstrtovolvox_name = "__cstr2volvox";
+				auto cstrtovolvox_proto = (*lex.findProtos(cstrtovolvox_name))[0].get();
+				auto cstrtovolvox_fn = getFunction(cstrtovolvox_proto);
+				llvm::Value* val0 = Builder->CreateCall(cstrtovolvox_proto->FT, cstrtovolvox_fn, { ptr });
+				llvm::Value* value_rval = llvm::UndefValue::get(llvm_string_type);
+				value_rval = Builder->CreateInsertValue(value_rval, val0, (uint64_t)0);
+				value = CreateEntryBlockAlloca(llvm_string_type);
+				Builder->CreateStore(value_rval, value);
+			} else {
+				value = ptr;
+			}
 		}
 		return { pointee_type, value };
 	}
