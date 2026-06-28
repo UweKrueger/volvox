@@ -640,12 +640,38 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 			std::string cstrtovolvox_name = "__cstr2volvox";
 			auto cstrtovolvox_proto = (*lex.findProtos(cstrtovolvox_name))[0].get();
 			auto cstrtovolvox_fn = getFunction(cstrtovolvox_proto);
+			llvm::Value* int_value = Builder->CreatePtrToInt(value, llvm_size_type);
+			llvm::Value* value_is_valid = Builder->CreateICmpNE(int_value, llvm::Constant::getNullValue(llvm_size_type));
+			auto enterBB = Builder->GetInsertBlock();
+			llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
+			llvm::BasicBlock* NullPtr = llvm::BasicBlock::Create(Context, "nullptr");
+			llvm::BasicBlock* ValidPtr = llvm::BasicBlock::Create(Context, "validptr");
+			llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, "merge");
+			Builder->CreateCondBr(value_is_valid, ValidPtr, NullPtr);
+			if (TheFunction) {
+				TheFunction->insert(TheFunction->end(), ValidPtr);
+				Builder->SetInsertPoint(ValidPtr);
+			}
 			llvm::Value* offset = Builder->CreateLoad(llvm_int_type, value);
-			llvm::Value* ptr = Builder->CreateIntToPtr(
+			llvm::Value* ptr0 = Builder->CreateIntToPtr(
 				Builder->CreateAdd(
-					Builder->CreatePtrToInt(value, llvm_size_type),
+					int_value,
 					Builder->CreateIntCast(offset, llvm_size_type, false)),
 				llvm_ptr_type);
+			Builder->CreateBr(MergeBB);
+			if (TheFunction) {
+				TheFunction->insert(TheFunction->end(), NullPtr);
+				Builder->SetInsertPoint(NullPtr);
+			}
+			llvm::Value* ptr1 = llvm::ConstantPointerNull::get(llvm_ptr_type);
+			Builder->CreateBr(MergeBB);
+			if (TheFunction) {
+				TheFunction->insert(TheFunction->end(), MergeBB);
+				Builder->SetInsertPoint(MergeBB);
+			}
+			llvm::PHINode* ptr =Builder->CreatePHI(llvm_ptr_type, 2, "stringvalue");
+			ptr->addIncoming(ptr0, ValidPtr);
+			ptr->addIncoming(ptr1, NullPtr);
 			llvm::Value* val0 = Builder->CreateCall(cstrtovolvox_proto->FT, cstrtovolvox_fn, { ptr });
 			llvm::Value* value_rval = llvm::UndefValue::get(llvm_string_type);
 			value_rval = Builder->CreateInsertValue(value_rval, val0, (uint64_t)0);

@@ -1094,6 +1094,10 @@ _DECL char* __cstr2volvoxstr(const char* c_str, size_t len, bool mark_as_heap) {
 }
 
 _DECL char* __cstr2volvox(const char* c_str) {
+	if (!c_str) {
+		const char* empty_string = "";
+		return __cstr2volvoxstr(empty_string, 0 , true);
+	}
 	size_t l = strlen(c_str);
 	return __cstr2volvoxstr(c_str, l, true);
 }
