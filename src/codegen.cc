@@ -3126,12 +3126,19 @@ uncompatible_types:
 
 bool ForExprAST::PrepareIterator() {
 	// integer iterator - initialize with 0
-	if (!ValueFV) {
-		errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
-		return false;
+	if (ValueFT->type) {
+		if (!ValueFV) {
+			errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
+			return false;
+		}
+	} else {
+		if (!KeyFV) {
+			errs() << Loc << ": internal error - variable '" << KeyName << "' not found\n";
+			return false;
+		}
 	}
-	if (Value->ft && Value->ft->type)
-		Iterator->desired_type = Value->ft->type;
+	if (Value && Value->ft && Value->ft->type)
+		Iterator->desired_type = Value->ft->type; // ???
 	if (auto lval = dynamic_cast<LvalueExprAST*>(Iterator.get())) {
 		std::tie(iterator_type, iterator_ref) = lval->codegen_ref(true);
 		if (!iterator_type)
@@ -3269,6 +3276,8 @@ bool ForExprAST::PrepareIterator() {
 	case setter_method_returned:
 		abort();
 	case new_var_none:
+		if (!ValueFT->type)
+			break;
 		errs() << Loc << ": cannot initialize 'for' control variable '" << ValueName << "'\n";
 		return false;
 	case new_var_created:

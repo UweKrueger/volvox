@@ -353,9 +353,6 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					ftpair[1] = volvoxc::FullType{0};
 				ft = new_FullType(*map_type, attribs);
 				ft->elem_type = ftpair;
-				errs() << CurLoc << ": elems: " << ft->elem_type[0].type << " "
-				       << ft->elem_type[1].type << "\n";
-				// ft = new_FullType(llvm_map_type, attribs, nullptr, nullptr, ftpair);
 			} else {
 				ft = new_FullType(*vec_type, attribs);
 				ft->elem_type = key_ft;
@@ -1545,13 +1542,16 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		return nullptr;
 	}
 	getNextToken(eNone);
+	auto Iterator = ParseCondition(tok_in);
 	std::unique_ptr<ExprAST> Key;
 	std::unique_ptr<ExprAST> Value;
 	BinaryExprAST* bin_expr;
 	if ((bin_expr = dynamic_cast<BinaryExprAST*>(KeyVal.get())) && bin_expr->Op[0] == ',' && !bin_expr->Op[1]) {
 		Key = std::move(bin_expr->LHS);
 		Value = std::move(bin_expr->RHS);
-	} else {
+	} else if (Iterator->ft->type == llvm_map_type && !Iterator->ft->elem_type[1].type) {
+		Key = std::move(KeyVal);
+	}else {
 		Value = std::move(KeyVal);
 	}
 	if (!Key && !Value) {
@@ -1560,7 +1560,6 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	}
 	std::string KeyName;
 	std::string ValueName;
-	auto Iterator = ParseCondition(tok_in);
 	auto [KeyFt, ValueFt, IteratorTy] = getKeyValueIteratorTypes(Iterator->ft, Iterator->Loc);
 	FullVar* KeyFV = nullptr;
 	FullVar* ValueFV = nullptr;
