@@ -548,7 +548,7 @@ end
 
 def test_vec_insert_1 bool
 	hQ = vec{ 9.25, 78.125, -7.0625, 89 }
-	hQ.insert(99.5, 2)
+	hQ.insert(2, 99.5)
 	return hQ.size == 5 && hQ[2] == 99.5 && hQ[1] == 78.125 && hQ[3] == -7.0625
 end
 

@@ -1252,7 +1252,7 @@ inline def __vec.__push(_elem_sz size_t, &_elem_ptr voidptr)
 	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.__size++), &_elem_ptr, _elem_sz)
 end
 
-inline def __vec.__insert(_elem_sz size_t, &_elem_ptr voidptr, index size_t)
+inline def __vec.__insert(_elem_sz size_t, index size_t, &_elem_ptr voidptr)
 	if (_range_check)
 		if (index > this.__size)
 			err_printf("vec.insert: insertion index %zd exceeds size %zd\n", index, this.__size)
