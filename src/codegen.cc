@@ -3140,7 +3140,7 @@ bool ForExprAST::PrepareIterator() {
 			errs() << Loc << ": internal error - variable '" << ValueName << "' not found\n";
 			return false;
 		}
-	} else {
+	} else if (KeyFT->type) {
 		if (!KeyFV) {
 			errs() << Loc << ": internal error - variable '" << KeyName << "' not found\n";
 			return false;
@@ -3161,7 +3161,7 @@ bool ForExprAST::PrepareIterator() {
 		iterator_type = iterator->getType();
 	llvm::Value* initializer = nullptr;
 	llvm::Value* Ptr = nullptr;
-	if (iterator_type->isSingleValueType()) {
+	if (iterator_type->isSingleValueType()) { // `for f in 5` - same as `for f in 0..4`
 		if (iterator_ref)
 			iterator = Builder->CreateLoad(iterator_type, iterator_ref);
 		limit = iterator;
@@ -3185,7 +3185,7 @@ bool ForExprAST::PrepareIterator() {
 			initializer = limit;
 			limit = tmp;
 		}
-	} else if (iterator_type->isStructTy()) {
+	} else if (iterator_type->isStructTy() && iterator_type != llvm_vec_type) {
 		std::unique_ptr<ExprAST> receiver1;
 		std::unique_ptr<ExprAST> receiver2;
 		if (iterator_ref) {
@@ -3249,11 +3249,28 @@ bool ForExprAST::PrepareIterator() {
 				limit = tmp;
 			}
 		}
-	} else if (iterator_type->isArrayTy()) {
-		auto [ElType0, Ptr0, Dims] = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);
+	} else if (iterator_type->isArrayTy() || iterator_type == llvm_vec_type) {
+		llvm::Type* ElType0;
+		llvm::Value* Ptr0;
+		std::vector<llvm::Value*> Dims;
+		if (iterator_type->isArrayTy())
+			std::tie(ElType0, Ptr0, Dims) = getArrayDims(iterator_ref ? iterator_ref : iterator, iterator_type);
+		else {
+			ElType0 = Iterator->ft->elem_type[0].type;
+			llvm::Value* Dim0;
+			if (iterator_ref) {
+				llvm::Value* Ptr0_ref = Builder->CreateStructGEP(llvm_vec_type, iterator_ref, 0, "vec_ptr");
+				llvm::Value* Dim0_ref = Builder->CreateStructGEP(llvm_vec_type, iterator_ref, 1, "vec_size");
+				Ptr0 = Builder->CreateLoad(llvm_ptr_type, Ptr0_ref);
+				Dim0 = Builder->CreateLoad(llvm_size_type, Dim0_ref);
+			} else {
+				Ptr0 = Builder->CreateExtractValue(iterator, 0);
+				Dim0 = Builder->CreateExtractValue(iterator, 1);
+			}
+			Dims.push_back(Dim0);
+		}
 		ElType = ElType0;
-		Step = llvm::ConstantInt::get(
-			llvm_size_type, TheModule->getDataLayout().getTypeAllocSize(ElType));
+		Step = getSize(TheModule->getDataLayout().getTypeAllocSize(ElType));
 		// for multi dimentsional array Step should be the storage size of the sub-tensor
 		if (Dims.empty()) {
 			errs() << Iterator->Loc << ": internal error - tensor without dimensions\n";
@@ -3291,7 +3308,7 @@ bool ForExprAST::PrepareIterator() {
 		return false;
 	case new_var_created:
 		// we have to create an allocation for the new variable
-		if (iterator_type->isArrayTy()) {
+		if (iterator_type->isArrayTy() || iterator_type == llvm_vec_type) {
 			if (!llvm::isa<llvm::PointerType>(Ptr->getType())) {
 				errs() << Loc << ": internal error - array pointer " << *Ptr << " (no pointer)\n";
 				return false;

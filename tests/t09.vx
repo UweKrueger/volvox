@@ -564,6 +564,26 @@ def test_vec_remove_1 bool
 	return hQ.size == 3 && hQ[0] == 9.25 && hQ[1] == -7.0625 && hQ[2] == 89
 end
 
+def test_vec_iter_up_1 bool
+	gQ = vec{ 12.0625, -3.125, 5.25 }
+	factor = 1
+	sum = 0.
+	for vLkM in gQ
+		sum += factor * vLkM
+		factor++
+	end
+	return sum == 21.5625
+end
+
+def test_vec_iter_down_1 bool
+	gQ = vec{ "SdRt", "-3.125", "p_Qrt" }
+	sum = " "
+	for vLkM ~in gQ
+		sum += vLkM + " "
+	end
+	return sum == " p_Qrt -3.125 SdRt "
+end
+
 def test_ptr_bool_conv bool
 	gw = __malloc 100000
 	qu = voidptr(0)

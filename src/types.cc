@@ -1189,6 +1189,8 @@ std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIterato
 		// array could in principle be size_t, but only in rare cases
 		// we default to int - if a 64-bit type is needed, it has to be predefined
 		return { integer_type, IteratorType->elem_type, llvm_ptr_type };
+	if (IteratorType->type == llvm_vec_type)
+		return { integer_type, IteratorType->elem_type, llvm_ptr_type };
 	if (IteratorType->type->isSingleValueType())
 		// a single int/float 'n' can be used as an iterator for the range 0..(n-1)
 		return { nullptr, IteratorType, nullptr };
