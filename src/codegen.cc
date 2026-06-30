@@ -3299,11 +3299,11 @@ bool ForExprAST::PrepareIterator() {
 			limit = Builder->CreatePtrToInt(tmp, llvm_size_type);
 		}
 		if (KeyFV) {
-			IndexStore = CreateEntryBlockAlloca(llvm_size_type, "Index");
+			IndexStore = CreateEntryBlockAlloca(llvm_int_type, "Index");
 			if (descending)
-				StartIndex = Builder->CreateSub(Dims[0], getSize(1));
+				StartIndex = Builder->CreateSub(Builder->CreateIntCast(Dims[0], llvm_int_type, false), Builder->getInt32(1));
 			else
-				StartIndex = getSize(0);
+				StartIndex = Builder->getInt32(0);
 			Builder->CreateStore(StartIndex, IndexStore);
 		}
 	}
@@ -3513,11 +3513,11 @@ bool ForExprAST::Iterate() {
 		Builder->CreateStore(ctrl_var, ValueRef);
 	}
 	if (IndexStore) {
-		llvm::Value* Idx = Builder->CreateLoad(llvm_size_type, IndexStore);
+		llvm::Value* Idx = Builder->CreateLoad(llvm_int_type, IndexStore);
 		if (descending)
-			Idx = Builder->CreateSub(Idx, getSize(1));
+			Idx = Builder->CreateSub(Idx, Builder->getInt32(1));
 		else
-			Idx = Builder->CreateAdd(Idx, getSize(1));
+			Idx = Builder->CreateAdd(Idx, Builder->getInt32(1));
 		Builder->CreateStore(Idx, IndexStore);
 		Builder->CreateStore(Idx, KeyFV->val);
 	}
