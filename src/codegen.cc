@@ -3161,6 +3161,7 @@ bool ForExprAST::PrepareIterator() {
 		iterator_type = iterator->getType();
 	llvm::Value* initializer = nullptr;
 	llvm::Value* Ptr = nullptr;
+	llvm::Value* StartIndex = nullptr;
 	if (iterator_type->isSingleValueType()) { // `for f in 5` - same as `for f in 0..4`
 		if (iterator_ref)
 			iterator = Builder->CreateLoad(iterator_type, iterator_ref);
@@ -3297,6 +3298,14 @@ bool ForExprAST::PrepareIterator() {
 			Ptr = Builder->CreateIntToPtr(limit, llvm_ptr_type);
 			limit = Builder->CreatePtrToInt(tmp, llvm_size_type);
 		}
+		if (KeyFV) {
+			IndexStore = CreateEntryBlockAlloca(llvm_size_type, "Index");
+			if (descending)
+				StartIndex = Builder->CreateSub(Dims[0], getSize(1));
+			else
+				StartIndex = getSize(0);
+			Builder->CreateStore(StartIndex, IndexStore);
+		}
 	}
 	switch (new_Value) {
 	case setter_method_returned:
@@ -3385,6 +3394,8 @@ bool ForExprAST::PrepareIterator() {
 		// we have to create an allocation for the new variable
 		KeyType = KeyFV->ft.type;
 		KeyRef = KeyFV->val = CreateEntryBlockAlloca(KeyType);
+		if (IndexStore)
+			Builder->CreateStore(StartIndex, KeyFV->val);
 		break;
 	case existing_var_returned:
 	case generic_lvalue_returned:
@@ -3392,6 +3403,9 @@ bool ForExprAST::PrepareIterator() {
 		std::tie(KeyType, KeyRef) = KeyLval->codegen_ref();
 		if (!KeyRef)
 			return false;
+		KeyFV->val = KeyRef;
+		if (IndexStore)
+			Builder->CreateStore(StartIndex, KeyFV->val);
 		// Builder->CreateStore(key_initializer, KeyRef);
 		break;
 	}
@@ -3495,9 +3509,17 @@ bool ForExprAST::Iterate() {
 			auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
 			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, Step);
 		}
-		Builder->CreateStore(ctrl_var, ptr_storage);
 	} else {
 		Builder->CreateStore(ctrl_var, ValueRef);
+	}
+	if (IndexStore) {
+		llvm::Value* Idx = Builder->CreateLoad(llvm_size_type, IndexStore);
+		if (descending)
+			Idx = Builder->CreateSub(Idx, getSize(1));
+		else
+			Idx = Builder->CreateAdd(Idx, getSize(1));
+		Builder->CreateStore(Idx, IndexStore);
+		Builder->CreateStore(Idx, KeyFV->val);
 	}
 	return true;
 }
