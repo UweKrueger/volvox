@@ -3401,6 +3401,10 @@ bool ForExprAST::PrepareIterator() {
 	case existing_var_returned:
 	case generic_lvalue_returned:
 		auto KeyLval = dynamic_cast<LvalueExprAST*>(Value.get());
+		if (!KeyLval) {
+			errs() << Key->Loc << ": lvalue expected\n";
+			return false;
+		}
 		std::tie(KeyType, KeyRef) = KeyLval->codegen_ref();
 		if (!KeyRef)
 			return false;
