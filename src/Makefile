@@ -23,9 +23,9 @@ ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := -devel
 else
-ifeq ($(shell test -x /usr/local/bin/llvm-config18 && echo -n true),true)
+ifeq ($(shell test -x /usr/local/bin/llvm-config22 && echo -n true),true)
 	PREFIX := /usr/local
-	SUFFIX := 18
+	SUFFIX := 22
 else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-19 && echo -n true),true)
 	PREFIX := /usr/local

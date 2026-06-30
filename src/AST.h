@@ -1044,6 +1044,7 @@ class ForExprAST : public BranchExprAST {
 	volvoxc::FullType* KeyFT = nullptr;
 	volvoxc::FullType* ValueFT = nullptr;
 	llvm::Value* IndexStore = nullptr; // pseudo counter for array/vec
+	llvm::Type* IndexType = nullptr;
 	std::string KeyName, ValueName;
 	llvm::Align rvalue_align;
 	new_var_kind new_Key, new_Value;

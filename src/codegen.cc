@@ -3299,11 +3299,12 @@ bool ForExprAST::PrepareIterator() {
 			limit = Builder->CreatePtrToInt(tmp, llvm_size_type);
 		}
 		if (KeyFV) {
-			IndexStore = CreateEntryBlockAlloca(llvm_int_type, "Index");
+			IndexType = KeyFV->ft.type;
+			IndexStore = CreateEntryBlockAlloca(IndexType, "Index");
 			if (descending)
-				StartIndex = Builder->CreateSub(Builder->CreateIntCast(Dims[0], llvm_int_type, false), Builder->getInt32(1));
+				StartIndex = Builder->CreateSub(Builder->CreateIntCast(Dims[0], IndexType, false), llvm::ConstantInt::get(IndexType, 1));
 			else
-				StartIndex = Builder->getInt32(0);
+				StartIndex = llvm::ConstantInt::get(IndexType, 0);
 			Builder->CreateStore(StartIndex, IndexStore);
 		}
 	}
@@ -3513,11 +3514,11 @@ bool ForExprAST::Iterate() {
 		Builder->CreateStore(ctrl_var, ValueRef);
 	}
 	if (IndexStore) {
-		llvm::Value* Idx = Builder->CreateLoad(llvm_int_type, IndexStore);
+		llvm::Value* Idx = Builder->CreateLoad(IndexType, IndexStore);
 		if (descending)
-			Idx = Builder->CreateSub(Idx, Builder->getInt32(1));
+			Idx = Builder->CreateSub(Idx, llvm::ConstantInt::get(IndexType, 1));
 		else
-			Idx = Builder->CreateAdd(Idx, Builder->getInt32(1));
+			Idx = Builder->CreateAdd(Idx, llvm::ConstantInt::get(IndexType, 1));
 		Builder->CreateStore(Idx, IndexStore);
 		Builder->CreateStore(Idx, KeyFV->val);
 	}
