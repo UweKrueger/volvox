@@ -1551,7 +1551,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 		Value = std::move(bin_expr->RHS);
 	} else if (Iterator->ft->type == llvm_map_type && !Iterator->ft->elem_type[1].type) {
 		Key = std::move(KeyVal);
-	}else {
+	} else {
 		Value = std::move(KeyVal);
 	}
 	if (!Key && !Value) {
