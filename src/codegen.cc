@@ -3342,30 +3342,33 @@ bool ForExprAST::PrepareIterator() {
 		break;
 	case existing_var_returned:
 	case generic_lvalue_returned:
-		ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
-		if (!ValueLval) {
-			errs() << Value->Loc << ": lvalue expected\n";
-			return false;
-		}
-		llvm::Type* dummy;
-		std::tie(dummy, ValueRef) = ValueLval->codegen_ref();
-		if (!ValueRef)
-			return false;
-		ValueType = Value->ft->type;
-		if (iterator_methods)
-			break;
-		if (iterator_type->isArrayTy()) {
+		if (iterator_type->isArrayTy() || iterator_type == llvm_vec_type) {
+			if (!llvm::isa<llvm::PointerType>(Ptr->getType())) {
+				errs() << Loc << ": internal error - array pointer " << *Ptr << " (no pointer)\n";
+				return false;
+			}
+			ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
+			Builder->CreateStore(Ptr, ptr_storage);
 			if (ValueFV->ft.type_attr & A_ptrref) {
-				ptr_storage = ValueFV->val;
+				ValueFV->val = ptr_storage;
 			} else {
-				ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-				if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ValueRef->getType()))
-					ValueRef = Builder->CreateExtractValue(ValueRef, struct_type->getNumElements() - 1);
+				ValueRef = ValueFV->val = CreateAlloca(Step, align);
 				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
 			}
-			Builder->CreateStore(Ptr, ptr_storage);
 		} else {
+			ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
+			if (!ValueLval) {
+				errs() << Value->Loc << ": lvalue expected\n";
+				return false;
+			}
+			llvm::Type* dummy;
+			std::tie(dummy, ValueRef) = ValueLval->codegen_ref();
+			if (!ValueRef)
+				return false;
+			ValueType = Value->ft->type;
+			if (iterator_methods)
+				break;
 			if (initializer) {
 				if (initializer->getType() != ValueType)
 					initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
