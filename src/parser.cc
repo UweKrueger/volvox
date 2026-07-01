@@ -1583,8 +1583,13 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 				return nullptr;
 			} else if (key_kind == existing_var_returned || key_kind == generic_lvalue_returned) {
 				if (KeyFV->ft.type != KeyFt->type) {
-					errs() << Key->Loc << ": pre existing key must be of type " << *KeyFt << " but is of type " << KeyFV->ft << "\n";
-					return nullptr;
+					// we allow different integers as an exception
+					// so a pre existing u64 index variable can be used for large vec
+					if (!(KeyFV->ft.type->isIntegerTy() && KeyFt->type->isIntegerTy()
+					      && KeyFV->ft.type->getIntegerBitWidth() >= 8 && KeyFt->type->getIntegerBitWidth() >= 8)) {
+						errs() << Key->Loc << ": pre existing key must be of type " << *KeyFt << " but is of type " << KeyFV->ft << "\n";
+						return nullptr;
+					}
 				}
 			}
 		} else {
