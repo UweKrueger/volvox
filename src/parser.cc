@@ -1581,6 +1581,11 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			} else if (key_kind == setter_method_returned) {
 				errs() << lvalKey->Loc << ": using virtual type fields as 'for' control variable not supported, yet\n";
 				return nullptr;
+			} else if (key_kind == existing_var_returned || key_kind == generic_lvalue_returned) {
+				if (KeyFV->ft.type != KeyFt->type) {
+					errs() << Key->Loc << ": pre existing key must be of type " << *KeyFt << " but is of type " << KeyFV->ft << "\n";
+					return nullptr;
+				}
 			}
 		} else {
 			errs() << Key->Loc << ": 'for' key control variable must be an Lvalue\n";
@@ -1604,6 +1609,11 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			} else if (value_kind == setter_method_returned) {
 				errs() << lvalValue->Loc << ": using virtual type fields as 'for' control variable not supported, yet\n";
 				return nullptr;
+			} else if (value_kind == existing_var_returned || value_kind == generic_lvalue_returned) {
+				if (ValueFV->ft.type != ValueFt->type) {
+					errs() << Value->Loc << ": pre existing value var must be of type " << *ValueFt << " but is of type " << ValueFV->ft << "\n";
+					return nullptr;
+				}
 			}
 		} else {
 			errs() << Value->Loc << ": 'for' key control variable must be an Lvalue\n";
