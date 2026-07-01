@@ -858,40 +858,40 @@ _CDECL volvox::map::Value* _ZN6volvox3map10string_getEPPNS0_4NodeEPKc(volvox::ma
 	return volvox::map::string_get(root, key);
 }
 
-_CDECL volvox::map::Node* _ZN6volvox3map7i32_getEPPNS0_4NodeEi(volvox::map::Node** root, int32_t key)
+_CDECL volvox::map::Value* _ZN6volvox3map7i32_getEPPNS0_4NodeEi(volvox::map::Node** root, int32_t key)
 {
-	volvox::map::i32_get(root, key);
+	return volvox::map::i32_get(root, key);
 }
 
-_CDECL volvox::map::Node* _ZN6volvox3map7u32_getEPPNS0_4NodeEj(volvox::map::Node** root, uint32_t key)
+_CDECL volvox::map::Value* _ZN6volvox3map7u32_getEPPNS0_4NodeEj(volvox::map::Node** root, uint32_t key)
 {
-	volvox::map::u32_get(root, key);
+	return volvox::map::u32_get(root, key);
 }
 
-_CDECL volvox::map::Node* _ZN6volvox3map7i64_getEPPNS0_4NodeEl(volvox::map::Node** root, int64_t key)
+_CDECL volvox::map::Value* _ZN6volvox3map7i64_getEPPNS0_4NodeEl(volvox::map::Node** root, int64_t key)
 {
-	volvox::map::i64_get(root, key);
+	return volvox::map::i64_get(root, key);
 }
 
-_CDECL volvox::map::Node* _ZN6volvox3map7u64_getEPPNS0_4NodeEm(volvox::map::Node** root, uint64_t key)
+_CDECL volvox::map::Value* _ZN6volvox3map7u64_getEPPNS0_4NodeEm(volvox::map::Node** root, uint64_t key)
 {
-	volvox::map::u64_get(root, key);
+	return volvox::map::u64_get(root, key);
 }
 
-_CDECL volvox::map::Node* _ZN6volvox3map7f64_getEPPNS0_4NodeEd(volvox::map::Node** root, double key)
+_CDECL volvox::map::Value* _ZN6volvox3map7f64_getEPPNS0_4NodeEd(volvox::map::Node** root, double key)
 {
-	volvox::map::f64_get(root, key);
+	return volvox::map::f64_get(root, key);
 }
 
-_CDECL volvox::map::Node* _ZN6volvox3map7f32_getEPPNS0_4NodeEf(volvox::map::Node** root, float key)
+_CDECL volvox::map::Value* _ZN6volvox3map7f32_getEPPNS0_4NodeEf(volvox::map::Node** root, float key)
 {
-	volvox::map::f32_get(root, key);
+	return volvox::map::f32_get(root, key);
 }
 
 _CDECL void _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(
 	volvox::map::Node* root, void (*destruct)(volvox::map::Value* ptr))
 {
-	volvox::map::destroy(root, destruct);
+	return volvox::map::destroy(root, destruct);
 }
 
 _CDECL volvox::map::Node* _ZN6volvox3map3MinEPNS0_4NodeE(volvox::map::Node* node)
@@ -930,34 +930,39 @@ _CDECL bool _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(volvox
 	return volvox::map::string_delete(root_ptr, key, destruct);
 }
 
+_CDECL bool _ZN6volvox3map19volvoxstring_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, const char* key, void (*destruct)(volvox::map::Value* ptr))
+{
+	return volvox::map::volvoxstring_delete(root_ptr, key, destruct);
+}
+
 _CDECL bool _ZN6volvox3map10i32_deleteEPPNS0_4NodeEiPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, int32_t key, void (*destruct)(volvox::map::Value* ptr))
 {
-	volvox::map::i32_delete(root_ptr, key, destruct);
+	return volvox::map::i32_delete(root_ptr, key, destruct);
 }
 
 _CDECL bool _ZN6volvox3map10u32_deleteEPPNS0_4NodeEjPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, uint32_t key, void (*destruct)(volvox::map::Value* ptr))
 {
-	volvox::map::u32_delete(root_ptr, key, destruct);
+	return volvox::map::u32_delete(root_ptr, key, destruct);
 }
 
 _CDECL bool _ZN6volvox3map10i64_deleteEPPNS0_4NodeElPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, int64_t key, void (*destruct)(volvox::map::Value* ptr))
 {
-	volvox::map::i64_delete(root_ptr, key, destruct);
+	return volvox::map::i64_delete(root_ptr, key, destruct);
 }
 
 _CDECL bool _ZN6volvox3map10u64_deleteEPPNS0_4NodeEmPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, uint64_t key, void (*destruct)(volvox::map::Value* ptr))
 {
-	volvox::map::u64_delete(root_ptr, key, destruct);
+	return volvox::map::u64_delete(root_ptr, key, destruct);
 }
 
 _CDECL bool _ZN6volvox3map10f64_deleteEPPNS0_4NodeEdPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, double key, void (*destruct)(volvox::map::Value* ptr))
 {
-	volvox::map::f64_delete(root_ptr, key, destruct);
+	return volvox::map::f64_delete(root_ptr, key, destruct);
 }
 
 _CDECL bool _ZN6volvox3map10f32_deleteEPPNS0_4NodeEfPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, float key, void (*destruct)(volvox::map::Value* ptr))
 {
-	volvox::map::f32_delete(root_ptr, key, destruct);
+	return volvox::map::f32_delete(root_ptr, key, destruct);
 }
 
 #endif
