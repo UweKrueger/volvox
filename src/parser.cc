@@ -1581,13 +1581,21 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			} else if (key_kind == setter_method_returned) {
 				errs() << lvalKey->Loc << ": using virtual type fields as 'for' control variable not supported, yet\n";
 				return nullptr;
-			} else if (key_kind == existing_var_returned || key_kind == generic_lvalue_returned) {
+			} else if (key_kind == existing_var_returned) {
 				if (KeyFV->ft.type != KeyFt->type) {
 					// we allow different integers as an exception
 					// so a pre existing u64 index variable can be used for large vec
 					if (!(KeyFV->ft.type->isIntegerTy() && KeyFt->type->isIntegerTy()
 					      && KeyFV->ft.type->getIntegerBitWidth() >= 8 && KeyFt->type->getIntegerBitWidth() >= 8)) {
 						errs() << Key->Loc << ": pre existing key must be of type " << *KeyFt << " but is of type " << KeyFV->ft << "\n";
+						return nullptr;
+					}
+				}
+			} else if (key_kind == generic_lvalue_returned) {
+				if (Key->ft->type != KeyFt->type) {
+					if (!(Key->ft->type->isIntegerTy() && KeyFt->type->isIntegerTy()
+					      && Key->ft->type->getIntegerBitWidth() >= 8 && KeyFt->type->getIntegerBitWidth() >= 8)) {
+						errs() << Key->Loc << ": pre existing lvalue expression must be of type " << *KeyFt << " but is of type " << KeyFV->ft << "\n";
 						return nullptr;
 					}
 				}
@@ -1614,9 +1622,14 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 			} else if (value_kind == setter_method_returned) {
 				errs() << lvalValue->Loc << ": using virtual type fields as 'for' control variable not supported, yet\n";
 				return nullptr;
-			} else if (value_kind == existing_var_returned || value_kind == generic_lvalue_returned) {
+			} else if (value_kind == existing_var_returned /* || value_kind == generic_lvalue_returned */) {
 				if (ValueFV->ft.type != ValueFt->type) {
 					errs() << Value->Loc << ": pre existing value var must be of type " << *ValueFt << " but is of type " << ValueFV->ft << "\n";
+					return nullptr;
+				}
+			} else if (value_kind == generic_lvalue_returned) {
+				if (Value->ft->type != ValueFt->type) {
+					errs() << Value->Loc << ": pre existing lvalue expression must be of type " << *ValueFt << " but is of type " << *Value->ft << "\n";
 					return nullptr;
 				}
 			}

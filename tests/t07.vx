@@ -325,24 +325,24 @@ def test_int_for_5 bool
 	return cprr == 7
 end
 
-# def test_int_for_6 bool
-# 	paenz = [2, 8, 4, 9, 1]
-# 	t = 0
-# 	for paenz[2] in 17
-# 		t += paenz[2]
-# 	end
-# 	return t == 136 && paenz[2] == 16
-# end
+def test_int_for_6 bool
+	paenz = [2, 8, 4, 9, 1]
+	t = 0
+	for paenz[2] in 17
+		t += paenz[2]
+	end
+	return t == 136 && paenz[2] == 16
+end
 
 global hjssq9 = RtzRi { y: 4 }
 
-# def test_int_for_7 bool
-# 	t = 0
-# 	for hjssq9.y in 7
-# 		t += (hjssq9.y + 1)
-# 	end
-# 	return t == 28 && hjssq9.y == 6
-# end
+def test_int_for_7 bool
+	t = 0
+	for hjssq9.y in 7
+		t += (hjssq9.y + 1)
+	end
+	return t == 28 && hjssq9.y == 6
+end
 
 def test_int_for_8 bool
 	res = 0
