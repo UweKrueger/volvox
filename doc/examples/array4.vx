@@ -1,0 +1,11 @@
+a = 3
+const b := 4
+c = 5
+
+m = [2][a][b][c]float{1: {2: {2: {0: 12.5f, 3: -6.4f }}}}
+
+echo m[0][1][1][2]
+echo m[1][2][2][0]
+echo m[1][2][2][3]
+echo
+echo typeof(m)

@@ -1378,7 +1378,7 @@ std::string get_LLVM_TypeName(llvm::Type* typ) {
 	std::string TypeName;
 	TypeName.reserve(16);
 	int idx = buf[0] == '%' ? 1 : 0;
-	while (buf[idx] && buf[idx] != ' ') {
+	while (idx < buf.size() && !(buf[idx] == ' ' && idx+1 < buf.size() && buf[idx+1] == '=')) {
 		TypeName += buf[idx];
 		idx ++;
 	}

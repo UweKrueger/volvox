@@ -105,20 +105,21 @@ unsigned = decimal_unsigned | hexadecimal | octal
 ## Type Propagation
 
 The basic targets of type propagation in Volvox are:
-* do not lose precision but allow reinterpretation
+
+- do not lose precision but allow reinterpretation
 	- results for small absolute values should be as expected by user
 	- mixed signed / unsigned expressions are propagated to signed
-* do early type propagation so intermediate results are not truncated
-* automatically convert to larger significant bit sizes but not to smaller. Conversions should be reversible.
-* allow explicit conversions to lower bit sizes ignoring overflow
+- do early type propagation so intermediate results are not truncated
+- automatically convert to larger significant bit sizes but not to smaller. Conversions should be reversible.
+- allow explicit conversions to lower bit sizes ignoring overflow
 
-#### Examples
+#### Early type propagation
 
-* Early type propagation
 ```volvox
 echo (2000000000 * 300000000)
 ```
 
+*Output:*  
 `826015744`
 
 The result remains of type `int` and an overflow occurs.
@@ -127,6 +128,7 @@ The result remains of type `int` and an overflow occurs.
 echo (34L + 2000000000 * 300000000)
 ```
 
+*Output:*  
 `600000000000000034`
 
 The compiler recognizes (because of the 64 bit integer `34L`) that in the end a 64 bit result is required and the factors of the multiplication are propagated to 64 bits before the multiplication is performed.
@@ -137,7 +139,7 @@ C does the same for the case 16 bit -> 32 bit but not for 32 bit -> 64 bit.
 
 ### Arrays
 
-Arrays are aggregates of several elements of the same type, e.g. 4 `real` numbers:
+Arrays are stack allocated aggregates of several elements of the same type, e.g. 4 `real` numbers:
 
 ```volvox
 a = [2, -2.25, 1.5, 0.0625]
@@ -147,9 +149,55 @@ a[1] = 3.5
 echo a
 ```
 
+*Output:*  
 `2`  
-`0.0625`
+`0.0625`  
 `[       2,     3.5,     1.5,  0.0625 ]`
+
+### Multidimensional Arrays
+
+Multidimensional arrays can be seen as arrays of arrays:
+
+```volvox
+m = [[  12.5, -13.75, 3.25 ],
+	 [ 0.125,    4.5, -2.5 ],
+	 [   3.5,  -9.25, 1.75 ]]
+
+echo m[0][2]
+echo m[2][1]
+```
+
+*Output:*  
+`3.25`  
+`-9.25`
+
+There is an alternative syntax that is more suitable for
+large sparse arrays:
+
+```volvox
+a = 3
+const b := 4
+c = 5
+
+m = [2][a][b][c]float{1: {2: {2: {0: 12.5f, 3: -6.4f }}}}
+
+echo m[0][1][1][2]
+echo m[1][2][2][0]
+echo m[1][2][2][3]
+echo
+echo typeof(m)
+```
+
+*Output:*  
+`0`  
+`12.5`  
+`-6.4`  
+  
+`[2][][4][]float`
+
+The dimension can be compile time constants (constexpr)
+or run time variables. The official *type* leaves those
+run time values open.
 
 ## Conditional Expressions
 
@@ -191,6 +239,7 @@ end
 echoc(x, y)
 ```
 
+*Output:*  
 `4.75, 1.75`
 
 The body of the `while` loop runs as long as the condition in the head is `true`. If the condition is already false at the first run — and only in this case — the `else` branch is run. Please note that this behaviour is different from Python's.
@@ -220,6 +269,7 @@ until x > 3.5
 echoc(x, y)
 ```
 
+*Output:*  
 `4.75, 1.75`
 
 If the sign is removed in the first line the output becomes  

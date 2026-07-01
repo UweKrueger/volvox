@@ -999,6 +999,44 @@ llvm::Value* StringDup(llvm::Value* str) {
 	return Builder->CreateCall(converter_proto->FT, converter, std::vector<llvm::Value*>({ str }));
 }
 
+std::string getDisplayTypeName(llvm::Type* typ, unsigned typ_attr) {
+	if (typ == llvm_int_type && (typ_attr & A_signed)) {
+		return "int";
+	} else if (typ->isDoubleTy()) {
+		if (typ_attr & A_signed)
+			return "imaginary";
+		else
+			return "real";
+	} else if (typ->isFloatTy()) {
+		if (typ_attr & A_signed)
+			return "j32";
+		else
+			return "float";
+	} else if (typ->isIntegerTy() && !(typ_attr & A_signed)) {
+		unsigned bitsz = typ->getIntegerBitWidth();
+		if (bitsz == 8)
+			return "u8";
+		else if (bitsz == 16)
+			return "u16";
+		else if (bitsz == 16)
+			return "u16";
+		else if (bitsz == 32)
+			return "unsigned";
+		else if (bitsz == 64)
+			return "u64";
+	} else if (auto array_ty = llvm::dyn_cast<llvm::ArrayType>(typ)) {
+		size_t n_elem = array_ty->getNumElements();
+		llvm::Type* el_type = array_ty->getElementType();
+		std::string type_name = "[";
+		if (n_elem)
+			type_name += std::to_string(n_elem);
+		type_name += ']';
+		type_name += getDisplayTypeName(el_type, typ_attr);
+		return type_name;
+	}
+	return get_LLVM_TypeName(typ);
+}
+
 llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	bool is_error = Proto && Proto->Name == "__error";
 	if (is_error || Proto && Proto->Name == "__link_extra") {
@@ -1114,39 +1152,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			errs() << arg->Loc << ": invalid argument\n";
 			return nullptr;
 		}
-		std::string cname;
-		if (arg->ft->type == llvm_int_type && (arg->ft->type_attr & A_signed)) {
-			cname = "int";
-		} else if (arg->ft->type->isDoubleTy()) {
-			if (arg->ft->type_attr & A_signed)
-				cname = "imaginary";
-			else
-				cname = "real";
-		} else if (arg->ft->type->isFloatTy()) {
-			if (arg->ft->type_attr & A_signed)
-				cname = "j32";
-			else
-				cname = "float";
-		} else if (arg->ft->type->isIntegerTy() && !(arg->ft->type_attr & A_signed)) {
-			unsigned bitsz = arg->ft->type->getIntegerBitWidth();
-			if (bitsz == 8)
-				cname = "u8";
-			else if (bitsz == 16)
-				cname = "u16";
-			else if (bitsz == 16)
-				cname = "u16";
-			else if (bitsz == 32)
-				cname = "unsigned";
-			else if (bitsz == 64)
-				cname = "u64";
-			else {
-				errs() << arg->Loc << ": invalid integer bitwidth\n";
-				return nullptr;
-			}
-		} else {
-			// use official LLVM name
-			cname = get_LLVM_TypeName(arg->ft->type);
-		}
+		std::string cname = getDisplayTypeName(arg->ft->type, arg->ft->type_attr);
 		llvm::Value* typname = createStringConst(cname.c_str(), cname.size());
 		return typname;
 	}
