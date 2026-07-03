@@ -3352,8 +3352,26 @@ bool ForExprAST::PrepareIterator() {
 			if (ValueFV->ft.type_attr & A_ptrref) {
 				ValueFV->val = ptr_storage;
 			} else {
+				if ((ValueFV->ft.type_attr & A_globally_visible) || (ValueFV->ft.type_attr & A_mainvar) && jit_repl && !(llvm::isa<llvm::ArrayType>(ValueFV->ft.type) && (!ValueFV->ft.type->isSized() || TheModule->getDataLayout().getTypeAllocSize(ValueFV->ft.type) == 0))) {
+					// global variable or main var in interactive JIT
+					if (!ValueFV->mangled_name) {
+						errs() << Loc << ": no mangled name\n";
+						return false;
+					}
+					// storage_type = ValueFV->storage_type;
+					llvm::GlobalVariable* GV = TheModule->getGlobalVariable(ValueFV->mangled_name, true);
+					if (!GV)
+						GV = new llvm::GlobalVariable(*TheModule, ValueFV->storage_type,
+						                              false, link_type(ValueFV->ft.type_attr),
+						                              nullptr, ValueFV->mangled_name, nullptr,
+						                              tls_model(ValueFV->ft.type_attr),
+						                              0, true);
+					GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(ValueFV->storage_type));
+					ValueRef = GV;
+				} else {
+					ValueRef = ValueFV->val; // = CreateAlloca(Step, align);
+				}
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-				ValueRef = ValueFV->val = CreateAlloca(Step, align);
 				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
 			}
 		} else {
@@ -3779,7 +3797,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 						Builder->CreateMemCpy(for_expr->ValueRef, align, Builder->CreateIntToPtr(value_var, llvm_ptr_type), align, for_expr->Step);
 					}
 				} else {
-					Builder->CreateStore(value_var, for_expr->ValueFV->val);
+					Builder->CreateStore(value_var, for_expr->ValueRef);
 				}
 			}
 			if (for_expr->KeyFV) {

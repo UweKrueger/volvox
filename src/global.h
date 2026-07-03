@@ -694,7 +694,7 @@ public:
 };
 
 struct FullVar {
-	union {
+	//union {
 		// Function local "stack" variables store the address in 'val'.
 		//
 		llvm::Value* val = nullptr;
@@ -707,8 +707,8 @@ struct FullVar {
 		// possible in interactive JIT-mode since otherwise we would not
 		// know the size at "compile time".
 		//
-		llvm::Type* storage_type;
-	};
+		llvm::Type* storage_type = nullptr;
+	//};
 	llvm::Value* valid_flag = nullptr;
 	union {
 		// global variables need a mangled name for C++-compatible linkage
