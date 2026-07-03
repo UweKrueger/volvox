@@ -122,7 +122,9 @@ echo (2000000000 * 300000000)
 *Output:*  
 `826015744`
 
-The result remains of type `int` and an overflow occurs.
+The compiler uses `int` as result type as this is the type of the two factors, so an overflow occurs. This is the same behaviour as seen in most other programming languages and is considered "correct" — in the sense of "as expected".
+
+There are cases where an overflow *can* be avoided:
 
 ```volvox
 echo (34L + 2000000000 * 300000000)
@@ -134,6 +136,15 @@ echo (34L + 2000000000 * 300000000)
 The compiler recognizes (because of the 64 bit integer `34L`) that in the end a 64 bit result is required and the factors of the multiplication are propagated to 64 bits before the multiplication is performed.
 
 C does the same for the case 16 bit -> 32 bit but not for 32 bit -> 64 bit.
+
+Another way for the original multiplication is an explicit conversion of the result:
+
+```volvox
+echo i64(2000000000 * 300000000)
+```
+
+*Output:*  
+`600000000000000000`
 
 ## Derived Types
 
@@ -198,6 +209,35 @@ echo typeof(m)
 The dimension can be compile time constants (constexpr)
 or run time variables. The official *type* leaves those
 run time values open.
+
+Nevertheless even the dimensions that are determined at run time cannot be changed once the array is created. For that see `vec` below.
+
+### Vectors (`vec`)
+
+A `vec` is a heap allocated aggregate of elements of the same type. Unlike arrays a `vec` can grow or shrink at run time:
+
+```volvox
+v = vec{ 12.5, -4.75, 3.25, 6.0625 }
+
+echo v[1]
+echo v[3]
+echo v.size
+echo
+
+new_element = -13.5
+v.push new_element
+
+echo v[4]
+echo v.size
+```
+
+*Output:*  
+`-4.75`  
+`6.0625`  
+`4`  
+  
+`-13.5`  
+`5`
 
 ## Conditional Expressions
 
