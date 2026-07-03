@@ -128,6 +128,21 @@ def test_global_scope_for_2 bool
 	return sjj2 == 78.25
 end
 
+cjj3a = 263
+sjj2a = 0
+
+for cjj3a in 5 .. 8
+	sjj2a += cjj3a
+	# _printf("%d\n", sjj2a)
+end
+
+global sjj2ag = sjj2a
+global cjj3ag = cjj3a
+
+def test_global_scope_for_3 bool
+	return sjj2ag == 26 && cjj3ag == 8
+end
+
 def test_map_iteration_1 bool
 	hjhg7 = map[string]f64{ "ggs": 12, "ABd": -1.0625, "doDe": 2.25 }
 	s = 0.

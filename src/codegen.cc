@@ -3146,8 +3146,6 @@ bool ForExprAST::PrepareIterator() {
 			return false;
 		}
 	}
-	if (Value && Value->ft && Value->ft->type)
-		Iterator->desired_type = Value->ft->type; // ???
 	if (auto lval = dynamic_cast<LvalueExprAST*>(Iterator.get())) {
 		std::tie(iterator_type, iterator_ref) = lval->codegen_ref(true);
 		if (!iterator_type)
@@ -3399,7 +3397,25 @@ bool ForExprAST::PrepareIterator() {
 				return false;
 			}
 			llvm::Type* dummy;
-			std::tie(dummy, ValueRef) = ValueLval->codegen_ref();
+			if ((ValueFV->ft.type_attr & A_globally_visible) || (ValueFV->ft.type_attr & A_mainvar) && jit_repl && !(llvm::isa<llvm::ArrayType>(ValueFV->ft.type) && (!ValueFV->ft.type->isSized() || TheModule->getDataLayout().getTypeAllocSize(ValueFV->ft.type) == 0))) {
+				// global variable or main var in interactive JIT
+				if (!ValueFV->mangled_name) {
+					errs() << Loc << ": no mangled name\n";
+					return false;
+				}
+				// storage_type = ValueFV->storage_type;
+				llvm::GlobalVariable* GV = TheModule->getGlobalVariable(ValueFV->mangled_name, true);
+				if (!GV)
+					GV = new llvm::GlobalVariable(*TheModule, ValueFV->storage_type,
+					                              false, link_type(ValueFV->ft.type_attr),
+					                              nullptr, ValueFV->mangled_name, nullptr,
+					                              tls_model(ValueFV->ft.type_attr),
+					                              0, true);
+				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(ValueFV->storage_type));
+				ValueRef = GV;
+			} else {
+				ValueRef = ValueFV->val; // = CreateAlloca(Step, align);
+			}
 			if (!ValueRef)
 				return false;
 			ValueType = Value->ft->type;
@@ -3407,7 +3423,7 @@ bool ForExprAST::PrepareIterator() {
 				break;
 			if (initializer) {
 				if (initializer->getType() != ValueType)
-					initializer = Builder->CreateIntCast(initializer, ValueType, Value->ft->type_attr & A_signed);
+					initializer = Builder->CreateIntCast(initializer, ValueType, (bool)(Value->ft->type_attr & A_signed));
 				Builder->CreateStore(initializer, ValueRef);
 			}
 		}
