@@ -1244,15 +1244,15 @@ inline def __vec.cap size_t
 	return this.__cap
 end
 
-inline def __vec.__push(_elem_sz size_t, &_elem_ptr voidptr)
+inline def __vec.__push(_elem_sz size_t, _elem_ptr voidptr)
 	if this.__cap <= this.__size
 		this.__cap = this.__cap + this.__cap / 2 + 8 * _elem_sz
 		this.__ptr = __realloc(this.__ptr, _elem_sz * this.__cap)
 	end
-	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.__size++), &_elem_ptr, _elem_sz)
+	__memcpy(voidptr(size_t(this.__ptr) + _elem_sz * this.__size++), _elem_ptr, _elem_sz)
 end
 
-inline def __vec.__insert(_elem_sz size_t, index size_t, &_elem_ptr voidptr)
+inline def __vec.__insert(_elem_sz size_t, index size_t, _elem_ptr voidptr)
 	if (_range_check)
 		if (index > this.__size)
 			err_printf("vec.insert: insertion index %zd exceeds size %zd\n", index, this.__size)
@@ -1267,7 +1267,7 @@ inline def __vec.__insert(_elem_sz size_t, index size_t, &_elem_ptr voidptr)
 	upper_block_sz = (this.__size - index) * _elem_sz
 	__memmove(elem_ptr_end, elem_ptr, upper_block_sz)
 	this.__size++
-	__memcpy(elem_ptr, &_elem_ptr, _elem_sz)
+	__memcpy(elem_ptr, _elem_ptr, _elem_sz)
 end
 
 inline def __vec.__pop(_elem_sz size_t)

@@ -1891,10 +1891,17 @@ std::unique_ptr<ExprAST> getSelect(SourceLocation Loc, std::unique_ptr<ExprAST> 
 				(*vec_protos)[0]->ArgTypes.erase((*vec_protos)[0]->ArgTypes.begin() + 1);
 				(*vec_protos)[0]->ArgAttrs.erase((*vec_protos)[0]->ArgAttrs.begin() + 1);
 				(*vec_protos)[0]->ArgPos.erase((*vec_protos)[0]->ArgPos.begin() + 1);
+				size_t argsize = TheModule->getDataLayout().getTypeAllocSize(LHS->ft->elem_type->type);
 				if (real_method == "__push") {
 					(*vec_protos)[0]->ArgTypes[1] = new_FullType(*LHS->ft->elem_type, A_ref);
+					(*vec_protos)[0]->ArgAttrs[1] = llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+							llvm::Attribute::getWithByRefType(Context, LHS->ft->elem_type->type),
+							llvm::Attribute::getWithDereferenceableBytes(Context, argsize) });
 				} else if (real_method == "__insert") {
 					(*vec_protos)[0]->ArgTypes[2] = new_FullType(*LHS->ft->elem_type, A_ref);
+					(*vec_protos)[0]->ArgAttrs[2] = llvm::AttributeSet::get(Context, llvm::ArrayRef<llvm::Attribute>{
+							llvm::Attribute::getWithByRefType(Context, LHS->ft->elem_type->type),
+							llvm::Attribute::getWithDereferenceableBytes(Context, argsize) });
 				} else {
 					(*vec_protos)[0]->RetType = void_type;
 				}
