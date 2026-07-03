@@ -3350,7 +3350,7 @@ bool ForExprAST::PrepareIterator() {
 			ptr_storage = CreateEntryBlockAlloca(llvm_ptr_type);
 			Builder->CreateStore(Ptr, ptr_storage);
 			if (ValueFV->ft.type_attr & A_ptrref) {
-				ValueFV->val = ptr_storage;
+				ValueRef = ValueFV->val = ptr_storage;
 			} else {
 				if ((ValueFV->ft.type_attr & A_globally_visible) || (ValueFV->ft.type_attr & A_mainvar) && jit_repl && !(llvm::isa<llvm::ArrayType>(ValueFV->ft.type) && (!ValueFV->ft.type->isSized() || TheModule->getDataLayout().getTypeAllocSize(ValueFV->ft.type) == 0))) {
 					// global variable or main var in interactive JIT
@@ -3371,8 +3371,26 @@ bool ForExprAST::PrepareIterator() {
 				} else {
 					ValueRef = ValueFV->val; // = CreateAlloca(Step, align);
 				}
-				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
+			}
+			llvm::Value* PtrInt = Builder->CreatePtrToInt(Ptr, llvm_size_type);
+			llvm::Value* range_is_valid = descending ?
+				Builder->CreateICmpULT(limit, PtrInt, "forprep") :
+				Builder->CreateICmpULT(PtrInt, limit, "forprep");
+			auto enterBB = Builder->GetInsertBlock();
+			llvm::Function* TheFunction = enterBB ? enterBB->getParent() : nullptr;
+			llvm::BasicBlock* ValidPtr = llvm::BasicBlock::Create(Context, "validptr");
+			llvm::BasicBlock* MergeBB = llvm::BasicBlock::Create(Context, "merge");
+			Builder->CreateCondBr(range_is_valid, ValidPtr, MergeBB);
+			if (TheFunction) {
+				TheFunction->insert(TheFunction->end(), ValidPtr);
+				Builder->SetInsertPoint(ValidPtr);
+			}
+			auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
+			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
+			Builder->CreateBr(MergeBB);
+			if (TheFunction) {
+				TheFunction->insert(TheFunction->end(), MergeBB);
+				Builder->SetInsertPoint(MergeBB);
 			}
 		} else {
 			ValueLval = dynamic_cast<LvalueExprAST*>(Value.get());
