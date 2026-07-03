@@ -224,8 +224,7 @@ echo v[3]
 echo v.size
 echo
 
-new_element = -13.5
-v.push new_element
+v.push(-13.5)
 
 echo v[4]
 echo v.size

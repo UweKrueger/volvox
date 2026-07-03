@@ -1,0 +1,11 @@
+v = vec{ 12.5, -4.75, 3.25, 6.0625 }
+
+echo v[1]
+echo v[3]
+echo v.size
+echo
+
+v.push(-13.5)
+
+echo v[4]
+echo v.size
