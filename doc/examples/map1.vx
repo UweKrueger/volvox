@@ -1,0 +1,18 @@
+m = map[int]real{ 6: 23.5, -3: 6.5, 2: 5.75, 17: -3.75 }
+
+# iterate over map - keys will be sorted
+
+# access existing element
+echo m[-3]
+
+# access non-existing element - returns 0.
+echo m[5]
+
+# insert/replace element
+m[12] = 3.125
+echo
+
+# iterate over map
+for key, value in m
+	echo "$key: $value"
+end

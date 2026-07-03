@@ -224,10 +224,31 @@ echo v[3]
 echo v.size
 echo
 
+# put new element at end of vec
 v.push(-13.5)
 
 echo v[4]
 echo v.size
+echo
+
+# move all existing elements from index 1 upward and
+# put new element at index position 1
+v.insert(1, 3.125)
+
+echo v[1]
+echo v.size
+
+# remove element at index position 3 and move all
+# following elements downward
+v.remove 3
+echo v.size
+
+# iterate over vector elements
+for k in v
+	# "echon" is like bash's "echo -n"
+	echon "$k, "
+end
+echo
 ```
 
 *Output:*  
@@ -236,7 +257,70 @@ echo v.size
 `4`  
   
 `-13.5`  
-`5`
+`5`  
+  
+`3.125`  
+`6`  
+`5`  
+`12.5, 3.125, -4.75, 6.0625, -13.5,` 
+
+### Maps
+
+A `map` is similar to a `vec` where the indices do not have to be consecutive:
+
+```volvox
+m = map[int]real{ 6: 23.5, -3: 6.5, 2: 5.75, 17: -3.75 }
+
+# iterate over map - keys will be sorted
+
+# access existing element
+echo m[-3]
+
+# access non-existing element - returns 0.
+echo m[5]
+
+# insert/replace element
+m[12] = 3.125
+echo
+
+# iterate over map
+for key, value in m
+	echo "$key: $value"
+end
+```
+
+*Output:*  
+`6.5`  
+`0`  
+  
+`-3: 6.5`  
+`2: 5.75`  
+`6: 23.5`  
+`12: 3.125`  
+`17: -3.75`
+
+For both keys and values the following types are supported:
+
+- `int` / `i32`
+- `unsigned` / `u32`
+- `i64`
+- `u64`
+- `string`
+
+The case `map[string]string` is sometimes called "dictionary":
+
+```volvox
+dict_eng_deu = map[string]string{
+	"dog": "Hund",
+	"cat": "Katze",
+	"tree": "Baum"
+}
+
+echo "The German word for \"cat\" is \"${dict_eng_deu["cat"]}\"."
+```
+
+*Output:*  
+`The German word for "cat" is "Katze".`
 
 ## Conditional Expressions
 

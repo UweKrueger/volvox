@@ -1,0 +1,7 @@
+dict_eng_deu = map[string]string{
+	"dog": "Hund",
+	"cat": "Katze",
+	"tree": "Baum"
+}
+
+echo "The German word for \"cat\" is \"${dict_eng_deu["cat"]}\"."
