@@ -225,7 +225,7 @@ echo v.size
 echo
 
 # put new element at end of vec
-v.push(-13.5)
+v.push -13.5
 
 echo v[4]
 echo v.size

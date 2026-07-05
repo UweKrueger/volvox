@@ -803,14 +803,6 @@ startanalysis:
 				IdentifierStr = "!=";
 				CurChar = advance();
 				return tok_cmp;
-			} else if (CurChar == 'i') {
-				auto [next_char, is_last] = peek2_strict();
-				if (next_char == 'n' && is_last) {
-					CurChar = advance();
-					CurChar = advance();
-					IdentifierStr = "!in";
-					return tok_not_in;
-				}
 			}
 			IdentifierStr = '!';
 			// we were expecting a binary operator but got a unary one
@@ -830,16 +822,25 @@ if (CurChar == 'i') {
 			// we were expecting a binary operator but got a unary one
 			return tok_error;
 		case '+':
+		case '-':
+		case '&':
 		case '>':
 		case '<':
 		case '|':
-		case '&':
-		case '-':
 		case '*':
 		case '/':
 		case '%':
 		case '^':
 		{
+			if (CurChar == '-' || CurChar == '+' || CurChar == '&') {
+				if (have_preceding_space) {
+					auto [ following, is_last ] = peek2_strict();
+					if ( following == '_' || isalnum(following)) {
+						IdentifierStr = "";
+						return Token(tok_invisible);
+					}
+				}
+			}
 			auto c0 = CurChar;
 			IdentifierStr = c0;
 			CurChar = advance();

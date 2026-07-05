@@ -2165,18 +2165,11 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				if (auto branch_expr = dynamic_cast<BranchExprAST*>(RHS.get()))
 					if (branch_expr->errmsg)
 						errs() << branch_expr->Loc << ": in conditional expression: " << branch_expr->errmsg;
-
 			return nullptr;
 		}
 	valid_void:
 		if (BinKind == tok_invisible) {
 			auto lit = dynamic_cast<LiteralExprAST*>(RHS.get());
-			if (lit && lit->ft->type != llvm_string_type) {
-				// we forbid 'a 2' instead of '2 a', or '12 34' instead of 408
-				// because usually these are cases of a missing ',' separator ('a, 2'; '12, 34')
-				errs() << lit->Loc << ": literal number as RHS of invisible operator not allowed - maybe you forgot a ',' or an explicit operator\n";
-				return nullptr;
-			}
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS), res_t);
 	}
@@ -3089,7 +3082,7 @@ std::unique_ptr<ExprAST> GenerateResultPrint(std::unique_ptr<ExprAST> E) {
 	std::string print = "echo";
 	auto print_proto = lex.findProtos(print);
 	if (!print_proto) {
-		errs() << "Fatal error: could not find 'print' function\n";
+		errs() << "Fatal error: could not find 'echo' function\n";
 		return nullptr;
 	}
 	// long long w = 0LL;
