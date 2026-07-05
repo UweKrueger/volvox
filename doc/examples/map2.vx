@@ -1,6 +1,6 @@
 dict_eng_deu = map[string]string{
-	"dog": "Hund",
-	"cat": "Katze",
+	"dog": "Hund"
+	"cat": "Katze"
 	"tree": "Baum"
 }
 

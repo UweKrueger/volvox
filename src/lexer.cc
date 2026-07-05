@@ -761,6 +761,10 @@ startanalysis:
 				}
 			}
 		case '"':
+			if (terminator == '}') {
+				IdentifierStr = ",";
+				return Token(tok_comma);
+			}
 			IdentifierStr = "";
 			return Token(tok_invisible);
 		case ':':

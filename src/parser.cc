@@ -794,6 +794,8 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 					return nullptr;
 				return vec_ast;
 			} else if (ft->type == llvm_map_type) {
+				if (!init_list)
+					return nullptr;
 				std::unique_ptr<ExprAST> map_ast;
 				if (is_set)
 					map_ast = std::make_unique<SetExprAST>(loc, ft, std::move(init_list->Elements));

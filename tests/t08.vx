@@ -248,6 +248,16 @@ def test_map_string_string_5 bool
 	return keys == " ggq doDe ABdt " && values == " abc gheew m.jdfd "
 end
 
+def test_map_string_string_6 bool
+	dict_eng_deu = map[string]string{
+		"dog": "Hund"
+		"cat": "Katze"
+		"tree": "Baum"
+	}
+	ger_tree = dict_eng_deu["tree"]
+	return ger_tree == "Baum"
+end
+
 def test_map_float_real_1 bool
 	hjhg19 = map[float]real{ 12.0625: 34.5, -3.125: 3.625, 5.25: -4.5 }
 	a = hjhg19.count
@@ -274,6 +284,21 @@ def test_map_real_float_1 bool
 	e = hjhg19[12.0625]
 	f = hjhg19[17.625]
 	return a == 3 && b == 3.625 && x == 0 && c == 3 && d0 == 4 && d == 3 && e == 34.5 && f == -23.5625
+end
+
+def test_map_u64_float_1 bool
+	hjhg19 = map[u64]float{
+		2799453357UL: 34.5
+		12398: 3.625
+		0: -4.5
+		18446744073709551615UL: 7.625
+	}
+	# TODO: use automatic type propagation for index
+	w = hjhg19[0UL]
+	x = hjhg19[18446744073709551615UL]
+	y = hjhg19[2799453357UL]
+	z = hjhg19[12398UL]
+	return w == -4.5 && x == 7.625 && y == 34.5 && z == 3.625
 end
 
 def test_map_int_string_1 bool
