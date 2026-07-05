@@ -1,12 +1,9 @@
-def sq(x real) real
-	return x * x
+def avg(x real, y real) real
+	return 0.5 * (x + y)
 end
 
-y = 3.5
+a = 3.75
+b = 4.5
+c = avg(a, b)
 
-# if a function accepts less than 2 arguments braces
-# are usually not needed
-
-z = sq y
-
-echo z
+echo c

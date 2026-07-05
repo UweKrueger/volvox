@@ -1,0 +1,16 @@
+def factorial(n u64) u64
+	if n == 0
+		return 1
+	else
+		return n * factorial(n - 1)
+	end
+end
+
+m = 19
+
+# if a function accepts less than 2 arguments braces
+# are usually not needed
+
+f = factorial m
+
+echo "$m! = $f"

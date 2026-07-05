@@ -472,29 +472,50 @@ end
 echoc(x, y)
 ```
 
-The `for` is very similar to the `while` loop except that the condition is formed by an *iterator* — in this case a range expression `0 .. x`. The range expression can also be an `array` or a `map`
+The `for` is very similar to the `while` loop except that the condition is formed by an *iterator* — in this case a range expression `0 .. x`. Other supported iterators are arrays, `vec` and `map` and `set`.
 
 ## Functions
 
 Functions are subroutines that accept a number of arguments and may or may not return a value.
 
 ```volvox
-def sq(x real) real
-	return x * x
+def avg(x real, y real) real
+	return 0.5 * (x + y)
 end
 
-y = 3.5
+a = 3.75
+b = 4.5
+c = avg(a, b)
+
+echo c
+```
+
+*Output:*  
+`4.125`
+
+Functions may be recursive:
+
+```volvox
+def factorial(n u64) u64
+	if n == 0
+		return 1
+	else
+		return n * factorial(n - 1)
+	end
+end
+
+m = 19
 
 # if a function accepts less than 2 arguments braces
 # are usually not needed
 
-z = sq y
+f = factorial m
 
-echo z
+echo "$m! = $f"
 ```
 
 *Output:*  
-`12.25`
+`19! = 121645100408832000`
 
 ## Libraries / Modules
 ### File Layout
