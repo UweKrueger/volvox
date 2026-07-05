@@ -381,7 +381,6 @@ echo s.z
 `-6.25`  
 `-3`
 
-
 ## Conditional Expressions
 
 ### if ... elif ... else ... end
@@ -474,6 +473,28 @@ echoc(x, y)
 ```
 
 The `for` is very similar to the `while` loop except that the condition is formed by an *iterator* — in this case a range expression `0 .. x`. The range expression can also be an `array` or a `map`
+
+## Functions
+
+Functions are subroutines that accept a number of arguments and may or may not return a value.
+
+```volvox
+def sq(x real) real
+	return x * x
+end
+
+y = 3.5
+
+# if a function accepts less than 2 arguments braces
+# are usually not needed
+
+z = sq y
+
+echo z
+```
+
+*Output:*  
+`12.25`
 
 ## Libraries / Modules
 ### File Layout

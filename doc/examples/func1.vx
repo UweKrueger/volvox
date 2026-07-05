@@ -1,0 +1,12 @@
+def sq(x real) real
+	return x * x
+end
+
+y = 3.5
+
+# if a function accepts less than 2 arguments braces
+# are usually not needed
+
+z = sq y
+
+echo z
