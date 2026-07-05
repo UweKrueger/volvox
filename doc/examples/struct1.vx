@@ -1,0 +1,17 @@
+# The layout of a `struct` must be defined in advance
+
+struct MyType {
+	counter int
+	values [3]real
+	real # type name can be used as field name, but only once
+}
+
+s = MyType{
+	values: [3]real{ 1: 4.5 }
+	real: 34.75
+}
+
+echo s.counter
+echo s.values[0]
+echo s.values[1]
+echo s.real

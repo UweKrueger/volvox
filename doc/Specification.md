@@ -322,6 +322,66 @@ echo "The German word for \"cat\" is \"${dict_eng_deu["cat"]}\"."
 *Output:*  
 `The German word for "cat" is "Katze".`
 
+### Structures (`struct`)
+
+A `struct` is an aggregate of elements that may have different types but have compile-time defined sizes.
+
+```volvox
+# The layout of a `struct` must be defined in advance
+
+struct MyType {
+	counter int
+	values [3]real
+	real # type name can be used as field name, but only once
+}
+
+s = MyType{
+	values: [3]real{ 1: 4.5 }
+	real: 34.75
+}
+
+echo s.counter
+echo s.values[0]
+echo s.values[1]
+echo s.real
+```
+
+*Output:*  
+`0`  
+`0`  
+`4.5`  
+`34.75`
+
+Structures can be nested:
+
+```volvox
+struct Type1 {
+	counter int
+}
+
+struct Type2 {
+	v real
+}
+
+struct Type3 {
+	Type1
+	y Type2
+	z i64
+}
+
+s = Type3{ Type1: { counter: 4 }, y: { v: -6.25 }, z: -3 }
+
+echo s.Type1.counter
+echo s.y.v
+echo s.z
+```
+
+*Output:*  
+`4`  
+`-6.25`  
+`-3`
+
+
 ## Conditional Expressions
 
 ### if ... elif ... else ... end

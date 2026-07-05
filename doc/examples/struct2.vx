@@ -1,0 +1,19 @@
+struct Type1 {
+	counter int
+}
+
+struct Type2 {
+	v real
+}
+
+struct Type3 {
+	Type1
+	y Type2
+	z i64
+}
+
+s = Type3{ Type1: { counter: 4 }, y: { v: -6.25 }, z: -3 }
+
+echo s.Type1.counter
+echo s.y.v
+echo s.z
