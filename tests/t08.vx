@@ -259,15 +259,15 @@ def test_map_string_string_6 bool
 end
 
 def test_map_float_real_1 bool
-	hjhg19 = map[float]real{ 12.0625: 34.5, -3.125: 3.625, 5.25: -4.5 }
+	hjhg19 = map[float]real{ 12.0625: 34.5, -3: 3.625, 5.25: -4.5 }
 	a = hjhg19.count
-	b = hjhg19[-3.125f]
+	b = hjhg19[-3]
 	x = hjhg19[4.75f]
 	c = hjhg19.count
-	hjhg19[17.625f] = -23.5625
+	hjhg19[17.625] = -23.5625
 	d = hjhg19.count
 	e = hjhg19[12.0625f]
-	f = hjhg19[17.625f]
+	f = hjhg19[17.625]
 	return a == 3 && b == 3.625 && x == 0 && c == 3 && d == 4 && e == 34.5 && f == -23.5625
 end
 
@@ -293,11 +293,10 @@ def test_map_u64_float_1 bool
 		0: -4.5
 		18446744073709551615UL: 7.625
 	}
-	# TODO: use automatic type propagation for index
-	w = hjhg19[0UL]
+	w = hjhg19[0]
 	x = hjhg19[18446744073709551615UL]
-	y = hjhg19[2799453357UL]
-	z = hjhg19[12398UL]
+	y = hjhg19[2799453357U]
+	z = hjhg19[12398]
 	return w == -4.5 && x == 7.625 && y == 34.5 && z == 3.625
 end
 

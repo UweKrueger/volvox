@@ -586,16 +586,22 @@ std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 		if (!Map)
 			return { nullptr, nullptr };
 		llvm::Value* Key;
+		llvm::Value* _Key;
 		llvm::Type* llvm_key_type = Field->ft->elem_type[0].type;
-		Index->desired_type = llvm::ArrayType::get(llvm_key_type, 1);
-		llvm::Value* _Key = Index->codegen();
-		if (!_Key)
-			return { nullptr, nullptr };
-		if (auto arr_ty = llvm::dyn_cast<llvm::ArrayType>(_Key->getType())) {
-			if (arr_ty->getNumElements() == 1) {
-				Key = Builder->CreateExtractValue(_Key, 0);
-				if (Key->getType() == llvm_key_type)
-					goto key_ok;
+		if (auto idx_array = dynamic_cast<FixedArrayExprAST*>(Index.get())) {
+			if (idx_array->Elements.size() != 1) {
+				errs() << Index->Loc << ": exactly one index exprected\n";
+				return { nullptr, nullptr };
+			}
+			idx_array->ft->type = llvm::ArrayType::get(llvm_key_type, 1);
+			idx_array->Elements[0]->desired_type = llvm_key_type;
+			Key = idx_array->Elements[0]->codegen();
+			if (Key->getType() == llvm_key_type)
+				goto key_ok;
+			else {
+				errs() << idx_array->Elements[0]->Loc << ": index should have type "
+				       << *llvm_key_type << " but has type " << *Key->getType() << "\n";
+				return { nullptr, nullptr };
 			}
 		}
 		errs() << Index->Loc << ": invalid map index\n";
