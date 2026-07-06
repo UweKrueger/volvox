@@ -552,6 +552,31 @@ reduce(a, b)
 echo "$a : $b"
 ```
 
+### Methods
+
+A method is a special function that is associated to a `struct`. The method is called by appending the method name (separated by a dot) to an object of that `struct` type. The object itself can be referenced with `this` inside the method body:
+
+```volvox
+struct Vec2d {
+	x real
+	y real
+}
+
+def Vec2d.scale(factor real)
+	this.x *= factor
+	this.y *= factor
+end
+
+v = Vec2d{ x: 2.25, y: -0.0625 }
+
+v.scale(2.5)
+
+echo "${v.x} ${v.y}"
+```
+
+*Output:*  
+`5.625 -0.15625`
+
 ## Libraries / Modules
 ### File Layout
 

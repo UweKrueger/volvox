@@ -1,0 +1,15 @@
+struct Vec2d {
+	x real
+	y real
+}
+
+def Vec2d.scale(factor real)
+	this.x *= factor
+	this.y *= factor
+end
+
+v = Vec2d{ x: 2.25, y: -0.0625 }
+
+v.scale(2.5)
+
+echo "${v.x} ${v.y}"
