@@ -1,0 +1,15 @@
+struct Vec2d {
+	x real
+	y real
+}
+
+# general constructor that accepts polar coordinates
+def ~Vec2d
+	echo "Destructing Vec2d with x: ${this.x}, y: ${this.y}"
+end
+
+if 3 > 2
+	g = Vec2d{ x: -1.5, y: 7.25 }
+end
+
+# 'g' is out of scope here, so the destructor is called

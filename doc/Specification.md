@@ -639,6 +639,36 @@ v = Vec2d(6, 30 * pi / 180)
 echo "${v.x} ${v.y}"
 ```
 
+### Destructor
+
+A destructor is a method that is called implicitly when an object goes out of scope.
+
+Since scopes are in Volvox are more sloppy than in some other languages this usually means:
+
+- An object is declared inside a function and the function finishes (and the object is not the return value)
+- An object is declared in one branch of a conditional expression but not in the other branches an that one branch finishes:
+
+```volvox
+struct Vec2d {
+	x real
+	y real
+}
+
+# general constructor that accepts polar coordinates
+def ~Vec2d
+	echo "Destructing Vec2d with x: ${this.x}, y: ${this.y}"
+end
+
+if 3 > 2
+	g = Vec2d{ x: -1.5, y: 7.25 }
+end
+
+# 'g' is out of scope here, so the destructor is called
+```
+
+*Output:*  
+`Destructing Vec2d with x: -1.5, y: 7.25`
+
 ## Libraries / Modules
 ### File Layout
 
