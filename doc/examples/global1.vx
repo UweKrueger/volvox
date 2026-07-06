@@ -1,0 +1,31 @@
+from math import sin, cos, sqrt, pi
+
+# compile time const
+const pi2 := float(pi / 2)
+
+a = 1.27f
+
+# run time const
+const t = sin a
+
+# thread local global variable
+# initialized with 5.25 in each new thread
+global g := 5.25
+
+# thread local global variable
+# initialized with 0.29628 here and 0.0 in each new thread
+global h = cos a
+
+# variable that is seen with the same value in every thread
+atomic n = 20
+
+# shared variable that must be locked (not implemeted, yet)
+shared x = -13.25f
+
+def access_globals
+	# m will be the old value of n
+	m = n++
+	echo "$pi2 $t $g $h $m $n"
+end
+
+access_globals

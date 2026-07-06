@@ -1475,7 +1475,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 			.ft = RHS ? *(*RHS)->ft : volvoxc::FullType{0}
 		};
 		fv.ft.type = type;
-		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar);
+		fv.ft.type_attr &= ~(A_global | A_const | A_rvalue | A_mainvar | A_atomic);
 		if (is_signed & A_signed)
 			fv.ft.type_attr |= A_signed;
 		else

@@ -694,6 +694,53 @@ echo "x: $x, k: $k, y: $y"
 `x: -6.25, k: 42.0625`  
 `x: 45.75, k: -6.25, y: 42.0625`
 
+### Globals
+
+There are notable exceptions to the scope rules described above. The following symbols are declared outside of functions and are still accessible inside function bodies.
+
+- `struct` type names
+- `global` variables — in Volvox thread-local-storage is used in this case. If there is a default constructor for the type it is called for each new thread. If a `global` is initialized with a constexpr this initialization is used for each thread.
+- `const` objects
+- `atomic` variables - they have the same value in every thread and can be used for synchronization
+- `shared` objects - they have the same value in every thread, too, but need a lock *(not implemented, yet)*.
+
+```volvox
+from math import sin, cos, sqrt, pi
+
+# compile time const
+const pi2 := float(pi / 2)
+
+a = 1.27f
+
+# run time const
+const t = sin a
+
+# thread local global variable
+# initialized with 5.25 in each new thread
+global g := 5.25
+
+# thread local global variable
+# initialized with 0.29628 here and 0.0 in each new thread
+global h = cos a
+
+# variable that is seen with the same value in every thread
+atomic n = 20
+
+# shared variable that must be locked (not implemeted, yet)
+shared x = -13.25f
+
+def access_globals
+	# m will be the old value of n
+	m = n++
+	echo "$pi2 $t $g $h $m $n"
+end
+
+access_globals
+```
+
+*Output:*  
+`1.570796 0.9551008 5.25 0.2962809 20 21`
+
 ## Libraries / Modules
 ### File Layout
 
