@@ -577,6 +577,42 @@ echo "${v.x} ${v.y}"
 *Output:*  
 `5.625 -0.15625`
 
+### Constructors
+
+A Constructor is a special method that is called when an object of a specific struct type comes into existence.
+
+#### Standard Constructor
+
+```volvox
+struct Vec2d {
+	x real
+	y real
+}
+
+# standard constructor has no arguments
+def Vec2d
+	this.x += 2.0
+	this.y -= 3.0
+end
+
+# standard constructor is implicitly called after
+# explicit initialization
+v = Vec2d{ x: 2.25, y: -0.0625 }
+
+echo "${v.x} ${v.y}"
+
+# standard constructor is implicitly called after
+# a low-level copy has been made
+w = v
+
+echo "${w.x} ${w.y}"
+```
+
+*Output*  
+`4.25 -3.0625`  
+`6.25 -6.0625`
+
+
 ## Libraries / Modules
 ### File Layout
 

@@ -1,0 +1,22 @@
+struct Vec2d {
+	x real
+	y real
+}
+
+# standard constructor has no arguments
+def Vec2d
+	this.x += 2.0
+	this.y -= 3.0
+end
+
+# standard constructor is implicitly called after
+# explicit initialization
+v = Vec2d{ x: 2.25, y: -0.0625 }
+
+echo "${v.x} ${v.y}"
+
+# standard constructor is implicitly called after
+# a low-level copy has been made
+w = v
+
+echo "${w.x} ${w.y}"
