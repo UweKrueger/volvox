@@ -517,6 +517,41 @@ echo "$m! = $f"
 *Output:*  
 `19! = 121645100408832000`
 
+### Call by Reference
+
+Normally function arguments are local copies of the values passed by the caller. However, an ampersand (`&`) as prefix makes the argument a reference:
+
+```volvox
+def reduce(&numerator u64, &denominator u64)
+	# find greater and smaller of the two values
+	if numerator > denominator
+		greater = numerator
+		smaller = denominator
+	else
+		smaller = numerator
+		greater = denominator
+	end
+	# Euklid's algorithm to find greatest common denominator
+	while true
+		remainder = greater % smaller
+	brk remainder == 0
+		greater = smaller
+		smaller = remainder
+	end
+	# numerator and denominator are references to a and b
+	# from the caller so thode values are actually changed
+	numerator /= smaller
+	denominator /= smaller
+end
+
+a = 114051889UL
+b = 113252445UL
+
+reduce(a, b)
+
+echo "$a : $b"
+```
+
 ## Libraries / Modules
 ### File Layout
 
