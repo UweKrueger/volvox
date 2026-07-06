@@ -669,6 +669,31 @@ end
 *Output:*  
 `Destructing Vec2d with x: -1.5, y: 7.25`
 
+## Scope of Objects
+
+In general objects that are declared in a function (including the head) are local to that function and objects declared outside of functions are local to the main context:
+ 
+```volvox
+def f(x real) real
+	k = x^2 + 3
+	# x and k are local to f
+	echo "x: $x, k: $k"
+	return k
+end
+
+x = 45.75
+k = -6.25
+
+y = f(k)
+# x and k are local to main context
+
+echo "x: $x, k: $k, y: $y"
+```
+
+*Output:*  
+`x: -6.25, k: 42.0625`  
+`x: 45.75, k: -6.25, y: 42.0625`
+
 ## Libraries / Modules
 ### File Layout
 

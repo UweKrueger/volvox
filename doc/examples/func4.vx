@@ -1,0 +1,14 @@
+def f(x real) real
+	k = x^2 + 3
+	# x and k are local to f
+	echo "x: $x, k: $k"
+	return k
+end
+
+x = 45.75
+k = -6.25
+
+y = f(k)
+# x and k are local to main context
+
+echo "x: $x, k: $k, y: $y"
