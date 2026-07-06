@@ -1557,6 +1557,10 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 			if (!arg) {
 				if (is_address) {
 					if (auto lval = dynamic_cast<LvalueExprAST*>(Args[i].get())) {
+						if (!by_val && Args[i]->ft->type != Proto->ArgTypes[i+arg_offs]->type) {
+							errs() << Args[i]->Loc << ": type of reference must exactly match argument type\n";
+							return nullptr;
+						}
 						auto argref = lval->codegen_ref(true, by_val);
 						if (!argref.first) {
 							errs() << Args[i]->Loc << ": cannot generate reference function argument\n";
