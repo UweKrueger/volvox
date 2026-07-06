@@ -583,6 +583,8 @@ A Constructor is a special method that is called when an object of a specific st
 
 #### Standard Constructor
 
+A standard constructor has no arguments and is never called explicitly:
+
 ```volvox
 struct Vec2d {
 	x real
@@ -612,6 +614,30 @@ echo "${w.x} ${w.y}"
 `4.25 -3.0625`  
 `6.25 -6.0625`
 
+#### General Constructor
+
+A general constructor accepts arguments and is called explicitly to initialize an object:
+
+```volvox
+from math import sin, cos, pi
+
+struct Vec2d {
+	x real
+	y real
+}
+
+# general constructor that accepts polar coordinates
+def Vec2d(r real, phi real)
+	this.x = r cos phi
+	this.y = r sin phi
+end
+
+# a general constructor is called like a function
+# 'this' is a reference to 'v' in this case
+v = Vec2d(6, 30 * pi / 180)
+
+echo "${v.x} ${v.y}"
+```
 
 ## Libraries / Modules
 ### File Layout

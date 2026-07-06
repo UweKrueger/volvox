@@ -1,0 +1,18 @@
+from math import sin, cos, pi
+
+struct Vec2d {
+	x real
+	y real
+}
+
+# general constructor that accepts polar coordinates
+def Vec2d(r real, phi real)
+	this.x = r cos phi
+	this.y = r sin phi
+end
+
+# a general constructor is called like a function
+# 'this' is a reference to 'v' in this case
+v = Vec2d(6, 30 * pi / 180)
+
+echo "${v.x} ${v.y}"
