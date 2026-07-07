@@ -102,7 +102,7 @@ llvm::Function* ThreadExprAST::get_thread_wrapper(bool have_target) {
 				GV->setAlignment(llvm::Align(8));
 				llvm::Value* fd_ptr = Builder->CreateStructGEP(args_type, ptr, use_pipe ? 2 : 1);
 				llvm::Value* fd = Builder->CreateLoad(llvm_int_type, fd_ptr);
-				auto write_proto = (*lex.findProtos("__write"))[0].get();
+				auto write_proto = (*lex.findProtos("_write"))[0].get();
 				auto write_fn = getFunction(write_proto);
 				return Builder->CreateCall(write_proto->FT, write_fn, std::vector<llvm::Value*>{
 						fd, GV, getSize(8) });
@@ -213,6 +213,8 @@ llvm::Value* ThreadExprAST::codegen_raw(llvm::Value* target) {
 		}
 		auto abort_proto = (*lex.findProtos("_abort_if_negative"))[0].get();
 		auto abort_fn = getFunction(abort_proto);
+		if (fd_res->getType() != llvm_size_type)
+			fd_res = Builder->CreateIntCast(fd_res, llvm_size_type, true);
 		Builder->CreateCall(abort_proto->FT, abort_fn, std::vector<llvm::Value*>{ fd_res });
 	}
 	unsigned j = arg_offs0; // j is control block struct elements counter
