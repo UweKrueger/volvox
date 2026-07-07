@@ -1,0 +1,34 @@
+struct Dog {
+	name string
+}
+
+def Dog.speak(fd int) ssize_t
+	s = "${this.name} says \"Woof!\"\n"
+	n_written = _write(fd, s, s.len)
+	return n_written
+end
+
+struct Cat {
+	name string
+}
+
+def Cat.speak(fd int) ssize_t
+	s = "${this.name} says \"Meow!\"\n"
+	n_written = _write(fd, s, s.len)
+	return n_written
+end
+
+interface Animal {
+	speak(fd int) ssize_t
+}
+
+def speak_to_stdout(a Animal) ssize_t
+	n_written = a.speak(1)
+	return n_written
+end
+
+c = Cat{ name: "Simba" }
+d = Dog{ name: "Max" }
+
+speak_to_stdout(c)
+speak_to_stdout(d)
