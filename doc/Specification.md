@@ -383,6 +383,8 @@ echo s.z
 
 ### Interfaces
 
+An `interface` is a virtual type that is defined by a set of methods. A specific `struct` type *implements* an interface if it has implementations for all the specified methods. A function that expects an argument of this interface type can call the defined methods. The function can be called with any object type that implements the `interface`:
+
 ```volvox
 struct Dog {
 	name string
@@ -424,6 +426,74 @@ speak_to_stdout(d)
 `Simba says "Meow!"`  
 `Max says "Woof!"`
 
+### Interface Fields and Virtual Fields
+
+In Volvox an `interface` may also contain `struct` fields which are listed as `fieldname=type`. If a `struct` does not have a specific field it is possible to create a virtual field by defining a setter operator method as  
+`Type.name=(arg type) type`  
+and a getter method as  
+`Type.name type`  
+to implement the `interface`:
+
+```volvox
+struct Dog {
+	name string
+}
+
+def Dog.sound string
+	return "Woof!"
+end
+
+struct Cat {
+	name string
+}
+
+def Cat.sound string
+	return "Meow!"
+end
+
+interface Animal {
+	sound string
+	name=string
+}
+
+struct Duck {
+	weight real
+	nick string
+}
+
+def Duck.sound string
+	return "Quack!"
+end
+
+# method for getting the virtual field
+def Duck.name string
+	return this.nick
+end
+
+# method for setting the virtual field
+def Duck.name=(n string) string
+	old = this.nick
+	this.nick = n
+	return old
+end
+
+def speak_to_stdout(a Animal)
+	echo "${a.name} says \"${a.sound}\""
+end
+
+c = Cat{ name: "Simba" }
+d = Dog{ name: "Max" }
+e = Duck{ nick: "Waddles" }
+
+speak_to_stdout(c)
+speak_to_stdout(d)
+speak_to_stdout(e)
+```
+
+*Output:*  
+`Simba says "Meow!"`  
+`Max says "Woof!"`  
+`Waddles says "Quack!"`
 
 ## Conditional Expressions
 

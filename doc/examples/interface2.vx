@@ -1,0 +1,53 @@
+struct Dog {
+	name string
+}
+
+def Dog.sound string
+	return "Woof!"
+end
+
+struct Cat {
+	name string
+}
+
+def Cat.sound string
+	return "Meow!"
+end
+
+interface Animal {
+	sound string
+	name=string
+}
+
+struct Duck {
+	weight real
+	nick string
+}
+
+def Duck.sound string
+	return "Quack!"
+end
+
+# method for getting the virtual field
+def Duck.name string
+	return this.nick
+end
+
+# method for setting the virtual field
+def Duck.name=(n string) string
+	old = this.nick
+	this.nick = n
+	return old
+end
+
+def speak_to_stdout(a Animal)
+	echo "${a.name} says \"${a.sound}\""
+end
+
+c = Cat{ name: "Simba" }
+d = Dog{ name: "Max" }
+e = Duck{ nick: "Waddles" }
+
+speak_to_stdout(c)
+speak_to_stdout(d)
+speak_to_stdout(e)
