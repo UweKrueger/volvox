@@ -191,9 +191,9 @@ std::pair<PrototypeAST*,llvm::Function*> get_inserter_fn_for_key_type(SourceLoca
 	else if (key_type == llvm_int_type && !(key_type_attr & A_signed))
 		inserter = "_ZN6volvox3map10u32_insertEPPNS0_4NodeEjNS0_5ValueEiS3_";
 	else if (key_type == llvm_i64_type && (key_type_attr & A_signed))
-		inserter = "_ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_";
+		inserter = "_ZN6volvox3map10i64_insertEPPNS0_4NodeExNS0_5ValueEiS3_";
 	else if (key_type == llvm_i64_type && !(key_type_attr & A_signed))
-		inserter = "_ZN6volvox3map10u64_insertEPPNS0_4NodeEmNS0_5ValueEiS3_";
+		inserter = "_ZN6volvox3map10u64_insertEPPNS0_4NodeEyNS0_5ValueEiS3_";
 	else if (key_type == llvm_real_type && !(key_type_attr & A_signed))
 		inserter = "_ZN6volvox3map10f64_insertEPPNS0_4NodeEdNS0_5ValueEiS3_";
 	else if (key_type == llvm_float_type && !(key_type_attr & A_signed))

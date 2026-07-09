@@ -824,13 +824,13 @@ _CDECL volvox::map::Node* _ZN6volvox3map10u32_insertEPPNS0_4NodeEjNS0_5ValueEiS3
 	return volvox::map::u32_insert(root_ptr, key, value, value_size, target);
 }
 
-_CDECL volvox::map::Node* _ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_(
+_CDECL volvox::map::Node* _ZN6volvox3map10i64_insertEPPNS0_4NodeExNS0_5ValueEiS3_(
 	volvox::map::Node** root_ptr, int64_t key, volvox::map::Value value, int value_size, volvox::map::Node** target)
 {
 	return volvox::map::i64_insert(root_ptr, key, value, value_size, target);
 }
 
-_CDECL volvox::map::Node* _ZN6volvox3map10u64_insertEPPNS0_4NodeEmNS0_5ValueEiS3_(
+_CDECL volvox::map::Node* _ZN6volvox3map10u64_insertEPPNS0_4NodeEyNS0_5ValueEiS3_(
 	volvox::map::Node** root_ptr, uint64_t key, volvox::map::Value value, int value_size, volvox::map::Node** target)
 {
 	return volvox::map::u64_insert(root_ptr, key, value, value_size, target);
@@ -868,12 +868,12 @@ _CDECL volvox::map::Value* _ZN6volvox3map7u32_getEPPNS0_4NodeEj(volvox::map::Nod
 	return volvox::map::u32_get(root, key);
 }
 
-_CDECL volvox::map::Value* _ZN6volvox3map7i64_getEPPNS0_4NodeEl(volvox::map::Node** root, int64_t key)
+_CDECL volvox::map::Value* _ZN6volvox3map7i64_getEPPNS0_4NodeEx(volvox::map::Node** root, int64_t key)
 {
 	return volvox::map::i64_get(root, key);
 }
 
-_CDECL volvox::map::Value* _ZN6volvox3map7u64_getEPPNS0_4NodeEm(volvox::map::Node** root, uint64_t key)
+_CDECL volvox::map::Value* _ZN6volvox3map7u64_getEPPNS0_4NodeEy(volvox::map::Node** root, uint64_t key)
 {
 	return volvox::map::u64_get(root, key);
 }

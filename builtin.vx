@@ -356,16 +356,16 @@ struct __range_f64 {
 cdecl _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&root_ptr voidptr, key string, value u64, value_size i32, &replace voidptr) voidptr
 cdecl _ZN6volvox3map10i32_insertEPPNS0_4NodeEiNS0_5ValueEiS3_(&root_ptr voidptr, key i32, value u64, value_size i32, &replace voidptr) voidptr
 cdecl _ZN6volvox3map10u32_insertEPPNS0_4NodeEjNS0_5ValueEiS3_(&root_ptr voidptr, key u32, value u64, value_size i32, &replace voidptr) voidptr
-cdecl _ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_(&root_ptr voidptr, key i64, value u64, value_size i32, &replace voidptr) voidptr
-cdecl _ZN6volvox3map10u64_insertEPPNS0_4NodeEmNS0_5ValueEiS3_(&root_ptr voidptr, key u64, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map10i64_insertEPPNS0_4NodeExNS0_5ValueEiS3_(&root_ptr voidptr, key i64, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map10u64_insertEPPNS0_4NodeEyNS0_5ValueEiS3_(&root_ptr voidptr, key u64, value u64, value_size i32, &replace voidptr) voidptr
 cdecl _ZN6volvox3map10f64_insertEPPNS0_4NodeEdNS0_5ValueEiS3_(&root_ptr voidptr, key f64, value u64, value_size i32, &replace voidptr) voidptr
 cdecl _ZN6volvox3map10f32_insertEPPNS0_4NodeEfNS0_5ValueEiS3_(&root_ptr voidptr, key f32, value u64, value_size i32, &replace voidptr) voidptr
 
 cdecl _ZN6volvox3map16volvoxstring_getEPPNS0_4NodeEPKc(root voidptr, key string) voidptr
 cdecl _ZN6volvox3map7i32_getEPPNS0_4NodeEi(root voidptr, key i32) voidptr
 cdecl _ZN6volvox3map7u32_getEPPNS0_4NodeEj(root voidptr, key u32) voidptr
-cdecl _ZN6volvox3map7i64_getEPPNS0_4NodeEl(root voidptr, key i64) voidptr
-cdecl _ZN6volvox3map7u64_getEPPNS0_4NodeEm(root voidptr, key u64) voidptr
+cdecl _ZN6volvox3map7i64_getEPPNS0_4NodeEx(root voidptr, key i64) voidptr
+cdecl _ZN6volvox3map7u64_getEPPNS0_4NodeEy(root voidptr, key u64) voidptr
 cdecl _ZN6volvox3map7f64_getEPPNS0_4NodeEd(root voidptr, key f64) voidptr
 cdecl _ZN6volvox3map7f32_getEPPNS0_4NodeEf(root voidptr, key f32) voidptr
 
@@ -456,7 +456,7 @@ end end
 
 def __map.__insert_i64(key i64, value u64, value_size i32) voidptr
 	old_node = voidptr 0
-	node = _ZN6volvox3map10i64_insertEPPNS0_4NodeElNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
+	node = _ZN6volvox3map10i64_insertEPPNS0_4NodeExNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
 	if size_t(old_node) == 0
 		this.count++
 		return node
@@ -475,7 +475,7 @@ end end
 
 def __map.__insert_u64(key u64, value u64, value_size i32) voidptr
 	old_node = voidptr 0
-	node = _ZN6volvox3map10u64_insertEPPNS0_4NodeEmNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
+	node = _ZN6volvox3map10u64_insertEPPNS0_4NodeEyNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
 	if size_t(old_node) == 0
 		this.count++
 		return node
@@ -623,7 +623,7 @@ def __map.__get_u32(key u32, create_new bool) voidptr
 end
 
 def __map.__get_i64(key i64, create_new bool) voidptr
-	value_ref = _ZN6volvox3map7i64_getEPPNS0_4NodeEl(&this.__ptr, key)
+	value_ref = _ZN6volvox3map7i64_getEPPNS0_4NodeEx(&this.__ptr, key)
 	if size_t(value_ref) == 0
 		if create_new
 			node_ref = this.__insert_i64(key, 0, 0)
@@ -635,7 +635,7 @@ def __map.__get_i64(key i64, create_new bool) voidptr
 end
 
 def __map.__get_u64(key u64, create_new bool) voidptr
-	value_ref = _ZN6volvox3map7u64_getEPPNS0_4NodeEm(&this.__ptr, key)
+	value_ref = _ZN6volvox3map7u64_getEPPNS0_4NodeEy(&this.__ptr, key)
 	if size_t(value_ref) == 0
 		if create_new
 			node_ref = this.__insert_u64(key, 0, 0)
