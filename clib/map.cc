@@ -945,12 +945,12 @@ _CDECL bool _ZN6volvox3map10u32_deleteEPPNS0_4NodeEjPFvPNS0_5ValueEE(volvox::map
 	return volvox::map::u32_delete(root_ptr, key, destruct);
 }
 
-_CDECL bool _ZN6volvox3map10i64_deleteEPPNS0_4NodeElPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, int64_t key, void (*destruct)(volvox::map::Value* ptr))
+_CDECL bool _ZN6volvox3map10i64_deleteEPPNS0_4NodeExPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, int64_t key, void (*destruct)(volvox::map::Value* ptr))
 {
 	return volvox::map::i64_delete(root_ptr, key, destruct);
 }
 
-_CDECL bool _ZN6volvox3map10u64_deleteEPPNS0_4NodeEmPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, uint64_t key, void (*destruct)(volvox::map::Value* ptr))
+_CDECL bool _ZN6volvox3map10u64_deleteEPPNS0_4NodeEyPFvPNS0_5ValueEE(volvox::map::Node** root_ptr, uint64_t key, void (*destruct)(volvox::map::Value* ptr))
 {
 	return volvox::map::u64_delete(root_ptr, key, destruct);
 }
