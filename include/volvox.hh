@@ -90,9 +90,13 @@
 #include <float.h>
 
 #ifdef _WIN32
-#include <windows.h>
+// #include <windows.h>
+#include <wtypes.h>
 #include <synchapi.h>
 #include <processthreadsapi.h>
+#include <libloaderapi.h>
+#include <errhandlingapi.h>
+#include <WinBase.h>
 #endif
 #include "../src/global.h"
 #include "../src/AST.h"
