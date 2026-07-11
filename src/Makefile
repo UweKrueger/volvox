@@ -214,11 +214,14 @@ ifeq ($(NIXTYPE),msvc)
 endif
 LIBOBJSLTO := map.lto.o str.lto.o array.lto.o
 LIBCOBJSLTO := str_c.lto.o threads_c.lto.o
+LIBOBJSDBG := map.dbg.o str.dbg.o array.dbg.o
+LIBCOBJSDBG := str_c.dbg.o threads_c.dbg.o
 LIBOBJSMINGW := map.mingw.o str.mingw.o array.mingw.o
 LIBCOBJSMINGW := str_c.mingw.o threads_c.mingw.o
 
 LIBVOLVOXVERS := 0
 LIBVOLVOXLTONAME := libvolvox.lto.a
+LIBVOLVOXDBGNAME := libvolvox.dbg.a
 LIBVOLVOXMINGWNAME := libvolvox.mingw.a
 ifeq ($(NIXTYPE),msvc)
 LIBVOLVOXBASE := libvolvox.dll
@@ -239,6 +242,7 @@ endif
 LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
 LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
 LIBVOLVOXLTO := ../lib/$(LIBVOLVOXLTONAME)
+LIBVOLVOXDBG := ../lib/$(LIBVOLVOXDBGNAME)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
@@ -255,16 +259,22 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 	$(CXX) $(TARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
 
 %.lto.o: ../clib/%.cc
-	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<
+	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(OPT) $<
+
+%.dbg.o: ../clib/%.cc
+	$(CXX) $(TARGET) -c -o $@ -glldb -O0 -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $<
 
 %.mingw.o: ../clib/%.cc
-	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(MINGWEXTRAFLAGS) $(PIC) $(OPT) $<
+	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(MINGWEXTRAFLAGS) $(OPT) $<
 
 %.o: ../clib/%.c
 	$(CC) $(TARGET) -c $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(PIC) $(OPT) $<
 
 %.lto.o: ../clib/%.c
 	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
+
+%.dbg.o: ../clib/%.c
+	$(CC) $(TARGET) -c -o $@ -glldb -O0 $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $<
 
 %.mingw.o: ../clib/%.c
 	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) $(MINGWEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
@@ -274,7 +284,7 @@ ifeq ($(NIXTYPE),msvc)
 	$(CC) $(TARGET) -c $(EXTRAINC) $(OPT) $<
 endif
 
-all: $(PROG) $(LIBVOLVOX) $(LIBVOLVOXLTO) $(LIBVOLVOXMINGW)
+all: $(PROG) $(LIBVOLVOX) $(LIBVOLVOXLTO) $(LIBVOLVOXDBG) $(LIBVOLVOXMINGW)
 
 $(PCH): $(PRJH) ../include/VolvoxJIT.h ../clib/map.h ../clib/types.h ../clib/str.h AST.h global.h
 ifeq ($(CC),gcc)
@@ -295,6 +305,10 @@ $(LIBVOLVOXLTO): $(LIBOBJSLTO) $(LIBCOBJSLTO)
 	rm -f $@
 	$(AR) -qc $@ $+
 
+$(LIBVOLVOXDBG): $(LIBOBJSDBG) $(LIBCOBJSDBG)
+	rm -f $@
+	$(AR) -qc $@ $+
+
 $(LIBVOLVOXMINGW): $(LIBOBJSMINGW) $(LIBCOBJSMINGW)
 	rm -f $@
 	$(AR) -qc $@ $+
@@ -304,7 +318,7 @@ $(PROG): $(OBJS) $(LIBOBJS) $(LIBCOBJS)
 
 .PHONY: clean
 clean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSLTO) $(LIBCOBJSLTO) $(LIBOBJSMINGW) $(LIBCOBJSMINGW) $(LIBVOLVOXMINGW) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXLTO) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
+	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSLTO) $(LIBCOBJSLTO) $(LIBOBJSDBG) $(LIBCOBJSDBG) $(LIBOBJSMINGW) $(LIBCOBJSMINGW) $(LIBVOLVOXMINGW) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXLTO) $(LIBVOLVOXDBG) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
 
 .depend:
 	$(CXX) $(TARGET) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend
