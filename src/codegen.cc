@@ -2254,13 +2254,14 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (Val) {
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
-			if (false && comp_mode == comp_dbg && globalUnit && globalSP) {
+			if (false && comp_mode == comp_dbg) {
+				errs() << LHS->Loc << ": dbg for " << varname << "\n";
 				// Create a debug descriptor for the variable.
 				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-					globalSP, varname, globalUnit, LHS->Loc.Line, RHS->ft->ditype,
+					currentSP, varname, currentUnit, LHS->Loc.Line, RHS->ft->ditype,
 					true);
 				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-				                        llvm::DILocation::get(globalSP->getContext(), LHS->Loc.Line, 0, globalSP),
+				                        llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, currentSP),
 				                        Builder->GetInsertBlock());
 			}
 		} else if (ValPtr) {

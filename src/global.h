@@ -614,6 +614,8 @@ extern llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, st
 extern llvm::ExitOnError ExitOnErr;
 extern llvm::DIFile* globalUnit;
 extern llvm::DISubprogram* globalSP;
+extern llvm::DIFile* currentUnit;
+extern llvm::DISubprogram* currentSP;
 extern volvoxc::FullType* theFunction_ret_ft;
 extern bool theFunction_struct_ret;
 

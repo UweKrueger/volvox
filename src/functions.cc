@@ -13,6 +13,8 @@
 MainVars jit_main_variables;
 llvm::DISubprogram* globalSP = nullptr;
 llvm::DIFile* globalUnit = nullptr;
+llvm::DISubprogram* currentSP = nullptr;
+llvm::DIFile* currentUnit = nullptr;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
 bool theFunction_struct_ret = false;
 FunctionAST* currentFunction = nullptr;
@@ -1761,6 +1763,8 @@ bool FunctionAST::prepare_codegen(bool is_main) {
 			CreateFunctionType(Proto->RetType, Proto->ArgTypes, Unit), ScopeLine,
 			llvm::DINode::FlagPrototyped, llvm::DISubprogram::SPFlagDefinition);
 		TheFunction->setSubprogram(SP);
+		currentUnit = Unit;
+		currentSP = SP;
 		if (is_main) {
 			globalUnit = Unit;
 			globalSP = SP;
