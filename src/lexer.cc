@@ -56,6 +56,18 @@ std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid
 #define VOLVOX_PROMPT "\001\033[38;5;%" PRIu8 "m\033[48;5;%" PRIu8 "m\001% 4d\001\033[38;5;%" PRIu8 "m\001>\001\033[0m\001 "
 #endif
 
+std::pair<std::string,std::string> getFileAndDir(std::string filepath) {
+	auto split_point = filepath.find_last_of("/\\");
+	if (split_point == std::string::npos) {
+		errs() << "File: >" << filepath << "< dir: >.<\n";
+		return { filepath, "." };
+	}
+	auto dir = filepath.substr(0, split_point);
+	auto file = filepath.substr(split_point + 1);
+	errs() << "File: >" << file << "< dir: >" << dir << "<\n";
+	return { file, dir };
+}
+
 static ssize_t fdgetline(char **lineptr, size_t *n) {
 	static char* kept_buf = nullptr;
 	static ssize_t kept_bufsize = 0;
@@ -441,6 +453,12 @@ void Lexer::pop_state() {
 	linebuf = source_stack.back().linebuf;
 	source_stack.back().linebuf = nullptr;
 	input_file = source_stack.back().input_file;
+	if (comp_mode == comp_dbg) {
+		auto [ file, dir ] = getFileAndDir(Loc.File);
+		KSDbgInfo.TheCU = DBuilder->createCompileUnit(
+			llvm::dwarf::DW_LANG_C, DBuilder->createFile(file, dir),
+			"Volvox Compiler", 0, "", 0);
+	}
 	use_readline = source_stack.back().use_readline;
 	as = std::move(source_stack.back().as);
 	fromlist = std::move(source_stack.back().fromlist);
@@ -494,6 +512,12 @@ bool Lexer::next_input_file() {
 			errs() << llvm::format("Cannot open input file \"%s\": %s\n", Loc.File, strerror(errno));
 			errs() << SourceFileNames[0] << ' ' << SourceFileNames[2] << source_files.size() << ' ' << source_files.back()[2] << ' ' << source_files.back().size() << '\n';
 			exit(1);
+		}
+		if (comp_mode == comp_dbg) {
+			auto [ file, dir ] = getFileAndDir(Loc.File);
+			KSDbgInfo.TheCU = DBuilder->createCompileUnit(
+				llvm::dwarf::DW_LANG_C, DBuilder->createFile(file, dir),
+				"Volvox Compiler", 0, "", 0);
 		}
 	} else if (source_stack.size() > 1) {
 		pop_state();

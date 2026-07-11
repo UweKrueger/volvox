@@ -1967,7 +1967,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	if (!lto_mode) {
-		if (link_mode == do_link
+		if (link_mode == do_link //&& comp_mode != comp_dbg
 #ifdef _WIN32
 		    && target_mingw
 #endif
@@ -2167,7 +2167,7 @@ int main(int argc, char* argv[]) {
 	auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
 #endif
 	std::unique_ptr<llvm::TargetMachine> u_tartgetm = nullptr;
-	if (comp_mode == comp_jit) {
+	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
 		if (auto ptr = TheJIT->createTargetMachine()) {
 			u_tartgetm = std::move(*ptr);
 			TheTargetMachine = u_tartgetm.get();
@@ -2204,7 +2204,7 @@ int main(int argc, char* argv[]) {
 	}
 	target_bytes = target_bits >> 3;
 	target_mask = (uint64_t)-1 >> (64 - target_bits);
-	if (comp_mode == comp_obj) {
+	if (comp_mode == comp_obj || comp_mode == comp_dbg) {
 		TheModule->setTargetTriple(
 #if LLVM_VERSION_MAJOR >= 21
 			Triple
@@ -2229,8 +2229,9 @@ int main(int argc, char* argv[]) {
 		// Create the compile unit for the module.
 		// Currently down as "fib.ks" as a filename since we're redirecting stdin
 		// but we'd like actual source locations.
+		auto [ file, dir ] = getFileAndDir(lex.Loc.File);
 		KSDbgInfo.TheCU = DBuilder->createCompileUnit(
-			llvm::dwarf::DW_LANG_C, DBuilder->createFile(lex.Loc.File, "."),
+			llvm::dwarf::DW_LANG_C, DBuilder->createFile(file, dir),
 			"Volvox Compiler", 0, "", 0);
 	}
 	init(TheTargetMachine->getTargetTriple());
@@ -2314,7 +2315,7 @@ int main(int argc, char* argv[]) {
 			exit(1);
 		}
 	}
-	if (comp_mode == comp_obj) {
+	if (comp_mode == comp_obj /*|| comp_mode == comp_dbg*/) {
 		auto Filename = output_file;
 		std::error_code EC;
 		llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
@@ -2322,6 +2323,9 @@ int main(int argc, char* argv[]) {
 		if (EC) {
 			errs() << "Could not open output file \"" << Filename << "\": " << EC.message() << '\n';
 			return 1;
+		}
+		if (comp_mode == comp_dbg) {
+			DBuilder->finalize();
 		}
 		if (lto_mode == lto_thin) {
 			llvm::WriteBitcodeToFile(*TheModule, dest);

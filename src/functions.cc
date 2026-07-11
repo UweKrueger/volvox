@@ -537,6 +537,8 @@ void DebugInfo::emitLocation(ExprAST *AST) {
 	if (!AST)
 		return Builder->SetCurrentDebugLocation(llvm::DebugLoc());
 	llvm::DIScope *Scope;
+	if (!TheCU)
+		errs() << AST->Loc << ": ### no compile unit\n";
 	if (LexicalBlocks.empty())
 		Scope = TheCU;
 	else
@@ -1836,7 +1838,7 @@ bool FunctionAST::prepare_codegen() {
 		}
 		if (Proto->ArgNeedsConstructor[ConstrIdx])
 			mapitem->needs_constructor = &Proto->ArgNeedsConstructor[ConstrIdx];
-		if (comp_mode == comp_dbg) {
+		if (comp_mode == comp_dbg && (mapitem->ft.type->isPointerTy() || mapitem->ft.type->isIntegerTy())) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
 				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, lex.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
