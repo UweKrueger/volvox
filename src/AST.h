@@ -448,13 +448,14 @@ public:
 	volvoxc::FullType* old_theFunction_ret_ft = nullptr;
 	std::tuple<std::string,std::string,std::string,std::string>* AutoMethod = nullptr;
 	bool old_theFunction_struct_ret = false;
-	bool prepare_codegen();
+	bool prepare_codegen(bool is_main = false);
 	bool process_body(std::vector<std::unique_ptr<ExprAST>>& thisBody, bool main_partial = false);
 	llvm::Function* finish_codegen(bool finishModule = false, bool getNewModule = false);
 	llvm::Function* cleanup_codegen();
 	PrototypeAST* Proto = nullptr;
 	std::string unmangledName;
 	llvm::DIFile *Unit = nullptr;
+	llvm::DISubprogram *SP = nullptr;
 	BranchDescription bBody;
 	std::vector<std::unique_ptr<ExprAST>>& Body;
 	int return_val_idx = -1;

@@ -11,7 +11,8 @@
 // variable size main vars are "malloc()ed" in jit mode. On exit these blocks would be
 // orphaned - so let's keep track of then to avoid memory leaks:
 MainVars jit_main_variables;
-llvm::DISubprogram *SP;
+llvm::DISubprogram* globalSP = nullptr;
+llvm::DIFile* globalUnit = nullptr;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
 bool theFunction_struct_ret = false;
 FunctionAST* currentFunction = nullptr;
@@ -1731,7 +1732,7 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 	}
 }
 
-bool FunctionAST::prepare_codegen() {
+bool FunctionAST::prepare_codegen(bool is_main) {
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
 	if ((Proto->visibility & (A_method | A_constructor)) && Proto->returnName.empty())
@@ -1760,7 +1761,10 @@ bool FunctionAST::prepare_codegen() {
 			CreateFunctionType(Proto->RetType, Proto->ArgTypes, Unit), ScopeLine,
 			llvm::DINode::FlagPrototyped, llvm::DISubprogram::SPFlagDefinition);
 		TheFunction->setSubprogram(SP);
-	  
+		if (is_main) {
+			globalUnit = Unit;
+			globalSP = SP;
+		}
 		// Push the current scope.
 		KSDbgInfo.LexicalBlocks.push_back(SP);
 

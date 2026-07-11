@@ -2230,7 +2230,7 @@ int main(int argc, char* argv[]) {
 			errs() << "error preparing main function\n";
 			abort();
 		}
-		MainFunction->prepare_codegen();
+		MainFunction->prepare_codegen(true);
 	}
 	if (jit_repl) {
 		// Running Volvox code may raise SIGABRT or SIGFPE, the user my press Ctrl-C.
