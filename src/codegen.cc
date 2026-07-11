@@ -1407,11 +1407,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	if (is_referencing)
 		fv->mark_as_referencing(is_referencing);
+	/*
 	if (comp_mode == comp_dbg) {
 		// Create a debug descriptor for the variable.
 		DBuilder->createGlobalVariableExpression(
 			SP, varname, varname, Unit, expr->Loc.Line, fv->ft.ditype, false);
 	}
+	*/
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
 	if (!needs_call) {
 		if (initialization_from_main) {
@@ -2254,6 +2256,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (Val) {
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
+			/*
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
@@ -2263,6 +2266,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),
 				                        Builder->GetInsertBlock());
 			}
+			*/
 		} else if (ValPtr) {
 			if (allocsz) {
 				llvm::AllocaInst* Alloca;

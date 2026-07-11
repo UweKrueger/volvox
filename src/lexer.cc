@@ -59,12 +59,10 @@ std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid
 std::pair<std::string,std::string> getFileAndDir(std::string filepath) {
 	auto split_point = filepath.find_last_of("/\\");
 	if (split_point == std::string::npos) {
-		errs() << "File: >" << filepath << "< dir: >.<\n";
 		return { filepath, "." };
 	}
 	auto dir = filepath.substr(0, split_point);
 	auto file = filepath.substr(split_point + 1);
-	errs() << "File: >" << file << "< dir: >" << dir << "<\n";
 	return { file, dir };
 }
 

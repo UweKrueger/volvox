@@ -12,7 +12,6 @@
 // orphaned - so let's keep track of then to avoid memory leaks:
 MainVars jit_main_variables;
 llvm::DISubprogram *SP;
-llvm::DIFile *Unit;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
 bool theFunction_struct_ret = false;
 FunctionAST* currentFunction = nullptr;
@@ -541,8 +540,6 @@ void DebugInfo::emitLocation(ExprAST *AST) {
 		Scope = TheCU;
 	else
 		Scope = LexicalBlocks.back();
-	if (!Scope)
-		errs() << AST->Loc << ": ### no Scope\n";
 	Builder->SetCurrentDebugLocation(llvm::DILocation::get(
 		                                 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
 }

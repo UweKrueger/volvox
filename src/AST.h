@@ -454,6 +454,7 @@ public:
 	llvm::Function* cleanup_codegen();
 	PrototypeAST* Proto = nullptr;
 	std::string unmangledName;
+	llvm::DIFile *Unit = nullptr;
 	BranchDescription bBody;
 	std::vector<std::unique_ptr<ExprAST>>& Body;
 	int return_val_idx = -1;
