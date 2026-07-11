@@ -487,7 +487,7 @@ void get_running_threads() {
 void InitializeModuleAndPassManager() {
 	// Open a new module.
 	TheModule = std::make_unique<llvm::Module>(lex.Loc.File, Context);
-	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
+	if (comp_mode == comp_jit) {
 		TheModule->setDataLayout(TheJIT->getDataLayout());
 	}
 	else {
@@ -1967,7 +1967,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	if (!lto_mode) {
-		if (link_mode == do_link //&& comp_mode != comp_dbg
+		if (link_mode == do_link && comp_mode != comp_dbg
 #ifdef _WIN32
 		    && target_mingw
 #endif
@@ -2092,7 +2092,7 @@ int main(int argc, char* argv[]) {
 		llvm::InitializeNativeTargetAsmParser();
 	}
 
-	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
+	if (comp_mode == comp_jit) {
 		TheJIT = ExitOnErr(llvm::orc::VolvoxJIT::Create(codegenopt));
 	}
 	auto tmp_ctx = std::make_unique<llvm::LLVMContext>();
@@ -2101,20 +2101,6 @@ int main(int argc, char* argv[]) {
 #endif
 	TS_Context = llvm::orc::ThreadSafeContext(std::move(tmp_ctx));
 
-	InitializeModuleAndPassManager();
-#ifndef LEGACY_PASS_MANAGER
-	// Register all the basic analyses with the managers.
-	// PTO.LoopInterleaving = false;
-	// PTO.LoopVectorization = false;
-	// PTO.SLPVectorization = false;
-	// PTO.LoopUnrolling = false;
-	// PTO.ForgetAllSCEVInLoopUnroll = false;
-	// PTO.LicmMssaOptCap = false;
-	// PTO.LicmMssaNoAccForPromotionCap = false;
-	// PTO.CallGraphProfile = false;
-	// PTO.MergeFunctions = false;
-	// PTO.EagerlyInvalidateAnalyses = false;
-#endif
 	// Initialize the target registry etc.
 	llvm::InitializeAllTargetInfos();
 	llvm::InitializeAllTargets();
@@ -2167,7 +2153,7 @@ int main(int argc, char* argv[]) {
 	auto RM = llvm::Optional<llvm::Reloc::Model>(gen_pic ? llvm::Reloc::Model::PIC_ : llvm::Reloc::Model::DynamicNoPIC);
 #endif
 	std::unique_ptr<llvm::TargetMachine> u_tartgetm = nullptr;
-	if (comp_mode == comp_jit || comp_mode == comp_dbg) {
+	if (comp_mode == comp_jit) {
 		if (auto ptr = TheJIT->createTargetMachine()) {
 			u_tartgetm = std::move(*ptr);
 			TheTargetMachine = u_tartgetm.get();
@@ -2204,6 +2190,7 @@ int main(int argc, char* argv[]) {
 	}
 	target_bytes = target_bits >> 3;
 	target_mask = (uint64_t)-1 >> (64 - target_bits);
+	InitializeModuleAndPassManager();
 	if (comp_mode == comp_obj || comp_mode == comp_dbg) {
 		TheModule->setTargetTriple(
 #if LLVM_VERSION_MAJOR >= 21
@@ -2315,7 +2302,7 @@ int main(int argc, char* argv[]) {
 			exit(1);
 		}
 	}
-	if (comp_mode == comp_obj /*|| comp_mode == comp_dbg*/) {
+	if (comp_mode == comp_obj || comp_mode == comp_dbg) {
 		auto Filename = output_file;
 		std::error_code EC;
 		llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);
@@ -2575,11 +2562,6 @@ int main(int argc, char* argv[]) {
 				result = volvox_wait(prog_pid);
 			}
 		}
-	} else if (comp_mode == comp_dbg) {
-		// Finalize the debug info.
-		DBuilder->finalize();
-		// Print out all of the generated code.
-		TheModule->print(errs(), nullptr);
 	} else if (comp_mode == comp_jit) {
 		ExitOnErr(TheJIT->getMainJITDylib().clear());
 		result = return_value;

@@ -939,7 +939,7 @@ public:
 		return get_name((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
 	}
 	llvm::DIType* get_diType(llvm::Type* type) {
-		if (!type) return nullptr;
+		if (!type || (uintptr_t)type == A_signed) return nullptr;
 		auto it = typeptr_table.find(type);
 		return it == typeptr_table.end() ? nullptr : it->second.second;
 	}
