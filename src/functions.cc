@@ -537,12 +537,12 @@ void DebugInfo::emitLocation(ExprAST *AST) {
 	if (!AST)
 		return Builder->SetCurrentDebugLocation(llvm::DebugLoc());
 	llvm::DIScope *Scope;
-	if (!TheCU)
-		errs() << AST->Loc << ": ### no compile unit\n";
 	if (LexicalBlocks.empty())
 		Scope = TheCU;
 	else
 		Scope = LexicalBlocks.back();
+	if (!Scope)
+		errs() << AST->Loc << ": ### no Scope\n";
 	Builder->SetCurrentDebugLocation(llvm::DILocation::get(
 		                                 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
 }
@@ -551,10 +551,10 @@ llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, std::vect
 	llvm::SmallVector<llvm::Metadata *, 8> EltTys;
 
 	// Add the result type.
-	EltTys.push_back(lex.get_diType(RetType->type, RetType->type_attr & A_signed));
+	EltTys.push_back(RetType->ditype);
 	auto NumArgs = ArgTypes.size();
 	for (unsigned i = 0; i < NumArgs; i++)
-		EltTys.push_back(lex.get_diType(ArgTypes[i]->type, ArgTypes[i]->type_attr & A_signed));
+		EltTys.push_back(ArgTypes[i]->ditype);
 
 	return DBuilder->createSubroutineType(DBuilder->getOrCreateTypeArray(EltTys));
 }
@@ -1841,7 +1841,7 @@ bool FunctionAST::prepare_codegen() {
 		if (comp_mode == comp_dbg && (mapitem->ft.type->isPointerTy() || mapitem->ft.type->isIntegerTy())) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
-				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, lex.get_diType(mapitem->ft.type, mapitem->ft.type_attr & A_signed),
+				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, mapitem->ft.ditype,
 				true);
 			DBuilder->insertDeclare(mapitem->val, D, DBuilder->createExpression(),
 			                        llvm::DILocation::get(SP->getContext(), LineNo, 0, SP),

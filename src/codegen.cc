@@ -1363,11 +1363,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
 				if (auto const_initializer = llvm::dyn_cast<llvm::Constant>(expandArrayInitializer(initializer, ini_array_type, array_type)))
 					initializer = const_initializer;
-	if (comp_mode == comp_dbg) {
-		// Create a debug descriptor for the variable.
-		DBuilder->createGlobalVariableExpression(
-			SP, varname, varname, Unit, expr->Loc.Line, lex.get_diType(type, attribs & A_signed), false);
-	}
 	FullVar* fv = lex.module->globals_table[unmangled_name.c_str()];
 	if (!fv) {
 		errs() << expr->RHS->Loc << ": internal error - variable '" << unmangled_name << "' not found in database\n";
@@ -1412,6 +1407,11 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	if (is_referencing)
 		fv->mark_as_referencing(is_referencing);
+	if (comp_mode == comp_dbg) {
+		// Create a debug descriptor for the variable.
+		DBuilder->createGlobalVariableExpression(
+			SP, varname, varname, Unit, expr->Loc.Line, fv->ft.ditype, false);
+	}
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
 	if (!needs_call) {
 		if (initialization_from_main) {
@@ -2257,7 +2257,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-					SP, varname, Unit, LHS->Loc.Line, lex.get_diType(type, attribs & A_signed),
+					SP, varname, Unit, LHS->Loc.Line, RHS->ft->ditype,
 					true);
 				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
 				                        llvm::DILocation::get(SP->getContext(), LHS->Loc.Line, 0, SP),

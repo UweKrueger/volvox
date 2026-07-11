@@ -938,15 +938,6 @@ public:
 		if (!type) return nullptr;
 		return get_name((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
 	}
-	llvm::DIType* get_diType(llvm::Type* type) {
-		if (!type || (uintptr_t)type == A_signed) return nullptr;
-		auto it = typeptr_table.find(type);
-		return it == typeptr_table.end() ? nullptr : it->second.second;
-	}
-	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) {
-		if (!type) return nullptr;
-		return get_diType((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
-	}
 protected:
 	std::map<llvm::Type*, std::pair<const char*, llvm::DIType*>> typeptr_table;
 };
@@ -1336,8 +1327,6 @@ public:
 	bool push_state(std::vector<std::string> _import_path, std::string as, std::map<std::string, SourceLocation> fromlist);
 	void pop_state();
 	void import_from_module(Module* import_module, SourceLocation TheLoc);
-	llvm::DIType* get_diType(llvm::Type* type) { return module->type_table.get_diType(type); }
-	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) { return module->type_table.get_diType(type, is_signed); }
 	MapNode* add_type(const char* name, volvoxc::FullType* ft, MapNode*& target) { return module->type_table.add(name, ft, target); }
 	MapNode* add_type(const char* name, llvm::Type* type, llvm::DIType* ditype, unsigned type_attr = 0, MapNode* fields = nullptr)
 		{ return module->type_table.add(name, type, ditype, type_attr, fields); }
