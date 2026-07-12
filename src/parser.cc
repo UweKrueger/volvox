@@ -2008,7 +2008,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		bool is_decl = false;
 		if (BinOp == "=" || BinOp == ":=") {
 			auto [new_fv, new_kind] = DeclareNewVariable(LHS, &RHS, LHS_type, RHS_type, LHS_attr, RHS_attr,
-			                                 BinLoc, LHS_is_unknown_type, RHS_is_unknown_type);
+			                                             BinLoc, LHS_is_unknown_type, RHS_is_unknown_type);
 			if (new_kind == new_var_none)
 				return nullptr;
 			if (new_kind == setter_method_returned) {

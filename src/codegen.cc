@@ -1391,9 +1391,13 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		fv->storage_type = nullptr;
 	}
 	fv->mangled_name = strdup(varname.c_str());
+	llvm::DIType* ditype = fv->ft.ditype;
 	fv->ft = *expr->RHS->ft;
 	fv->ft.type = use_target ? expr->RHS->ft->type : type;
 	fv->ft.type_attr = sym_kind | attribs | is_union | (LREF ? A_ptrref : 0U) | A_mainvar | ((sym_kind & (A_const | A_atomic)) ? A_global : 0);
+	if (ditype)
+		// already found out by DeclareNewVariable() - so restore here
+		fv->ft.ditype = ditype;
 	if (sym_kind & A_rvalue) {
 		if (sym_kind & A_const) {
 			if (expr->RHS->is_unknown_type && (fv->ft.type->isFloatTy() || fv->ft.type->isDoubleTy()
@@ -1408,20 +1412,17 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (is_referencing)
 		fv->mark_as_referencing(is_referencing);
 	if (comp_mode == comp_dbg && currentUnit && currentSP && !needs_call) {
-		if (!expr->LHS->ft->ditype) {
-			errs() << expr->LHS->Loc << ": no debug info found for '" << varname << "' of type " << *expr->LHS->ft->type << "\n";
+		if (expr->LHS->ft->ditype) {
 			if (GV) {
-				if (expr->LHS->ft->type == llvm_int_type) {
-					auto D = DBuilder->createGlobalVariableExpression(
-						KSDbgInfo.TheCU, varname, varname, globalUnit, expr->Loc.Line, DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed), true);
+				// Create a debug descriptor for the variable.
+				auto D = DBuilder->createGlobalVariableExpression(
+					KSDbgInfo.TheCU, unmangled_name, varname, globalUnit, expr->Loc.Line, expr->LHS->ft->ditype, true);
 					GV->addDebugInfo(D);
-					errs() << expr->LHS->Loc << ": inserted '" << varname << "' as " << *expr->LHS->ft->type << "\n";
-				}
 			}
 		} else
-		// Create a debug descriptor for the variable.
-			DBuilder->createGlobalVariableExpression(
-				globalSP, varname, varname, globalUnit, expr->Loc.Line, expr->LHS->ft->ditype, false);
+			if (verbosity >= 2)
+				errs() << expr->LHS->Loc << ": no debug info found for '" << varname << "' of type " << *expr->LHS->ft->type
+				       << " " << fv->ft.ditype << "\n";
 	}
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
 	if (!needs_call) {
