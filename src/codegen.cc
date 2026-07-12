@@ -1407,10 +1407,21 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	}
 	if (is_referencing)
 		fv->mark_as_referencing(is_referencing);
-	if (false && comp_mode == comp_dbg && globalUnit && globalSP) {
+	if (comp_mode == comp_dbg && currentUnit && currentSP && !needs_call) {
+		if (!expr->LHS->ft->ditype) {
+			errs() << expr->LHS->Loc << ": no debug info found for '" << varname << "' of type " << *expr->LHS->ft->type << "\n";
+			if (GV) {
+				if (expr->LHS->ft->type == llvm_int_type) {
+					auto D = DBuilder->createGlobalVariableExpression(
+						KSDbgInfo.TheCU, varname, varname, globalUnit, expr->Loc.Line, DBuilder->createBasicType("int", 32, llvm::dwarf::DW_ATE_signed), true);
+					GV->addDebugInfo(D);
+					errs() << expr->LHS->Loc << ": inserted '" << varname << "' as " << *expr->LHS->ft->type << "\n";
+				}
+			}
+		} else
 		// Create a debug descriptor for the variable.
-		DBuilder->createGlobalVariableExpression(
-			globalSP, varname, varname, globalUnit, expr->Loc.Line, fv->ft.ditype, false);
+			DBuilder->createGlobalVariableExpression(
+				globalSP, varname, varname, globalUnit, expr->Loc.Line, expr->LHS->ft->ditype, false);
 	}
 	bool shadow_already_created = false; // track creation to avoid duplicate symbol errors
 	if (!needs_call) {
@@ -2265,7 +2276,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					                        varLoc,
 					                        Builder->GetInsertBlock());
 				} else if (verbosity >= 2) {
-					errs() << LHS->Loc << ": no debug info found for '" << varname << "' " << (void*)(LHS.get()) <<  " of type " << *LHS->ft->type << "\n";
+					errs() << LHS->Loc << ": no debug info found for '" << varname << "' of type " << *LHS->ft->type << "\n";
 				}
 			}
 		} else if (ValPtr) {
@@ -3801,7 +3812,7 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		if (for_expr && !for_expr->iterator_methods) {
 			BlockToJump = MergeBB;
 		}
-		else if(CondBBstart)
+		else if (CondBBstart)
 			BlockToJump = CondBBstart;
 		else
 			BlockToJump = MergeBB;
