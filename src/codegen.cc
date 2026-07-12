@@ -2254,14 +2254,19 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (Val) {
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
-			if (false && comp_mode == comp_dbg) {
+			if (comp_mode == comp_dbg && !strcmp(varname, "h")) {
 				errs() << LHS->Loc << ": dbg for " << varname << "\n";
+				errs() << "CurrentUnit: file " << currentUnit->getFilename()
+				       << " dir: " << currentUnit->getDirectory() << "\n";
+				errs() << "CurrentSP: name " << currentSP->getName() << "\n";
 				// Create a debug descriptor for the variable.
+				auto currentScope = DBuilder->createLexicalBlockFile(currentSP, currentUnit, 0);
+				auto varLoc = llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, currentScope);
 				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-					currentSP, varname, currentUnit, LHS->Loc.Line, RHS->ft->ditype,
+					currentSP, varname, currentUnit, LHS->Loc.Line, DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float), //RHS->ft->ditype,
 					true);
 				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-				                        llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, currentSP),
+				                        varLoc,
 				                        Builder->GetInsertBlock());
 			}
 		} else if (ValPtr) {

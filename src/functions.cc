@@ -1765,6 +1765,9 @@ bool FunctionAST::prepare_codegen(bool is_main) {
 		TheFunction->setSubprogram(SP);
 		currentUnit = Unit;
 		currentSP = SP;
+		errs() << Proto->retLoc << ": currentUnit: file " << currentUnit->getFilename()
+		       << " dir: " << currentUnit->getDirectory() << "\n";
+		errs() << Proto->retLoc << ": currentSP: name " << currentSP->getName() << "\n";
 		if (is_main) {
 			globalUnit = Unit;
 			globalSP = SP;
