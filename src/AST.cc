@@ -13,8 +13,6 @@ BinaryExprAST::BinaryExprAST(SourceLocation Loc, const char* _Op, std::unique_pt
 	  LREF(dynamic_cast<ReferenceExprAST*>(LHS.get()))
 {
 	strlcpy(Op, _Op, SZ_OPCODE);
-	if (opclass == OpDeclAssign)
-		LHS->ft = RHS->ft;
 	if (opclass == OpRange && ft && ft->type) {
 		auto limits_type_name = lex.get_type_name(ft->type, (bool)(ft->type_attr & A_signed));
 		if (limits_type_name) {

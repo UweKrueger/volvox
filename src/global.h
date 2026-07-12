@@ -940,6 +940,15 @@ public:
 		if (!type) return nullptr;
 		return get_name((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
 	}
+	llvm::DIType* get_diType(llvm::Type* type) {
+		if (!type || (uintptr_t)type == A_signed) return nullptr;
+		auto it = typeptr_table.find(type);
+		return it == typeptr_table.end() ? nullptr : it->second.second;
+	}
+	llvm::DIType* get_diType(llvm::Type* type, bool is_signed) {
+		if (!type) return nullptr;
+		return get_diType((llvm::Type*)((uintptr_t)type | (is_signed ? A_signed : 0)));
+	}
 protected:
 	std::map<llvm::Type*, std::pair<const char*, llvm::DIType*>> typeptr_table;
 };
@@ -1369,6 +1378,11 @@ public:
 		if (!ft && source_stack.size())
 			ft = source_stack.front().module->type_table.get_full(_key);
 		return ft;
+	}
+	llvm::DIType* get_diType(llvm::Type* type, bool is_signed = false) {
+		if (source_stack.empty())
+			return nullptr;
+		return source_stack.front().module->type_table.get_diType(type, is_signed);
 	}
 	const char* get_type_name(llvm::Type* type, bool is_signed = false) {
 		auto name = module->type_table.get_name(type, is_signed);

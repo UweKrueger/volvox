@@ -2254,20 +2254,19 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (Val) {
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
-			if (comp_mode == comp_dbg && !strcmp(varname, "h")) {
-				errs() << LHS->Loc << ": dbg for " << varname << "\n";
-				errs() << "CurrentUnit: file " << currentUnit->getFilename()
-				       << " dir: " << currentUnit->getDirectory() << "\n";
-				errs() << "CurrentSP: name " << currentSP->getName() << "\n";
+			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
-				auto currentScope = DBuilder->createLexicalBlockFile(currentSP, currentUnit, 0);
-				auto varLoc = llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, currentScope);
-				llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-					currentSP, varname, currentUnit, LHS->Loc.Line, DBuilder->createBasicType("real", 64, llvm::dwarf::DW_ATE_float), //RHS->ft->ditype,
-					true);
-				DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-				                        varLoc,
-				                        Builder->GetInsertBlock());
+				if (LHS->ft->ditype) {
+					auto currentScope = DBuilder->createLexicalBlockFile(currentSP, currentUnit, 0);
+					auto varLoc = llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, currentScope);
+					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
+						currentSP, varname, currentUnit, LHS->Loc.Line, LHS->ft->ditype, true);
+					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+					                        varLoc,
+					                        Builder->GetInsertBlock());
+				} else if (verbosity >= 2) {
+					errs() << LHS->Loc << ": no debug info found for '" << varname << "' " << (void*)(LHS.get()) <<  " of type " << *LHS->ft->type << "\n";
+				}
 			}
 		} else if (ValPtr) {
 			if (allocsz) {

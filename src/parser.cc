@@ -1501,9 +1501,19 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 			errs() << CurLoc << ": var " << VarL->Name;
 			dump_branch_parts(fv.branch_parts);
 		}
+		if (DBuilder && !fv.ft.ditype) {
+			fv.ft.ditype = lex.get_diType(fv.ft.type, (bool)(fv.ft.type_attr & A_signed));
+			if (verbosity >= 2) {
+				if (!fv.ft.ditype)
+					errs() << CurLoc << ": variable '" << VarL->Name << "' of type " << *fv.ft.type << " has no ditype\n";
+				else
+					errs() << CurLoc << ": found diType for '" << VarL->Name << "' of type " << *fv.ft.type << "\n";
+			}
+		}
 		if (inside_function || !current_branch_part.empty()) {
 			if (auto entry = locals_table.back().insert(VarL->Name.c_str(), fv)) {
 				VarL->full_var = nullptr; // in case a global with the same name had been found
+				VarL->ft = &entry->ft;
 				return { entry, new_var_created };
 			} else {
 				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in current scope\n";
@@ -1512,6 +1522,7 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 		} else {
 			fv.ft.type_attr |= A_mainvar;
 			if (auto entry = lex.module->globals_table.insert(VarL->Name.c_str(), fv)) {
+				VarL->ft = &entry->ft;
 				return { entry, new_var_created};
 			} else {
 				errs() << VarL->Loc << ": variable '" << VarL->Name << "' already exists in \"main\" scope\n";
