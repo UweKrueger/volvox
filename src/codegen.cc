@@ -2269,12 +2269,22 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				if (LHS->ft->ditype) {
-					auto [ file, dir ] = getFileAndDir(LHS->Loc.File);
-					llvm::DIFile* currentFile = DBuilder->createFile(file, dir);
-					auto currentScope = DBuilder->createLexicalBlockFile(currentSP, currentFile, 0);
-					auto varLoc = llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, currentScope);
+					llvm::DIFile* currentFile = currentUnit;
+					llvm::DIScope *Scope;
+					llvm::DISubprogram* SP = currentSP;
+					if (KSDbgInfo.LexicalBlocks.empty())
+						Scope = KSDbgInfo.TheCU;
+					else
+						Scope = KSDbgInfo.LexicalBlocks.back();
+					if (Scope == globalScope) {
+						auto [ file, dir ] = getFileAndDir(LHS->Loc.File);
+						currentFile = DBuilder->createFile(file, dir);
+						SP = globalScope;
+						Scope = DBuilder->createLexicalBlockFile(Scope, currentFile, 0);
+					}
+					auto varLoc = llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, Scope);
 					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-						currentSP, varname, currentUnit, LHS->Loc.Line, LHS->ft->ditype, true);
+						SP, varname, currentFile, LHS->Loc.Line, LHS->ft->ditype, true);
 					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
 					                        varLoc,
 					                        Builder->GetInsertBlock());

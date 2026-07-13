@@ -612,7 +612,7 @@ extern llvm::AllocaInst* CreateEntryBlockAlloca(llvm::Type* type, const llvm::Tw
 extern llvm::Function* getFunction(PrototypeAST* FI);
 extern llvm::DISubroutineType *CreateFunctionType(volvoxc::FullType* RetType, std::vector<volvoxc::FullType*>& ArgTypes, llvm::DIFile *Unit);
 extern llvm::ExitOnError ExitOnErr;
-extern llvm::DIScope* globalScope;
+extern llvm::DISubprogram* globalScope;
 extern llvm::DIFile* currentUnit;
 extern llvm::DISubprogram* currentSP;
 extern volvoxc::FullType* theFunction_ret_ft;

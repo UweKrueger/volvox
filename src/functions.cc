@@ -11,7 +11,7 @@
 // variable size main vars are "malloc()ed" in jit mode. On exit these blocks would be
 // orphaned - so let's keep track of then to avoid memory leaks:
 MainVars jit_main_variables;
-llvm::DIScope* globalScope = nullptr;
+llvm::DISubprogram* globalScope = nullptr; // The 'main()' function that spans several files
 llvm::DISubprogram* currentSP = nullptr;
 llvm::DIFile* currentUnit = nullptr;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
