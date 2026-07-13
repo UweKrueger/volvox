@@ -11,8 +11,7 @@
 // variable size main vars are "malloc()ed" in jit mode. On exit these blocks would be
 // orphaned - so let's keep track of then to avoid memory leaks:
 MainVars jit_main_variables;
-llvm::DISubprogram* globalSP = nullptr;
-llvm::DIFile* globalUnit = nullptr;
+llvm::DIScope* globalScope = nullptr;
 llvm::DISubprogram* currentSP = nullptr;
 llvm::DIFile* currentUnit = nullptr;
 volvoxc::FullType* theFunction_ret_ft = nullptr;
@@ -536,13 +535,18 @@ CallExprAST::~CallExprAST() {
 }
 
 void DebugInfo::emitLocation(ExprAST *AST) {
-	if (!AST)
+	if (!AST || !AST->Loc.File)
 		return Builder->SetCurrentDebugLocation(llvm::DebugLoc());
 	llvm::DIScope *Scope;
 	if (LexicalBlocks.empty())
 		Scope = TheCU;
 	else
 		Scope = LexicalBlocks.back();
+	if (Scope == globalScope) {
+		auto [ file, dir ] = getFileAndDir(AST->Loc.File);
+		llvm::DIFile* currentFile = DBuilder->createFile(file, dir);
+		Scope = DBuilder->createLexicalBlockFile(Scope, currentFile, 0);
+	}
 	Builder->SetCurrentDebugLocation(llvm::DILocation::get(
 		                                 Scope->getContext(), AST->getLine(), AST->getCol(), Scope));
 }
@@ -1765,10 +1769,8 @@ bool FunctionAST::prepare_codegen(bool is_main) {
 		TheFunction->setSubprogram(SP);
 		currentUnit = Unit;
 		currentSP = SP;
-		if (is_main) {
-			globalUnit = Unit;
-			globalSP = SP;
-		}
+		if (is_main)
+			globalScope = SP;
 		// Push the current scope.
 		KSDbgInfo.LexicalBlocks.push_back(SP);
 

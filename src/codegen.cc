@@ -1416,7 +1416,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			if (GV) {
 				// Create a debug descriptor for the variable.
 				auto D = DBuilder->createGlobalVariableExpression(
-					KSDbgInfo.TheCU, unmangled_name, varname, globalUnit, expr->Loc.Line, expr->LHS->ft->ditype, true);
+					KSDbgInfo.TheCU, unmangled_name, varname, currentUnit, expr->Loc.Line, expr->LHS->ft->ditype, true);
 					GV->addDebugInfo(D);
 			}
 		} else
@@ -2269,7 +2269,9 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 			if (comp_mode == comp_dbg) {
 				// Create a debug descriptor for the variable.
 				if (LHS->ft->ditype) {
-					auto currentScope = DBuilder->createLexicalBlockFile(currentSP, currentUnit, 0);
+					auto [ file, dir ] = getFileAndDir(LHS->Loc.File);
+					llvm::DIFile* currentFile = DBuilder->createFile(file, dir);
+					auto currentScope = DBuilder->createLexicalBlockFile(currentSP, currentFile, 0);
 					auto varLoc = llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, currentScope);
 					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
 						currentSP, varname, currentUnit, LHS->Loc.Line, LHS->ft->ditype, true);
