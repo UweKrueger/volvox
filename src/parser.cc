@@ -259,6 +259,16 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			std::vector<std::string> FieldNames;
 			std::vector<FieldTypeLoc> FieldTypes;
 			std::vector<llvm::Type*> LLVMFieldTypes;
+			// llvm::ArrayRef<llvm::Metadata*> DIFieldTypes;
+			std::vector<size_t> FieldSizes;
+			bool createDebugInfo = (bool)DBuilder;
+			llvm::DIType* struct_ditype = nullptr;
+			llvm::DIFile* currentFile = nullptr;
+			auto decl_loc = CurLoc;
+			if (createDebugInfo) {
+				auto [ file, dir ] = getFileAndDir(CurLoc.File);
+				currentFile = DBuilder->createFile(file, dir);
+			}
 			for (;;) {
 				auto field_Loc = CurLoc;
 				auto [name, ft] = ParseTypedIdent('}', true);
@@ -270,6 +280,8 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					.Loc = field_Loc
 				};
 				FieldTypes.push_back(type);
+				size_t sz = TheModule->getDataLayout().getTypeAllocSize(type.ft->type);
+				FieldSizes.push_back(sz);
 				LLVMFieldTypes.push_back(type.ft->type);
 				if (CurTok.kind != '}')
 					if (!Expect(','))
@@ -305,6 +317,36 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					struct_type = llvm::StructType::create(Context, LLVMFieldTypes, tname, is_packed);
 				else
 					struct_type = llvm::StructType::get(Context, LLVMFieldTypes, is_packed);
+			if (createDebugInfo && !(attribs & A_union)) {
+				llvm::SmallVector<llvm::Metadata *, 16> DIFieldTypes;
+				uint64_t offset = 0;
+				for (int idx = 0; idx < FieldTypes.size(); idx++) {
+					volvoxc::FullType* ft = FieldTypes[idx].ft;
+					if (!ft->ditype) {
+						createDebugInfo = false;
+						goto abort_debuginfo;
+					}
+					SourceLocation field_loc = FieldTypes[idx].Loc;
+					unsigned LineNo = field_loc.Line;
+					uint64_t Size = FieldSizes[idx];
+					uint32_t Alignment = getByteAlign(FieldSizes[idx]);
+					if (!is_packed)
+						offset = Alignment * ((offset + (Alignment - 1)) / Alignment);
+					llvm::DIDerivedType* member =
+						DBuilder->createMemberType(currentFile, FieldNames[idx], currentFile,
+						                 LineNo, 8 * Size, 8 * Alignment,
+						                 8 * offset, llvm::DINode::FlagZero, ft->ditype);
+					DIFieldTypes.push_back(member);
+					offset += Size;
+				}
+				auto Elements = DBuilder->getOrCreateArray(DIFieldTypes);
+				struct_ditype =
+					DBuilder->createStructType(
+						currentFile, tname, currentFile, decl_loc.Line,
+						8 * offset, 8 * getByteAlign(offset), llvm::DINode::FlagZero,
+						nullptr, Elements);
+			}
+			abort_debuginfo:
 			MapNode* fields = map_string_new_map();
 			auto fields_by_idx = (StructFieldType*)malloc(FieldNames.size() * sizeof(StructFieldType));
 			if (!fields_by_idx)
@@ -320,7 +362,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 				}
 				fields_by_idx[i] = StructFieldType(new_node);
 			}
-			return new_FullType(struct_type, attribs, nullptr /*DIType*/, fields, nullptr, fields_by_idx);
+			return new_FullType(struct_type, attribs, struct_ditype, fields, nullptr, fields_by_idx);
 		}
 			break;
 		case tok_map:

@@ -608,7 +608,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 	return { storage_type, V };
 }
 
-llvm::MaybeAlign getAlignment(size_t elem_size) {
+uint64_t getByteAlign(size_t elem_size) {
 	uint64_t align = 1;
 	// MaybeAlign constructor only accepts powers of 2, so create one from elem_size
 	do {
@@ -616,7 +616,11 @@ llvm::MaybeAlign getAlignment(size_t elem_size) {
 			break;
 		align <<= 1;
 	} while (align < target_bytes);
-	return llvm::MaybeAlign(align);
+	return align;
+}
+
+llvm::MaybeAlign getAlignment(size_t elem_size) {
+	return llvm::MaybeAlign(getByteAlign(elem_size));
 }
 
 llvm::MaybeAlign getAlignment(llvm::Value* size) {

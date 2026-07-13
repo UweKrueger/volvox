@@ -1062,6 +1062,7 @@ inline static llvm::Value* CheckTailCall(llvm::Value* V) {
 }
 
 extern std::map<std::string,SourceLocation> defined_functions;
+extern uint64_t getByteAlign(size_t elem_size);
 extern llvm::MaybeAlign getAlignment(size_t elem_size);
 extern llvm::MaybeAlign getAlignment(llvm::Value* size);
 extern llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft,
