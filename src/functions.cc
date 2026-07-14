@@ -1845,10 +1845,7 @@ bool FunctionAST::prepare_codegen(bool is_main) {
 		}
 		if (Proto->ArgNeedsConstructor[ConstrIdx])
 			mapitem->needs_constructor = &Proto->ArgNeedsConstructor[ConstrIdx];
-		if (comp_mode == comp_dbg && (mapitem->ft.type->isPointerTy()
-		                              || mapitem->ft.type->isIntegerTy()
-		                              || mapitem->ft.type->isFloatTy()
-		                              || mapitem->ft.type->isDoubleTy())) {
+		if (comp_mode == comp_dbg && mapitem->ft.ditype) {
 			// Create a debug descriptor for the variable.
 			llvm::DILocalVariable *D = DBuilder->createParameterVariable(
 				SP, Arg->getName(), ArgIdx + 1, Unit, LineNo, mapitem->ft.ditype,

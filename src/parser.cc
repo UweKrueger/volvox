@@ -242,6 +242,45 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					*exprs = std::vector<std::unique_ptr<ExprAST>>{};
 				return nullptr;
 			}
+			bool createDebugInfo = (bool)DBuilder;
+			llvm::DIType* di_elem_type = nullptr;
+			llvm::DIType* array_ditype = nullptr;
+			if (createDebugInfo) {
+				auto [ file, dir ] = getFileAndDir(CurLoc.File);
+				llvm::DIFile* currentFile = DBuilder->createFile(file, dir);
+				di_elem_type = elem_type->ditype;
+				if (!di_elem_type)
+					di_elem_type = lex.get_diType(elem_type->type, (bool)(elem_type->type_attr & A_signed));
+				if (!di_elem_type) {
+					createDebugInfo = false;
+					goto abort_array_debuginfo;
+				}
+				llvm::SmallVector<llvm::Metadata*, 4> Subranges;
+				size_t array_size = 1;
+				if (!lens.size()) {
+					createDebugInfo = false;
+					goto abort_array_debuginfo;;
+				}
+				for (int j = lens.size()-1; j >= 0; j--) {
+					if (!lens[j]) {
+						createDebugInfo = false;
+						break; // variable size arrays not supported, yet
+					}
+					array_size *= lens[j];
+					auto subrange = DBuilder->getOrCreateSubrange(0, lens[j]);
+					// errs() << CurLoc << ": pushed " << *subrange << " to Subranges\n";
+					Subranges.push_back(subrange);
+				}
+				if (createDebugInfo) {
+					llvm::DINodeArray Subscripts = DBuilder->getOrCreateArray(Subranges);
+					uint64_t align = TheModule->getDataLayout().getPrefTypeAlign(elem_type->type).value();
+					array_ditype = DBuilder->createArrayType(
+						currentFile, "", currentFile, CurLoc.Line,
+						array_size, 8 * (uint32_t)align, di_elem_type, Subscripts);
+					// errs() << CurLoc << ": array debuginfo created " << lens.size() << " " << (exprs ? (int)exprs->size() : (int)-1)  << "\n";
+				}
+			}
+			abort_array_debuginfo:
 			llvm::Type* array_type = elem_type->type;
 			if (int i = lens.size())
 				do
@@ -250,7 +289,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			else
 				for (int i = exprs->size(); i > 0; i--)
 					array_type = llvm::ArrayType::get(array_type, 0);
-			return new_FullType(array_type, attribs, nullptr, nullptr, elem_type);
+			return new_FullType(array_type, attribs, array_ditype, nullptr, elem_type);
 		}
 			break;
 		case '{': {
@@ -885,9 +924,9 @@ static std::unique_ptr<ExprAST> ParseAggregateExpr(bool is_index = false, int te
 	std::vector<std::unique_ptr<ExprAST>> Elements = iter.prepare_list(std::move(Elems), 0);
 	if (iter.struct_error())
 		return nullptr;
-	if (ft)
+	if (ft) {
 		return std::make_unique<FixedArrayExprAST>(loc, ft, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.LitDims), std::move(iter.Dims), LenLocs);
-	else
+	} else
 		return std::make_unique<FixedArrayExprAST>(loc, std::move(Elements), std::move(iter.valid_exprs), std::move(iter.LitDims), nullptr, std::move(iter. Dims), LenLocs);
 }
 

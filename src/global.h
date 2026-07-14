@@ -1379,6 +1379,8 @@ public:
 			ft = source_stack.front().module->type_table.get_full(_key);
 		return ft;
 	}
+	// get debug info for basic types which are declared in the front of source stack
+	// structs, etc. should always include debug info in FullType
 	llvm::DIType* get_diType(llvm::Type* type, bool is_signed = false) {
 		if (source_stack.empty())
 			return nullptr;
