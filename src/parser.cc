@@ -261,13 +261,13 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					createDebugInfo = false;
 					goto abort_array_debuginfo;;
 				}
-				for (int j = lens.size()-1; j >= 0; j--) {
-					if (!lens[j]) {
+				for (auto len: lens) {
+					if (!len) {
 						createDebugInfo = false;
 						break; // variable size arrays not supported, yet
 					}
-					array_size *= lens[j];
-					auto subrange = DBuilder->getOrCreateSubrange(0, lens[j]);
+					array_size *= len;
+					auto subrange = DBuilder->getOrCreateSubrange(0, len);
 					// errs() << CurLoc << ": pushed " << *subrange << " to Subranges\n";
 					Subranges.push_back(subrange);
 				}
