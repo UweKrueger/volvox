@@ -347,7 +347,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					idx--;
 				}
 			}
-			llvm::Type* struct_type = existing;
+			llvm::StructType* struct_type = existing;
 			if (existing)
 				existing->setBody(LLVMFieldTypes, is_packed);
 			else
@@ -358,31 +358,29 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			if (createDebugInfo && !(attribs & A_union)) {
 				llvm::SmallVector<llvm::Metadata *, 16> DIFieldTypes;
 				uint64_t offset = 0;
+				auto struct_layout = TheModule->getDataLayout().getStructLayout(struct_type);
 				for (int idx = 0; idx < FieldTypes.size(); idx++) {
 					volvoxc::FullType* ft = FieldTypes[idx].ft;
 					if (!ft->ditype) {
 						createDebugInfo = false;
 						goto abort_debuginfo;
 					}
-					SourceLocation field_loc = FieldTypes[idx].Loc;
-					unsigned LineNo = field_loc.Line;
 					uint64_t Size = FieldSizes[idx];
 					uint32_t Alignment = getByteAlign(FieldSizes[idx]);
-					if (!is_packed)
-						offset = Alignment * ((offset + (Alignment - 1)) / Alignment);
 					llvm::DIDerivedType* member =
 						DBuilder->createMemberType(currentFile, FieldNames[idx], currentFile,
-						                 LineNo, 8 * Size, 8 * Alignment,
-						                 8 * offset, llvm::DINode::FlagZero, ft->ditype);
+						                           FieldTypes[idx].Loc.Line,
+						                           8 * Size, 8 * Alignment, // TODO: check packed structs
+						                           struct_layout->getElementOffsetInBits(idx),
+						                           llvm::DINode::FlagZero, ft->ditype);
 					DIFieldTypes.push_back(member);
-					offset += Size;
 				}
 				auto Elements = DBuilder->getOrCreateArray(DIFieldTypes);
 				struct_ditype =
 					DBuilder->createStructType(
 						currentFile, tname, currentFile, decl_loc.Line,
-						8 * offset, 8 * getByteAlign(offset), llvm::DINode::FlagZero,
-						nullptr, Elements);
+						struct_layout->getSizeInBits(), 8 * struct_layout->getAlignment().value(),
+						llvm::DINode::FlagZero, nullptr, Elements);
 			}
 			abort_debuginfo:
 			MapNode* fields = map_string_new_map();
