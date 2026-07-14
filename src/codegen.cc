@@ -1969,6 +1969,33 @@ std::pair<llvm::Type*,llvm::Value*> BinaryExprAST::codegen_ref_(bool silent_fail
 	}
 }
 
+void createDIAutoVar(ExprAST* LHS, const char* varname, llvm::Value* Alloca) {
+	// Create a debug descriptor for the variable.
+	if (LHS->ft->ditype) {
+		llvm::DIFile* currentFile = currentUnit;
+		llvm::DIScope *Scope;
+		llvm::DISubprogram* SP = currentSP;
+		if (KSDbgInfo.LexicalBlocks.empty())
+			Scope = KSDbgInfo.TheCU;
+		else
+			Scope = KSDbgInfo.LexicalBlocks.back();
+		if (Scope == globalScope) {
+			auto [ file, dir ] = getFileAndDir(LHS->Loc.File);
+			currentFile = DBuilder->createFile(file, dir);
+			SP = globalScope;
+			Scope = DBuilder->createLexicalBlockFile(Scope, currentFile, 0);
+		}
+		auto varLoc = llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, Scope);
+		llvm::DILocalVariable *D = DBuilder->createAutoVariable(
+			SP, varname, currentFile, LHS->Loc.Line, LHS->ft->ditype, true);
+		DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
+		                        varLoc,
+		                        Builder->GetInsertBlock());
+	} else if (verbosity >= 2) {
+		errs() << LHS->Loc << ": no debug info found for '" << varname << "' of type " << *LHS->ft->type << "\n";
+	}
+}
+
 llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
@@ -2270,32 +2297,8 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		if (Val) {
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
-			if (comp_mode == comp_dbg) {
-				// Create a debug descriptor for the variable.
-				if (LHS->ft->ditype) {
-					llvm::DIFile* currentFile = currentUnit;
-					llvm::DIScope *Scope;
-					llvm::DISubprogram* SP = currentSP;
-					if (KSDbgInfo.LexicalBlocks.empty())
-						Scope = KSDbgInfo.TheCU;
-					else
-						Scope = KSDbgInfo.LexicalBlocks.back();
-					if (Scope == globalScope) {
-						auto [ file, dir ] = getFileAndDir(LHS->Loc.File);
-						currentFile = DBuilder->createFile(file, dir);
-						SP = globalScope;
-						Scope = DBuilder->createLexicalBlockFile(Scope, currentFile, 0);
-					}
-					auto varLoc = llvm::DILocation::get(currentSP->getContext(), LHS->Loc.Line, 0, Scope);
-					llvm::DILocalVariable *D = DBuilder->createAutoVariable(
-						SP, varname, currentFile, LHS->Loc.Line, LHS->ft->ditype, true);
-					DBuilder->insertDeclare(Alloca, D, DBuilder->createExpression(),
-					                        varLoc,
-					                        Builder->GetInsertBlock());
-				} else if (verbosity >= 2) {
-					errs() << LHS->Loc << ": no debug info found for '" << varname << "' of type " << *LHS->ft->type << "\n";
-				}
-			}
+			if (comp_mode == comp_dbg)
+				createDIAutoVar(LHS.get(), varname, Alloca);
 		} else if (ValPtr) {
 			if (allocsz) {
 				llvm::AllocaInst* Alloca;
@@ -2303,6 +2306,8 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				Alloca = Builder->CreateAlloca(RHS->ft->type, nullptr, varname);
 				Builder->CreateMemCpy(Alloca, align, ValPtr, align, allocsz);
 				entry->val = Alloca;
+				if (comp_mode == comp_dbg)
+					createDIAutoVar(LHS.get(), varname, Alloca);
 			} else {
 				auto Alloca = Builder->CreateAlloca(elem_type, AllocSize, varname);
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(elem_type);
@@ -2320,6 +2325,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					entry->val = Alloca;
 					errs() << LHS->Loc << ": val: " << *Alloca << "\n";
 				}
+				// debug info for "unsized" objects not supported, yet
 			}
 		} else if (allocsz > sret_limit || is_constructor_call) {
 			auto align = getAlignment(allocsz);
@@ -2333,6 +2339,8 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 				return nullptr;
 			}
 			entry->val = Alloca;
+			if (comp_mode == comp_dbg)
+				createDIAutoVar(LHS.get(), varname, Alloca);
 		} else {
 			errs() << "unhandled case\n";
 			return nullptr;
