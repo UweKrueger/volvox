@@ -355,9 +355,8 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					struct_type = llvm::StructType::create(Context, LLVMFieldTypes, tname, is_packed);
 				else
 					struct_type = llvm::StructType::get(Context, LLVMFieldTypes, is_packed);
-			if (createDebugInfo && !(attribs & A_union)) {
+			if (createDebugInfo) {
 				llvm::SmallVector<llvm::Metadata *, 16> DIFieldTypes;
-				uint64_t offset = 0;
 				auto struct_layout = TheModule->getDataLayout().getStructLayout(struct_type);
 				for (int idx = 0; idx < FieldTypes.size(); idx++) {
 					volvoxc::FullType* ft = FieldTypes[idx].ft;
@@ -371,16 +370,22 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 						DBuilder->createMemberType(currentFile, FieldNames[idx], currentFile,
 						                           FieldTypes[idx].Loc.Line,
 						                           8 * Size, 8 * Alignment, // TODO: check packed structs
-						                           struct_layout->getElementOffsetInBits(idx),
+						                           (attribs & A_union) ? 0 : struct_layout->getElementOffsetInBits(idx),
 						                           llvm::DINode::FlagZero, ft->ditype);
 					DIFieldTypes.push_back(member);
 				}
 				auto Elements = DBuilder->getOrCreateArray(DIFieldTypes);
-				struct_ditype =
-					DBuilder->createStructType(
+				if (attribs & A_union)
+					struct_ditype = DBuilder->createUnionType(
 						currentFile, tname, currentFile, decl_loc.Line,
 						struct_layout->getSizeInBits(), 8 * struct_layout->getAlignment().value(),
-						llvm::DINode::FlagZero, nullptr, Elements);
+						llvm::DINode::FlagZero, Elements);
+				else
+					struct_ditype =
+						DBuilder->createStructType(
+							currentFile, tname, currentFile, decl_loc.Line,
+							struct_layout->getSizeInBits(), 8 * struct_layout->getAlignment().value(),
+							llvm::DINode::FlagZero, nullptr, Elements);
 			}
 			abort_debuginfo:
 			MapNode* fields = map_string_new_map();
