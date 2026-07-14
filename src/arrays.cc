@@ -55,16 +55,59 @@ llvm::Value* FixedArrayExprAST::codegen_raw(llvm::Value* target) {
 	}
 	llvm::Type* new_type = ft->elem_type->type;
 	std::vector<llvm::Value*> Sizes; // reverse order
+	bool createDebugInfo = (bool)DBuilder;
+	std::vector<uint64_t> lens = {}; // for debug info
 	for (int j = LenVals.size() - 1; j >= 0; j--)
 		if (auto constlen = llvm::dyn_cast<llvm::ConstantInt>(LenVals[j])) {
-			new_type = llvm::ArrayType::get(new_type, constlen->getZExtValue());
+			uint64_t len = constlen->getZExtValue();
+			if (createDebugInfo)
+				lens.insert(lens.begin(), len);
+			new_type = llvm::ArrayType::get(new_type, len);
 		} else {
 			new_type = llvm::ArrayType::get(new_type, 0);
+			createDebugInfo = false; // run time size arrays not supported, yet
 			Sizes.push_back(LenVals[j]);
 		}
-	if (new_type != ft->type) {
+	llvm::DIType* array_ditype = nullptr;
+	if (createDebugInfo) {
+		// TODO: merge this with similar code in parser.cc
+		llvm::DIType* di_elem_type = ft->elem_type->ditype;
+		if (!di_elem_type)
+			di_elem_type = lex.get_diType(ft->elem_type->type, (bool)(ft->elem_type->type_attr & A_signed));
+		if (!di_elem_type) {
+			createDebugInfo = false;
+			goto abort_array_debuginfo;
+		}
+		auto [ file, dir ] = getFileAndDir(Loc.File);
+		llvm::DIFile* currentFile = DBuilder->createFile(file, dir);
+		llvm::SmallVector<llvm::Metadata*, 4> Subranges;
+		size_t array_size = 1;
+		if (!lens.size()) {
+			createDebugInfo = false;
+			goto abort_array_debuginfo;
+		}
+		for (auto len: lens) {
+			if (!len) {
+				createDebugInfo = false;
+				goto abort_array_debuginfo; // run time size arrays not supported, yet
+			}
+			array_size *= len;
+			auto subrange = DBuilder->getOrCreateSubrange(0, len);
+			// errs() << CurLoc << ": pushed " << *subrange << " to Subranges\n";
+			Subranges.push_back(subrange);
+		}
+		llvm::DINodeArray Subscripts = DBuilder->getOrCreateArray(Subranges);
+		uint64_t align = TheModule->getDataLayout().getPrefTypeAlign(ft->elem_type->type).value();
+		array_ditype = DBuilder->createArrayType(
+			currentFile, "", currentFile, CurLoc.Line,
+			array_size, 8 * (uint32_t)align, di_elem_type, Subscripts);
+		// errs() << Loc << ": array debuginfo created " << lens.size() << "\n";
+	}
+abort_array_debuginfo:
+	if (new_type != ft->type || array_ditype != ft->ditype) {
 		ft = new_FullType(*ft);
 		ft->type = new_type;
+		ft->ditype = array_ditype;
 	}
 	llvm::Type* initializer_type = ft->elem_type->type;
 	for (int j = LitDims.size() - 1; j >= 0; j--)

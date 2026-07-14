@@ -246,8 +246,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			llvm::DIType* di_elem_type = nullptr;
 			llvm::DIType* array_ditype = nullptr;
 			if (createDebugInfo) {
-				auto [ file, dir ] = getFileAndDir(CurLoc.File);
-				llvm::DIFile* currentFile = DBuilder->createFile(file, dir);
+				// TODO: merge this with similar code in codegen.cc
 				di_elem_type = elem_type->ditype;
 				if (!di_elem_type)
 					di_elem_type = lex.get_diType(elem_type->type, (bool)(elem_type->type_attr & A_signed));
@@ -255,30 +254,30 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 					createDebugInfo = false;
 					goto abort_array_debuginfo;
 				}
+				auto [ file, dir ] = getFileAndDir(CurLoc.File);
+				llvm::DIFile* currentFile = DBuilder->createFile(file, dir);
 				llvm::SmallVector<llvm::Metadata*, 4> Subranges;
 				size_t array_size = 1;
 				if (!lens.size()) {
 					createDebugInfo = false;
-					goto abort_array_debuginfo;;
+					goto abort_array_debuginfo;
 				}
 				for (auto len: lens) {
 					if (!len) {
 						createDebugInfo = false;
-						break; // variable size arrays not supported, yet
+						goto abort_array_debuginfo; // run time size arrays not supported, yet
 					}
 					array_size *= len;
 					auto subrange = DBuilder->getOrCreateSubrange(0, len);
 					// errs() << CurLoc << ": pushed " << *subrange << " to Subranges\n";
 					Subranges.push_back(subrange);
 				}
-				if (createDebugInfo) {
-					llvm::DINodeArray Subscripts = DBuilder->getOrCreateArray(Subranges);
-					uint64_t align = TheModule->getDataLayout().getPrefTypeAlign(elem_type->type).value();
-					array_ditype = DBuilder->createArrayType(
-						currentFile, "", currentFile, CurLoc.Line,
-						array_size, 8 * (uint32_t)align, di_elem_type, Subscripts);
-					// errs() << CurLoc << ": array debuginfo created " << lens.size() << " " << (exprs ? (int)exprs->size() : (int)-1)  << "\n";
-				}
+				llvm::DINodeArray Subscripts = DBuilder->getOrCreateArray(Subranges);
+				uint64_t align = TheModule->getDataLayout().getPrefTypeAlign(elem_type->type).value();
+				array_ditype = DBuilder->createArrayType(
+					currentFile, "", currentFile, CurLoc.Line,
+					array_size, 8 * (uint32_t)align, di_elem_type, Subscripts);
+				// errs() << CurLoc << ": array debuginfo created " << lens.size() << " " << (exprs ? (int)exprs->size() : (int)-1)  << "\n";
 			}
 			abort_array_debuginfo:
 			llvm::Type* array_type = elem_type->type;
