@@ -1992,7 +1992,8 @@ int main(int argc, char* argv[]) {
 			lto_mode = lto_none;
 	}
 	if (emit_llvm) {
-		comp_mode = comp_obj;
+		if (comp_mode != comp_dbg && comp_mode != comp_obj)
+			comp_mode = comp_obj;
 		link_mode = dont_link;
 		strip_mode = dont_strip;
 		lto_mode = lto_none;
