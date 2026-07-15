@@ -1419,9 +1419,11 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (expr->LHS->ft->ditype) {
 			if (GV) {
 				// Create a debug descriptor for the variable.
+				GV->setDSOLocal(true);
 				auto D = DBuilder->createGlobalVariableExpression(
 					KSDbgInfo.TheCU, unmangled_name, varname, currentUnit, expr->Loc.Line, expr->LHS->ft->ditype, true);
-					GV->addDebugInfo(D);
+				GV->addDebugInfo(D);
+				errs() << expr->LHS->Loc << ": added debug info for '" << varname << " " << *GV << "\n";
 			}
 		} else
 			if (verbosity >= 2)
