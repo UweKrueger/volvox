@@ -2295,7 +2295,8 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		llvm::DIType* ditype = RHS->ft->ditype;
 		entry->ft.type = type;
 		entry->ft.type_attr |= attribs;
-		entry->ft.ditype = ditype;
+		if (ditype)
+			entry->ft.ditype = ditype;
 		if (Val) {
 			auto Alloca = StoreValue(Val, &entry->ft, nullptr, varname);
 			entry->val = Alloca;
