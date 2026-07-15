@@ -36,8 +36,8 @@ DebugInfo KSDbgInfo;
 const char* last_defined_type = nullptr;
 bool needs_libm = false;
 bool needs_pthread = true; // for now - may be false when not needed, but hard to figure out...
-bool support_fp80;
-bool target_big_endian;
+bool support_fp80 = false;
+bool target_big_endian = false;
 bool have_return = false;
 int return_value = 0;
 #ifdef _WIN32
@@ -45,6 +45,7 @@ bool target_mingw = true; // may be overwitten by "-msvc"
 #else
 bool target_mingw = false;
 #endif
+bool emit_llvm = false;
 unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
 uint64_t target_mask;
@@ -1456,7 +1457,8 @@ static void full_usage(const char* prog) {
 	errs() << " -fpres ...... print results of top level expressions (default for -J)\n";
 	errs() << " -fno-print-results,\n";
 	errs() << " -fno-pres ... discard results of top level expressions (default for all but -J)\n";
-	errs() << " -g .......... compile with debug information (not implemented, yet)\n";
+	errs() << " -g .......... compile with debug information\n";
+	errs() << " -emit-llvm .. dump LLVM IR to file\n";
 	errs() << " -On[m] ...... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
 	errs() << "               m: optional separate level machine specific codegen (default: n)\n";
 	errs() << " -r .......... run compiled program\n";
@@ -1552,6 +1554,11 @@ inline bool is_obj(const char* file) {
 #endif
 }
 
+inline bool is_llvm_ir(const char* file) {
+	int l = strlen(file);
+	return file[l-3] == '.' && (file[l-2] == 'l' || file[l-2] == 'l') && (file[l-1] == 'l' || file[l-1] == 'L');
+}
+
 inline bool is_exe(const char* file) {
 	int l = strlen(file);
 #if defined (_MSC_VER)
@@ -1630,7 +1637,7 @@ int main(int argc, char* argv[]) {
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << RESET << "\n";
 	int opt;
 	char* endptr;
-	while ((opt = getopt(argc, argv, "vdDcghrjJm:M:n:f:O:i:o:s:tP:")) != -1) {
+	while ((opt = getopt(argc, argv, "vdDcghrjJm:e:M:n:f:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
@@ -1734,6 +1741,14 @@ int main(int argc, char* argv[]) {
 				target_mingw = false;
 			else {
 				errs() << RED << "unknown target option '-m" << optarg << "'" << RESET << "\n";
+				usage(argv[0]);
+			}
+			break;
+		case 'e':
+			if (!strcmp(optarg, "mit-llvm"))
+				emit_llvm = true;
+			else {
+				errs() << RED << "unknown target option '-e" << optarg << "'" << RESET << "\n";
 				usage(argv[0]);
 			}
 			break;
@@ -1976,6 +1991,12 @@ int main(int argc, char* argv[]) {
 		else
 			lto_mode = lto_none;
 	}
+	if (emit_llvm) {
+		comp_mode = comp_obj;
+		link_mode = dont_link;
+		strip_mode = dont_strip;
+		lto_mode = lto_none;
+	}
 	if (idiv_mode == idiv_mode_undef)
 		idiv_mode = idiv_mode_floored; // default to Knuth's suggestion
 	if (run_program && link_mode == dont_link) {
@@ -1991,44 +2012,54 @@ int main(int argc, char* argv[]) {
 			errs() << RED << "output file ('-o ...') not supported for JIT compilation" << RESET << "\n";
 			usage(argv[0]);
 		}
-		if (is_obj(output_file)) {
-			link_mode = dont_link;
-		} else if(is_exe(output_file)) {
-			exe_file = output_file;
-			output_file = strdup(exe_file);
-			int l = strlen(exe_file);
-			output_file[l-3] = 'o';
-			output_file[l-2] = 'b';
-			output_file[l-1] = 'j';
-		} else {
-			if (link_mode == dont_link) {
-				errs() << RED << "Output file must have the extension '.o"
-#if defined(_MSC_VER)
-				       << "bj"
-#endif
-				       << "' if '-c' is given" << RESET << "\n";
-				usage(argv[0]);
+		if (emit_llvm) {
+			if (!is_llvm_ir(output_file)) {
+				size_t fn_sz = strlen(output_file) + 4;
+				const char* given_output_file = output_file;
+				output_file = (char*)malloc(fn_sz);
+				strlcpy(output_file, given_output_file, fn_sz);
+				strlcat(output_file, ".ll", fn_sz);
 			}
-			int l = strlen(output_file);
+		} else {
+			if (is_obj(output_file)) {
+				link_mode = dont_link;
+			} else if(is_exe(output_file)) {
+				exe_file = output_file;
+				output_file = strdup(exe_file);
+				int l = strlen(exe_file);
+				output_file[l-3] = 'o';
+				output_file[l-2] = 'b';
+				output_file[l-1] = 'j';
+			} else {
+				if (link_mode == dont_link) {
+					errs() << RED << "Output file must have the extension '.o"
+#if defined(_MSC_VER)
+					       << "bj"
+#endif
+					       << "' if '-c' is given" << RESET << "\n";
+					usage(argv[0]);
+				}
+				int l = strlen(output_file);
 #ifdef _WIN32
-			size_t fn_sz = l+5;
-			char* new_out = (char*)malloc(fn_sz);
-			exe_file = (char*)malloc(fn_sz);
-			strlcpy(new_out, output_file, fn_sz);
-			strlcpy(exe_file, output_file, fn_sz);
-			output_file = new_out;
-			strlcat(exe_file, ".exe", fn_sz);
+				size_t fn_sz = l+5;
+				char* new_out = (char*)malloc(fn_sz);
+				exe_file = (char*)malloc(fn_sz);
+				strlcpy(new_out, output_file, fn_sz);
+				strlcpy(exe_file, output_file, fn_sz);
+				output_file = new_out;
+				strlcat(exe_file, ".exe", fn_sz);
 #else
-			exe_file = output_file;
-			size_t fn_sz = l+3;
-			output_file = (char*)malloc(fn_sz);
-			strlcpy(output_file, exe_file, fn_sz);
+				exe_file = output_file;
+				size_t fn_sz = l+3;
+				output_file = (char*)malloc(fn_sz);
+				strlcpy(output_file, exe_file, fn_sz);
 #endif
 #if defined(_MSC_VER)
-			strlcat(output_file, ".obj", fn_sz);
+				strlcat(output_file, ".obj", fn_sz);
 #else
-			strlcat(output_file, ".o", fn_sz);
+				strlcat(output_file, ".o", fn_sz);
 #endif
+			}
 		}
 	} else {
 		if (comp_mode != comp_jit) {
@@ -2051,21 +2082,29 @@ int main(int argc, char* argv[]) {
 					strlcat(exe_file, ".exe", fn_sz);
 #endif
 				}
+				if (emit_llvm) {
+					strlcat(output_file, ".ll", fn_sz);
+				} else {
 #if defined(_MSC_VER)
-				strlcat(output_file, ".obj", fn_sz);
+					strlcat(output_file, ".obj", fn_sz);
 #else
-				strlcat(output_file, ".o", fn_sz);
+					strlcat(output_file, ".o", fn_sz);
 #endif
+				}
 			} else {
+				if (emit_llvm) {
+					output_file = const_cast<char*>("a.ll");
+				} else {
 #ifdef _WIN32
-				output_file = const_cast<char*>("a.obj");
-				if (link_mode != dont_link)
-					exe_file = const_cast<char*>("a.exe");
+					output_file = const_cast<char*>("a.obj");
+					if (link_mode != dont_link)
+						exe_file = const_cast<char*>("a.exe");
 #else
-				output_file = const_cast<char*>("a.o");
-				if (link_mode != dont_link)
-					exe_file = const_cast<char*>("a.out");
+					output_file = const_cast<char*>("a.o");
+					if (link_mode != dont_link)
+						exe_file = const_cast<char*>("a.out");
 #endif
+				}
 			}
 		}
 	}
@@ -2314,7 +2353,20 @@ int main(int argc, char* argv[]) {
 		if (comp_mode == comp_dbg) {
 			DBuilder->finalize();
 		}
-		if (lto_mode == lto_thin) {
+		if (emit_llvm) {
+			std::error_code EC;
+			auto raw_fd = llvm::raw_fd_ostream(output_file, EC);
+			if (EC) {
+				errs() << "Error creating output file \"" << output_file << "\": " << EC.message() << "\n";
+				exit(1);
+			}
+			TheModule->print(raw_fd, nullptr);
+			if (raw_fd.has_error()) {
+				errs() << "Error writing output file \"" << output_file << "\": " << raw_fd.error().message() << "\n";
+				exit(1);
+			}
+			raw_fd.close();
+		} else if (lto_mode == lto_thin) {
 			llvm::WriteBitcodeToFile(*TheModule, dest);
 		} else {
 			llvm::legacy::PassManager pass;
