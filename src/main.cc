@@ -2523,6 +2523,8 @@ int main(int argc, char* argv[]) {
 				linker_argv.push_back(libdirs[2]);
 				if (lto_mode == lto_none)
 					linker_argv.push_back(const_cast<char*>("/OPT:NOREF,NOICF,NOLBR"));
+				if (comp_mode == comp_dbg)
+					linker_argv.push_back(const_cast<char*>("/DEBUG"));
 				if (verbosity >= 3)
 					linker_argv.push_back(const_cast<char*>("-verbose"));
 				else
