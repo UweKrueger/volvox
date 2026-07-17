@@ -1424,7 +1424,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				GV->addDebugInfo(D);
 				if (sym_kind & A_pub)
 					GV->setDSOLocal(true);
-				errs() << expr->LHS->Loc << ": added debug info for '" << varname << " " << *GV << "\n";
 			}
 		} else
 			if (verbosity >= 2)
