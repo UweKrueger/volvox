@@ -995,6 +995,7 @@ llvm::Value* PrototypeAST::codegen(bool need_address) {
 	}
 	if (visibility & A_inline)
 		F->addFnAttr(llvm::Attribute::AlwaysInline);
+	F->setDSOLocal(true);
 	return F;
 }
 
