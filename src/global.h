@@ -1048,7 +1048,7 @@ inline static auto tls_model(unsigned attr) {
 }
 
 inline static auto link_type(unsigned attr) {
-	return ((attr & A_pub) || comp_mode == comp_jit || comp_mode == comp_dbg) ?
+	return ((attr & A_pub) || comp_mode == comp_jit) ?
 		llvm::GlobalValue::ExternalLinkage :
 		llvm::GlobalValue::InternalLinkage;
 }
