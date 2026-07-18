@@ -260,7 +260,7 @@ parameter determines the number of fractional decimal places
 - `^`: use exponential representation for `float`/`real` — the *precision*
 parameter determines the number of fractional decimal places in the mantissa
 - `` ` ``: insert the character that is represented by the integer value of
-the expression *(TODO: this should be extended to unicode codepoints)*
+the expression — value may be ASCII, ISO 8859-1 or an unicode codepoint.
 
 Examples:
 
@@ -286,12 +286,16 @@ f = 3.25f
 # create comma separated value row using hexadecimal for int
 r = "$,q, $,{s1}, $,`c, $,%i, $,{sin f}"
 echo r
+
+smiley = 0x1F60A # Unicode Codepoint
+echo "$`smiley"
 ```
 
 *Output:*  
 `1² + 31.242² = 31.258²`  
 `sin 2.5 = 0.59847`  
-`0.5984721441039565, "sin 2.5 = 0.59847", '@', 0x72c847, -0.1081951`
+`0.5984721441039565, "sin 2.5 = 0.59847", '@', 0x72c847, -0.1081951`  
+`😊`
 
 It is recommended to always use braces when format specifiers are preset
 as this might be slightly less confusing. So the line where `r` is

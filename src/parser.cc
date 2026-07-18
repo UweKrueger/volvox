@@ -662,6 +662,10 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 			auto expr_list = SplitExprList(std::move(exprs));
 			expr = std::move(expr_list[0]);
 			if (expr_list.size() > 1) {
+				if (flags & FMT_CHAR) {
+					errs() << expr_list[1]->Loc << ": field width / precision parameters not allowed for char conversion (`)\n";
+					goto handle_error;
+				}
 				w = std::move(expr_list[1]);
 				if (expr_list.size() > 2) {
 					p = std::move(expr_list[2]);

@@ -19,3 +19,6 @@ f = 3.25f
 # create comma separated value row using hexadecimal for int
 r = "$,q, $,{s1}, $,`c, $,%i, $,{sin f}"
 echo r
+
+smiley = 0x1F60A # Unicode Codepoint
+echo "$`smiley"
