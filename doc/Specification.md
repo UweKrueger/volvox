@@ -236,16 +236,17 @@ more sophisticated approaches. The general form of a string interpolation is:
 
 `$[format specifiers][variable|{expression[,minimum field width[,precision]]}]`
 
-Where *format specifiers* may contain the following characters (the first 5 are
-identical to C's `printf` specifiers):
+Where *format specifiers* may contain the following characters (the first 6 are
+identical to C's `printf` specifiers — please refer to printf(3)` for more
+details):
 
 - `#`: use an "alternate form". Precede hexadecimal values with `0x`, octal
 values with `0`, show decimal point of `float`/`real` values even if no digits
-follow and keep trailing zeros by default (Please refer to `printf(3)` for more
-details)
+follow and keep trailing zeros by default
 - `0`: fill up field width by prepending zeros
 - ` `: prepend positive numbers with a space
 - `+`: prepend positive numbers with a plus sign
+- '-': left adjust inside given field width
 - `'`: use thousands' grouping
 - `,`: use a format suitable for *comma separated values* — similar to `#` but
 strings are enclosed by quotation marks, characters by apostrophes and trailing

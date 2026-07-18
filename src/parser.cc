@@ -577,11 +577,18 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 				flags |= FMT_ALT;
 				break;
 			case '0':
-				if (flags & FMT_ZEROPAD) {
-					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
+				if (flags & (FMT_ZEROPAD | FMT_ADJUST_LEFT)) {
+					errs() << lex.Loc << ": at most 1 format specifier out of '-' and '0' allowed\n";
 					goto handle_error;
 				}
 				flags |= FMT_ZEROPAD;
+				break;
+			case '-':
+				if (flags & (FMT_ZEROPAD | FMT_ADJUST_LEFT)) {
+					errs() << lex.Loc << ": at most 1 format specifier out of '0' and '+' allowed\n";
+					goto handle_error;
+				}
+				flags |= FMT_ADJUST_LEFT;
 				break;
 			case ' ':
 			case '+':

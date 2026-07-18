@@ -60,6 +60,8 @@ static void getFmt(char* fmt, unsigned flags) {
 		fmt[i++] = '#';
 	if (flags & FMT_ZEROPAD)
 		fmt[i++] = '0';
+	if (flags & FMT_ADJUST_LEFT)
+		fmt[i++] = '-';
 	if (flags & FMT_PREFIX_PLUS)
 		fmt[i++] = '+';
 	else if (flags & FMT_PREFIX_SPACE)

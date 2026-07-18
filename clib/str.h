@@ -38,8 +38,8 @@
 #define FMT_UNSIGNED      (1U << 14)
 #define FMT_CHAR          (1U << 15)
 #define FMT_STRING        (1U << 16)
-// A_packed (1U<<17) - from RtType - see types.h
 #define FMT_CSV           (1U << 18)
+#define FMT_ADJUST_LEFT   (1U << 19)
 
 #define F32_DEFAULT_PRECISION 7
 #define F64_DEFAULT_PRECISION 16
