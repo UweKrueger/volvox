@@ -941,6 +941,9 @@ bool finishFunctionOrModule(llvm::Function* F, unsigned dumpLevel, bool finishMo
 }
 
 llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	if (auto F = TheModule->getFunction((*ft->Protos)[ft->selected_proto]->Name)) {
 		return handle(target, F, Loc, ft);
 	}
@@ -1046,6 +1049,9 @@ std::string getDisplayTypeName(llvm::Type* typ, unsigned typ_attr) {
 }
 
 llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	bool is_error = Proto && Proto->Name == "__error";
 	if (is_error || Proto && Proto->Name == "__link_extra") {
 		if (Args.empty() || Args[0]->ft->type != llvm_string_type) {

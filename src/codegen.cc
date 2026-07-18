@@ -304,6 +304,9 @@ llvm::Value* SetExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	volvoxc::FullType* elem_type = ft->elem_type;
 	if (!elem_type || !elem_type->type) {
 		errs() << Loc << ": internal error - element type of vec unknown\n";
@@ -350,6 +353,9 @@ llvm::Value* VecExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	codegen_done = true;
 	if (auto struct_type = llvm::dyn_cast<llvm::StructType>(ft->type)) {
 		llvm::Value* V = llvm::UndefValue::get(ft->type);
@@ -462,6 +468,9 @@ llvm::Value* StructExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	auto V = codegen_ref(false, true);
 	if (V.first && V.second) {
 		if (V.first->isSized())
@@ -478,6 +487,9 @@ llvm::Value* LvalueExprAST::codegen_raw(llvm::Value* target) {
 // codegen_raw(suppress_destructor_flag);
 // it is used for cases where codegen_raw() is overwritten
 llvm::Value* LvalueExprAST::codegen_borrow() {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	if (desired_type && desired_type != ft->type || (ft->type_attr & A_rvalue) )
 		return codegen();
 	auto V = codegen_ref(false, true);
@@ -492,6 +504,9 @@ llvm::Value* LvalueExprAST::codegen_borrow() {
 }
 
 llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	if (!full_var) {
 		errs() << Loc << ": there is no known variable/constant/function/module named '" << Name << "'\n";
 		return nullptr;
@@ -553,6 +568,9 @@ llvm::Value* VariableExprAST::codegen(bool suppress_destructor, bool suppress_co
 }
 
 std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fail, bool constref) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	if (!full_var) {
 		errs() << Loc << ": unknown variable name '" << Name << "'\n";
 		return { nullptr, nullptr };
@@ -680,6 +698,9 @@ llvm::Value* StoreValue(llvm::Value* val, volvoxc::FullType* ft, llvm::Type* exp
 
 std::pair<llvm::Type*,llvm::Value*> SelectExprAST::codegen_ref_(
 	bool silent_fail, bool constref) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	if (!ft || !ft->type)
 		return { nullptr, nullptr }; // error message was already generated in AST
 	if (Struct->ft->type->isArrayTy() || Struct->ft->type->isPointerTy() || Struct->ft->type == llvm_vec_type)
@@ -746,6 +767,9 @@ llvm::Value* extractStructFieldValue(llvm::Value* Store, llvm::Value* struct_val
 }
 
 llvm::Value* SelectExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	if ((Struct->ft->type_attr & A_complex) && Struct->ft->type == llvm_c32_type)
 		// We try to avoid going through codegen_ref() because this
 		// migght be inefficient for a SIMD type
@@ -857,6 +881,9 @@ llvm::Value* getInterfaceFromFT(volvoxc::FullType* ft, volvoxc::FullType* interf
 }
 
 llvm::Value* InterfaceExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	llvm::Value* val = nullptr;
 	llvm::Constant* vtable = nullptr;
 	llvm::Value* rttype_ptr = nullptr;
@@ -977,6 +1004,9 @@ have_rttype:
 }
 
 llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	auto OperandV = Operand->codegen_ref();
 	if (!OperandV.second) {
 		errs() << Operand->Loc << ": cannot generate code for postfix operand reference\n";
@@ -1020,6 +1050,9 @@ llvm::Value* PostfixExprAST::codegen_raw(llvm::Value* target) {
 }
 
 llvm::Value* UnaryExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	llvm::Value *OperandV = Operand->codegen();
 	if (!OperandV)
 		return nullptr;
@@ -1093,6 +1126,9 @@ enum TypeClass {
 };
 
 llvm::Value* DefaultConstructorCall::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	auto C = getConstructorOrDestructor(Var->ft);
 	if (!C) {
 		errs() << Var->Loc << ": no constructor for " << Var->Name << " type " << *Var->ft << " found\n";
@@ -1915,6 +1951,9 @@ structural_err:
 // unless a new variable is declared it returns the old reference to allow &c = &b = a
 //
 std::pair<llvm::Type*,llvm::Value*> BinaryExprAST::codegen_ref_(bool silent_fail, bool constref) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	if (opclass == OpGlobalDeclAssign) {
 		errs() << LHS->Loc << ": reference cannot be declared 'global'\n";
 		return { nullptr, nullptr };

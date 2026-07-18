@@ -493,6 +493,9 @@ llvm::Value* IndexExprAST::codegen_raw(llvm::Value* target) {
 
 std::pair<llvm::Type*,llvm::Value*> IndexExprAST::codegen_ref_(
 	bool silent_fail, bool constref) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	const_ref = constref;
 	llvm::Value* NumElem = nullptr;
 	if (!Field->ft || !Field->ft->type) {
@@ -879,6 +882,9 @@ llvm::Value* createCStringConst(const char* str) {
 }
 
 llvm::Value* InterpStrLitExprAST::codegen_raw(llvm::Value* target) {
+	if (comp_mode == comp_dbg) {
+		KSDbgInfo.emitLocation(this);
+	}
 	unsigned n_inter = interpolations.size();
 	auto interface_array_t = llvm::ArrayType::get(llvm_interface_type, n_inter);
 	auto int_array_t = llvm::ArrayType::get(llvm_int_type, n_inter);
