@@ -122,7 +122,9 @@ echo (2000000000 * 300000000)
 *Output:*  
 `826015744`
 
-The compiler uses `int` as result type as this is the type of the two factors, so an overflow occurs. This is the same behaviour as seen in most other programming languages and is considered "correct" — in the sense of "as expected".
+The compiler uses `int` as result type as this is the type of the two factors,
+so an overflow occurs. This is the same behaviour as seen in most other
+programming languages and is considered "correct" — in the sense of "as expected".
 
 There are cases where an overflow *can* be avoided:
 
@@ -133,11 +135,14 @@ echo (34L + 2000000000 * 300000000)
 *Output:*  
 `600000000000000034`
 
-The compiler recognizes (because of the 64 bit integer `34L`) that in the end a 64 bit result is required and the factors of the multiplication are propagated to 64 bits before the multiplication is performed.
+The compiler recognizes (because of the 64 bit integer `34L`) that in the end a
+64 bit result is required and the factors of the multiplication are propagated
+to 64 bits before the multiplication is performed.
 
 C does the same for the case 16 bit -> 32 bit but not for 32 bit -> 64 bit.
 
-Another way for the original multiplication is an explicit conversion of the result:
+Another way for the original multiplication is an explicit conversion of the
+result:
 
 ```volvox
 echo i64(2000000000 * 300000000)
@@ -145,6 +150,91 @@ echo i64(2000000000 * 300000000)
 
 *Output:*  
 `600000000000000000`
+
+## String Interpolation
+
+In Volvox a `string` literal may contain expressions that are evaluated at run
+time and become parts of the string. The simplest form is just a dollar sign
+followed by a variable name:
+
+```volvox
+from math import sqrt
+
+a = 1.0
+b = 31.242
+
+c = sqrt(a^2 + b^2)
+
+echo "$a² + $b² = $c²"
+```
+
+*Output:*  
+`1² + 31.242² = 31.258²`
+
+This creates string representations of variable values in their *default forms*
+that are specific to their types. While this is often a good choice there are
+more sophisticated approaches. The general form of a string interpolation is:
+
+`$[format specifiers][variable|{expression[,minimum field width[,precision]]}]`
+
+Where *format specifiers* may contain the following characters (the first 5 are
+identical to C's `printf` specifiers):
+
+- `#`: use an "alternate form". Precede hexadecimal values with `0x`, octal
+values with `0`, show decimal point of `float`/`real` values even if no digits
+follow and keep trailing zeros by default (Please refer to `printf(3)` for more
+details)
+- `0`: fill up field width by prepending zeros
+- ` `: prepend positive numbers with a space
+- `+`: prepend positive numbers with a plus sign
+- `'`: use thousands' grouping
+- `,`: use a format suitable for *comma separated values* — similar to `#` but
+strings are enclosed by quotation marks, characters by apostrophes and trailing
+zeros are not kept
+- `%`: use hexadecimal representation
+- `~`: use octal representation
+- `.`: use fixed point representation for `float`/`real` — the *precision*
+parameter determines the number of fractional decimal places
+- `^`: use exponential representation for `float`/`real` — the *precision*
+parameter determines the number of fractional decimal places in the mantissa
+- `` ` ``: insert the character that is represented by the integer value of
+the expression *(TODO: this should be extended to unicode codepoints)*
+
+Examples:
+
+```volvox
+from math import sin, sqrt
+
+a = 1.0
+b = 31.242
+
+# general expression enclosed in braces
+echo "$a² + $b² = ${sqrt(a^2 + b^2)}²"
+
+q = sin 2.5
+
+# represent with 5 fractional places but minimal field width
+s1 = "sin 2.5 = $.{q,0,5}"
+echo s1
+
+i = 7522375
+c = 64
+f = 3.25f
+
+# create comma separated value row using hexadecimal for int
+r = "$,q, $,{s1}, $,`c, $,%i, $,{sin f}"
+echo r
+```
+
+*Output:*  
+`1² + 31.242² = 31.258²`  
+`sin 2.5 = 0.59847`  
+`0.5984721441039565, "sin 2.5 = 0.59847", '@', 0x72c847, -0.1081951`
+
+It is recommended to always use braces when format specifiers are preset
+as this might be slightly less confusing. So the line where `r` is
+defined should better be  
+``r = "$,{q}, $,{s1}, $,`{c}, $,%{i}, $,{sin f}"``
 
 ## Derived Types
 
@@ -817,6 +907,9 @@ There are notable exceptions to the scope rules described above. The following s
 - `const` objects
 - `atomic` variables - they have the same value in every thread and can be used for synchronization
 - `shared` objects - they have the same value in every thread, too, but need a lock *(not implemented, yet)*.
+- function
+
+In particular it is not allowed to choose a variable name that is equal to any of those symbols.
 
 ```volvox
 from math import sin, cos, sqrt, pi

@@ -1,0 +1,21 @@
+from math import sin, sqrt
+
+a = 1.0
+b = 31.242
+
+# general expression enclosed in braces
+echo "$a² + $b² = ${sqrt(a^2 + b^2)}²"
+
+q = sin 2.5
+
+# represent with 5 fractional places but minimal field width
+s1 = "sin 2.5 = $.{q,0,5}"
+echo s1
+
+i = 7522375
+c = 64
+f = 3.25f
+
+# create comma separated value row using hexadecimal for int
+r = "$,q, $,{s1}, $,`c, $,%i, $,{sin f}"
+echo r

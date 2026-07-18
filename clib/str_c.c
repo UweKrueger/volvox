@@ -400,7 +400,7 @@ static void prt_float(char** s, unsigned* cap, unsigned* pos, int space, double 
 	char* oldpos = *s + *pos;
 	*pos += snprintf(oldpos, space, fmt, w, p, val);
 	if (flags & FMT_CSV)
-		if (!strchr(oldpos, '.')) {
+		if (!strchr(oldpos, '.') && !strchr(oldpos, 'e') && !strchr(oldpos, 'E')) {
 			*(*s + (*pos)++) = '.';
 			*(*s + (*pos)++) = '\0';
 		}
