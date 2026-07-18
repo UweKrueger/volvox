@@ -61,7 +61,7 @@ unsigned = decimal_unsigned | hexadecimal | octal
 | :--- | :--- | :--- |
 | `i8` | -128 .. 127 | `hh`, `HH` |
 | `i16` | -32768 .. 32767 | `h`, `H` |
-| `int`, `i32` | -2147483648 .. 2147483647 |  |
+| `int`, `i32` | -2147483648 .. 2147483647 | `d`, `D`[^1] |
 | `i64` | -9223372036854775808 .. 9223372036854775807 | `l`, `L` |
 | `i128` | not implemented, yet | `ll`, `LL` |
 | `ssize_t` | signed int large enough to hold pointer value | `z`, `Z` |
@@ -76,8 +76,67 @@ unsigned = decimal_unsigned | hexadecimal | octal
 
 | Name (Alias) | Spec | Suffix |
 | :--- | :--- | :--- |
-| `real`, `f64` | IEEE-754 64 bit |  |
+| `real`, `f64` | IEEE-754 64 bit | `d`, `D`[^2] |
 | `float`, `f32` | IEEE-754 32 bit | `f`, `F` |
+
+Literals of type `int` or `real` that have no explicit `d`-suffix are actually
+of type *untyped int* or *untyped float*, i.e. they propagate to the type with
+which they are combined. This might or might not be what is intended:
+
+```volvox
+a = 32760h # 16 bit integer
+
+b = a + 2
+echo (b, " ", typeof b)
+
+c = a + 24534d
+echo(c, " ", typeof c)
+
+# but the following might be not what is intended
+d = a + 24534
+echo(d, " ", typeof d)
+
+# likewise with float
+echo
+
+x = 45.5f # 32 bit float - exact value in binary representation
+
+# this propagates to real and has enough precision
+y = x + 4.5e10d
+echo(y, " ", typeof y)
+
+# again the following does not propagate to real, so the
+# digits of x are truncated
+w = x + 4.5e10
+echo(w, " ", typeof w)
+
+echo
+# or even worse
+k = 2.25e20f
+
+# this remains float and exceeds the allowd range
+# resulting in "inf"
+l = k * 3.5e20
+echo(l, " ", typeof l)
+
+# whereas this is propagated to real and shows the correct result
+m = k * 3.5e20d
+echo (m, " ", typeof m)
+```
+
+*Output:*  
+`32762 i16`  
+`57294 int`  
+`-8242 i16`  
+  
+`45000000045.5 real`  
+`4.5e+10 float`  
+  
+`inf float`  
+`7.874999849958653e+40 real`
+
+[^1]: `int` is the default type that is assumed when there is no suffix
+[^2]: `real` is the default type that is assumed when there is no suffix
 
 #### Imaginary and Complex Types
 
@@ -193,6 +252,8 @@ strings are enclosed by quotation marks, characters by apostrophes and trailing
 zeros are not kept
 - `%`: use hexadecimal representation
 - `~`: use octal representation
+- `!`: use uppercase letters, i.e. `0X`, `A`..`F` and `E` instead of `0x`,
+`a`..`f` and `e`
 - `.`: use fixed point representation for `float`/`real` — the *precision*
 parameter determines the number of fractional decimal places
 - `^`: use exponential representation for `float`/`real` — the *precision*
