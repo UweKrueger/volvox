@@ -20,5 +20,7 @@ f = 3.25f
 r = "$,q, $,{s1}, $,`c, $,%i, $,{sin f}"
 echo r
 
-smiley = 0x1F60A # Unicode Codepoint
-echo "$`smiley"
+smiley = 0x1F642 # Unicode codepoint as hexadecimal
+confused_face = '😕' # Unicode codepoint as symbol
+
+echo "$`smiley $`confused_face"

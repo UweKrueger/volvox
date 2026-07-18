@@ -287,15 +287,17 @@ f = 3.25f
 r = "$,q, $,{s1}, $,`c, $,%i, $,{sin f}"
 echo r
 
-smiley = 0x1F60A # Unicode Codepoint
-echo "$`smiley"
+smiley = 0x1F642 # Unicode codepoint as hexadecimal
+confused_face = '😕' # Unicode codepoint as symbol
+
+echo "$`smiley $`confused_face"
 ```
 
 *Output:*  
 `1² + 31.242² = 31.258²`  
 `sin 2.5 = 0.59847`  
 `0.5984721441039565, "sin 2.5 = 0.59847", '@', 0x72c847, -0.1081951`  
-`😊`
+`🙂 😕`
 
 It is recommended to always use braces when format specifiers are preset
 as this might be slightly less confusing. So the line where `r` is
