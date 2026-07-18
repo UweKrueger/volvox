@@ -568,62 +568,75 @@ static std::unique_ptr<ExprAST> ParseInterpolatedStringExpr(int terminator = 0) 
 		// for parsing the format specifiers we must think in terms of characters - not tokens
 		// so we use the Lexer directly
 		while (lex.CurChar != '{' && lex.CurChar != '_' && !isalpha(lex.CurChar)) {
-			if (lex.CurChar == '#') {
+			switch (lex.CurChar) {
+			case '#':
 				if (flags & (FMT_ALT | FMT_CSV)) {
 					errs() << lex.Loc << ": at most 1 format specifier out of '#' and ',' allowed\n";
 					goto handle_error;
 				}
 				flags |= FMT_ALT;
-			} else if (lex.CurChar == ',') {
-				if (flags & (FMT_ALT | FMT_CSV)) {
-					errs() << lex.Loc << ": at most 1 format specifier out of '#' and ',' allowed\n";
-					goto handle_error;
-				}
-				flags |= FMT_CSV;
-			} else if (lex.CurChar == '0') {
+				break;
+			case '0':
 				if (flags & FMT_ZEROPAD) {
 					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
 					goto handle_error;
 				}
 				flags |= FMT_ZEROPAD;
-			} else if (lex.CurChar == ' ' || lex.CurChar == '+') {
+				break;
+			case ' ':
+			case '+':
 				if (flags & (FMT_PREFIX_SPACE | FMT_PREFIX_PLUS)) {
 					errs() << lex.Loc << ": at most 1 format specifier out of ' ' and '+' allowed\n";
 					goto handle_error;
 				}
 				flags |= (lex.CurChar == ' ' ? FMT_PREFIX_SPACE : FMT_PREFIX_PLUS);
-			} else if (lex.CurChar == '\'') {
+				break;
+			case '\'':
 				if (flags & FMT_GROUPED) {
 					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
 					goto handle_error;
 				}
 				flags |= FMT_GROUPED;
+				break;
 // The following are Volvox specific - in C they are handle by the conversion letter 'd', 'x', ...
-			} else if (lex.CurChar == '!') {
+			case ',':
+				if (flags & (FMT_ALT | FMT_CSV)) {
+					errs() << lex.Loc << ": at most 1 format specifier out of '#' and ',' allowed\n";
+					goto handle_error;
+				}
+				flags |= FMT_CSV;
+				break;
+			case '!':
 				if (flags & FMT_UPPER) {
 					errs() << lex.Loc << ": at most 1 format specifier '" << (char)lex.CurChar << "' allowed\n";
 					goto handle_error;
 				}
 				flags |= FMT_UPPER;
-			} else if (lex.CurChar == '%' || lex.CurChar == '~') {
+				break;
+			case '%':
+			case '~':
 				if (flags & (FMT_DISPLAY_HEX | FMT_DISPLAY_OCT)) {
 					errs() << lex.Loc << ": at most 1 format specifier out of '%' and '~' allowed\n";
 					goto handle_error;
 				}
 				flags |= (lex.CurChar == '%' ? FMT_DISPLAY_HEX : FMT_DISPLAY_OCT);
-			} else if (lex.CurChar == '.' || lex.CurChar == '^') {
+				break;
+			case '.':
+			case '^':
 				if (flags & (FMT_DISPLAY_EXP | FMT_DISPLAY_FIXED)) {
 					errs() << lex.Loc << ": at most 1 format specifier out of '.' and '^' allowed\n";
 					goto handle_error;
 				}
 				flags |= (lex.CurChar == '.' ? FMT_DISPLAY_FIXED : FMT_DISPLAY_EXP);
-			} else if (lex.CurChar == '`') {
+				break;
+			case '`':
 				if (flags & (FMT_DISPLAY_EXP | FMT_DISPLAY_FIXED | FMT_DISPLAY_HEX | FMT_DISPLAY_OCT| FMT_CHAR)) {
 					errs() << lex.Loc << ": '`' invalid since '^', '.', '%', '0' or a previous '`' has already been specified\n";
 					goto handle_error;
 				}
 				flags |= FMT_CHAR;
-			} else {
+				break;
+			default:
 				errs() << lex.Loc << ": unexpected string interpolation specifier '" << (char)lex.CurChar << "'\n";
 				goto handle_error;
 			}
