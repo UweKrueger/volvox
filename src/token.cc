@@ -349,9 +349,9 @@ Token::Token(const std::string& str, char Closing)
 			kind = TokenKind(tok_error);
 			return;
 		}
-		bool is_ASCII = (int8_t)*seq_start >= 0;
+		bool is_ASCII_or_ISO_8859_1 = codepoint <= 0xFF;
 		Val.Uint = codepoint;
-		unsigned bits = is_ASCII ? 8 : 32;
+		unsigned bits = is_ASCII_or_ISO_8859_1 ? 8 : 32;
 		int_type = { .ID = llvm::Type::IntegerTyID,
 		             .BitWidth = bits,
 		             .is_signed = false };
