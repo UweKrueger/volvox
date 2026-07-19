@@ -539,6 +539,35 @@ echo s.z
 `-6.25`  
 `-3`
 
+### Unions
+
+A `union` is at first glance similar to a `struct` but the fields occupy the same space in memory:
+
+```volvox
+union MyUnion {
+	a real
+	b u64
+	c [8]u8
+	d int
+}
+
+x = MyUnion{ d: -1375 }
+echo x.b
+echo x.c[0]
+
+x.a = 2.74887e27
+echo x.b
+```
+
+*Output:*  
+`4294965921`  
+`161`  
+`5017506550665087146`
+
+Accessing different fields is a reinterpretation of the bit
+pattern as a different type. Unions have their place in low
+level programming and in C interoperability but are not recommended for general programming.
+
 ### Interfaces
 
 An `interface` is a virtual type that is defined by a set of methods. A specific `struct` type *implements* an interface if it has implementations for all the specified methods. A function that expects an argument of this interface type can call the defined methods. The function can be called with any object type that implements the `interface`:

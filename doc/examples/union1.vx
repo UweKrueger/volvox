@@ -1,0 +1,13 @@
+union MyUnion {
+	a real
+	b u64
+	c [8]u8
+	d int
+}
+
+x = MyUnion{ d: -1375 }
+echo x.b
+echo x.c[0]
+
+x.a = 2.74887e27
+echo x.b
