@@ -60,3 +60,39 @@ volvox [-h] [-v] [-c] [-g] [-r] [-j] [-J] [-d] [-D] [-M <mainf>] [-f<flag>] \
       `a = b * (a/b) + (a%b)`  
       In practice integer divisions should not involve negative numbers
       to avoid confusions.
+    - `-fno-index-checks`, `-fno-idx-chk`: do not check array indices to
+      be within the allowed range (TODO: these checks are not implemented,
+      yet)
+    - `-fpres`, `-fprint results`: print the result of each expression outside
+      from functions. This is the default with interactive JIT mode and when
+      `-J` was given
+    - `-fno-pres`, `-fno-print-results`: do not print the result of each
+      expression outside from functions. This is deault with `-j` and when
+      compiling to a binary object file or executable.
+- `-emit-llvm`: create a file `name.ll` that contains LLVM's intermediate
+      representation
+- `-Om[n]`: optimize with level `m`. If `n` is given use `m` as optimization
+      level for the intermediate representation and `m` for the generation
+      of binary machine code. Default in `-O2` for normal compilation
+      and `-O0` when debug information is added (`-g`).
+- `-i <file>`: include `<file>` before parsing the real program
+- `-o <file>`: use `<file>` as output file. This option is mandatory if more
+      than one input file is given.
+- `-strip`: strip not needed symbols from the resulting executable to get a
+      smaller file
+- `-s <size>`: stack size per thread, may contain `kB`, `MB` or `GB` suffix
+      (default: 10MB). Mostly relevant on Windows
+- `-m<target>`: specify the target system. This is currently only relevant
+      on Windows. Possible values are:
+    - `-mingw`: create `MINGW` binary — this is the default
+    - `-msvc`: create a Microsoft Visual C binary — this requires that
+      Microsoft Visual Studio is installed
+- `-no-<flag>`: supported flags are
+    - `-no-lto`: do not do link time optimization (default: no LTO when
+      `-g` is given, thin-LTO otherwise)
+    - `-no-setup-con`: do not inject to setup the console for color output
+- `-t`: run test cases. Test cases are functions who's name start with
+      `test_`, that do not have any function arguments and that return `bool`
+- `-C <n,g,b>`: set ANSI-256 colors for line number, greater sign and
+      background of the interactive prompt (default: 30,100,236)
+- `<file>(s)`: input file(s) with extension `.vx` containing the program
