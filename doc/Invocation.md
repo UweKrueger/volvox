@@ -3,8 +3,8 @@
 ### Invocation
 
 The following assumes that the `volvox` executable file is located in a
-directory that is included the `PATH` environment variable. Otherwise prepend
-that directory, e.g. `./volvox` or `/my/path/volvox` (Unix) or
+directory that is included in the `PATH` environment variable. Otherwise,
+specify the full path, e.g. `./volvox` or `/my/path/volvox` (Unix) or
 `C:\Users\myname\mydir\volvox.exe` (Windows).
 
 ```sh
@@ -43,17 +43,17 @@ volvox [-h] [-v] [-c] [-g] [-r] [-j] [-J] [-d] [-D] [-M <mainf>] [-f<flag>] \
       object (`.so.*`)
     - `-fdiv-floored`: signed integer division is floored; the remainder gets
       sign of the divisor (this is the default with Volvox). Example:  
-      `-13 / 4` &rarr; `-4`  
-      `-13 % 4` &rarr; `3`  
-      `13 / -4` &rarr; `-4`  
-      `13 % -4` &rarr; `-3`
+      `-13 / 4` ⟶ `-4`  
+      `-13 % 4` ⟶ `3`  
+      `13 / -4` ⟶ `-4`  
+      `13 % -4` ⟶ `-3`
     - `-fdiv-c99`: signed division rounds towards 0, the remainder gets the
       sign of the divident (this is the default with C99 and later — with C89
       the behaviour was undefined). Example:  
-      `-13 / 4` &rarr; `-3`  
-      `-13 % 4` &rarr; `-1`  
-      `13 / -4` &rarr; `-3`  
-      `13 % -4` &rarr; `1`  
+      `-13 / 4` ⟶ `-3`  
+      `-13 % 4` ⟶ `-1`  
+      `13 / -4` ⟶ `-3`  
+      `13 % -4` ⟶ `1`  
 
       In all cases (i.e. with both `-fdiv-floored` and `-fdiv-c99`) the
       following equation is always fulfilled:  
@@ -64,11 +64,11 @@ volvox [-h] [-v] [-c] [-g] [-r] [-j] [-J] [-d] [-D] [-M <mainf>] [-f<flag>] \
       be within the allowed range (TODO: these checks are not implemented,
       yet)
     - `-fpres`, `-fprint results`: print the result of each expression outside
-      from functions. This is the default with interactive JIT mode and when
-      `-J` was given
+      of functions. This is the default with interactive JIT mode and when
+      `-J` is given
     - `-fno-pres`, `-fno-print-results`: do not print the result of each
-      expression outside from functions. This is deault with `-j` and when
-      compiling to a binary object file or executable.
+      expression outside of functions. This is default when `-j` is given
+      and when compiling to a binary object file or executable.
 - `-emit-llvm`: create a file `name.ll` that contains LLVM's intermediate
       representation
 - `-Om[n]`: optimize with level `m`. If `n` is given use `m` as optimization
@@ -92,8 +92,10 @@ volvox [-h] [-v] [-c] [-g] [-r] [-j] [-J] [-d] [-D] [-M <mainf>] [-f<flag>] \
       `-g` is given, thin-LTO otherwise)
     - `-no-setup-con`: do not inject code to setup the console for color
       output
-- `-t`: run test cases. Test cases are functions who's name start with
-      `test_`, that do not have any function arguments and that return `bool`
+- `-t`: run test cases. Test cases are functions whose name start with
+      `test_`, that do not have any function arguments and that return
+      `bool`.
 - `-C <n,g,b>`: set ANSI-256 colors for line number, greater sign and
       background of the interactive prompt (default: 30,100,236)
-- `<file>(s)`: input file(s) with extension `.vx` containing the program
+- `<file> ...`: one or more input file with extension `.vx` containing the
+      program
