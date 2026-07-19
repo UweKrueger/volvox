@@ -38,7 +38,8 @@ end
 
 #### Multi Level Break
 
-The break condition follows the `brk` command. Multiple `brk` keywords allow jumping across multiple nesting levels.
+The break condition follows the `brk` command. Multiple `brk` keywords allow jumping across multiple nesting levels making the infamous `goto` unnecessary. With the recommended indentation the leftmost `brk` aligns with the loop delimiters. Example (comments are marked with a hash sign `#`):
+
 
 ```volvox
 s = 0
@@ -53,9 +54,10 @@ end end
 
 echo s
 ```
+
+*Output:*  
 `22`
 
-Comments are marked with the hash sign (`#`).
 
 #### Conditions and Initialisation
 
@@ -82,6 +84,7 @@ end
 echo x
 ```
 
+*Output:*  
 `4` (or `2` or `8`)
 
 A variable can be initialized in conditional branches and accessed later — as long as it is initialized in *all* branches. 
