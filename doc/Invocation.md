@@ -43,17 +43,17 @@ volvox [-h] [-v] [-c] [-g] [-r] [-j] [-J] [-d] [-D] [-M <mainf>] [-f<flag>] \
       object (`.so.*`)
     - `-fdiv-floored`: signed integer division is floored; the remainder gets
       sign of the divisor (this is the default with Volvox). Example:  
-      `-13 / 4` ⟶ `-4`  
-      `-13 % 4` ⟶ `3`  
-      `13 / -4` ⟶ `-4`  
-      `13 % -4` ⟶ `-3`
+      `-13 / 4` → `-4`  
+      `-13 % 4` → `3`  
+      `13 / -4` → `-4`  
+      `13 % -4` → `-3`
     - `-fdiv-c99`: signed division rounds towards 0, the remainder gets the
       sign of the divident (this is the default with C99 and later — with C89
       the behaviour was undefined). Example:  
-      `-13 / 4` ⟶ `-3`  
-      `-13 % 4` ⟶ `-1`  
-      `13 / -4` ⟶ `-3`  
-      `13 % -4` ⟶ `1`  
+      `-13 / 4` → `-3`  
+      `-13 % 4` → `-1`  
+      `13 / -4` → `-3`  
+      `13 % -4` → `1`  
 
       In all cases (i.e. with both `-fdiv-floored` and `-fdiv-c99`) the
       following equation is always fulfilled:  
