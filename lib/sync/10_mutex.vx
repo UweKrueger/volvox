@@ -16,7 +16,7 @@ const __MUTEX_ATTR_SIZE := if os.isLinux
 
 cdecl pthread_mutexattr_destroy(attr voidptr) int
 
-struct mutex_attr union {
+union mutex_attr {
 	voidptr
 	size_t
 	bytes [__MUTEX_ATTR_SIZE]u8
@@ -60,7 +60,7 @@ cdecl CloseHandle(handle size_t) bool
 cdecl pthread_mutex_init(&m mutex, &attr mutex_attr) int
 cdecl pthread_mutex_destroy(&m mutex) int
 
-struct mutex union {
+union mutex {
 	voidptr
 	size_t
 	bytes [__MUTEX_SIZE]u8

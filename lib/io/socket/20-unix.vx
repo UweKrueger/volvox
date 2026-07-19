@@ -1,5 +1,5 @@
 
-struct UnixSocket union {
+union UnixSocket {
 	handle ssize_t
 	err u32
 }

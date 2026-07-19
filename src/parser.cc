@@ -168,14 +168,6 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			is_packed = true;
 			getNextToken(eType);
 		}
-		if (CurTok.kind == tok_union) {
-			if (attribs & A_union) {
-				errs() << CurLoc << ": superfluous 'union'\n";
-				return nullptr;
-			}
-			attribs |= A_union;
-			getNextToken(eType);
-		}
 		if (is_packed && (attribs & A_union)) {
 			errs() << CurLoc << ": 'packed' and 'union' are mutually exclusive\n";
 			return nullptr;
@@ -452,7 +444,7 @@ volvoxc::FullType* ParseType(unsigned attribs, eXpect expect, int terminator,
 			return ft;
 		}
 		default:
-			errs() << CurLoc << ": unexpected '" << CurTok << "' - type name expected\n";
+			errs() << CurLoc << ": unexpected " << CurTok << " - type name expected\n";
 			return nullptr;
 		}
 		getNextToken(expect);

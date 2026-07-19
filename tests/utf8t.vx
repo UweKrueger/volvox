@@ -1,6 +1,6 @@
-struct utf8_sequence union {
-	byte [4]u8
-	err u32
+union utf8_sequence {
+	byte [8]u8 # we would only need 4 for UTF-8 but at least 5 to add '\0' as terminator
+	err u64
 }
 
 def pr_seq(t u32)

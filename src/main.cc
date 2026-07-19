@@ -646,7 +646,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	volvox_name += type_name;
 	volvoxc::FullType Ft = {
 		.type = nullptr,
-		.type_attr = share_kind & (A_c_api | A_interface),
+		.type_attr = share_kind & (A_c_api | A_interface | A_union),
 		.decl_loc = TypeLoc
 	};
 	MapNode* replace = nullptr;
@@ -685,7 +685,7 @@ static void HandleTypeDef(unsigned share_kind) {
 	}
 	auto newft = (share_kind & A_interface) ?
 		ParseInterface(share_kind, eSemi, 0, volvox_name.c_str(), struct_type) :
-		ParseType(false, eComma, 0, volvox_name.c_str(), nullptr, struct_type);
+		ParseType(share_kind & A_union, eComma, 0, volvox_name.c_str(), nullptr, struct_type);
 	if (!newft) {
 		purgeLine();
 		return;
@@ -1305,9 +1305,12 @@ static void MainLoop() {
 		case tok_interface:
 			if (!(sym_kind & A_c_api))
 				sym_kind |= A_interface;
+		case tok_union:
+			if (!(sym_kind & (A_c_api | A_interface)))
+				sym_kind |= A_union;
 		case tok_struct:
 			if (sym_kind & A_pub)
-				errs() << CurLoc << ": 'pub' is not needed for (c)type/interface declarations\n";
+				errs() << CurLoc << ": 'pub' is not needed for (c)type/union/interface declarations\n";
 			if (last_defined_type)
 				finish_constructors_and_destructor();
 			HandleTypeDef(sym_kind);

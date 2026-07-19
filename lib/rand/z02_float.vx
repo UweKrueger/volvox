@@ -1,7 +1,7 @@
 const avoid_multiplication := !cpu.isX86_64
 const compensate_for_last_bit := false
 
-struct FU64 union {
+union FU64 {
 	f f64
 	u u64
 }
@@ -58,7 +58,7 @@ pub inline def real(min_value real, limit real)
 	this = f64(min_value, limit)
 end
 
-struct FU32 union {
+union FU32 {
 	f f32
 	u u32
 }

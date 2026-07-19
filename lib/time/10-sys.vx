@@ -116,7 +116,7 @@ pub const tick_period = 1.0d / tick_frequency
 # the number of ticks since program start. To calculate them we need the (system dependent)
 # timestamp when the program has started as a base
 
-struct common_timestamp union {
+union common_timestamp {
 	i64
 	timespec
 }
@@ -210,7 +210,7 @@ struct TimeStamp {
 # allocation by reference to get a value from the system. So we can make sure
 # it's always aligned like a 64 bit type.
 
-struct _TimeStamp union {
+union _TimeStamp {
 	FILETIME
 	TimeStamp
 }

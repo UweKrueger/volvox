@@ -47,13 +47,13 @@
 
 (defvar volvox-font-lock-keywords
   (let ((COMMANDS (mapconcat 'identity
-           '("cstring" "f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "float" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "union" "voidptr" "thread")
+           '("cstring" "f16" "f32" "f64" "i16" "i32" "i64" "i8" "int" "interface" "real" "float" "size_t" "ssize_t" "string" "u16" "u32" "u64" "u8" "voidptr" "thread")
 	   "\\|"))
 	(CONTROLFLOW (mapconcat 'identity
            '("brk" "elif" "else" "end" "def" "cdef" "if" "repeat" "return" "until" "while" "for")
 	   "\\|"))
 	(UNIX (mapconcat 'identity
-           '("inline" "atomic" "shared" "const" "global" "cdecl" "decl" "delete" "clone" "init" "from" "import" "pub" "struct" "cstruct")
+           '("inline" "atomic" "shared" "const" "global" "cdecl" "decl" "delete" "clone" "init" "from" "import" "pub" "struct" "union" "cstruct")
 	   "\\|"))
     )
   (list

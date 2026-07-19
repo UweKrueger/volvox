@@ -1,4 +1,4 @@
-struct sockaddr_any union {
+union sockaddr_any {
 	sockaddr
 	sockaddr_un
 	sockaddr_in

@@ -3,7 +3,7 @@ struct Ip6Socket {
 	err u32
 }
 
-struct in6_addr union {
+union in6_addr {
 	__s6_addr [16]u8
 	__s6_addr16 [8]u16
 	__s6_addr32 [4]u32

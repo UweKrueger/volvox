@@ -300,7 +300,7 @@ struct GFds {
 	m i32
 }
 
-struct OOWq union {
+union OOWq {
 	x i32
 	y f64
 	z [18]u8

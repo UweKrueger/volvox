@@ -21,7 +21,7 @@ pub inline def htonl(x u32) u32
 	end
 end
 
-struct in_addr union {
+union in_addr {
 	__s4_addr [4]u8
 	u32
 }

@@ -55,7 +55,7 @@ struct Semaphore {
 	err u32
 }
 
-struct pipehandle_t union {
+union pipehandle_t {
 	fds [2]int
 	ssize_t
 }
