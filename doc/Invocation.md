@@ -90,7 +90,8 @@ volvox [-h] [-v] [-c] [-g] [-r] [-j] [-J] [-d] [-D] [-M <mainf>] [-f<flag>] \
 - `-no-<flag>`: supported flags are
     - `-no-lto`: do not do link time optimization (default: no LTO when
       `-g` is given, thin-LTO otherwise)
-    - `-no-setup-con`: do not inject to setup the console for color output
+    - `-no-setup-con`: do not inject code to setup the console for color
+      output
 - `-t`: run test cases. Test cases are functions who's name start with
       `test_`, that do not have any function arguments and that return `bool`
 - `-C <n,g,b>`: set ANSI-256 colors for line number, greater sign and
