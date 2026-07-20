@@ -1434,6 +1434,8 @@ public:
 
 extern Lexer lex;
 
+extern void delete_indent_from_previous_line(unsigned n = 1);
+
 // global function to find method protos
 extern std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName);
 

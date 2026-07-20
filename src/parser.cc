@@ -1152,8 +1152,10 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 static std::tuple<std::vector<std::unique_ptr<ExprAST>>, int, unsigned> ParseExprList();
 
 inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 0) {
-	if (kind == tok_until)
+	if (kind == tok_until) {
+		delete_indent_from_previous_line();
 		prompt_indent--;
+	}
 	auto Cond = ParseExpression(terminator);
 	if (!Cond)
 		return nullptr;
@@ -3141,6 +3143,7 @@ parse_body:
 			}
 		}
 	}
+	delete_indent_from_previous_line(prompt_indent);
 	prompt_indent = 0;
 	unsigned b_lev = 1;
 	std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
