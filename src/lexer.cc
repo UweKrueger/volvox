@@ -164,7 +164,7 @@ void delete_indent_from_previous_line(unsigned n) {
 	char buf[32];
 	if (n > prompt_indent)
 		n = prompt_indent;
-	sprintf(buf, "\e[A\e[5C\e[%uP\e[1B\e[G", 4*n);
+	sprintf(buf, "\e[A\e[6C\e[%uP\e[1B\e[G", 4*n);
 	size_t l = strlen(buf);
 	write(1, buf, l);
 }
@@ -761,7 +761,11 @@ startanalysis:
 		while (isalnum((CurChar = advance())) || CurChar == '_')
 			IdentifierStr += CurChar;
 		if (auto tok_val = map_string_get(&keyword_toks, IdentifierStr.c_str())) {
-			return Token(tok_val->i32);
+			auto tok = Token(tok_val->i32);
+			if (tok.kind == tok_repeat)
+				// 'repeat' is not followed by ParseCondition, so set this here:
+				prompt_indent++;
+			return tok;
 		}
 		if (expect == eBinOp) {
 			KeepIdentifierStr = IdentifierStr;

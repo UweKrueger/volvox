@@ -1152,10 +1152,10 @@ std::vector<std::unique_ptr<ExprAST>> ExprListIterator::prepare_list(std::vector
 static std::tuple<std::vector<std::unique_ptr<ExprAST>>, int, unsigned> ParseExprList();
 
 inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 0) {
-	if (kind == tok_until) {
-		delete_indent_from_previous_line();
+	if (kind == tok_repeat)
 		prompt_indent--;
-	}
+	else if (kind != tok_elif)
+		prompt_indent++;
 	auto Cond = ParseExpression(terminator);
 	if (!Cond)
 		return nullptr;
@@ -1167,8 +1167,6 @@ inline std::unique_ptr<ExprAST> ParseCondition(TokenKind kind, int terminator = 
 			return nullptr;
 		}
 	}
-	if (kind == tok_if || kind == tok_while || kind == tok_in)
-		prompt_indent++;
 	return Cond;
 }
 
@@ -2329,8 +2327,12 @@ static std::pair<std::unique_ptr<ExprAST>, int> ParseExprOrReturn() {
 		}
 		// encode multi level brk in upper bits of kind
 		// but be careful: kind is negative
+		delete_indent_from_previous_line(levels);
 		return { ParseExpression(), (int)~(~(unsigned)kind | (levels << 16)) };
 	} else if (kind == tok_else || kind == tok_elif || kind == tok_end || kind == tok_until) {
+		delete_indent_from_previous_line();
+		if (kind == tok_end)
+			prompt_indent--;
 		return { nullptr, kind };
 	} else if (kind == tok_global || kind == tok_const || kind == tok_atomic) {
 		errs() << CurLoc << ": global/const/atomic cannot be defined inside functions\n";
@@ -3143,7 +3145,6 @@ parse_body:
 			}
 		}
 	}
-	delete_indent_from_previous_line(prompt_indent);
 	prompt_indent = 0;
 	unsigned b_lev = 1;
 	std::map<std::string,FullVar*> destr_vars = get_destruct_vars(b_lev);
