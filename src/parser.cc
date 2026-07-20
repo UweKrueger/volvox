@@ -3163,6 +3163,7 @@ parse_body:
 }
 
 std::pair<std::unique_ptr<ExprAST>,int> GetTopLevelExpression(unsigned sym_kind) {
+	prompt_indent = 0;
 	auto E = ParseExprOrReturn();
 	if (E.first) {
 		if (!E.first->ft || !E.first->ft->type) {

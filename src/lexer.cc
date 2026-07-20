@@ -633,6 +633,7 @@ char Lexer::look_back_strict() {
 std::string IdentifierStr; // Filled in if tok_identifier
 
 Token Lexer::purge_line() {
+	prompt_indent = 0;
 	Loc.Col = linelen;
 	CurLoc = Loc;
 	CurChar = '\n';

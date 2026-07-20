@@ -548,6 +548,7 @@ cleanup:
 	inside_function = false;
 	merge_points.clear();
 	syntax_nesting.clear();
+	prompt_indent = 0;
 }
 
 static void HandleExtern(unsigned visibility) {
