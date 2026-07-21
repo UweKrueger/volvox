@@ -511,11 +511,6 @@ static void prt_int(char** s, unsigned* cap, unsigned* pos, unsigned long long v
 		*pos += snprintf(*s + *pos, space, fmt, w, vall);
 }
 
-struct __volvox_interface {
-	const VOLVOX_RtType* typ;
-	void* ptr;
-};
-
 static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, bool nl, unsigned n_elem,
                            struct __volvox_interface* ap, unsigned* flg, int* widths, int* precisions, const char* strs[]) {
 	for (unsigned idx = 0; ; idx++) {

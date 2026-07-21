@@ -275,3 +275,14 @@ enum Environment_Type_t : uint8_t {
 };
 
 #endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+	struct __volvox_interface {
+		const VOLVOX_RtType* typ;
+		void* ptr;
+	};
+#ifdef __cplusplus
+}
+#endif

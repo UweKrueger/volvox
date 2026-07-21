@@ -1375,6 +1375,32 @@ extern "C" DLLEXPORT void __printadr(double* X) {
 	fprintf(stderr, "Adr: %p %g\n", X, *X);
 }
 
+extern "C" DLLEXPORT ssize_t _Z14__builtin_savePKcRA0interface(
+	const char* filename, size_t n_elem, struct __volvox_interface* ap)
+{
+	int starts[n_elem];
+	int ends[n_elem];
+	int idx;
+	for (idx = 0; idx < n_elem; idx++) {
+		const VOLVOX_RtType* ft = ap[idx].typ;
+		if (ft->ID != VOLVOX_StructTyID)
+			goto invalid_arg;
+		if (strcmp(ft->name, "__range_i32"))
+			goto invalid_arg;
+		unsigned num_fields = ft->SubclassData;
+		if (num_fields != 2)
+			goto invalid_arg;
+		int* elem_ptr = (int*)ap[idx].ptr;
+		starts[idx] = elem_ptr[0];
+		ends[idx] = elem_ptr[1];
+		printf("got range %d..%d\n", starts[idx], ends[idx]);
+	}
+	return 0;
+invalid_arg:
+	errs() << "save: invalid arg #" << idx+2 << " - int range e.g. `3..7` expected\n";
+	return -1;
+}
+
 //===----------------------------------------------------------------------===//
 // Main driver code.
 //===----------------------------------------------------------------------===//

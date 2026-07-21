@@ -216,6 +216,7 @@ cdecl(CloseHandle) __CloseHandle(handle voidptr) int
 
 decl __builtin_sprint(widths voidptr, precisions voidptr, flagss voidptr, strings voidptr, ...) string
 decl __builtin_print(fd int, csv bool, nl bool, ...) int
+decl __builtin_save(filename cstring, ...) ssize_t
 
 inline def echo(...) int
 	return __builtin_print(1, false, true, va_args)
@@ -243,6 +244,14 @@ end
 
 inline def eechon(...) int
 	return __builtin_print(2, false, false, va_args)
+end
+
+inline def save(filename cstring, ...) ssize_t
+	if !__LLVM_REPL
+		eechon "save() is only available in interactive REPL mode\n"
+		return -1
+	end
+	return __builtin_save(filename, va_args)
 end
 
 # create POSIX/Windows Threads - returns -1 on error, 0 on detach and handle for joinable
