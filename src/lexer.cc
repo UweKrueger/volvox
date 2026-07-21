@@ -805,6 +805,8 @@ startanalysis:
 					return tok_comma;
 				} else if (CurChar == terminator) {
 					IdentifierStr = CurChar;
+					if (CurChar == '}')
+						brace_balance--;
 					CurChar = advance();
 					return terminator;
 				} else {
