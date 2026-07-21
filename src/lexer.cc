@@ -158,12 +158,14 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
     }
 }
 
-void delete_indent_from_previous_line(unsigned n) {
+void delete_indent_from_previous_line(int n) {
 	if (lex.input_file != stdin)
 		return;
 	char buf[32];
 	if (n > prompt_indent)
 		n = prompt_indent;
+	if (n <= 0)
+		return;
 	sprintf(buf, "\e[A\e[6C\e[%uP\e[1B\e[G", 4*n);
 	size_t l = strlen(buf);
 	write(1, buf, l);
@@ -634,6 +636,7 @@ std::string IdentifierStr; // Filled in if tok_identifier
 
 Token Lexer::purge_line() {
 	prompt_indent = 0;
+	brace_balance = 0;
 	Loc.Col = linelen;
 	CurLoc = Loc;
 	CurChar = '\n';
@@ -775,11 +778,21 @@ startanalysis:
 		}
 		return Token(tok_identifier);
 	}
+	if (CurChar == '{') {
+		brace_balance++;
+		prompt_indent++;
+	} else if (CurChar == '}')
+		brace_balance--;
 	// Binary Operators
 	if (expect == eBinOp) {
 	binopswitch:
 		switch(CurChar) {
 		case '\n':
+			if (brace_balance < 0) {
+				delete_indent_from_previous_line(-brace_balance);
+				prompt_indent += brace_balance;
+			}
+			brace_balance = 0;
 			if (!terminator) {
 				IdentifierStr = CurChar;
 				return ';';
@@ -985,6 +998,11 @@ if (CurChar == 'i') {
 
 	switch (CurChar) {
 	case '\n':
+		if (brace_balance < 0) {
+			delete_indent_from_previous_line(-brace_balance);
+			prompt_indent += brace_balance;
+		}
+		brace_balance = 0;
 		IdentifierStr = CurChar;
 		switch (expect) {
 		case eComma:

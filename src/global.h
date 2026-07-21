@@ -1301,6 +1301,7 @@ class Lexer : public SourceLocState {
 public:
 	std::vector<SourceLocState> source_stack;
 	eXpect Expected; // only used for error messages
+	int brace_balance = 0;
 	Lexer() = default;
 	Lexer(FILE** _inputfile, const char* _input_file_name, size_t _bufsize = 100)
 		: SourceLocState(SourceLocation( _input_file_name, 0, 0), 0, _bufsize,
@@ -1434,7 +1435,7 @@ public:
 
 extern Lexer lex;
 
-extern void delete_indent_from_previous_line(unsigned n = 1);
+extern void delete_indent_from_previous_line(int n = 1);
 
 // global function to find method protos
 extern std::vector<std::unique_ptr<PrototypeAST>>* findProtos(const std::string& mangledType, const std::string& unmangledName);
