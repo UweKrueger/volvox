@@ -1378,8 +1378,12 @@ extern "C" DLLEXPORT void __printadr(double* X) {
 extern "C" DLLEXPORT ssize_t _Z14__builtin_savePKcRA0interface(
 	const char* filename, size_t n_elem, struct __volvox_interface* ap)
 {
-	int starts[n_elem];
-	int ends[n_elem];
+	// int starts[n_elem];
+	// int ends[n_elem];
+	int* starts = (int*)alloca((n_elem ? n_elem : 1) * sizeof(int));
+	int* ends = (int*)alloca((n_elem ? n_elem : 1) * sizeof(int));
+	FILE* save_file = nullptr;
+	ssize_t bytes_written = 0;
 	int idx;
 	for (idx = 0; idx < n_elem; idx++) {
 		const VOLVOX_RtType* ft = ap[idx].typ;
@@ -1393,11 +1397,50 @@ extern "C" DLLEXPORT ssize_t _Z14__builtin_savePKcRA0interface(
 		int* elem_ptr = (int*)ap[idx].ptr;
 		starts[idx] = elem_ptr[0];
 		ends[idx] = elem_ptr[1];
-		printf("got range %d..%d\n", starts[idx], ends[idx]);
+		if (ends[idx] < starts[idx]) {
+			errs() << "save: arg #" << idx+2 << " invalid range " << starts[idx]
+			       << ".." << ends[idx] << " - lower limit > upper limit\n";
+			goto invalid_general;
+		}
+		if (starts[idx] < 1) {
+			errs() << "save: arg #" << idx+2 << " lower limit " << starts[idx]
+			       << " < 1\n";
+			goto invalid_general;
+		}
+		if (ends[idx] > REPL_Lines.size()) {
+			errs() << "save: arg #" << idx+2 << " upper limit " << ends[idx]
+			       << " exceeds number of saved lines (" << REPL_Lines.size() << ")\n";
+			goto invalid_general;
+		}
+		// printf("got range %d..%d\n", starts[idx], ends[idx]);
 	}
-	return 0;
+	if (!n_elem) {
+		starts[0] = 1;
+		ends[0] = REPL_Lines.size();
+		n_elem = 1;
+	}
+	save_file = fopen(filename, "w");
+	if (!save_file) {
+		fprintf(stderr, "Cannot write to \"%s\": %s\n", filename, strerror(errno));
+		return -1;
+	}
+	for (idx = 0; idx < n_elem; idx++) {
+		for (int line = starts[idx]; line <= ends[idx]; line++) {
+			int written = fprintf(save_file, "%s\n", REPL_Lines[line-1].c_str());
+			if (written < 0) {
+				fprintf(stderr, "Cannot write to \"%s\": %s\n", filename, strerror(errno));
+				bytes_written = -1;
+				goto close_file;
+			}
+			bytes_written += written;
+		}
+	}
+close_file:
+	fclose(save_file);
+	return bytes_written;
 invalid_arg:
 	errs() << "save: invalid arg #" << idx+2 << " - int range e.g. `3..7` expected\n";
+invalid_general:
 	return -1;
 }
 

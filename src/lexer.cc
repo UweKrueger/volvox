@@ -44,6 +44,7 @@ extern "C" void volvox_free_glob(volvox_glob_t* rets);
 #define PROMPT_SZ 1024
 static char prompt[PROMPT_SZ];
 std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid after files have been processed
+std::vector<std::string> REPL_Lines;
 
 #ifdef MONOCHROME_PROMPT
 // OpenBSD's version of editline does not support colors
@@ -102,6 +103,7 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    else
 				    return -1;
 		    }
+		    REPL_Lines.emplace_back(*lineptr);
 		    *n = strlen(*lineptr);
 		    if (*n)
 			    add_history(*lineptr);

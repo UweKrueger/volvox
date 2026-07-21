@@ -1549,6 +1549,7 @@ extern bool check_and_add_proto(std::vector<std::unique_ptr<PrototypeAST>>& prot
 extern std::vector<std::vector<const char*>> source_files;
 extern std::vector<int> source_index;
 extern std::vector<const char*> SourceFileNames;
+extern std::vector<std::string> REPL_Lines;
 extern const char* last_thread_constructor_caller;
 extern const char* last_thread_destructor_caller;
 extern int selectProto(std::vector<std::unique_ptr<PrototypeAST>>* protos, const char* name,
