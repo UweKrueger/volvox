@@ -1305,6 +1305,7 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 			getNextToken();
 			have_else = false;
 		} else if (CurTok.kind == tok_else || CurTok.kind == tok_elif) {
+			delete_indent_from_previous_line();
 			if (CurTok.kind != tok_elif)
 				getNextToken();
 			have_else = true;
@@ -1379,6 +1380,8 @@ static std::tuple<std::vector<BranchDescription>,std::set<std::string>,VarTable,
 				while (CurTok.kind == ';')
 					getNextToken();
 				if (CurTok.kind == tok_end) {
+					delete_indent_from_previous_line();
+					prompt_indent--;
 					getNextToken();
 				} else {
 					errs() << CurLoc << ": 'end' expected\n";
@@ -3124,6 +3127,8 @@ parse_body:
 			errs() << CurLoc << ": 'end' expected\n";
 			return nullptr;
 		}
+		delete_indent_from_previous_line();
+		prompt_indent--;
 		if (!ProtoRef->returnName.empty()) {
 			errs() << Elist.first.back()->Loc << ": return statement at end of constructor or function with named return not allowed\n";
 			return nullptr;
