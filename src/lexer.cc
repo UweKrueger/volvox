@@ -45,6 +45,7 @@ extern "C" void volvox_free_glob(volvox_glob_t* rets);
 static char prompt[PROMPT_SZ];
 std::vector<const char*> SourceFileNames; // for SourceLocations to remain valid after files have been processed
 std::vector<std::string> REPL_Lines;
+std::string REPL_indent;
 
 #ifdef MONOCHROME_PROMPT
 // OpenBSD's version of editline does not support colors
@@ -103,7 +104,8 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 			    else
 				    return -1;
 		    }
-		    REPL_Lines.emplace_back(*lineptr);
+		    REPL_indent += *lineptr;
+		    REPL_Lines.push_back(std::move(REPL_indent));
 		    *n = strlen(*lineptr);
 		    if (*n)
 			    add_history(*lineptr);
@@ -145,8 +147,11 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 #else
 			    snprintf(prompt, PROMPT_SZ, VOLVOX_PROMPT, p_col.number, p_col.background, lex.Loc.Line + 1, p_col.greater);
 #endif
-			    for (int i=0; i<prompt_indent && i<200; i++)
+			    REPL_indent = "";
+			    for (int i=0; i<prompt_indent && i<200; i++) {
 				    strlcat(prompt, "    ", PROMPT_SZ);
+				    REPL_indent += '\t';
+			    }
 			    lex.use_readline = true;
 #ifndef _WIN32
 			    static bool rl_initialized = false;
@@ -171,6 +176,8 @@ void delete_indent_from_previous_line(int n) {
 	sprintf(buf, "\e[A\e[6C\e[%uP\e[1B\e[G", 4*n);
 	size_t l = strlen(buf);
 	write(1, buf, l);
+	if (!REPL_Lines.empty())
+		REPL_Lines.back().erase(0, n);
 }
 
 SourceLocation CurLoc;
@@ -556,8 +563,11 @@ int Lexer::advance() {
 #else
 			snprintf(prompt, PROMPT_SZ, VOLVOX_PROMPT, p_col.number, p_col.background, Loc.Line + 1, p_col.greater);
 #endif
-			for (int i=0; i<prompt_indent && i<200; i++)
+			REPL_indent = "";
+			for (int i=0; i<prompt_indent && i<200; i++) {
 				strlcat(prompt, "    ", PROMPT_SZ);
+				REPL_indent += '\t';
+			}
 		}
 		linelen = fdgetline(&linebuf, &bufsize);
 		if (linelen < 0) {
