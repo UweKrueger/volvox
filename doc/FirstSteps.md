@@ -6,31 +6,46 @@ description.
 
 #### Interactive Mode
 
-To start the interactive interpreter just run `volvox` without
-parameters. You will get an input prompt indicating the line
-number. You can type the following example lines followed by Return.
+To start the interactive interpreter open a terminal (or Command Prompt) and
+run `volvox` without parameters. (If the location of the volvox-executable is
+not included in your PATH environment variable you might have to specify the
+directory, e.g. `./volvox`, `/my/path/to/volvox` or
+`C:\Users\myname\volvox\volvox.exe`)
+
+You will get an input prompt indicating the line number. Type any of the
+following example lines followed by Return.
 
 #### Simple Arithmetic — Integer ("`int`")
 
 ```volvox
-45 / 6
+31 / 4
 ```
 
+*Output:*  
 `7`
 
 The results of expressions are implicitly printed in interactive
-mode. Otherwise use "`echo`" to do this explicitly.
+mode. (see flags `-fprint results` and `-fno-print-results` in
+[Invocation](./Invocation.md). Otherwise the "`echo`" can be used to do this
+explicitly as in the following example. The value itself (`7`) is calculated
+using integer division, i.e. using an implicit `floor` function ⌊31 / 4⌋.
+You might want to look at the flags `-fdiv-floored` and `-fdiv-c99` in 
+[Invocation](./Invocation.md) for more details.
 
 #### Simple Arithmetic — Floating Point ("`real`")
 
+If at least one of the operands can be recognized as *floating point number*
+the result is calculated with decimal places:
+
 ```volvox
-echo (45. / 6)
+echo (31. / 4)
 ```
 
-`7.5`  
-`4`
+*Output:*  
+`7.75`  
+`5`
 
-The second line "`4`" is the "result" of the `echo` command — the
+The second line "`5`" is the "result" of the `echo` command — the
 number of characters printed including the newline character.
 
 Implicit printing of expressions results in interactive mode can be
