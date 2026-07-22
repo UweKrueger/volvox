@@ -1444,6 +1444,24 @@ invalid_general:
 	return -1;
 }
 
+extern "C" DLLEXPORT int _Z14__builtin_loadPKc(
+	const char* filename)
+{
+	// errs() << source_index.size() << " " << source_files.size() << " " << source_index.back() << " " << source_files.back().size() << "\n";
+	if (source_index.back() || source_files.back().size()) {
+		errs() << "load() is only available in JIT REPL mode\n";
+		return -1;
+	}
+	lex.linelen = 0;
+	lex.linebuf = nullptr;
+	lex.bufsize = 0;
+	lex.use_readline = false;
+	source_files.back().push_back(filename);
+	source_index.back() = 0;
+	lex.next_input_file();
+	return 1;
+}
+
 //===----------------------------------------------------------------------===//
 // Main driver code.
 //===----------------------------------------------------------------------===//
