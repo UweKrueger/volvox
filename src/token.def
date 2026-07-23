@@ -60,10 +60,10 @@ TOKEN(selector) /* '.' (struct.field, module.ident), invisible operator in `sin(
 TOKEN(ref) /* prefix & */ \
 TOKEN(optional) /* prefix ? */ \
 TOKEN(thread) \
+TOKEN(invisible_strong) /* `sin(2x)+3` == (sin 2x)+3 != `sin (2x)+3` == `sin 2x+3` == `sin(2x+3)` */ \
 TOKEN(postfix) /* ++, -- (return old result) - these and the following operators can be redefined for user types */ \
 TOKEN(pow) /* ^ */ \
 TOKEN(unary) /* +, -, !, ~, <- */ \
-TOKEN(invisible) /* invisible operator in `sin x` or `2a` or `sin 2x` = `sin(2x)` - right binding */ \
 TOKEN(mult) /* *, /, %, <<, >> */ \
 TOKEN(add) /* +, -, ~ */ \
 TOKEN(cmp) /* >=, >, ==, !=, <, <=, <=> */ \
@@ -77,6 +77,7 @@ TOKEN(range) /* .. */ \
 TOKEN(colon) \
 TOKEN(ternary) /* binary ? as part of ternary 'cond ? val_true : val_false' */ \
 TOKEN(comma) \
+TOKEN(invisible) /* invisible operator in `sin x` or `2a` or `sin 2x` = `sin (2x)` - right binding */ \
 TOKEN(assign) /* = (possibly multiple assignees, result(s): old value(s), right binding) */ \
 TOKEN(error)
 constexpr int TOKEND = __LINE__;

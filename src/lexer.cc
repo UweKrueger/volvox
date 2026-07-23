@@ -787,7 +787,9 @@ startanalysis:
 		if (expect == eBinOp) {
 			KeepIdentifierStr = IdentifierStr;
 			IdentifierStr = "";
-			return Token(tok_invisible);
+			return (have_preceding_space)
+				? Token(tok_invisible)
+				: Token(tok_invisible_strong);
 		}
 		return Token(tok_identifier);
 	}
@@ -832,7 +834,9 @@ startanalysis:
 				return Token(tok_comma);
 			}
 			IdentifierStr = "";
-			return Token(tok_invisible);
+			return (have_preceding_space)
+				? Token(tok_invisible)
+				: Token(tok_invisible_strong);
 		case ':':
 			CurChar = advance();
 			if (CurChar == '=') {
@@ -905,7 +909,7 @@ if (CurChar == 'i') {
 			if (CurChar == '-' || CurChar == '+' || CurChar == '&') {
 				if (have_preceding_space) {
 					auto [ following, is_last ] = peek2_strict();
-					if ( following == '_' || isalnum(following)) {
+					if (following == '_' || isalnum(following)) {
 						IdentifierStr = "";
 						return Token(tok_invisible);
 					}
@@ -1002,7 +1006,9 @@ if (CurChar == 'i') {
 	     linebuf[Loc.Col] == '.' && isdigit(linebuf[Loc.Col+1]))) { // [+-].[0-9]*
 		if (expect == eBinOp) {
 			IdentifierStr = "";
-			return Token(tok_invisible);
+			return (have_preceding_space)
+				? Token(tok_invisible)
+				: Token(tok_invisible_strong);
 		}
 		char* n_ptr = linebuf + CurLoc.Col - 1;
 		Token tok(&n_ptr);

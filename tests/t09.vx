@@ -100,7 +100,7 @@ end
 def test_ternary_1 bool
 	o = true ? 7 : 9
 	p = false ? 5.3 : -17
-	return o == 7 && p == -17 && sizeof p == 8
+	return o == 7 && p == -17 && sizeof(p) == 8
 end
 
 def lkceg(r int, a f64, b f32) f64

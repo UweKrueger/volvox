@@ -77,16 +77,21 @@ Token& purgeLine() {
 	return CurTok;
 }
 
+static inline int Precedence(TokenKind op) {
+	return (-op) << 8;
+}
+
 /// GetTokPrecedence - Get the precedence of the pending binary operator token.
 static inline int GetTokPrecedence() {
-	return (CurTok.kind < 0 && CurTok.kind > tok_last_op) ? (-CurTok.kind) << 8 : -256;
+	return (CurTok.kind < 0 && CurTok.kind > tok_last_op) ? Precedence(CurTok.kind) : -256;
 }
 
 // same as above but take into account that some operators are right binding
 static inline int NextTokPrecedence() {
 	int prec = GetTokPrecedence();
 	// assignments and the invisible operator and `^` are right binding
-	if (CurTok.kind == tok_assign || CurTok.kind == tok_invisible || CurTok.kind == tok_pow)
+	if (CurTok.kind == tok_assign || CurTok.kind == tok_invisible
+	    || CurTok.kind == tok_invisible_strong || CurTok.kind == tok_pow)
 		prec++;
 	return prec;
 }
@@ -755,7 +760,8 @@ static std::unique_ptr<ExprAST> ParseIdentifierExpr(int terminator = 0) {
 		         || CurTok.kind < 0
 		         && CurTok.kind > tok_selector
 		         && CurTok.kind != tok_colon
-		         && CurTok.kind != tok_invisible)
+		         && CurTok.kind != tok_invisible
+		         && CurTok.kind != tok_invisible_strong)
 			if (llvm::isa<llvm::StructType>(ft->type)) {
 				auto list = std::make_unique<ListExprAST>(LitLoc);
 				return std::make_unique<StructExprAST>(LitLoc, ft, std::move(list));
@@ -2041,7 +2047,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 		// consume it, otherwise we are done.
 		if (!LHS || !LHS->ft)
 			return nullptr;
-		if (NextTokPrecedence() <= ExprPrec) {
+		int next_precedence = NextTokPrecedence();
+		if (next_precedence <= ExprPrec) {
 			if (LHS->ft->type && (LHS->ft->type->isFunctionTy() ||
 			                      LHS->ft->type == llvm_closure_type || dynamic_cast<TypeExprAST*>(LHS.get())) && (ExprPrec >> 8) != -(int)tok_ref)
 				// function call without argument, e.g. "abort"
@@ -2091,7 +2098,8 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 
 		// If BinOp binds less tightly with RHS than the operator after RHS, let
 		// the pending operator take RHS as its LHS.
-		if (TokPrec <= NextTokPrecedence()) {
+		next_precedence = NextTokPrecedence();
+		if (TokPrec <= next_precedence) {
 			RHS = ParseBinOpRHS(TokPrec, std::move(RHS), terminator);
 		}
 		if (!RHS || !RHS->ft)
@@ -2283,7 +2291,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			return nullptr;
 		}
 	valid_void:
-		if (BinKind == tok_invisible) {
+		if (BinKind == tok_invisible || BinKind == tok_invisible_strong) {
 			auto lit = dynamic_cast<LiteralExprAST*>(RHS.get());
 		}
 		LHS = std::make_unique<BinaryExprAST>(BinLoc, BinOp.c_str(), std::move(LHS), std::move(RHS), res_t);
