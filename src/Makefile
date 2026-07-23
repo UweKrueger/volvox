@@ -5,7 +5,7 @@ OPT = -O2
 SHELL := bash
 RM = rm -f
 LINKEXTRAFLAGS := -ledit -lpthread -rdynamic
-TARGETDIR := ../
+TARGETDIR := ../bin/
 TARGET :=
 PREFIX := /usr
 ifeq ($(shell test -x C\:/Program\ Files/LLVM/bin/llvm-config.exe && echo -n true),true)

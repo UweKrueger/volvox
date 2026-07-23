@@ -2202,7 +2202,7 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	// always read builtin definitions first
-	auto builtin_fn = std::string(volvox_root()) + '/' + builtin_file_name;
+	auto builtin_fn = std::string(volvox_root()) + "/lib/" + builtin_file_name;
 	builtin_input_file = fopen(builtin_fn.c_str(),
 #ifdef _WIN32
 	                           "rb" // 'b' -> BINARY, no 'N' -> not iNherited
