@@ -129,9 +129,9 @@ ifeq ($(NIXTYPE),msvc)
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
 else
 ifneq ($(wildcard /usr/include/editline/.*),)
-	CPPEXTRAFLAGS := -I/usr/include/editline
+	CPPEXTRAFLAGS := -I/usr/include/editline -DVOLVOXVERSION=$(VOLVOXVERSION)
 else
-	CPPEXTRAFLAGS := -DUSE_EDITLINE
+	CPPEXTRAFLAGS := -DUSE_EDITLINE -DVOLVOXVERSION=$(VOLVOXVERSION)
 	LINKEXTRAFLAGS := -leditline -lpthread -rdynamic
 endif
 	EXTRAOBJS :=

@@ -151,3 +151,5 @@ bsdtar -czf $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.tgz bin include lib li
 rm -f bin/ld.exe
 mv -v include/c++/${GCC_V} x86_64-w64-mingw32/include/c++
 bsdtar -czf $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.tgz bin/*.dll bin/ldd.exe bin/make.exe bin/gdb.exe x86_64-w64-mingw32 lib/*.a lib/*.la
+zcat $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.tgz | xz -9 > $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.txz
+zcat $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.tgz | xz -9 > $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.txz

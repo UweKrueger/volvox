@@ -2265,6 +2265,7 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 	if (verbosity >= 1) {
+		errs() << "Volvox Version: " __xstr(VOLVOXVERSION) "\n";
 		errs() << "Target: " << TripleStr << '\n';
 		errs() << "Host: " LLVM_HOST_TRIPLE "\n";
 		errs() << "LLVM Version: " LLVM_VERSION_STRING "\n";

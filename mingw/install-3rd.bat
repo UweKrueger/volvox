@@ -5,8 +5,8 @@ set MINGW_VER=v14.0.0
 set GCC_VER=16.1.0
 
 set CLANGLLVMPKG=clang+llvm-%LLVM_VER%-x86_64-pc-windows-msvc.tar.xz
-set MINGWPKG=mingw-%MINGW_VER%-stdc++-%GCC_VER%-ucrt.tgz
-set GCCPKG=gcc-%GCC_VER%-mingw-%MINGW_VER%-ucrt.tgz
+set MINGWPKG=mingw-%MINGW_VER%-stdc++-%GCC_VER%-ucrt.txz
+set GCCPKG=gcc-%GCC_VER%-mingw-%MINGW_VER%-ucrt.txz
 
 if not "%~1"=="" if not "%~1"=="mingw+llvm" if not "%~1"=="gcc+llvm" if not "%~1"=="llvm+mingw" if not "%~1"=="llvm+gcc" if not "%~1"=="mingw" if not "%~1"=="gcc" goto opterr
 
