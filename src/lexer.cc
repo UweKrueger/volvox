@@ -548,7 +548,8 @@ bool Lexer::next_input_file() {
 	} else {
 		return false;
 	}
-	Loc.Line = Loc.Col = 0;
+	Loc.Line = (input_file == stdin) ? REPL_Lines.size() : 0;
+	Loc.Col = 0;
 	return true;
 }
 
