@@ -22,7 +22,7 @@ echo sin alpha
 
 `0.4999999999999999`
 
-Function calls with a single argument do not require parentheses and are evaluated with right-to-left associativity, i.e. "`echo sin alpha`" has the same meaning as "`echo(sin(alpha))`"
+Function calls do not require parentheses and are evaluated with right-to-left associativity, i.e. "`echo sin alpha`" has the same meaning as "`echo(sin(alpha))`"
 
 #### For Loop and String Interpolation
 

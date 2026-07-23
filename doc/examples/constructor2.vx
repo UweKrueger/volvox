@@ -13,6 +13,6 @@ end
 
 # a general constructor is called like a function
 # 'this' is a reference to 'v' in this case
-v = Vec2d(6, 30 * pi / 180)
+v = Vec2d 6, 30 * pi / 180
 
-echo "${v.x} ${v.y}"
+echo v.x, v.y

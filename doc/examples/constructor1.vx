@@ -13,10 +13,10 @@ end
 # explicit initialization
 v = Vec2d{ x: 2.25, y: -0.0625 }
 
-echo "${v.x} ${v.y}"
+echo v.x, v.y
 
 # standard constructor is implicitly called after
 # a low-level copy has been made
 w = v
 
-echo "${w.x} ${w.y}"
+echo w.x, w.y

@@ -749,7 +749,7 @@ repeat
 	x += 3
 until x > 3.5
 
-echoc(x, y)
+echoc x, y
 ```
 
 *Output:*  
@@ -770,7 +770,7 @@ else
 	y = -13.5
 end
 
-echoc(x, y)
+echoc x, y
 ```
 
 The `for` is very similar to the `while` loop except that the condition is formed by an *iterator* — in this case a range expression `0 .. x`. Other supported iterators are arrays, `vec` and `map` and `set`.
@@ -870,9 +870,9 @@ end
 
 v = Vec2d{ x: 2.25, y: -0.0625 }
 
-v.scale(2.5)
+v.scale 2.5
 
-echo "${v.x} ${v.y}"
+echo v.x, v.y
 ```
 
 *Output:*  
@@ -902,13 +902,13 @@ end
 # explicit initialization
 v = Vec2d{ x: 2.25, y: -0.0625 }
 
-echo "${v.x} ${v.y}"
+echo v.x, v.y
 
 # standard constructor is implicitly called after
 # a low-level copy has been made
 w = v
 
-echo "${w.x} ${w.y}"
+echo w.x, w.y
 ```
 
 *Output*  
@@ -935,9 +935,9 @@ end
 
 # a general constructor is called like a function
 # 'this' is a reference to 'v' in this case
-v = Vec2d(6, 30 * pi / 180)
+v = Vec2d 6, 30 * pi / 180
 
-echo "${v.x} ${v.y}"
+echo v.x, v.y
 ```
 
 ### Destructor
