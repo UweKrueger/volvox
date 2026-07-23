@@ -23,3 +23,8 @@ clean:
 .PHONY: depend
 depend:
 	cd src && $(MAKE) .depend
+
+package: volvox-$(VOLVOXVERSION).txz
+
+volvox-$(VOLVOXVERSION).txz: volvox
+	bsdtar -cJf $@ bin lib
