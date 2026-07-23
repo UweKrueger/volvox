@@ -7,5 +7,5 @@ else
 	y = 14.75
 end
 
-echoc(x, y)
+echoc x, y
 

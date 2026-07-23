@@ -235,21 +235,25 @@ inline def echon(...) int
 	return __builtin_print(1, false, false, va_args)
 end
 
-inline def eecho(...) int
-	return __builtin_print(2, false, true, va_args)
+inline def fecho(fd int, ...) int
+	return __builtin_print(fd, false, true, va_args)
 end
 
-inline def eechon(s cstring) int
-	return int(_write(2, s, _strlen(s)))
+inline def fechoc(fd int, ...) int
+	return __builtin_print(fd, true, true, va_args)
 end
 
-inline def eechon(...) int
-	return __builtin_print(2, false, false, va_args)
+inline def fechon(fd int, s cstring) int
+	return int(_write(fd, s, _strlen(s)))
+end
+
+inline def fechon(fd int, ...) int
+	return __builtin_print(fd, false, false, va_args)
 end
 
 inline def save(filename cstring, ...) ssize_t
 	if !__LLVM_REPL
-		eechon "save() is only available in interactive REPL mode\n"
+		fechon 2, "save() is only available in interactive REPL mode\n"
 		return -1
 	end
 	return __builtin_save(filename, va_args)
@@ -257,7 +261,7 @@ end
 
 inline def load(filename cstring) int
 	if !__LLVM_REPL
-		eechon "load() is only available in interactive REPL mode\n"
+		fechon 2, "load() is only available in interactive REPL mode\n"
 		return -1
 	end
 	return __builtin_load(filename)

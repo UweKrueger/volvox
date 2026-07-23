@@ -1,14 +1,14 @@
 a = 32760h # 16 bit integer
 
 b = a + 2
-echo (b, " ", typeof b)
+echo b, typeof(b)
 
 c = a + 24534d
-echo(c, " ", typeof c)
+echo c, typeof(c)
 
 # but the following might be not what is intended
 d = a + 24534
-echo(d, " ", typeof d)
+echo d, typeof(d)
 
 # likewise with float
 echo
@@ -17,12 +17,12 @@ x = 45.5f # 32 bit float - exact value in binary representation
 
 # this propagates to real and has enough precision
 y = x + 4.5e10d
-echo(y, " ", typeof y)
+echo y, typeof(y)
 
 # again the following does not propagate to real, so the
 # digits of x are truncated
 w = x + 4.5e10
-echo(w, " ", typeof w)
+echo w, typeof(w)
 
 echo
 # or even worse
@@ -31,8 +31,8 @@ k = 2.25e20f
 # this remains float and exceeds the allowd range
 # resulting in "inf"
 l = k * 3.5e20
-echo(l, " ", typeof l)
+echo l, typeof(l)
 
 # whereas this is propagated to real and shows the correct result
 m = k * 3.5e20d
-echo (m, " ", typeof m)
+echo m, typeof(m)

@@ -38,7 +38,7 @@ If at least one of the operands can be recognized as *floating point number*
 the result is calculated with decimal places:
 
 ```volvox
-echo (31. / 4)
+echo 31. / 4
 ```
 
 *Output:*  
@@ -152,15 +152,49 @@ is a short list:
 
 | Function | Description |
 | :--- | :--- |
-| `echo` | prints argument(s) to `stdout` and appends `newline` |
-| `echon` | prints argument(s) to `stdout` without appending 'newline' (like "`echo -n`" in Bash) |
+| `echo` | prints argument(s) to `stdout` separated by spaces and appends `newline` |
+| `echon` | prints argument(s) to `stdout` without spaces and without appending 'newline' (like "`echo -n`" in Bash) |
 | `echoc` | prints argument(s) as *comma separated list* to `stdout` and appends `newline`. Strings are enclosed with quotation marks |
-| `eecho` | like `echo`, but prints to `stderr` |
-| `eechon` | like `echon`, but prints to `stderr` |
+| `fecho` | like `echo`, but prints to file descriptor specified as first argument |
+| `fechoc` | like `echoc`, but prints to file descriptor specified as first argument |
+| `fechon` | like `echon`, but prints to file descriptor specified as first argument |
 
-The output `stderr` is like `stdout` but uses file descriptor `2`
-instead of `0` and thus can be redirected separately. These special
-functions are defined in `builtin.vx`.
+On all supported operating systems `stderr` ("standard error") is associated with file descriptor `2`, i.e. to print an error message you can write:
+
+```volvox
+fecho 2, "This is an error!"
+```
+
+If you run a program you can redirect `stdout` ("standard output", file descriptor `1`) and `stderr` to separate files:
+
+```bash
+my_program >output.txt 2>errors.log
+```
+
+To write to a file without redirection you can create a file descriptor using functions from the library `io`:
+
+```volvox
+import io
+
+x = 12.75
+y = x^2
+
+MyFile = io.create "myfile.txt"
+fecho MyFile.fd, "Hello"
+fechon MyFile.fd, "$x² = $y\n"
+MyFile.close
+```
+
+Running this program creates a file `myfile.txt`. You cat see the content of this file by typing `cat myfile.txt` (Unix) or `type myfile.txt` (Windows):
+
+```
+Hello
+12.75² = 162.5625
+```
+
+File descriptors represent so called *unbuffered I/O*, i.e. input and output is performed immediatelly[^1]. While this might be what is intended in many situations it can be inefficient for large amounts of data consisting of small chunks. So there is also *buffered I/O* — that's what the next chapter is about.
+
+[^1]: "unbuffered" in this context means that there is no userspace buffering. However there *is* buffering done by the kernel — and hardware devices like hard disks usually have internal buffers ("cache"), too.
 
 #### Functions from Library `file`
 
@@ -197,32 +231,10 @@ its library name as qualifier: `math.sqrt`.
 Until now we always printed our results to the console. For real world
 applications it is necessary to redirect output to a named file like
 "`results.txt`". In principle we could use shell redirection for
-that. Let's go back to out first file `factorial.vx` and compile a
-binary:
-
-```bash
-volvox factorial.vx
-```
-
-Then we can run this binary and use a greater sign to redirect stdout
-(file descriptor `1`)to a file:
-
-```bash
-./factorial > results.txt
-```
-
-It is also possible to redirect `stderr` (file descriptor `2`) this way:
-
-```bash
-./factorial 2> errors.txt
-```
-
-This works on Windows, too, except that you should write "`.\`"
-instead of "`./`".
+that (see [above](#builtin-functions).
 
 While this approach is simple and in some way flexible, it is often
-desirable to create a file from within a program. Let's have a look at
-the next example:
+desirable to create a file from within a program. This time we use a buffered file from the library `file`:
 
 ```volvox
 import file
@@ -231,7 +243,8 @@ from error import strerror
 
 outfile = file.new "results.txt"
 if outfile.err != 0
-	eecho "Error creating new file \"results.txt\": ${strerror(outfile.err)}"
+	fecho 2, "Error creating new file \"results.txt\":",
+	"${strerror(outfile.err)}"
 	exit 1
 end
 

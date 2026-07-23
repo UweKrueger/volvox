@@ -1,0 +1,9 @@
+import io
+
+x = 12.75
+y = x^2
+
+MyFile = io.create "myfile.txt"
+fecho MyFile.fd, "Hello"
+fechon MyFile.fd, "$x² = $y\n"
+MyFile.close

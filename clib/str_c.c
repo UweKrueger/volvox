@@ -518,8 +518,12 @@ static void __generic_sprt(char** s, unsigned* cap, unsigned* pos, bool csv, boo
 			prtstring(s, cap, pos, strs[idx], 0, 0);
 		if (idx >= n_elem)
 			break;
-		if (csv && idx)
-			prtstring(s, cap, pos, ", ", 0, 0);
+		if (idx) {
+			if (csv)
+				prtstring(s, cap, pos, ", ", 0, 0);
+			else if (nl)
+				prtstring(s, cap, pos, " ", 0, 0);
+		}
 		int space = *cap - *pos;
 		int w = widths ? widths[idx] : 0;
 		int p = precisions ? precisions[idx] : 0;

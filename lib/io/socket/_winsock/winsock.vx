@@ -53,11 +53,11 @@ inline def WsockProto
 			version = data32.wVersion
 		end
 		if this.int != 0
-			eechon "WSAStartup returned ${this.int}\n"
+			fechon 2, "WSAStartup returned ${this.int}\n"
 		elif version != 0x0202
-			eechon "requested WINSock version 2.2 not available - got version ${version >> 8}.${version & 0xff}\n"
+			fechon 2, "requested WINSock version 2.2 not available - got version ${version >> 8}.${version & 0xff}\n"
 		elif _verbose
-			eechon "got WINSock version ${version >> 8}.${version & 0xff}\n"
+			fechon 2, "got WINSock version ${version >> 8}.${version & 0xff}\n"
 		end
 	else
 		this.int = 0

@@ -5,7 +5,8 @@ from error import strerror
 # open file for output possibly overwriting existing file
 outfile = file.create "results.txt"
 if outfile.err != 0
-	eecho "Error creating new file \"results.txt\": ${strerror(outfile.err)}"
+	fecho 2, "Error creating new file \"results.txt\":",
+	"${strerror(outfile.err)}"
 	exit 1
 end
 

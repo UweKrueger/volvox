@@ -5,4 +5,4 @@ repeat
 	x += 3
 until x > 3.5
 
-echoc(x, y)
+echoc x, y
