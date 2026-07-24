@@ -296,7 +296,7 @@ endif
 $(LIBVOLVOX): $(LIBOBJS) $(LIBCOBJS)
 	$(CC) $(TARGET) -shared $(PIC) $(LIBVOLVOXSONAMESPEC) -o $@ $+
 ifeq ($(NIXTYPE),msvc)
-	cp $(LIBVOLVOX) ..
+	cp $(LIBVOLVOX) ..\bin
 else
 	ln -sf $(LIBVOLVOXSONAME) $(LIBVOLVOXLINK)
 endif
@@ -318,7 +318,7 @@ $(PROG): $(OBJS) $(LIBOBJS) $(LIBCOBJS)
 
 .PHONY: clean
 clean:
-	rm -f $(PROG) $(PROG).exe $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSLTO) $(LIBCOBJSLTO) $(LIBOBJSDBG) $(LIBCOBJSDBG) $(LIBOBJSMINGW) $(LIBCOBJSMINGW) $(LIBVOLVOXMINGW) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXLTO) $(LIBVOLVOXDBG) *~ ../include/*~ ../include/*.pch ../include/*.gch .depend
+	rm -f $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSLTO) $(LIBCOBJSLTO) $(LIBOBJSDBG) $(LIBCOBJSDBG) $(LIBOBJSMINGW) $(LIBCOBJSMINGW) $(LIBVOLVOXMINGW) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXLTO) $(LIBVOLVOXDBG) *~ ../bin/*volvox* ../lib/libvolvox.* ../include/*~ ../include/*.pch ../include/*.gch .depend
 
 .depend:
 	$(CXX) $(TARGET) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend

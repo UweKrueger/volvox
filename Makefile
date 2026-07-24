@@ -1,6 +1,16 @@
 VOLVOXVERSION=0.01-current-$(shell git rev-parse --short HEAD)
 # VOLVOXVERSION=0.01
 
+SHELL := bash
+ifeq ($(shell test -d C\:/Windows && echo -n true),true)
+	TAR := tar
+	UNAME := Windows
+else
+	TAR := bsdtar
+	UNAME := $(shell uname)
+endif
+TARFILE := volvox-$(UNAME)-$(VOLVOXVERSION).txz
+
 all: volvox
 
 # do 'make clean' when changing optimization options or compiler version
@@ -24,7 +34,7 @@ clean:
 depend:
 	cd src && $(MAKE) .depend
 
-package: volvox-$(VOLVOXVERSION).txz
+package: $(TARFILE)
 
-volvox-$(VOLVOXVERSION).txz: volvox
-	bsdtar -cJf $@ --exclude .gitignore --exclude Attic bin lib doc
+$(TARFILE): volvox
+	$(TAR) -cJf $@ --exclude .gitignore --exclude Attic bin lib doc
