@@ -27,4 +27,4 @@ depend:
 package: volvox-$(VOLVOXVERSION).txz
 
 volvox-$(VOLVOXVERSION).txz: volvox
-	bsdtar -cJf $@ bin lib
+	bsdtar -cJf $@ --exclude .gitignore --exclude Attic bin lib doc
