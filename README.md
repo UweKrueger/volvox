@@ -94,4 +94,5 @@ A variable can be initialized in conditional branches and accessed later — as 
 To get started, see [Installation Guide](doc/Install.md) and
 [First Steps](doc/FirstSteps.md).  
 For information about the `volvox` command line options see
-[Invocation](doc/Invocation.md).
+[Invocation](doc/Invocation.md).  
+There is also a mode detailed [Specification](doc/Specification.md) of the language.

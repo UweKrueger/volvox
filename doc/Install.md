@@ -27,10 +27,10 @@ cd volvox/mingw
 ./build-mingw.sh
 ```
 
-Upon successful completion, two archive files will be created in this directory: `gcc-14.3.0-mingw-v14.0.0-ucrt.tgz` and `mingw-v14.0.0-stdc++-14.3.0-ucrt.tgz`. Additionally, download the LLVM binary archive:
+Upon successful completion, two archive files will be created in this directory: `gcc-16.1.0-mingw-v14.0.0-ucrt.txz` and `mingw-v14.0.0-stdc++-16.1.0-ucrt.txz`. Additionally, you have to download the LLVM binary archive:
 
 ```bash
-wget https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.7/clang+llvm-22.1.7-x86_64-pc-windows-msvc.tar.xz
+wget https://github.com/llvm/llvm-project/releases/download/llvmorg-22.1.8/clang+llvm-22.1.8-x86_64-pc-windows-msvc.tar.xz
 ```
 
 #### 2. Toolchain Installation on Windows
@@ -47,7 +47,7 @@ You can choose whether to install `gcc` in addition to `mingw`. While `gcc` is n
 install-3rd.bat llvm+gcc
 ```
 
-This script installs LLVM, Mingw, `make.exe` (GNU Make), and `ldd.exe` (a standalone version of `ldd`). 
+This script installs LLVM, Mingw, `make.exe` (GNU Make), `ldd.exe` (a standalone version of `ldd`) and gdb.exe (GNU Debugger, works well with GNU Emacs). 
 
 **Important:** Add `C:\Program Files\LLVM\bin` to your system `PATH` environment variable.
 
@@ -101,6 +101,6 @@ When the build was successful there should be an executable named "`volvox.exe`"
 
 There is no "`make install`" but to test Volvox it is not necessary to install anything. Just call the `volvox` executable with fully qualified path.
 
-However, if you want to install the compiler, you can copy the executable to some `bin` directory that is part of your `PATH` and copy the `lib` directory parallel to that `bin` directory.
+However, if you want to install the compiler, you can run "`make package`" and unpack the created `.tar.xz` file to the desired directory. The `bin` subdirectory should be included in your `PATH` environment variable.
 
 Now it's time to try your [First Steps](FirstSteps.md).
