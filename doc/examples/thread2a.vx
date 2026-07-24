@@ -1,0 +1,47 @@
+from time import sleep
+
+atomic counter = 0
+
+def inc_n(expected int, step int) int
+	new_val = expected + step
+
+	loopcount = 0
+	while true
+		loopcount++
+		#atomic version of
+		# if counter == expected
+		#     counter = new_val
+		if counter ?= expected : new_val
+
+			echo "inc_n: found", expected
+			return loopcount
+		end
+		sleep 0.703
+	end
+	return 0 # to avoid error
+end
+
+t = thread inc_n(27, 10)
+while true
+	sleep 0.037
+
+	#atomic version of
+	# old_count = counter
+	# counter = old_count + 1
+	old_count = counter++
+
+	echo "main: set counter to", old_count+1
+brk old_count == 37
+	if old_count >= 27
+
+		#atomic version of
+		# old_count = counter
+		# counter = old_count - 5
+		old_count = counter -= 5
+
+		echo "main: adjusted", old_count, "to", old_count-5
+	end
+end
+
+res = t.wait
+echo "Had", res, "iterations in inc_n"

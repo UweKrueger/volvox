@@ -1,0 +1,15 @@
+atomic counter = 0
+
+def inc_n
+	for i in 60000000
+		counter++
+end end
+
+t = thread inc_n
+
+for j in 50000000
+	counter--
+end
+
+t.wait
+echo "Result:", counter

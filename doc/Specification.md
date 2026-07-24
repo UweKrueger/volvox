@@ -1045,6 +1045,88 @@ access_globals
 *Output:*  
 `1.570796 0.9551008 5.25 0.2962809 20 21`
 
+## Threads
+
+Threads are functions that run at the same time as the main program or other threads. A thread is created by putting the keyword `thread` in front of a function call. The thread creation returns immediately with a so called *thread handle* as result. This thread handle can later be used to wait for the thread to finish:
+
+```volvox
+atomic counter = 0
+
+def inc_n
+	for i in 60000000
+		counter++
+end end
+
+t = thread inc_n
+
+for j in 50000000
+	counter--
+end
+
+t.wait
+echo "Result:", counter
+```
+
+*Output:*  
+`Result: 10000000`
+
+Here we have a thread `inc_n` that increments a counter 60 Million times whereas the main thread decrements that counter 50 Million times and waits for the spawned to finish. The result *10 Million* might seem trivial but in this example it is essential that `counter` is an `atomic` variable, i.e. the increment and decrement expressions do a *read-modify-write* that cannot be interrupted by other threads.
+
+The following more complex example shows how to pass parameters to a thread function, how to handle the return value of that function and how `atomic` variables can be conditionally modified:
+
+```volvox
+from time import sleep
+
+atomic counter = 0
+
+def inc_n(expected int, step int) int
+	new_val = expected + step
+
+	loopcount = 0
+	while true
+		loopcount++
+
+		#atomic version of
+		# if counter == expected
+		#     counter = new_val
+		if counter ?= expected : new_val
+
+			echo "inc_n: found", expected
+	brk brk true
+		end
+		sleep 0.703
+	end
+	return loopcount
+end
+
+t = thread inc_n(27, 10)
+while true
+	sleep 0.037
+
+	#atomic version of
+	# old_count = counter
+	# counter = old_count + 1
+	old_count = counter++
+
+	echo "main: set counter to", old_count+1
+brk old_count == 37
+	if old_count >= 27
+
+		#atomic version of
+		# old_count = counter
+		# counter = old_count - 5
+		old_count = counter -= 5
+
+		echo "main: adjusted", old_count, "to", old_count-5
+	end
+end
+
+res = t.wait
+echo "Had", res, "iterations in inc_n"
+```
+
+*Output varies...*
+
 ## Libraries / Modules
 ### File Layout
 

@@ -299,7 +299,8 @@ llvm::Value* SelectExprAST::codegen_thread_wait(llvm::Value* control_block, llvm
 	Builder->CreateCall(
 		thread_join_proto->FT, thread_join_fn,
 		std::vector<llvm::Value*>{ thread_handle, control_block });
-	unsigned offs = 1;
+	if (ft->type->isVoidTy())
+		return llvm::UndefValue::get(ft->type);	unsigned offs = 1;
 	if (os_idx != OS_Windows) {
 		offs++;
 		if (os_idx != OS_FreeBSD && os_idx != OS_Linux && os_idx != OS_NetBSD)
