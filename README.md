@@ -2,6 +2,8 @@
 
 Volvox is a modern programming language designed for clarity, conciseness, and flexibility.
 
+> **Status:** **Pre-Alpha**. The language specification, compiler, and interpreter are not yet finalized. APIs and syntax may change without notice. Use at your own risk and expect occasional instability.
+
 ### Key Features:
 
 * **Human-Centric Syntax**: A clean design where punctuation (colons, semicolons, braces, and parentheses) is used only where strictly necessary.

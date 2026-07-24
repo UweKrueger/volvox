@@ -1536,6 +1536,7 @@ static void full_usage(const char* prog) {
 	errs() << "Usage: " << prog << " {-[h|v|d|D|c|g|r|j|J|t] }{-[f|O|i|o|s|C][ ]<arg> }{file}\n";
 	errs() << " -h .......... print this help screen\n";
 	errs() << " -v .......... verbose output (may be repeated for even more verbosity)\n";
+	errs() << " -V .......... show Volvox version and platform information\n";
 	errs() << " -d .......... dump generated LLVM IR-code (repeat to dump more code)\n";
 	errs() << " -D .......... dump raw IR in addition to optimized IR (repeat to dump only raw)\n";
 	errs() << " -c .......... compile to optimized object file\n";
@@ -1581,6 +1582,7 @@ static void debug_mode_conflict(const char* prog) {
 }
 
 int verbosity = 0;
+bool show_version = false;
 unsigned dump_IR = 0;
 bool do_test = false;
 bool jit_repl = false;
@@ -1729,10 +1731,13 @@ int main(int argc, char* argv[]) {
 			       << '"' << cols << "\" is not a valid value for " << PROMPT_COL << RESET << "\n";
 	int opt;
 	char* endptr;
-	while ((opt = getopt(argc, argv, "vdDcghrjJm:e:M:n:f:O:i:o:s:tP:")) != -1) {
+	while ((opt = getopt(argc, argv, "vVdDcghrjJm:e:M:n:f:O:i:o:s:tP:")) != -1) {
 		switch (opt) {
 		case 'v':
 			verbosity++;;
+			break;
+		case 'V':
+			show_version = true;
 			break;
 		case 'd':
 			if (comp_mode == comp_dbg)
@@ -2264,11 +2269,13 @@ int main(int argc, char* argv[]) {
 		errs() << Error;
 		return 1;
 	}
-	if (verbosity >= 1) {
+	if (verbosity >= 1 || show_version) {
 		errs() << "Volvox Version: " __xstr(VOLVOXVERSION) "\n";
 		errs() << "Target: " << TripleStr << '\n';
 		errs() << "Host: " LLVM_HOST_TRIPLE "\n";
 		errs() << "LLVM Version: " LLVM_VERSION_STRING "\n";
+		if (show_version)
+			exit(0);
 	}
 	auto CPU = "generic";
 	auto Features = "";

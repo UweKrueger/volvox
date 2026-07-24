@@ -1,5 +1,5 @@
-VOLVOXVERSION=0.01pre-$(shell git rev-parse --short HEAD)
-# VOLVOXVERSION=0.01
+# VOLVOXVERSION=0.01pre-$(shell git rev-parse --short HEAD)
+VOLVOXVERSION=0.01
 
 SHELL := bash
 ifeq ($(shell test -d C\:/Windows && echo -n true),true)
