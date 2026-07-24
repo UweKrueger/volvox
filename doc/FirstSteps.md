@@ -9,8 +9,8 @@ description.
 To start the interactive interpreter open a terminal (or Command Prompt) and
 run `volvox` without parameters. (If the location of the volvox-executable is
 not included in your PATH environment variable you might have to specify the
-directory, e.g. `./volvox`, `/my/path/to/volvox` or
-`C:\Users\myname\volvox\volvox.exe`)
+directory, e.g. `bin/volvox`, `/my/path/to/bin/volvox` or
+`C:\Users\myname\volvox\bin\volvox.exe`)
 
 You will get an input prompt indicating the line number. Type any of the
 following example lines followed by Return.
@@ -26,7 +26,7 @@ following example lines followed by Return.
 
 The results of expressions are implicitly printed in interactive
 mode. (see flags `-fprint results` and `-fno-print-results` in
-[Invocation](./Invocation.md). Otherwise the "`echo`" can be used to do this
+[Invocation](./Invocation.md). Otherwise the "`echo`" command can be used to do this
 explicitly as in the following example. The value itself (`7`) is calculated
 using integer division, i.e. using an implicit `floor` function ⌊31 / 4⌋.
 You might want to look at the flags `-fdiv-floored` and `-fdiv-c99` in 
@@ -48,11 +48,6 @@ echo 31. / 4
 The second line "`5`" is the "result" of the `echo` command — the
 number of characters printed including the newline character.
 
-Implicit printing of expressions results in interactive mode can be
-suppressed by starting `volvox` with the option `-fno-print-results`
-or `-fno-pres`. On the other hand it can be enabled for
-non-interactive modes with `-fprint-results` or `-fpres`.
-
 The default integer type is `int` (with alias `i32` — 32 bit signed);
 the default floating point type is `real` (with alias `f64` — 64 bit
 IEEE 754). In the next example we will explicitly use another type.
@@ -68,7 +63,7 @@ It is also possible to enter an End-Of-File symbol (`Ctrl-D` on Linux
 
 ### Interpret / Compile a File
 
-Using Volvox interactively can be helpful to tests small fragment of
+Using Volvox interactively can be helpful to test small fragments of
 code. For more complex problems it is more suitable to create a code
 file. Volvox files have the extension `.vx` — You can use your
 favourite UTF-8 capable text editor to write code. In the directory
@@ -92,7 +87,7 @@ end end
 echo factorial 20
 ```
 
-Functions are defined with the keyword `def` followed by the signature
+Functions are defined with the keyword `def` followed by the function name, the signature
 and the return type. Here we use `u64`, i.e. a 64 bit unsigned to get
 a maximum available valid range for the results. The function
 implements the usual recursive algorithm to calculate a factorial.
@@ -114,7 +109,7 @@ will be printed to `stdout`.
 
 #### Non-Interactive Interpreter
 
-It is not necessary to compile the file to an executable. You cat run
+It is not necessary to compile the file to an executable. You can run
 the JIT-interpreter with
 
 ```bash
@@ -185,7 +180,7 @@ fechon MyFile.fd, "$x² = $y\n"
 MyFile.close
 ```
 
-Running this program creates a file `myfile.txt`. You cat see the content of this file by typing `cat myfile.txt` (Unix) or `type myfile.txt` (Windows):
+Running this program creates a file `myfile.txt`. You can see the content of this file by typing `cat myfile.txt` (Unix) or `type myfile.txt` (Windows):
 
 ```
 Hello
@@ -228,13 +223,9 @@ number of useful mathematical functions. Since we haven't declared
 which identifiers to import we must prepend the `sqrt` function with
 its library name as qualifier: `math.sqrt`.
 
-Until now we always printed our results to the console. For real world
-applications it is necessary to redirect output to a named file like
-"`results.txt`". In principle we could use shell redirection for
-that (see [above](#builtin-functions).
-
-While this approach is simple and in some way flexible, it is often
-desirable to create a file from within a program. This time we use a buffered file from the library `file`:
+Until now we have printed our results to the console. For real world
+applications it is necessary to send output to a named file like
+"`results.txt`". We have done this before using unbuffered I/O (see [above](#builtin-functions)). This time we use functions from the library `file` for *buffered I/O*:
 
 ```volvox
 import file
@@ -257,9 +248,9 @@ end end
 return 0
 ```
 
-Here we use the function `file.new` to create a new file named
-"`results.txt`". We check for an error doing so and print a readable
-error message otherwise. To get this message we call the system
+We use the function `file.new` to create a file named
+"`results.txt`". The function name `new` indicates that an error is created if a file with that name already exists. We check for any error and print a readable
+error message if there is one. To get this message we call the system
 function `strerror` inside the string interpolation. If for example a
 file with that has existed before we get a message like
 
@@ -273,6 +264,6 @@ use "`file.create`" instead of "`file.new`".
 Furthermore calculating the sum of squares might overflow (i.e. become
 greater than the maximum supported `real` value) even if none of the
 three sides of the triangle would. For this reason there is a special
-function `hypot` to calculate the hypotenuse.
+function `hypot` to calculate the hypotenuse that avoids this overflow.
 
 The file [`hypot4.vx`](examples/hypot4.vx) includes these changes.
