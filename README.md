@@ -6,7 +6,7 @@ Volvox is a modern programming language designed for clarity, conciseness, and f
 
 * **Human-Centric Syntax**: A clean design where punctuation (colons, semicolons, braces, and parentheses) is used only where strictly necessary.
 * **Flexible Layout**: Indentation is ignored by the compiler and interpreter, serving as a visual aid for developers rather than a syntactic requirement.
-* **Dual Execution Mode**: Source files can be executed instantly via a JIT-interpreter or compiled into high-performance native executables.
+* **Dual Execution Mode**: Run code interactively in a REPL or execute source files directly. For production use, compile source files into high-performance native executables.
 * **Strong Static Typing**: Ensures type safety at compile time while supporting polymorphism for flexibility.
 
 ### Examples
@@ -20,9 +20,10 @@ alpha = pi / 6
 echo sin alpha
 ```
 
+*Output:*  
 `0.4999999999999999`
 
-Function calls do not require parentheses and are evaluated with right-to-left associativity, i.e. "`echo sin alpha`" has the same meaning as "`echo(sin(alpha))`"
+Function calls do not require parentheses (unless needed to resolve ambiguities). `echo sin alpha` is equivalent to `echo(sin(alpha))`.
 
 #### For Loop and String Interpolation
 
@@ -32,13 +33,14 @@ for n in 1..3
 end
 ```
 
+*Output:*  
 `1 * 1 = 1`  
 `2 * 2 = 4`  
 `3 * 3 = 9`
 
 #### Multi Level Break
 
-The break condition follows the `brk` command. Multiple `brk` keywords allow jumping across multiple nesting levels making the infamous `goto` unnecessary. With the recommended indentation the leftmost `brk` aligns with the loop delimiters. Example (comments are marked with a hash sign `#`):
+The `brk` keyword supports multi-level breaks, allowing you to exit multiple nested loops at once and eliminating the need for `goto` statements. The break condition follows the `brk` keyword(s). With the recommended indentation — supported by the interactive interpreter and various editors — the leftmost `brk` aligns with the loop delimiters for clarity. Example (comments are marked with `#`):
 
 
 ```volvox
@@ -47,7 +49,12 @@ s = 0
 for n in 1..7
 	for m in 3..5
 		s += n
-brk brk m == 2*n # Exit both loops when condition is met
+
+		# equivalent to: if m == 2*n then break two levels,
+		# i.e., jump to the end of the outer for loop
+
+brk brk m == 2*n
+
 		s += m
 end end
 # multi level break will jump here
@@ -59,9 +66,9 @@ echo s
 `22`
 
 
-#### Conditions and Initialisation
+#### Conditions and Initialization
 
-The conditional syntax is streamlined, removing the need for `then` keywords or semicolons. 
+The conditional syntax is streamlined, eliminating the need for `then` keywords or semicolons.
 
 ```volvox
 import rand
@@ -87,7 +94,7 @@ echo x
 *Output:*  
 `4` (or `2` or `8`)
 
-A variable can be initialized in conditional branches and accessed later — as long as it is initialized in *all* branches. 
+A variable may be declared in conditional branches and used afterward, provided it is assigned in every branch.
 
 ### Quick Start
 
@@ -95,4 +102,4 @@ To get started, see [Installation Guide](doc/Install.md) and
 [First Steps](doc/FirstSteps.md).  
 For information about the `volvox` command line options see
 [Invocation](doc/Invocation.md).  
-There is also a mode detailed [Specification](doc/Specification.md) of the language.
+There is also a more detailed [Specification](doc/Specification.md) of the language.

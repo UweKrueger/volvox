@@ -1,4 +1,4 @@
-VOLVOXVERSION=0.01-current-$(shell git rev-parse --short HEAD)
+VOLVOXVERSION=0.01pre-$(shell git rev-parse --short HEAD)
 # VOLVOXVERSION=0.01
 
 SHELL := bash
@@ -7,7 +7,7 @@ ifeq ($(shell test -d C\:/Windows && echo -n true),true)
 	UNAME := Windows
 else
 	TAR := bsdtar
-	UNAME := $(shell uname)
+	UNAME := $(shell uname)-$(shell uname -m)
 endif
 TARFILE := volvox-$(UNAME)-$(VOLVOXVERSION).txz
 
