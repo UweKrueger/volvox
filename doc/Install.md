@@ -11,9 +11,24 @@ Change to the `volvox` directory and type
 make -j8
 ```
 
+### Install Binary Packages on Windows
+
+Building Volvox on Windows is not trivial (see [below](#build-on-windows)). If you only want to *use* the compiler/interpreter you can install binary packages. For a minimal installation 3 files are required:
+
+- An LLVM installer which is provided at [https://github.com/llvm/llvm-project/releases/](https://github.com/llvm/llvm-project/releases/). Download and run the file `LLVM-22.1.8-win64.exe` — this will install LLVM/Clang to `C:\Program Files\LLVM`.
+- MINGW libraries and headers which are available as archive from [https://github.com/UweKrueger/volvox/releases/](https://github.com/UweKrueger/volvox/releases/). Download the file `mingw-v14.0.0-stdc++-16.1.0-ucrt.txz`, open a Windows Console as Administrator, change directory to the LLVM installation:  
+`cd "C:\Program Files\LLVM"`  
+and unpack the archive there:  
+`tar -x -f "C:\Users\<yourname>\Downloads\mingw-v14.0.0-stdc++-16.1.0-ucrt.txz"`  
+Leave the Windows Console open for the next step.
+- Volvox executable and libraries: These can be downloaded from the same place as the MINGW archive. Get the file `volvox-Windows-0.01.txz` and unpack it inside the LLVM installation, too:  
+`tar -x -f "C:\Users\<yourname>\Downloads\volvox-Windows-0.01.txz"`
+
+If you have selected to add `C:\Program Files\LLVM\bin` to your PATH in the LLVM installer you should now be able to open a *new* Windows Console (as normal user) and run `volvox`.
+
 ### Build on Windows
 
-To compile and run Volvox on Windows, you need the LLVM packages and a supporting compiler infrastructure. While Microsoft Visual Studio can be used, the recommended approach is to use `clang`, `mingw`, and a selection of GNU tools. Please note that **Microsoft Visual Studio must still be installed** to **build** Volvox[^1] even though it's no runtime requirement.
+To compile the Volvox Compiler/Interpreter on Windows, you need the LLVM packages and a supporting compiler infrastructure. While Microsoft Visual Studio can be used, the recommended approach is to use `clang`, `mingw`, and a selection of GNU tools. Please note that **Microsoft Visual Studio must still be installed** to **build** Volvox[^1] even though it's no runtime requirement.
 
 #### 1. Setting up the Toolchain (Mingw)
 
