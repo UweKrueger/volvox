@@ -4,8 +4,8 @@
 
 The following assumes that the `volvox` executable file is located in a
 directory that is included in the `PATH` environment variable. Otherwise,
-specify the full path, e.g. `./volvox` or `/my/path/volvox` (Unix) or
-`C:\Users\myname\mydir\volvox.exe` (Windows).
+specify the full path, e.g. `bin/volvox` or `/my/path/bin/volvox` (Unix) or
+`C:\Users\myname\mydir\bin\volvox.exe` (Windows).
 
 ```sh
 volvox [-h] [-v] [-c] [-g] [-r] [-j] [-J] [-d] [-D] [-M <mainf>] [-f<flag>] \
@@ -16,6 +16,7 @@ volvox [-h] [-v] [-c] [-g] [-r] [-j] [-J] [-d] [-D] [-M <mainf>] [-f<flag>] \
 - `-h`: print help summary
 - `-v`: be verbose, i.e. show configuration information and invocations of
         external tools like system compiler or linker
+- `-V`: show Volvox version and platform information
 - `-c`: compile only, i.e. don't link. Unless `-o` is given the result of
         compiling `filename.vx` will be an object file named `filename.o`
         or `filename.obj`. Statements outside of defined functions will

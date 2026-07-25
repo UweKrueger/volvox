@@ -1,0 +1,300 @@
+.TH VOLVOX 1 "July 2026" "Volvox" "Volvox Compiler / Interpreter Manual"
+.SH NAME
+volvox \- Volvox compiler and interpreter
+.SH SYNOPSIS
+.B volvox
+[
+.I options
+]
+[
+.I file ...
+]
+.SH DESCRIPTION
+.B volvox
+is the compiler and interpreter for the Volvox programming language.
+It can compile Volvox source files (.vx) to native executables,
+object files, or LLVM IR, and can also JIT-compile and run programs
+directly.
+.PP
+The following assumes that the
+.B volvox
+executable is located in a directory that is included in the
+.B PATH
+environment variable. Otherwise, specify the full path (e.g.
+.BR bin/volvox
+or
+.BR /my/path/bin/volvox ).
+.SH OPTIONS
+.TP
+.B \-h
+Print a help summary and exit.
+.TP
+.B \-v
+Be verbose. Show configuration information and invocations of external
+tools such as the system compiler or linker.
+.TP
+.B \-V
+Show Volvox version and platform information and exit.
+.TP
+.B \-c
+Compile only; do not link. Unless
+.B \-o
+is given, the result of compiling
+.I filename.vx
+will be an object file named
+.IR filename.o
+(or
+.IR filename.obj
+on Windows). Statements outside of defined functions will be placed in
+a function called
+.BR main ,
+unless
+.B \-M
+is given.
+.TP
+.B \-g
+Create debug information for use with debuggers such as
+.BR lldb
+or
+.BR gdb .
+Currently debug information is only created for fixed-size objects
+(basic types, structs, and fixed-size arrays). Dynamic objects may
+require special support in the debugger.
+.PP
+On Windows, only the
+.B mingw
+target is supported. Thread-local
+.B global
+variables are not visible in the debugger (this is not specific to
+Volvox).
+.TP
+.B \-r
+Compile the program and run it immediately. Consider
+.B \-j
+instead for JIT compilation.
+.TP
+.B \-j
+JIT-compile and run the program.
+.TP
+.B \-J
+JIT-compile and run statement by statement, as if entered interactively.
+This is significantly slower than
+.BR \-j ,
+but leaves a prompt to enter further commands (unless the last statement
+was
+.B return
+or
+.BR exit ).
+.TP
+.BI \-d ", " \-D
+Dump intermediate LLVM IR code at different stages. Only useful to
+debug the Volvox compiler itself. Consider
+.B \-emit-llvm
+instead for producing a usable IR file.
+.TP
+.B \-M mainfn
+Use
+.IR mainfn
+as the function name for statements outside of function definitions
+(default:
+.BR main ).
+Useful in combination with
+.B \-c
+when manual linking is done.
+.TP
+.B \-f<flag>
+Enable a compilation flag. The following flags are supported:
+.RS 4
+.TP
+.B \-fPIC
+Generate position-independent code suitable for creating a shared
+object file (.so.*).
+.TP
+.B \-fdiv-floored
+Signed integer division is floored; the remainder gets the sign of the
+divisor. This is the default in Volvox. Example:
+.br
+.RB \-13 " / " 4
+\(en> \-4
+.br
+.RB \-13 " % " 4
+\(en> 3
+.br
+.RB 13 " / " \-4
+\(en> \-4
+.br
+.RB 13 " % " \-4
+\(en> \-3
+.TP
+.B \-fdiv-c99
+Signed division rounds toward zero; the remainder gets the sign of the
+dividend. This is the default in C99 and later (C89 behaviour was
+undefined). Example:
+.br
+.RB \-13 " / " 4
+\(en> \-3
+.br
+.RB \-13 " % " 4
+\(en> \-1
+.br
+.RB 13 " / " \-4
+\(en> \-3
+.br
+.RB 13 " % " \-4
+\(en> 1
+.PP
+In both modes (\-fdiv-floored and \-fdiv-c99) the following equation
+always holds:
+.IR "a=b*(a/b)+(a%b)"
+In practice, integer divisions should not involve negative numbers to
+avoid confusion.
+.TP
+.B \-fno-index-checks, \-fno-idx-chk
+Do not check array indices to be within the allowed range.
+(Note: these checks are not implemented yet.)
+.TP
+.B \-fpres, \-fprint-results
+Print the result of each expression outside of functions. This is the
+default in interactive JIT mode and when
+.B \-J
+is given.
+.TP
+.B \-fno-pres, \-fno-print-results
+Do not print the result of each expression outside of functions.
+This is the default when
+.B \-j
+is given and when compiling to a binary object file or executable.
+.RE
+.TP
+.B \-emit-llvm
+Create a file
+.I name.ll
+that contains LLVM's intermediate representation.
+.TP
+.B \-On[m]
+Optimize with level
+.IR n .
+If
+.I m
+is also given, use
+.IR n
+as the optimization level for the intermediate representation and
+.I m
+for the generation of binary machine code. The default is
+.B \-O2
+for normal compilation and
+.B \-O0
+when debug information is added (\-g).
+.TP
+.B \-i file
+Include
+.I file
+before parsing the main program.
+.TP
+.B \-o file
+Use
+.I file
+as the output file. This option is mandatory if more than one input
+file is given.
+.TP
+.B \-strip
+Strip unneeded symbols from the resulting executable to produce a
+smaller file.
+.TP
+.B \-s
+.IR size
+Set the stack size per thread. The value may contain
+.BR kB ,
+.BR MB ,
+or
+.B GB
+suffix (default: 10MB). Mostly relevant on Windows.
+.TP
+.B \-m<target>
+Specify the target system. Currently only relevant on Windows.
+Possible values are:
+.RS 4
+.TP
+.B \-mingw
+Create a MINGW binary (this is the default).
+.TP
+.B \-msvc
+Create a Microsoft Visual C binary. This requires that Microsoft
+Visual Studio is installed.
+.RE
+.TP
+.B \-no\-<flag>
+Disable a feature. Supported flags:
+.RS 4
+.TP
+.B \-no-lto
+Do not perform link-time optimization. (Default: no LTO when
+.B \-g
+is given, thin-LTO otherwise.)
+.TP
+.B \-no-setup-con
+Do not inject code to set up the console for color output.
+.RE
+.TP
+.B \-t
+Run test cases. Test cases are functions whose name starts with
+.BR test_ ,
+that have no arguments, and that return
+.BR bool .
+.TP
+.B \-C<n>,<g>,<b>
+Set ANSI-256 colors for line number, greater sign, and background of
+the interactive prompt (default: 30,100,236).
+.SH ARGUMENTS
+.TP
+.I file ...
+One or more input files with extension
+.B .vx
+containing the Volvox program source code.
+.SH EXIT STATUS
+.TP
+.B 0
+Successful execution.
+.TP
+.B non-zero
+An error occurred (e.g., compilation error, runtime error). In JIT mode
+the number passed to
+.IR exit
+or final
+.IR return \.
+.SH EXAMPLES
+.TP
+Compile and link one source file to an executable:
+.IP
+.B volvox myprogram.vx
+.TP
+Compile and link several source files to an executable:
+.IP
+.B volvox \-o myprogram source1.vx source2.vx
+.TP
+Compile only (no linking):
+.IP
+.B volvox \-c myprogram.vx
+.TP
+JIT-compile and run:
+.IP
+.B volvox \-j myprogram.vx
+.TP
+Interactive JIT mode:
+.IP
+.B volvox
+.TP
+Compile with debug information:
+.IP
+.B volvox \-g myprogram.vx
+.TP
+Generate LLVM IR:
+.IP
+.B volvox \-emit-llvm myprogram.vx
+.SH BUGS
+Array index checking is not yet implemented, despite the
+.B \-fno-index-checks
+flag being documented. There are many other bugs as this project
+is in pre alpha stage. 
+.SH AUTHOR
+Developed by the Volvox project.

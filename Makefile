@@ -38,4 +38,4 @@ depend:
 package: $(TARFILE)
 
 $(TARFILE): volvox
-	$(TAR) -cJf $@ --exclude .gitignore --exclude Attic bin lib doc
+	$(TAR) -cJf $@ --exclude .gitignore --exclude Attic bin lib share
