@@ -1,7 +1,8 @@
+SHELL := bash
+
 VOLVOXVERSION=0.02pre-$(shell git rev-parse --short HEAD)
 # VOLVOXVERSION=0.02
 
-SHELL := bash
 ifeq ($(shell test -d C\:/Windows && echo -n true),true)
 	TAR := tar
 	UNAME := Windows

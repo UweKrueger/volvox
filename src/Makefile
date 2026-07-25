@@ -129,9 +129,9 @@ ifeq ($(NIXTYPE),msvc)
 	EDITLINEOBJS := editline.o history.o fn_complete.o # our patched colored-promt wineditline
 else
 ifneq ($(wildcard /usr/include/editline/.*),)
-	CPPEXTRAFLAGS := -I/usr/include/editline -DVOLVOXVERSION=$(VOLVOXVERSION)
+	CPPEXTRAFLAGS := -I/usr/include/editline
 else
-	CPPEXTRAFLAGS := -DUSE_EDITLINE -DVOLVOXVERSION=$(VOLVOXVERSION)
+	CPPEXTRAFLAGS := -DUSE_EDITLINE
 	LINKEXTRAFLAGS := -leditline -lpthread -rdynamic
 endif
 	EXTRAOBJS :=
@@ -142,6 +142,8 @@ endif
 endif
 endif
 endif
+
+CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DVOLVOXVERSION=$(VOLVOXVERSION)
 
 ifeq ($(shell test -f /etc/alpine-release && echo -n true),true)
 	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DVOLVOX_LTO_LINKER=/usr/bin/ld.lld
