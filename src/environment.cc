@@ -189,13 +189,15 @@ const char* volvox_lib() {
 	const char* root = volvox_root();
 	size_t l = strlen(root);
 	size_t pl = strlen(project);
-	//                                  x   /  lib  :   xx   0
-	char* lib_from_root = (char*)malloc(l + 1 + 3 + 1 + pl + 1);
+	//                                  x   /  lib  / volvox:   xx   0
+	char* lib_from_root = (char*)malloc(l + 1 + 3 + 1 + 6 + 1 + pl + 1);
 	memcpy(lib_from_root, root, l);
 	lib_from_root[l++] = PATHDIRSEP;
-	lib_from_root[l++] = 'l';
-	lib_from_root[l++] = 'i';
-	lib_from_root[l++] = 'b';
+	memcpy(lib_from_root+l, "lib", 3);
+	l += 3;
+	lib_from_root[l++] = PATHDIRSEP;
+	memcpy(lib_from_root+l, "volvox", 6);
+	l += 6;
 	lib_from_root[l++] = PATHLISTSEP;
 	memcpy(lib_from_root + l, project, pl + 1);
 	lib = lib_from_root;

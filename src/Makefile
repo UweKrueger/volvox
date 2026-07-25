@@ -232,19 +232,19 @@ LIBVOLVOXSONAMESPEC :=
 EXTRAINC := -I../include
 RPATH := -Wl,/stack:10000000
 # -Wl,-defaultlib:ucrt
-LIBVOLVOXMINGW := ../lib/$(LIBVOLVOXMINGWNAME)
+LIBVOLVOXMINGW := ../lib/volvox/$(LIBVOLVOXMINGWNAME)
 else
 LIBVOLVOXBASE := libvolvox.so
 LIBVOLVOXSONAME := $(LIBVOLVOXBASE).$(LIBVOLVOXVERS)
 LIBVOLVOXSONAMESPEC := -Wl,-soname,$(LIBVOLVOXSONAME)
 EXTRAINC :=
-RPATH := -Wl,-rpath,$(shell pwd)/../lib
+RPATH := -Wl,-rpath,$(shell pwd)/../lib/volvox
 LIBVOLVOXMINGW := # we might build MINGW stuff on Linux in the future ...
 endif
-LIBVOLVOX := ../lib/$(LIBVOLVOXSONAME)
-LIBVOLVOXLINK := ../lib/$(LIBVOLVOXBASE)
-LIBVOLVOXLTO := ../lib/$(LIBVOLVOXLTONAME)
-LIBVOLVOXDBG := ../lib/$(LIBVOLVOXDBGNAME)
+LIBVOLVOX := ../lib/volvox/$(LIBVOLVOXSONAME)
+LIBVOLVOXLINK := ../lib/volvox/$(LIBVOLVOXBASE)
+LIBVOLVOXLTO := ../lib/volvox/$(LIBVOLVOXLTONAME)
+LIBVOLVOXDBG := ../lib/volvox/$(LIBVOLVOXDBGNAME)
 
 SRCS := $(CCOBJS:%.o=%.cc)
 
@@ -320,7 +320,7 @@ $(PROG): $(OBJS) $(LIBOBJS) $(LIBCOBJS)
 
 .PHONY: clean
 clean:
-	rm -f $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSLTO) $(LIBCOBJSLTO) $(LIBOBJSDBG) $(LIBCOBJSDBG) $(LIBOBJSMINGW) $(LIBCOBJSMINGW) $(LIBVOLVOXMINGW) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXLTO) $(LIBVOLVOXDBG) *~ ../bin/*volvox* ../lib/libvolvox.* ../include/*~ ../include/*.pch ../include/*.gch .depend
+	rm -f $(OBJS) $(LIBOBJS) $(LIBCOBJS) $(LIBOBJSLTO) $(LIBCOBJSLTO) $(LIBOBJSDBG) $(LIBCOBJSDBG) $(LIBOBJSMINGW) $(LIBCOBJSMINGW) $(LIBVOLVOXMINGW) $(LIBVOLVOX) $(LIBVOLVOXBASE) ../$(LIBVOLVOXBASE) $(LIBVOLVOXLINK) $(LIBVOLVOXLTO) $(LIBVOLVOXDBG) *~ ../bin/*volvox* ../lib/volvox/libvolvox.* ../include/*~ ../include/*.pch ../include/*.gch .depend
 
 .depend:
 	$(CXX) $(TARGET) -MM $(CXXFLAGS) $(OPT) $(SRCS) $(EXTRAINC) > .depend
