@@ -2487,7 +2487,7 @@ int main(int argc, char* argv[]) {
 		hints() << "Wrote " << Filename << "\n";
 		if (link_mode != dont_link) {
 			int lr = strlen(volvox_root());
-			size_t lp_sz = lr+32;
+			size_t lp_sz = lr+64;
 			char* libpath = (char*)alloca(lp_sz);
 			strlcpy(libpath, volvox_root(), lp_sz);
 			char* stack_size = nullptr;
@@ -2514,16 +2514,16 @@ int main(int argc, char* argv[]) {
 				}
 #ifdef _WIN32
 				// TODO: support non-LTO
-				strlcat(libpath, (lto_mode == lto_thin) ? "\\lib\\libvolvox.mingw.a" : "\\lib\\libvolvox.mingw.a", lp_sz);
+				strlcat(libpath, (lto_mode == lto_thin) ? "\\lib\\volvox\\libvolvox.mingw.a" : "\\lib\\volvox\\libvolvox.mingw.a", lp_sz);
 #else
-				strlcat(libpath, (lto_mode == lto_thin) ? "/lib/libvolvox.mingw.a" : "/lib/libvolvox.mingw.a", lp_sz);
+				strlcat(libpath, (lto_mode == lto_thin) ? "/lib/volvox/libvolvox.mingw.a" : "/lib/volvox/libvolvox.mingw.a", lp_sz);
 #endif
 			}
 #if defined(_WIN32)
 			const char* libpatterns[] = LIBDIRS;
 			char* libdirs[ARRAY_SIZE(libpatterns)];
 			if (!target_mingw) {
-				strlcat(libpath, "\\lib\\libvolvox.lib", lp_sz);
+				strlcat(libpath, "\\lib\\volvox\\libvolvox.lib", lp_sz);
 				volvox_glob_t linkers = volvox_glob(LINKER);
 				if (!linkers.size) {
 					errs() << "Unable to find 'link.exe' (searched as \"" << LINKER << "\"\n";
@@ -2562,7 +2562,7 @@ int main(int argc, char* argv[]) {
 				snprintf(stack_size, 30, "-stack:%" PRIu64, stacksize);
 #else
 			if (!target_mingw) {
-				strlcat(libpath, "/lib", lp_sz);
+				strlcat(libpath, "/lib/volvox", lp_sz);
 			}
 #ifndef _WIN32
 			char* rpath = nullptr;
