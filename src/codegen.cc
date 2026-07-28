@@ -2332,7 +2332,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		// Entry has already been created by parser but we might have to adjust the type of the new
 		// variable after RHS->codegen() has been run (e.g. array dimensions might only be known by now)
 		llvm::Type* type = RHS->ft->type;
-		unsigned attribs = RHS->ft->type_attr & (A_signed | A_cstring | A_closure);
+		unsigned attribs = RHS->ft->type_attr & (A_signed | A_cstring | A_closure | A_constructor | A_destructor);
 		llvm::DIType* ditype = RHS->ft->ditype;
 		entry->ft.type = type;
 		entry->ft.type_attr |= attribs;
