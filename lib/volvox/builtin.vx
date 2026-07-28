@@ -77,7 +77,9 @@ def ~string
 			# __free makes problems in for iteration - needs investigation
 			# ___wrnum(buf, cap, len)
 			__free(buf)
-end end end
+		end
+		this.voidptr = voidptr 0
+end end
 
 def string
 	if bool(this.voidptr)
@@ -322,6 +324,9 @@ struct __size_offset {
 	offset u32
 	size u32
 }
+
+cdecl _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(root voidptr, d voidptr)
+
 struct __map {
 	__ptr voidptr
 	count size_t
@@ -329,7 +334,7 @@ struct __map {
 
 def ~__map
 	if bool(this.__ptr)
-		__free this.__ptr
+		_ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(this.__ptr, 0)
 end end
 
 struct __range_u8 {
@@ -399,7 +404,6 @@ cdecl _ZN6volvox3map10u64_deleteEPPNS0_4NodeEyPFvPNS0_5ValueEE(root voidptr, key
 cdecl _ZN6volvox3map10f64_deleteEPPNS0_4NodeEdPFvPNS0_5ValueEE(root voidptr, key f64, destructor voidptr) bool
 cdecl _ZN6volvox3map10f32_deleteEPPNS0_4NodeEfPFvPNS0_5ValueEE(root voidptr, key f32, destructor voidptr) bool
 
-cdecl _ZN6volvox3map7destroyEPNS0_4NodeEPFvPNS0_5ValueEE(root voidptr, d voidptr)
 cdecl _ZN6volvox3map3MinEPNS0_4NodeE(root voidptr) voidptr
 cdecl _ZN6volvox3map7iter_upEPNS0_4NodeE(node voidptr) voidptr
 cdecl _ZN6volvox3map3MaxEPNS0_4NodeE(root voidptr) voidptr
