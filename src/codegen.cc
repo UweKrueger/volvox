@@ -3005,6 +3005,7 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 				Builder->SetInsertPoint(IterateBB);
 			}
 			for_expr->Iterate();
+			InsertDestructors(brk_descr.vars_to_destruct, merge_points[merge_points.size()-1].merged_vars);
 			if (!for_expr->iterator_methods)
 				Builder->CreateBr(StackRestoreBB0);
 		} else {
@@ -3045,7 +3046,8 @@ std::tuple<llvm::Value*, llvm::Instruction*, int> BranchExprAST::createCondBranc
 			BranchV = llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 		else if (!BranchV)
 			BranchV = llvm::Constant::getNullValue(ft->type);
-		InsertDestructors(brk_descr.vars_to_destruct, merge_points[merge_points.size()-1].merged_vars);
+		if (!for_expr || for_expr->iterator_methods)
+			InsertDestructors(brk_descr.vars_to_destruct, merge_points[merge_points.size()-1].merged_vars);
 		if (merge_points.back().contBB && !(for_expr && !for_expr->iterator_methods && !isElse))
 			firstBreak = Builder->CreateBr(merge_points.back().contBB);
 	}
