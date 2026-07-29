@@ -575,6 +575,15 @@ def test_vec_iter_up_1 bool
 	return sum == 21.5625
 end
 
+def test_vec_iter_up_2 bool
+	gQ = vec{ "SdRt", "-3.125", "p_Qrt" }
+	sum = " "
+	for vLkM in gQ
+		sum += vLkM + " "
+	end
+	return sum == " SdRt -3.125 p_Qrt "
+end
+
 def test_vec_iter_down_1 bool
 	gQ = vec{ "SdRt", "-3.125", "p_Qrt" }
 	sum = " "

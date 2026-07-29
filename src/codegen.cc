@@ -3635,18 +3635,6 @@ bool ForExprAST::Iterate() {
 	llvm::Value* ctrl_var = ptr_storage ?
 		Builder->CreateLoad(llvm_size_type, ptr_storage) :
 		Builder->CreateLoad(ValueType, ValueRef);
-	if (llvm::isa<llvm::PointerType>(limit->getType())) { // map iteration
-		std::string iterate_fn_name = descending ?
-			"_ZN6volvox3map9iter_downEPNS0_4NodeE" :
-			"_ZN6volvox3map7iter_upEPNS0_4NodeE";
-		auto iterate_proto = (*lex.findProtos(iterate_fn_name))[0].get();
-		auto iterate_fn = getFunction(iterate_proto);
-		ctrl_var = Builder->CreateCall(
-			iterate_proto->FT, iterate_fn,
-			{ Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type) });
-		Builder->CreateStore(ctrl_var, ptr_storage);
-		return true;
-	}
 	if (ctrl_var->getType()->isIntegerTy())
 		if (descending)
 			ctrl_var = Builder->CreateSub(ctrl_var, Step);
@@ -3661,7 +3649,11 @@ bool ForExprAST::Iterate() {
 		Builder->CreateStore(ctrl_var, ptr_storage);
 		if (!(ValueFV->ft.type_attr & A_ptrref)) {
 			auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, Step);
+			Builder->CreateMemCpy(ValueFV->val, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, Step);
+			if (ValueFV->ft.type_attr & A_constructor) {
+				auto C = getConstructorOrDestructor(&ValueFV->ft);
+				Builder->CreateCall(C, { ValueFV->val });
+			}
 		}
 	} else {
 		Builder->CreateStore(ctrl_var, ValueRef);

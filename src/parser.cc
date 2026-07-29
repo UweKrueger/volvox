@@ -1751,6 +1751,9 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 					errs() << Value->Loc << ": pre existing lvalue expression must be of type " << *ValueFt << " but is of type " << *Value->ft << "\n";
 					return nullptr;
 				}
+			} else if (value_kind == new_var_created) {
+				if (Iterator->ft->type != llvm_map_type)
+					Value->ft->type_attr = Value->ft->type_attr & ~A_destructor;
 			}
 		} else {
 			errs() << Value->Loc << ": 'for' key control variable must be an Lvalue\n";
