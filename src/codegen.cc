@@ -1338,8 +1338,10 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			} else if (dynamic_cast<BinaryExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<PostfixExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<UnaryExprAST*>(expr->RHS.get()) ||
+			           dynamic_cast<InterpStrLitExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<StructExprAST*>(expr->RHS.get()) ||
 			           dynamic_cast<SelectExprAST*>(expr->RHS.get()) ||
+			           dynamic_cast<IndexExprAST*>(expr->RHS.get()) && expr->RHS->ft->type == llvm_string_type ||
 			           dynamic_cast<BranchExprAST*>(expr->RHS.get())) {
 				is_call_expr = true;
 			}
@@ -2200,6 +2202,7 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		           dynamic_cast<InterpStrLitExprAST*>(RHS.get()) ||
 		           dynamic_cast<StructExprAST*>(RHS.get()) ||
 		           dynamic_cast<SelectExprAST*>(RHS.get()) ||
+		           dynamic_cast<IndexExprAST*>(RHS.get()) && RHS->ft->type == llvm_string_type ||
 		           dynamic_cast<BranchExprAST*>(RHS.get())) {
 				is_call_expr = true;
 		} else if (auto RHS_Lval = dynamic_cast<LvalueExprAST*>(RHS.get())) {
