@@ -474,6 +474,8 @@ void Lexer::pop_state() {
 	source_stack.back().linebuf = nullptr;
 	input_file = source_stack.back().input_file;
 	if (comp_mode == comp_dbg) {
+		DBuilder->finalize();
+		DBuilder = std::make_unique<llvm::DIBuilder>(*TheModule);
 		auto [ file, dir ] = getFileAndDir(Loc.File);
 		KSDbgInfo.TheCU = DBuilder->createCompileUnit(
 			llvm::dwarf::DW_LANG_C, DBuilder->createFile(file, dir),
@@ -534,10 +536,12 @@ bool Lexer::next_input_file() {
 			exit(1);
 		}
 		if (comp_mode == comp_dbg) {
+			DBuilder->finalize();
+			DBuilder = std::make_unique<llvm::DIBuilder>(*TheModule);
 			auto [ file, dir ] = getFileAndDir(Loc.File);
 			KSDbgInfo.TheCU = DBuilder->createCompileUnit(
 				llvm::dwarf::DW_LANG_C, DBuilder->createFile(file, dir),
-				"Volvox Compiler", 0, "", 0);
+				"Volvox Compiler", false, "", 0);
 		}
 	} else if (source_stack.size() > 1) {
 		pop_state();
