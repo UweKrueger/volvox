@@ -78,12 +78,19 @@
 #define VOLVOX_X86_AMXTyID X86_AMXTyID
 #define VOLVOX_TokenTyID TokenTyID
 #define VOLVOX_IntegerTyID IntegerTyID
+#if LLVM_VERSION_MAJOR >= 23
+#define VOLVOX_ByteTyID ByteTyID
+#endif
 #define VOLVOX_FunctionTyID FunctionTyID
 #define VOLVOX_PointerTyID PointerTyID
 #define VOLVOX_StructTyID StructTyID
 #define VOLVOX_ArrayTyID ArrayTyID
 #define VOLVOX_FixedVectorTyID FixedVectorTyID
 #define VOLVOX_ScalableVectorTyID ScalableVectorTyID
+#if LLVM_VERSION_MAJOR >= 23
+#define VOLVOX_TypedPointerTyID TypedPointerTyID
+#define VOLVOX_TargetExtTyID TargetExtTyID
+#endif
 #define VOLVOX_TypeID TypeID
 #define VOLVOX_gen_val_type_t gen_val_type_t
 #define VOLVOX_RtStructField RtStructField
@@ -114,13 +121,20 @@ namespace volvox {
 		VOLVOX_TokenTyID,     ///< Tokens
 
 		// Derived types... see DerivedTypes.h file.
-		VOLVOX_IntegerTyID,       ///< Arbitrary bit width integers
-		VOLVOX_FunctionTyID,      ///< Functions
-		VOLVOX_PointerTyID,       ///< Pointers
-		VOLVOX_StructTyID,        ///< Structures
-		VOLVOX_ArrayTyID,         ///< Arrays
-		VOLVOX_FixedVectorTyID,   ///< Fixed width SIMD vector type
-		VOLVOX_ScalableVectorTyID ///< Scalable SIMD vector type
+		VOLVOX_IntegerTyID,        ///< Arbitrary bit width integers
+#if LLVM_VERSION_MAJOR >= 23
+		VOLVOX_ByteTyID,           ///< Arbitrary bit width bytes
+#endif
+		VOLVOX_FunctionTyID,       ///< Functions
+		VOLVOX_PointerTyID,        ///< Pointers
+		VOLVOX_StructTyID,         ///< Structures
+		VOLVOX_ArrayTyID,          ///< Arrays
+		VOLVOX_FixedVectorTyID,    ///< Fixed width SIMD vector type
+		VOLVOX_ScalableVectorTyID, ///< Scalable SIMD vector type
+#if LLVM_VERSION_MAJOR >= 23
+		VOLVOX_TypedPointerTyID,   ///< Typed pointer used by some GPU targets
+		VOLVOX_TargetExtTyID,      ///< Target extension type
+#endif
 	};
 #ifndef __cplusplus
 	typedef enum VOLVOX_TypeID VOLVOX_TypeID;
@@ -212,6 +226,10 @@ namespace volvox {
 #define VOLVOX_TokenTyID volvox::TokenTyID
 #undef VOLVOX_IntegerTyID
 #define VOLVOX_IntegerTyID volvox::IntegerTyID
+#if LLVM_VERSION_MAJOR >= 23
+#undef VOLVOX_ByteTyID
+#define VOLVOX_ByteTyID volvox::ByteTyID
+#endif
 #undef VOLVOX_FunctionTyID
 #define VOLVOX_FunctionTyID volvox::FunctionTyID
 #undef VOLVOX_PointerTyID
@@ -224,6 +242,12 @@ namespace volvox {
 #define VOLVOX_FixedVectorTyID volvox::FixedVectorTyID
 #undef VOLVOX_ScalableVectorTyID
 #define VOLVOX_ScalableVectorTyID volvox::ScalableVectorTyID
+#if LLVM_VERSION_MAJOR >= 23
+#undef VOLVOX_TypedPointerTyID
+#define VOLVOX_TypedPointerTyID volvox::VOLVOX_TypedPointerTyID
+#undef VOLVOX_TargetExtTyID
+#define VOLVOX_TargetExtTyID volvox::VOLVOX_TargetExtTyID
+#endif
 #undef VOLVOX_TypeID
 #define VOLVOX_TypeID volvox::TypeID
 #undef VOLVOX_gen_val_type_t
