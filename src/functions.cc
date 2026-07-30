@@ -614,7 +614,11 @@ bool InsertArrayConDestructor(llvm::Type* elem_type, // actually array_type
 	if (before) {
 		ContBB = enterBB->splitBasicBlock(before);
 		auto term = enterBB->getTerminator();
+#if LLVM_VERSION_MAJOR < 23
 		auto br = llvm::dyn_cast<llvm::BranchInst>(term);
+#else
+		auto br = llvm::dyn_cast<llvm::UncondBrInst>(term);
+#endif
 		br->setSuccessor(0, CondBB);
 	} else
 		ContBB = llvm::BasicBlock::Create(Context, "contloop");

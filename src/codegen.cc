@@ -90,7 +90,11 @@ llvm::Value* LiteralExprAST::codegen_raw(llvm::Value* target) {
 			else
 				return handle(target, Builder->getFalse(), Loc, ft);
 		else {
-			auto the_val = llvm::ConstantInt::get(llvm::IntegerType::get(Context, bw), Val.Uint, ft->type_attr & A_signed);
+			auto the_val = llvm::ConstantInt::get(llvm::IntegerType::get(Context, bw), Val.Uint, ft->type_attr & A_signed
+#if LLVM_VERSION_MAJOR >= 23
+			                                      , true
+#endif
+				);
 			if (ConstexprIntOverflow(Loc, the_val, Val.Uint, ft->type_attr))
 				return nullptr;
 			return handle(target, the_val, Loc, ft);

@@ -1552,7 +1552,11 @@ static void full_usage(const char* prog) {
 	errs() << " -fno-pres ... discard results of top level expressions (default for all but -J)\n";
 	errs() << " -g .......... compile with debug information\n";
 	errs() << " -emit-llvm .. dump LLVM IR to file\n";
+#if LLVM_VERSION_MAJOR < 23
 	errs() << " -On[m] ...... optimize with level n (0-3, 's' or 'z'; default: -O2)\n";
+#else
+	errs() << " -On[m] ...... optimize with level n (0-3; default: -O2)\n";
+#endif
 	errs() << "               m: optional separate level machine specific codegen (default: n)\n";
 	errs() << " -r .......... run compiled program\n";
 	errs() << " -j .......... use JIT to run file(s)\n";
@@ -1915,12 +1919,14 @@ int main(int argc, char* argv[]) {
 			case '1':
 				optimization_level = llvm::OptimizationLevel::O1;
 				break;
+#if LLVM_VERSION_MAJOR < 23
 			case 's':
 				optimization_level = llvm::OptimizationLevel::Os;
 				break;
 			case 'z':
 				optimization_level = llvm::OptimizationLevel::Oz;
 				break;
+#endif
 			case '2':
 				optimization_level = llvm::OptimizationLevel::O2;
 				break;
@@ -1948,8 +1954,10 @@ int main(int argc, char* argv[]) {
 				codegenopt = llvm::CodeGenOpt::Less;
 #endif
 				break;
+#if LLVM_VERSION_MAJOR < 23
 			case 's':
 			case 'z':
+#endif
 			case '2':
 #if LLVM_VERSION_MAJOR >= 18
 				codegenopt = llvm::CodeGenOptLevel::Default;
@@ -2024,11 +2032,13 @@ int main(int argc, char* argv[]) {
 #ifndef ALLOW_UNSUPPORTED_OPTIMIZATIONS
 	if (comp_mode == comp_jit) {
 #ifndef LEGACY_PASS_MANAGER
+#if LLVM_VERSION_MAJOR < 23
 		if (optimization_level == llvm::OptimizationLevel::Os ||
 		    optimization_level == llvm::OptimizationLevel::Oz) {
 			errs() << RED << "Optimization levels '-Os' and '-Oz' are not supported in JIT mode" << RESET << "\n";
 			usage(argv[0]);
 		}
+#endif
 #endif
 		// codegen optimization and IR optimization > -O1 seem to be buggy for JIT mode
 #if LLVM_VERSION_MAJOR >= 18
