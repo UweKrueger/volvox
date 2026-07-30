@@ -3653,7 +3653,7 @@ bool ForExprAST::Iterate() {
 		Builder->CreateStore(ctrl_var, ptr_storage);
 		if (!(ValueFV->ft.type_attr & A_ptrref)) {
 			auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
-			Builder->CreateMemCpy(ValueFV->val, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, Step);
+			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, Step);
 			if (ValueFV->ft.type_attr & A_constructor) {
 				auto C = getConstructorOrDestructor(&ValueFV->ft);
 				Builder->CreateCall(C, { ValueFV->val });
