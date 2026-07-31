@@ -1433,6 +1433,15 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 					errs() << method->Receiver->Loc << ": could not get receiver\n";
 					return nullptr;
 				}
+				if (auto index_expr = dynamic_cast<IndexExprAST*>(method->Receiver.get())) {
+					if (index_expr->Field->ft->type == llvm_map_type
+					    && index_expr->ft->type == llvm_string_type) {
+						// string values in maps are not volvox-type so a temporary string
+						// has been created to store it and get a proper volvox-string reference
+						// we have to clean up that temporary string so register a destructor for it
+						register_destructor(Loc, index_expr->ft, receiver_ref, false);
+					}
+				}
 				if (vtable_offs >= 0) { // method to polymorphic object
 					llvm::Value* rt_type_ptr = Builder->CreateLoad(
 						llvm_ptr_type, Builder->CreateStructGEP(llvm_interface_type, receiver_ref, 0));
