@@ -743,9 +743,7 @@ struct FullVar {
 		}
 	}
 	void destroy() { // we cannot call it "~FullVar()" because it must not be called automatically
-		if (val) {
-			free((void*)this->mangled_name);
-		}
+		free((void*)this->mangled_name);
 		free((void*)this->possible_references);
 		/* delete var_usage_markers;
 		   - this is done at end of main() using "all_usage_markers" */
