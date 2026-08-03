@@ -2292,28 +2292,38 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					llvm::UndefValue::get(llvm::Type::getVoidTy(Context)) :
 					(llvm::Value*)Builder->CreateLoad(Variable.first, Variable.second);
 				if (ValPtr) {
-					llvm::Value* dptr = Variable.second;
-					if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Variable.second->getType())) {
-						dptr = Builder->CreateExtractValue(dptr, struct_type->getNumElements()-1);
-					}
+					// llvm::Value* dptr = Variable.second;
+					// if (auto struct_type = llvm::dyn_cast<llvm::StructType>(Variable.second->getType())) {
+					// 	dptr = Builder->CreateExtractValue(dptr, struct_type->getNumElements()-1);
+					// }
 					if (!allocsz) {
 						llvm::Value* Allocsz = LHSE->alloc_size();
 						auto align = getAlignment(1);
 						if (target)
-							Builder->CreateMemCpy(target, align, dptr, align, Allocsz);
-						Builder->CreateMemCpy(dptr, align, ValPtr, align, Allocsz);
+							Builder->CreateMemCpy(target, align, Variable.second, align, Allocsz);
+						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, Allocsz);
 					} else {
 						auto align = getAlignment(allocsz);
 						if (target)
-							Builder->CreateMemCpy(target, align, dptr, align, allocsz);
-						Builder->CreateMemCpy(dptr, align, ValPtr, align, allocsz);
+							Builder->CreateMemCpy(target, align, Variable.second, align, allocsz);
+						Builder->CreateMemCpy(Variable.second, align, ValPtr, align, allocsz);
 					}
-					if (target)
-						return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				} else
 					Builder->CreateStore(Val, Variable.second);
-				if (opclass == OpDeclAssign || opclass == OpGlobalDeclAssign)
+				if (opclass == OpGlobalDeclAssign)
 					// declarations have no return type
+					// TODO: register global destructor?
+					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
+				if (!is_call_expr && LHS->ft->type_attr & A_constructor) {
+					auto F = getConstructorOrDestructor(LHS->ft);
+					if (!F) {
+						// TODO: actually do check if move is possible
+						errs() << Loc << ": clone constructor not available for type " << *LHS->ft->type << " and move is not possible\n";
+						return nullptr;
+					}
+					Builder->CreateCall(F, { Variable.second });
+				}
+				if (target && ValPtr)
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				// call destructor for OldVal if discarded
 				return handle(target, OldVal, LHS->Loc, LHS->ft);
