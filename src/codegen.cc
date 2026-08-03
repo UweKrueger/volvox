@@ -2255,10 +2255,10 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 		}
 	have_val_or_valptr:
 		// Look up the name.
-		ExprAST* MaybeVar = LHS.get();
-		if (auto RegularVar = dynamic_cast<VariableExprAST*>(MaybeVar)) {
+		FullVar* full_var = nullptr;
+		if (auto RegularVar = dynamic_cast<VariableExprAST*>(LHS.get())) {
 			varname = RegularVar->getName().c_str();
-			FullVar* full_var = RegularVar->full_var;
+			full_var = RegularVar->full_var;
 			if (!full_var)
 				goto not_found;
 		}
@@ -2312,7 +2312,6 @@ llvm::Value* BinaryExprAST::codegen_raw(llvm::Value* target) {
 					Builder->CreateStore(Val, Variable.second);
 				if (opclass == OpGlobalDeclAssign)
 					// declarations have no return type
-					// TODO: register global destructor?
 					return llvm::UndefValue::get(llvm::Type::getVoidTy(Context));
 				if (!is_call_expr && LHS->ft->type_attr & A_constructor) {
 					auto F = getConstructorOrDestructor(LHS->ft);
