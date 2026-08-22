@@ -1201,6 +1201,21 @@ void get_destruct_vars_main(std::map<std::string,FullVar*>& destr_vars) {
 		FullVar* fullV = fullVar(t);
 		if (fullV->ft.type_attr & A_destructor) {
 			std::string key(t.getKey());
+			if (!fullV->val && jit_repl) {
+				const char* mangled_name = fullV->mangled_name;
+				if (!mangled_name) {
+					mangled_name = key.c_str();
+				}
+				llvm::GlobalVariable* GV = TheModule->getGlobalVariable(mangled_name, true);
+				if (!GV)
+					GV = new llvm::GlobalVariable(*TheModule, fullV->storage_type,
+					                              false, link_type(fullV->ft.type_attr),
+					                              nullptr, mangled_name, nullptr,
+					                              tls_model(fullV->ft.type_attr),
+					                              0, true);
+				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(fullV->storage_type));
+				fullV->val = GV;
+			}
 			destr_vars.insert({ std::move(key), fullV });
 		}
 	}

@@ -76,3 +76,5 @@ end
 import io.socket
 
 _printf("All tests done!\n")
+
+return 0
