@@ -1420,3 +1420,7 @@ _DECL _Fcomplex __cpowf(_Fcomplex b, _Fcomplex e) {
 _DECL void ___wrnum(void* p, size_t z, size_t l) {
 	fprintf(stderr, "### Ptr: %p, Cap: %zu, Len: %zu\n", p, z, l);
 }
+
+_DECL void ___wrstr(void* p, size_t l) {
+	fprintf(stderr, "### String: >%.*s<\n", (int)l, (char*)p);
+}
