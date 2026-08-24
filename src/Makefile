@@ -143,8 +143,6 @@ endif
 endif
 endif
 
-CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DVOLVOXVERSION=$(VOLVOXVERSION)
-
 ifeq ($(shell test -f /etc/alpine-release && echo -n true),true)
 	CPPEXTRAFLAGS := $(CPPEXTRAFLAGS) -DVOLVOX_LTO_LINKER=/usr/bin/ld.lld
 endif
@@ -255,7 +253,7 @@ LIBSRC := $(LIBOBJS:%.o=../clib/%.cc)
 LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 
 %.o: %.cc $(PCH)
-	$(CXX) $(TARGET) -c $(CXXFLAGS) $(OPT) $(INCPCH) $(EXTRAINC) $<
+	$(CXX) $(TARGET) -c $(CXXFLAGS) -DVOLVOXVERSION=$(VOLVOXVERSION) $(OPT) $(INCPCH) $(EXTRAINC) $<
 
 %.o: ../clib/%.cc
 	$(CXX) $(TARGET) -c -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(PIC) $(OPT) $<

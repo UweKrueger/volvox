@@ -1201,7 +1201,7 @@ void get_destruct_vars_main(std::map<std::string,FullVar*>& destr_vars) {
 		FullVar* fullV = fullVar(t);
 		if (fullV->ft.type_attr & A_destructor) {
 			std::string key(t.getKey());
-			if (!fullV->val && jit_repl) {
+			if (!fullV->val && comp_mode == comp_jit) {
 				const char* mangled_name = fullV->mangled_name;
 				if (!mangled_name) {
 					mangled_name = key.c_str();
