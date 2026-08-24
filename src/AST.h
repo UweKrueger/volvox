@@ -1039,8 +1039,6 @@ class ForExprAST : public BranchExprAST {
 	llvm::Type* IndexType = nullptr;
 	std::string KeyName, ValueName;
 	llvm::Align rvalue_align;
-	new_var_kind new_Key, new_Value;
-	bool descending = false;
 	
 public:
 	std::unique_ptr<ExprAST> Iterator = nullptr;
@@ -1055,6 +1053,10 @@ public:
 	llvm::Value* ValueRef = nullptr;
 	llvm::Value* KeyRef = nullptr;
 	llvm::Value* Step = nullptr;
+	new_var_kind new_Key, new_Value;
+	bool descending = false;
+	bool deferred_val_destructor = false;
+
 	ForExprAST(SourceLocation Loc, std::unique_ptr<ExprAST> _Iterator, VarTable _locals_table,
 	           VarTable else_locals_table, unsigned max_brk_level, std::set<std::string> _merged_vars, std::unique_ptr<ExprAST> _Key,
 	           std::unique_ptr<ExprAST> _Value, std::string _KeyName, std::string _ValueName,
@@ -1062,13 +1064,15 @@ public:
 	           std::vector<BranchDescription> _Else,
 	           FullVar* ValueFV, FullVar* KeyFV = nullptr, volvoxc::FullType* ValueFT = nullptr,
 	           volvoxc::FullType* KeyFT = nullptr,
-	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none, bool descending = false)
+	           new_var_kind new_Key = new_var_none, new_var_kind new_Value = new_var_none,
+	           bool descending = false, bool deferred_val_destructor = false)
 		: BranchExprAST(Loc, llvm::Type::getVoidTy(Context), 0, false, nullptr, std::move(_Body),
 		                std::move(_Else), std::move(_locals_table),
 		                std::move(else_locals_table), max_brk_level, std::move(_merged_vars), nullptr, tok_for),
 		  Iterator(std::move(_Iterator)), Key(std::move(_Key)), Value(std::move(_Value)),
 		  KeyFV(KeyFV), ValueFV(ValueFV), KeyName(std::move(_KeyName)), ValueName(std::move(_ValueName)),
-		  ValueFT(ValueFT), KeyFT(KeyFT), new_Key(new_Key), new_Value(new_Value), descending(descending) {}
+		  ValueFT(ValueFT), KeyFT(KeyFT), new_Key(new_Key), new_Value(new_Value), descending(descending),
+		  deferred_val_destructor(deferred_val_destructor) {}
 	bool PrepareIterator();
 	llvm::Value* CreateCondition(bool at_end = false);
 	bool Iterate();

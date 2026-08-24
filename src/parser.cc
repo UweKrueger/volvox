@@ -1664,6 +1664,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	current_branch_part.push_back(branch_part_t{0});
 	auto KeyVal = ParseExpression(tok_in);
 	bool descending;
+	bool deferred_val_destructor = false;
 	switch (CurTok.kind) {
 	case tok_in:
 		descending = false;
@@ -1767,8 +1768,10 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 					return nullptr;
 				}
 			} else if (value_kind == new_var_created) {
-				if (Iterator->ft->type != llvm_map_type)
+				if (Iterator->ft->type != llvm_map_type) {
+					deferred_val_destructor = (bool)(Value->ft->type_attr & A_destructor);
 					Value->ft->type_attr = Value->ft->type_attr & ~A_destructor;
+				}
 			}
 		} else {
 			errs() << Value->Loc << ": 'for' key control variable must be an Lvalue\n";
@@ -1815,7 +1818,7 @@ static std::unique_ptr<ExprAST> ParseForExpr(int terminator = 0) {
 	                                    std::move(else_locals_table), max_brk_level, std::move(merged_vars), std::move(Key),
 	                                    std::move(Value), std::move(KeyName), std::move(ValueName),
 	                                    std::move(Body), std::move(Else), ValueFV, KeyFV,
-	                                    ValueFt, KeyFt, key_kind, value_kind, descending);
+	                                    ValueFt, KeyFt, key_kind, value_kind, descending, deferred_val_destructor);
 }
 
 static std::unique_ptr<ExprAST> ParseFunctionExpr(int terminator = 0) {

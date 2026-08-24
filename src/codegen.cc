@@ -3490,7 +3490,7 @@ bool ForExprAST::PrepareIterator() {
 				TheFunction->insert(TheFunction->end(), ValidPtr);
 				Builder->SetInsertPoint(ValidPtr);
 			}
-			if (ValueFV->ft.type_attr & A_destructor || ValueFV->ft.type == llvm_string_type) {
+			if (deferred_val_destructor) {
 				auto D = getConstructorOrDestructor(&ValueFV->ft, true);
 				Builder->CreateCall(D, { ValueFV->val });
 			}
@@ -3673,7 +3673,7 @@ bool ForExprAST::Iterate() {
 	if (ptr_storage) {
 		Builder->CreateStore(ctrl_var, ptr_storage);
 		if (!(ValueFV->ft.type_attr & A_ptrref)) {
-			if (ValueFV->ft.type_attr & A_destructor || ValueFV->ft.type == llvm_string_type) {
+			if (deferred_val_destructor) {
 				auto D = getConstructorOrDestructor(&ValueFV->ft, true);
 				Builder->CreateCall(D, { ValueFV->val });
 			}
@@ -4188,6 +4188,14 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 		}
 	}
 	Builder->SetInsertPoint(MergeBB);
+	if (for_expr && (
+		    for_expr->Iterator->ft->type == llvm_vec_type
+		    || for_expr->Iterator->ft->type->isArrayTy())) {
+		if (for_expr->new_Value == new_var_created && for_expr->deferred_val_destructor) {
+			auto D = getConstructorOrDestructor(&for_expr->ValueFV->ft, true);
+			Builder->CreateCall(D, { for_expr->ValueFV->val });
+		}
+	}
 	if (ft->type->isVoidTy())
 		return llvm::UndefValue::get(ft->type);
 	else {
