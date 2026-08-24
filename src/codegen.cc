@@ -3432,6 +3432,10 @@ bool ForExprAST::PrepareIterator() {
 				auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
 				ValueRef = ValueFV->val = CreateAlloca(Step, align);
 				Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
+				if (ValueFV->ft.type_attr & A_constructor) {
+					auto C = getConstructorOrDestructor(&ValueFV->ft);
+					Builder->CreateCall(C, { ValueFV->val });
+				}
 			}
 		} else if (iterator_methods) {
 			if (ValueFV)
@@ -3486,8 +3490,16 @@ bool ForExprAST::PrepareIterator() {
 				TheFunction->insert(TheFunction->end(), ValidPtr);
 				Builder->SetInsertPoint(ValidPtr);
 			}
+			if (ValueFV->ft.type_attr & A_destructor || ValueFV->ft.type == llvm_string_type) {
+				auto D = getConstructorOrDestructor(&ValueFV->ft, true);
+				Builder->CreateCall(D, { ValueFV->val });
+			}
 			auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
 			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(Ptr, llvm_ptr_type), align, Step);
+			if (ValueFV->ft.type_attr & A_constructor) {
+				auto C = getConstructorOrDestructor(&ValueFV->ft);
+				Builder->CreateCall(C, { ValueFV->val });
+			}
 			Builder->CreateBr(MergeBB);
 			if (TheFunction) {
 				TheFunction->insert(TheFunction->end(), MergeBB);
@@ -3661,6 +3673,10 @@ bool ForExprAST::Iterate() {
 	if (ptr_storage) {
 		Builder->CreateStore(ctrl_var, ptr_storage);
 		if (!(ValueFV->ft.type_attr & A_ptrref)) {
+			if (ValueFV->ft.type_attr & A_destructor || ValueFV->ft.type == llvm_string_type) {
+				auto D = getConstructorOrDestructor(&ValueFV->ft, true);
+				Builder->CreateCall(D, { ValueFV->val });
+			}
 			auto align = TheModule->getDataLayout().getPrefTypeAlign(ElType);
 			Builder->CreateMemCpy(ValueRef, align, Builder->CreateIntToPtr(ctrl_var, llvm_ptr_type), align, Step);
 			if (ValueFV->ft.type_attr & A_constructor) {

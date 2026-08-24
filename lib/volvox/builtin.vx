@@ -63,6 +63,7 @@ end end
 # for debugging purposes
 cdecl ___wrnum(p voidptr, z size_t, l size_t)
 cdecl ___wrstr(p voidptr, l size_t)
+cdecl ___wrstr2(p voidptr, l size_t)
 
 struct string {
 	voidptr
@@ -75,8 +76,8 @@ def ~string
 			len = __load_size(this.voidptr)
 			buf = voidptr((size_t(this.voidptr) - len) & ~size_t((__OS_Bitwidth>>3)-1))
 
-			# ___wrnum(this.voidptr, cap, len)
-			___wrstr(buf, len)
+			___wrstr2(buf, len)
+
 			__free(buf)
 		end
 		this.voidptr = voidptr 0
@@ -86,7 +87,8 @@ def string
 	if bool(this.voidptr)
 		len = __load_size(this.voidptr)
 		buf = voidptr((size_t(this.voidptr) - len) & ~size_t((__OS_Bitwidth>>3)-1))
-		# _printf("Got String %s\n", buf)
+
+		___wrstr(buf, len)
 
 		this.voidptr = __string_dup(this.voidptr)
 end end

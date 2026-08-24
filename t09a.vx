@@ -17,12 +17,12 @@ def test_vec_iter_up_2 bool
 end
 
 def test_vec_iter_down_1 bool
-	gQ = vec{ "SdRt", "-3.125", "p_Qrt", "56ffg" }
+	gQ = vec{ "SdRt1", "-3.1251", "p_Qrt1", "56ffg1" }
 	sum = " "
 	for vLkM ~in gQ
 		sum += vLkM + " "
 	end
-	return sum == " 56ffg p_Qrt -3.125 SdRt "
+	return sum == " 56ffg1 p_Qrt1 -3.1251 SdRt1 "
 end
 
 def test_vec_iter_down_2 bool

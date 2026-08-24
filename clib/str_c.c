@@ -1422,5 +1422,9 @@ _DECL void ___wrnum(void* p, size_t z, size_t l) {
 }
 
 _DECL void ___wrstr(void* p, size_t l) {
-	fprintf(stderr, "### String: >%.*s<\n", (int)l, (char*)p);
+	fprintf(stderr, "### New: >%.*s<\n", (int)l, (char*)p);
+}
+
+_DECL void ___wrstr2(void* p, size_t l) {
+	fprintf(stderr, "### Delete: >%.*s<\n", (int)l, (char*)p);
 }
