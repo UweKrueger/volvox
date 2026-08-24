@@ -76,7 +76,7 @@ def ~string
 			len = __load_size(this.voidptr)
 			buf = voidptr((size_t(this.voidptr) - len) & ~size_t((__OS_Bitwidth>>3)-1))
 
-			___wrstr2(buf, len)
+			# ___wrstr2(buf, len)
 
 			__free(buf)
 		end
@@ -88,7 +88,7 @@ def string
 		len = __load_size(this.voidptr)
 		buf = voidptr((size_t(this.voidptr) - len) & ~size_t((__OS_Bitwidth>>3)-1))
 
-		___wrstr(buf, len)
+		# ___wrstr(buf, len)
 
 		this.voidptr = __string_dup(this.voidptr)
 end end
