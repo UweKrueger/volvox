@@ -383,6 +383,7 @@ struct __range_f64 {
 # We do not have a 'c++decl' (yet?). Instead we use 'cdecl' with mangled function names
 #
 cdecl _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&root_ptr voidptr, key string, value u64, value_size i32, &replace voidptr) voidptr
+cdecl _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&root_ptr voidptr, key cstring, value u64, value_size i32, &replace voidptr) voidptr
 cdecl _ZN6volvox3map10i32_insertEPPNS0_4NodeEiNS0_5ValueEiS3_(&root_ptr voidptr, key i32, value u64, value_size i32, &replace voidptr) voidptr
 cdecl _ZN6volvox3map10u32_insertEPPNS0_4NodeEjNS0_5ValueEiS3_(&root_ptr voidptr, key u32, value u64, value_size i32, &replace voidptr) voidptr
 cdecl _ZN6volvox3map10i64_insertEPPNS0_4NodeExNS0_5ValueEiS3_(&root_ptr voidptr, key i64, value u64, value_size i32, &replace voidptr) voidptr
@@ -391,6 +392,7 @@ cdecl _ZN6volvox3map10f64_insertEPPNS0_4NodeEdNS0_5ValueEiS3_(&root_ptr voidptr,
 cdecl _ZN6volvox3map10f32_insertEPPNS0_4NodeEfNS0_5ValueEiS3_(&root_ptr voidptr, key f32, value u64, value_size i32, &replace voidptr) voidptr
 
 cdecl _ZN6volvox3map16volvoxstring_getEPPNS0_4NodeEPKc(root voidptr, key string) voidptr
+cdecl _ZN6volvox3map10string_getEPPNS0_4NodeEPKc(root voidptr, key cstring) voidptr
 cdecl _ZN6volvox3map7i32_getEPPNS0_4NodeEi(root voidptr, key i32) voidptr
 cdecl _ZN6volvox3map7u32_getEPPNS0_4NodeEj(root voidptr, key u32) voidptr
 cdecl _ZN6volvox3map7i64_getEPPNS0_4NodeEx(root voidptr, key i64) voidptr
@@ -399,6 +401,7 @@ cdecl _ZN6volvox3map7f64_getEPPNS0_4NodeEd(root voidptr, key f64) voidptr
 cdecl _ZN6volvox3map7f32_getEPPNS0_4NodeEf(root voidptr, key f32) voidptr
 
 cdecl _ZN6volvox3map19volvoxstring_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(root voidptr, key string, destructor voidptr) bool
+cdecl _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(root voidptr, key cstring, destructor voidptr) bool
 cdecl _ZN6volvox3map10i32_deleteEPPNS0_4NodeEiPFvPNS0_5ValueEE(root voidptr, key i32, destructor voidptr) bool
 cdecl _ZN6volvox3map10u32_deleteEPPNS0_4NodeEjPFvPNS0_5ValueEE(root voidptr, key u32, destructor voidptr) bool
 cdecl _ZN6volvox3map10i64_deleteEPPNS0_4NodeExPFvPNS0_5ValueEE(root voidptr, key i64, destructor voidptr) bool
@@ -427,7 +430,7 @@ cdecl SetLastError(err u32)
 
 def __map.__insert_string(key string, value u64, value_size i32) voidptr
 	old_node = voidptr 0
-	node = _ZN6volvox3map19volvoxstring_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
+	node = _ZN6volvox3map13string_insertEPPNS0_4NodeEPKcNS0_5ValueEiS3_(&this.__ptr, key, value, value_size, &old_node)
 	if size_t(old_node) == 0
 		this.count++
 		return node
@@ -559,7 +562,7 @@ def __map.__insert_float_0(key float) bool
 end end
 
 def __map.__delete_string(key string) bool
-	success = _ZN6volvox3map19volvoxstring_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(&this.__ptr, key, voidptr(0))
+	success = _ZN6volvox3map13string_deleteEPPNS0_4NodeEPKcPFvPNS0_5ValueEE(&this.__ptr, key, voidptr(0))
 	if success
 		this.count--
 	end
@@ -615,7 +618,7 @@ def __map.__delete_float(key float) bool
 end
 
 def __map.__get_string(key string, create_new bool) voidptr
-	value_ref = _ZN6volvox3map16volvoxstring_getEPPNS0_4NodeEPKc(&this.__ptr, key)
+	value_ref = _ZN6volvox3map10string_getEPPNS0_4NodeEPKc(&this.__ptr, key)
 	if size_t(value_ref) == 0
 		if create_new
 			node_ref = this.__insert_string(key, 0, 0)
