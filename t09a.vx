@@ -1,3 +1,12 @@
+def test_vec_iter_up_1 bool
+	gQ = vec{ "SdRt" }
+	sum = " "
+	for vLkM in gQ
+		sum += vLkM + " "
+	end
+	return sum == " SdRt "
+end
+
 def test_vec_iter_up_2 bool
 	gQ = vec{ "SdRt", "-3.125", "p_Qrt" }
 	sum = " "
@@ -13,5 +22,14 @@ def test_vec_iter_down_1 bool
 	for vLkM ~in gQ
 		sum += vLkM + " "
 	end
-	return sum == " p_Qrt -3.125 SdRt "
+	return sum == " 56ffg p_Qrt -3.125 SdRt "
+end
+
+def test_vec_iter_down_2 bool
+	gQ = [ "SdRt", "-3.125", "p_Qrt", "56ffg" ]
+	sum = " "
+	for vLkM ~in gQ
+		sum += vLkM + " "
+	end
+	return sum == " 56ffg p_Qrt -3.125 SdRt "
 end
