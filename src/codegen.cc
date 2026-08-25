@@ -4184,7 +4184,8 @@ llvm::Value* BranchExprAST::codegen_raw(llvm::Value* target) {
 			MapValue* node = then_node.getValue();
 			auto then_var = (FullVar*)((char*)node + node->offset);
 			if (then_var->ft.type_attr & A_destructor)
-				InsertDestructor(then_var, StackRestoreInst);
+				if (!(for_expr && for_expr->iterator_methods))
+					InsertDestructor(then_var, StackRestoreInst);
 		}
 	}
 	Builder->SetInsertPoint(MergeBB);

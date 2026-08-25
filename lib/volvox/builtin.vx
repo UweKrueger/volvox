@@ -75,27 +75,23 @@ def ~string
 		if cap != 0
 			len = __load_size(this.voidptr)
 			buf = voidptr((size_t(this.voidptr) - len) & ~size_t((__OS_Bitwidth>>3)-1))
-
-			# ___wrstr2(buf, len)
-
 			__free(buf)
 		end
-		this.voidptr = voidptr 0
+		# "fix" cases where destructor is called twice
+		# this should never happen, so it is commented out
+		#
+		# this.voidptr = voidptr 0
 end end
 
 def string
 	if bool(this.voidptr)
 		len = __load_size(this.voidptr)
 		buf = voidptr((size_t(this.voidptr) - len) & ~size_t((__OS_Bitwidth>>3)-1))
-
-		# ___wrstr(buf, len)
-
 		this.voidptr = __string_dup(this.voidptr)
 end end
 
 def string(p voidptr)
 	this.voidptr = p
-	# _printf "Made String from voidptr\n"
 end
 
 cdecl __string_add(l voidptr, r voidptr) voidptr
