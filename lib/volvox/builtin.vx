@@ -1317,6 +1317,32 @@ inline def __vec.__remove(_elem_sz size_t, index size_t)
 	this.__size--
 end
 
+# non-thread-safe reference counted object
+#
+struct __ref_counted {
+	# pointer to object - reference counter is below location pointed to by voidptr
+	voidptr
+}
+
+def __ref_counted
+	cnt_adr = voidptr(size_t(this.voidptr) - (__OS_Bitwidth >> 3))
+	cnt = __load_size(cnt_adr)
+	# copy constructor - increase reference count
+	cnt++
+	__store_size(cnt_adr, cnt)
+end
+
+def ~__ref_counted
+	cnt_adr = voidptr(size_t(this.voidptr) - (__OS_Bitwidth >> 3))
+	cnt = __load_size(cnt_adr)
+	# decrease reference count
+	cnt--
+	if cnt == 0
+		__free(cnt_adr)
+	else
+		__store_size(cnt_adr, cnt)
+end end
+
 struct __closure {
 	__fn_ptr voidptr
 	__captureds_ptr voidptr
