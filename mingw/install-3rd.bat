@@ -1,8 +1,8 @@
 @echo off
 setlocal
-set LLVM_VER=22.1.8
+set LLVM_VER=23.1.2
 set MINGW_VER=v14.0.0
-set GCC_VER=16.1.0
+set GCC_VER=16.2.0
 
 set CLANGLLVMPKG=clang+llvm-%LLVM_VER%-x86_64-pc-windows-msvc.tar.xz
 set MINGWPKG=mingw-%MINGW_VER%-stdc++-%GCC_VER%-ucrt.txz
