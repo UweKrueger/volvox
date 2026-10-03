@@ -1,10 +1,10 @@
 #!/bin/sh
 #
-BINUTILS_V=2.46.1
-GCC_V=16.1.0
+BINUTILS_V=2.47
+GCC_V=16.2.0
 MINGW_V=v14.0.0
 MAKE_V=4.4.1
-GDB_V=17.2
+GDB_V=18.1
 NUM_CORES=8
 START_DIR=`pwd`
 CONF_PARAMS="--enable-tls --enable-threads=posix --disable-nls --disable-multilib --disable-lib32 --with-default-msvcrt=ucrt"
@@ -147,9 +147,7 @@ x86_64-w64-mingw32-strip --strip-debug *.exe *.dll *.a
 cd $START_DIR/mingw-builds/install/native/x86_64-w64-mingw32/lib
 x86_64-w64-mingw32-strip --strip-debug *.a
 cd ../..
-bsdtar -czf $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.tgz bin include lib libexec share x86_64-w64-mingw32
+bsdtar -cJf $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.txz bin include lib libexec share x86_64-w64-mingw32
 rm -f bin/ld.exe
 mv -v include/c++/${GCC_V} x86_64-w64-mingw32/include/c++
-bsdtar -czf $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.tgz bin/*.dll bin/ldd.exe bin/make.exe bin/gdb.exe x86_64-w64-mingw32 lib/*.a lib/*.la
-zcat $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.tgz | xz -9 > $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.txz
-zcat $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.tgz | xz -9 > $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.txz
+bsdtar -cJf $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.txz bin/*.dll bin/ldd.exe bin/make.exe bin/gdb.exe x86_64-w64-mingw32 lib/*.a lib/*.la
