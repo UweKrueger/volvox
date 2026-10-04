@@ -15,7 +15,7 @@ ifeq ($(shell test -x C\:/Program\ Files/LLVM/bin/llvm-config.exe && echo -n tru
 	NIXTYPE := msvc
 	TARGET := -Wno-deprecated -D_AMD64_
 	# TARGET := -target x86_64-pc-windows-gnu -Wno-gcc-compat
-	LINKEXTRAFLAGS := "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\$(VCToolsVersion)\lib\x64\setargv.obj" -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32 -lntdll
+	LINKEXTRAFLAGS := "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\$(VCToolsVersion)\lib\x64\setargv.obj" -llibzstd -lzdll -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32 -lntdll
 	# LINKEXTRAFLAGS := -lpthread
 else
 EXE :=
