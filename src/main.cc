@@ -929,7 +929,7 @@ static bool HandleTopLevelExpression(std::pair<std::unique_ptr<ExprAST>,int> E, 
 				InitializeModuleAndPassManager();
 				if (!pending_globals.empty()) {
 					for (auto& new_decl: pending_globals) {
-						auto GV = CreateGlobal(std::get<0>(new_decl), std::get<1>(new_decl), std::get<2>(new_decl));
+						auto GV = CreateGlobal(std::get<0>(new_decl), std::get<1>(new_decl), NULL, std::get<2>(new_decl));
 						if (!GV) {
 							errs() << "error creating main scope variable '" << std::get<1>(new_decl) << "'\n";
 							ExitOnErr(RT->remove());

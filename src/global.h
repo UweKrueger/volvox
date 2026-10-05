@@ -1029,7 +1029,7 @@ extern bool InsertArrayConDestructor(
 extern void InsertDestructors(VarTable& t, llvm::Value* retp);
 extern void InsertDestructors(std::map<std::string,FullVar*>& destr_vars, std::set<std::string>* merged_vars = nullptr, llvm::Value* retp = nullptr);
 extern void InsertDestructors(std::vector<FullVar>& t);
-extern llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind);
+extern llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind);
 extern bool jit_repl;
 extern bool jit_extra_thread;
 

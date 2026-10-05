@@ -1217,11 +1217,30 @@ static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varn
 	return GV;
 }
 
-llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, unsigned sym_kind) {
-	llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
-	                                                    false, link_type(sym_kind), initializer, varname, nullptr,
-	                                                    tls_model(sym_kind), 0, false);
-	GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
+llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind) {
+	
+	llvm::GlobalVariable* GV;
+	if ((sym_kind & A_pub) && target_mingw && comp_mode == comp_dbg) {
+		/* On Windows debugging of TLS globals is currently only working
+		   with gcc+mingw+gdb. So we only create a reference here and
+		   let gcc later do the actual allocation */
+		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
+		errs() << "Global Variable '" << varname << "':\n";
+		if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(initializer->getType())) {
+			auto n_elem = struct_ty->getNumElements();
+			for (unsigned k=0; k<n_elem; k++) {
+				errs() << "    " << *ft->fields_by_idx[k].getFt()->type << " " << *ft->fields_by_idx[k].getFt() << " - " << ft->fields_by_idx[k].getKey() << "\n";
+			}
+		} else {
+			errs() << "    " << *ft->type << " " << *ft << "\n";
+		}
+		errs() << "-------------------------------------------------------\n";
+	} else {
+		GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+		                                                    false, link_type(sym_kind), initializer, varname, nullptr,
+		                                                    tls_model(sym_kind), 0, false);
+		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
+	}
 	return GV;
 }
 
@@ -1426,7 +1445,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			if (needs_call)
 				GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
 			else
-				GV = CreateGlobal(initializer, varname, sym_kind);
+				GV = CreateGlobal(initializer, varname, expr->RHS->ft, sym_kind);
 			fv->storage_type = initializer->getType();
 		}
 	} else {
@@ -1619,7 +1638,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// must stay, so put the latter in a new module that is not freed
 		// by the resource tracker
 		if (initializer && needs_call)
-			GV = CreateGlobal(initializer, varname, sym_kind);
+			GV = CreateGlobal(initializer, varname, expr->RHS->ft, sym_kind);
 		if (jit_extra_thread && (sym_kind & A_global) && needs_call)
 			shadow_already_created = CreateShadow(initializer, varname);
 		finishFunctionOrModule();

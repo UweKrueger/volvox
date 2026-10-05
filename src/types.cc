@@ -16,6 +16,8 @@ volvoxc::FTListElem** anon_types_end = &anon_types;
 std::vector<volvoxc::FullType*> all_interfaces;
 std::map<volvoxc::FullType*,int> all_interface_idxs;
 
+static std::set<std::string> c_declared;
+
 void ConversionErr(SourceLocation Loc, llvm::Type* expr_type, llvm::Type* desired_type,
                    bool expr_is_signed, bool desired_is_signed, const char* reason, bool is_explicit) {
 	auto expr_type_name = lex.get_type_name((llvm::Type*)((uintptr_t)expr_type | (expr_is_signed ? A_signed : 0)));
@@ -1383,4 +1385,50 @@ std::string get_LLVM_TypeName(llvm::Type* typ) {
 		idx ++;
 	}
 	return TypeName;
+}
+
+static const char* getCTypeName(volvoxc::FullType* ft) {
+	switch (ft->type->getTypeID()) {
+	case llvm::Type::FloatTyID:
+		return "float";
+	case llvm::Type::DoubleTyID:
+		return "double";
+	case llvm::Type::IntegerTyID:
+		if (ft->type_attr & A_signed) {
+			switch (ft->type->getIntegerBitWidth()) {
+			case 8:
+				return "signed char";
+			case 16:
+				return "short";
+			case 32:
+				return "int";
+			case 64:
+				return "long long";
+			default:
+				return NULL;
+			}
+		} else {
+			switch (ft->type->getIntegerBitWidth()) {
+			case 8:
+				return "unsigned char";
+			case 16:
+				return "unsigned short";
+			case 32:
+				return "unsigned";
+			case 64:
+				return "unsigned long long";
+			default:
+				return NULL;
+			}
+		}
+	default:
+		return NULL;
+	}
+}
+
+llvm::raw_ostream& operator<<(
+	llvm::raw_ostream& out,
+	std::pair<volvoxc::FullType*,std::string> decl_type)
+{
+	return out;
 }

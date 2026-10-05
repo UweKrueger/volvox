@@ -18,7 +18,7 @@ ifeq ($(shell test -x C\:/Program\ Files/LLVM/bin/llvm-config.exe && echo -n tru
 	LINKEXTRAFLAGS := "C:\Program Files\Microsoft Visual Studio\2022\Community\VC\Tools\MSVC\$(VCToolsVersion)\lib\x64\setargv.obj" -llibzstd -lzdll -lpsapi -lshell32 -lole32 -luuid -ladvapi32 -ldelayimp -lkernel32 -luser32 -lgdi32 -lwinspool -loleaut32 -lcomdlg32 -lWs2_32 -lntdll
 	# LINKEXTRAFLAGS := -lpthread
 else
-EXE :=
+	EXE :=
 ifeq ($(shell test -x /usr/local/bin/llvm-config-devel && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := -devel
@@ -157,15 +157,6 @@ LLVMVERSION := $(shell $(LLVMCONFIG) --version | cut -d. -f1)
 CC = clang$(SUFFIX)
 LINKER := $(shell which $(CC))
 
-ifeq ($(NIXTYPE),msvc)
-	CXXFLAGS := -I"C:/Program Files/LLVM/include" -I../include/editline -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++20 -frtti $(CPPEXTRAFLAGS)
-	LDFLAGS := -L"C:/Program Files/LLVM/lib" $(shell $(LLVMCONFIG) --libnames | sed -e "s/.lib//g" -e "s/LLVM/-lLLVM/g")
-	PIC :=
-else
-	CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -std=c++20 -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
-	LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
-	PIC := -fPIC
-endif
 PRJH := ../include/volvox.hh
 
 ifeq ($(CC),gcc)
@@ -205,6 +196,22 @@ else
 endif
 	INCPCH := -include-pch $(PCH)
 endif
+endif
+
+ifeq ($(NIXTYPE),msvc)
+	CXXFLAGS := -I"C:/Program Files/LLVM/include" -I../include/editline -D_FILE_OFFSET_BITS=64 -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS -std=c++20 -frtti $(CPPEXTRAFLAGS)
+	LDFLAGS := -L"C:/Program Files/LLVM/lib" $(shell $(LLVMCONFIG) --libnames | sed -e "s/.lib//g" -e "s/LLVM/-lLLVM/g")
+	PIC :=
+	CCDEBUG := gcc
+	CXXDEBUG := g++
+	DEBUGOPT := -ggdb -O0
+else
+	CXXFLAGS := $(shell $(LLVMCONFIG) --cxxflags) -std=c++20 -DLINKER=\"$(LINKER)\" -frtti $(CPPEXTRAFLAGS)
+	LDFLAGS := $(shell $(LLVMCONFIG) --ldflags --libs all-targets orcjit mcjit)
+	PIC := -fPIC
+	CCDEBUG := $(CC) $(TARGET)
+	CXXDEBUG := $(CXX) $(TARGET)
+	DEBUGOPT := -glldb -O0
 endif
 
 PROG = $(TARGETDIR)volvox$(EXE)
@@ -267,7 +274,7 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(OPT) $<
 
 %.dbg.o: ../clib/%.cc
-	$(CXX) $(TARGET) -c -o $@ -glldb -O0 -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $<
+	$(CXXDEBUG) -c -o $@ $(DEBUGOPT) -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $<
 
 %.mingw.o: ../clib/%.cc
 	$(CXX) $(TARGET) -c -o $@ -flto=thin -std=c++20 -fno-rtti -fno-exceptions -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(CPPEXTRAFLAGS) $(MINGWEXTRAFLAGS) $(OPT) $<
@@ -279,7 +286,7 @@ LIBCSRC := $(LIBCOBJS:%.o=../clib/%.c)
 	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
 
 %.dbg.o: ../clib/%.c
-	$(CC) $(TARGET) -c -o $@ -glldb -O0 $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $<
+	$(CCDEBUG) -c -o $@ $(DEBUGOPT) $(CPPEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $<
 
 %.mingw.o: ../clib/%.c
 	$(CC) $(TARGET) -c -o $@ -flto=thin $(CPPEXTRAFLAGS) $(MINGWEXTRAFLAGS) -DLLVM_VERSION_MAJOR=$(LLVMVERSION) $(OPT) $<
