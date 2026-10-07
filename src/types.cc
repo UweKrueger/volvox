@@ -1387,7 +1387,10 @@ std::string get_LLVM_TypeName(llvm::Type* typ) {
 	return TypeName;
 }
 
-static const char* getCTypeName(volvoxc::FullType* ft) {
+static void maybe_decl(llvm::raw_ostream& out, llvm::StructType* struct_ty,
+                       const char* mangled_name, StructFieldType* fields_by_idx);
+
+static const char* getCTypeName(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 	switch (ft->type->getTypeID()) {
 	case llvm::Type::FloatTyID:
 		return "float";
@@ -1421,14 +1424,40 @@ static const char* getCTypeName(volvoxc::FullType* ft) {
 				return NULL;
 			}
 		}
+	case llvm::Type::StructTyID:
+		maybe_decl(out, llvm::cast<llvm::StructType>(ft->type), ft->mangled_name, ft->fields_by_idx);
+		return ft->mangled_name;
 	default:
 		return NULL;
 	}
 }
 
+static void maybe_decl(llvm::raw_ostream& out, llvm::StructType* struct_ty,
+                       const char* mangled_name, StructFieldType* fields_by_idx)
+{
+	if (!mangled_name) {
+		errs() << "No mangled name for '" << *struct_ty << "'\n";
+		return;
+	}
+	if (c_declared.contains(mangled_name))
+		return;
+	c_declared.insert(mangled_name);
+	auto n_elem = struct_ty->getNumElements();
+	auto typenames = (const char**)alloca(n_elem * sizeof(const char*));
+	for (unsigned k=0; k<n_elem; k++)
+		typenames[k] = getCTypeName(out, fields_by_idx[k].getFt());
+	out << "\ntypedef struct " << mangled_name << " " << mangled_name << ";\n";
+	out << "struct " << mangled_name << " {\n";
+	for (unsigned k=0; k<n_elem; k++)
+		out << "\t" << typenames[k] << " " << fields_by_idx[k].getKey() << ";\n";
+	out << "};\n";
+}
+
 llvm::raw_ostream& operator<<(
 	llvm::raw_ostream& out,
-	std::pair<volvoxc::FullType*,std::string> decl_type)
+	std::pair<std::string,volvoxc::FullType*> decl_type)
 {
+	const char* type_name = getCTypeName(out, decl_type.second);
+	out << type_name << decl_type.first;
 	return out;
 }
