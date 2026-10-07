@@ -1433,6 +1433,8 @@ static const char* getCTypeName(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 			real_beg++;
 		maybe_decl(out, llvm::cast<llvm::StructType>(ft->type), real_beg, ft->fields_by_idx);
 		return real_beg;
+	case llvm::Type::ArrayTyID:
+		return getCTypeName(out, ft->elem_type);
 	default:
 		return NULL;
 	}
@@ -1454,8 +1456,15 @@ static void maybe_decl(llvm::raw_ostream& out, llvm::StructType* struct_ty,
 		typenames[k] = getCTypeName(out, fields_by_idx[k].getFt());
 	out << "\ntypedef struct " << mangled_name << " " << mangled_name << ";\n";
 	out << "struct " << mangled_name << " {\n";
-	for (unsigned k=0; k<n_elem; k++)
-		out << "\t" << typenames[k] << " " << fields_by_idx[k].getKey() << ";\n";
+	for (unsigned k=0; k<n_elem; k++) {
+		out << "\t" << typenames[k] << " " << fields_by_idx[k].getKey();
+		llvm::Type* field_ty = fields_by_idx[k].getFt()->type;
+		while (auto array_ty = llvm::dyn_cast<llvm::ArrayType>(field_ty)) {
+			out << '[' << array_ty->getNumElements() << ']';
+			field_ty = array_ty->getElementType();
+		}
+		out << ";\n";
+	}
 	out << "};\n";
 }
 
