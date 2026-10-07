@@ -45,6 +45,9 @@ bool target_mingw = true; // may be overwitten by "-msvc"
 #else
 bool target_mingw = false;
 #endif
+std::unique_ptr<llvm::raw_fd_ostream> c_tls_defs = nullptr;
+char* c_tls_defs_c = NULL;
+char* c_tls_defs_o = NULL;
 bool emit_llvm = false;
 unsigned target_bytes; // size_t, pointer size in bytes
 unsigned target_bits; // in bits
@@ -2370,6 +2373,43 @@ int main(int argc, char* argv[]) {
 		KSDbgInfo.TheCU = DBuilder->createCompileUnit(
 			llvm::dwarf::DW_LANG_C, DBuilder->createFile(file, dir),
 			"Volvox Compiler", 0, "", 0);
+		if (target_mingw) {
+			/* LLVM does not create usable debug information for TLS globals
+			   on this target. So we create a .c file with the relevant
+			   definitions and compiler them using gcc
+			*/
+			size_t l0 = 0;
+			const char* output_suffix = strrchr(output_file, '.');
+			if (output_suffix) {
+				if (!strcmp(output_suffix, ".exe") ||
+					!strcmp(output_suffix, ".obj") ||
+				    !strcmp(output_suffix, ".o")) {
+					l0 = output_suffix - output_file;
+				}
+			}
+			if (!l0)
+				l0 = strlen(output_file);
+			if (!l0) {
+				errs() << "invalid output file name '" << output_file << "'\n";
+				abort();
+			}
+			c_tls_defs_c = (char*)malloc(l0 + 10);
+			c_tls_defs_o = (char*)malloc(l0 + 10);
+			c_tls_defs_c[0] = '_';
+			c_tls_defs_o[0] = '_';
+			memcpy(c_tls_defs_c + 1, output_file, l0);
+			memcpy(c_tls_defs_o + 1, output_file, l0);
+			strcpy(c_tls_defs_c + l0 + 1, "_tls.c");
+			strcpy(c_tls_defs_o + l0 + 1, "_tls.o");
+			std::error_code EC;
+			c_tls_defs = std::make_unique<llvm::raw_fd_ostream>(
+				c_tls_defs_c, EC, llvm::sys::fs::CD_CreateAlways);
+			if (EC) {
+				errs() << "cannot open \"" << c_tls_defs_c << "\" for writing: "
+				       << EC.message() << "\n";
+				exit(1);
+			}
+		}
 	}
 	init(TheTargetMachine->getTargetTriple());
 	if (!jit_repl) {
@@ -2453,6 +2493,8 @@ int main(int argc, char* argv[]) {
 		}
 	}
 	if (comp_mode == comp_obj || comp_mode == comp_dbg) {
+		if (c_tls_defs)
+			c_tls_defs->close();
 		auto Filename = output_file;
 		std::error_code EC;
 		llvm::raw_fd_ostream dest(Filename, EC, llvm::sys::fs::OF_None);

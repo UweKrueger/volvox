@@ -1220,21 +1220,17 @@ static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varn
 llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind) {
 	
 	llvm::GlobalVariable* GV;
-	if ((sym_kind & A_pub) && target_mingw && comp_mode == comp_dbg) {
+	if (target_mingw && comp_mode == comp_dbg) {
 		/* On Windows debugging of TLS globals is currently only working
 		   with gcc+mingw+gdb. So we only create a reference here and
-		   let gcc later do the actual allocation */
-		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
-		errs() << "Global Variable '" << varname << "':\n";
-		if (auto struct_ty = llvm::dyn_cast<llvm::StructType>(initializer->getType())) {
-			auto n_elem = struct_ty->getNumElements();
-			for (unsigned k=0; k<n_elem; k++) {
-				errs() << "    " << *ft->fields_by_idx[k].getFt()->type << " " << *ft->fields_by_idx[k].getFt() << " - " << ft->fields_by_idx[k].getKey() << "\n";
-			}
-		} else {
-			errs() << "    " << *ft->type << " " << *ft << "\n";
-		}
-		errs() << "-------------------------------------------------------\n";
+		   let gcc later do the actual allocation. We have to force the
+		   global to be 'pub' for this to work, but that should be no problem
+		   since we use mangling for symbols from imported modules
+		*/
+		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind | A_pub);
+		*c_tls_defs << '\n'
+		            << std::pair<std::string&,volvoxc::FullType*>{
+			varname, ft } << ";\n";
 	} else {
 		GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 		                                                    false, link_type(sym_kind), initializer, varname, nullptr,

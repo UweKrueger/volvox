@@ -1391,6 +1391,7 @@ static void maybe_decl(llvm::raw_ostream& out, llvm::StructType* struct_ty,
                        const char* mangled_name, StructFieldType* fields_by_idx);
 
 static const char* getCTypeName(llvm::raw_ostream& out, volvoxc::FullType* ft) {
+	const char* real_beg;
 	switch (ft->type->getTypeID()) {
 	case llvm::Type::FloatTyID:
 		return "float";
@@ -1425,8 +1426,13 @@ static const char* getCTypeName(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 			}
 		}
 	case llvm::Type::StructTyID:
-		maybe_decl(out, llvm::cast<llvm::StructType>(ft->type), ft->mangled_name, ft->fields_by_idx);
-		return ft->mangled_name;
+		real_beg = ft->mangled_name;
+		while (*real_beg >= '0' && *real_beg <= '9')
+			/* our 'mangled_name' start with the number of characters
+			   that's not allowed in C so skip these digits */
+			real_beg++;
+		maybe_decl(out, llvm::cast<llvm::StructType>(ft->type), real_beg, ft->fields_by_idx);
+		return real_beg;
 	default:
 		return NULL;
 	}
@@ -1455,9 +1461,9 @@ static void maybe_decl(llvm::raw_ostream& out, llvm::StructType* struct_ty,
 
 llvm::raw_ostream& operator<<(
 	llvm::raw_ostream& out,
-	std::pair<std::string,volvoxc::FullType*> decl_type)
+	std::pair<std::string&,volvoxc::FullType*> decl_type)
 {
 	const char* type_name = getCTypeName(out, decl_type.second);
-	out << type_name << decl_type.first;
+	out << "thread_local " << type_name << " " << decl_type.first;
 	return out;
 }

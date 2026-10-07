@@ -380,6 +380,12 @@ inline bool FullTypes_equal(volvoxc::FullType* a, volvoxc::FullType* b) {
 	return !FullTypes_differ(a, b);
 }
 
+extern llvm::raw_ostream& operator<<(
+	llvm::raw_ostream& out,
+	std::pair<std::string&,volvoxc::FullType*> decl_type);
+
+extern std::unique_ptr<llvm::raw_fd_ostream> c_tls_defs;
+
 extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(
 	volvoxc::FullType* IteratorType, SourceLocation Loc = SourceLocation());
 
