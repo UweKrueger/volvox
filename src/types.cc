@@ -1437,9 +1437,22 @@ static const char* getCTypeName(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 		return real_beg;
 	case llvm::Type::ArrayTyID:
 		return getCTypeName(out, ft->elem_type);
+	case llvm::Type::PointerTyID:
+		if (ft->type_attr & A_cstring)
+			return "char*";
+		return "void*";
 	default:
 		return NULL;
 	}
+}
+
+bool is_C_type(const char* name) {
+	return !strcmp(name, "void") ||
+		!strcmp(name, "char") ||
+		!strcmp(name, "unsigned") ||
+		!strcmp(name, "short") ||
+		!strcmp(name, "int") ||
+		!strcmp(name, "long");
 }
 
 static void maybe_decl(llvm::raw_ostream& out, llvm::StructType* struct_ty,
@@ -1459,7 +1472,8 @@ static void maybe_decl(llvm::raw_ostream& out, llvm::StructType* struct_ty,
 	out << "\ntypedef struct " << mangled_name << " " << mangled_name << ";\n";
 	out << "struct " << mangled_name << " {\n";
 	for (unsigned k=0; k<n_elem; k++) {
-		out << "\t" << typenames[k] << " " << fields_by_idx[k].getKey();
+		const char* name = fields_by_idx[k].getKey();
+		out << "\t" << typenames[k] << (is_C_type(name) ? " _" : " ") << name;
 		llvm::Type* field_ty = fields_by_idx[k].getFt()->type;
 		while (auto array_ty = llvm::dyn_cast<llvm::ArrayType>(field_ty)) {
 			out << '[' << array_ty->getNumElements() << ']';
@@ -1476,6 +1490,11 @@ llvm::raw_ostream& operator<<(
 {
 	const char* type_name = getCTypeName(out, decl_type.second);
 	out << "\nthread_local " << type_name << " " << decl_type.first;
+	llvm::Type* ty = decl_type.second->type;
+	while (auto array_ty = llvm::dyn_cast<llvm::ArrayType>(ty)) {
+		out << '[' << array_ty->getNumElements() << ']';
+		ty = array_ty->getElementType();
+	}
 	return out;
 }
 

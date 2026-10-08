@@ -1206,7 +1206,12 @@ static bool CreateShadow(llvm::Constant* initializer, std::string& varname) {
 }
 
 static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varname, unsigned sym_kind) {
-	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(varname, true);
+	bool allow_internal = true;
+	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & A_atomic)) {
+		sym_kind = (sym_kind | A_pub);
+		allow_internal = false;
+	}
+	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(varname, allow_internal);
 	if (!GV) {
 		GV = new llvm::GlobalVariable(*TheModule, type,
 		                              false, link_type(sym_kind),
@@ -1228,7 +1233,7 @@ llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& va
 		   since we use mangling for symbols from imported modules
 		*/
 		// errs() << "### global " << varname << " - " << llvm::format("%x", sym_kind) << "\n";
-		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind | A_pub);
+		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
 		*c_tls_defs
 			<< std::pair<std::string&,volvoxc::FullType*>{ varname, ft }
 			<< " = "
