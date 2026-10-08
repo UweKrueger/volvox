@@ -384,6 +384,10 @@ extern llvm::raw_ostream& operator<<(
 	llvm::raw_ostream& out,
 	std::pair<std::string&,volvoxc::FullType*> decl_type);
 
+extern llvm::raw_ostream& operator<<(
+	llvm::raw_ostream& out,
+	std::tuple<llvm::Constant*,volvoxc::FullType*,unsigned> val_type);
+
 extern std::unique_ptr<llvm::raw_fd_ostream> c_tls_defs;
 
 extern std::tuple<volvoxc::FullType*,volvoxc::FullType*,llvm::Type*> getKeyValueIteratorTypes(

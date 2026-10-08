@@ -1413,6 +1413,8 @@ static const char* getCTypeName(llvm::raw_ostream& out, volvoxc::FullType* ft) {
 			}
 		} else {
 			switch (ft->type->getIntegerBitWidth()) {
+			case 1:
+				return "bool";
 			case 8:
 				return "unsigned char";
 			case 16:
@@ -1473,6 +1475,80 @@ llvm::raw_ostream& operator<<(
 	std::pair<std::string&,volvoxc::FullType*> decl_type)
 {
 	const char* type_name = getCTypeName(out, decl_type.second);
-	out << "thread_local " << type_name << " " << decl_type.first;
+	out << "\nthread_local " << type_name << " " << decl_type.first;
+	return out;
+}
+
+llvm::raw_ostream& operator<<(
+	llvm::raw_ostream& out,
+	std::tuple<llvm::Constant*,volvoxc::FullType*,unsigned> val_type)
+{
+	unsigned indent = std::get<2>(val_type);
+	if (auto int_val = llvm::dyn_cast<llvm::ConstantInt>(std::get<0>(val_type))) {
+		unsigned bit_width = int_val->getBitWidth();
+		const char* prec;
+		switch (bit_width) {
+		case 64:
+			prec = "LL";
+			break;
+		default:
+			prec= "";
+		}
+		if (std::get<1>(val_type)->type_attr & A_signed)
+			out << int_val->getSExtValue() << prec;
+		else {
+			uint64_t val = int_val->getZExtValue();
+			if (bit_width == 1)
+				out << (val ? "true" : "false");
+			else
+				out << val << prec << 'U';
+		}
+	} else if (auto float_val = llvm::dyn_cast<llvm::ConstantFP>(std::get<0>(val_type))) {
+		out << llvm::format("%a", float_val->getValue().convertToDouble());
+	} else if (auto struct_val = llvm::dyn_cast<llvm::ConstantAggregate>(std::get<0>(val_type))) {
+		// errs() << "\n ### have struct or array: " << *struct_val << "\n";
+		bool is_struct = std::get<0>(val_type)->getType()->isStructTy();
+		unsigned n_elem = struct_val->getNumOperands();
+		out << "{\n";
+		indent++;
+		for (unsigned n=0; n<n_elem; n++) {
+			if(n)
+				out << ",\n";
+			for (int i=0; i<indent; i++)
+				out << '\t';
+			out << std::tuple<llvm::Constant*,volvoxc::FullType*,unsigned>{
+				struct_val->getOperand(n), is_struct
+				? std::get<1>(val_type)->fields_by_idx[n].getFt()
+				: std::get<1>(val_type)->elem_type, indent };
+		}
+		out << '\n';
+		indent--;
+		for (int i=0; i<indent; i++)
+			out << '\t';
+		out << '}';
+	} else if (auto struct_val = llvm::dyn_cast<llvm::ConstantDataSequential>(std::get<0>(val_type))) {
+		// errs() << "\n ### have sequiel: " << *struct_val << "\n";
+		unsigned n_elem = struct_val->getNumElements();
+				out << "{\n";
+		indent++;
+		for (unsigned n=0; n<n_elem; n++) {
+			if(n)
+				out << ",\n";
+			for (int i=0; i<indent; i++)
+				out << '\t';
+			out << std::tuple<llvm::Constant*,volvoxc::FullType*,unsigned>{
+				struct_val->getElementAsConstant(n), std::get<1>(val_type)->elem_type, indent };
+		}
+		out << '\n';
+		indent--;
+		for (int i=0; i<indent; i++)
+			out << '\t';
+		out << '}';
+	} else if (auto struct_val = llvm::dyn_cast<llvm::ConstantAggregateZero>(std::get<0>(val_type))) {
+		// errs() << "\n ### have zero: " << *struct_val << "\n";
+		out << "{0}";
+	} else {
+		errs() << "unsupported format " << *std::get<0>(val_type) << "\n";
+	}
 	return out;
 }

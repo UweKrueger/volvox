@@ -1228,9 +1228,11 @@ llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& va
 		   since we use mangling for symbols from imported modules
 		*/
 		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind | A_pub);
-		*c_tls_defs << '\n'
-		            << std::pair<std::string&,volvoxc::FullType*>{
-			varname, ft } << ";\n";
+		*c_tls_defs
+			<< std::pair<std::string&,volvoxc::FullType*>{ varname, ft }
+			<< " = "
+			<< std::tuple<llvm::Constant*,volvoxc::FullType*,unsigned>{ initializer, ft, 0 }
+			<< ";\n";
 	} else {
 		GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 		                                                    false, link_type(sym_kind), initializer, varname, nullptr,
