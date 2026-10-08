@@ -1220,13 +1220,14 @@ static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varn
 llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind) {
 	
 	llvm::GlobalVariable* GV;
-	if (target_mingw && comp_mode == comp_dbg) {
+	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & A_atomic)) {
 		/* On Windows debugging of TLS globals is currently only working
 		   with gcc+mingw+gdb. So we only create a reference here and
 		   let gcc later do the actual allocation. We have to force the
 		   global to be 'pub' for this to work, but that should be no problem
 		   since we use mangling for symbols from imported modules
 		*/
+		// errs() << "### global " << varname << " - " << llvm::format("%x", sym_kind) << "\n";
 		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind | A_pub);
 		*c_tls_defs
 			<< std::pair<std::string&,volvoxc::FullType*>{ varname, ft }
