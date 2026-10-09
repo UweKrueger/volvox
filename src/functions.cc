@@ -1761,6 +1761,15 @@ llvm::Value* CallExprAST::codegen_raw(llvm::Value* target) {
 }
 
 bool FunctionAST::prepare_codegen(bool is_main) {
+	if (needs_debug_reinit) {
+		DBuilder->finalize();
+		DBuilder = std::make_unique<llvm::DIBuilder>(*TheModule);
+		auto [ file, dir ] = getFileAndDir(Proto->retLoc.File);
+		KSDbgInfo.TheCU = DBuilder->createCompileUnit(
+			llvm::dwarf::DW_LANG_C, DBuilder->createFile(file, dir),
+			"Volvox Compiler", 0, "", 0);
+		needs_debug_reinit = false;
+	}
 	// Transfer ownership of the prototype to the lex.module->FunctionProtos map, but keep a
 	// reference to it for use below.
 	if ((Proto->visibility & (A_method | A_constructor)) && Proto->returnName.empty())

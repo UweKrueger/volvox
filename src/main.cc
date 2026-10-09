@@ -40,6 +40,7 @@ bool support_fp80 = false;
 bool target_big_endian = false;
 bool have_return = false;
 int return_value = 0;
+bool needs_debug_reinit = false; // for TLS globals, mingw
 #ifdef _WIN32
 bool target_mingw = true; // may be overwitten by "-msvc"
 #else

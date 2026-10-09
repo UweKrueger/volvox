@@ -1540,6 +1540,7 @@ struct DebugInfo {
 	void emitLocation(ExprAST *AST);
 };
 
+extern bool needs_debug_reinit;
 extern DebugInfo KSDbgInfo;
 extern FILE* builtin_input_file;
 extern std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigned sym_kind = 0);

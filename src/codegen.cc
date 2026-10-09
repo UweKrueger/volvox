@@ -1225,7 +1225,7 @@ static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varn
 llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind) {
 	
 	llvm::GlobalVariable* GV;
-	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & A_atomic)) {
+	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & (A_atomic | A_const))) {
 		/* On Windows debugging of TLS globals is currently only working
 		   with gcc+mingw+gdb. So we only create a reference here and
 		   let gcc later do the actual allocation. We have to force the
@@ -1484,11 +1484,15 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		if (expr->LHS->ft->ditype) {
 			if (GV) {
 				// Create a debug descriptor for the variable.
+				bool local_to_unit = !((sym_kind & A_pub) || (target_mingw && !(sym_kind & (A_atomic | A_const))));
 				auto D = DBuilder->createGlobalVariableExpression(
-					KSDbgInfo.TheCU, unmangled_name, varname, currentUnit, expr->Loc.Line, expr->LHS->ft->ditype, true);
+					KSDbgInfo.TheCU, unmangled_name, varname, currentUnit, expr->Loc.Line, expr->LHS->ft->ditype, local_to_unit);
 				GV->addDebugInfo(D);
-				if (sym_kind & A_pub)
+				if ((sym_kind & A_pub) || (target_mingw && !(sym_kind & (A_atomic | A_const))))
 					GV->setDSOLocal(true);
+				if (target_mingw && !(sym_kind & (A_atomic | A_const))) {
+					needs_debug_reinit = true;
+				}
 			}
 		} else
 			if (verbosity >= 2)
