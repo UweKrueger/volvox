@@ -2549,7 +2549,7 @@ int main(int argc, char* argv[]) {
 			 * 2. Windows native requires the "MSVC" typical syntax
 			 * 3. the mingw-w64 target should be supported on both - Windows and POSIX systems
 			 *    - on Windows as semi-native target using clang as link command,
-			 *    - on POSIX as cross compile target using x86_64-w64-mingw32-gcc as link command
+			 *    - on POSIX as cross compile target using x86_64-w64-mingw32-gcc as link command (not yet implemented)
 			 * 4. in principle the mingw-w64 target is similar to the POSIX case but there are some
 			 *    Windows specific flags like "-Wl,-stack,<size>"
 			 * 5. some of these cases can be handled by "#ifdef"s, others need run time "if"s
@@ -2557,19 +2557,29 @@ int main(int argc, char* argv[]) {
 			char* linker_exe = getenv("VOLVOX_LINKER");
 			if (target_mingw) {
 				if (!linker_exe) {
-					volvox_glob_t linker1 = volvox_glob(MINGW_W64_CLANG);
-					if (linker1.size)
-						linker_exe = const_cast<char*>(MINGW_W64_CLANG);
-					else {
-						errs() << MAGENTA << "No MINGW linker found (tried \"" << MINGW_W64_CLANG << "\"\n";
+					volvox_glob_t linker1 = (comp_mode == comp_dbg)
+						? volvox_glob(MINGW_W64_GCC)
+						: volvox_glob(MINGW_W64_CLANG);
+					if (linker1.size) {
+						linker_exe = const_cast<char*>(strdup(linker1.dirs[0]));
+					} else {
+						errs() << MAGENTA << "No MINGW linker found (tried \""
+						       << ((comp_mode == comp_dbg) ? MINGW_W64_GCC : MINGW_W64_CLANG)
+						       << "\"\n";
 						exit(1);
 					}
 				}
 #ifdef _WIN32
-				// TODO: support non-LTO
-				strlcat(libpath, (lto_mode == lto_thin) ? "\\lib\\volvox\\libvolvox.mingw.a" : "\\lib\\volvox\\libvolvox.mingw.a", lp_sz);
+				if (comp_mode == comp_dbg) {
+					strlcat(libpath, "\\lib\\volvox\\libvolvox.dbg.a", lp_sz);
+				} else
+					// TODO: support non-LTO
+					strlcat(libpath, (lto_mode == lto_thin) ? "\\lib\\volvox\\libvolvox.mingw.a" : "\\lib\\volvox\\libvolvox.mingw.a", lp_sz);
 #else
-				strlcat(libpath, (lto_mode == lto_thin) ? "/lib/volvox/libvolvox.mingw.a" : "/lib/volvox/libvolvox.mingw.a", lp_sz);
+				if (comp_mode == comp_dbg) {
+					strlcat(libpath, "/lib/volvox/libvolvox.dbg.a", lp_sz);
+				} else
+					strlcat(libpath, (lto_mode == lto_thin) ? "/lib/volvox/libvolvox.mingw.a" : "/lib/volvox/libvolvox.mingw.a", lp_sz);
 #endif
 			}
 #if defined(_WIN32)
@@ -2657,10 +2667,15 @@ int main(int argc, char* argv[]) {
 			for (auto& lib: extra_libs)
 				linker_argv.push_back(const_cast<char*>(lib.c_str()));
 			if (target_mingw) {
-				// for clang we must specify the target
-				linker_argv.push_back(const_cast<char*>("-target"));
-				linker_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
-				linker_argv.push_back(stack_size); // mingw on Windows or cross compiler (e.g. on Linux)
+				if (comp_mode == comp_dbg) { // We use gcc to link and add TLS var defs
+					linker_argv.push_back(const_cast<char*>("-g"));
+					linker_argv.push_back(const_cast<char*>("-std=c23"));
+				} else {
+					// for clang we must specify the target
+					linker_argv.push_back(const_cast<char*>("-target"));
+					linker_argv.push_back(const_cast<char*>("x86_64-pc-windows-gnu"));
+					linker_argv.push_back(stack_size); // mingw on Windows or cross compiler (e.g. on Linux)
+				}
 			}
 #ifdef _WIN32
 			else { // target msvc
@@ -2687,7 +2702,7 @@ int main(int argc, char* argv[]) {
 #endif
 				linker_argv.push_back(const_cast<char*>("-o"));
 				linker_argv.push_back(exe_file);
-				linker_argv.push_back(const_cast<char*>("-O2"));
+				linker_argv.push_back(const_cast<char*>((comp_mode == comp_dbg) ? "-O0" : "-O2"));
 #ifndef _WIN32
 				if (!target_mingw)
 					linker_argv.push_back(const_cast<char*>("-L"));
@@ -2719,6 +2734,8 @@ int main(int argc, char* argv[]) {
 #ifdef _WIN32
 			}
 #endif
+			if (c_tls_defs_c)
+				linker_argv.push_back(c_tls_defs_c);
 			linker_argv.push_back(nullptr);
 			if (verbosity)
 				print_cmd(linker_argv);
