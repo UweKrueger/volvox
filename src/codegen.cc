@@ -1207,7 +1207,7 @@ static bool CreateShadow(llvm::Constant* initializer, std::string& varname) {
 
 static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varname, unsigned sym_kind) {
 	bool allow_internal = true;
-	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & A_atomic)) {
+	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & (A_atomic | A_const))) {
 		sym_kind = (sym_kind | A_pub);
 		allow_internal = false;
 	}
