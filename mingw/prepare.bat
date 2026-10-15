@@ -2,14 +2,14 @@
 setlocal
 set LLVM_VER=23.1.3
 set MINGW_VER=v14.0.0
-set GCC_VER=16.1.0
+set GCC_VER=16.2.0
 set VOLVOX_VER=0.01
 
 set LLVM_FILE=clang+llvm-%LLVM_VER%-x86_64-pc-windows-msvc.tar.zst
 set LLVM_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%LLVM_VER%/%LLVM_FILE%
 set LLVM_MSI_FILE=LLVM-%LLVM_VER%-win64.msi
 set LLVM_MSI_URL=https://github.com/llvm/llvm-project/releases/download/llvmorg-%LLVM_VER%/%LLVM_MSI_FILE%
-set VOLVOX_FILE=/volvox-Windows-%VOLVOX_VER%.txz
+set VOLVOX_FILE=volvox-Windows-%VOLVOX_VER%.txz
 set VOLVOX_URL=https://github.com/UweKrueger/volvox/releases/download/v%VOLVOX_VER%/%VOLVOX_FILE%
 set GCC_FILE=gcc-%GCC_VER%-mingw-%MINGW_VER%-ucrt.txz
 set GCC_URL=https://github.com/UweKrueger/volvox/releases/download/v%VOLVOX_VER%/%GCC_FILE%
