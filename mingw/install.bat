@@ -10,7 +10,8 @@ set VOLVOX_VER=0.02
 set EXITCODE=0
 
 rem files that have been alredy downloaded by prepare.bat (as needed)
-set CLANGLLVMPKG=clang+llvm-%LLVM_VER%-x86_64-pc-windows-msvc.tar.zst
+set CLANGLLVM=clang+llvm-%LLVM_VER%-x86_64-pc-windows-msvc
+set CLANGLLVMPKG=%CLANGLLVM%.tar.zst
 set MINGWPKG=mingw-%MINGW_VER%-stdc++-%GCC_VER%-ucrt.txz
 set GCCPKG=gcc-%GCC_VER%-mingw-%MINGW_VER%-ucrt.txz
 set VOLVOXPKG=volvox-Windows-%VOLVOX_VER%.txz
@@ -167,10 +168,10 @@ echo please download from https://github.com/llvm/llvm-project/releases/
 exit /b 1
 
 :clangllvm_not_missing
-echo extracting llvm+clang to "C:\Program Files"
+echo extracting llvm+clang devel components to "C:\Program Files"
 rem Windows tar does not support zstd --max compressed files
 rem so use a pipe with zstd (from "C:\Program Files\LLVM\bin", see above)
-zstd -d --long=31 --stdout "%CLANGLLVMPKG%" | tar -x -J -f - -C "C:\Program Files\LLVM" --strip-components=1
+zstd -d --long=31 --stdout "%CLANGLLVMPKG%" | tar -x -f - -C "C:\Program Files\LLVM" --strip-components=1 %CLANGLLVM%/bin/llvm-config.exe %CLANGLLVM%/include/ %CLANGLLVM%/lib/LLVM[A-Z]*.lib %CLANGLLVM%/include/ %CLANGLLVM%/lib/LLVM[a-z]*.lib %CLANGLLVM%/lib/lld*.lib
 if ERRORLEVEL 1 exit /b %ERRORLEVEL%
 
 :end_clangllvm
