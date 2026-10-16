@@ -1082,7 +1082,7 @@ void PrepareTestFramework() {
 	FullVar fv = {
 		.ft = {
 			.type = llvm_bool_type,
-			.type_attr = A_mainvar | A_global
+			.type_attr = A_pub | A_mainvar | A_global
 		}
 	};
 	if (!lex.module->globals_table.insert(single_test_result_name.c_str(), fv)) {
@@ -1102,7 +1102,7 @@ void PrepareTestFramework() {
 		CurLoc, ":=",
 		std::move(std::make_unique<VariableExprAST>(CurLoc, collector_name)),
 		std::move(std::make_unique<LiteralExprAST>(Token(true))));
-	HandleGlobalVariable(std::move(collector_def), A_pub | A_global);
+	HandleGlobalVariable(std::move(collector_def), A_pub | A_mainvar | A_global);
 }
 
 void CallTestFunction(bool immediately = false) {
