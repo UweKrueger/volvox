@@ -168,11 +168,12 @@ echo please download from https://github.com/llvm/llvm-project/releases/
 exit /b 1
 
 :clangllvm_not_missing
-echo extracting llvm+clang devel components to "C:\Program Files"
+echo extracting llvm+clang devel components to "C:\Program Files" ...
 rem Windows tar does not support zstd --max compressed files
 rem so use a pipe with zstd (from "C:\Program Files\LLVM\bin", see above)
 zstd -d --long=31 --stdout "%CLANGLLVMPKG%" | tar -x -f - -C "C:\Program Files\LLVM" --strip-components=1 %CLANGLLVM%/bin/llvm-config.exe %CLANGLLVM%/include/ %CLANGLLVM%/lib/LLVM[A-Z]*.lib %CLANGLLVM%/include/ %CLANGLLVM%/lib/LLVM[a-z]*.lib %CLANGLLVM%/lib/lld*.lib
 if ERRORLEVEL 1 exit /b %ERRORLEVEL%
+echo ... done
 
 :end_clangllvm
 if not "%INSTALL_MINGW%"=="true" goto end_mingw
@@ -182,9 +183,11 @@ echo please run `prepare.bat` first
 exit /b 1
 
 :mingw_not_missing
-echo extracting MINGW to "C:\Program Files\LLVM"
+echo extracting MINGW to "C:\Program Files\LLVM" ...
 tar -x -z -f %MINGWPKG% -C "C:\Program Files\LLVM"
 if ERRORLEVEL 1 exit /b %ERRORLEVEL%
+echo ... done
+echo.
 echo setting often used LLVM binary utilities as default
 for %%F in (ar nm objdump ranlib size strings strip) do mklink "C:\Program Files\LLVM\bin\%%F.exe" llvm-%%F.exe
 mklink "C:\Program Files\LLVM\bin\cc.exe" clang.exe
@@ -199,9 +202,10 @@ echo please run `prepare.bat` first
 exit /b 1
 
 :gcc_not_missing
-echo extracting GCC+MINGW to "C:\Program Files\LLVM"
+echo extracting GCC+MINGW to "C:\Program Files\LLVM" ...
 tar -x -z -f %GCCPKG% -C "C:\Program Files\LLVM"
 if ERRORLEVEL 1 exit /b %ERRORLEVEL%
+echo ... done
 
 :end_gcc
 if not "%INSTALL_VOLVOX%"=="true" goto end_volvox
@@ -211,9 +215,10 @@ echo please run `prepare.bat` first
 exit /b 1
 
 :volvox_not_missing
-echo extracting Volvox compiler to "C:\Program Files\LLVM"
+echo extracting Volvox compiler to "C:\Program Files\LLVM" ...
 tar -x -z -f %VOLVOXPKG% -C "C:\Program Files\LLVM"
 if ERRORLEVEL 1 exit /b %ERRORLEVEL%
+echo ... all done
 
 :end_volvox
 exit /b 0
