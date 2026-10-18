@@ -147,7 +147,7 @@ x86_64-w64-mingw32-strip --strip-debug *.exe *.dll *.a
 cd $START_DIR/mingw-builds/install/native/x86_64-w64-mingw32/lib
 x86_64-w64-mingw32-strip --strip-debug *.a
 cd ../..
-bsdtar -cJf $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.txz bin include lib libexec share x86_64-w64-mingw32
+bsdtar -cf - bin include lib libexec share x86_64-w64-mingw32 | zstd --max - -o  $START_DIR/gcc-${GCC_V}-mingw-${MINGW_V}-ucrt.tar.zst
 rm -f bin/ld.exe
 mv -v include/c++/${GCC_V} x86_64-w64-mingw32/include/c++
 bsdtar -cJf $START_DIR/mingw-${MINGW_V}-stdc++-${GCC_V}-ucrt.txz bin/*.dll bin/ldd.exe bin/make.exe bin/gdb.exe x86_64-w64-mingw32 lib/*.a lib/*.la
