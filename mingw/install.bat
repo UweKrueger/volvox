@@ -160,7 +160,19 @@ copy %ZSTD_DLLLIB% ..\lib\volvox
 @echo off
 
 :end_z_install
+if not "%INSTALL_VOLVOX%"=="true" goto end_volvox
+if exist %VOLVOXPKG% goto volvox_not_missing
+echo package file "%VOLVOXPKG%" is missing
+echo please run `prepare.bat` first
+exit /b 1
 
+:volvox_not_missing
+echo extracting Volvox compiler to "C:\Program Files\LLVM" ...
+tar -x -z -f %VOLVOXPKG% -C "C:\Program Files\LLVM"
+if ERRORLEVEL 1 exit /b %ERRORLEVEL%
+echo ... all done
+
+:end_volvox
 if not "%INSTALL_CLANGLLVM%"=="true" goto end_clangllvm
 if exist "%CLANGLLVMPKG%" goto clangllvm_not_missing
 echo package file "%CLANGLLVMPKG%" is missing
@@ -203,24 +215,11 @@ exit /b 1
 
 :gcc_not_missing
 echo extracting GCC+MINGW to "C:\Program Files\LLVM" ...
-tar -x -z -f %GCCPKG% -C "C:\Program Files\LLVM"
+zstd -d --long=31 --stdout %GCCPKG% | tar -x -f - -C "C:\Program Files\LLVM"
 if ERRORLEVEL 1 exit /b %ERRORLEVEL%
 echo ... done
 
 :end_gcc
-if not "%INSTALL_VOLVOX%"=="true" goto end_volvox
-if exist %VOLVOXPKG% goto volvox_not_missing
-echo package file "%VOLVOXPKG%" is missing
-echo please run `prepare.bat` first
-exit /b 1
-
-:volvox_not_missing
-echo extracting Volvox compiler to "C:\Program Files\LLVM" ...
-tar -x -z -f %VOLVOXPKG% -C "C:\Program Files\LLVM"
-if ERRORLEVEL 1 exit /b %ERRORLEVEL%
-echo ... all done
-
-:end_volvox
 exit /b 0
 
 :opterr2
