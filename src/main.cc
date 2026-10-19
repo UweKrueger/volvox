@@ -2361,8 +2361,9 @@ int main(int argc, char* argv[]) {
 		// Add the current debug info version into the module.
 		TheModule->addModuleFlag(llvm::Module::Warning, "Debug Info Version",
 		                         llvm::DEBUG_METADATA_VERSION);
-		// Darwin only supports dwarf2.
-		if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin())
+		// Darwin and gdb on OpenBSD only support dwarf2.
+		if (llvm::Triple(llvm::sys::getProcessTriple()).isOSDarwin() ||
+		    llvm::Triple(llvm::sys::getProcessTriple()).isOSOpenBSD())
 			TheModule->addModuleFlag(llvm::Module::Warning, "Dwarf Version", 2);
 	  
 		// Construct the DIBuilder, we do this here because we need the module.
