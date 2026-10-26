@@ -528,14 +528,18 @@ llvm::Value* VariableExprAST::codegen_raw(llvm::Value* target) {
 		return full_var->val;
 	}
 	auto V = codegen_ref(false, true);
-	if (V.first && V.second && V.second->getType()->isPointerTy()) {
-		if (!target)
-			// suppress destructor call for variable value
-			target = suppress_destructor_flag;
-		// Load the value.
-		if (full_var->ft.type_attr & A_atomic)
-			return handle(target, CreateAtomicLoad(V.first, V.second, Name.c_str()), Loc, ft);
-		return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()), Loc, ft);
+	if (V.first && V.second) {
+		if (V.first->isFunctionTy())
+			return handle(target, V.second, Loc, ft);
+		if (V.second->getType()->isPointerTy()) {
+			if (!target)
+				// suppress destructor call for variable value
+				target = suppress_destructor_flag;
+			// Load the value.
+			if (full_var->ft.type_attr & A_atomic)
+				return handle(target, CreateAtomicLoad(V.first, V.second, Name.c_str()), Loc, ft);
+			return handle(target, Builder->CreateLoad(V.first, V.second, Name.c_str()), Loc, ft);
+		}
 	}
 	return nullptr;
 }
