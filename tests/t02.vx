@@ -73,6 +73,11 @@ def ppqhgt(x f64, y f64) f64
 	return c
 end
 
+def ppqhgt2(x f64, y f64) f64
+	c = x - y
+	return c
+end
+
 def ppqhgt(x f64, n int, y f64) f64
 	c = n*x + y
 	return c
@@ -80,10 +85,12 @@ end
 
 def test_function_reference_3 bool
 	&f2kkh5f = ppqhgt(real, int, real)
+	&wwer9op = ppqhgt2(0., 0.)
+	k0 = wwer9op(1.5, 3.0)
+	l = f2kkh5f(-0.75, 5, 3.125)
 	&wwer9op = ppqhgt(0., 0.)
 	k = wwer9op(1.5, 3.0)
-	l = f2kkh5f(-0.75, 5, 3.125)
-	return k == 6.75 && l == -0.625
+	return k0 == -1.5 && k == 6.75 && l == -0.625
 end
 
 def test_return_local_array bool

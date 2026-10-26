@@ -1549,10 +1549,12 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 				return { nullptr, new_var_none };
 			}
 			if ((VarL = dynamic_cast<VariableExprAST*>(RefL->Operand.get()))) {
-				if (VarL->full_var)
+				CallExprAST* call_expr = RHS ? dynamic_cast<CallExprAST*>((*RHS).get()) : nullptr;
+				if (!call_expr && VarL->full_var)
+					// call_expr mut first be converted to FunctionExprAST
 					return { VarL->full_var, existing_var_returned };
 				if (RHS) {
-					if (auto call_expr = dynamic_cast<CallExprAST*>((*RHS).get())) {
+					if (call_expr) {
 						// LHS is function pointer; signature of RHS will be used to select overloaded function
 						if (auto typeexpr = dynamic_cast<TypeExprAST*>(call_expr->Callee.get())) {
 							errs() << LHS->Loc << ": references to constructors or conversions not allowed ('" << typeexpr->Name << "' is a type)\n";
@@ -1566,6 +1568,8 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 							errs() << (*RHS)->Loc << ": unable to get function reference\n";
 							return { nullptr, new_var_none };
 						}
+						if (VarL->full_var)
+							return { VarL->full_var, existing_var_returned };
 						RHS_type = (*RHS)->ft->type;
 						RHS_attr = 0;
 						RHS_is_unknown_type = false;
@@ -2274,11 +2278,19 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 				}
 			}
 		}
-		auto res_t = (is_decl || BinOp == ",")
-			? std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*>{
-			is_decl ? nullptr : llvm::Type::getVoidTy(Context), 0, false, is_decl ? OpDeclAssign : getOpClass(BinOp.c_str()), nullptr }
-			: getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
-			             LHS_is_unknown_type, RHS_is_unknown_type);
+		auto l_ref = dynamic_cast<ReferenceExprAST*>(LHS.get());
+		auto r_func = dynamic_cast<FunctionExprAST*>(RHS.get());
+		std::tuple<llvm::Type*, unsigned, bool, OpClass, const char*> res_t =
+			{ nullptr, 0, false, is_decl ? OpDeclAssign : getOpClass(BinOp.c_str()), nullptr };
+		if (!is_decl) {
+			if (l_ref && r_func && BinOp == "=")
+				std::get<0>(res_t) = llvm_ptr_type;
+			else if (BinOp == ",")
+				std::get<0>(res_t) = llvm::Type::getVoidTy(Context);
+			else
+				res_t = getResType(LHS_type, RHS_type, BinOp.c_str(), LHS_attr, RHS_attr,
+				                   LHS_is_unknown_type, RHS_is_unknown_type);
+		}
 		if (!std::get<0>(res_t) && BinOp == ":") {
 			std::get<0>(res_t) = llvm::Type::getVoidTy(Context);
 			std::get<4>(res_t) = nullptr;
