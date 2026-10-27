@@ -31,19 +31,19 @@ ifeq ($(shell test -x /usr/local/bin/llvm-config22 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := 22
 else
+ifeq ($(shell test -x /usr/local/bin/llvm-config-23 && echo -n true),true)
+	PREFIX := /usr/local
+	SUFFIX := -23
+	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm23/lib -lreadline -rdynamic
+# readline on OpenBSD is GPLv2 - if you want a pure non-GPL build you can
+# use (a very old) libedit by using the following line and adding
+# "-DMONOCHROME_PROMPT=1" to CPPEXTRAFLAGS below
+#	LINKEXTRAFLAGS := $(LINKEXTRAFLAGS) -ledit
+else
 ifeq ($(shell test -x /usr/local/bin/llvm-config-22 && echo -n true),true)
 	PREFIX := /usr/local
 	SUFFIX := -22
 	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm22/lib -lreadline -rdynamic
-else
-ifeq ($(shell test -x /usr/local/bin/llvm-config-21 && echo -n true),true)
-	PREFIX := /usr/local
-	SUFFIX := -21
-	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm21/lib -lreadline -rdynamic
-# readline on OpenBSD is GPLv2 - if you want a pure non-GPL build you can
-# use (a very old) libedit by using the following line and adding
-# "-DMONOCHROME_PROMPT=1" to CPPEXTRAFLAGS below 
-#	LINKEXTRAFLAGS := -Wl,-rpath,/usr/local/llvm21/lib -ledit
 else
 ifeq ($(shell test -x /usr/bin/llvm-config-22 && echo -n true),true)
 	SUFFIX := -22
