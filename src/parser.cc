@@ -2072,6 +2072,9 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			return nullptr;
 		int next_precedence = NextTokPrecedence();
 		if (next_precedence <= ExprPrec) {
+			if (auto binexpr = dynamic_cast<BinaryExprAST*>(LHS.get())) {
+				return LHS;
+			}
 			if (LHS->ft->type && (LHS->ft->type->isFunctionTy() ||
 			                      LHS->ft->type == llvm_closure_type || dynamic_cast<TypeExprAST*>(LHS.get())) && (ExprPrec >> 8) != -(int)tok_ref)
 				// function call without argument, e.g. "abort"
@@ -2284,7 +2287,7 @@ static std::unique_ptr<ExprAST> ParseBinOpRHS(int ExprPrec, std::unique_ptr<Expr
 			{ nullptr, 0, false, is_decl ? OpDeclAssign : getOpClass(BinOp.c_str()), nullptr };
 		if (!is_decl) {
 			if (l_ref && r_func && BinOp == "=")
-				std::get<0>(res_t) = llvm_ptr_type;
+				std::get<0>(res_t) = llvm_closure_type;
 			else if (BinOp == ",")
 				std::get<0>(res_t) = llvm::Type::getVoidTy(Context);
 			else
