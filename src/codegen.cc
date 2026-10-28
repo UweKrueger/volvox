@@ -1454,6 +1454,8 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
 			else
 				GV = CreateGlobal(initializer, varname, expr->RHS->ft, sym_kind);
+			if (expr->RHS->ft->type->isFunctionTy())
+				fv->val = GV;
 			fv->storage_type = initializer->getType();
 		}
 	} else {
@@ -2031,7 +2033,7 @@ std::pair<llvm::Type*,llvm::Value*> BinaryExprAST::codegen_ref_(bool silent_fail
 			full_var->val = StoreReference(ty_ref.second, varname);
 			return { llvm::Type::getVoidTy(Context), llvm::UndefValue::get(llvm::Type::getVoidTy(Context)) };
 		} else {
-			if (!full_var) {
+			if (!full_var || !full_var->val) {
 				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 				return { nullptr, nullptr };
 			}

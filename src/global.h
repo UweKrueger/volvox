@@ -705,21 +705,19 @@ public:
 };
 
 struct FullVar {
-	//union {
-		// Function local "stack" variables store the address in 'val'.
-		//
-		llvm::Value* val = nullptr;
+	// Function local "stack" variables store the address in 'val'.
+	//
+	llvm::Value* val = nullptr;
 
-		// For global variables the address changes from run to run in
-		// interactive JIT mode. So we have to lookup them in LLVM
-		// each time. On the other hand the declared llvm::Type of
-		// variable-sized arrays is zero-sized so it's handy to store
-		// the "real" storage type/size here. This, however is only
-		// possible in interactive JIT-mode since otherwise we would not
-		// know the size at "compile time".
-		//
-		llvm::Type* storage_type = nullptr;
-	//};
+	// For global variables the address changes from run to run in
+	// interactive JIT mode. So we have to lookup them in LLVM
+	// each time. On the other hand the declared llvm::Type of
+	// variable-sized arrays is zero-sized so it's handy to store
+	// the "real" storage type/size here. This, however is only
+	// possible in interactive JIT-mode since otherwise we would not
+	// know the size at "compile time".
+	//
+	llvm::Type* storage_type = nullptr;
 	llvm::Value* valid_flag = nullptr;
 	union {
 		// global variables need a mangled name for C++-compatible linkage

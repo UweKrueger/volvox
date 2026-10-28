@@ -93,6 +93,15 @@ def test_function_reference_3 bool
 	return k0 == -1.5 && k == 6.75 && l == -0.625
 end
 
+global &jheedg := ppqhgt(real, real)
+
+def test_function_reference_4 bool
+	k0 = jheedg(1.5, 3.0)
+	&jheedg = ppqhgt2(0., 0.)
+	k = jheedg(1.5, 3.0)
+	return k == -1.5 && k0 == 6.75
+end
+
 def test_return_local_array bool
 	z = v
 	return z[0] == 3 && z[4] == -1074
