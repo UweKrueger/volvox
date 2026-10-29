@@ -1040,6 +1040,7 @@ extern void InsertDestructors(std::vector<FullVar>& t);
 extern llvm::Value* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind);
 extern bool jit_repl;
 extern bool jit_extra_thread;
+extern bool jit_needs_shadows;
 
 inline static void InsertArrayDestructor(FullVar* fv, llvm::Value* val, llvm::Instruction* before) {
 	InsertArrayConDestructor(fv->ft.type, fv->ft.elem_type, val, before);

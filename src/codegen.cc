@@ -1640,7 +1640,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			// interactive JIT mode - immediately call constructor from setter function
 			Builder->CreateCall(C, { GV });
 		}
-		if (jit_extra_thread && (sym_kind & A_global)) {
+		if (jit_needs_shadows && jit_extra_thread && (sym_kind & A_global)) {
 			auto V = GetShadowHandle(initializer, varname);
 			// auto Vval = Builder->CreateLoad(initializer->getType(), GV);
 			auto align = getAlignment((size_t)(TheModule->getDataLayout().getTypeStoreSize(initializer->getType())));
@@ -1648,7 +1648,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			Builder->CreateAlignedStore(Vval, V, align, false);
 		}
 		InsertDestructors(expr_temps);
-		if (jit_extra_thread && last_shadow_saver) {
+		if (jit_needs_shadows && jit_extra_thread && last_shadow_saver) {
 			auto last_saver_proto = (*lex.findProtos(last_shadow_saver))[0].get();
 			auto last_saver = getFunction(last_saver_proto);
 			Builder->CreateCall(last_saver_proto->FT, last_saver, std::vector<llvm::Value*>());
@@ -1667,7 +1667,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		// by the resource tracker
 		if (initializer && needs_call)
 			GV = CreateGlobal(initializer, varname, expr->RHS->ft, sym_kind);
-		if (jit_extra_thread && (sym_kind & A_global) && needs_call)
+		if (jit_needs_shadows && jit_extra_thread && (sym_kind & A_global) && needs_call)
 			shadow_already_created = CreateShadow(initializer, varname);
 		finishFunctionOrModule();
 		// Search the JIT for the <setter_name> symbol.
@@ -1700,7 +1700,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		RegisterThreadConstructor(varname, &fv->ft, sym_kind);
 	if (fv->ft.type_attr & A_destructor)
 		RegisterThreadDestructor(varname, &fv->ft, sym_kind);
-	if (jit_extra_thread && (sym_kind & A_global))
+	if (jit_needs_shadows && jit_extra_thread && (sym_kind & A_global))
 		RegisterShadowHandlers(initializer, varname, shadow_already_created);
 	return nullptr;
 }

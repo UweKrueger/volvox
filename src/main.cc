@@ -1596,6 +1596,7 @@ unsigned dump_IR = 0;
 bool do_test = false;
 bool jit_repl = false;
 bool jit_extra_thread = false;
+bool jit_needs_shadows = true;
 bool gen_pic = false;
 bool gen_pie = false;
 bool run_program = false;
