@@ -609,15 +609,19 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 			return { nullptr, nullptr };
 		}
 		storage_type = full_var->storage_type;
+		auto used_tls_model = tls_model(full_var->ft.type_attr);
 		llvm::GlobalVariable* GV = TheModule->getGlobalVariable(full_var->mangled_name, true);
 		if (!GV)
 			GV = new llvm::GlobalVariable(*TheModule, full_var->storage_type,
 			                             false, link_type(full_var->ft.type_attr),
 			                             nullptr, full_var->mangled_name, nullptr,
-			                             tls_model(full_var->ft.type_attr),
+			                             used_tls_model,
 			                             0, true);
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(full_var->storage_type));
-		V = GV;
+		if (used_tls_model != llvm::GlobalVariable::NotThreadLocal)
+			V = Builder->CreateThreadLocalAddress(GV);
+		else
+			V = GV;
 	} else {
 		V = full_var->val;
 		storage_type = ft->type; // full_var.first->val->getType() - deprecated;
@@ -1209,26 +1213,29 @@ static bool CreateShadow(llvm::Constant* initializer, std::string& varname) {
 	return true;
 }
 
-static llvm::GlobalVariable* GetGlobalHandle(llvm::Type* type, std::string& varname, unsigned sym_kind) {
+static llvm::Value* GetGlobalHandle(llvm::Type* type, std::string& varname, unsigned sym_kind) {
 	bool allow_internal = true;
 	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & (A_atomic | A_const))) {
 		sym_kind = (sym_kind | A_pub);
 		allow_internal = false;
 	}
+	auto used_tls_model = tls_model(sym_kind);
 	llvm::GlobalVariable* GV = TheModule->getGlobalVariable(varname, allow_internal);
 	if (!GV) {
 		GV = new llvm::GlobalVariable(*TheModule, type,
 		                              false, link_type(sym_kind),
 		                              nullptr, varname, nullptr,
-		                              tls_model(sym_kind), 0, true);
+		                              used_tls_model, 0, true);
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(type));
 	}
-	return GV;
+	if (used_tls_model != llvm::GlobalVariable::NotThreadLocal)
+		return Builder->CreateThreadLocalAddress(GV);
+	else
+		return GV;
 }
 
-llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind) {
-	
-	llvm::GlobalVariable* GV;
+llvm::Value* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind)
+{
 	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & (A_atomic | A_const))) {
 		/* On Windows debugging of TLS globals is currently only working
 		   with gcc+mingw+gdb. So we only create a reference here and
@@ -1237,19 +1244,21 @@ llvm::GlobalVariable* CreateGlobal(llvm::Constant* initializer,  std::string& va
 		   since we use mangling for symbols from imported modules
 		*/
 		// errs() << "### global " << varname << " - " << llvm::format("%x", sym_kind) << "\n";
-		GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
+		llvm::Value* GV = GetGlobalHandle(initializer->getType(), varname, sym_kind);
 		*c_tls_defs
 			<< std::pair<std::string&,volvoxc::FullType*>{ varname, ft }
 			<< " = "
 			<< std::tuple<llvm::Constant*,volvoxc::FullType*,unsigned>{ initializer, ft, 0 }
 			<< ";\n";
+		return GV;
 	} else {
-		GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
+		auto used_tls_model = tls_model(sym_kind);
+		llvm::GlobalVariable* GV = new llvm::GlobalVariable(*TheModule, initializer->getType(),
 		                                                    false, link_type(sym_kind), initializer, varname, nullptr,
-		                                                    tls_model(sym_kind), 0, false);
+		                                                    used_tls_model, 0, false);
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(initializer->getType()));
+		return GV;
 	}
-	return GV;
 }
 
 static std::pair<llvm::Type*,llvm::Value*> GetReference(ExprAST* RHS, FullVar*& is_referencing) {
@@ -1430,7 +1439,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 			return cleanupGlobal(tmpf, unmangled_name.c_str(), &varname);
 		}
 	}
-	llvm::GlobalVariable* GV;
+	llvm::Value* GV;
 	if (initializer && !LREF)
 		if (auto array_type = llvm::dyn_cast<llvm::ArrayType>(expr->RHS->ft->type))
 			if (auto ini_array_type = llvm::dyn_cast<llvm::ArrayType>(initializer->getType()))
@@ -1488,14 +1497,14 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 		fv->mark_as_referencing(is_referencing);
 	if (comp_mode == comp_dbg && currentUnit && currentSP && !needs_call) {
 		if (expr->LHS->ft->ditype) {
-			if (GV) {
+			if (llvm::GlobalVariable* _GV = GV ? llvm::dyn_cast<llvm::GlobalVariable>(GV) : nullptr) {
 				// Create a debug descriptor for the variable.
 				bool local_to_unit = !((sym_kind & A_pub) || (target_mingw && !(sym_kind & (A_atomic | A_const))));
 				auto D = DBuilder->createGlobalVariableExpression(
 					KSDbgInfo.TheCU, unmangled_name, varname, currentUnit, expr->Loc.Line, expr->LHS->ft->ditype, local_to_unit);
-				GV->addDebugInfo(D);
+				_GV->addDebugInfo(D);
 				if ((sym_kind & A_pub) || (target_mingw && !(sym_kind & (A_atomic | A_const))))
-					GV->setDSOLocal(true);
+					_GV->setDSOLocal(true);
 				if (target_mingw && !(sym_kind & (A_atomic | A_const))) {
 					needs_debug_reinit = true;
 				}

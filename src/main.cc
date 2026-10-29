@@ -501,6 +501,7 @@ void InitializeModuleAndPassManager() {
 		if (gen_pie)
 			TheModule->setPIELevel(llvm::PIELevel::Large);
 	}
+	TheModule->addModuleFlag(llvm::Module::Override, "cf-protection-branch", 1);
 	static bool already_run = false;
 	// Create a new builder for the module.
 	if (!already_run) {
@@ -2395,14 +2396,15 @@ int main(int argc, char* argv[]) {
 				errs() << "invalid output file name '" << output_file << "'\n";
 				abort();
 			}
-			c_tls_defs_c = (char*)malloc(l0 + 10);
-			c_tls_defs_o = (char*)malloc(l0 + 10);
+			size_t defs_buf_sz = l0 + 10;
+			c_tls_defs_c = (char*)malloc(defs_buf_sz);
+			c_tls_defs_o = (char*)malloc(defs_buf_sz);
 			c_tls_defs_c[0] = '_';
 			c_tls_defs_o[0] = '_';
 			memcpy(c_tls_defs_c + 1, output_file, l0);
 			memcpy(c_tls_defs_o + 1, output_file, l0);
-			strcpy(c_tls_defs_c + l0 + 1, "_tls.c");
-			strcpy(c_tls_defs_o + l0 + 1, "_tls.o");
+			strlcpy(c_tls_defs_c + l0 + 1, "_tls.c", defs_buf_sz - l0 - 1);
+			strlcpy(c_tls_defs_o + l0 + 1, "_tls.o", defs_buf_sz - l0 - 1);
 			std::error_code EC;
 			c_tls_defs = std::make_unique<llvm::raw_fd_ostream>(
 				c_tls_defs_c, EC, llvm::sys::fs::CD_CreateAlways);

@@ -168,12 +168,13 @@ static ssize_t fdgetline(char **lineptr, size_t *n) {
 void delete_indent_from_previous_line(int n) {
 	if (lex.input_file != stdin)
 		return;
-	char buf[32];
+#define DEL_INDENT_BUF_SZ 32
+	char buf[DEL_INDENT_BUF_SZ];
 	if (n > prompt_indent)
 		n = prompt_indent;
 	if (n <= 0)
 		return;
-	sprintf(buf, "\e[A\e[6C\e[%uP\e[1B\e[G", 4*n);
+	snprintf(buf, DEL_INDENT_BUF_SZ, "\e[A\e[6C\e[%uP\e[1B\e[G", 4*n);
 	size_t l = strlen(buf);
 	write(1, buf, l);
 	if (!REPL_Lines.empty())
