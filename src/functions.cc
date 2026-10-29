@@ -960,6 +960,8 @@ llvm::Value* FunctionExprAST::codegen_raw(llvm::Value* target) {
 }
 
 std::pair<llvm::Type*,llvm::Value*> FunctionExprAST::codegen_ref_(bool silent_fail, bool constref) {
+	if (auto lval = dynamic_cast<LvalueExprAST*>(Callee.get()))
+		return lval->codegen_ref();
 	auto the_func = codegen_raw();
 	auto ref_struct_ty = llvm::cast<llvm::StructType>(llvm_closure_type);
 	llvm::Value* ref_val = llvm::UndefValue::get(ref_struct_ty);

@@ -494,7 +494,7 @@ public:
 class FunctionExprAST : public ReferencableExprAST {
 
 public:
-	std::unique_ptr<ExprAST> Exponent = nullptr;
+	std::unique_ptr<ExprAST> Callee = nullptr;
 	std::unique_ptr<FunctionAST> Func = nullptr;
 	bool need_address = false; // for JIT repl - trigger codegen if function reference is desired
 	FunctionExprAST(SourceLocation Loc, const std::string &Name, std::vector<std::unique_ptr<PrototypeAST>>* Protos, int selected_proto = 0)
@@ -504,8 +504,9 @@ public:
 		ft->Protos = Protos;
 	}
 	// function references are created by a pseudo call expression (to be able to match the signature)
-	FunctionExprAST(CallExprAST* call)
-		: ReferencableExprAST(*call->Callee, call->Proto->Name), need_address(true) {
+	FunctionExprAST(std::unique_ptr<CallExprAST> call)
+		: ReferencableExprAST(Loc, call->Proto->Name), need_address(true),
+		  Callee(std::move(call->Callee)) {
 		ft = new_FullType(call->Proto->FT, 0);
 		ft->Protos = new_AnonProto(call->Proto, call->Loc);
 	}

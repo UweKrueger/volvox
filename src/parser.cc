@@ -1573,7 +1573,9 @@ static std::pair<FullVar*,new_var_kind> DeclareNewVariable(
 							errs() << LHS->Loc << ": references to methods not allowed ('" << method->Method->Name << "' is a method of type '" << *method->Receiver->ft << "')\n";
 							return { nullptr, new_var_none };
 						}
-						*RHS = std::make_unique<FunctionExprAST>(call_expr);
+						auto call_ptr = std::unique_ptr<CallExprAST>(call_expr);
+						RHS->release();
+						*RHS = std::make_unique<FunctionExprAST>(std::move(call_ptr));
 						if (!(*RHS)->ft) {
 							errs() << (*RHS)->Loc << ": unable to get function reference\n";
 							return { nullptr, new_var_none };
