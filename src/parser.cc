@@ -1206,15 +1206,25 @@ void get_destruct_vars_main(std::map<std::string,FullVar*>& destr_vars) {
 				if (!mangled_name) {
 					mangled_name = key.c_str();
 				}
+				auto used_tls_model = tls_model(fullV->ft.type_attr);
 				llvm::GlobalVariable* GV = TheModule->getGlobalVariable(mangled_name, true);
 				if (!GV)
 					GV = new llvm::GlobalVariable(*TheModule, fullV->storage_type,
 					                              false, link_type(fullV->ft.type_attr),
 					                              nullptr, mangled_name, nullptr,
-					                              tls_model(fullV->ft.type_attr),
+					                              used_tls_model,
 					                              0, true);
-				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(fullV->storage_type));
-				fullV->val = GV;
+				auto align = TheModule->getDataLayout().getPrefTypeAlign(fullV->storage_type);
+				GV->setAlignment(align);
+				if (used_tls_model != llvm::GlobalVariable::NotThreadLocal) {
+					// llvm::CallInst *CI = Builder->CreateIntrinsicWithoutFolding(
+					// 	llvm::Intrinsic::threadlocal_address, {GV->getType()}, {GV});
+					// CI->addParamAttr(0, llvm::Attribute::getWithAlignment(Context, align));
+					// CI->addRetAttr(llvm::Attribute::getWithAlignment(Context, align));
+					fullV->val = GV;
+					// fullV->val = Builder->CreateThreadLocalAddress(GV);
+				} else
+					fullV->val = GV;
 			}
 			destr_vars.insert({ std::move(key), fullV });
 		}

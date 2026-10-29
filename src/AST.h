@@ -375,7 +375,10 @@ public:
 	const std::string &getName() const { return Name; }
 	VariableExprAST* getBase() override { return this; }
 	// create reference to this variable - second result is the storage_type
-	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override;
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail = false, bool constref = false) override {
+		return codegen_ref_(silent_fail, constref, false);
+	}
+	std::pair<llvm::Type*,llvm::Value*> codegen_ref_(bool silent_fail, bool constref, bool deep_ref);
 	llvm::Value* codegen_raw(llvm::Value* target = nullptr) override;
 	llvm::Value* codegen(bool suppress_destructor = false, bool suppress_constructor = false) override;
 #ifndef NDEBUG

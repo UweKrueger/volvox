@@ -575,7 +575,7 @@ llvm::Value* VariableExprAST::codegen(bool suppress_destructor, bool suppress_co
 	return convert_raw(rawV);
 }
 
-std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fail, bool constref) {
+std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fail, bool constref, bool deep_ref) {
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
@@ -602,7 +602,12 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 	}
 	llvm::Value* V;
 	llvm::Type* storage_type;
-	if ((full_var->ft.type_attr & A_globally_visible) || (full_var->ft.type_attr & A_mainvar) && jit_repl && !(llvm::isa<llvm::ArrayType>(full_var->ft.type) && (!full_var->ft.type->isSized() || TheModule->getDataLayout().getTypeAllocSize(full_var->ft.type) == 0))) {
+	if ((full_var->ft.type_attr & A_globally_visible) ||
+	    (full_var->ft.type_attr & A_mainvar) && jit_repl && !(
+		    llvm::isa<llvm::ArrayType>(full_var->ft.type) &&
+		    (!full_var->ft.type->isSized() ||
+		     TheModule->getDataLayout().getTypeAllocSize(full_var->ft.type) == 0)))
+	{
 		// global variable or main var in interactive JIT
 		if (!full_var->mangled_name) {
 			errs() << Loc << ": no mangled name for " << Name << '\n';
@@ -631,7 +636,7 @@ std::pair<llvm::Type*,llvm::Value*> VariableExprAST::codegen_ref_(bool silent_fa
 	if (comp_mode == comp_dbg) {
 		KSDbgInfo.emitLocation(this);
 	}
-	if (full_var->ft.type_attr & A_ptrref) {
+	if ((full_var->ft.type_attr & A_ptrref) && !deep_ref) {
 		auto the_ref = Builder->CreateLoad(storage_type, V);
 		return { full_var->ft.type, the_ref };
 	}
@@ -2046,8 +2051,13 @@ std::pair<llvm::Type*,llvm::Value*> BinaryExprAST::codegen_ref_(bool silent_fail
 				errs() << LHS->Loc << ": internal error - '" << varname << "' has an inconsistent state\n";
 				return { nullptr, nullptr };
 			}
-			llvm::Value* old_ref = Builder->CreateLoad(ty_ref.second->getType(), full_var->val);
-			Builder->CreateStore(ty_ref.second, full_var->val);
+			auto refptr = Var->codegen_ref_(false, false, true);
+			if (!refptr.first || !refptr.second) {
+				errs() << LREF->Loc << ": cannot generate reference\n";
+				return { nullptr, nullptr };
+			}
+			llvm::Value* old_ref = Builder->CreateLoad(ty_ref.second->getType(), refptr.second);
+			Builder->CreateStore(ty_ref.second, refptr.second);
 			return { full_var->ft.type, old_ref };
 		}
 	} else {
@@ -3507,14 +3517,18 @@ bool ForExprAST::PrepareIterator() {
 					}
 					// storage_type = ValueFV->storage_type;
 					llvm::GlobalVariable* GV = TheModule->getGlobalVariable(ValueFV->mangled_name, true);
+					auto used_tls_model = tls_model(ValueFV->ft.type_attr);
 					if (!GV)
 						GV = new llvm::GlobalVariable(*TheModule, ValueFV->storage_type,
 						                              false, link_type(ValueFV->ft.type_attr),
 						                              nullptr, ValueFV->mangled_name, nullptr,
-						                              tls_model(ValueFV->ft.type_attr),
+						                              used_tls_model,
 						                              0, true);
 					GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(ValueFV->storage_type));
-					ValueRef = GV;
+					if (used_tls_model != llvm::GlobalVariable::NotThreadLocal)
+						ValueRef = Builder->CreateThreadLocalAddress(GV);
+					else
+						ValueRef = GV;
 				} else {
 					ValueRef = ValueFV->val; // = CreateAlloca(Step, align);
 				}
@@ -3561,15 +3575,19 @@ bool ForExprAST::PrepareIterator() {
 					return false;
 				}
 				// storage_type = ValueFV->storage_type;
+				auto used_tls_model = tls_model(ValueFV->ft.type_attr);
 				llvm::GlobalVariable* GV = TheModule->getGlobalVariable(ValueFV->mangled_name, true);
 				if (!GV)
 					GV = new llvm::GlobalVariable(*TheModule, ValueFV->storage_type,
 					                              false, link_type(ValueFV->ft.type_attr),
 					                              nullptr, ValueFV->mangled_name, nullptr,
-					                              tls_model(ValueFV->ft.type_attr),
+					                              used_tls_model,
 					                              0, true);
 				GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(ValueFV->storage_type));
-				ValueRef = GV;
+				if (used_tls_model != llvm::GlobalVariable::NotThreadLocal)
+					ValueRef = Builder->CreateThreadLocalAddress(GV);
+				else
+					ValueRef = GV;
 			} else {
 				ValueRef = ValueFV->val; // = CreateAlloca(Step, align);
 			}

@@ -163,15 +163,19 @@ void InsertDestructor(FullVar* fv, llvm::Instruction* before) {
 			errs() << "Global Destructors: no mangled name for variable declared at " << fv->decl_loc << "\n";
 			return;
 		}
+		auto used_tls_model = tls_model(fv->ft.type_attr);
 		V = TheModule->getGlobalVariable(fv->mangled_name, true);
 		if (!V) {
 			auto GV = new llvm::GlobalVariable(*TheModule, fv->storage_type,
 			                                   false, link_type(fv->ft.type_attr),
 			                                   nullptr, fv->mangled_name, nullptr,
-			                                   tls_model(fv->ft.type_attr),
+			                                   used_tls_model,
 			                                   0, true);
 			GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(fv->storage_type));
-			V = GV;
+			if (used_tls_model != llvm::GlobalVariable::NotThreadLocal)
+				V = Builder->CreateThreadLocalAddress(GV);
+			else
+				V = GV;
 		}
 	} else {
 		V = fv->val;
