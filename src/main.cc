@@ -61,6 +61,9 @@ std::unique_ptr<FunctionAST> MainFunction = nullptr;
 CPU_Type_t cpu_idx;
 OS_Type_t os_idx;
 Environment_Type_t environment_idx;
+#if LLVM_VERSION_MAJOR >= 21
+static llvm::Triple Triple;
+#endif
 signalhandler_t old_abort = nullptr;
 signalhandler_t old_flt = nullptr;
 signalhandler_t old_intr = nullptr;
@@ -501,7 +504,12 @@ void InitializeModuleAndPassManager() {
 		if (gen_pie)
 			TheModule->setPIELevel(llvm::PIELevel::Large);
 	}
-	TheModule->addModuleFlag(llvm::Module::Override, "cf-protection-branch", 1);
+#if LLVM_VERSION_MAJOR >= 21
+	if (Triple.getOS() == llvm::Triple::OpenBSD)
+		TheModule->addModuleFlag(llvm::Module::Override, "cf-protection-branch", 1);
+	else if (Triple.getEnvironment() == llvm::Triple::MSVC)
+		TheModule->addModuleFlag(llvm::Module::Override, "CodeView", 1);
+#endif
 	static bool already_run = false;
 	// Create a new builder for the module.
 	if (!already_run) {
@@ -2266,7 +2274,7 @@ int main(int argc, char* argv[]) {
 	else
 		TripleStr = llvm::sys::getDefaultTargetTriple();
 #if LLVM_VERSION_MAJOR >= 21
-	auto Triple = llvm::Triple(TripleStr);
+	Triple = llvm::Triple(TripleStr);
 #endif
 	if (strstr(TripleStr.c_str(), "-alpine-"))
 		gen_pie = true;
