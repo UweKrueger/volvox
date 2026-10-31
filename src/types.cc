@@ -1535,10 +1535,18 @@ llvm::raw_ostream& operator<<(
 				out << ",\n";
 			for (int i=0; i<indent; i++)
 				out << '\t';
+			llvm::Constant* operand = struct_val->getOperand(n);
+			volvoxc::FullType* val_t = std::get<1>(val_type);
+			volvoxc::FullType* field_ft;
+			if (val_t->type->isFunctionTy())
+				// closure, i.e. struct of two pointers - does not work, yet
+				field_ft = voidptr_type;
+			else if (is_struct)
+				field_ft = val_t->fields_by_idx[n].getFt();
+			else
+				field_ft = val_t->elem_type;
 			out << std::tuple<llvm::Constant*,volvoxc::FullType*,unsigned>{
-				struct_val->getOperand(n), is_struct
-				? std::get<1>(val_type)->fields_by_idx[n].getFt()
-				: std::get<1>(val_type)->elem_type, indent };
+				operand, field_ft, indent };
 		}
 		out << '\n';
 		indent--;

@@ -1233,7 +1233,7 @@ static llvm::Value* GetGlobalHandle(llvm::Type* type, std::string& varname, unsi
 		                              used_tls_model, 0, true);
 		GV->setAlignment(TheModule->getDataLayout().getPrefTypeAlign(type));
 	}
-	if (used_tls_model != llvm::GlobalVariable::NotThreadLocal)
+	if (!target_mingw && used_tls_model != llvm::GlobalVariable::NotThreadLocal)
 		return Builder->CreateThreadLocalAddress(GV);
 	else
 		return GV;
@@ -1241,7 +1241,9 @@ static llvm::Value* GetGlobalHandle(llvm::Type* type, std::string& varname, unsi
 
 llvm::Value* CreateGlobal(llvm::Constant* initializer,  std::string& varname, volvoxc::FullType* ft, unsigned sym_kind)
 {
-	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & (A_atomic | A_const))) {
+	if (target_mingw && comp_mode == comp_dbg && !(sym_kind & (A_atomic | A_const)) &&
+	    !ft->type->isFunctionTy())
+	{
 		/* On Windows debugging of TLS globals is currently only working
 		   with gcc+mingw+gdb. So we only create a reference here and
 		   let gcc later do the actual allocation. We have to force the
@@ -1501,7 +1503,7 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 	if (is_referencing)
 		fv->mark_as_referencing(is_referencing);
 	if (comp_mode == comp_dbg && currentUnit && currentSP && !needs_call) {
-		if (expr->LHS->ft->ditype) {
+		if (!target_mingw && expr->LHS->ft->ditype) {
 			if (llvm::GlobalVariable* _GV = GV ? llvm::dyn_cast<llvm::GlobalVariable>(GV) : nullptr) {
 				// Create a debug descriptor for the variable.
 				bool local_to_unit = !((sym_kind & A_pub) || (target_mingw && !(sym_kind & (A_atomic | A_const))));
@@ -1510,9 +1512,6 @@ std::nullptr_t HandleGlobalVariable(std::unique_ptr<BinaryExprAST> expr, unsigne
 				_GV->addDebugInfo(D);
 				if ((sym_kind & A_pub) || (target_mingw && !(sym_kind & (A_atomic | A_const))))
 					_GV->setDSOLocal(true);
-				if (target_mingw && !(sym_kind & (A_atomic | A_const))) {
-					needs_debug_reinit = true;
-				}
 			}
 		} else
 			if (verbosity >= 2)

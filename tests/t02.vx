@@ -38,7 +38,6 @@ def test_local_array_get_and_set bool
 	return rx == -8.1875
 end
 
-
 def h [5]f64
 	&v = uPkL
 	r542p = 3.5
